@@ -8,7 +8,7 @@ mod noop_provider_tests {
     use super::*;
 
     fn create_context() -> ToolContext {
-        ToolContext::new("test-token")
+        ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "test-token")
     }
 
     #[tokio::test]

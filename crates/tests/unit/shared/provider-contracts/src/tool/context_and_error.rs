@@ -8,61 +8,61 @@ mod tool_context_tests {
 
     #[test]
     fn new_sets_auth_token() {
-        let ctx = ToolContext::new("token123");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token123");
         assert_eq!(ctx.auth_token, "token123");
     }
 
     #[test]
     fn new_defaults_session_id_to_none() {
-        let ctx = ToolContext::new("token");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token");
         assert!(ctx.session_id.is_none());
     }
 
     #[test]
     fn new_defaults_trace_id_to_none() {
-        let ctx = ToolContext::new("token");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token");
         assert!(ctx.trace_id.is_none());
     }
 
     #[test]
     fn new_defaults_ai_tool_call_id_to_none() {
-        let ctx = ToolContext::new("token");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token");
         assert!(ctx.ai_tool_call_id.is_none());
     }
 
     #[test]
     fn new_defaults_headers_to_empty() {
-        let ctx = ToolContext::new("token");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token");
         assert!(ctx.headers.is_empty());
     }
 
     #[test]
     fn with_session_id() {
-        let ctx = ToolContext::new("token").with_session_id(SessionId::new("sess-1"));
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token").with_session_id(SessionId::new("sess-1"));
         assert_eq!(ctx.session_id, Some(SessionId::new("sess-1")));
     }
 
     #[test]
     fn with_trace_id() {
-        let ctx = ToolContext::new("token").with_trace_id(TraceId::new("trace-1"));
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token").with_trace_id(TraceId::new("trace-1"));
         assert_eq!(ctx.trace_id, Some(TraceId::new("trace-1")));
     }
 
     #[test]
     fn with_ai_tool_call_id() {
-        let ctx = ToolContext::new("token").with_ai_tool_call_id(AiToolCallId::new("call-1"));
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token").with_ai_tool_call_id(AiToolCallId::new("call-1"));
         assert_eq!(ctx.ai_tool_call_id, Some(AiToolCallId::new("call-1")));
     }
 
     #[test]
     fn with_header() {
-        let ctx = ToolContext::new("token").with_header("X-Custom", "value");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token").with_header("X-Custom", "value");
         assert_eq!(ctx.headers.get("X-Custom"), Some(&"value".to_string()));
     }
 
     #[test]
     fn multiple_headers() {
-        let ctx = ToolContext::new("token")
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token")
             .with_header("H1", "v1")
             .with_header("H2", "v2");
         assert_eq!(ctx.headers.len(), 2);
@@ -70,7 +70,7 @@ mod tool_context_tests {
 
     #[test]
     fn is_debug() {
-        let ctx = ToolContext::new("token");
+        let ctx = ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "token");
         let debug = format!("{:?}", ctx);
         assert!(debug.contains("ToolContext"));
     }
