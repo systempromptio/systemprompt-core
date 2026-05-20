@@ -35,7 +35,7 @@ pub struct SecurityConfig {
     #[serde(default = "default_signing_key_path")]
     pub signing_key_path: PathBuf,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_issuers: Vec<TrustedIssuer>,
 }
 

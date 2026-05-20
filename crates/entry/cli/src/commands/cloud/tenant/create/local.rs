@@ -238,7 +238,7 @@ async fn setup_local_profile(tenant: &StoredTenant, name: &str, database_url: &s
     CliService::section("API Keys");
     let api_keys = collect_api_keys()?;
 
-    let profile = create_profile_for_tenant(tenant, &api_keys, &profile_name)?;
+    let profile = create_profile_for_tenant(tenant, &api_keys, &profile_name, None)?;
     CliService::success(&format!("Profile '{}' created", profile.name));
 
     let ctx = ProjectContext::discover();

@@ -11,6 +11,8 @@ use systemprompt_identifiers::TenantId;
 
 use crate::commands::cloud::tenant::get_credentials;
 
+use systemprompt_models::profile::TrustedIssuer;
+
 use super::api_keys::ApiKeys;
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::templates::{
@@ -28,6 +30,7 @@ pub fn create_profile_for_tenant(
     tenant: &StoredTenant,
     api_keys: &ApiKeys,
     profile_name: &str,
+    control_plane_api_url: Option<&str>,
 ) -> Result<CreatedProfile> {
     let ctx = ProjectContext::discover();
     let mut name = profile_name.to_string();
@@ -98,6 +101,14 @@ pub fn create_profile_for_tenant(
                 .with_secrets_path("./secrets.json");
             if let Some(hostname) = &tenant.hostname {
                 builder = builder.with_external_url(format!("https://{}", hostname));
+            }
+            if let Some(api_url) = control_plane_api_url {
+                let trimmed = api_url.trim_end_matches('/').to_string();
+                builder = builder.with_trusted_issuer(TrustedIssuer {
+                    issuer: trimmed.clone(),
+                    jwks_uri: format!("{}/.well-known/jwks.json", trimmed),
+                    audience: tenant.id.clone(),
+                });
             }
             builder.build()
         },
