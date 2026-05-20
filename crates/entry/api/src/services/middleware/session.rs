@@ -81,7 +81,7 @@ impl SessionMiddleware {
 
         if let Some(token) = jwt_cookie {
             let cookie =
-                format!("access_token={token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800");
+                format!("access_token={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800");
             if let Ok(cookie_value) = cookie.parse() {
                 response
                     .headers_mut()
