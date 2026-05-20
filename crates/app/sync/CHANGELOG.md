@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Breaking
+- The sync client no longer sends a static `SYNC_TOKEN` header. Operators must provision the `sys_sync` OAuth client (`provision_sync_oauth_client` in `systemprompt-oauth`) and configure the sync agent to mint a `client_credentials` Service-JWT.
+
+### Added
+- Service-JWT acquisition and rotation in the API client: tokens are requested via `client_credentials`, cached until expiry, and re-minted on a 401.
+- Typed `source_id` on content-diff structures, replacing borrowed `&str`.
+
+### Changed
+- API client request signing, error mapping, and front-matter `format!` call sites cleaned up of redundant references.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

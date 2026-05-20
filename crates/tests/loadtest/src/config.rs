@@ -1,5 +1,29 @@
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct NodeId(pub usize);
+
+impl std::fmt::Display for NodeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "node-{}", self.0)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ScenarioId(pub String);
+
+impl ScenarioId {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl std::fmt::Display for ScenarioId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Stage {
     pub duration: Duration,
@@ -27,9 +51,18 @@ impl LoadConfig {
             base_url,
             token,
             stages: vec![
-                Stage { duration: Duration::from_secs(10), target_users: 10 },
-                Stage { duration: Duration::from_secs(15), target_users: 10 },
-                Stage { duration: Duration::from_secs(5), target_users: 0 },
+                Stage {
+                    duration: Duration::from_secs(10),
+                    target_users: 10,
+                },
+                Stage {
+                    duration: Duration::from_secs(15),
+                    target_users: 10,
+                },
+                Stage {
+                    duration: Duration::from_secs(5),
+                    target_users: 0,
+                },
             ],
             thresholds: Thresholds {
                 p95_ms: 500,
@@ -39,15 +72,143 @@ impl LoadConfig {
         }
     }
 
+    pub fn airgap(base_url: String, token: Option<String>) -> Self {
+        Self {
+            base_url,
+            token,
+            stages: vec![
+                Stage {
+                    duration: Duration::from_secs(20),
+                    target_users: 20,
+                },
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 20,
+                },
+                Stage {
+                    duration: Duration::from_secs(20),
+                    target_users: 0,
+                },
+            ],
+            thresholds: Thresholds {
+                p95_ms: 300,
+                p99_ms: 600,
+                max_error_rate: 0.005,
+            },
+        }
+    }
+
+    pub fn scaled(base_url: String, token: Option<String>) -> Self {
+        Self {
+            base_url,
+            token,
+            stages: vec![
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 100,
+                },
+                Stage {
+                    duration: Duration::from_secs(120),
+                    target_users: 250,
+                },
+                Stage {
+                    duration: Duration::from_secs(120),
+                    target_users: 500,
+                },
+                Stage {
+                    duration: Duration::from_secs(180),
+                    target_users: 1000,
+                },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 0,
+                },
+            ],
+            thresholds: Thresholds {
+                p95_ms: 500,
+                p99_ms: 1000,
+                max_error_rate: 0.02,
+            },
+        }
+    }
+
+    pub fn soak(base_url: String, token: Option<String>) -> Self {
+        Self {
+            base_url,
+            token,
+            stages: vec![
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 20,
+                },
+                Stage {
+                    duration: Duration::from_secs(3600),
+                    target_users: 20,
+                },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 0,
+                },
+            ],
+            thresholds: Thresholds {
+                p95_ms: 250,
+                p99_ms: 400,
+                max_error_rate: 0.001,
+            },
+        }
+    }
+
+    pub fn spike(base_url: String, token: Option<String>) -> Self {
+        Self {
+            base_url,
+            token,
+            stages: vec![
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 50,
+                },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 800,
+                },
+                Stage {
+                    duration: Duration::from_secs(90),
+                    target_users: 50,
+                },
+                Stage {
+                    duration: Duration::from_secs(20),
+                    target_users: 0,
+                },
+            ],
+            thresholds: Thresholds {
+                p95_ms: 2000,
+                p99_ms: 5000,
+                max_error_rate: 0.10,
+            },
+        }
+    }
+
     pub fn default_profile(base_url: String, token: Option<String>) -> Self {
         Self {
             base_url,
             token,
             stages: vec![
-                Stage { duration: Duration::from_secs(30), target_users: 50 },
-                Stage { duration: Duration::from_secs(120), target_users: 100 },
-                Stage { duration: Duration::from_secs(60), target_users: 100 },
-                Stage { duration: Duration::from_secs(30), target_users: 0 },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 50,
+                },
+                Stage {
+                    duration: Duration::from_secs(120),
+                    target_users: 100,
+                },
+                Stage {
+                    duration: Duration::from_secs(60),
+                    target_users: 100,
+                },
+                Stage {
+                    duration: Duration::from_secs(30),
+                    target_users: 0,
+                },
             ],
             thresholds: Thresholds {
                 p95_ms: 300,

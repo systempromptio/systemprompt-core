@@ -103,14 +103,14 @@ pub use events::{
 };
 
 pub use analytics::{
-    AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
+    ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
     CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, FingerprintProvider,
     SessionAnalytics,
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, DynUserProvider, RoleProvider,
-    UserProvider,
+    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, DynUserProvider,
+    FederatedIdentityClaims, RoleProvider, UserProvider,
 };
 
 pub use storage::{

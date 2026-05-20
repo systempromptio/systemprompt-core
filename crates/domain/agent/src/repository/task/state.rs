@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use sqlx::PgPool;
+use systemprompt_identifiers::TaskId;
 use systemprompt_traits::RepositoryError;
 
 use super::mutations::task_state_to_db_string;
@@ -14,7 +15,7 @@ use crate::models::a2a::TaskState;
 
 pub async fn update_task_state(
     pool: &Arc<PgPool>,
-    task_id: &systemprompt_identifiers::TaskId,
+    task_id: &TaskId,
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
@@ -118,7 +119,7 @@ pub async fn update_task_state(
 
 pub async fn apply_notification_status(
     pool: &Arc<PgPool>,
-    task_id: &str,
+    task_id: &TaskId,
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
@@ -132,7 +133,7 @@ pub async fn apply_notification_status(
                 execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
             WHERE task_id = $2"#,
             timestamp,
-            task_id,
+            task_id.as_str(),
         )
         .execute(pool.as_ref())
         .await
@@ -142,7 +143,7 @@ pub async fn apply_notification_status(
             "UPDATE agent_tasks SET status = $1, updated_at = $2 WHERE task_id = $3",
             state,
             timestamp,
-            task_id,
+            task_id.as_str(),
         )
         .execute(pool.as_ref())
         .await
@@ -153,7 +154,7 @@ pub async fn apply_notification_status(
 
 pub async fn update_task_failed_with_error(
     pool: &Arc<PgPool>,
-    task_id: &systemprompt_identifiers::TaskId,
+    task_id: &TaskId,
     error_message: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {

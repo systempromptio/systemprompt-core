@@ -3,6 +3,7 @@ use systemprompt_extension::LoaderError;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
+use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{ContextMiddleware, JwtContextExtractor, RouterExt};
 
 pub(super) fn mount_extension_routes(
@@ -48,7 +49,7 @@ pub(super) fn mount_extension_routes(
         let ext_router = if requires_auth {
             ext_router_config
                 .router
-                .with_auth_middleware(user_middleware.clone())
+                .with_auth(user_middleware.clone(), AuthzPolicy::user())
         } else {
             ext_router_config.router
         };

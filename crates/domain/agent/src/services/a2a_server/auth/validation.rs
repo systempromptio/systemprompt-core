@@ -1,9 +1,9 @@
 use crate::services::shared::{AgentServiceError, Result};
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
-use systemprompt_traits::{AgentJwtClaims, AuthUser, GenerateTokenParams};
+use systemprompt_traits::{AgentJwtClaims, AuthUser};
 
 use super::types::{AgentAuthenticatedUser, AgentOAuthState};
 use crate::services::a2a_server::errors::{forbidden_response, unauthorized_response};
@@ -40,50 +40,6 @@ pub async fn validate_agent_token(
     }
 
     Ok(AgentAuthenticatedUser::from_jwt_claims(claims))
-}
-
-pub async fn generate_agent_token(
-    user_id: &UserId,
-    username: &str,
-    state: &AgentOAuthState,
-) -> Result<String> {
-    let jwt_provider = state
-        .jwt_provider
-        .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_string()))?;
-
-    let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
-
-    let params = GenerateTokenParams::new(user_id.clone(), username, session_id)
-        .with_permissions(vec!["a2a".to_string()])
-        .with_audiences(vec!["a2a".to_string()])
-        .with_expires_in_hours(1);
-
-    jwt_provider
-        .generate_token(params)
-        .map_err(|e| AgentServiceError::Internal(format!("Failed to generate A2A JWT token: {e}")))
-}
-
-pub async fn generate_cross_protocol_token(
-    user_id: &UserId,
-    username: &str,
-    state: &AgentOAuthState,
-) -> Result<String> {
-    let jwt_provider = state
-        .jwt_provider
-        .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_string()))?;
-
-    let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
-
-    let params = GenerateTokenParams::new(user_id.clone(), username, session_id)
-        .with_permissions(vec!["mcp".to_string(), "a2a".to_string()])
-        .with_audiences(vec!["mcp".to_string(), "a2a".to_string()])
-        .with_expires_in_hours(1);
-
-    jwt_provider.generate_token(params).map_err(|e| {
-        AgentServiceError::Internal(format!("Failed to generate cross-protocol JWT token: {e}"))
-    })
 }
 
 async fn verify_user_exists_and_active(

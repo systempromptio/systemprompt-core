@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. Logging surface unchanged; structured fields on the new replica-identity, outbox, and scheduler advisory-lock log sites follow the existing `tracing` conventions.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

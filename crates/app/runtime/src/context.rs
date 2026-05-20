@@ -4,7 +4,9 @@
 //! analytics, route classifier, etc.) cloned cheaply via [`Arc`].
 //! Constructed via [`crate::AppContextBuilder`] or [`AppContext::new`].
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+use tokio::task::JoinHandle;
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_database::DbPool;
@@ -32,6 +34,7 @@ pub struct AppContext {
     pub(crate) user_service: Option<Arc<UserService>>,
     pub(crate) app_paths: Arc<AppPaths>,
     pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
+    pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -49,6 +52,7 @@ impl std::fmt::Debug for AppContext {
             .field("user_service", &self.user_service.is_some())
             .field("app_paths", &"AppPaths")
             .field("marketplace_filter", &self.marketplace_filter)
+            .field("event_bridge", &self.event_bridge.get().is_some())
             .finish()
     }
 }
@@ -67,6 +71,7 @@ pub struct AppContextParts {
     pub user_service: Option<Arc<UserService>>,
     pub app_paths: Arc<AppPaths>,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
+    pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
 }
 
 impl AppContext {
@@ -93,6 +98,7 @@ impl AppContext {
             user_service: parts.user_service,
             app_paths: parts.app_paths,
             marketplace_filter: parts.marketplace_filter,
+            event_bridge: parts.event_bridge,
         }
     }
 
@@ -163,5 +169,9 @@ impl AppContext {
 
     pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
         &self.marketplace_filter
+    }
+
+    pub const fn event_bridge(&self) -> &Arc<OnceLock<JoinHandle<()>>> {
+        &self.event_bridge
     }
 }

@@ -33,7 +33,6 @@ pub(super) async fn dispatch_to_provider(
     let gateway_ctx = GatewayRequestContext {
         ai_request_id: rc.ai_request_id.clone(),
         user_id: principal.user_id,
-        tenant_id: principal.tenant_id,
         session_id: Some(session_id),
         context_id,
         gateway_conversation_id: Some(gateway_conversation_id),

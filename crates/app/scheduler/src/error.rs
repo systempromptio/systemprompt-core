@@ -56,6 +56,9 @@ pub enum SchedulerError {
     #[error("Job panicked: {0}")]
     Panic(String),
 
+    #[error("Distributed lock error: {0}")]
+    DistributedLock(String),
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 

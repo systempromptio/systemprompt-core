@@ -20,7 +20,8 @@ use systemprompt_identifiers::{SessionId, UserId};
 use crate::models::AnalyticsSession;
 
 pub use types::{
-    CreateSessionParams, SessionBehavioralData, SessionMigrationResult, SessionRecord,
+    ActiveSessionLookup, CreateSessionParams, SessionBehavioralData, SessionMigrationResult,
+    SessionRecord,
 };
 
 #[derive(Clone, Debug)]
@@ -38,6 +39,21 @@ impl SessionRepository {
 
     pub async fn find_by_id(&self, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
         queries::find_by_id(&self.pool, session_id).await
+    }
+
+    pub async fn find_active_by_id(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Option<ActiveSessionLookup>> {
+        queries::find_active_by_id(&self.pool, session_id).await
+    }
+
+    pub async fn revoke_session(&self, session_id: &SessionId) -> Result<()> {
+        mutations::revoke_session(&self.write_pool, session_id).await
+    }
+
+    pub async fn revoke_all_for_user(&self, user_id: &UserId) -> Result<u64> {
+        mutations::revoke_all_for_user(&self.write_pool, user_id).await
     }
 
     pub async fn find_by_fingerprint(

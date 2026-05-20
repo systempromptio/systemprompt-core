@@ -115,6 +115,13 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
     let secrets = SecretsBootstrap::get()?;
 
     Ok(Config {
+        instance_id: profile
+            .server
+            .instance_id
+            .clone()
+            .filter(|id| !id.trim().is_empty())
+            .unwrap_or_else(systemprompt_models::config::default_instance_id),
+        max_concurrent_streams: profile.server.max_concurrent_streams,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),
         database_url: secrets.database_url.clone(),

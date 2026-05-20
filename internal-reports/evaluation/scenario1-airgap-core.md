@@ -23,8 +23,8 @@ the egress inventory it consumes.
 
 ## Verified facts (from codebase exploration)
 
-**Inference path.** A client calls `POST /v1/gateway/messages` (Anthropic wire format)
-or `POST /v1/gateway/responses` (OpenAI). Handler:
+**Inference path.** A client calls `POST /v1/messages` (Anthropic wire format)
+or `POST /v1/responses` (OpenAI). Handler:
 `crates/entry/api/src/routes/gateway/messages/mod.rs::handle()`. The pipeline runs in
 `crates/entry/api/src/services/gateway/service/mod.rs::dispatch()`:
 
@@ -139,7 +139,15 @@ config-/request-gated:
   — CLI clients to the local agent/API; loopback in normal use.
 
 Optional egress to disable in config (Bucket 2 owns this): `google_search_enabled` per
-provider, cloud sync, external OAuth IdP.
+provider, and cloud sync.
+
+**Authentication.** systemprompt issues its own HS256 (HMAC-SHA256, shared-secret)
+service tokens internally — `crates/infra/security/src/auth/validation.rs` accepts only
+`Algorithm::HS256`. Customer IdP federation is supported today via the OAuth2
+authorization-code flow, not direct asymmetric (RS256/ES256/EdDSA) JWT verification —
+the latter is documented as roadmap in `documentation/security/threat-model.md`. For an
+air-gapped deployment any IdP used via OAuth2 must sit **inside** the network; an
+out-of-network IdP would be egress.
 
 **Existing harness.** `crates/tests/loadtest/` is a single-process generator. Scenarios
 are `pub async fn run(client, base_url, token, metrics)` functions, registered by a
@@ -179,7 +187,7 @@ calls.
 
 ### 2. New loadtest scenario `gateway_inference.rs`
 `crates/tests/loadtest/src/scenarios/gateway_inference.rs` — `pub async fn run(...)`
-that POSTs an Anthropic-format body to `{base_url}/v1/gateway/messages` with the
+that POSTs an Anthropic-format body to `{base_url}/v1/messages` with the
 required headers (`Authorization: Bearer`, `x-systemprompt-session-id`). Exercises the
 full pipeline (auth → policy → quota → safety scan → outbound to the mock). Measures the
 latency the platform adds on top of mock inference.

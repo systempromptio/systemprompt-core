@@ -3,7 +3,8 @@
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CloudConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<TenantId>,
@@ -25,7 +26,9 @@ impl CloudConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, schemars::JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum CloudValidationMode {
     #[default]

@@ -143,7 +143,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     });
     let tenant = store.find_tenant(tenant_id.as_str());
 
-    let (hostname, sync_token) =
+    let (hostname, sync_client_secret) =
         tenant.map_or((None, None), |t| (t.hostname.clone(), t.sync_token.clone()));
 
     let direction = match sync_type {
@@ -160,7 +160,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         api_token: creds.api_token.clone(),
         services_path: source.profile.paths.services.clone(),
         hostname,
-        sync_token,
+        sync_client_secret,
         local_database_url: None,
     };
 

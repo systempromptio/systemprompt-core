@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_agent::models::a2a::TaskState;
-use systemprompt_identifiers::{TaskId, UserId};
+use systemprompt_identifiers::{MessageId, TaskId, UserId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
 
@@ -129,7 +129,7 @@ async fn load_message_received(
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let task_repo = TaskRepository::new(db)?;
     let exists = task_repo
-        .message_exists(&request.entity_id)
+        .message_exists(&MessageId::new(request.entity_id.clone()))
         .await
         .map_err(|e| anyhow::anyhow!("Failed to load message: {}", e))?;
 

@@ -10,7 +10,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, TenantId, UserId};
+use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::error::OauthResult;
 
@@ -24,7 +24,6 @@ pub struct BridgeSessionRepository {
 pub struct UpsertBridgeSession {
     pub session_id: SessionId,
     pub user_id: UserId,
-    pub tenant_id: Option<TenantId>,
     pub bridge_version: String,
     pub os: String,
     pub hostname: String,
@@ -38,7 +37,6 @@ pub struct UpsertBridgeSession {
 pub struct BridgeSessionRow {
     pub session_id: SessionId,
     pub user_id: UserId,
-    pub tenant_id: Option<TenantId>,
     pub bridge_version: String,
     pub os: String,
     pub hostname: String,
@@ -62,25 +60,23 @@ impl BridgeSessionRepository {
         sqlx::query!(
             r#"
             INSERT INTO bridge_sessions (
-                session_id, user_id, tenant_id, bridge_version, os, hostname,
+                session_id, user_id, bridge_version, os, hostname,
                 last_heartbeat_at, last_activity_at,
                 forwarded_total, tokens_in_total, tokens_out_total
             )
-            VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9)
             ON CONFLICT (session_id) DO UPDATE SET
                 last_heartbeat_at = NOW(),
                 last_activity_at = COALESCE(EXCLUDED.last_activity_at, bridge_sessions.last_activity_at),
                 bridge_version = EXCLUDED.bridge_version,
                 os = EXCLUDED.os,
                 hostname = EXCLUDED.hostname,
-                tenant_id = EXCLUDED.tenant_id,
                 forwarded_total = EXCLUDED.forwarded_total,
                 tokens_in_total = EXCLUDED.tokens_in_total,
                 tokens_out_total = EXCLUDED.tokens_out_total
             "#,
             params.session_id.as_str(),
             params.user_id.as_str(),
-            params.tenant_id.as_ref().map(TenantId::as_str),
             params.bridge_version,
             params.os,
             params.hostname,
@@ -101,7 +97,6 @@ impl BridgeSessionRepository {
             r#"
             SELECT session_id as "session_id: SessionId",
                    user_id as "user_id: UserId",
-                   tenant_id as "tenant_id: TenantId",
                    bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
                    forwarded_total, tokens_in_total, tokens_out_total
@@ -128,7 +123,6 @@ impl BridgeSessionRepository {
             r#"
             SELECT session_id as "session_id: SessionId",
                    user_id as "user_id: UserId",
-                   tenant_id as "tenant_id: TenantId",
                    bridge_version, os, hostname,
                    started_at, last_heartbeat_at, last_activity_at,
                    forwarded_total, tokens_in_total, tokens_out_total

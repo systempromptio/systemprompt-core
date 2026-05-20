@@ -2,7 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ServerConfig {
     pub host: String,
 
@@ -25,9 +26,23 @@ pub struct ServerConfig {
 
     #[serde(default)]
     pub security_headers: SecurityHeadersConfig,
+
+    /// Stable identifier for this replica. Empty/unset resolves to the
+    /// OS hostname (or a generated short id) at config build time.
+    #[serde(default)]
+    pub instance_id: Option<String>,
+
+    /// Global cap on concurrent A2A SSE streams for this replica.
+    #[serde(default = "default_max_concurrent_streams")]
+    pub max_concurrent_streams: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+const fn default_max_concurrent_streams() -> usize {
+    crate::config::DEFAULT_MAX_CONCURRENT_STREAMS
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ContentNegotiationConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -49,7 +64,8 @@ fn default_markdown_suffix() -> String {
     ".md".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SecurityHeadersConfig {
     #[serde(default = "default_enabled")]
     pub enabled: bool,

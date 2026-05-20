@@ -9,9 +9,7 @@ use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
-use systemprompt_oauth::services::{
-    CreateAnonymousSessionInput, JwtSigningParams, SessionCreationService, generate_admin_jwt,
-};
+use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {
@@ -38,10 +36,6 @@ pub struct AnonymousTokenRequest {
     pub redirect_uri: Option<String>,
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    #[serde(default)]
-    pub user_id: Option<UserId>,
-    #[serde(default)]
-    pub email: Option<String>,
 }
 
 fn default_client_id() -> ClientId {
@@ -69,53 +63,6 @@ fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64
             .insert(header::SET_COOKIE, cookie_value);
     }
     response
-}
-
-async fn issue_cli_session(
-    session_service: &SessionCreationService,
-    req: &AnonymousTokenRequest,
-    user_id: &UserId,
-    headers: &HeaderMap,
-    expires_in: i64,
-) -> Response {
-    let email = req.email.clone().unwrap_or_else(|| user_id.to_string());
-    let client_id = req.client_id.clone();
-
-    let session_id = match session_service
-        .create_authenticated_session(user_id, headers, SessionSource::Cli)
-        .await
-    {
-        Ok(id) => id,
-        Err(e) => return server_error(format!("Failed to create CLI session: {e}")),
-    };
-
-    let jwt_secret = match systemprompt_config::SecretsBootstrap::jwt_secret() {
-        Ok(s) => s,
-        Err(e) => return server_error(format!("Failed to get JWT secret: {e}")),
-    };
-    let config = match systemprompt_models::Config::get() {
-        Ok(c) => c,
-        Err(e) => return server_error(format!("Failed to get config: {e}")),
-    };
-    let signing = JwtSigningParams {
-        secret: jwt_secret,
-        issuer: &config.jwt_issuer,
-    };
-    let jwt_token = match generate_admin_jwt(user_id, &session_id, &email, &client_id, &signing) {
-        Ok(token) => token,
-        Err(e) => return server_error(format!("Failed to generate JWT: {e}")),
-    };
-
-    let body = AnonymousTokenResponse {
-        access_token: jwt_token.clone(),
-        token_type: TokenType::Bearer.to_string(),
-        expires_in,
-        session_id,
-        user_id: user_id.clone(),
-        client_id,
-        client_type: "cli".to_string(),
-    };
-    token_response(body, &jwt_token, expires_in)
 }
 
 async fn issue_anonymous_session(
@@ -205,12 +152,6 @@ pub async fn generate_anonymous_token(
     let client_type = validation.client_type();
 
     let session_service = build_session_service(&state);
-
-    if let Some(ref user_id) = req.user_id {
-        if req.client_id == "sp_cli" {
-            return issue_cli_session(&session_service, &req, user_id, &headers, expires_in).await;
-        }
-    }
 
     issue_anonymous_session(
         &session_service,

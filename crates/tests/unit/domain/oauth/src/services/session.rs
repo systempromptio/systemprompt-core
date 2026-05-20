@@ -55,6 +55,21 @@ impl AnalyticsProvider for MockAnalyticsProvider {
         Ok(None)
     }
 
+    async fn find_active_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
+
+    async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+
+    async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+
     async fn migrate_user_sessions(
         &self,
         _from_user_id: &UserId,
@@ -111,6 +126,15 @@ impl UserProvider for MockUserProvider {
 
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
         Ok(())
+    }
+
+    async fn find_or_create_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+        _claims: &systemprompt_traits::FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        Ok(UserId::new("user_fed"))
     }
 }
 

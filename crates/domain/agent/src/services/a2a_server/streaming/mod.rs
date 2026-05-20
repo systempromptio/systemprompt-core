@@ -18,5 +18,5 @@ pub use event_loop::ProcessEventsParams;
 pub use event_loop_lifecycle::{
     EmitRunStartedParams, emit_run_started, handle_stream_creation_error,
 };
-pub use messages::{CreateSseStreamParams, create_sse_stream};
+pub use messages::{CreateSseStreamParams, StreamRejected, create_sse_stream};
 pub use types::{PersistTaskInput, StreamContext, StreamInput, StreamSetupResult};

@@ -5,6 +5,18 @@ All notable changes to `systemprompt-agent` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-20
+
+### Breaking
+- Repository signatures across `context/` and `task/` take typed `&ContextId`, `&AgentId`, `&TaskId`, `&MessageId` parameters instead of raw `&str`. Callers must construct identifiers via `Id::new(s)` / `Id::try_new(s)?` rather than passing borrowed strings.
+
+### Added
+- A global semaphore bounds in-flight A2A SSE streams using the replica-level concurrency cap supplied by `app/runtime`, so a single replica can't exhaust file descriptors under fan-out.
+- Typed notification + webhook path: `apply_notification_status` and `message_exists` consume typed identifiers end-to-end through the handler chain.
+
+### Removed
+- Dead `ToolProvider` trait and `AiServiceToolProvider`, which had no callers.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

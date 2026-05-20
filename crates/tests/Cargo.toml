@@ -11,8 +11,10 @@
 members = [
     # Integration tests
     "integration/database",
+    "integration/events",
     "integration/extension",
     "integration/oauth",
+    "integration/scheduler",
     # Unit tests - shared layer
     "unit/shared/extension",
     "unit/shared/traits",

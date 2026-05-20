@@ -1,25 +1,44 @@
 use std::process::Command;
 
-pub fn acquire_token(web_dir: &str) -> Result<String, String> {
-    let profile_path = format!("{web_dir}/.systemprompt/profiles/local/profile.yaml");
+// `admin_email`, when set, is forwarded as `--email`. This is required on
+// cloud-less deployments (e.g. air-gapped): without it the CLI falls back to
+// resolving the admin identity from cloud credentials, which an air-gapped box
+// will never have. When `None`, the CLI's cloud-credential path is used.
+pub fn acquire_token(
+    web_dir: &str,
+    profile: &str,
+    admin_email: Option<&str>,
+) -> Result<String, String> {
+    // Honour the `--profile` arg so the loadtest can self-acquire a token
+    // against any profile (air-gap, ci, local) — each has its own DB and
+    // jwt_secret, so a hardcoded `local` path would mint a token the target
+    // server rejects.
+    let profile_path = format!("{web_dir}/.systemprompt/profiles/{profile}/profile.yaml");
 
-    let output = Command::new(format!("{web_dir}/target/debug/systemprompt"))
+    let mut command = Command::new(format!("{web_dir}/target/debug/systemprompt"));
+    command
         .args(["admin", "session", "login", "--token-only"])
         .env("SYSTEMPROMPT_PROFILE", &profile_path)
-        .current_dir(web_dir)
+        .current_dir(web_dir);
+    if let Some(email) = admin_email {
+        command.args(["--email", email]);
+    }
+
+    let output = command
         .output()
         .map_err(|e| format!("Failed to run CLI: {e}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let token = stdout
+    stdout
         .lines()
         .rev()
         .find(|line| line.starts_with("eyJ"))
         .map(|s| s.trim().to_string())
         .ok_or_else(|| {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            format!("No JWT in CLI output. stderr: {stderr}")
-        })?;
-
-    Ok(token)
+            format!(
+                "No JWT in CLI output. On a cloud-less deployment, pass --admin-email (or export \
+                 SYSTEMPROMPT_ADMIN_EMAIL). stderr: {stderr}"
+            )
+        })
 }

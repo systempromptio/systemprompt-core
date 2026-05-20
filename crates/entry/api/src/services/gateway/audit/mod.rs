@@ -16,7 +16,7 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, SessionId, TenantId, TraceId, UserId,
+    AiRequestId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
 
 use super::captures::{CapturedToolUse, CapturedUsage};
@@ -29,7 +29,6 @@ use std::sync::Mutex;
 pub struct GatewayRequestContext {
     pub ai_request_id: AiRequestId,
     pub user_id: UserId,
-    pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
     pub context_id: ContextId,
     pub gateway_conversation_id: Option<GatewayConversationId>,
@@ -100,9 +99,6 @@ impl GatewayAudit {
                 .provider(self.ctx.provider.clone())
                 .model(self.ctx.model.clone())
                 .streaming(self.ctx.is_streaming);
-        if let Some(t) = &self.ctx.tenant_id {
-            record = record.tenant_id(t.clone());
-        }
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
         }

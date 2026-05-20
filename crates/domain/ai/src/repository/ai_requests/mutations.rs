@@ -119,7 +119,7 @@ impl AiRequestRepository {
     ) -> Result<AiRequestId, RepositoryError> {
         use systemprompt_identifiers::{
             ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId, TaskId,
-            TenantId, TraceId,
+            TraceId,
         };
 
         let status = record.status.as_str();
@@ -129,27 +129,31 @@ impl AiRequestRepository {
             RequestStatus::Completed | RequestStatus::Failed
         );
 
+        let actor_kind = record.actor.kind.as_str();
+        let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
+
         sqlx::query!(
             r#"
             INSERT INTO ai_requests (
-                id, request_id, user_id, tenant_id, session_id, task_id, context_id,
+                id, request_id, user_id, session_id, task_id, context_id,
                 gateway_conversation_id, provider_request_id, trace_id,
                 mcp_execution_id, provider, model, max_tokens, tokens_used, input_tokens, output_tokens,
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
+                actor_kind, actor_id,
                 created_at, updated_at, completed_at
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25,
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+                $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
+                $25, $26,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                CASE WHEN $26 THEN CURRENT_TIMESTAMP ELSE NULL END
+                CASE WHEN $27 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             "#,
             id.as_str(),
             record.request_id.as_str(),
             record.user_id.as_str(),
-            record.tenant_id.as_ref().map(TenantId::as_str),
             record.session_id.as_ref().map(SessionId::as_str),
             record.task_id.as_ref().map(TaskId::as_str),
             record.context_id.as_ref().map(ContextId::as_str),
@@ -171,6 +175,8 @@ impl AiRequestRepository {
             record.latency_ms,
             status,
             record.error_message.as_deref(),
+            actor_kind,
+            actor_id,
             use_completed_at
         )
         .execute(self.write_pool())

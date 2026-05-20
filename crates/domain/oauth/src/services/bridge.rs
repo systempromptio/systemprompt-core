@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    ClientId, PolicyVersion, SessionId, SessionSource, TenantId, TraceId, UserId, headers,
+    ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
@@ -57,7 +57,6 @@ pub async fn issue_bridge_access_with(
 
     let session_id = SessionId::generate();
     let trace_id = TraceId::generate();
-    let tenant_id = TenantId::new(global_config.jwt_issuer.clone());
     let policy_version = PolicyVersion::unversioned();
 
     let ttl_hours = i64::try_from((ttl_seconds / 3600).max(1)).unwrap_or(1);
@@ -85,7 +84,6 @@ pub async fn issue_bridge_access_with(
     hdrs.insert(headers::SESSION_ID.to_string(), session_id.to_string());
     hdrs.insert(headers::TRACE_ID.to_string(), trace_id.to_string());
     hdrs.insert(headers::CLIENT_ID.to_string(), client_id.to_string());
-    hdrs.insert(headers::TENANT_ID.to_string(), tenant_id.to_string());
     hdrs.insert(
         headers::POLICY_VERSION.to_string(),
         policy_version.to_string(),

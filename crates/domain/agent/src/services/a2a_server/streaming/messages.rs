@@ -37,7 +37,14 @@ impl std::fmt::Debug for CreateSseStreamParams {
     }
 }
 
-pub async fn create_sse_stream(params: CreateSseStreamParams) -> ReceiverStream<Event> {
+/// Returned by [`create_sse_stream`] when the global stream-concurrency cap
+/// is exhausted, so the streaming handler can answer with HTTP 503.
+#[derive(Debug, Clone, Copy)]
+pub struct StreamRejected;
+
+pub async fn create_sse_stream(
+    params: CreateSseStreamParams,
+) -> Result<ReceiverStream<Event>, StreamRejected> {
     let CreateSseStreamParams {
         message,
         agent_name,
@@ -46,6 +53,17 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> ReceiverStream<
         context,
         callback_config,
     } = params;
+
+    let Ok(permit) = Arc::clone(&state.stream_semaphore).try_acquire_owned() else {
+        tracing::warn!(
+            event = "a2a.stream.rejected",
+            agent = %agent_name,
+            available_permits = state.stream_semaphore.available_permits(),
+            "A2A stream rejected: global concurrency cap reached"
+        );
+        return Err(StreamRejected);
+    };
+
     let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
     tracing::info!("create_sse_stream() called - spawning tokio task");
@@ -60,6 +78,7 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> ReceiverStream<
     };
 
     tokio::spawn(async move {
+        let _permit = permit;
         tracing::info!("Inside tokio::spawn - task execution started");
 
         let Ok(setup) = setup_stream(input, &tx).await else {
@@ -112,5 +131,5 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> ReceiverStream<
         }
     });
 
-    ReceiverStream::new(rx)
+    Ok(ReceiverStream::new(rx))
 }

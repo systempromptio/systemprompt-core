@@ -6,14 +6,19 @@ use systemprompt_models::RequestContext;
 use super::validation::validate_message_context;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::streaming::{CreateSseStreamParams, create_sse_stream};
+use crate::services::a2a_server::streaming::{
+    CreateSseStreamParams, StreamRejected, create_sse_stream,
+};
 
 pub async fn handle_streaming_request(
     request: crate::models::a2a::A2aRequestParams,
     state: Arc<AgentHandlerState>,
     request_id: NumberOrString,
     context: RequestContext,
-) -> impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send {
+) -> Result<
+    impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send,
+    StreamRejected,
+> {
     use crate::models::a2a::A2aRequestParams;
     use futures::StreamExt;
     use tokio_stream::wrappers::ReceiverStream;
@@ -53,7 +58,7 @@ pub async fn handle_streaming_request(
             if let Err(e) = tx.try_send(Event::default().data(error_event.to_string())) {
                 tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");
             }
-            return ReceiverStream::new(rx).map(Ok);
+            return Ok(ReceiverStream::new(rx).map(Ok));
         }
 
         let callback_config = params
@@ -61,7 +66,7 @@ pub async fn handle_streaming_request(
             .as_ref()
             .and_then(|c| c.push_notification_config.clone());
 
-        create_sse_stream(CreateSseStreamParams {
+        Ok(create_sse_stream(CreateSseStreamParams {
             message: params.message,
             agent_name,
             state,
@@ -69,8 +74,8 @@ pub async fn handle_streaming_request(
             context,
             callback_config,
         })
-        .await
-        .map(Ok)
+        .await?
+        .map(Ok))
     } else {
         tracing::warn!("Request type not SendStreamingMessage, returning error stream");
         let error_event = json!({
@@ -87,6 +92,6 @@ pub async fn handle_streaming_request(
         if let Err(e) = tx.try_send(Event::default().data(error_event.to_string())) {
             tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");
         }
-        ReceiverStream::new(rx).map(Ok)
+        Ok(ReceiverStream::new(rx).map(Ok))
     }
 }

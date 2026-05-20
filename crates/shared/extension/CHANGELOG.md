@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. Extension trait surface unchanged; downstream crates continue to register via `register_extension!` and `extension_migrations!()`.
+
 ## [0.9.2] - 2026-05-14
 
 ### Breaking
