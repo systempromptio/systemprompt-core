@@ -14,11 +14,9 @@ fn extract_registration_token(headers: &HeaderMap) -> Result<String, OAuthHttpEr
         .to_str()
         .map_err(|_| OAuthHttpError::invalid_token("Invalid authorization header format"))?;
 
-    let token = auth_header
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| {
-            OAuthHttpError::invalid_token("Authorization header must use Bearer scheme")
-        })?;
+    let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+        OAuthHttpError::invalid_token("Authorization header must use Bearer scheme")
+    })?;
 
     if !token.starts_with("reg_") {
         return Err(OAuthHttpError::invalid_token(

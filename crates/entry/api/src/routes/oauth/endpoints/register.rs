@@ -41,9 +41,8 @@ pub async fn register_client(
         .clone();
     let registration_client_uri = format!("{base_url}/api/v1/core/oauth/register/{client_id}");
 
-    let client_secret_hash = hash(&client_secret, 12).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to hash client secret: {e}"))
-    })?;
+    let client_secret_hash = hash(&client_secret, 12)
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to hash client secret: {e}")))?;
 
     let client_name = request
         .get_client_name()

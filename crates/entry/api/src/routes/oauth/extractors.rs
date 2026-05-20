@@ -16,9 +16,11 @@ impl FromRequestParts<OAuthState> for OAuthRepo {
         _parts: &mut Parts,
         state: &OAuthState,
     ) -> Result<Self, Self::Rejection> {
-        OAuthRepository::new(state.db_pool()).map(OAuthRepo).map_err(|e| {
-            OAuthHttpError::server_error(format!("Repository initialization failed: {e}"))
-                .into_response()
-        })
+        OAuthRepository::new(state.db_pool())
+            .map(OAuthRepo)
+            .map_err(|e| {
+                OAuthHttpError::server_error(format!("Repository initialization failed: {e}"))
+                    .into_response()
+            })
     }
 }
