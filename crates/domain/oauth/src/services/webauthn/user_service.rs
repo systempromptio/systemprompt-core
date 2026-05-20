@@ -74,7 +74,9 @@ impl UserCreationService {
             .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
             .is_some()
         {
-            return Err(crate::error::OauthError::UsernameTaken(username.to_string()));
+            return Err(crate::error::OauthError::UsernameTaken(
+                username.to_string(),
+            ));
         }
 
         self.find_or_create_user_with_webauthn_registration(username, email, full_name, None)

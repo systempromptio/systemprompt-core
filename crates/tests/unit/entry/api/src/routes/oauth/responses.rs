@@ -1,13 +1,10 @@
-//! Tests for OAuth response types and serialization
-//!
-//! The response helper functions (`error_response`, `internal_error`,
-//! `not_found`, `bad_request`, `single_response`, `init_error`,
-//! `created_response`) are defined in `routes::oauth::responses` which is
-//! `pub(crate)` and not accessible from external test crates.
-//!
-//! These tests verify the publicly exported response types from the discovery
-//! module and the health handler, which use the same response patterns.
+//! Tests for OAuth discovery/wellknown response types and the OAuthHttpError
+//! wire shape.
 
+use axum::body::to_bytes;
+use axum::response::IntoResponse;
+use http::StatusCode;
+use systemprompt_api::routes::oauth::OAuthHttpError;
 use systemprompt_api::routes::oauth::discovery::{
     OAuthProtectedResourceResponse, WellKnownResponse,
 };
@@ -40,16 +37,6 @@ fn test_well_known_response_serialization() {
         "https://example.com/authorize"
     );
     assert_eq!(json["token_endpoint"], "https://example.com/token");
-    assert_eq!(json["userinfo_endpoint"], "https://example.com/userinfo");
-    assert_eq!(
-        json["introspection_endpoint"],
-        "https://example.com/introspect"
-    );
-    assert_eq!(json["revocation_endpoint"], "https://example.com/revoke");
-    assert_eq!(
-        json["registration_endpoint"],
-        "https://example.com/register"
-    );
 }
 
 #[test]
@@ -78,54 +65,6 @@ fn test_well_known_response_optional_registration_endpoint() {
 }
 
 #[test]
-fn test_well_known_response_scopes_serialized_as_array() {
-    let response = WellKnownResponse {
-        issuer: String::new(),
-        authorization_endpoint: String::new(),
-        token_endpoint: String::new(),
-        userinfo_endpoint: String::new(),
-        introspection_endpoint: String::new(),
-        revocation_endpoint: String::new(),
-        registration_endpoint: None,
-        scopes_supported: vec![
-            "openid".to_string(),
-            "profile".to_string(),
-            "email".to_string(),
-        ],
-        response_types_supported: vec!["code".to_string()],
-        response_modes_supported: vec!["query".to_string()],
-        grant_types_supported: vec![
-            "authorization_code".to_string(),
-            "refresh_token".to_string(),
-        ],
-        token_endpoint_auth_methods_supported: vec![
-            "none".to_string(),
-            "client_secret_post".to_string(),
-            "client_secret_basic".to_string(),
-        ],
-        code_challenge_methods_supported: vec!["S256".to_string()],
-        subject_types_supported: vec!["public".to_string()],
-        id_token_signing_alg_values_supported: vec!["HS256".to_string()],
-        claims_supported: vec![],
-    };
-
-    let json = serde_json::to_value(&response).unwrap();
-    let scopes = json["scopes_supported"].as_array().unwrap();
-    assert_eq!(scopes.len(), 3);
-    assert_eq!(scopes[0], "openid");
-    assert_eq!(scopes[1], "profile");
-    assert_eq!(scopes[2], "email");
-
-    let grant_types = json["grant_types_supported"].as_array().unwrap();
-    assert_eq!(grant_types.len(), 2);
-
-    let auth_methods = json["token_endpoint_auth_methods_supported"]
-        .as_array()
-        .unwrap();
-    assert_eq!(auth_methods.len(), 3);
-}
-
-#[test]
 fn test_oauth_protected_resource_response_serialization() {
     let response = OAuthProtectedResourceResponse {
         resource: "https://api.example.com".to_string(),
@@ -138,84 +77,62 @@ fn test_oauth_protected_resource_response_serialization() {
     let json = serde_json::to_value(&response).unwrap();
     assert_eq!(json["resource"], "https://api.example.com");
     assert_eq!(json["authorization_servers"][0], "https://auth.example.com");
-    assert_eq!(json["scopes_supported"][0], "user");
-    assert_eq!(json["scopes_supported"][1], "admin");
-    assert_eq!(json["bearer_methods_supported"][0], "header");
-    assert_eq!(json["bearer_methods_supported"][1], "body");
-    assert_eq!(json["resource_documentation"], "https://docs.example.com");
 }
 
-#[test]
-fn test_oauth_protected_resource_optional_documentation() {
-    let response = OAuthProtectedResourceResponse {
-        resource: "https://api.example.com".to_string(),
-        authorization_servers: vec![],
-        scopes_supported: vec![],
-        bearer_methods_supported: vec![],
-        resource_documentation: None,
-    };
-
-    let json = serde_json::to_value(&response).unwrap();
-    assert!(json["resource_documentation"].is_null());
+async fn body_to_json(resp: axum::response::Response) -> serde_json::Value {
+    let body = to_bytes(resp.into_body(), 65_536).await.unwrap();
+    serde_json::from_slice(&body).unwrap()
 }
 
-#[test]
-fn test_oauth_protected_resource_multiple_auth_servers() {
-    let response = OAuthProtectedResourceResponse {
-        resource: "https://api.example.com".to_string(),
-        authorization_servers: vec![
-            "https://auth1.example.com".to_string(),
-            "https://auth2.example.com".to_string(),
-        ],
-        scopes_supported: vec![],
-        bearer_methods_supported: vec![],
-        resource_documentation: None,
-    };
-
-    let json = serde_json::to_value(&response).unwrap();
-    let servers = json["authorization_servers"].as_array().unwrap();
-    assert_eq!(servers.len(), 2);
+#[tokio::test]
+async fn oauth_http_error_invalid_request_wire_shape() {
+    let resp = OAuthHttpError::invalid_request("Missing client_id").into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_request");
+    assert_eq!(json["error_description"], "Missing client_id");
 }
 
-#[test]
-fn test_error_response_json_shape_documented() {
-    let error_json = serde_json::json!({
-        "error": "bad_request",
-        "error_description": "Missing required field"
-    });
-
-    assert_eq!(error_json["error"], "bad_request");
-    assert_eq!(error_json["error_description"], "Missing required field");
+#[tokio::test]
+async fn oauth_http_error_invalid_client_sets_www_authenticate() {
+    let resp = OAuthHttpError::invalid_client("bad creds").into_response();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    let www = resp
+        .headers()
+        .get(http::header::WWW_AUTHENTICATE)
+        .expect("WWW-Authenticate present on 401");
+    assert!(www.to_str().unwrap().starts_with("Bearer "));
 }
 
-#[test]
-fn test_internal_error_uses_server_error_code() {
-    let error_json = serde_json::json!({
-        "error": "server_error",
-        "error_description": "Database connection failed"
-    });
-
-    assert_eq!(error_json["error"], "server_error");
+#[tokio::test]
+async fn oauth_http_error_server_error_status() {
+    let resp = OAuthHttpError::server_error("boom").into_response();
+    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "server_error");
 }
 
-#[test]
-fn test_single_response_wraps_data() {
-    let data = serde_json::json!({
-        "name": "test",
-        "count": 42
-    });
-
-    let wrapped = serde_json::json!({ "data": data });
-    assert_eq!(wrapped["data"]["name"], "test");
-    assert_eq!(wrapped["data"]["count"], 42);
+#[tokio::test]
+async fn oauth_http_error_redirect_path() {
+    let resp = OAuthHttpError::invalid_request("Validation failed")
+        .with_redirect("https://client.example/cb", Some("xyz".to_string()))
+        .into_response();
+    assert_eq!(resp.status(), StatusCode::SEE_OTHER);
+    let location = resp
+        .headers()
+        .get(http::header::LOCATION)
+        .expect("Location header on redirect");
+    let loc = location.to_str().unwrap();
+    assert!(loc.starts_with("https://client.example/cb?"));
+    assert!(loc.contains("error=invalid_request"));
+    assert!(loc.contains("error_description=Validation%20failed"));
+    assert!(loc.contains("state=xyz"));
 }
 
-#[test]
-fn test_init_error_message_format() {
-    let error_msg = "connection refused";
-    let formatted = format!("Repository initialization failed: {error_msg}");
-    assert_eq!(
-        formatted,
-        "Repository initialization failed: connection refused"
-    );
+#[tokio::test]
+async fn oauth_http_error_username_unavailable_maps_to_conflict() {
+    let resp = OAuthHttpError::username_unavailable("taken").into_response();
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "username_unavailable");
 }

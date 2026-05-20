@@ -36,9 +36,7 @@ pub async fn finish_link(
     let user_provider = Arc::clone(state.user_provider());
     let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
         .await
-        .map_err(|e| {
-            OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}"))
-        })?;
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
 
     let user_id = webauthn_service
         .finish_registration_with_token(

@@ -32,8 +32,9 @@ pub async fn handle_revoke(
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let audit_user = get_audit_user(Some(&req_ctx.auth.actor.user_id))
-        .map_err(|e| OAuthHttpError::invalid_request(format!("Authenticated user required: {e}")))?;
+    let audit_user = get_audit_user(Some(&req_ctx.auth.actor.user_id)).map_err(|e| {
+        OAuthHttpError::invalid_request(format!("Authenticated user required: {e}"))
+    })?;
 
     let token_type = request
         .token_type_hint

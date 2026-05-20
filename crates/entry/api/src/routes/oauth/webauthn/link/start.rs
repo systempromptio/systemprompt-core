@@ -38,18 +38,15 @@ pub async fn start_link(
     let user_provider = Arc::clone(state.user_provider());
     let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
         .await
-        .map_err(|e| {
-            OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}"))
-        })?;
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
 
     let (challenge, challenge_id, user_info) = webauthn_service
         .start_registration_with_token(&params.token, state.link_states())
         .await
         .map_err(|e| OAuthHttpError::link_failed(e.to_string()))?;
 
-    let mut challenge_json = serde_json::to_value(&challenge).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}"))
-    })?;
+    let mut challenge_json = serde_json::to_value(&challenge)
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}")))?;
 
     if let Some(public_key) = challenge_json.get_mut("publicKey")
         && let Some(authenticator_selection) = public_key.get_mut("authenticatorSelection")
@@ -58,9 +55,8 @@ pub async fn start_link(
         obj.remove("authenticatorAttachment");
     }
 
-    let header_value = HeaderValue::from_str(&challenge_id).map_err(|e| {
-        OAuthHttpError::server_error(format!("Invalid challenge ID format: {e}"))
-    })?;
+    let header_value = HeaderValue::from_str(&challenge_id)
+        .map_err(|e| OAuthHttpError::server_error(format!("Invalid challenge ID format: {e}")))?;
 
     let mut headers = HeaderMap::new();
     headers.insert(HeaderName::from_static("x-challenge-id"), header_value);

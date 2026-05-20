@@ -37,9 +37,7 @@ pub async fn start_auth(
 
     let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
         .await
-        .map_err(|e| {
-            OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}"))
-        })?;
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
 
     let (challenge, challenge_id) = webauthn_service
         .start_authentication(&params.email, params.oauth_state)
@@ -53,9 +51,8 @@ pub async fn start_auth(
             }
         })?;
 
-    let challenge_json = serde_json::to_value(&challenge).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}"))
-    })?;
+    let challenge_json = serde_json::to_value(&challenge)
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}")))?;
 
     let mut public_key = challenge_json
         .get("publicKey")
@@ -100,9 +97,7 @@ pub async fn finish_auth(
 
     let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
         .await
-        .map_err(|e| {
-            OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}"))
-        })?;
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
 
     let (user_id, oauth_state) = webauthn_service
         .finish_authentication(request.challenge_id.as_str(), &request.credential)

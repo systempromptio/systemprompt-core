@@ -61,15 +61,15 @@ pub async fn finish_register(
     OAuthRepo(oauth_repo): OAuthRepo,
     Json(request): Json<FinishRegisterRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    request.validate().map_err(OAuthHttpError::invalid_request)?;
+    request
+        .validate()
+        .map_err(OAuthHttpError::invalid_request)?;
 
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
         .await
-        .map_err(|e| {
-            OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}"))
-        })?;
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}")))?;
 
     let mut builder = FinishRegistrationParams::builder(
         request.challenge_id.as_str(),
@@ -81,7 +81,9 @@ pub async fn finish_register(
         builder = builder.with_full_name(name);
     }
 
-    let user_id = webauthn_service.finish_registration(builder.build()).await?;
+    let user_id = webauthn_service
+        .finish_registration(builder.build())
+        .await?;
 
     if let Some(publisher) = state.event_publisher() {
         publisher.publish_user_event(systemprompt_traits::UserEvent::UserCreated {
