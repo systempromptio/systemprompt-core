@@ -189,7 +189,7 @@ fn test_validation_report_typical_config_errors() {
     let mut report = ValidationReport::new();
 
     report.add_error("Required variable missing: DATABASE_URL".to_string());
-    report.add_error("Required variable missing: JWT_SECRET".to_string());
+    report.add_error("Required variable missing: OAUTH_AT_REST_PEPPER".to_string());
     report.add_warning("PORT not explicitly set".to_string());
 
     assert!(!report.is_valid());

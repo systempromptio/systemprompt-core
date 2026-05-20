@@ -1,21 +1,12 @@
 //! Unit tests for LogEntry struct
 
-use std::sync::Once;
-
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_models::services::SystemAdmin;
-use systemprompt_test_fixtures::fixture_user_id;
-
-static INSTALL_ADMIN: Once = Once::new();
+use systemprompt_test_fixtures::{fixture_system_admin, fixture_user_id};
 
 fn ensure_system_admin_installed() {
-    INSTALL_ADMIN.call_once(|| {
-        let _ = SystemAdmin::install(SystemAdmin::new(
-            UserId::new("admin"),
-            "admin".to_string(),
-        ));
-    });
+    SystemAdmin::get_or_install(fixture_system_admin("platform-admin"));
 }
 
 fn fixture_session_id() -> SessionId {
@@ -266,11 +257,14 @@ fn test_log_entry_roundtrip() {
 #[test]
 fn test_log_entry_platform_event_attributes_to_platform_owner() {
     ensure_system_admin_installed();
+    let expected_user_id = SystemAdmin::current_id()
+        .expect("SystemAdmin installed for the test")
+        .clone();
     let actor = LogActor::platform(TraceId::new("trace-platform"))
         .expect("SystemAdmin installed for the test");
     let entry = LogEntry::new(LogLevel::Info, "module", "platform-internal event", actor);
 
-    assert_eq!(entry.user_id, UserId::new("admin"));
+    assert_eq!(entry.user_id, expected_user_id);
     assert_eq!(entry.session_id, SessionId::system());
     assert_eq!(entry.trace_id.as_str(), "trace-platform");
 }

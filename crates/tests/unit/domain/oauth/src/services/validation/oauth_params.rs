@@ -1,7 +1,8 @@
 //! Tests for OAuth parameter validation
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::{AuthError, GrantType, ResponseType};
+use systemprompt_models::AuthError;
+use systemprompt_oauth::{GrantType, ResponseType};
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::validation::{
     CsrfToken, ValidatedClientRegistration, get_audit_user, optional_param, required_param,
@@ -320,12 +321,12 @@ fn test_validated_client_registration_multiple_values() {
             "https://example.com/callback2".to_string(),
         ],
         grant_types: vec![GrantType::AuthorizationCode, GrantType::RefreshToken],
-        response_types: vec![ResponseType::Code, ResponseType::Token],
+        response_types: vec![ResponseType::Code],
     };
 
     assert_eq!(registration.redirect_uris.len(), 2);
     assert_eq!(registration.grant_types.len(), 2);
-    assert_eq!(registration.response_types.len(), 2);
+    assert_eq!(registration.response_types.len(), 1);
 }
 
 #[test]

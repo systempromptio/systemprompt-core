@@ -18,11 +18,11 @@ fn create_valid_config(environment: DeployEnvironment) -> EnvironmentConfig {
         "API_SERVER_URL".to_string(),
         "http://localhost:8080".to_string(),
     );
-    variables.insert(
-        "JWT_SECRET".to_string(),
-        "super_secret_key_12345".to_string(),
-    );
     variables.insert("JWT_ISSUER".to_string(), "test-issuer".to_string());
+    variables.insert(
+        "OAUTH_AT_REST_PEPPER".to_string(),
+        "this-is-a-long-enough-pepper-1234567890".to_string(),
+    );
 
     EnvironmentConfig {
         environment,

@@ -6,7 +6,7 @@ use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey,
 };
 use systemprompt_identifiers::{
-    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
 };
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;

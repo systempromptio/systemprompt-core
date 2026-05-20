@@ -55,20 +55,20 @@ fn ensure_test_secrets_bootstrap() {
         // SAFETY: single-threaded test init.
         unsafe {
             env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
-            if env::var("JWT_SECRET").is_err() {
-                env::set_var(
-                    "JWT_SECRET",
-                    "test_jwt_secret_for_integration_tests_padding_zzz",
-                );
-            }
             if env::var("OAUTH_AT_REST_PEPPER").is_err() {
                 env::set_var(
                     "OAUTH_AT_REST_PEPPER",
                     "test_oauth_at_rest_pepper_for_integration_tests_zzz",
                 );
             }
+            if env::var("MANIFEST_SIGNING_SECRET_SEED").is_err() {
+                env::set_var(
+                    "MANIFEST_SIGNING_SECRET_SEED",
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                );
+            }
         }
-        let _ = SecretsBootstrap::try_init();
+        SecretsBootstrap::try_init().expect("SecretsBootstrap::try_init should succeed in tests");
     });
 }
 

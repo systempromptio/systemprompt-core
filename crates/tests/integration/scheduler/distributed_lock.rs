@@ -34,7 +34,7 @@ use systemprompt_models::{AppPaths, Config, RouteClassifier};
 use systemprompt_runtime::{AppContext, AppContextParts, ModuleApiRegistry};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{fixture_system_admin, fixture_user_id};
 
 /// Job name used by both replicas in this test. Unique enough not to collide
 /// with the built-in jobs discovered via `inventory`.
@@ -121,6 +121,7 @@ fn test_config(database_url: &str) -> Config {
         rate_limits: RateLimitConfig::default(),
         cors_allowed_origins: vec![],
         is_cloud: false,
+        system_admin_username: "admin".to_string(),
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
@@ -160,6 +161,7 @@ fn test_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>
         app_paths,
         marketplace_filter: Arc::new(AllowAllFilter),
         event_bridge: Arc::new(OnceLock::new()),
+        system_admin: Arc::new(fixture_system_admin("admin")),
     };
 
     Ok(Arc::new(AppContext::from_parts(parts)))

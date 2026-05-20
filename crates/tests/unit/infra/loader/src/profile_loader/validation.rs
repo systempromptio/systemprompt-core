@@ -57,6 +57,9 @@ rate_limits:
   stream_per_second: 50
   content_per_second: 100
   burst_multiplier: 2
+
+system_admin:
+  username: admin
 "#,
         temp_dir.path().join("system").display(),
         temp_dir.path().join("services").display(),
@@ -123,6 +126,9 @@ rate_limits:
   stream_per_second: 50
   content_per_second: 100
   burst_multiplier: 2
+
+system_admin:
+  username: admin
 "#,
         temp_dir.path().join("system").display(),
         temp_dir.path().join("services").display(),
@@ -192,6 +198,9 @@ rate_limits:
   stream_per_second: 50
   content_per_second: 100
   burst_multiplier: 2
+
+system_admin:
+  username: admin
 "#,
         temp_dir.path().join("system").display(),
         temp_dir.path().join("services").display(),

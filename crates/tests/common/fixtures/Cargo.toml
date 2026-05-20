@@ -6,4 +6,5 @@ publish = false
 
 [dependencies]
 systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
 uuid = { workspace = true }
