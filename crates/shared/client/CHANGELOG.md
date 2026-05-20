@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. No public API change beyond inherited typed-identifier and rustdoc standards work.
+
 ## [0.10.1] - 2026-05-15
 
 ### Changed

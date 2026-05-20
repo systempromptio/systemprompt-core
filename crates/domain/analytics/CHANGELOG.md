@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Refreshed offline `.sqlx/` query cache for the 0.11.0 workspace: every analytics query is re-verified against the post-tenancy-strip schema.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

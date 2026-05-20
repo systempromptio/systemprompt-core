@@ -10,14 +10,32 @@ DROP INDEX IF EXISTS idx_ai_gateway_policies_tenant;
 ALTER TABLE ai_gateway_policies
     DROP CONSTRAINT IF EXISTS ai_gateway_policies_tenant_id_name_key;
 ALTER TABLE ai_gateway_policies DROP COLUMN IF EXISTS tenant_id;
-ALTER TABLE ai_gateway_policies
-    ADD CONSTRAINT ai_gateway_policies_name_key UNIQUE (name);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'ai_gateway_policies_name_key'
+          AND table_name = 'ai_gateway_policies'
+    ) THEN
+        ALTER TABLE ai_gateway_policies
+            ADD CONSTRAINT ai_gateway_policies_name_key UNIQUE (name);
+    END IF;
+END $$;
 
 DROP INDEX IF EXISTS idx_ai_quota_buckets_tenant_user;
 ALTER TABLE ai_quota_buckets
     DROP CONSTRAINT IF EXISTS ai_quota_buckets_tenant_id_user_id_window_seconds_window_st_key;
 ALTER TABLE ai_quota_buckets DROP COLUMN IF EXISTS tenant_id;
-ALTER TABLE ai_quota_buckets
-    ADD CONSTRAINT ai_quota_buckets_user_id_window_seconds_window_start_key
-    UNIQUE (user_id, window_seconds, window_start);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'ai_quota_buckets_user_id_window_seconds_window_start_key'
+          AND table_name = 'ai_quota_buckets'
+    ) THEN
+        ALTER TABLE ai_quota_buckets
+            ADD CONSTRAINT ai_quota_buckets_user_id_window_seconds_window_start_key
+            UNIQUE (user_id, window_seconds, window_start);
+    END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_ai_quota_buckets_user ON ai_quota_buckets(user_id);

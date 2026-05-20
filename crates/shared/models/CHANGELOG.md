@@ -1,9 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.0] - 2026-05-20
 
 ### Breaking
-- **Breaking:** `JwtAudience::Cowork` renamed to `JwtAudience::Bridge`; `as_str()` now returns `"bridge"`. Migrate by re-issuing JWTs minted under the old name; tokens with the previous audience no longer validate.
+- `JwtAudience::Cowork` renamed to `JwtAudience::Bridge`; `as_str()` now returns `"bridge"`. Migrate by re-issuing JWTs minted under the old name; tokens with the previous audience no longer validate.
+
+### Added
+- `JsonSchema` derives across the profile config tree (`profile/{security,governance,runtime,gateway,server,cloud,site,paths,...}`) so profiles can be introspected and validated against a generated schema.
+- `auth::enums` adjustments to align audiences with the Service-JWT sync handshake.
 
 ## [0.4.3] - 2026-04-29
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- `ClientId::sync()` and `ClientId::bridge()` constructors for the well-known OAuth client identifiers used by the Service-JWT sync handshake and the bridge session flow.
+- Typed header newtypes used by the sync client (`Authorization`, request identifiers) so call sites no longer pass borrowed `&str`.
+
 ## [0.10.0] - 2026-05-14
 
 ### Changed

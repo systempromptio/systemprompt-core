@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. MCP server lifecycle and transport surfaces unchanged.
+
 ## [0.10.2] - 2026-05-15
 
 ### Added
