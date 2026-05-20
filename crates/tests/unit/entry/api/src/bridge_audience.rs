@@ -57,7 +57,7 @@ fn mint_token(audience: &str) -> String {
 #[test]
 fn bridge_audience_token_accepted_by_bridge_validator() {
     let token = mint_token(JwtAudience::Bridge.as_str());
-    let claims = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Bridge])
+    let claims = validate_jwt_token(&token, TEST_ISSUER, &[JwtAudience::Bridge])
         .expect("Bridge-aud token must be accepted by validator allowing Bridge");
     assert!(claims.aud.contains(&JwtAudience::Bridge));
     assert_eq!(claims.sub, TEST_USER_UUID);
@@ -66,7 +66,7 @@ fn bridge_audience_token_accepted_by_bridge_validator() {
 #[test]
 fn legacy_api_audience_token_rejected() {
     let token = mint_token(JwtAudience::Api.as_str());
-    let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Bridge]);
+    let result = validate_jwt_token(&token, TEST_ISSUER, &[JwtAudience::Bridge]);
     assert!(
         result.is_err(),
         "Api-aud token must be rejected by Bridge-only validator (no grace fallback)"
@@ -76,7 +76,7 @@ fn legacy_api_audience_token_rejected() {
 #[test]
 fn non_bridge_non_api_audience_rejected() {
     let token = mint_token(JwtAudience::Mcp.as_str());
-    let result = validate_jwt_token(&token, TEST_SECRET, TEST_ISSUER, &[JwtAudience::Bridge]);
+    let result = validate_jwt_token(&token, TEST_ISSUER, &[JwtAudience::Bridge]);
     assert!(
         result.is_err(),
         "Mcp-aud token must be rejected by Bridge validator"
