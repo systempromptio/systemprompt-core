@@ -1,10 +1,10 @@
 use axum::extract::FromRequestParts;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use http::request::Parts;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 
-use super::responses::init_error;
+use super::OAuthHttpError;
 
 #[derive(Debug)]
 pub struct OAuthRepo(pub OAuthRepository);
@@ -16,8 +16,9 @@ impl FromRequestParts<OAuthState> for OAuthRepo {
         _parts: &mut Parts,
         state: &OAuthState,
     ) -> Result<Self, Self::Rejection> {
-        OAuthRepository::new(state.db_pool())
-            .map(OAuthRepo)
-            .map_err(init_error)
+        OAuthRepository::new(state.db_pool()).map(OAuthRepo).map_err(|e| {
+            OAuthHttpError::server_error(format!("Repository initialization failed: {e}"))
+                .into_response()
+        })
     }
 }

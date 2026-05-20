@@ -42,17 +42,13 @@ async fn verify_completion(
         WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(state.user_provider()))
             .await
             .map_err(|e| {
-                OAuthHttpError::server_error(format!(
-                    "WebAuthn service initialization failed: {e}"
-                ))
+                OAuthHttpError::server_error(format!("WebAuthn service initialization failed: {e}"))
             })?;
 
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
         .await
-        .map_err(|_| {
-            OAuthHttpError::access_denied("Invalid or expired authentication token")
-        })?;
+        .map_err(|_| OAuthHttpError::access_denied("Invalid or expired authentication token"))?;
 
     if params.user_id != verified_user_id {
         return Err(OAuthHttpError::access_denied(
@@ -61,7 +57,9 @@ async fn verify_completion(
     }
 
     if params.client_id.is_none() {
-        return Err(OAuthHttpError::invalid_request("Missing client_id parameter"));
+        return Err(OAuthHttpError::invalid_request(
+            "Missing client_id parameter",
+        ));
     }
 
     let redirect_uri = params
