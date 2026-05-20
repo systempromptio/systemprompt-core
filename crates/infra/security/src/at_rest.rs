@@ -17,12 +17,11 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
-/// Compute HMAC-SHA-256 of `value` under `pepper` and return the raw 32-byte
-/// digest.
+/// Compute HMAC-SHA-256 of `value` under `pepper`, returning the raw digest.
 ///
-/// Panics only if the underlying HMAC implementation rejects the key length;
-/// `Hmac<Sha256>::new_from_slice` accepts arbitrary key lengths so this is
-/// effectively infallible in practice. The `expect` documents the invariant.
+/// Infallible in practice: `Hmac<Sha256>::new_from_slice` accepts arbitrary
+/// key lengths by HMAC's construction (RFC 2104).
+#[allow(clippy::expect_used)]
 pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> [u8; 32] {
     let mut mac = HmacSha256::new_from_slice(pepper).expect("HMAC accepts any key length");
     mac.update(value);
