@@ -8,6 +8,7 @@
 use crate::error::OauthResult as Result;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ClientId;
+use systemprompt_models::services::scheduler::bootstrap_admin_owner;
 
 use crate::repository::{CreateClientParams, OAuthRepository};
 use crate::services::generation::hash_client_secret;
@@ -45,6 +46,7 @@ pub async fn provision_sync_oauth_client(pool: &DbPool, sync_token: &str) -> Res
             client_uri: None,
             logo_uri: None,
             contacts: None,
+            owner_user_id: bootstrap_admin_owner(),
         };
         repo.create_client(params).await?;
     }
