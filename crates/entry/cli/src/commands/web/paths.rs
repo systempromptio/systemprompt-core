@@ -57,19 +57,18 @@ impl WebPaths {
         };
 
         let base = Path::new(services_path);
-
-        let templates = if Path::new(&templates_path).is_absolute() {
-            PathBuf::from(&templates_path)
-        } else {
-            base.join(&templates_path)
-        };
-
-        let assets = if Path::new(&assets_path).is_absolute() {
-            PathBuf::from(&assets_path)
-        } else {
-            base.join(&assets_path)
-        };
+        let templates = normalize_under_services(&templates_path, base);
+        let assets = normalize_under_services(&assets_path, base);
 
         Ok(Self { templates, assets })
     }
+}
+
+fn normalize_under_services(raw: &str, base: &Path) -> PathBuf {
+    let candidate = Path::new(raw);
+    if candidate.is_absolute() {
+        return candidate.to_path_buf();
+    }
+    let stripped = candidate.strip_prefix("services").unwrap_or(candidate);
+    base.join(stripped)
 }

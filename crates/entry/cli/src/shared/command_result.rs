@@ -10,6 +10,7 @@ pub enum ArtifactType {
     PresentationCard,
     Text,
     CopyPasteText,
+    RawText,
     Chart,
     Form,
     Dashboard,
@@ -87,6 +88,10 @@ impl<T> CommandResult<T> {
 
     pub const fn copy_paste(data: T) -> Self {
         Self::new(data, ArtifactType::CopyPasteText)
+    }
+
+    pub const fn raw_text(data: T) -> Self {
+        Self::new(data, ArtifactType::RawText)
     }
 
     pub fn chart(data: T, chart_type: ChartType) -> Self {
@@ -215,6 +220,18 @@ pub fn render_result<T: Serialize>(result: &CommandResult<T>) {
     }
 
     let config = get_global_config();
+
+    if matches!(result.artifact_type, ArtifactType::RawText) {
+        if let Ok(serde_json::Value::String(raw)) = serde_json::to_value(&result.data) {
+            if matches!(config.output_format(), OutputFormat::Table) {
+                if let Some(title) = &result.title {
+                    CliService::section(title);
+                }
+            }
+            CliService::output(&raw);
+            return;
+        }
+    }
 
     match config.output_format() {
         OutputFormat::Json => {

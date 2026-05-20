@@ -257,8 +257,8 @@ pub async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) 
         }
 
         CliService::info(&format!(
-            "Expected: {}, Actual: {}",
-            output.expected_tables, output.actual_tables
+            "Declared by extensions: {}",
+            output.expected_tables
         ));
     }
 

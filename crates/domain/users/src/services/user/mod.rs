@@ -47,6 +47,10 @@ impl UserService {
         self.repository.find_first_admin().await
     }
 
+    pub async fn find_admin_owner(&self) -> Result<Option<User>> {
+        self.repository.find_admin_owner().await
+    }
+
     pub async fn find_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
         self.repository.find_authenticated_user(user_id).await
     }

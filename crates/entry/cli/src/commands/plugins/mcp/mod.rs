@@ -23,18 +23,25 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum McpCommands {
+    #[command(about = "List configured MCP servers")]
     List(list::ListArgs),
 
+    #[command(about = "Show MCP server runtime status")]
     Status(status::StatusArgs),
 
+    #[command(about = "Validate MCP server configurations")]
     Validate(validate::ValidateArgs),
 
+    #[command(about = "Tail logs for an MCP server")]
     Logs(logs::LogsArgs),
 
+    #[command(about = "List discovered MCP packages from the registry")]
     ListPackages(list_packages::ListPackagesArgs),
 
+    #[command(about = "List tools exposed by enabled MCP servers")]
     Tools(tools::ToolsArgs),
 
+    #[command(about = "Invoke a tool on an MCP server")]
     Call(call::CallArgs),
 }
 

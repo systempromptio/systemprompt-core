@@ -6,6 +6,7 @@ use clap::Args;
 use super::types::McpPackagesOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::registry::RegistryManager;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -18,6 +19,7 @@ pub fn execute(
     args: ListPackagesArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<McpPackagesOutput>> {
+    let _services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let servers =
         RegistryManager::get_enabled_servers().context("Failed to get enabled MCP servers")?;
 

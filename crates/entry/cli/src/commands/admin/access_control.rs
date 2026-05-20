@@ -45,7 +45,7 @@ pub async fn execute(cmd: AccessControlCommands, config: &CliConfig) -> Result<(
 async fn export_yaml(_args: ExportYamlArgs, _config: &CliConfig) -> Result<CommandResult<String>> {
     let ctx = AppContext::new().await?;
     let yaml = render_yaml_snapshot(ctx.db_pool()).await?;
-    Ok(CommandResult::copy_paste(yaml)
+    Ok(CommandResult::raw_text(yaml)
         .with_title("Access-control baseline (paste into services/access-control YAML)"))
 }
 

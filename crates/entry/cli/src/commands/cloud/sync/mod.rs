@@ -13,8 +13,10 @@ use crate::cloud::tenant::get_credentials;
 
 #[derive(Debug, Subcommand)]
 pub enum SyncCommands {
+    #[command(about = "Push local state to cloud")]
     Push(SyncArgs),
 
+    #[command(about = "Pull cloud state to local")]
     Pull(SyncArgs),
 
     #[command(about = "Sync cloud user as admin to all local profiles")]

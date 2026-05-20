@@ -149,8 +149,7 @@ async fn run_single_job(
             };
         },
     };
-    let admin = systemprompt_identifiers::UserId::admin();
-    if matches!(users.find_by_name(admin.as_str()).await, Ok(None) | Err(_)) {
+    let Ok(Some(admin_user)) = users.find_admin_owner().await else {
         return JobRunOutput {
             job_name: job_name.to_string(),
             status: "failed".to_string(),
@@ -158,16 +157,16 @@ async fn run_single_job(
             result: JobRunResult {
                 success: false,
                 message: Some(
-                    "bootstrap admin owner does not resolve to a user; seed an `admin` user \
-                     before running ad-hoc jobs"
+                    "no user with role 'admin' exists; create one with `systemprompt admin users \
+                     create --role admin <name>` before running ad-hoc jobs"
                         .to_string(),
                 ),
                 items_processed: None,
                 items_failed: None,
             },
         };
-    }
-    let actor = systemprompt_identifiers::Actor::job(admin, job_name.to_string());
+    };
+    let actor = systemprompt_identifiers::Actor::job(admin_user.id, job_name.to_string());
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(ctx.app_paths_arc()));
