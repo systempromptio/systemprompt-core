@@ -1,9 +1,9 @@
 //! Secrets document model.
 //!
 //! [`Secrets`] is the deserialized on-disk secrets file: JWT signing
-//! secret, database URLs, and provider credentials. [`JWT_SECRET_MIN_LENGTH`]
-//! is the enforced minimum for the signing secret.
-//! Validation returns [`crate::errors::SecretsError`].
+//! secret, OAuth at-rest pepper, database URLs, and provider credentials.
+//! [`JWT_SECRET_MIN_LENGTH`] and [`OAUTH_AT_REST_PEPPER_MIN_LENGTH`] are the
+//! enforced minimums. Validation returns [`crate::errors::SecretsError`].
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,10 +11,13 @@ use std::collections::HashMap;
 use crate::errors::SecretsError;
 
 pub const JWT_SECRET_MIN_LENGTH: usize = 32;
+pub const OAUTH_AT_REST_PEPPER_MIN_LENGTH: usize = 32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Secrets {
     pub jwt_secret: String,
+
+    pub oauth_at_rest_pepper: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manifest_signing_secret_seed: Option<String>,
@@ -79,6 +82,13 @@ impl Secrets {
                 self.jwt_secret.len()
             )));
         }
+        if self.oauth_at_rest_pepper.len() < OAUTH_AT_REST_PEPPER_MIN_LENGTH {
+            return Err(SecretsError::Invalid(format!(
+                "oauth_at_rest_pepper must be at least {} characters (got {})",
+                OAUTH_AT_REST_PEPPER_MIN_LENGTH,
+                self.oauth_at_rest_pepper.len()
+            )));
+        }
         Ok(())
     }
 
@@ -102,6 +112,7 @@ impl Secrets {
     pub fn get(&self, key: &str) -> Option<&String> {
         match key {
             "jwt_secret" | "JWT_SECRET" => Some(&self.jwt_secret),
+            "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Some(&self.oauth_at_rest_pepper),
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
             "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
             "external_database_url" | "EXTERNAL_DATABASE_URL" => {

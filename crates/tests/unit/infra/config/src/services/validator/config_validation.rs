@@ -23,6 +23,10 @@ fn create_valid_config(environment: DeployEnvironment) -> EnvironmentConfig {
         "super_secret_key_12345".to_string(),
     );
     variables.insert("JWT_ISSUER".to_string(), "test-issuer".to_string());
+    variables.insert(
+        "OAUTH_AT_REST_PEPPER".to_string(),
+        "super_secret_pepper_with_enough_length_1234".to_string(),
+    );
 
     EnvironmentConfig {
         environment,

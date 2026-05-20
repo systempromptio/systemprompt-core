@@ -64,6 +64,12 @@ pub enum SecretsBootstrapError {
     JwtSecretRequired,
 
     #[error(
+        "OAuth at-rest pepper is required. Add 'oauth_at_rest_pepper' (>= 32 chars) to your \
+         secrets file or set OAUTH_AT_REST_PEPPER environment variable."
+    )]
+    OauthAtRestPepperRequired,
+
+    #[error(
         "Database URL is required. Add 'database_url' to your secrets.json or set DATABASE_URL \
          environment variable."
     )]
@@ -109,6 +115,10 @@ impl SecretsBootstrap {
 
     pub fn jwt_secret() -> Result<&'static str, SecretsBootstrapError> {
         Ok(&Self::get()?.jwt_secret)
+    }
+
+    pub fn oauth_at_rest_pepper() -> Result<&'static str, SecretsBootstrapError> {
+        Ok(&Self::get()?.oauth_at_rest_pepper)
     }
 
     pub fn manifest_signing_secret_seed()
