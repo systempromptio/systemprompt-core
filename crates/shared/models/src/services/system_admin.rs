@@ -5,9 +5,10 @@
 //! Resolution is a one-shot operation performed during runtime bootstrap:
 //! the profile-supplied [`SystemAdminConfig`] is looked up against the
 //! `users` table, validated (active, has `admin` role), and the resulting
-//! [`SystemAdmin`] is installed into a process-wide `OnceLock`. Every
-//! downstream consumer reads through that handle instead of inventing a
-//! `UserId::admin()` string.
+//! [`SystemAdmin`] is parked in a process-wide `OnceLock` so that
+//! attribution sites without an `AppContext` handle (logging hot path,
+//! MCP registry inventory) read it through [`SystemAdmin::current`]
+//! instead of fabricating a sentinel.
 
 use std::sync::OnceLock;
 
@@ -49,10 +50,13 @@ impl SystemAdmin {
         &self.username
     }
 
-    /// Install the process-wide system-admin handle. Fails if a value was
-    /// already installed — the runtime resolves the admin exactly once.
-    pub fn install(value: Self) -> Result<(), Box<Self>> {
-        SYSTEM_ADMIN.set(value).map_err(Box::new)
+    /// Park the resolved admin in the process-wide cell or return the
+    /// handle already installed by a prior bootstrap. The platform
+    /// resolves the admin once per process, but a CLI process may build
+    /// several `AppContext`s in sequence; the second build observes the
+    /// installed handle and reuses it instead of failing.
+    pub fn get_or_install(value: Self) -> &'static Self {
+        SYSTEM_ADMIN.get_or_init(|| value)
     }
 
     pub fn current() -> Result<&'static Self, SystemAdminNotInitialized> {
@@ -62,18 +66,12 @@ impl SystemAdmin {
     pub fn current_id() -> Result<&'static UserId, SystemAdminNotInitialized> {
         Self::current().map(Self::id)
     }
-
-    #[must_use]
-    pub fn is_initialized() -> bool {
-        SYSTEM_ADMIN.get().is_some()
-    }
 }
 
 static SYSTEM_ADMIN: OnceLock<SystemAdmin> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, Error)]
 #[error(
-    "system admin not initialized: SystemAdmin::install must be called during runtime bootstrap \
-     before any system-attributed work is performed"
+    "system admin not resolved: AppContext bootstrap must run before any system-attributed work"
 )]
 pub struct SystemAdminNotInitialized;

@@ -1,15 +1,10 @@
-use systemprompt_identifiers::UserId;
-use systemprompt_models::services::SystemAdmin;
 use systemprompt_scheduler::SchedulerConfig;
+use systemprompt_test_fixtures::fixture_system_admin;
 use systemprompt_traits::Job;
-
-fn fixture_admin() -> SystemAdmin {
-    SystemAdmin::new(UserId::new("admin"), "admin".to_string())
-}
 
 #[test]
 fn default_bootstrap_jobs_match_built_in_inventory_names() {
-    let cfg = SchedulerConfig::with_system_admin(&fixture_admin());
+    let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
     assert_eq!(
         cfg.bootstrap_jobs,
         vec![
@@ -23,7 +18,7 @@ fn default_bootstrap_jobs_match_built_in_inventory_names() {
 
 #[test]
 fn every_default_bootstrap_job_is_inventory_registered() {
-    let cfg = SchedulerConfig::with_system_admin(&fixture_admin());
+    let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
     let registered: std::collections::HashSet<&'static str> =
         inventory::iter::<&'static dyn Job>
             .into_iter()
@@ -41,7 +36,7 @@ fn every_default_bootstrap_job_is_inventory_registered() {
 
 #[test]
 fn every_default_bootstrap_job_has_a_matching_job_config() {
-    let cfg = SchedulerConfig::with_system_admin(&fixture_admin());
+    let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
     let configured: std::collections::HashSet<&str> =
         cfg.jobs.iter().map(|j| j.name.as_str()).collect();
 

@@ -31,9 +31,8 @@ impl LogActor {
 
     /// Platform telemetry (gateway access logs, OTLP ingest) has no human
     /// originator, so it declares the resolved system-admin owner. Fails
-    /// when called before `SystemAdmin::install` has run (during very
-    /// early bootstrap); callers must propagate that error rather than
-    /// fabricating a sentinel.
+    /// when the runtime has not yet resolved the admin row; callers must
+    /// propagate that error rather than fabricating a sentinel.
     pub fn platform(trace_id: TraceId) -> Result<Self, SystemAdminNotInitialized> {
         Ok(Self {
             user_id: SystemAdmin::current_id()?.clone(),

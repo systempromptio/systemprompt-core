@@ -158,8 +158,7 @@ impl AppContextBuilder {
             },
         };
 
-        let system_admin =
-            Arc::new(resolve_and_install_system_admin(&config, user_service.as_ref()).await?);
+        let system_admin = resolve_and_install_system_admin(&config, user_service.as_ref()).await?;
 
         let marketplace_filter = self
             .marketplace_filter
@@ -189,27 +188,13 @@ impl AppContextBuilder {
 async fn resolve_and_install_system_admin(
     config: &Config,
     user_service: Option<&Arc<UserService>>,
-) -> RuntimeResult<SystemAdmin> {
-    let users = user_service.ok_or_else(|| {
-        RuntimeError::Internal("UserService unavailable for system admin resolution".to_string())
-    })?;
+) -> RuntimeResult<Arc<SystemAdmin>> {
+    let users = user_service.ok_or(RuntimeError::SystemAdminUserServiceUnavailable)?;
     let cfg = SystemAdminConfig {
         username: config.system_admin_username.clone(),
     };
     let resolved = context_loaders::resolve_system_admin(&cfg, users.as_ref()).await?;
-    match SystemAdmin::install(resolved.clone()) {
-        Ok(()) => Ok(resolved),
-        Err(_) => {
-            // Why: the process-wide OnceLock is already populated (typically by
-            // a prior AppContext::new() in the same process — e.g. a CLI
-            // command that built one context, returned, and the next command
-            // built another). Reuse the installed handle rather than failing,
-            // since the resolved identity is per-process.
-            SystemAdmin::current()
-                .cloned()
-                .map_err(|_| RuntimeError::SystemAdminAlreadyInstalled)
-        },
-    }
+    Ok(Arc::new(SystemAdmin::get_or_install(resolved).clone()))
 }
 
 fn build_marketplace_filter(

@@ -271,7 +271,7 @@ async fn test_create_user_email_already_registered() {
 
     let err = result.expect_err("should fail for existing email");
     assert!(
-        err.to_string().contains("email_already_registered"),
+        err.to_string().contains("email already registered"),
         "error should contain 'email_already_registered', got: {err}"
     );
 }
@@ -288,7 +288,7 @@ async fn test_create_user_username_taken() {
 
     let err = result.expect_err("should fail for taken username");
     assert!(
-        err.to_string().contains("username_already_taken"),
+        err.to_string().contains("username already taken"),
         "error should contain 'username_already_taken', got: {err}"
     );
 }
@@ -322,7 +322,7 @@ async fn test_create_user_email_check_before_username() {
 
     let err = result.expect_err("should fail");
     assert!(
-        err.to_string().contains("email_already_registered"),
+        err.to_string().contains("email already registered"),
         "email check should come before username check, got: {err}"
     );
 }

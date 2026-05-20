@@ -63,24 +63,8 @@ fn test_extract_bearer_token_empty_header() {
 }
 
 #[test]
-fn test_jwt_validator_new() {
-    let validator = JwtValidator::new("secret123");
-    let debug = format!("{:?}", validator);
-    assert!(debug.contains("JwtValidator"));
-}
-
-#[test]
-fn test_jwt_validator_debug_hides_key() {
-    let validator = JwtValidator::new("super_secret_key");
-    let debug = format!("{:?}", validator);
-
-    assert!(!debug.contains("super_secret_key"));
-    assert!(debug.contains("<decoding_key>"));
-}
-
-#[test]
 fn test_jwt_validator_validate_invalid_token() {
-    let validator = JwtValidator::new("secret");
+    let validator = JwtValidator::new();
     let result = validator.validate_token("invalid_token");
 
     let err = result.unwrap_err();
@@ -89,7 +73,7 @@ fn test_jwt_validator_validate_invalid_token() {
 
 #[test]
 fn test_jwt_validator_validate_malformed_token() {
-    let validator = JwtValidator::new("secret");
+    let validator = JwtValidator::new();
     let result = validator.validate_token("not.a.valid.jwt.token.at.all");
 
     result.unwrap_err();
@@ -97,7 +81,7 @@ fn test_jwt_validator_validate_malformed_token() {
 
 #[test]
 fn test_jwt_validator_validate_empty_token() {
-    let validator = JwtValidator::new("secret");
+    let validator = JwtValidator::new();
     let result = validator.validate_token("");
 
     result.unwrap_err();

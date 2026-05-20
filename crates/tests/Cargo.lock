@@ -7535,6 +7535,7 @@ dependencies = [
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
  "tokio",
 ]
@@ -7897,6 +7898,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-scheduler",
+ "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
 ]
@@ -8075,6 +8077,7 @@ name = "systemprompt-test-fixtures"
 version = "0.1.0"
 dependencies = [
  "systemprompt-identifiers",
+ "systemprompt-models",
  "uuid",
 ]
 
