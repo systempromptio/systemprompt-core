@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, agent_id, agent_scope, decision, policy, reason, evaluated_rules, plugin_id, actor_kind, actor_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "66f43b9df3dd30578c6745d9ec2e148d268f5d1939d95e5cae5c3d9b530d5fbf"
+}

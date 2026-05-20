@@ -55,6 +55,21 @@ impl AnalyticsProvider for MockAnalyticsProvider {
         Ok(None)
     }
 
+    async fn find_active_session_by_id(
+        &self,
+        _session_id: &SessionId,
+    ) -> AnalyticsResult<Option<systemprompt_traits::ActiveSession>> {
+        Ok(None)
+    }
+
+    async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+        Ok(())
+    }
+
+    async fn revoke_all_sessions_for_user(&self, _user_id: &UserId) -> AnalyticsResult<u64> {
+        Ok(0)
+    }
+
     async fn migrate_user_sessions(
         &self,
         _from_user_id: &UserId,

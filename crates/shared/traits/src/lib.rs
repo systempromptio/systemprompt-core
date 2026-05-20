@@ -103,7 +103,7 @@ pub use events::{
 };
 
 pub use analytics::{
-    AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
+    ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
     CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, FingerprintProvider,
     SessionAnalytics,
 };
