@@ -75,3 +75,6 @@ mod permission;
 
 #[cfg(test)]
 mod mcp_tool_result_metadata;
+
+#[cfg(test)]
+mod secrets;
