@@ -16,6 +16,7 @@ systemprompt-oauth = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-config = { workspace = true }
 systemprompt-users = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }

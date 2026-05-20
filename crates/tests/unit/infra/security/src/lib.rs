@@ -3,6 +3,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod at_rest;
+#[cfg(test)]
 mod extraction;
 #[cfg(test)]
 mod manifest_signing_jcs;
