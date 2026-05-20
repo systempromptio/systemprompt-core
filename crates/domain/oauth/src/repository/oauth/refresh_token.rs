@@ -1,6 +1,8 @@
-//! Refresh token persistence and rotation.
+//! Refresh token persistence and rotation. Token identifiers are stored as
+//! HMAC-SHA-256 digests under the deployment pepper; raw `RefreshTokenId`
+//! values never touch the database.
 
-use super::OAuthRepository;
+use super::{OAuthRepository, hash_at_rest};
 use crate::error::{OauthError, OauthResult};
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
@@ -84,16 +86,26 @@ impl OAuthRepository {
                 OauthError::Validation("Invalid timestamp for expires_at".to_string())
             })?;
         let now = Utc::now();
-        let token_id = params.token_id.as_str();
+        let token_id_hash = hash_at_rest(params.token_id.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
-        let family_id = params.family_id.unwrap_or(token_id);
+        // First issuance: family is seeded from this token's hash so the
+        // family column is self-consistent with token_id under the pepper.
+        // Subsequent rotations carry the parent's family forward unchanged.
+        let family_id_owned;
+        let family_id: &str = match params.family_id {
+            Some(f) => f,
+            None => {
+                family_id_owned = token_id_hash.clone();
+                &family_id_owned
+            },
+        };
 
         sqlx::query!(
             "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, \
              created_at, family_id)
              VALUES ($1, $2, $3, $4, $5, $6, $7)",
-            token_id,
+            token_id_hash,
             client_id,
             user_id,
             params.scope,
@@ -113,10 +125,10 @@ impl OAuthRepository {
         &self,
         token_id: &RefreshTokenId,
     ) -> OauthResult<Option<String>> {
-        let token_id_str = token_id.as_str();
+        let token_id_hash = hash_at_rest(token_id.as_str())?;
         let result = sqlx::query_scalar!(
             "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id_str
+            token_id_hash
         )
         .fetch_optional(self.pool_ref())
         .await?;
@@ -140,13 +152,13 @@ impl OAuthRepository {
         client_id: &ClientId,
     ) -> OauthResult<(UserId, String)> {
         let now = Utc::now();
-        let token_id_str = token_id.as_str();
+        let token_id_hash = hash_at_rest(token_id.as_str())?;
         let client_id_str = client_id.as_str();
 
         let row = sqlx::query!(
             "SELECT user_id, scope, expires_at FROM oauth_refresh_tokens
              WHERE token_id = $1 AND client_id = $2",
-            token_id_str,
+            token_id_hash,
             client_id_str
         )
         .fetch_optional(self.pool_ref())
@@ -166,11 +178,11 @@ impl OAuthRepository {
         client_id: &ClientId,
     ) -> OauthResult<ConsumedRefreshToken> {
         let (user_id, scope) = self.validate_refresh_token(token_id, client_id).await?;
-        let token_id_str = token_id.as_str();
+        let token_id_hash = hash_at_rest(token_id.as_str())?;
 
         let row = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1 RETURNING family_id",
-            token_id_str
+            token_id_hash
         )
         .fetch_one(self.write_pool_ref())
         .await?;
@@ -183,10 +195,10 @@ impl OAuthRepository {
     }
 
     pub async fn revoke_refresh_token(&self, token_id: &RefreshTokenId) -> OauthResult<bool> {
-        let token_id_str = token_id.as_str();
+        let token_id_hash = hash_at_rest(token_id.as_str())?;
         let result = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id_str
+            token_id_hash
         )
         .execute(self.write_pool_ref())
         .await?;
@@ -211,10 +223,10 @@ impl OAuthRepository {
         &self,
         token_id: &RefreshTokenId,
     ) -> OauthResult<Option<ClientId>> {
-        let token_id_str = token_id.as_str();
+        let token_id_hash = hash_at_rest(token_id.as_str())?;
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id_str
+            token_id_hash
         )
         .fetch_optional(self.pool_ref())
         .await?;
