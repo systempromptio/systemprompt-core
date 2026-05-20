@@ -4,7 +4,7 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{StartupEvent, StartupEventSender};
+use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
 
 pub async fn reconcile_agents(
     ctx: &AppContext,
@@ -24,19 +24,10 @@ pub async fn reconcile_agents(
         match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
             Ok(orch) => orch,
             Err(e) => {
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::Error {
-                            message: format!("Failed to initialize agent orchestrator: {e}"),
-                            fatal: true,
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!(
-                            "Startup event receiver dropped - startup may have been cancelled"
-                        );
-                    }
-                }
+                events.error(
+                    format!("Failed to initialize agent orchestrator: {e}"),
+                    true,
+                );
                 return Err(e.into());
             },
         };
@@ -44,19 +35,7 @@ pub async fn reconcile_agents(
     let agent_registry = match AgentRegistry::new() {
         Ok(registry) => registry,
         Err(e) => {
-            if let Some(tx) = events {
-                if tx
-                    .unbounded_send(StartupEvent::Error {
-                        message: format!("Failed to load agent registry: {e}"),
-                        fatal: true,
-                    })
-                    .is_err()
-                {
-                    tracing::debug!(
-                        "Startup event receiver dropped - startup may have been cancelled"
-                    );
-                }
-            }
+            events.error(format!("Failed to load agent registry: {e}"), true);
             return Err(e.into());
         },
     };
@@ -64,19 +43,7 @@ pub async fn reconcile_agents(
     let enabled_agents = match agent_registry.list_enabled_agents().await {
         Ok(agents) => agents,
         Err(e) => {
-            if let Some(tx) = events {
-                if tx
-                    .unbounded_send(StartupEvent::Error {
-                        message: format!("Failed to list enabled agents: {e}"),
-                        fatal: true,
-                    })
-                    .is_err()
-                {
-                    tracing::debug!(
-                        "Startup event receiver dropped - startup may have been cancelled"
-                    );
-                }
-            }
+            events.error(format!("Failed to list enabled agents: {e}"), true);
             return Err(e.into());
         },
     };
@@ -146,20 +113,13 @@ async fn handle_failed_agents(
     orchestrator: &systemprompt_agent::services::agent_orchestration::AgentOrchestrator,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
-    if let Some(tx) = events {
-        if tx
-            .unbounded_send(StartupEvent::Warning {
-                message: format!(
-                    "{} agent(s) failed to start on first attempt",
-                    failed_agents.len()
-                ),
-                context: Some("Attempting cleanup and retry".to_string()),
-            })
-            .is_err()
-        {
-            tracing::debug!("Startup event receiver dropped - startup may have been cancelled");
-        }
-    }
+    events.warning_with_context(
+        format!(
+            "{} agent(s) failed to start on first attempt",
+            failed_agents.len()
+        ),
+        "Attempting cleanup and retry",
+    );
 
     let mut retry_failed: Vec<(String, String)> = Vec::new();
 
@@ -167,19 +127,7 @@ async fn handle_failed_agents(
         let agent_config = match agent_registry.get_agent(agent_name).await {
             Ok(config) => config,
             Err(e) => {
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::AgentFailed {
-                            name: agent_name.clone(),
-                            error: format!("Agent config not found: {e}"),
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!(
-                            "Startup event receiver dropped - startup may have been cancelled"
-                        );
-                    }
-                }
+                events.agent_failed(agent_name.clone(), format!("Agent config not found: {e}"));
                 retry_failed.push((agent_name.clone(), format!("Agent config not found: {e}")));
                 continue;
             },
@@ -236,19 +184,7 @@ async fn enforce_clean_agent_state(
                         "On wrong port {port} (expected {desired_port}), killing and restarting"
                     )
                 };
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::AgentCleanup {
-                            name: agent.to_string(),
-                            reason,
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!(
-                            "Startup event receiver dropped - startup may have been cancelled"
-                        );
-                    }
-                }
+                events.agent_cleanup(agent.to_string(), reason);
                 if let Err(e) = process::terminate_gracefully(pid, 5).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to terminate agent process gracefully");
                 }
@@ -257,38 +193,17 @@ async fn enforce_clean_agent_state(
                 }
             },
             AgentStatus::Failed { .. } => {
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::AgentCleanup {
-                            name: agent.to_string(),
-                            reason: "Previously failed, restarting".to_string(),
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!(
-                            "Startup event receiver dropped - startup may have been cancelled"
-                        );
-                    }
-                }
+                events.agent_cleanup(agent.to_string(), "Previously failed, restarting");
             },
         }
     }
 
     let port_manager = PortManager::new();
     if let Err(e) = port_manager.cleanup_port_if_needed(desired_port).await {
-        if let Some(tx) = events {
-            if tx
-                .unbounded_send(StartupEvent::Error {
-                    message: format!(
-                        "Failed to cleanup port {desired_port} for agent {agent}: {e}"
-                    ),
-                    fatal: false,
-                })
-                .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped - startup may have been cancelled");
-            }
-        }
+        events.error(
+            format!("Failed to cleanup port {desired_port} for agent {agent}: {e}"),
+            false,
+        );
         return Err(e.into());
     }
 

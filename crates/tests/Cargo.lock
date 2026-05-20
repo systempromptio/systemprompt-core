@@ -7831,6 +7831,7 @@ name = "systemprompt-scheduler-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "inventory",
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-models",
