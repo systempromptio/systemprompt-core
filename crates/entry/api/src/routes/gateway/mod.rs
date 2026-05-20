@@ -17,7 +17,7 @@ use axum::{Extension, Router};
 use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_database::DbPool;
-use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
@@ -57,11 +57,11 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
         } else {
             LogLevel::Info
         };
-        let entry = LogEntry::platform_event(
+        let entry = LogEntry::new(
             level,
             "systemprompt_api::gateway",
             format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
-            systemprompt_identifiers::TraceId::system(),
+            LogActor::platform(systemprompt_identifiers::TraceId::system()),
         )
         .with_metadata(metadata);
         if let Err(e) = repo
