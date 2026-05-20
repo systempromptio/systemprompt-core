@@ -165,7 +165,10 @@ fn test_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>
 fn probe_config(distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
-        jobs: vec![JobConfig::new(TEST_JOB_NAME).with_schedule("* * * * * *")],
+        jobs: vec![
+            JobConfig::new(TEST_JOB_NAME, systemprompt_identifiers::UserId::new("test-owner"))
+                .with_schedule("* * * * * *"),
+        ],
         bootstrap_jobs: vec![],
         distributed_lock,
     }
