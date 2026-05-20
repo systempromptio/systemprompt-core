@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     reason TEXT NOT NULL,
     evaluated_rules JSONB DEFAULT '[]',
     plugin_id TEXT,
+    actor_kind TEXT NOT NULL DEFAULT 'user' CHECK (actor_kind IN ('user', 'job', 'mcp')),
+    actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -18,3 +20,4 @@ CREATE INDEX IF NOT EXISTS idx_governance_decisions_session ON governance_decisi
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_decision ON governance_decisions(decision);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_created ON governance_decisions(created_at);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_rate_limit ON governance_decisions(session_id, user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_governance_decisions_actor ON governance_decisions(actor_kind, actor_id);
