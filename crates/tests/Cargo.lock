@@ -6775,6 +6775,7 @@ dependencies = [
  "tower-http",
  "tower_governor",
  "tracing",
+ "url",
  "urlencoding",
  "uuid",
  "validator",
@@ -6786,6 +6787,7 @@ name = "systemprompt-api-tests"
 version = "0.0.11"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "chrono",
  "http",
  "jsonwebtoken",
@@ -7708,6 +7710,7 @@ dependencies = [
  "chrono",
  "sha2 0.10.9",
  "sqlx",
+ "systemprompt-config",
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -7889,6 +7892,7 @@ name = "systemprompt-scheduler-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "inventory",
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -7906,6 +7910,8 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "ed25519-dalek",
+ "hex",
+ "hmac 0.13.0",
  "inventory",
  "jsonwebtoken",
  "lru",
@@ -7953,6 +7959,7 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "jsonwebtoken",
+ "rsa",
  "serde",
  "serde_jcs",
  "serde_json",
