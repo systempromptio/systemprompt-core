@@ -120,7 +120,7 @@ mod sync_service_tests {
                 .with_dry_run(true)
                 .with_verbose(true)
                 .with_hostname(Some("host.com".to_string()))
-                .with_sync_token(Some("sync-tok".to_string()))
+                .with_sync_client_secret(Some("sync-tok".to_string()))
                 .with_local_database_url("postgresql://db:5432/app")
                 .build();
 
