@@ -1,5 +1,6 @@
 pub mod access_control;
 pub mod agents;
+pub mod bootstrap;
 pub mod bridge;
 pub mod config;
 pub mod keys;
@@ -27,6 +28,12 @@ pub enum AdminCommands {
 
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
+
+    #[command(
+        about = "Idempotently ensure the platform admin user exists with the admin role. \
+                 Required by every install recipe before services start."
+    )]
+    Bootstrap(bootstrap::BootstrapArgs),
 
     #[command(subcommand, about = "Manage CLI session and profile switching")]
     Session(session::SessionCommands),
@@ -58,6 +65,11 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
         AdminCommands::Config(cmd) => config::execute(cmd, config),
         AdminCommands::Setup(args) => {
             let result = setup::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AdminCommands::Bootstrap(args) => {
+            let result = bootstrap::execute(args, config).await?;
             render_result(&result);
             Ok(())
         },
