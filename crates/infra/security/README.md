@@ -111,7 +111,7 @@ JWT token generation for administrative access.
 
 | Export | Type | Purpose |
 |--------|------|---------|
-| `JwtService` | Struct | Generates admin JWT tokens with HS256 |
+| `JwtService` | Struct | Generates admin JWT tokens with RS256, keyed off the active `TokenAuthority` |
 | `AdminTokenParams` | Struct | Configuration for admin token creation |
 
 ### `services`
@@ -151,7 +151,7 @@ Unified authorization decision plane shared by the gateway `/v1/messages` proxy 
 
 ### `manifest_signing`
 
-Ed25519 signing for bridge manifests, keyed independently of the JWT HMAC secret.
+Ed25519 signing for bridge manifests, keyed independently of the JWT signing key.
 
 | Export | Type | Purpose |
 |--------|------|---------|
@@ -183,9 +183,15 @@ let browser_extractor = TokenExtractor::browser_only()
 ```rust
 use systemprompt_security::{AuthValidationService, AuthMode};
 
-let service = AuthValidationService::new(secret, issuer, audiences);
+let service = AuthValidationService::new(issuer, audiences);
 let context = service.validate_request(&headers, AuthMode::Required)?;
 ```
+
+Token signing and verification both resolve the active `kid` through the
+process-wide `TokenAuthority` cache, which loads the deployment's RSA
+private key from `signing_key_path` and fetches JWKS documents for every
+entry in `profile.security.trusted_issuers`. There is no shared secret to
+plumb through API surfaces.
 
 ### Admin Token Generation
 
@@ -196,9 +202,9 @@ let params = AdminTokenParams {
     user_id: &user_id,
     session_id: &session_id,
     email: "admin@example.com",
-    jwt_secret: &secret,
     issuer: "systemprompt",
     duration: Duration::days(365),
+    client_id: None,
 };
 let token = JwtService::generate_admin_token(&params)?;
 ```
@@ -209,7 +215,7 @@ let token = JwtService::generate_admin_token(&params)?;
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 
-let generator = SessionGenerator::new(jwt_secret, "systemprompt");
+let generator = SessionGenerator::new("systemprompt");
 let params = SessionParams {
     user_id: &user_id,
     session_id: &session_id,
@@ -232,7 +238,7 @@ let token = generator.generate(&params)?;
 | `systemprompt-config` | Profile and secrets access for signing keys |
 | `systemprompt-database` | `DbPool` for authz repositories and audit sinks |
 | `systemprompt-extension` | Extension trait used by `AuthzExtension` |
-| `jsonwebtoken` | JWT encoding/decoding with HS256 |
+| `jsonwebtoken` | JWT encoding/decoding with RS256 |
 | `ed25519-dalek` + `serde_jcs` | Ed25519 signing and RFC 8785 canonical JSON |
 | `axum` | HTTP types (HeaderMap, HeaderValue) |
 | `sqlx` | Authz repository and audit sink queries |
