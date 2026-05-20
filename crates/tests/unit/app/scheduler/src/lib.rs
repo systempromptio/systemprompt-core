@@ -10,6 +10,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod bootstrap;
+#[cfg(test)]
 mod jobs;
 #[cfg(test)]
 mod models;

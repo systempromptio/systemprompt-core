@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{OptionalStartupEventExt, Phase, StartupEventSender};
 
 struct ReconcileSuccessParams<'a> {
     running_count: usize,
@@ -18,30 +18,16 @@ pub async fn reconcile_system_services(
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
-    if let Some(tx) = events {
-        tx.phase_started(Phase::McpServers);
-    }
+    events.phase_started(Phase::McpServers);
 
     match cleanup_stale_service_entries(ctx, events).await {
         Ok(count) => {
             if count > 0 {
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::McpServiceCleanup {
-                            name: format!("{count} services"),
-                            reason: "Stale entries removed".to_string(),
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!("Startup event receiver dropped");
-                    }
-                }
+                events.mcp_service_cleanup(format!("{count} services"), "Stale entries removed");
             }
         },
         Err(e) => {
-            if let Some(tx) = events {
-                tx.warning(format!("Could not clean stale entries: {e}"));
-            }
+            events.warning(format!("Could not clean stale entries: {e}"));
         },
     }
 
@@ -61,9 +47,7 @@ pub async fn reconcile_system_services(
             .await?;
         },
         Err(e) => {
-            if let Some(tx) = events {
-                tx.phase_failed(Phase::McpServers, e.to_string());
-            }
+            events.phase_failed(Phase::McpServers, e.to_string());
             return Err(anyhow::anyhow!(
                 "FATAL: MCP reconciliation failed: {}\n\nCannot start API without MCP servers.",
                 e
@@ -71,9 +55,7 @@ pub async fn reconcile_system_services(
         },
     }
 
-    if let Some(tx) = events {
-        tx.phase_completed(Phase::McpServers);
-    }
+    events.phase_completed(Phase::McpServers);
     Ok(())
 }
 
@@ -91,21 +73,17 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
         verify_database_registration(params.required_servers, params.ctx, params.events).await?;
     }
 
-    if let Some(tx) = params.events {
-        if tx
-            .unbounded_send(StartupEvent::McpReconciliationComplete {
-                running: params.running_count,
-                required: params.required_count,
-            })
-            .is_err()
-        {
-            tracing::debug!("Startup event receiver dropped");
-        }
-    }
+    params
+        .events
+        .mcp_reconciliation_complete(params.running_count, params.required_count);
 
     Ok(())
 }
 
+// Why: `events` is consumed by `OptionalStartupEventExt` trait methods
+// (`events.error(...)`); clippy's `collection_is_never_read` heuristic does
+// not recognise those calls as reads of the `Option`.
+#[allow(clippy::collection_is_never_read)]
 async fn handle_missing_servers(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
@@ -121,21 +99,14 @@ async fn handle_missing_servers(
         .filter(|name| !running_names.contains(name))
         .collect();
 
-    if let Some(tx) = events {
-        if tx
-            .unbounded_send(StartupEvent::Error {
-                message: format!(
-                    "Server status mismatch: {} servers failed to start: {}",
-                    missing.len(),
-                    missing.join(", ")
-                ),
-                fatal: true,
-            })
-            .is_err()
-        {
-            tracing::debug!("Startup event receiver dropped");
-        }
-    }
+    events.error(
+        format!(
+            "Server status mismatch: {} servers failed to start: {}",
+            missing.len(),
+            missing.join(", ")
+        ),
+        true,
+    );
 
     Err(anyhow::anyhow!(
         "FATAL: {} required MCP server(s) failed to start: {}\n\nsystemprompt.io OS cannot \
@@ -147,6 +118,7 @@ async fn handle_missing_servers(
     ))
 }
 
+#[allow(clippy::collection_is_never_read)]
 async fn verify_database_registration(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     ctx: &AppContext,
@@ -160,19 +132,12 @@ async fn verify_database_registration(
     for server in required_servers {
         match service_repo.get_service_by_name(&server.name).await {
             Ok(Some(service)) if service.status == "running" => {
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::McpServerReady {
-                            name: server.name.clone(),
-                            port: service.port as u16,
-                            startup_time: std::time::Duration::ZERO,
-                            tools: 0,
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!("Startup event receiver dropped");
-                    }
-                }
+                events.mcp_ready(
+                    server.name.clone(),
+                    service.port as u16,
+                    std::time::Duration::ZERO,
+                    0,
+                );
             },
             Ok(Some(service)) => {
                 verification_failed.push(format!("{} (status: {})", server.name, service.status));
@@ -187,21 +152,14 @@ async fn verify_database_registration(
     }
 
     if !verification_failed.is_empty() {
-        if let Some(tx) = events {
-            if tx
-                .unbounded_send(StartupEvent::Error {
-                    message: format!(
-                        "Database verification failed for {} service(s): {}",
-                        verification_failed.len(),
-                        verification_failed.join(", ")
-                    ),
-                    fatal: true,
-                })
-                .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
-            }
-        }
+        events.error(
+            format!(
+                "Database verification failed for {} service(s): {}",
+                verification_failed.len(),
+                verification_failed.join(", ")
+            ),
+            true,
+        );
         return Err(anyhow::anyhow!(
             "FATAL: MCP services running but not properly registered in database\n\nThis \
              indicates a race condition or database synchronization issue.\nFailed services: {}",
@@ -212,6 +170,7 @@ async fn verify_database_registration(
     Ok(())
 }
 
+#[allow(clippy::collection_is_never_read)]
 async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
@@ -234,20 +193,13 @@ async fn cleanup_stale_service_entries(
 
         if should_delete && repo.delete_service(&service.name).await.is_ok() {
             deleted_count += 1;
-            if let Some(tx) = events {
-                if tx
-                    .unbounded_send(StartupEvent::McpServiceCleanup {
-                        name: service.name.clone(),
-                        reason: format!(
-                            "Stale entry (status: {}, pid: {:?})",
-                            service.status, service.pid
-                        ),
-                    })
-                    .is_err()
-                {
-                    tracing::debug!("Startup event receiver dropped");
-                }
-            }
+            events.mcp_service_cleanup(
+                service.name.clone(),
+                format!(
+                    "Stale entry (status: {}, pid: {:?})",
+                    service.status, service.pid
+                ),
+            );
         }
     }
 
@@ -264,20 +216,13 @@ async fn cleanup_stale_service_entries(
 
             if should_delete && repo.delete_service(&service_name).await.is_ok() {
                 deleted_count += 1;
-                if let Some(tx) = events {
-                    if tx
-                        .unbounded_send(StartupEvent::AgentCleanup {
-                            name: service_name.clone(),
-                            reason: format!(
-                                "Stale entry (status: {}, pid: {:?})",
-                                service.status, service.pid
-                            ),
-                        })
-                        .is_err()
-                    {
-                        tracing::debug!("Startup event receiver dropped");
-                    }
-                }
+                events.agent_cleanup(
+                    service_name.clone(),
+                    format!(
+                        "Stale entry (status: {}, pid: {:?})",
+                        service.status, service.pid
+                    ),
+                );
             }
         }
     }

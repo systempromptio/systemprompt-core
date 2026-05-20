@@ -3346,15 +3346,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lru"
-version = "0.12.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
-dependencies = [
- "hashbrown 0.15.5",
-]
-
-[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5463,7 +5454,6 @@ dependencies = [
  "pkcs1",
  "pkcs8",
  "rand_core 0.6.4",
- "sha2 0.10.9",
  "signature",
  "spki",
  "subtle",
@@ -6584,7 +6574,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tempfile",
  "tokio",
@@ -6642,7 +6631,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tempfile",
  "tokio",
@@ -6676,21 +6664,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-analytics-integration-tests"
-version = "0.0.11"
-dependencies = [
- "anyhow",
- "chrono",
- "sqlx",
- "systemprompt-analytics",
- "systemprompt-database",
- "systemprompt-identifiers",
- "systemprompt-models",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "systemprompt-analytics-tests"
 version = "0.0.11"
 dependencies = [
@@ -6704,7 +6677,6 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tokio",
  "uuid",
 ]
@@ -6775,7 +6747,6 @@ dependencies = [
  "tower-http",
  "tower_governor",
  "tracing",
- "url",
  "urlencoding",
  "uuid",
  "validator",
@@ -6787,7 +6758,6 @@ name = "systemprompt-api-tests"
 version = "0.0.11"
 dependencies = [
  "axum",
- "base64 0.22.1",
  "chrono",
  "http",
  "jsonwebtoken",
@@ -6892,7 +6862,6 @@ name = "systemprompt-bridge-manifest-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
- "systemprompt-test-fixtures",
 ]
 
 [[package]]
@@ -6923,7 +6892,6 @@ dependencies = [
  "serde_json",
  "systemprompt-bridge",
  "systemprompt-identifiers",
- "systemprompt-test-fixtures",
  "temp-env",
  "tempfile",
  "tokio",
@@ -7078,7 +7046,6 @@ dependencies = [
  "systemprompt-cloud",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tempfile",
  "tokio",
 ]
@@ -7093,7 +7060,6 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "systemprompt-test-mocks",
  "tokio",
  "uuid",
@@ -7176,7 +7142,6 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tempfile",
  "tokio",
  "uuid",
@@ -7277,7 +7242,6 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tokio",
  "uuid",
 ]
@@ -7290,7 +7254,6 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tokio",
 ]
 
@@ -7362,17 +7325,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-files-integration-tests"
-version = "0.0.11"
-dependencies = [
- "systemprompt-database",
- "systemprompt-files",
- "systemprompt-identifiers",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "systemprompt-files-tests"
 version = "0.0.11"
 dependencies = [
@@ -7381,7 +7333,6 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-files",
  "systemprompt-identifiers",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
  "uuid",
@@ -7533,7 +7484,6 @@ dependencies = [
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-logging",
- "systemprompt-test-fixtures",
  "tokio",
 ]
 
@@ -7557,7 +7507,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-marketplace",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tokio",
 ]
 
@@ -7613,7 +7562,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-mcp",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "tokio",
  "uuid",
 ]
@@ -7652,13 +7600,11 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "indexmap",
- "rmcp",
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-config",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tempfile",
  "tokio",
@@ -7712,7 +7658,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-oauth",
- "systemprompt-test-fixtures",
  "systemprompt-users",
  "tokio",
  "uuid",
@@ -7733,7 +7678,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-oauth",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
  "url",
@@ -7777,7 +7721,6 @@ dependencies = [
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-provider-contracts",
- "systemprompt-test-fixtures",
  "tokio",
 ]
 
@@ -7879,7 +7822,6 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
 ]
@@ -7889,6 +7831,7 @@ name = "systemprompt-scheduler-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "inventory",
  "serde_json",
  "systemprompt-identifiers",
  "systemprompt-models",
@@ -7908,14 +7851,10 @@ dependencies = [
  "ed25519-dalek",
  "inventory",
  "jsonwebtoken",
- "lru",
- "pkcs8",
  "reqwest 0.12.28",
- "rsa",
  "serde",
  "serde_jcs",
  "serde_json",
- "sha2 0.11.0",
  "sqlx",
  "systemprompt-config",
  "systemprompt-database",
@@ -7925,7 +7864,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
  "uuid",
 ]
 
@@ -7939,7 +7877,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
- "systemprompt-test-fixtures",
  "tokio",
  "wiremock",
 ]
@@ -7953,7 +7890,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "jsonwebtoken",
- "rsa",
  "serde",
  "serde_jcs",
  "serde_json",
@@ -7962,7 +7898,6 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
- "systemprompt-test-fixtures",
  "tokio",
 ]
 
@@ -8005,16 +7940,13 @@ name = "systemprompt-sync-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
- "reqwest 0.12.28",
  "serde_json",
  "systemprompt-agent",
  "systemprompt-content",
  "systemprompt-identifiers",
  "systemprompt-sync",
- "systemprompt-test-fixtures",
  "tempfile",
  "tokio",
- "wiremock",
 ]
 
 [[package]]
@@ -8062,18 +7994,6 @@ dependencies = [
  "systemprompt-templates",
  "tempfile",
  "tokio",
-]
-
-[[package]]
-name = "systemprompt-test-fixtures"
-version = "0.1.0"
-dependencies = [
- "systemprompt-identifiers",
-<<<<<<< HEAD
-=======
- "systemprompt-models",
->>>>>>> b05e3fcc (feat(oauth): add RFC 8693 token-exchange grant)
- "uuid",
 ]
 
 [[package]]
@@ -8175,20 +8095,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-users-integration-tests"
-version = "0.0.11"
-dependencies = [
- "anyhow",
- "chrono",
- "sqlx",
- "systemprompt-database",
- "systemprompt-identifiers",
- "systemprompt-users",
- "tokio",
- "uuid",
-]
-
-[[package]]
 name = "systemprompt-users-tests"
 version = "0.0.11"
 dependencies = [
@@ -8196,7 +8102,6 @@ dependencies = [
  "serde_json",
  "systemprompt-extension",
  "systemprompt-identifiers",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
  "tokio",

@@ -87,6 +87,14 @@ fn factory_methods_produce_correct_values() {
 }
 
 #[test]
+fn sync_factory_is_system_typed() {
+    let id = ClientId::sync();
+    assert_eq!(id.as_str(), "sys_sync");
+    assert!(id.is_system());
+    assert_eq!(id.client_type(), ClientType::System);
+}
+
+#[test]
 fn system_factory_formats_with_prefix() {
     let id = ClientId::system("scheduler");
     assert_eq!(id.as_str(), "sys_scheduler");
