@@ -1,6 +1,8 @@
-//! Authorisation code persistence with PKCE.
+//! Authorisation code persistence with PKCE. The `code` and the linked
+//! `refresh_token_id` are stored as HMAC-SHA-256 digests under the deployment
+//! pepper; raw values never touch the database.
 
-use super::OAuthRepository;
+use super::{OAuthRepository, hash_at_rest};
 use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;
 use base64::Engine;
@@ -92,7 +94,7 @@ impl OAuthRepository {
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> OauthResult<()> {
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
         let now = Utc::now();
-        let code = params.code.as_str();
+        let code_hash = hash_at_rest(params.code.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
 
@@ -101,7 +103,7 @@ impl OAuthRepository {
              (code, client_id, user_id, redirect_uri, scope, expires_at, code_challenge,
              code_challenge_method, resource, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-            code,
+            code_hash,
             client_id,
             user_id,
             params.redirect_uri,
@@ -122,10 +124,10 @@ impl OAuthRepository {
         &self,
         code: &AuthorizationCode,
     ) -> OauthResult<Option<ClientId>> {
-        let code_str = code.as_str();
+        let code_hash = hash_at_rest(code.as_str())?;
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_auth_codes WHERE code = $1",
-            code_str
+            code_hash
         )
         .fetch_optional(self.pool_ref())
         .await?;
@@ -142,12 +144,13 @@ impl OAuthRepository {
     ) -> OauthResult<AuthCodeValidationResult> {
         let now = Utc::now();
         let code_str = code.as_str();
+        let code_hash = hash_at_rest(code_str)?;
 
         let row = sqlx::query!(
             "SELECT user_id, scope, expires_at, redirect_uri, used_at, code_challenge,
              code_challenge_method, resource
              FROM oauth_auth_codes WHERE code = $1",
-            code_str
+            code_hash
         )
         .fetch_optional(self.pool_ref())
         .await?
@@ -164,7 +167,7 @@ impl OAuthRepository {
 
             let refresh_token_id = sqlx::query_scalar!(
                 "SELECT refresh_token_id FROM oauth_auth_codes WHERE code = $1",
-                code_str
+                code_hash
             )
             .fetch_optional(self.pool_ref())
             .await?
@@ -281,7 +284,7 @@ impl OAuthRepository {
         sqlx::query!(
             "UPDATE oauth_auth_codes SET used_at = $1 WHERE code = $2",
             now,
-            code_str
+            code_hash
         )
         .execute(self.write_pool_ref())
         .await?;
@@ -298,11 +301,12 @@ impl OAuthRepository {
         code: &AuthorizationCode,
         refresh_token_id: &str,
     ) -> OauthResult<()> {
-        let code_str = code.as_str();
+        let code_hash = hash_at_rest(code.as_str())?;
+        let refresh_token_id_hash = hash_at_rest(refresh_token_id)?;
         sqlx::query!(
             "UPDATE oauth_auth_codes SET refresh_token_id = $1 WHERE code = $2",
-            refresh_token_id,
-            code_str
+            refresh_token_id_hash,
+            code_hash
         )
         .execute(self.write_pool_ref())
         .await?;

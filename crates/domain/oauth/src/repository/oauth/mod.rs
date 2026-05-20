@@ -1,6 +1,7 @@
 //! Aggregated OAuth repository orchestrating client, code, and token
 //! operations.
 
+mod at_rest;
 mod auth_code;
 mod cleanup;
 mod refresh_token;
@@ -9,6 +10,8 @@ mod user;
 
 pub use auth_code::{AuthCodeParams, AuthCodeValidationResult};
 pub use refresh_token::RefreshTokenParams;
+
+pub(super) use at_rest::hash_at_rest;
 
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};
 use crate::error::{OauthError, OauthResult};
