@@ -6,7 +6,6 @@ fn full_secrets() -> Secrets {
     custom.insert("STRIPE_KEY".to_owned(), "sk_test".to_owned());
     custom.insert("intercom".to_owned(), "ic_value".to_owned());
     Secrets {
-        jwt_secret: "j".repeat(32),
         oauth_at_rest_pepper: "p".repeat(32),
         manifest_signing_secret_seed: Some("seed".to_owned()),
         database_url: "postgres://primary".to_owned(),
@@ -25,7 +24,6 @@ fn full_secrets() -> Secrets {
 
 fn minimal_secrets() -> Secrets {
     Secrets {
-        jwt_secret: "j".repeat(32),
         oauth_at_rest_pepper: "p".repeat(32),
         manifest_signing_secret_seed: None,
         database_url: "postgres://primary".to_owned(),
@@ -46,7 +44,6 @@ fn minimal_secrets() -> Secrets {
 fn to_subprocess_env_includes_required_fields() {
     let env: HashMap<String, String> =
         minimal_secrets().to_subprocess_env().into_iter().collect();
-    assert!(env.contains_key("JWT_SECRET"));
     assert!(env.contains_key("OAUTH_AT_REST_PEPPER"));
     assert!(env.contains_key("DATABASE_URL"));
 }
