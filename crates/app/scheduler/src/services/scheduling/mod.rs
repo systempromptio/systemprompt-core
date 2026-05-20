@@ -23,6 +23,13 @@ use tracing::{Instrument, debug, info, warn};
 
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<String>>>;
 
+struct RegistrationCtx<'a> {
+    scheduler: &'a JobScheduler,
+    registered_jobs: &'a HashMap<&'a str, &'static dyn JobTrait>,
+    running_jobs: &'a RunningJobs,
+    owners: &'a HashMap<String, UserId>,
+}
+
 #[derive(Debug)]
 pub struct SchedulerService {
     config: SchedulerConfig,
@@ -65,8 +72,13 @@ impl SchedulerService {
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
 
         let scheduler = JobScheduler::new().await?;
-        self.register_jobs(&scheduler, &registered_jobs, &running_jobs, &resolved_owners)
-            .await?;
+        let ctx = RegistrationCtx {
+            scheduler: &scheduler,
+            registered_jobs: &registered_jobs,
+            running_jobs: &running_jobs,
+            owners: &resolved_owners,
+        };
+        self.register_jobs(&ctx).await?;
         scheduler.start().await?;
 
         info!("Scheduler started");
@@ -143,12 +155,13 @@ impl SchedulerService {
         let users = UserRepository::new(db_pool)?;
         let mut resolved = HashMap::with_capacity(jobs.len());
         for job in jobs.iter().filter(|j| j.enabled) {
-            let owner = users.find_by_name(job.owner.as_str()).await?.ok_or_else(|| {
-                SchedulerError::UnresolvedJobOwner {
+            let owner = users
+                .find_by_name(job.owner.as_str())
+                .await?
+                .ok_or_else(|| SchedulerError::UnresolvedJobOwner {
                     job_name: job.name.clone(),
                     owner: job.owner.as_str().to_string(),
-                }
-            })?;
+                })?;
             if owner.status.as_deref() != Some(UserStatus::Active.as_str()) {
                 return Err(SchedulerError::UnresolvedJobOwner {
                     job_name: job.name.clone(),
@@ -168,39 +181,29 @@ impl SchedulerService {
             .collect()
     }
 
-    async fn register_jobs(
-        &self,
-        scheduler: &JobScheduler,
-        registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
-        running_jobs: &RunningJobs,
-        owners: &HashMap<String, UserId>,
-    ) -> SchedulerResult<()> {
+    async fn register_jobs(&self, ctx: &RegistrationCtx<'_>) -> SchedulerResult<()> {
         for job_config in &self.config.jobs {
-            self.register_single_job(scheduler, registered_jobs, job_config, running_jobs, owners)
-                .await?;
+            self.register_single_job(ctx, job_config).await?;
         }
         Ok(())
     }
 
     async fn register_single_job(
         &self,
-        scheduler: &JobScheduler,
-        registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
+        ctx: &RegistrationCtx<'_>,
         job_config: &JobConfig,
-        running_jobs: &RunningJobs,
-        owners: &HashMap<String, UserId>,
     ) -> SchedulerResult<()> {
         if !job_config.enabled {
             debug!("Skipping disabled job: {}", job_config.name);
             return Ok(());
         }
 
-        let Some(registered_job) = registered_jobs.get(job_config.name.as_str()) else {
+        let Some(registered_job) = ctx.registered_jobs.get(job_config.name.as_str()) else {
             warn!("Job '{}' not found in inventory, skipping", job_config.name);
             return Ok(());
         };
 
-        let Some(actor) = owners.get(&job_config.name).cloned() else {
+        let Some(actor) = ctx.owners.get(&job_config.name).cloned() else {
             return Err(SchedulerError::UnresolvedJobOwner {
                 job_name: job_config.name.clone(),
                 owner: job_config.owner.as_str().to_string(),
@@ -217,8 +220,9 @@ impl SchedulerService {
             .upsert_job(&job_config.name, &schedule, job_config.enabled)
             .await?;
 
-        let job = self.create_job_from_trait(&job_config.name, &schedule, running_jobs, actor)?;
-        scheduler.add(job).await?;
+        let job =
+            self.create_job_from_trait(&job_config.name, &schedule, ctx.running_jobs, actor)?;
+        ctx.scheduler.add(job).await?;
         Ok(())
     }
 

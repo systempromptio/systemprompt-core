@@ -162,8 +162,8 @@ async fn run_single_job(
                 result: JobRunResult {
                     success: false,
                     message: Some(
-                        "bootstrap admin owner does not resolve to a user; \
-                         seed an `admin` user before running ad-hoc jobs"
+                        "bootstrap admin owner does not resolve to a user; seed an `admin` user \
+                         before running ad-hoc jobs"
                             .to_string(),
                     ),
                     items_processed: None,
