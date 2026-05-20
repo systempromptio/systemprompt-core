@@ -5,7 +5,7 @@ use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
-use super::api::request_session_id;
+use super::api::create_local_session_row;
 use super::resolution::ProfileContext;
 use crate::CliConfig;
 use helpers::{
@@ -41,16 +41,9 @@ pub(super) async fn create_local_session(
         CliService::key_value("User", &admin_user.email);
     }
 
-    let session_id = request_session_id(
-        &profile.server.api_external_url,
-        &admin_user.id,
-        &admin_user.email,
-    )
-    .await
-    .context(
-        "Failed to create session via API.\n\nEnsure the API server is running, or use \
-         'systemprompt admin session login' to create a session manually.",
-    )?;
+    let session_id = create_local_session_row(&db_pool, &admin_user.id)
+        .await
+        .context("Failed to create local CLI session row in the database")?;
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
@@ -116,13 +109,9 @@ pub(super) async fn create_session_for_tenant(
     let admin_user =
         resolve_tenant_admin_with_fallback(&db_pool, creds, user_email, session_email_hint).await?;
 
-    let session_id = request_session_id(
-        &profile.server.api_external_url,
-        &admin_user.id,
-        &admin_user.email,
-    )
-    .await
-    .context("Failed to create CLI session via API")?;
+    let session_id = create_local_session_row(&db_pool, &admin_user.id)
+        .await
+        .context("Failed to create local tenant CLI session row in the database")?;
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;

@@ -52,7 +52,7 @@ impl Default for ExecutionMetadata {
             context_id: ContextId::generate(),
             trace_id: TraceId::new("default"),
             session_id: SessionId::new("default"),
-            user_id: UserId::new("default"),
+            user_id: systemprompt_identifiers::bootstrap::default(),
             agent_name: AgentName::new("default"),
             timestamp: Utc::now(),
             task_id: None,

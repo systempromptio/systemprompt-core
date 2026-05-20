@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::UserId;
 
 use crate::ai::ToolModelConfig;
 use crate::auth::{AuthenticatedUser, Permission};
@@ -14,6 +15,7 @@ pub const STARTING: &str = "starting";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
     pub name: String,
+    pub owner: UserId,
     pub server_type: McpServerType,
     pub binary: String,
     pub enabled: bool,

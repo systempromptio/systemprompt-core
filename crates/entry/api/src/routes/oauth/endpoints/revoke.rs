@@ -3,10 +3,12 @@ use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Form, Json};
+use jsonwebtoken::dangerous::insecure_decode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use systemprompt_analytics::SessionRepository;
+use systemprompt_identifiers::SessionId;
 use systemprompt_models::RequestContext;
+use systemprompt_models::auth::JwtClaims;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
@@ -35,7 +37,7 @@ pub async fn handle_revoke(
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
 ) -> impl IntoResponse {
-    let audit_user = match get_audit_user(Some(&req_ctx.auth.user_id)) {
+    let audit_user = match get_audit_user(Some(&req_ctx.auth.actor.user_id)) {
         Ok(user) => user,
         Err(e) => {
             let error = RevokeError {
@@ -45,8 +47,6 @@ pub async fn handle_revoke(
             return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
         },
     };
-
-    tracing::info!("Token revocation request received");
 
     let token_type = request
         .token_type_hint
@@ -79,6 +79,16 @@ pub async fn handle_revoke(
 
     match revoke_token(&repo, &request.token, request.token_type_hint.as_deref()).await {
         Ok(()) => {
+            if let Some(session_id) = extract_session_id_unverified(&request.token) {
+                if let Err(e) = state.analytics_provider().revoke_session(&session_id).await {
+                    tracing::warn!(
+                        session_id = %session_id,
+                        error = %e,
+                        "Failed to revoke session after token revocation"
+                    );
+                }
+            }
+
             tracing::info!(
                 token_hash = %token_hash,
                 token_type = %token_type,
@@ -87,26 +97,6 @@ pub async fn handle_revoke(
                 revoked_by = %audit_user,
                 "Token revoked"
             );
-
-            match SessionRepository::new(state.db_pool()) {
-                Ok(session_repo) => {
-                    if let Err(e) = session_repo.end_session(req_ctx.session_id()).await {
-                        tracing::warn!(
-                            session_id = %req_ctx.session_id(),
-                            error = %e,
-                            "Failed to end session after token revocation"
-                        );
-                    } else {
-                        tracing::debug!(
-                            session_id = %req_ctx.session_id(),
-                            "Session ended after token revocation"
-                        );
-                    }
-                },
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to create session repository");
-                },
-            }
 
             StatusCode::OK.into_response()
         },
@@ -154,6 +144,20 @@ async fn revoke_token(
     }
 
     Ok(())
+}
+
+/// Decode an access-token JWT without verifying its signature to recover the
+/// `session_id` claim for server-side revocation.
+///
+/// Why: RFC 7009 token revocation already authenticates the *client*; the
+/// signature on the token itself is irrelevant for the revocation decision
+/// (we only need to know which session to mark revoked). A forged token will
+/// produce a `session_id` that either doesn't exist or belongs to a different
+/// principal — either way the `revoke_session` query is a no-op or rejected
+/// downstream, and we have not accepted the token for authentication.
+fn extract_session_id_unverified(token: &str) -> Option<SessionId> {
+    let data = insecure_decode::<JwtClaims>(token).ok()?;
+    data.claims.session_id
 }
 
 fn hash_token(token: &str) -> String {

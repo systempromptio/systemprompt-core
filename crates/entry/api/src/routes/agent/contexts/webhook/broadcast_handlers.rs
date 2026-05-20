@@ -14,7 +14,7 @@ pub async fn broadcast_a2a_event(
     State(_app_context): State<AppContext>,
     Json(request): Json<A2ABroadcastRequest>,
 ) -> Response {
-    let authenticated_user_id = &req_ctx.auth.user_id;
+    let authenticated_user_id = &req_ctx.auth.actor.user_id;
     let request_user_id = UserId::new(&request.user_id);
     let event_type = request.event.event_type();
 
@@ -52,7 +52,7 @@ pub async fn broadcast_agui_event(
     State(_app_context): State<AppContext>,
     Json(request): Json<AgUiBroadcastRequest>,
 ) -> Response {
-    let authenticated_user_id = &req_ctx.auth.user_id;
+    let authenticated_user_id = &req_ctx.auth.actor.user_id;
     let request_user_id = UserId::new(&request.user_id);
     let event_type = request.event.event_type();
 

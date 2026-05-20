@@ -4,7 +4,7 @@ use systemprompt_ai::repository::{
     AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaBucketState,
 };
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{TenantId, UserId};
+use systemprompt_identifiers::UserId;
 
 use super::policy::QuotaWindow;
 
@@ -20,7 +20,6 @@ pub struct QuotaDecision {
 
 pub async fn precheck_and_reserve(
     db: &DbPool,
-    tenant_id: Option<&TenantId>,
     user_id: &UserId,
     windows: &[QuotaWindow],
 ) -> Result<Option<QuotaDecision>> {
@@ -35,7 +34,6 @@ pub async fn precheck_and_reserve(
         let window_start = align_window(now, window.window_seconds);
         let state = repo
             .increment(IncrementParams {
-                tenant_id,
                 user_id,
                 window_seconds: window.window_seconds,
                 window_start,
@@ -65,7 +63,6 @@ pub async fn precheck_and_reserve(
 
 #[derive(Debug)]
 pub struct PostUpdateParams<'a> {
-    pub tenant_id: Option<&'a TenantId>,
     pub user_id: &'a UserId,
     pub windows: &'a [QuotaWindow],
     pub input_tokens: u32,
@@ -88,7 +85,6 @@ pub async fn post_update_tokens(db: &DbPool, params: PostUpdateParams<'_>) {
         let window_start = align_window(now, window.window_seconds);
         if let Err(e) = repo
             .increment(IncrementParams {
-                tenant_id: params.tenant_id,
                 user_id: params.user_id,
                 window_seconds: window.window_seconds,
                 window_start,

@@ -68,7 +68,9 @@ impl ContextExtractor for HeaderContextExtractor {
             context_id,
             AgentName::new(agent_name_str),
         )
-        .with_user_id(UserId::new(user_id_str));
+        .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
+            user_id_str,
+        )));
 
         if let Some(task_id_str) = Self::extract_optional_header(headers, "x-task-id") {
             context = context.with_task_id(TaskId::new(task_id_str));
@@ -92,7 +94,9 @@ impl ContextExtractor for HeaderContextExtractor {
             ContextId::generate(),
             AgentName::new(agent_name_str),
         )
-        .with_user_id(UserId::new(user_id_str))
+        .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
+            user_id_str,
+        )))
         .with_user_type(UserType::User);
 
         Ok(context)

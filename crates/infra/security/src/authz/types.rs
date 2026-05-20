@@ -12,7 +12,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{RuleId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, RuleId, TraceId, UserId};
 
 use super::error::AuthzError;
 
@@ -164,6 +164,11 @@ pub struct AuthzRequest {
     // JSON: extension hook contract — context is forwarded verbatim to webhook
     // handlers and is intentionally schema-free at this boundary.
     pub context: serde_json::Value,
+    /// RFC 8693 delegation lineage forwarded from
+    /// `RequestContext.auth.act_chain`. Empty when no token-exchange chain
+    /// is present.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub act_chain: Vec<Actor>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

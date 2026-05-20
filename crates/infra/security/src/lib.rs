@@ -44,6 +44,7 @@ pub mod authz;
 pub mod error;
 pub mod extraction;
 pub mod jwt;
+pub mod keys;
 pub mod manifest_signing;
 pub mod services;
 pub mod session;

@@ -16,8 +16,8 @@ use crate::auth::{AuthenticatedUser, RateLimitTier, UserType};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId, TaskId,
-    TraceId, UserId,
+    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId,
+    TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,8 +44,9 @@ impl RequestContext {
         Self {
             auth: AuthContext {
                 auth_token: JwtToken::new(""),
-                user_id: UserId::anonymous(),
+                actor: Actor::user(UserId::anonymous()),
                 user_type: UserType::Anon,
+                act_chain: Vec::new(),
             },
             request: RequestMetadata {
                 session_id,
@@ -71,13 +72,13 @@ impl RequestContext {
     }
 
     pub fn with_user(mut self, user: AuthenticatedUser) -> Self {
-        self.auth.user_id = UserId::new(user.id.to_string());
+        self.auth.actor = Actor::user(UserId::new(user.id.to_string()));
         self.user = Some(user);
         self
     }
 
-    pub fn with_user_id(mut self, user_id: UserId) -> Self {
-        self.auth.user_id = user_id;
+    pub fn with_actor(mut self, actor: Actor) -> Self {
+        self.auth.actor = actor;
         self
     }
 
@@ -127,6 +128,17 @@ impl RequestContext {
         self
     }
 
+    #[must_use]
+    pub fn with_act_chain(mut self, act_chain: Vec<Actor>) -> Self {
+        self.auth.act_chain = act_chain;
+        self
+    }
+
+    #[must_use]
+    pub fn act_chain(&self) -> &[Actor] {
+        &self.auth.act_chain
+    }
+
     pub const fn with_call_source(mut self, call_source: CallSource) -> Self {
         self.execution.call_source = Some(call_source);
         self
@@ -170,7 +182,11 @@ impl RequestContext {
     }
 
     pub const fn user_id(&self) -> &UserId {
-        &self.auth.user_id
+        &self.auth.actor.user_id
+    }
+
+    pub const fn actor(&self) -> &Actor {
+        &self.auth.actor
     }
 
     pub const fn trace_id(&self) -> &TraceId {
@@ -222,7 +238,11 @@ impl RequestContext {
     }
 
     pub fn is_system(&self) -> bool {
-        self.auth.user_id.is_system()
+        self.auth.actor.user_id.is_system()
+    }
+
+    pub fn is_anonymous(&self) -> bool {
+        self.auth.actor.user_id.is_anonymous()
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -240,7 +260,7 @@ impl RequestContext {
         if self.auth.auth_token.as_str().is_empty() {
             return Err("Missing authentication token".to_string());
         }
-        if self.auth.user_id.is_anonymous() {
+        if self.auth.actor.user_id.is_anonymous() {
             return Err("User is not authenticated".to_string());
         }
         Ok(())

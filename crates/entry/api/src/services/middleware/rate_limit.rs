@@ -1,3 +1,10 @@
+//! Router extension traits for rate limiting and authenticated route groups.
+//!
+//! `RouterExt::with_auth` attaches authentication and authorization in one
+//! call: it requires an `AuthzPolicy`, so a route group cannot be mounted
+//! authenticated-but-unauthorized — omitting the policy is a compile error.
+
+use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
 use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
 use axum::Router;
 use axum::extract::Request;
@@ -17,7 +24,8 @@ use tracing::warn;
 
 pub trait RouterExt<S> {
     fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self;
-    fn with_auth_middleware<E>(self, middleware: ContextMiddleware<E>) -> Self
+
+    fn with_auth<E>(self, auth: ContextMiddleware<E>, policy: AuthzPolicy) -> Self
     where
         E: ContextExtractor + Clone + Send + Sync + 'static;
 }
@@ -46,13 +54,16 @@ where
         }
     }
 
-    fn with_auth_middleware<E>(self, middleware: ContextMiddleware<E>) -> Self
+    fn with_auth<E>(self, auth: ContextMiddleware<E>, policy: AuthzPolicy) -> Self
     where
         E: ContextExtractor + Clone + Send + Sync + 'static,
     {
-        self.layer(axum::middleware::from_fn(move |req, next| {
-            let middleware = middleware.clone();
-            async move { middleware.handle(req, next).await }
+        self.layer(axum::middleware::from_fn(move |req, next| async move {
+            authz_gate(policy, req, next).await
+        }))
+        .layer(axum::middleware::from_fn(move |req, next| {
+            let auth = auth.clone();
+            async move { auth.handle(req, next).await }
         }))
     }
 }

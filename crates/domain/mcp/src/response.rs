@@ -112,7 +112,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             artifact_id: artifact_id.clone(),
             mcp_execution_id: exec_id,
             context_id: Some(self.ctx.context_id().clone()),
-            user_id: (!self.ctx.user_id().is_anonymous()).then(|| self.ctx.user_id().clone()),
+            user_id: (!self.ctx.is_anonymous()).then(|| self.ctx.user_id().clone()),
             server_name: tool_name,
             artifact_type: artifact_type_str,
             title,

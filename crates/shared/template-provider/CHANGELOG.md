@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. Template provider trait surface unchanged.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

@@ -175,3 +175,54 @@ fn test_available_roles_is_static() {
     let roles: &'static [&'static str] = BaseRoles::available_roles();
     assert!(!roles.is_empty());
 }
+
+mod act_claim {
+    use systemprompt_models::auth::ActClaim;
+
+    fn nested(sub: &str, inner: Option<ActClaim>) -> ActClaim {
+        ActClaim {
+            iss: format!("iss-{sub}"),
+            sub: sub.to_string(),
+            act: Box::new(inner),
+        }
+    }
+
+    #[test]
+    fn serde_round_trip_preserves_chain() {
+        let chain = nested(
+            "outer",
+            Some(nested("middle", Some(nested("inner", None)))),
+        );
+        let json = serde_json::to_string(&chain).expect("serialize");
+        let parsed: ActClaim = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed, chain);
+    }
+
+    #[test]
+    fn act_field_omitted_when_none() {
+        let leaf = nested("only", None);
+        let json = serde_json::to_value(&leaf).expect("serialize");
+        assert!(json.get("act").is_none(), "act should be skipped when None");
+    }
+
+    #[test]
+    fn flatten_three_level_chain_returns_outermost_first() {
+        let chain = nested(
+            "outer",
+            Some(nested("middle", Some(nested("inner", None)))),
+        );
+        let flat = chain.flatten_to_chain();
+        assert_eq!(flat.len(), 3);
+        assert_eq!(flat[0].user_id.as_str(), "outer");
+        assert_eq!(flat[1].user_id.as_str(), "middle");
+        assert_eq!(flat[2].user_id.as_str(), "inner");
+    }
+
+    #[test]
+    fn flatten_single_link_chain() {
+        let leaf = nested("solo", None);
+        let flat = leaf.flatten_to_chain();
+        assert_eq!(flat.len(), 1);
+        assert_eq!(flat[0].user_id.as_str(), "solo");
+    }
+}

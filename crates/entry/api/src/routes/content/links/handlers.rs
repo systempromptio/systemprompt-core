@@ -35,7 +35,7 @@ pub async fn redirect_handler(
         link.id.clone(),
         SessionId::new(req_ctx.request.session_id.as_str()),
     )
-    .with_user_id(Some(req_ctx.auth.user_id.clone()))
+    .with_user_id(Some(req_ctx.auth.actor.user_id.clone()))
     .with_context_id(Some(req_ctx.execution.context_id.clone()))
     .with_task_id(req_ctx.execution.task_id.clone());
 

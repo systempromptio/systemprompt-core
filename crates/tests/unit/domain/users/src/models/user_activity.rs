@@ -1,13 +1,13 @@
 //! Unit tests for UserActivity and UserWithSessions structs
 
 use chrono::Utc;
-use systemprompt_identifiers::UserId;
 use systemprompt_users::{UserActivity, UserWithSessions};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn user_activity_creation() {
     let activity = UserActivity {
-        user_id: UserId::new("user-123".to_string()),
+        user_id: fixture_user_id(),
         last_active: Some(Utc::now()),
         session_count: 5,
         task_count: 10,
@@ -21,7 +21,7 @@ fn user_activity_creation() {
 #[test]
 fn user_activity_debug() {
     let activity = UserActivity {
-        user_id: UserId::new("user-123".to_string()),
+        user_id: fixture_user_id(),
         last_active: None,
         session_count: 0,
         task_count: 0,
@@ -33,7 +33,7 @@ fn user_activity_debug() {
 #[test]
 fn user_activity_with_no_last_active() {
     let activity = UserActivity {
-        user_id: UserId::new("user-123".to_string()),
+        user_id: fixture_user_id(),
         last_active: None,
         session_count: 0,
         task_count: 0,
@@ -45,7 +45,7 @@ fn user_activity_with_no_last_active() {
 #[test]
 fn user_with_sessions_creation() {
     let user = UserWithSessions {
-        id: UserId::new("user-123".to_string()),
+        id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
@@ -62,7 +62,7 @@ fn user_with_sessions_creation() {
 #[test]
 fn user_with_sessions_debug() {
     let user = UserWithSessions {
-        id: UserId::new("user-123".to_string()),
+        id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: None,
@@ -78,7 +78,7 @@ fn user_with_sessions_debug() {
 #[test]
 fn user_with_sessions_no_active_sessions() {
     let user = UserWithSessions {
-        id: UserId::new("user-123".to_string()),
+        id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: None,

@@ -25,7 +25,7 @@ fn test_log_row_to_log_entry_no_user_id_uses_system() {
     let entry: LogEntry = row.into();
     assert_eq!(
         entry.user_id.as_str(),
-        systemprompt_identifiers::UserId::system().as_str()
+        systemprompt_identifiers::UserId::admin().as_str()
     );
 }
 

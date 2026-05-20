@@ -4,10 +4,12 @@ use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::registry::RegistryConfig;
 use systemprompt_models::mcp::server::McpServerConfig;
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn make_internal_server(name: &str, port: u16) -> McpServerConfig {
     McpServerConfig {
         name: name.to_string(),
+        owner: fixture_user_id(),
         server_type: McpServerType::Internal,
         binary: format!("{name}-bin"),
         enabled: true,
@@ -38,6 +40,7 @@ fn make_internal_server(name: &str, port: u16) -> McpServerConfig {
 fn make_external_server(name: &str, endpoint: &str) -> McpServerConfig {
     McpServerConfig {
         name: name.to_string(),
+        owner: fixture_user_id(),
         server_type: McpServerType::External,
         binary: String::new(),
         enabled: true,

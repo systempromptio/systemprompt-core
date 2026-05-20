@@ -4,6 +4,8 @@ pub mod context_lifecycle;
 pub mod gateway_inference;
 pub mod governance_only;
 pub mod hook_track;
+pub mod lb_fairness;
 pub mod oauth_session;
 pub mod send_message;
+pub mod sse_stream;
 pub mod task_read;

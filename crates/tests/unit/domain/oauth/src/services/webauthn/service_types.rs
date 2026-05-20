@@ -2,8 +2,8 @@
 //! LinkStates, WebAuthnRegistry
 
 use std::time::Instant;
-use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::webauthn::service::{
     LinkUserInfo, VerifiedAuthentication, create_link_states,
 };
@@ -11,17 +11,17 @@ use systemprompt_oauth::services::webauthn::service::{
 #[test]
 fn test_verified_authentication_construction() {
     let auth = VerifiedAuthentication {
-        user_id: UserId::new("user-abc-123"),
+        user_id: fixture_user_id(),
         timestamp: Instant::now(),
     };
 
-    assert_eq!(auth.user_id.as_str(), "user-abc-123");
+    assert_eq!(auth.user_id.as_str(), "test-user");
 }
 
 #[test]
 fn test_verified_authentication_clone() {
     let original = VerifiedAuthentication {
-        user_id: UserId::new("user-clone-test"),
+        user_id: fixture_user_id(),
         timestamp: Instant::now(),
     };
 
@@ -33,20 +33,20 @@ fn test_verified_authentication_clone() {
 #[test]
 fn test_verified_authentication_debug() {
     let auth = VerifiedAuthentication {
-        user_id: UserId::new("debug-user-id"),
+        user_id: fixture_user_id(),
         timestamp: Instant::now(),
     };
 
     let debug_output = format!("{auth:?}");
     assert!(debug_output.contains("VerifiedAuthentication"));
-    assert!(debug_output.contains("debug-user-id"));
+    assert!(debug_output.contains("test-user"));
 }
 
 #[test]
 fn test_verified_authentication_timestamp_preserves_value() {
     let before = Instant::now();
     let auth = VerifiedAuthentication {
-        user_id: UserId::new("timestamp-test"),
+        user_id: fixture_user_id(),
         timestamp: before,
     };
     let after = Instant::now();

@@ -64,7 +64,7 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        assert_eq!(schemas.len(), 8);
+        assert_eq!(schemas.len(), 9);
     }
 
     #[test]

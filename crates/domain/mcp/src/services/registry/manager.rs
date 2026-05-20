@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::UserId;
 use systemprompt_loader::ExtensionRegistry;
 use systemprompt_models::Config;
 use systemprompt_models::mcp::McpServerType;
@@ -46,6 +47,7 @@ impl RegistryService {
 
             let config = crate::McpServerConfig {
                 name: server_name.clone(),
+                owner: UserId::admin(),
                 server_type: deployment.server_type,
                 binary: deployment.binary.clone(),
                 enabled: deployment.enabled,

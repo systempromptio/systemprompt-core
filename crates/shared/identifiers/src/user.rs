@@ -1,4 +1,4 @@
-//! User identifier with `system` and `anonymous` constants.
+//! User identifier.
 
 crate::define_id!(UserId, schema);
 
@@ -9,6 +9,14 @@ impl UserId {
 
     pub fn system() -> Self {
         Self("system".to_string())
+    }
+
+    pub fn admin() -> Self {
+        Self("admin".to_string())
+    }
+
+    pub fn bootstrap(value: &'static str) -> Self {
+        Self(value.to_string())
     }
 
     pub fn is_system(&self) -> bool {

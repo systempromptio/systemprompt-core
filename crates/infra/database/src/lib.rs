@@ -72,8 +72,8 @@ pub use services::{
 
 pub use error::{DatabaseResult, RepositoryError};
 pub use lifecycle::{
-    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MigrationConfig, MigrationResult,
-    MigrationService, MigrationStatus, PendingMigration, RepairResult, SquashPlan,
+    AppliedMigration, ChecksumDrift, ExtensionMigrationStatus, MarkAppliedOutcome, MigrationConfig,
+    MigrationResult, MigrationService, MigrationStatus, PendingMigration, RepairResult, SquashPlan,
     install_extension_schemas, install_extension_schemas_full,
     install_extension_schemas_with_config, validate_column_exists, validate_database_connection,
     validate_table_exists,

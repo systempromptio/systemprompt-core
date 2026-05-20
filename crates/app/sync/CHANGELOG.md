@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Breaking
+- `SyncConfig.sync_client_secret` and `SyncConfigBuilder::with_sync_client_secret` removed; `SyncApiClient::with_direct_sync` now takes only the hostname. The direct-sync path exchanges the operator's existing `api_token` for a Service-JWT via the RFC 8693 `urn:ietf:params:oauth:grant-type:token-exchange` grant against `/api/v1/core/oauth/token`.
+
+### Added
+- `api_client::exchange_subject_token` performs the RFC 8693 subject-token exchange and returns the resulting access token. Tokens are cached for the run and re-minted once on a 401.
+- Typed `source_id` on content-diff structures, replacing borrowed `&str`.
+
+### Changed
+- API client request signing, error mapping, and front-matter `format!` call sites cleaned up of redundant references.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{TraceId, UserId};
+use systemprompt_identifiers::TraceId;
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_security::authz::{
     AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind, clear_global_hook,
     global_hook, install_global_hook,
@@ -24,11 +25,12 @@ fn fixture_request(entity: EntityKind) -> AuthzRequest {
     AuthzRequest {
         entity_type: entity,
         entity_id: "fixture".into(),
-        user_id: UserId::new("u-test"),
+        user_id: fixture_user_id(),
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-test"),
         context: serde_json::Value::Null,
+        act_chain: Vec::new(),
     }
 }
 

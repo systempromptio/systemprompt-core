@@ -10,6 +10,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
+use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -39,7 +40,7 @@ fn test_cli_session_builder_default_user() {
     let builder = create_test_builder();
     let session = builder.build();
 
-    assert_eq!(session.user_id, UserId::system());
+    assert_eq!(session.user_id, UserId::admin());
     assert_eq!(session.user_email.as_str(), "system@local.invalid");
 }
 
@@ -89,7 +90,7 @@ fn test_cli_session_builder_with_profile_path() {
 
 #[test]
 fn test_cli_session_builder_with_user() {
-    let user_id = UserId::new("user-789");
+    let user_id = fixture_user_id();
     let email = Email::new("test@example.com");
     let builder = create_test_builder().with_user(user_id.clone(), email.clone());
     let session = builder.build();
@@ -111,13 +112,13 @@ fn test_cli_session_builder_chain() {
     let session = create_test_builder()
         .with_tenant_key(TenantId::new("tenant"))
         .with_profile_path("/profile.yaml")
-        .with_user(UserId::new("user"), Email::new("u@e.com"))
+        .with_user(fixture_user_id(), Email::new("u@e.com"))
         .with_user_type(UserType::User)
         .build();
 
     assert_eq!(session.tenant_key, Some(TenantId::new("tenant")));
     assert_eq!(session.profile_path, Some(PathBuf::from("/profile.yaml")));
-    assert_eq!(session.user_id, UserId::new("user"));
+    assert_eq!(session.user_id, fixture_user_id());
     assert_eq!(session.user_type, UserType::User);
 }
 
@@ -290,7 +291,7 @@ fn test_cli_session_save_and_load() {
 
     let session = create_test_builder()
         .with_tenant_key(TenantId::new("test-tenant"))
-        .with_user(UserId::new("user-1"), Email::new("test@test.com"))
+        .with_user(fixture_user_id(), Email::new("test@test.com"))
         .build();
 
     session.save_to_path(&session_path).unwrap();

@@ -19,3 +19,5 @@ mod error;
 mod files;
 #[cfg(test)]
 mod models;
+#[cfg(test)]
+mod token_exchange;

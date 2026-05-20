@@ -6,12 +6,12 @@
 //! - Result type patterns
 
 use chrono::Utc;
-use systemprompt_identifiers::UserId;
 use systemprompt_users::{DemoteResult, PromoteResult, User};
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn create_test_user(roles: Vec<String>) -> User {
     User {
-        id: UserId::new("user-123".to_string()),
+        id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),

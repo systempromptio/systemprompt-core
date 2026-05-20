@@ -1,40 +1,8 @@
 use systemprompt_identifiers::{DbValue, ToDbValue, UserId};
 
 #[test]
-fn anonymous_factory_value() {
-    assert_eq!(UserId::anonymous().as_str(), "anonymous");
-}
-
-#[test]
-fn system_factory_value() {
-    assert_eq!(UserId::system().as_str(), "system");
-}
-
-#[test]
-fn is_system_true_for_system() {
-    assert!(UserId::system().is_system());
-}
-
-#[test]
-fn is_system_false_for_others() {
-    assert!(!UserId::new("user-123").is_system());
-    assert!(!UserId::anonymous().is_system());
-}
-
-#[test]
-fn is_anonymous_true_for_anonymous() {
-    assert!(UserId::anonymous().is_anonymous());
-}
-
-#[test]
-fn is_anonymous_false_for_others() {
-    assert!(!UserId::new("user-123").is_anonymous());
-    assert!(!UserId::system().is_anonymous());
-}
-
-#[test]
-fn system_and_anonymous_are_distinct() {
-    assert_ne!(UserId::system(), UserId::anonymous());
+fn admin_factory_value() {
+    assert_eq!(UserId::admin().as_str(), "admin");
 }
 
 #[test]

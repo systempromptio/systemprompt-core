@@ -2,13 +2,13 @@ use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{AppContext as _, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::routes::configure_routes;
 use crate::models::ServerConfig;
 use crate::services::middleware::{
     AnalyticsMiddleware, ContextMiddleware, CorsMiddleware, JwtContextExtractor, SessionMiddleware,
-    inject_security_headers, inject_trace_header, remove_trailing_slash,
+    inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
 pub use super::discovery::*;
@@ -101,9 +101,16 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }
     }));
 
+    let analytics = ctx
+        .analytics_provider()
+        .ok_or_else(|| anyhow::anyhow!("AnalyticsProvider required for JWT middleware"))?;
+    let user_provider = ctx
+        .user_provider()
+        .ok_or_else(|| anyhow::anyhow!("UserProvider required for JWT middleware"))?;
     let jwt_extractor = JwtContextExtractor::new(
         systemprompt_config::SecretsBootstrap::jwt_secret()?,
-        ctx.db_pool(),
+        analytics,
+        user_provider,
     );
     let global_context_middleware = ContextMiddleware::public(jwt_extractor);
     router = router.layer(axum::middleware::from_fn({
@@ -129,6 +136,8 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     router = router.layer(axum::middleware::from_fn(remove_trailing_slash));
 
     router = router.layer(axum::middleware::from_fn(inject_trace_header));
+
+    router = router.layer(axum::middleware::from_fn(inject_served_by));
 
     if ctx.config().content_negotiation.enabled {
         router = router.layer(axum::middleware::from_fn(

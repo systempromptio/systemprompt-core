@@ -8,8 +8,9 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
-    DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MigrationResult,
-    MigrationService, MigrationStatus, PendingMigration, QueryResult, QuerySelector, ToDbValue,
+    DatabaseTransaction, DbValue, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome,
+    MigrationResult, MigrationService, MigrationStatus, PendingMigration, QueryResult,
+    QuerySelector, ToDbValue,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
@@ -590,6 +591,74 @@ async fn run_down_migrations_rejects_irreversible_migration() {
         .await
         .expect("nothing applied -> Ok");
     assert_eq!(result.migrations_run, 0);
+}
+
+#[tokio::test]
+async fn mark_applied_records_migration_without_running_sql() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "mark_applied_ext",
+        migrations: vec![Migration::new(
+            4,
+            "add_actor_kind_column",
+            "ALTER TABLE audit_events ADD COLUMN actor_kind TEXT NOT NULL DEFAULT 'user';",
+        )],
+    };
+
+    let outcome: MarkAppliedOutcome = service
+        .mark_applied(&extension, 4)
+        .await
+        .expect("mark applied succeeds");
+
+    assert_eq!(outcome.extension_id, "mark_applied_ext");
+    assert_eq!(outcome.version, 4);
+    assert_eq!(outcome.name, "add_actor_kind_column");
+    assert!(!outcome.checksum.is_empty());
+    assert_eq!(outcome.checksum, extension.migrations[0].checksum());
+
+    let events = log.snapshot();
+    assert!(
+        !events.iter().any(|e| e == "begin"),
+        "mark-applied must not open a tx: {events:?}"
+    );
+    assert!(
+        !events.iter().any(|e| e.starts_with("execute_raw:ALTER")),
+        "mark-applied must not run migration SQL: {events:?}"
+    );
+    assert!(
+        events.iter().filter(|e| e.as_str() == "execute").count() >= 1,
+        "mark-applied must INSERT a tracking row: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn mark_applied_rejects_unknown_version() {
+    let log = Arc::new(CallLog::default());
+    let provider = RecordingProvider::new(Arc::clone(&log));
+    let service = MigrationService::new(&provider);
+
+    let extension = StubExtension {
+        id: "mark_applied_unknown_ext",
+        migrations: vec![Migration::new(1, "only_v1", "CREATE TABLE x (id TEXT);")],
+    };
+
+    let err = service
+        .mark_applied(&extension, 99)
+        .await
+        .expect_err("unknown version must fail");
+
+    match err {
+        LoaderError::MigrationFailed { message, .. } => {
+            assert!(
+                message.contains("99"),
+                "error must name the missing version: {message}"
+            );
+        },
+        other => panic!("expected MigrationFailed, got {other:?}"),
+    }
 }
 
 #[test]

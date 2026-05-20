@@ -20,9 +20,9 @@ use systemprompt_models::{Profile, Secrets};
 use systemprompt_security::{SessionGenerator, SessionParams};
 
 use super::login_helpers::{
-    SessionStoreParams, create_session, fetch_admin_user, save_session_to_store,
-    try_use_existing_session,
+    SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
+use crate::session::api::create_local_session_row;
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
@@ -107,12 +107,7 @@ pub async fn login_for_profile(
     if !args.token_only {
         CliService::info("Creating session...");
     }
-    let session_id = create_session(
-        &profile.server.api_external_url,
-        &admin_user.id,
-        &admin_user.email,
-    )
-    .await?;
+    let session_id = create_local_session_row(&db_pool, &admin_user.id).await?;
 
     if !args.token_only {
         CliService::info("Creating context...");

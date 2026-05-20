@@ -98,8 +98,6 @@ pub struct CloudTenantSecrets {
     pub internal_database_url: String,
     pub app_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sync_token: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub anthropic_api_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub openai_api_key: Option<String>,
@@ -125,11 +123,6 @@ pub struct RotateCredentialsResponse {
     pub message: String,
     pub internal_database_url: String,
     pub external_database_url: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RotateSyncTokenResponse {
-    pub sync_token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

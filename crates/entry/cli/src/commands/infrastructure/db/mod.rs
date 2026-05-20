@@ -1,6 +1,7 @@
 mod admin;
 mod admin_migrate;
 mod admin_migrate_down;
+mod admin_migrate_mark_applied;
 mod admin_migrate_plan;
 mod admin_migrate_repair;
 mod admin_migrate_status;
@@ -76,6 +77,23 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         .await;
     }
 
+    if let DbCommands::MigrateMarkApplied {
+        extension,
+        version,
+        json,
+    } = cmd
+    {
+        return admin::execute_migrate_mark_applied(
+            config,
+            admin::MarkAppliedArgs {
+                extension: &extension,
+                version,
+                json,
+            },
+        )
+        .await;
+    }
+
     if let DbCommands::MigrateSquash {
         extension,
         through,
@@ -126,7 +144,8 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         DbCommands::Migrate { .. }
         | DbCommands::MigrateDown { .. }
         | DbCommands::MigrateSquash { .. }
-        | DbCommands::MigrateRepair { .. } => unreachable!(),
+        | DbCommands::MigrateRepair { .. }
+        | DbCommands::MigrateMarkApplied { .. } => unreachable!(),
         DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
         DbCommands::MigratePlan { extension, json } => {
             admin::execute_migrate_plan(&db.ctx, extension.as_deref(), json, config).await
@@ -233,6 +252,22 @@ pub async fn execute_with_db(
                 admin::RepairArgs {
                     extension: extension.as_deref(),
                     apply,
+                    json,
+                },
+            )
+            .await
+        },
+        DbCommands::MigrateMarkApplied {
+            extension,
+            version,
+            json,
+        } => {
+            admin::execute_migrate_mark_applied_standalone(
+                db_ctx,
+                config,
+                admin::MarkAppliedArgs {
+                    extension: &extension,
+                    version,
                     json,
                 },
             )

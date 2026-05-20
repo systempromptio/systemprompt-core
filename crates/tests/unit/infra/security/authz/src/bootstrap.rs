@@ -4,9 +4,7 @@
 //! `DenyAllHook` or a bootstrap error. Allow-all is reachable only via the
 //! literal acknowledgement string.
 
-use std::sync::{Mutex, MutexGuard};
-
-use systemprompt_identifiers::{TraceId, UserId};
+use systemprompt_identifiers::TraceId;
 use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
@@ -14,26 +12,30 @@ use systemprompt_security::authz::{
     AuthzBootstrapError, AuthzDecision, AuthzError, AuthzRequest, EntityKind, clear_global_hook,
     global_hook, install_from_governance_config,
 };
+use tokio::sync::{Mutex, MutexGuard};
+use systemprompt_test_fixtures::fixture_user_id;
 
-/// `install_from_governance_config` mutates a process-global hook slot, so
-/// these tests cannot interleave regardless of the runner's thread count.
-static SERIAL: Mutex<()> = Mutex::new(());
+// Why: install_from_governance_config mutates a process-global hook slot, so
+// these tests cannot interleave. The lock is held across `.await` points
+// (hook.evaluate), so it must be a tokio Mutex — a std Mutex held across
+// await triggers clippy::await_holding_lock and is genuinely unsafe in a
+// multi-threaded runtime.
+static SERIAL: Mutex<()> = Mutex::const_new(());
 
-fn serial_guard() -> MutexGuard<'static, ()> {
-    SERIAL
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+async fn serial_guard() -> MutexGuard<'static, ()> {
+    SERIAL.lock().await
 }
 
 fn fixture() -> AuthzRequest {
     AuthzRequest {
         entity_type: EntityKind::GatewayRoute,
         entity_id: "claude-3".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-1"),
         context: serde_json::Value::Null,
+        act_chain: Vec::new(),
     }
 }
 
@@ -52,7 +54,7 @@ fn governance_with(mode: AuthzMode, url: Option<&str>, ack: Option<&str>) -> Gov
 
 #[tokio::test]
 async fn no_governance_block_installs_deny_all() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     install_from_governance_config(None, None).expect("install ok");
     let hook = global_hook().expect("hook installed");
@@ -66,7 +68,7 @@ async fn no_governance_block_installs_deny_all() {
 
 #[tokio::test]
 async fn disabled_mode_installs_deny_all() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(AuthzMode::Disabled, None, None);
     install_from_governance_config(Some(&cfg), None).expect("install ok");
@@ -77,7 +79,7 @@ async fn disabled_mode_installs_deny_all() {
 
 #[tokio::test]
 async fn webhook_mode_without_url_errors() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(AuthzMode::Webhook, None, None);
     let err = install_from_governance_config(Some(&cfg), None)
@@ -90,7 +92,7 @@ async fn webhook_mode_without_url_errors() {
 
 #[tokio::test]
 async fn webhook_mode_with_blank_url_errors() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(AuthzMode::Webhook, Some("   "), None);
     let err = install_from_governance_config(Some(&cfg), None)
@@ -103,7 +105,7 @@ async fn webhook_mode_with_blank_url_errors() {
 
 #[tokio::test]
 async fn unrestricted_without_acknowledgement_errors() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(AuthzMode::Unrestricted, None, None);
     let err = install_from_governance_config(Some(&cfg), None)
@@ -116,7 +118,7 @@ async fn unrestricted_without_acknowledgement_errors() {
 
 #[tokio::test]
 async fn unrestricted_with_wrong_acknowledgement_errors() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(AuthzMode::Unrestricted, None, Some("yolo"));
     let err = install_from_governance_config(Some(&cfg), None)
@@ -129,7 +131,7 @@ async fn unrestricted_with_wrong_acknowledgement_errors() {
 
 #[tokio::test]
 async fn unrestricted_with_correct_acknowledgement_installs_allow_all() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(
         AuthzMode::Unrestricted,
@@ -144,7 +146,7 @@ async fn unrestricted_with_correct_acknowledgement_installs_allow_all() {
 
 #[tokio::test]
 async fn webhook_mode_with_url_installs_webhook_hook() {
-    let _serial = serial_guard();
+    let _serial = serial_guard().await;
     clear_global_hook();
     let cfg = governance_with(AuthzMode::Webhook, Some("http://127.0.0.1:1/authz"), None);
     install_from_governance_config(Some(&cfg), None).expect("install ok");

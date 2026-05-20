@@ -10,9 +10,14 @@
 [workspace]
 members = [
     # Integration tests
+    "integration/analytics",
     "integration/database",
+    "integration/events",
     "integration/extension",
+    "integration/files",
     "integration/oauth",
+    "integration/scheduler",
+    "integration/users",
     # Unit tests - shared layer
     "unit/shared/extension",
     "unit/shared/traits",
@@ -60,6 +65,7 @@ members = [
     # Common test utilities
     "common/mocks",
     "common/migrate",
+    "common/fixtures",
     # Advanced testing - Phase 6
     "property",
     "contract",
@@ -200,3 +206,4 @@ systemprompt-bridge = { path = "../../bin/bridge" }
 # Testing utility
 trybuild = "1.0"
 systemprompt-test-mocks = { path = "common/mocks" }
+systemprompt-test-fixtures = { path = "common/fixtures" }

@@ -129,7 +129,10 @@ fn security_config_from_env() -> ProfileResult<SecurityConfig> {
         access_token_expiration,
         refresh_token_expiration,
         audiences,
+        allowed_resource_audiences: Vec::new(),
         allow_registration,
+        signing_key_path: std::path::PathBuf::from("signing_key.pem"),
+        trusted_issuers: Vec::new(),
     })
 }
 

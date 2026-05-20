@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Sync and cloud-deploy commands aligned with the Service-JWT handshake; `admin config validate` exposes the new `JsonSchema`-driven profile validation surface.
+- `infra db migrate-repair --apply` subcommand reconciles checksum drift in place (see `systemprompt-database` 0.11.0).
+
+### Changed
+- Workspace-aligned release; CLI prose and per-item rustdoc trimmed under the 0.10.x publishing pass.
+
 ## [0.10.2] - 2026-05-16
 
 ### Changed

@@ -50,7 +50,7 @@ pub fn spawn_analytics_event_task(
         };
 
         let event = AnalyticsEvent {
-            user_id: params.req_ctx.auth.user_id.clone(),
+            user_id: params.req_ctx.auth.actor.user_id.clone(),
             session_id: params.req_ctx.request.session_id.clone(),
             context_id: params.req_ctx.execution.context_id.clone(),
             event_type: event_metadata.event_type.to_string(),

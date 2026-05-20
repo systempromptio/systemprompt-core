@@ -2,10 +2,11 @@
 //! RequestContext injection, and various ID format tests
 
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId, headers};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, headers};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::HeaderInjector;
+use systemprompt_test_fixtures::{fixture_actor, fixture_user_id};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -49,12 +50,12 @@ fn test_inject_session_id_success() {
 #[test]
 fn test_inject_user_id_success() {
     let mut headers = HeaderMap::new();
-    let user_id = UserId::new("user_456".to_string());
+    let user_id = fixture_user_id();
 
     HeaderInjector::inject_user_id(&mut headers, &user_id).expect("Should inject user id");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
-        "user_456"
+        "test-user"
     );
 }
 
@@ -137,7 +138,7 @@ fn test_inject_from_request_context_success() {
         ContextId::new(TEST_CONTEXT_ID_A),
         AgentName::new("ctx_agent".to_string()),
     )
-    .with_user_id(UserId::new("ctx_user".to_string()))
+    .with_actor(fixture_actor())
     .with_user_type(UserType::User);
 
     HeaderInjector::inject_from_request_context(&mut headers, &ctx)
@@ -149,7 +150,7 @@ fn test_inject_from_request_context_success() {
     );
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
-        "ctx_user"
+        "test-user"
     );
     assert_eq!(
         headers.get("x-trace-id").unwrap().to_str().unwrap(),
@@ -189,13 +190,13 @@ fn test_inject_uuid_format() {
 #[test]
 fn test_inject_alphanumeric_id() {
     let mut headers = HeaderMap::new();
-    let user_id = UserId::new("user_abc123XYZ".to_string());
+    let user_id = fixture_user_id();
 
     HeaderInjector::inject_user_id(&mut headers, &user_id)
         .expect("Should inject alphanumeric user id");
     assert_eq!(
         headers.get("x-user-id").unwrap().to_str().unwrap(),
-        "user_abc123XYZ"
+        "test-user"
     );
 }
 

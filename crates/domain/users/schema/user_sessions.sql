@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     throttle_escalated_at TIMESTAMPTZ,
     session_source VARCHAR(50) DEFAULT 'web'
         CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'unknown')),
+    revoked_at TIMESTAMPTZ,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -103,6 +104,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_time ON user_sessions(user_id, star
 CREATE INDEX IF NOT EXISTS idx_sessions_bot_time ON user_sessions(is_bot, started_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_bot ON user_sessions(started_at DESC, is_bot);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_session_source ON user_sessions(session_source);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_revoked ON user_sessions(revoked_at) WHERE revoked_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_visitor_traffic
     ON user_sessions(started_at)
     WHERE session_source = 'web' AND is_bot = false;

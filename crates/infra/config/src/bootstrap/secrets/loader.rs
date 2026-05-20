@@ -110,7 +110,6 @@ fn load_from_env() -> ConfigResult<Secrets> {
         database_write_url: read_env_optional("DATABASE_WRITE_URL"),
         external_database_url: read_env_optional("EXTERNAL_DATABASE_URL"),
         internal_database_url: read_env_optional("INTERNAL_DATABASE_URL"),
-        sync_token: read_env_optional("SYNC_TOKEN"),
         gemini: read_env_optional("GEMINI_API_KEY"),
         anthropic: read_env_optional("ANTHROPIC_API_KEY"),
         openai: read_env_optional("OPENAI_API_KEY"),

@@ -51,7 +51,22 @@ pub async fn initialize_scheduler(
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(ctx.app_paths_arc()));
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::new(ctx.clone()));
-    let job_ctx = JobContext::new(db_pool_any, app_context_any, app_paths_any);
+    let admin = systemprompt_identifiers::UserId::admin();
+    systemprompt_users::UserRepository::new(&db_pool)?
+        .find_by_name(admin.as_str())
+        .await?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "bootstrap admin owner does not resolve to a user; seed an `admin` user before \
+                 starting the scheduler"
+            )
+        })?;
+    let job_ctx = JobContext::new(
+        systemprompt_identifiers::Actor::system(),
+        db_pool_any,
+        app_context_any,
+        app_paths_any,
+    );
 
     for job_name in &bootstrap_jobs {
         let job = inventory::iter::<&'static dyn Job>

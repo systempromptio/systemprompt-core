@@ -1,6 +1,6 @@
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId, SessionId,
-    TaskId, TenantId, TraceId, UserId,
+    Actor, AiRequestId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId,
+    SessionId, TaskId, TraceId, UserId,
 };
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -38,7 +38,7 @@ impl RequestStatus {
 pub struct AiRequestRecord {
     pub request_id: AiRequestId,
     pub user_id: UserId,
-    pub tenant_id: Option<TenantId>,
+    pub actor: Actor,
     pub session_id: Option<SessionId>,
     pub task_id: Option<TaskId>,
     pub context_id: Option<ContextId>,
@@ -64,10 +64,11 @@ impl AiRequestRecord {
     }
 
     pub fn minimal_fallback(request_id: AiRequestId) -> Self {
+        let user_id = systemprompt_identifiers::bootstrap::unknown();
         Self {
             request_id,
-            user_id: UserId::new("unknown"),
-            tenant_id: None,
+            user_id: user_id.clone(),
+            actor: Actor::user(user_id),
             session_id: None,
             task_id: None,
             context_id: None,
@@ -93,7 +94,7 @@ impl AiRequestRecord {
 pub struct AiRequestRecordBuilder {
     request_id: AiRequestId,
     user_id: UserId,
-    tenant_id: Option<TenantId>,
+    actor: Option<Actor>,
     session_id: Option<SessionId>,
     task_id: Option<TaskId>,
     context_id: Option<ContextId>,
@@ -118,7 +119,7 @@ impl AiRequestRecordBuilder {
         Self {
             request_id,
             user_id,
-            tenant_id: None,
+            actor: None,
             session_id: None,
             task_id: None,
             context_id: None,
@@ -139,8 +140,9 @@ impl AiRequestRecordBuilder {
         }
     }
 
-    pub fn tenant_id(mut self, tenant_id: TenantId) -> Self {
-        self.tenant_id = Some(tenant_id);
+    #[must_use]
+    pub fn actor(mut self, actor: Actor) -> Self {
+        self.actor = Some(actor);
         self
     }
 
@@ -248,10 +250,13 @@ impl AiRequestRecordBuilder {
         let provider = self.provider.ok_or(AiRequestRecordError::MissingProvider)?;
         let model = self.model.ok_or(AiRequestRecordError::MissingModel)?;
 
+        let actor = self
+            .actor
+            .unwrap_or_else(|| Actor::user(self.user_id.clone()));
         Ok(AiRequestRecord {
             request_id: self.request_id,
             user_id: self.user_id,
-            tenant_id: self.tenant_id,
+            actor,
             session_id: self.session_id,
             task_id: self.task_id,
             context_id: self.context_id,

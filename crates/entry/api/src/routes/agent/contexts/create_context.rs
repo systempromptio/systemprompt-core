@@ -23,7 +23,7 @@ pub async fn create_context(
             return api_error_response(ApiError::internal_error(format!("Database error: {e}")));
         },
     };
-    let user_id = &req_ctx.auth.user_id;
+    let user_id = &req_ctx.auth.actor.user_id;
 
     let context_name = match request.name.as_deref().map(str::trim) {
         Some("") => {

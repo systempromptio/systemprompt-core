@@ -2,7 +2,8 @@ use super::{CallSource, RequestContext};
 use http::{HeaderMap, HeaderValue};
 use std::str::FromStr;
 use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ClientId, ContextId, SessionId, TaskId, TraceId, UserId, headers,
+    Actor, AgentName, AiToolCallId, ClientId, ContextId, SessionId, TaskId, TraceId, UserId,
+    headers,
 };
 use systemprompt_traits::{
     ContextPropagation, ContextPropagationError, ContextPropagationResult, InjectContextHeaders,
@@ -34,7 +35,7 @@ impl InjectContextHeaders for RequestContext {
     fn inject_headers(&self, hdrs: &mut HeaderMap) {
         insert_header(hdrs, headers::SESSION_ID, self.request.session_id.as_str());
         insert_header(hdrs, headers::TRACE_ID, self.execution.trace_id.as_str());
-        insert_header(hdrs, headers::USER_ID, self.auth.user_id.as_str());
+        insert_header(hdrs, headers::USER_ID, self.auth.actor.user_id.as_str());
         insert_header(hdrs, headers::USER_TYPE, self.auth.user_type.as_str());
         insert_header(
             hdrs,
@@ -71,11 +72,11 @@ impl InjectContextHeaders for RequestContext {
 
         let auth_token = self.auth.auth_token.as_str();
         if auth_token.is_empty() {
-            tracing::trace!(user_id = %self.auth.user_id, "No auth_token to inject - Authorization header not added");
+            tracing::trace!(user_id = %self.auth.actor.user_id, "No auth_token to inject - Authorization header not added");
         } else {
             let auth_value = format!("Bearer {}", auth_token);
             insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
-            tracing::trace!(user_id = %self.auth.user_id, "Injected Authorization header for proxy");
+            tracing::trace!(user_id = %self.auth.actor.user_id, "Injected Authorization header for proxy");
         }
 
         if let Some(user) = &self.user {
@@ -151,7 +152,7 @@ impl ContextPropagation for RequestContext {
             context_id,
             AgentName::new(agent_name.to_string()),
         )
-        .with_user_id(UserId::new(user_id.to_string()));
+        .with_actor(Actor::user(UserId::new(user_id.to_string())));
 
         if let Some(tid) = task_id {
             ctx = ctx.with_task_id(tid);

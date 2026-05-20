@@ -44,7 +44,8 @@ pub enum GatewayProfileError {
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -87,7 +88,8 @@ impl GatewayConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayCatalog {
     #[serde(default)]
     pub providers: Vec<GatewayProvider>,
@@ -126,7 +128,8 @@ impl GatewayCatalog {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayProvider {
     pub name: String,
     pub endpoint: String,
@@ -135,7 +138,8 @@ pub struct GatewayProvider {
     pub extra_headers: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayModel {
     pub id: String,
     pub provider: String,
@@ -147,7 +151,8 @@ pub struct GatewayModel {
     pub pricing: Option<ModelPricing>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayRoute {
     #[serde(default)]
     pub id: String,

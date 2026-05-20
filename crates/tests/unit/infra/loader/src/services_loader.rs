@@ -544,6 +544,7 @@ scheduler:
   enabled: true
   jobs:
     - name: cleanup_anonymous_users
+      owner: admin
       extension: core
       schedule: "0 0 3 * * *"
       enabled: true

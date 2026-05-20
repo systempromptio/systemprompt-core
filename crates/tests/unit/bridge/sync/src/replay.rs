@@ -1,8 +1,9 @@
 use std::fs;
 
-use systemprompt_bridge::gateway::manifest::{SignedManifest, UserId, canonical_payload};
+use systemprompt_bridge::gateway::manifest::{SignedManifest, canonical_payload};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_bridge::sync::{
     LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
@@ -38,7 +39,7 @@ fn canonical_payload_includes_not_before_in_position() {
         manifest_version: version("2026-04-27T12:00:00Z-cafebabe"),
         issued_at: "2026-04-27T12:00:00+00:00".into(),
         not_before: "2026-04-27T12:00:00+00:00".into(),
-        user_id: UserId::new("u1"),
+        user_id: fixture_user_id(),
         tenant_id: None,
         user: None,
         plugins: vec![],

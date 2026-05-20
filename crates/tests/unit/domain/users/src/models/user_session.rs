@@ -1,14 +1,15 @@
 //! Unit tests for UserSession struct
 
 use chrono::Utc;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::SessionId;
 use systemprompt_users::UserSession;
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn user_session_creation() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
-        user_id: Some(UserId::new("user-123".to_string())),
+        user_id: Some(fixture_user_id()),
         ip_address: Some("192.168.1.1".to_string()),
         user_agent: Some("Mozilla/5.0".to_string()),
         device_type: Some("desktop".to_string()),
@@ -39,7 +40,7 @@ fn user_session_debug() {
 fn user_session_active_when_ended_at_none() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
-        user_id: Some(UserId::new("user-123".to_string())),
+        user_id: Some(fixture_user_id()),
         ip_address: None,
         user_agent: None,
         device_type: None,
@@ -54,7 +55,7 @@ fn user_session_active_when_ended_at_none() {
 fn user_session_ended_when_ended_at_set() {
     let session = UserSession {
         session_id: SessionId::new("session-123".to_string()),
-        user_id: Some(UserId::new("user-123".to_string())),
+        user_id: Some(fixture_user_id()),
         ip_address: None,
         user_agent: None,
         device_type: None,

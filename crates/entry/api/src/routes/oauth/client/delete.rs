@@ -20,7 +20,7 @@ pub async fn delete_client(
                 tracing::info!(
                     client_id = %client_id,
                     client_name = ?client.name,
-                    deleted_by = %req_ctx.auth.user_id,
+                    deleted_by = %req_ctx.auth.actor.user_id,
                     "OAuth client deleted"
                 );
                 StatusCode::NO_CONTENT.into_response()
@@ -29,7 +29,7 @@ pub async fn delete_client(
                 tracing::error!(
                     error = %e,
                     client_id = %client_id,
-                    deleted_by = %req_ctx.auth.user_id,
+                    deleted_by = %req_ctx.auth.actor.user_id,
                     "OAuth client deletion failed"
                 );
                 internal_error(&format!("Failed to delete client: {e}"))
@@ -39,7 +39,7 @@ pub async fn delete_client(
             tracing::info!(
                 client_id = %client_id,
                 reason = "Client not found",
-                deleted_by = %req_ctx.auth.user_id,
+                deleted_by = %req_ctx.auth.actor.user_id,
                 "OAuth client deletion failed"
             );
             not_found(&format!("Client with ID '{client_id}' not found"))
@@ -48,7 +48,7 @@ pub async fn delete_client(
             tracing::error!(
                 error = %e,
                 client_id = %client_id,
-                deleted_by = %req_ctx.auth.user_id,
+                deleted_by = %req_ctx.auth.actor.user_id,
                 "OAuth client deletion failed"
             );
             internal_error(&format!("Failed to get client: {e}"))

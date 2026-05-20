@@ -121,7 +121,7 @@ impl From<LogRow> for LogEntry {
                     })
                     .ok()
             }),
-            user_id: row.user_id.unwrap_or_else(UserId::system),
+            user_id: row.user_id.unwrap_or_else(UserId::admin),
             session_id: row.session_id.unwrap_or_else(SessionId::system),
             task_id: row.task_id,
             trace_id: row.trace_id.unwrap_or_else(TraceId::system),

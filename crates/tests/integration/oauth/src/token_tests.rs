@@ -24,6 +24,7 @@ async fn create_test_client(db: &systemprompt_database::DbPool, client_id: &Clie
     let repo = ClientRepository::new(db).expect("Failed to create client repo");
     let params = CreateClientParams {
         client_id: client_id.clone(),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
         client_secret_hash: "test_hash".to_string(),
         client_name: "Test Client".to_string(),
         redirect_uris: vec!["http://localhost:3000/callback".to_string()],

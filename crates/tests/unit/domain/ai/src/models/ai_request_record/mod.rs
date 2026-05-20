@@ -5,6 +5,7 @@ use systemprompt_ai::models::{
     TokenInfo,
 };
 use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -79,7 +80,7 @@ mod ai_request_record_builder_tests {
     use super::*;
 
     fn test_user_id() -> UserId {
-        UserId::new("test-user-123")
+        fixture_user_id()
     }
 
     #[test]
@@ -363,7 +364,7 @@ mod ai_request_record_tests {
 
     #[test]
     fn builder_method_creates_builder() {
-        let user_id = UserId::new("user-123");
+        let user_id = fixture_user_id();
         let builder = AiRequestRecord::builder(AiRequestId::new("req-456"), user_id);
 
         let record = builder

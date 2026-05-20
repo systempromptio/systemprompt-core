@@ -1,6 +1,7 @@
 mod api_key;
 mod banned_ip;
 mod device_cert;
+mod federated_identity;
 mod user;
 
 pub use api_key::CreateApiKeyParams;

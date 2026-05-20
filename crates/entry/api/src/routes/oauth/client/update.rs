@@ -30,7 +30,7 @@ pub async fn update_client(
                     tracing::info!(
                         client_id = %client_id,
                         client_name = ?client.name,
-                        updated_by = %req_ctx.auth.user_id,
+                        updated_by = %req_ctx.auth.actor.user_id,
                         name_changed = request.name.is_some() && request.name.as_deref() != prev_client.name.as_deref(),
                         redirect_uris_changed = request.redirect_uris.is_some(),
                         scopes_changed = request.scopes.is_some(),
@@ -43,7 +43,7 @@ pub async fn update_client(
                     tracing::error!(
                         error = %e,
                         client_id = %client_id,
-                        updated_by = %req_ctx.auth.user_id,
+                        updated_by = %req_ctx.auth.actor.user_id,
                         "OAuth client update failed"
                     );
                     bad_request(&format!("Failed to update client: {e}"))
@@ -54,7 +54,7 @@ pub async fn update_client(
             tracing::info!(
                 client_id = %client_id,
                 reason = "Client not found",
-                updated_by = %req_ctx.auth.user_id,
+                updated_by = %req_ctx.auth.actor.user_id,
                 "OAuth client update failed"
             );
             not_found(&format!("Client with ID '{client_id}' not found"))
@@ -63,7 +63,7 @@ pub async fn update_client(
             tracing::error!(
                 error = %e,
                 client_id = %client_id,
-                updated_by = %req_ctx.auth.user_id,
+                updated_by = %req_ctx.auth.actor.user_id,
                 "OAuth client update failed"
             );
             internal_error(&format!("Failed to get client: {e}"))

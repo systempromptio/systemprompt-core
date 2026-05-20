@@ -1,6 +1,7 @@
 //! Tests for LinkPerformance, CampaignPerformance, ContentJourneyNode,
 //! LinkClick, and TrackClickParams
 
+use systemprompt_test_fixtures::fixture_user_id;
 #[test]
 fn test_link_performance_creation() {
     use systemprompt_content::models::LinkPerformance;
@@ -159,7 +160,7 @@ fn test_link_click_creation_minimal() {
 fn test_link_click_creation_full() {
     use chrono::Utc;
     use systemprompt_content::models::LinkClick;
-    use systemprompt_identifiers::{ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId};
+    use systemprompt_identifiers::{ContextId, LinkClickId, LinkId, SessionId, TaskId};
 
     const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -168,7 +169,7 @@ fn test_link_click_creation_full() {
         id: LinkClickId::new("click-2"),
         link_id: LinkId::new("link-2"),
         session_id: SessionId::new("session-2"),
-        user_id: Some(UserId::new("user-1")),
+        user_id: Some(fixture_user_id()),
         context_id: Some(ContextId::new(TEST_CTX)),
         task_id: Some(TaskId::new("task-1")),
         referrer_page: Some("/blog".to_string()),
@@ -248,14 +249,14 @@ fn test_track_click_params_creation() {
 #[test]
 fn test_track_click_params_with_context() {
     use systemprompt_content::models::TrackClickParams;
-    use systemprompt_identifiers::{ContextId, LinkId, SessionId, UserId};
+    use systemprompt_identifiers::{ContextId, LinkId, SessionId};
 
     const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 
     let params = TrackClickParams {
         link_id: LinkId::new("link-ctx"),
         session_id: SessionId::new("session-ctx"),
-        user_id: Some(UserId::new("user-ctx")),
+        user_id: Some(fixture_user_id()),
         context_id: Some(ContextId::new(TEST_CTX)),
         task_id: None,
         referrer_page: Some("/previous-page".to_string()),

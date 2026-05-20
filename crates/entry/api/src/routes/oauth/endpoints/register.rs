@@ -1,3 +1,4 @@
+use axum::extract::Extension;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
 use base64::Engine;
@@ -5,7 +6,7 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bcrypt::hash;
 use chrono::Utc;
 use rand::Rng;
-use systemprompt_models::Config;
+use systemprompt_models::{Config, RequestContext};
 use uuid::Uuid;
 
 use systemprompt_oauth::oauth::dynamic_registration::{
@@ -16,6 +17,7 @@ use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
 use crate::routes::oauth::extractors::OAuthRepo;
 
 pub async fn register_client(
+    Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repository): OAuthRepo,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> impl IntoResponse {
@@ -125,6 +127,7 @@ pub async fn register_client(
 
     let params = CreateClientParams {
         client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
+        owner_user_id: req_ctx.auth.actor.user_id.clone(),
         client_secret_hash,
         client_name: client_name.clone(),
         redirect_uris: redirect_uris.clone(),

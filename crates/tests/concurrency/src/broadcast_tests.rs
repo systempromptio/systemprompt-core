@@ -4,9 +4,10 @@ use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::A2AEvent;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
+use systemprompt_test_fixtures::unique_user_id;
 
 fn test_user_id(n: usize) -> UserId {
-    UserId::new(format!("user-{n}"))
+    unique_user_id(&format!("user-{n}"))
 }
 
 fn test_event() -> A2AEvent {

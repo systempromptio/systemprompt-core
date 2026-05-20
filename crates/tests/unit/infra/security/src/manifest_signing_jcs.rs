@@ -2,7 +2,7 @@ use std::sync::Once;
 
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest,
-    SignedManifestVerify, SkillEntry, TenantId, UserId, UserInfo, ValidatedUrl, canonical_payload,
+    SignedManifestVerify, SkillEntry, TenantId, UserInfo, ValidatedUrl, canonical_payload,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
@@ -14,6 +14,7 @@ const FAKE_SHA_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 const FAKE_SHA_C: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_security::manifest_signing;
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 static INIT_SECRETS: Once = Once::new();
 
@@ -44,10 +45,10 @@ fn sample_manifest() -> SignedManifest {
             .expect("valid manifest version"),
         issued_at: "2026-04-27T00:00:00Z".into(),
         not_before: "2026-04-27T00:00:00Z".into(),
-        user_id: UserId::new("user_abc"),
+        user_id: fixture_user_id(),
         tenant_id: Some(TenantId::new("tenant_xyz")),
         user: Some(UserInfo {
-            id: UserId::new("user_abc"),
+            id: fixture_user_id(),
             name: "alice".into(),
             email: "alice@example.com".into(),
             display_name: Some("Alice".into()),
@@ -198,7 +199,7 @@ fn tamper_with_user_id_breaks_signature() {
     let mut manifest = sample_manifest();
     let signature = manifest_signing::sign_value(&signing_view(&manifest)).expect("sign_value");
     manifest.signature = ManifestSignature::new(signature);
-    manifest.user_id = UserId::new("user_attacker");
+    manifest.user_id = unique_user_id("tampered");
 
     let result = manifest.verify(&pubkey);
     assert!(result.is_err(), "tampered manifest must fail verification");

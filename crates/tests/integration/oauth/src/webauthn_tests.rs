@@ -3,6 +3,7 @@
 use crate::{cleanup_test_user, create_test_user, setup_test_db};
 use systemprompt_oauth::repository::{OAuthRepository, WebAuthnCredentialParams};
 use uuid::Uuid;
+use systemprompt_test_fixtures::unique_user_id;
 
 #[tokio::test]
 async fn test_webauthn_credential_lifecycle() {
@@ -132,7 +133,7 @@ async fn test_webauthn_empty_for_new_user() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
-    let nonexistent_user_id = systemprompt_identifiers::UserId::new(Uuid::new_v4().to_string());
+    let nonexistent_user_id = unique_user_id("user");
 
     let credentials = repo
         .get_webauthn_credentials(&nonexistent_user_id)

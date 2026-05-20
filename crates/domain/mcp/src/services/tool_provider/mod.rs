@@ -101,10 +101,15 @@ impl ToolProvider for McpToolProvider {
             "Listing tools for agent from MCP servers"
         );
 
-        let request_ctx = create_request_context(context)?;
         let mut all_tools = Vec::new();
 
         for server_name in &assigned_servers {
+            let server_config = RegistryManager::get_server(server_name).map_err(|e| {
+                ToolProviderError::ConfigurationError(format!(
+                    "Failed to resolve MCP server {server_name}: {e}"
+                ))
+            })?;
+            let request_ctx = create_request_context(context, &server_config)?;
             match McpClient::list_tools(server_name, &request_ctx).await {
                 Ok(tools) => {
                     info!(
@@ -141,7 +146,12 @@ impl ToolProvider for McpToolProvider {
         service_id: &str,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
-        let request_ctx = create_request_context(context)?;
+        let server_config = RegistryManager::get_server(service_id).map_err(|e| {
+            ToolProviderError::ConfigurationError(format!(
+                "Failed to resolve MCP server {service_id}: {e}"
+            ))
+        })?;
+        let request_ctx = create_request_context(context, &server_config)?;
 
         info!(
             tool = &request.name,

@@ -19,7 +19,7 @@ pub async fn get_client(
             tracing::info!(
                 client_id = %client_id,
                 client_name = ?client.name,
-                requested_by = %req_ctx.auth.user_id,
+                requested_by = %req_ctx.auth.actor.user_id,
                 "OAuth client retrieved"
             );
             let response: OAuthClientResponse = client.into();
@@ -29,7 +29,7 @@ pub async fn get_client(
             tracing::info!(
                 client_id = %client_id,
                 reason = "Client not found",
-                requested_by = %req_ctx.auth.user_id,
+                requested_by = %req_ctx.auth.actor.user_id,
                 "OAuth client retrieval failed"
             );
             not_found(&format!("Client with ID '{client_id}' not found"))
@@ -38,7 +38,7 @@ pub async fn get_client(
             tracing::error!(
                 error = %e,
                 client_id = %client_id,
-                requested_by = %req_ctx.auth.user_id,
+                requested_by = %req_ctx.auth.actor.user_id,
                 "OAuth client retrieval failed"
             );
             internal_error(&format!("Failed to get client: {e}"))

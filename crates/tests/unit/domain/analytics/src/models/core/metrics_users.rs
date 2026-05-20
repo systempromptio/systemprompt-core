@@ -2,7 +2,8 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_analytics::{AnalyticsEvent, AnalyticsSession, UserMetricsWithTrends};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::SessionId;
+use systemprompt_test_fixtures::fixture_user_id;
 
 mod user_metrics_with_trends_tests {
     use super::*;
@@ -72,7 +73,7 @@ mod analytics_session_tests {
         let now = Utc::now();
         AnalyticsSession {
             session_id: SessionId::new("sess_123".to_string()),
-            user_id: Some(UserId::new("user_456".to_string())),
+            user_id: Some(fixture_user_id()),
             fingerprint_hash: Some("fp_abc".to_string()),
             ip_address: Some("192.168.1.1".to_string()),
             user_agent: Some("Mozilla/5.0 Chrome/120".to_string()),
@@ -112,7 +113,7 @@ mod analytics_session_tests {
         let session = create_session();
         assert_eq!(
             session.user_id.expect("should have user_id").as_str(),
-            "user_456"
+            "test-user"
         );
     }
 
@@ -226,7 +227,7 @@ mod analytics_event_tests {
             event_type: "page_view".to_string(),
             event_category: "navigation".to_string(),
             severity: "info".to_string(),
-            user_id: UserId::new("user_456".to_string()),
+            user_id: fixture_user_id(),
             session_id: Some(SessionId::new("sess_789".to_string())),
             message: Some("User viewed homepage".to_string()),
             metadata: Some(r#"{"page": "/home"}"#.to_string()),
@@ -261,7 +262,7 @@ mod analytics_event_tests {
     #[test]
     fn event_stores_user_id() {
         let event = create_event();
-        assert_eq!(event.user_id.as_str(), "user_456");
+        assert_eq!(event.user_id.as_str(), "test-user");
     }
 
     #[test]

@@ -31,9 +31,6 @@ pub struct Secrets {
     pub internal_database_url: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sync_token: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -113,7 +110,6 @@ impl Secrets {
             "internal_database_url" | "INTERNAL_DATABASE_URL" => {
                 self.internal_database_url.as_ref()
             },
-            "sync_token" | "SYNC_TOKEN" => self.sync_token.as_ref(),
             "gemini" | "GEMINI_API_KEY" => self.gemini.as_ref(),
             "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
             "openai" | "OPENAI_API_KEY" => self.openai.as_ref(),

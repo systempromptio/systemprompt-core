@@ -65,7 +65,7 @@ pub async fn create_cloud_tenant(
     spinner.finish_and_clear();
     CliService::success("Tenant provisioned successfully");
 
-    let (internal_database_url, sync_token) = fetch_credentials(&client, &tenant_id).await?;
+    let internal_database_url = fetch_credentials(&client, &tenant_id).await?;
 
     let (external_db_access, external_database_url) =
         configure_external_access(&client, &tenant_id, &internal_database_url).await?;
@@ -77,7 +77,6 @@ pub async fn create_cloud_tenant(
             external_database_url,
             internal_database_url,
             external_db_access,
-            sync_token,
         },
     )
     .await?;
@@ -140,10 +139,7 @@ fn select_region() -> Result<&'static str> {
     Ok(AVAILABLE[region_selection].0)
 }
 
-async fn fetch_credentials(
-    client: &CloudApiClient,
-    tenant_id: &TenantId,
-) -> Result<(String, Option<String>)> {
+async fn fetch_credentials(client: &CloudApiClient, tenant_id: &TenantId) -> Result<String> {
     let spinner = CliService::spinner("Fetching database credentials...");
     let status = client.get_tenant_status(tenant_id).await?;
     let secrets_url = status
@@ -152,7 +148,7 @@ async fn fetch_credentials(
     let secrets = client.fetch_secrets(&secrets_url).await?;
     spinner.finish_and_clear();
     CliService::success("Database credentials retrieved");
-    Ok((secrets.database_url, secrets.sync_token))
+    Ok(secrets.database_url)
 }
 
 async fn configure_external_access(
@@ -198,7 +194,6 @@ struct TenantDatabaseConfig {
     external_database_url: Option<String>,
     internal_database_url: String,
     external_db_access: bool,
-    sync_token: Option<String>,
 }
 
 async fn build_stored_tenant(
@@ -226,7 +221,6 @@ async fn build_stored_tenant(
         database_url: db_config.external_database_url,
         internal_database_url: Some(db_config.internal_database_url),
         external_db_access: db_config.external_db_access,
-        sync_token: db_config.sync_token,
         shared_container_db: None,
     })
 }

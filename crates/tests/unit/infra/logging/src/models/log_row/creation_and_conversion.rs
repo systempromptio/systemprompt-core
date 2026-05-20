@@ -1,9 +1,10 @@
 //! Unit tests for LogRow creation and level conversion
 
 use chrono::Utc;
-use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId};
 use systemprompt_logging::models::LogRow;
 use systemprompt_logging::{LogEntry, LogLevel};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn test_log_row_creation() {
@@ -14,7 +15,7 @@ fn test_log_row_creation() {
         module: "test::module".to_string(),
         message: "Test message".to_string(),
         metadata: Some(r#"{"key": "value"}"#.to_string()),
-        user_id: Some(UserId::new("user-123")),
+        user_id: Some(fixture_user_id()),
         session_id: Some(SessionId::new("session-456")),
         task_id: Some(TaskId::new("task-789")),
         trace_id: Some(TraceId::new("trace-abc")),

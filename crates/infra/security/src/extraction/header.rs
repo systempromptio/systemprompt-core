@@ -141,7 +141,7 @@ impl HeaderInjector {
         ctx: &RequestContext,
     ) -> Result<(), HeaderInjectionError> {
         Self::inject_session_id(headers, &ctx.request.session_id)?;
-        Self::inject_user_id(headers, &ctx.auth.user_id)?;
+        Self::inject_user_id(headers, &ctx.auth.actor.user_id)?;
         Self::inject_trace_id(headers, &ctx.execution.trace_id)?;
         Self::inject_context_id(headers, &ctx.execution.context_id)?;
         Self::inject_agent_name(headers, ctx.execution.agent_name.as_str())?;

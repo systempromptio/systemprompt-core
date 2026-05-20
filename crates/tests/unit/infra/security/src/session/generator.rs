@@ -11,6 +11,7 @@ use chrono::Duration;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::{SessionGenerator, SessionParams};
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn create_test_generator() -> SessionGenerator {
     SessionGenerator::new("test_jwt_secret_key", "test_issuer")
@@ -53,7 +54,7 @@ fn test_session_generator_debug() {
 
 #[test]
 fn test_session_params_debug() {
-    let user_id = UserId::new("user_123".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session_456".to_string());
     let params = create_test_params(&user_id, &session_id);
 
@@ -64,7 +65,7 @@ fn test_session_params_debug() {
 #[test]
 fn test_generate_session_token_success() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user_123".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session_456".to_string());
     let params = create_test_params(&user_id, &session_id);
 
@@ -78,7 +79,7 @@ fn test_generate_session_token_success() {
 #[test]
 fn test_generate_session_token_jwt_structure() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
     let params = create_test_params(&user_id, &session_id);
 
@@ -98,7 +99,7 @@ fn test_generate_session_token_jwt_structure() {
 #[test]
 fn test_generate_session_token_unique_tokens() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
     let params = create_test_params(&user_id, &session_id);
 
@@ -115,8 +116,8 @@ fn test_generate_session_token_unique_tokens() {
 #[test]
 fn test_generate_session_token_different_users() {
     let generator = create_test_generator();
-    let user_id1 = UserId::new("user_one".to_string());
-    let user_id2 = UserId::new("user_two".to_string());
+    let user_id1 = fixture_user_id();
+    let user_id2 = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params1 = SessionParams {
@@ -152,7 +153,7 @@ fn test_generate_session_token_different_users() {
 #[test]
 fn test_generate_session_token_different_sessions() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id1 = SessionId::new("session_one".to_string());
     let session_id2 = SessionId::new("session_two".to_string());
 
@@ -169,7 +170,7 @@ fn test_generate_session_token_different_sessions() {
 fn test_generate_session_token_different_secrets() {
     let generator1 = SessionGenerator::new("secret_one", "issuer");
     let generator2 = SessionGenerator::new("secret_two", "issuer");
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
     let params = create_test_params(&user_id, &session_id);
 
@@ -183,7 +184,7 @@ fn test_generate_session_token_different_secrets() {
 fn test_generate_session_token_different_issuers() {
     let generator1 = SessionGenerator::new("secret", "issuer_one");
     let generator2 = SessionGenerator::new("secret", "issuer_two");
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
     let params = create_test_params(&user_id, &session_id);
 
@@ -196,7 +197,7 @@ fn test_generate_session_token_different_issuers() {
 #[test]
 fn test_generate_session_token_admin_user_type() {
     let generator = create_test_generator();
-    let user_id = UserId::new("admin".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("admin_session".to_string());
 
     let params = SessionParams {
@@ -218,7 +219,7 @@ fn test_generate_session_token_admin_user_type() {
 #[test]
 fn test_generate_session_token_short_duration() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = SessionParams {
@@ -240,7 +241,7 @@ fn test_generate_session_token_short_duration() {
 #[test]
 fn test_generate_session_token_long_duration() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = SessionParams {
@@ -262,7 +263,7 @@ fn test_generate_session_token_long_duration() {
 #[test]
 fn test_generate_session_token_multiple_permissions() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = SessionParams {
@@ -284,7 +285,7 @@ fn test_generate_session_token_multiple_permissions() {
 #[test]
 fn test_generate_session_token_empty_roles() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = SessionParams {
@@ -306,7 +307,7 @@ fn test_generate_session_token_empty_roles() {
 #[test]
 fn test_generate_session_token_empty_permissions() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = SessionParams {
@@ -328,7 +329,7 @@ fn test_generate_session_token_empty_permissions() {
 #[test]
 fn test_session_params_all_rate_limit_tiers() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let tiers = [
@@ -361,7 +362,7 @@ fn test_session_params_all_rate_limit_tiers() {
 #[test]
 fn test_session_params_all_user_types() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let user_types = [UserType::User, UserType::Admin, UserType::Anon];
@@ -387,7 +388,7 @@ fn test_session_params_all_user_types() {
 #[test]
 fn test_generate_session_token_special_email_characters() {
     let generator = create_test_generator();
-    let user_id = UserId::new("user".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("session".to_string());
 
     let params = SessionParams {
@@ -409,7 +410,7 @@ fn test_generate_session_token_special_email_characters() {
 #[test]
 fn test_generate_session_token_uuid_ids() {
     let generator = create_test_generator();
-    let user_id = UserId::new("550e8400-e29b-41d4-a716-446655440000".to_string());
+    let user_id = fixture_user_id();
     let session_id = SessionId::new("6ba7b810-9dad-11d1-80b4-00c04fd430c8".to_string());
     let params = create_test_params(&user_id, &session_id);
 

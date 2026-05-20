@@ -94,7 +94,10 @@ pub fn build(
                 JwtAudience::A2a,
                 JwtAudience::Mcp,
             ],
+            allowed_resource_audiences: Vec::new(),
             allow_registration: true,
+            signing_key_path: std::path::PathBuf::from("signing_key.pem"),
+            trusted_issuers: Vec::new(),
         },
         rate_limits: RateLimitsConfig {
             disabled: !is_prod,

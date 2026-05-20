@@ -40,12 +40,6 @@ pub fn fnv1a_segments(parts: &[(&str, &[u8])]) -> u64 {
     hash
 }
 
-/// Compute the canonical conversation-prefix hash from a system prompt
-/// (optional) and the role + content of the first user-visible message.
-///
-/// Returns `None` when there is no first message — callers should treat
-/// that as "no derivable context yet" and either fall back to a
-/// generated id or skip header injection.
 #[must_use]
 pub fn conversation_prefix_hash(
     system: Option<&str>,

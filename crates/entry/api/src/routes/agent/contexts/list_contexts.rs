@@ -19,7 +19,7 @@ pub async fn list_contexts(
             return api_error_response(ApiError::internal_error(format!("Database error: {e}")));
         },
     };
-    let user_id = &req_ctx.auth.user_id;
+    let user_id = &req_ctx.auth.actor.user_id;
 
     match context_repo.list_contexts_with_stats(user_id).await {
         Ok(contexts) => {

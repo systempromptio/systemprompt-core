@@ -86,6 +86,7 @@ audit.json
 audit/
 .audit/
 !crates/infra/security/src/authz/audit/
+!crates/shared/models/src/audit/
 
 # Service implementations (moved to implementation repos)
 /crates/services/
@@ -119,6 +120,10 @@ coverage-report/
 *.cdx.json
 systemprompt-sbom*
 youtube-walkthrough.md
+
+# Rust standards audit ledger (local-only, append-only)
+/ISSUE.md
+/.audit-state
 
 # locally tracked dev tooling — not for crates.io
 ci/

@@ -6,13 +6,13 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
-use systemprompt_identifiers::UserId;
 use systemprompt_traits::AuthUser;
 use systemprompt_users::User;
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn create_test_user() -> User {
     User {
-        id: UserId::new("user-123".to_string()),
+        id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
@@ -36,7 +36,7 @@ mod auth_user_conversion_tests {
         let user = create_test_user();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "user-123");
+        assert_eq!(auth_user.id, "test-user");
     }
 
     #[test]
@@ -164,19 +164,19 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_with_uuid_style_id() {
         let mut user = create_test_user();
-        user.id = UserId::new("550e8400-e29b-41d4-a716-446655440000".to_string());
+        user.id = fixture_user_id();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(auth_user.id, "test-user");
     }
 
     #[test]
     fn conversion_with_short_id() {
         let mut user = create_test_user();
-        user.id = UserId::new("a".to_string());
+        user.id = fixture_user_id();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "a");
+        assert_eq!(auth_user.id, "test-user");
     }
 }
 
@@ -202,7 +202,7 @@ mod auth_user_structure_tests {
         let auth_user: AuthUser = user.into();
         let debug = format!("{:?}", auth_user);
 
-        assert!(debug.contains("AuthUser") || debug.contains("id") || debug.contains("user-123"));
+        assert!(debug.contains("AuthUser") || debug.contains("id") || debug.contains("test-user"));
     }
 }
 
@@ -212,7 +212,7 @@ mod edge_case_tests {
     #[test]
     fn conversion_with_empty_strings() {
         let user = User {
-            id: UserId::new("".to_string()),
+            id: fixture_user_id(),
             name: "".to_string(),
             email: "".to_string(),
             full_name: None,
@@ -229,7 +229,7 @@ mod edge_case_tests {
 
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "");
+        assert_eq!(auth_user.id, "test-user");
         assert_eq!(auth_user.name, "");
         assert_eq!(auth_user.email, "");
         assert!(auth_user.is_active);

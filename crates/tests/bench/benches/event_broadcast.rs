@@ -5,6 +5,7 @@ use systemprompt_models::A2AEvent;
 use systemprompt_models::events::payloads::a2a::TaskStatusUpdatePayload;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn test_event() -> A2AEvent {
     A2AEvent::TaskStatusUpdate {
@@ -28,7 +29,7 @@ fn bench_broadcast(c: &mut Criterion) {
             &conn_count,
             |b, &count| {
                 let broadcaster: GenericBroadcaster<A2AEvent> = GenericBroadcaster::new();
-                let user = UserId::new("bench-user");
+                let user = fixture_user_id();
                 let mut receivers = Vec::new();
 
                 rt.block_on(async {
@@ -56,7 +57,7 @@ fn bench_register_unregister(c: &mut Criterion) {
 
     c.bench_function("register_unregister", |b| {
         let broadcaster: GenericBroadcaster<A2AEvent> = GenericBroadcaster::new();
-        let user = UserId::new("bench-user");
+        let user = fixture_user_id();
 
         b.iter(|| {
             rt.block_on(async {

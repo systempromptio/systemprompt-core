@@ -115,9 +115,8 @@ pub struct DatabaseUrls<'a> {
 pub fn save_secrets(
     db_urls: &DatabaseUrls<'_>,
     api_keys: &super::api_keys::ApiKeys,
-    sync_token: Option<&str>,
     secrets_path: &Path,
-    is_cloud_tenant: bool,
+    _is_cloud_tenant: bool,
 ) -> Result<()> {
     use serde_json::json;
     use systemprompt_models::Profile;
@@ -139,11 +138,6 @@ pub fn save_secrets(
         }
     }
 
-    if sync_token.is_none() && is_cloud_tenant {
-        CliService::warning("Sync token not available. Cloud sync will not work.");
-        CliService::warning("Run 'systemprompt cloud tenant rotate-sync-token' to generate one.");
-    }
-
     if let Some(parent) = secrets_path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
@@ -160,10 +154,6 @@ pub fn save_secrets(
 
     if let Some(internal) = db_urls.internal {
         secrets["internal_database_url"] = json!(internal);
-    }
-
-    if let Some(token) = sync_token {
-        secrets["sync_token"] = json!(token);
     }
 
     let content = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;

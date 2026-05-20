@@ -54,7 +54,7 @@ fn test_validate_request_optional_valid_token() {
     let context = service
         .validate_request(&headers, AuthMode::Optional)
         .expect("Optional mode with valid token should succeed");
-    assert_eq!(context.auth.user_id.as_str(), "user_123");
+    assert_eq!(context.actor().user_id.as_str(), "user_123");
     assert_eq!(context.request.session_id.as_str(), "session_456");
     assert_eq!(context.auth.user_type, UserType::User);
 }

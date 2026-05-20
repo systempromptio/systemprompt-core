@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct JobConfig {
     #[serde(default)]
     pub extension: Option<String>,
     pub name: String,
+    pub owner: UserId,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
@@ -17,10 +20,11 @@ const fn default_true() -> bool {
 
 impl JobConfig {
     #[must_use]
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: impl Into<String>, owner: UserId) -> Self {
         Self {
             extension: None,
             name: name.into(),
+            owner,
             enabled: true,
             schedule: None,
         }
@@ -53,8 +57,6 @@ pub struct SchedulerConfig {
     pub jobs: Vec<JobConfig>,
     #[serde(default = "default_bootstrap_jobs")]
     pub bootstrap_jobs: Vec<String>,
-    /// Gates the scheduler advisory lock that guarantees a job runs on
-    /// exactly one replica when multiple replicas share a database.
     #[serde(default = "default_true")]
     pub distributed_lock: bool,
 }
@@ -68,19 +70,20 @@ fn default_bootstrap_jobs() -> Vec<String> {
 
 impl Default for SchedulerConfig {
     fn default() -> Self {
+        let owner = UserId::admin();
         Self {
             enabled: true,
             jobs: vec![
-                JobConfig::new("cleanup_anonymous_users")
+                JobConfig::new("cleanup_anonymous_users", owner.clone())
                     .with_extension("core")
                     .with_schedule("0 0 3 * * *"),
-                JobConfig::new("cleanup_empty_contexts")
+                JobConfig::new("cleanup_empty_contexts", owner.clone())
                     .with_extension("core")
                     .with_schedule("0 0 * * * *"),
-                JobConfig::new("cleanup_inactive_sessions")
+                JobConfig::new("cleanup_inactive_sessions", owner.clone())
                     .with_extension("core")
                     .with_schedule("0 0 * * * *"),
-                JobConfig::new("database_cleanup")
+                JobConfig::new("database_cleanup", owner)
                     .with_extension("core")
                     .with_schedule("0 0 4 * * *"),
             ],

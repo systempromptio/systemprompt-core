@@ -30,7 +30,7 @@ pub async fn delete_context(
             return api_error_response(ApiError::internal_error(format!("Database error: {e}")));
         },
     };
-    let user_id = &req_ctx.auth.user_id;
+    let user_id = &req_ctx.auth.actor.user_id;
     let context_id = ContextId::new(&context_id_str);
 
     match context_repo.delete_context(&context_id, user_id).await {

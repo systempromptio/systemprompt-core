@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Postgres event outbox. A new outbox repository persists domain events under a transactional contract; a `LISTEN`/`NOTIFY` bridge on the `systemprompt_events` channel relays them to subscribers on every replica.
+- `OUTBOX_CHANNEL` constant naming the relay channel for in-process subscribers.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added

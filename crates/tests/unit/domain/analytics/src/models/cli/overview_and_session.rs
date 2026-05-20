@@ -5,7 +5,8 @@ use systemprompt_analytics::models::{
     LiveSessionRow, OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow,
     SessionStatsRow, SessionTrendRow,
 };
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::SessionId;
+use systemprompt_test_fixtures::fixture_user_id;
 
 mod overview_row_tests {
     use super::*;
@@ -130,7 +131,7 @@ mod session_row_tests {
         let now = Utc::now();
         let row = SessionTrendRow {
             started_at: now,
-            user_id: Some(UserId::new("user_trend".to_string())),
+            user_id: Some(fixture_user_id()),
             duration_seconds: Some(180),
         };
 

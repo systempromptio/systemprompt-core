@@ -1,6 +1,7 @@
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider, ToolProviderError};
+use systemprompt_test_fixtures::fixture_actor;
 
 mod noop_default_tests {
     use super::*;
@@ -40,7 +41,7 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn call_tool_error_contains_tool_name() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new("token");
+        let context = ToolContext::new(fixture_actor(), "token");
         let request = ToolCallRequest {
             tool_call_id: "id-1".to_string(),
             name: "specific_tool_name".to_string(),
@@ -58,7 +59,7 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn call_tool_error_is_service_not_found() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new("token");
+        let context = ToolContext::new(fixture_actor(), "token");
         let request = ToolCallRequest {
             tool_call_id: "id-2".to_string(),
             name: "any_tool".to_string(),
@@ -82,7 +83,7 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn call_tool_ignores_service_id() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new("token");
+        let context = ToolContext::new(fixture_actor(), "token");
         let request = ToolCallRequest {
             tool_call_id: "id-3".to_string(),
             name: "tool".to_string(),
@@ -105,7 +106,7 @@ mod noop_error_details_tests {
     #[tokio::test]
     async fn list_tools_ignores_agent_name() {
         let provider = NoopToolProvider::new();
-        let context = ToolContext::new("token");
+        let context = ToolContext::new(fixture_actor(), "token");
 
         let tools_a = provider.list_tools("agent-a", &context).await.unwrap();
         let tools_b = provider.list_tools("agent-b", &context).await.unwrap();

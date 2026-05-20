@@ -83,7 +83,6 @@ fn test_stored_tenant_new_cloud() {
         database_url: Some("postgres://cloud/prod".to_string()),
         internal_database_url: "postgres://internal/prod".to_string(),
         external_db_access: false,
-        sync_token: None,
     };
 
     let tenant = StoredTenant::new_cloud(params);
@@ -107,7 +106,6 @@ fn test_stored_tenant_new_cloud_minimal() {
         database_url: None,
         internal_database_url: "postgres://minimal".to_string(),
         external_db_access: false,
-        sync_token: None,
     };
 
     let tenant = StoredTenant::new_cloud(params);

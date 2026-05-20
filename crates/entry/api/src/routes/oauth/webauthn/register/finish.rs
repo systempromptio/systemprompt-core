@@ -122,7 +122,10 @@ pub async fn finish_register(
                 let session_id = SessionId::new(session_id_str.clone());
                 let analytics_provider = state.analytics_provider();
 
-                match analytics_provider.find_session_by_id(&session_id).await {
+                match analytics_provider
+                    .find_active_session_by_id(&session_id)
+                    .await
+                {
                     Ok(Some(session)) => {
                         if let Some(old_user_id) = session.user_id {
                             let new_user_id = user_id.clone();

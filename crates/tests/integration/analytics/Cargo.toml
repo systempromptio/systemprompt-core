@@ -1,0 +1,24 @@
+[package]
+name = "systemprompt-analytics-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-analytics crate (require DATABASE_URL)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-analytics = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }

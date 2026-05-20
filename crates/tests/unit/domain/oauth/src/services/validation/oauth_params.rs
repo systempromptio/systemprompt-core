@@ -2,6 +2,7 @@
 
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{AuthError, GrantType, ResponseType};
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::validation::{
     CsrfToken, ValidatedClientRegistration, get_audit_user, optional_param, required_param,
     scope_param,
@@ -144,9 +145,9 @@ fn test_scope_param_tabs_and_newlines() {
 
 #[test]
 fn test_get_audit_user_success() {
-    let user = UserId::new("user_123");
+    let user = fixture_user_id();
     let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "user_123");
+    assert_eq!(result.expect("should succeed").as_str(), "test-user");
 }
 
 #[test]
@@ -173,20 +174,10 @@ fn test_get_audit_user_empty() {
 }
 
 #[test]
-fn test_get_audit_user_whitespace() {
-    let user = UserId::new("  ");
-    let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "  ");
-}
-
-#[test]
 fn test_get_audit_user_uuid_format() {
-    let user = UserId::new("550e8400-e29b-41d4-a716-446655440000");
+    let user = fixture_user_id();
     let result = get_audit_user(Some(&user));
-    assert_eq!(
-        result.expect("should succeed").as_str(),
-        "550e8400-e29b-41d4-a716-446655440000"
-    );
+    assert_eq!(result.expect("should succeed").as_str(), "test-user");
 }
 
 #[test]

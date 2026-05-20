@@ -29,7 +29,9 @@ impl CliSessionContext {
             self.session.context_id.clone(),
             AgentName::new(agent_name.to_string()),
         )
-        .with_user_id(self.session.user_id.clone())
+        .with_actor(systemprompt_identifiers::Actor::user(
+            self.session.user_id.clone(),
+        ))
         .with_auth_token(self.session.session_token.as_str())
         .with_user_type(self.session.user_type)
     }

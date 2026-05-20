@@ -1,8 +1,7 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use axum::http::HeaderMap;
-use sha2::{Digest, Sha256};
 use std::str::FromStr;
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, SessionSource};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
@@ -28,42 +27,55 @@ pub async fn generate_client_tokens(
 ) -> Result<TokenResponse> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
 
-    let scope_str = options
-        .scope
-        .ok_or_else(|| anyhow::anyhow!("Scope is required for client credentials grant"))?;
-
-    let requested_permissions = parse_permissions(scope_str)?;
-
     let client = repo
         .find_client_by_id(client_id)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
+        .ok_or_else(|| anyhow!("Client not found"))?;
 
-    let permissions = resolve_client_permissions(requested_permissions, &client.scopes)?;
-    let (user_id, client_user) = build_client_user(client_id, &permissions);
+    let requested_permissions = match options.scope {
+        Some(scope_str) => parse_permissions(scope_str)?,
+        None => client_scope_permissions(&client.scopes),
+    };
 
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
+    let owner = state
+        .user_provider()
+        .find_by_id(&client.owner_user_id)
+        .await
+        .map_err(|e| anyhow!("Failed to load client owner: {e}"))?
+        .ok_or_else(|| anyhow!("Client owner not found"))?;
+    if !owner.is_active {
+        return Err(anyhow!("Client owner is not active"));
+    }
+    let owner_permissions: Vec<Permission> = owner
+        .roles
+        .iter()
+        .filter_map(|r| Permission::from_str(r).ok())
+        .collect();
+
+    let permissions =
+        intersect_permissions(&requested_permissions, &client.scopes, &owner_permissions)?;
+
     let global_config = Config::get()?;
-
-    // Why: Resource audiences are intentionally open here. Capability is granted by
-    // `scope`, not audience; the audience claim is informational and does not
-    // authorize anything.
-    let audience_override = options
-        .audience
-        .map(|a| {
-            JwtAudience::from_str(a).map_err(|e| anyhow::anyhow!("Invalid audience '{a}': {e}"))
-        })
-        .transpose()?;
-    let audience =
-        audience_override.map_or_else(|| global_config.jwt_audiences.clone(), |aud| vec![aud]);
+    let audience = resolve_audience(options.audience, global_config)?;
 
     if permissions.iter().any(Permission::is_hook_scope)
         && !audience.iter().any(|a| matches!(a, JwtAudience::Hook))
     {
-        return Err(anyhow::anyhow!(
+        return Err(anyhow!(
             "Hook scopes require audience=hook on the token request"
         ));
     }
+
+    let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
+        .map_err(|e| anyhow!("Client owner has a non-uuid id ({e})"))?;
+    let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
+    let authenticated = AuthenticatedUser::new_with_roles(
+        owner_uuid,
+        owner.name.clone(),
+        owner.email.clone(),
+        permissions.clone(),
+        role_strings,
+    );
 
     let config = JwtConfig {
         permissions: permissions.clone(),
@@ -80,7 +92,7 @@ pub async fn generate_client_tokens(
         .analytics_provider()
         .create_session(CreateSessionInput {
             session_id: &session_id,
-            user_id: Some(&user_id),
+            user_id: Some(&client.owner_user_id),
             analytics: &analytics,
             session_source: SessionSource::Oauth,
             is_bot: false,
@@ -88,14 +100,15 @@ pub async fn generate_client_tokens(
             expires_at,
         })
         .await
-        .map_err(|e| anyhow::anyhow!("Failed to create session: {e}"))?;
+        .map_err(|e| anyhow!("Failed to create session: {e}"))?;
 
+    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let signing = JwtSigningParams {
         secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
     };
     let jwt_token = generate_jwt(
-        &client_user,
+        &authenticated,
         config,
         uuid::Uuid::new_v4().to_string(),
         &session_id,
@@ -117,58 +130,51 @@ pub async fn generate_client_tokens(
     })
 }
 
-fn resolve_client_permissions(
-    requested_permissions: Vec<Permission>,
-    client_scopes: &[String],
-) -> Result<Vec<Permission>> {
-    let client_allowed: Vec<Permission> = client_scopes
+fn client_scope_permissions(client_scopes: &[String]) -> Vec<Permission> {
+    client_scopes
         .iter()
-        .filter_map(|s| {
-            Permission::from_str(s)
-                .map_err(|e| {
-                    tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");
-                    e
-                })
-                .ok()
-        })
+        .filter_map(|s| Permission::from_str(s).ok())
+        .collect()
+}
+
+fn intersect_permissions(
+    requested: &[Permission],
+    client_scopes: &[String],
+    owner_permissions: &[Permission],
+) -> Result<Vec<Permission>> {
+    let client_allowed: Vec<Permission> = client_scope_permissions(client_scopes);
+
+    let allowed: Vec<Permission> = requested
+        .iter()
+        .filter(|p| client_allowed.contains(p) && owner_permissions.contains(p))
+        .copied()
         .collect();
 
-    let permissions: Vec<Permission> = requested_permissions
-        .into_iter()
-        .filter(|p| client_allowed.contains(p))
-        .collect();
-
-    if permissions.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No valid permissions: requested scopes not allowed for this client"
+    if allowed.is_empty() {
+        return Err(anyhow!(
+            "No valid permissions: scopes not allowed for both client and owner"
         ));
     }
 
-    Ok(permissions)
+    Ok(allowed)
 }
 
-fn build_client_user(
-    client_id: &ClientId,
-    permissions: &[Permission],
-) -> (UserId, AuthenticatedUser) {
-    let client_id_str = client_id.as_str();
-    let mut hasher = Sha256::new();
-    hasher.update(format!("client.{client_id_str}").as_bytes());
-    let hash = hasher.finalize();
+fn resolve_audience(requested: Option<&str>, global_config: &Config) -> Result<Vec<JwtAudience>> {
+    let Some(value) = requested else {
+        return Ok(global_config.jwt_audiences.clone());
+    };
 
-    let mut uuid_bytes = [0u8; 16];
-    uuid_bytes.copy_from_slice(&hash[..16]);
-    let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
-    let user_id = UserId::new(client_uuid.to_string());
+    if !global_config
+        .allowed_resource_audiences
+        .iter()
+        .any(|allowed| allowed == value)
+    {
+        return Err(anyhow!(
+            "invalid_target: '{value}' not in allowed audiences"
+        ));
+    }
 
-    let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
-    let client_user = AuthenticatedUser::new_with_roles(
-        client_uuid,
-        format!("client:{client_id_str}"),
-        format!("{client_id_str}@client.local"),
-        permissions.to_vec(),
-        role_strings,
-    );
-
-    (user_id, client_user)
+    JwtAudience::from_str(value)
+        .map(|aud| vec![aud])
+        .map_err(|e| anyhow!("Invalid audience '{value}': {e}"))
 }

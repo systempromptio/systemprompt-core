@@ -6,7 +6,8 @@ use systemprompt_analytics::{
     ActivityTrend, ContentStat, ConversationByAgent, ConversationSummary, ConversationTrend,
     ErrorSummary, RecentConversation, TopAgent, TopTool, TopUser,
 };
-use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_identifiers::ContextId;
+use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 
@@ -16,7 +17,7 @@ mod top_entity_tests {
     #[test]
     fn top_user_stores_values() {
         let user = TopUser {
-            user_id: UserId::new("user_top".to_string()),
+            user_id: fixture_user_id(),
             user_name: "John Doe".to_string(),
             session_count: 100,
             task_count: 500,
@@ -24,7 +25,7 @@ mod top_entity_tests {
             total_cost: 99.99,
         };
 
-        assert_eq!(user.user_id.as_str(), "user_top");
+        assert_eq!(user.user_id.as_str(), "test-user");
         assert_eq!(user.user_name, "John Doe");
         assert_eq!(user.session_count, 100);
         assert_eq!(user.task_count, 500);

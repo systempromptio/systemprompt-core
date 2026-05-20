@@ -43,7 +43,7 @@ pub async fn list_clients(
     if let Err(e) = query.validate() {
         tracing::info!(
             reason = "Validation error",
-            requested_by = %req_ctx.auth.user_id,
+            requested_by = %req_ctx.auth.actor.user_id,
             "OAuth clients list rejected - validation failed"
         );
         return bad_request(&format!("Invalid query parameters: {e}"));
@@ -64,7 +64,7 @@ pub async fn list_clients(
                 total = total,
                 page = page,
                 per_page = per_page,
-                requested_by = %req_ctx.auth.user_id,
+                requested_by = %req_ctx.auth.actor.user_id,
                 "OAuth clients listed"
             );
             let pagination = PaginationInfo::new(total, page, per_page);
@@ -75,7 +75,7 @@ pub async fn list_clients(
         (Err(e), _) | (_, Err(e)) => {
             tracing::error!(
                 error = %e,
-                requested_by = %req_ctx.auth.user_id,
+                requested_by = %req_ctx.auth.actor.user_id,
                 "OAuth clients list failed"
             );
             internal_error(&format!("Failed to list clients: {e}"))

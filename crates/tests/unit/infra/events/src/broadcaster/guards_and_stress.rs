@@ -5,11 +5,12 @@ use std::time::Duration;
 use systemprompt_events::{Broadcaster, ConnectionGuard, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
 
 fn test_user_id() -> UserId {
-    UserId::new("test-user-123")
+    fixture_user_id()
 }
 
 fn test_event() -> SystemEvent {
@@ -25,7 +26,7 @@ async fn test_connection_guard_debug() {
 
     let guard = ConnectionGuard::new(
         &TEST_BROADCASTER,
-        UserId::new("test-user"),
+        fixture_user_id(),
         ConnectionId::new("test-conn"),
     );
 
@@ -42,7 +43,7 @@ async fn test_connection_guard_drop_unregisters() {
     static DROP_TEST_BROADCASTER: LazyLock<GenericBroadcaster<SystemEvent>> =
         LazyLock::new(GenericBroadcaster::new);
 
-    let user_id = UserId::new("drop-test-user");
+    let user_id = fixture_user_id();
     let conn_id = ConnectionId::new("drop-test-conn");
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -66,7 +67,7 @@ async fn test_connection_guard_multiple_guards_same_user() {
     static MULTI_GUARD_BROADCASTER: LazyLock<GenericBroadcaster<SystemEvent>> =
         LazyLock::new(GenericBroadcaster::new);
 
-    let user_id = UserId::new("multi-guard-user");
+    let user_id = fixture_user_id();
     let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
@@ -167,7 +168,7 @@ async fn test_broadcaster_many_users() {
     let mut receivers = Vec::new();
 
     for i in 0..5 {
-        let user_id = UserId::new(&format!("user-{}", i));
+        let user_id = unique_user_id(&format!("user-{}", i));
         let (sender, receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster
             .register(&user_id, &ConnectionId::new(format!("conn-{i}")), sender)

@@ -7,11 +7,12 @@
 //! SQL statement that knows the column layout.
 
 use sqlx::PgPool;
+use systemprompt_identifiers::Actor;
 
 #[derive(Debug)]
 pub struct GovernanceDecisionRecord<'a> {
     pub id: &'a str,
-    pub user_id: &'a str,
+    pub actor: &'a Actor,
     pub session_id: &'a str,
     pub tool_name: &'a str,
     pub agent_id: Option<&'a str>,
@@ -21,6 +22,9 @@ pub struct GovernanceDecisionRecord<'a> {
     pub reason: &'a str,
     pub evaluated_rules: &'a serde_json::Value,
     pub plugin_id: Option<&'a str>,
+    /// RFC 8693 delegation lineage in outermost-first order. Empty for
+    /// direct (non-delegated) tokens.
+    pub act_chain: &'a [Actor],
 }
 
 #[derive(Debug, Clone)]
@@ -46,12 +50,16 @@ pub async fn insert_governance_decision(
     pool: &PgPool,
     record: &GovernanceDecisionRecord<'_>,
 ) -> Result<(), sqlx::Error> {
+    let actor_kind = record.actor.kind.as_str();
+    let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
+    let act_chain =
+        serde_json::to_value(record.act_chain).unwrap_or_else(|_| serde_json::json!([]));
     sqlx::query!(
         "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, agent_id, \
-         agent_scope, decision, policy, reason, evaluated_rules, plugin_id) VALUES ($1, $2, $3, \
-         $4, $5, $6, $7, $8, $9, $10, $11)",
+         agent_scope, decision, policy, reason, evaluated_rules, plugin_id, actor_kind, actor_id, \
+         act_chain) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
         record.id,
-        record.user_id,
+        record.actor.user_id.as_str(),
         record.session_id,
         record.tool_name,
         record.agent_id,
@@ -61,6 +69,9 @@ pub async fn insert_governance_decision(
         record.reason,
         record.evaluated_rules,
         record.plugin_id,
+        actor_kind,
+        actor_id,
+        act_chain,
     )
     .execute(pool)
     .await?;

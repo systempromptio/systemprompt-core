@@ -3,12 +3,13 @@
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
+use systemprompt_test_fixtures::fixture_actor;
 
 mod noop_provider_tests {
     use super::*;
 
     fn create_context() -> ToolContext {
-        ToolContext::new("test-token")
+        ToolContext::new(fixture_actor(), "test-token")
     }
 
     #[tokio::test]

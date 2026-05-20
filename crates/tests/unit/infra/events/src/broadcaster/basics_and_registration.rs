@@ -6,11 +6,12 @@ use systemprompt_events::{
 };
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::SystemEvent;
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 type TestBroadcaster = GenericBroadcaster<SystemEvent>;
 
 fn test_user_id() -> UserId {
-    UserId::new("test-user-123")
+    fixture_user_id()
 }
 
 #[test]
@@ -98,8 +99,8 @@ async fn test_broadcaster_register_multiple_connections_same_user() {
 #[tokio::test]
 async fn test_broadcaster_register_multiple_users() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
-    let user1 = UserId::new("user-1");
-    let user2 = UserId::new("user-2");
+    let user1 = unique_user_id("user1");
+    let user2 = unique_user_id("user2");
     let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 

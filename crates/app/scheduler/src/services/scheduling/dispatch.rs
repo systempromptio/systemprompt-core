@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobResult};
 use tracing::{debug, error, info, warn};
@@ -15,9 +16,9 @@ use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::JobStatus;
 use crate::repository::SchedulerRepository;
 
-/// Inputs needed to dispatch one job execution.
 pub(super) struct JobDispatch {
     pub(super) job_name: String,
+    pub(super) actor: Actor,
     pub(super) db_pool: DbPool,
     pub(super) repository: SchedulerRepository,
     pub(super) app_context: Arc<AppContext>,
@@ -28,6 +29,7 @@ pub(super) struct JobDispatch {
 pub(super) async fn execute_job(dispatch: JobDispatch) {
     let JobDispatch {
         job_name,
+        actor,
         db_pool,
         repository,
         app_context,
@@ -35,9 +37,6 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         distributed_lock,
     } = dispatch;
 
-    // Two layers guard against duplicate runs: the in-process `RunningJobs`
-    // set is a zero-latency fast-path for one process; the Postgres advisory
-    // lock below additionally serialises across replicas sharing a database.
     {
         let mut guard = running_jobs.lock().await;
         if guard.contains(&job_name) {
@@ -48,7 +47,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     }
 
     let claim = if distributed_lock {
-        match acquire_claim(&job_name, &db_pool).await {
+        match acquire_claim(&job_name, &db_pool, &repository).await {
             Claim::Skip => {
                 running_jobs.lock().await.remove(&job_name);
                 return;
@@ -72,7 +71,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         error!(job_name = %job_name, error = %e, "Failed to increment run count");
     }
 
-    let result = find_and_execute_job(&job_name, db_pool, app_context).await;
+    let result = find_and_execute_job(&job_name, actor, db_pool, app_context).await;
     handle_job_result(&job_name, result, &repository).await;
 
     if let Some(claim) = claim {
@@ -90,7 +89,11 @@ enum Claim {
     Skip,
 }
 
-async fn acquire_claim(job_name: &str, db_pool: &DbPool) -> Claim {
+async fn acquire_claim(
+    job_name: &str,
+    db_pool: &DbPool,
+    repository: &SchedulerRepository,
+) -> Claim {
     let write_pool = match db_pool.write_pool_arc() {
         Ok(pool) => pool,
         Err(e) => {
@@ -99,22 +102,47 @@ async fn acquire_claim(job_name: &str, db_pool: &DbPool) -> Claim {
         },
     };
 
-    match try_acquire_job_lock(&write_pool, job_name).await {
-        Ok(Some(guard)) => Claim::Held(guard),
+    let guard = match try_acquire_job_lock(&write_pool, job_name).await {
+        Ok(Some(guard)) => guard,
         Ok(None) => {
-            debug!(job_name = %job_name, "job claimed by another replica, skipping");
-            info!(
-                monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
-                job_name = %job_name,
-                event = "scheduler.job.skipped_by_lock",
-            );
-            Claim::Skip
+            skipped_by_lock(job_name);
+            return Claim::Skip;
         },
         Err(e) => {
             error!(job_name = %job_name, error = %e, "Failed to acquire distributed job lock");
-            Claim::Skip
+            return Claim::Skip;
+        },
+    };
+
+    // Why: cron's finest granularity is 1s; a peer-completed tick within 900ms
+    // means this tick is already done — skip rather than re-run.
+    match repository.find_job(job_name).await {
+        Ok(Some(job)) => {
+            if let Some(last_run) = job.last_run {
+                let since = chrono::Utc::now().signed_duration_since(last_run);
+                if since < chrono::Duration::milliseconds(900) {
+                    guard.release().await;
+                    skipped_by_lock(job_name);
+                    return Claim::Skip;
+                }
+            }
+        },
+        Ok(None) => {},
+        Err(e) => {
+            error!(job_name = %job_name, error = %e, "Failed to read job row for tick de-duplication");
         },
     }
+
+    Claim::Held(guard)
+}
+
+fn skipped_by_lock(job_name: &str) {
+    debug!(job_name = %job_name, "job already claimed for this tick by another replica, skipping");
+    info!(
+        monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
+        job_name = %job_name,
+        event = "scheduler.job.skipped_by_lock",
+    );
 }
 
 fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {
@@ -126,6 +154,7 @@ fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {
 
 async fn find_and_execute_job(
     job_name: &str,
+    actor: Actor,
     db_pool: DbPool,
     app_context: Arc<AppContext>,
 ) -> SchedulerResult<JobResult> {
@@ -137,7 +166,7 @@ async fn find_and_execute_job(
         SchedulerError::job_not_found(job_name)
     })?;
 
-    let ctx = make_job_context(db_pool, app_context);
+    let ctx = make_job_context(actor, db_pool, app_context);
 
     match AssertUnwindSafe(job.execute(&ctx)).catch_unwind().await {
         Ok(result) => {

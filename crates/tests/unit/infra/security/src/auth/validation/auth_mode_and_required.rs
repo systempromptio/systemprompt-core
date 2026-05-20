@@ -59,7 +59,7 @@ fn test_validate_request_disabled_mode() {
         .validate_request(&headers, AuthMode::Disabled)
         .expect("Disabled mode should succeed without token");
     assert_eq!(context.request.session_id.as_str(), "test");
-    assert_eq!(context.auth.user_id.as_str(), "test-user");
+    assert_eq!(context.actor().user_id.as_str(), "test-user");
 }
 
 #[test]
@@ -194,7 +194,7 @@ fn test_validate_request_required_valid_token() {
     let context = service
         .validate_request(&headers, AuthMode::Required)
         .expect("Valid token should succeed");
-    assert_eq!(context.auth.user_id.as_str(), "user_123");
+    assert_eq!(context.actor().user_id.as_str(), "user_123");
     assert_eq!(context.request.session_id.as_str(), "session_123");
 }
 

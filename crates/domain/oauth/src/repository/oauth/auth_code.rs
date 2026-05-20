@@ -157,7 +157,55 @@ impl OAuthRepository {
         })?;
 
         if row.used_at.is_some() {
-            tracing::warn!("Authorization code already used");
+            tracing::warn!(
+                code = %code_str,
+                "Authorization code replay detected"
+            );
+
+            let refresh_token_id = sqlx::query_scalar!(
+                "SELECT refresh_token_id FROM oauth_auth_codes WHERE code = $1",
+                code_str
+            )
+            .fetch_optional(self.pool_ref())
+            .await?
+            .flatten();
+
+            if let Some(rt_id) = refresh_token_id {
+                let family_id = sqlx::query_scalar!(
+                    "SELECT family_id FROM oauth_refresh_tokens WHERE token_id = $1",
+                    rt_id
+                )
+                .fetch_optional(self.pool_ref())
+                .await?;
+                if let Some(family) = family_id {
+                    let result = sqlx::query!(
+                        "DELETE FROM oauth_refresh_tokens WHERE family_id = $1",
+                        family
+                    )
+                    .execute(self.write_pool_ref())
+                    .await?;
+                    tracing::warn!(
+                        event = "auth_code_replay_detected",
+                        code = %code_str,
+                        family_id = %family,
+                        revoked_count = result.rows_affected(),
+                        "Revoked refresh-token family after auth-code replay"
+                    );
+                } else {
+                    tracing::warn!(
+                        event = "auth_code_replay_detected",
+                        code = %code_str,
+                        "Linked refresh token already gone; no family to revoke"
+                    );
+                }
+            } else {
+                tracing::warn!(
+                    event = "auth_code_replay_detected",
+                    code = %code_str,
+                    "No refresh token linked to replayed auth code"
+                );
+            }
+
             return Err(OauthError::Validation(
                 "Invalid authorization code".to_string(),
             ));
@@ -243,6 +291,22 @@ impl OAuthRepository {
             scope: row.scope,
             resource: row.resource,
         })
+    }
+
+    pub async fn link_auth_code_to_refresh_token(
+        &self,
+        code: &AuthorizationCode,
+        refresh_token_id: &str,
+    ) -> OauthResult<()> {
+        let code_str = code.as_str();
+        sqlx::query!(
+            "UPDATE oauth_auth_codes SET refresh_token_id = $1 WHERE code = $2",
+            refresh_token_id,
+            code_str
+        )
+        .execute(self.write_pool_ref())
+        .await?;
+        Ok(())
     }
 }
 

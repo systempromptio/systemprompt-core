@@ -7,9 +7,8 @@ use systemprompt_models::modules::ApiPaths;
 use super::CloudApiClient;
 use super::types::{
     ApiResponse, CustomDomainResponse, DeployResponse, ExternalDbAccessResponse,
-    ListSecretsResponse, RegistryToken, RotateCredentialsResponse, RotateSyncTokenResponse,
-    SetCustomDomainRequest, SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse,
-    TenantSecrets, TenantStatus,
+    ListSecretsResponse, RegistryToken, RotateCredentialsResponse, SetCustomDomainRequest,
+    SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse, TenantSecrets, TenantStatus,
 };
 use crate::error::CloudResult;
 
@@ -97,16 +96,6 @@ impl CloudApiClient {
     ) -> CloudResult<RotateCredentialsResponse> {
         self.post_empty(&ApiPaths::tenant_rotate_credentials(tenant_id))
             .await
-    }
-
-    pub async fn rotate_sync_token(
-        &self,
-        tenant_id: &TenantId,
-    ) -> CloudResult<RotateSyncTokenResponse> {
-        let response: ApiResponse<RotateSyncTokenResponse> = self
-            .post_empty(&ApiPaths::tenant_rotate_sync_token(tenant_id))
-            .await?;
-        Ok(response.data)
     }
 
     pub async fn list_secrets(&self, tenant_id: &TenantId) -> CloudResult<ListSecretsResponse> {

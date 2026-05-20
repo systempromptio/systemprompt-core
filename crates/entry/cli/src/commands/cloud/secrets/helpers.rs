@@ -111,7 +111,6 @@ fn is_standard_env_var(key: &str) -> bool {
         key,
         "JWT_SECRET"
             | "DATABASE_URL"
-            | "SYNC_TOKEN"
             | "GEMINI_API_KEY"
             | "ANTHROPIC_API_KEY"
             | "OPENAI_API_KEY"

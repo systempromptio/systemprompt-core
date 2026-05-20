@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AiQuotaBucketId, TenantId, UserId};
+use systemprompt_identifiers::{AiQuotaBucketId, UserId};
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -20,7 +20,6 @@ pub struct QuotaBucketDelta {
 
 #[derive(Debug, Clone, Copy)]
 pub struct IncrementParams<'a> {
-    pub tenant_id: Option<&'a TenantId>,
     pub user_id: &'a UserId,
     pub window_seconds: i32,
     pub window_start: DateTime<Utc>,
@@ -47,7 +46,6 @@ impl AiQuotaBucketRepository {
         params: IncrementParams<'_>,
     ) -> Result<QuotaBucketState, RepositoryError> {
         let IncrementParams {
-            tenant_id,
             user_id,
             window_seconds,
             window_start,
@@ -57,11 +55,11 @@ impl AiQuotaBucketRepository {
         let row = sqlx::query!(
             r#"
             INSERT INTO ai_quota_buckets (
-                id, tenant_id, user_id, window_seconds, window_start,
+                id, user_id, window_seconds, window_start,
                 requests, input_tokens, output_tokens, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-            ON CONFLICT (tenant_id, user_id, window_seconds, window_start) DO UPDATE
+            VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, window_seconds, window_start) DO UPDATE
             SET requests = ai_quota_buckets.requests + EXCLUDED.requests,
                 input_tokens = ai_quota_buckets.input_tokens + EXCLUDED.input_tokens,
                 output_tokens = ai_quota_buckets.output_tokens + EXCLUDED.output_tokens,
@@ -69,7 +67,6 @@ impl AiQuotaBucketRepository {
             RETURNING requests, input_tokens, output_tokens
             "#,
             id.as_str(),
-            tenant_id.map(TenantId::as_str),
             user_id.as_str(),
             window_seconds,
             window_start,

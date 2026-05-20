@@ -156,6 +156,8 @@ pub async fn get_task_context_info(
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,
-        user_id: r.user_id.unwrap_or_else(|| UserId::new("")),
+        user_id: r
+            .user_id
+            .unwrap_or_else(systemprompt_identifiers::bootstrap::empty_sentinel),
     }))
 }

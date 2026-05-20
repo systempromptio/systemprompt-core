@@ -2,7 +2,8 @@
 
 use chrono::Utc;
 use systemprompt_files::{File, FileMetadata, ImageMetadata};
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{SessionId, TraceId};
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn create_test_file() -> File {
     let now = Utc::now();
@@ -34,7 +35,7 @@ fn create_test_file_with_metadata(metadata: FileMetadata) -> File {
         size_bytes: Some(2048),
         ai_content: true,
         metadata: serde_json::to_value(metadata).unwrap(),
-        user_id: Some(UserId::new("user_123")),
+        user_id: Some(fixture_user_id()),
         session_id: Some(SessionId::new("sess_456")),
         trace_id: Some(TraceId::new("trace_789")),
         context_id: None,
@@ -166,7 +167,7 @@ fn test_file_with_all_optional_ids() {
         size_bytes: Some(4096),
         ai_content: true,
         metadata: serde_json::json!({}),
-        user_id: Some(UserId::new("user_abc")),
+        user_id: Some(fixture_user_id()),
         session_id: Some(SessionId::new("session_def")),
         trace_id: Some(TraceId::new("trace_ghi")),
         context_id: None,
@@ -180,7 +181,7 @@ fn test_file_with_all_optional_ids() {
         .as_ref()
         .expect("session_id should be present");
     file.trace_id.as_ref().expect("trace_id should be present");
-    assert_eq!(file.user_id.as_ref().unwrap().as_str(), "user_abc");
+    assert_eq!(file.user_id.as_ref().unwrap().as_str(), "test-user");
     assert_eq!(file.session_id.as_ref().unwrap().as_str(), "session_def");
     assert_eq!(file.trace_id.as_ref().unwrap().as_str(), "trace_ghi");
 }

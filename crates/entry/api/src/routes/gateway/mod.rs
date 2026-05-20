@@ -20,6 +20,7 @@ use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::AppContext as _;
 
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
@@ -85,7 +86,19 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         },
     };
 
-    let jwt_extractor = Arc::new(JwtContextExtractor::new(jwt_secret, ctx.db_pool()));
+    let Some(analytics) = ctx.analytics_provider() else {
+        tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
+        return None;
+    };
+    let Some(user_provider) = ctx.user_provider() else {
+        tracing::warn!("Gateway router: user provider unavailable — gateway disabled");
+        return None;
+    };
+    let jwt_extractor = Arc::new(JwtContextExtractor::new(
+        jwt_secret,
+        analytics,
+        user_provider,
+    ));
 
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();

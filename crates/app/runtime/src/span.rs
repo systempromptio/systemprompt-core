@@ -5,7 +5,7 @@ use systemprompt_models::RequestContext;
 
 pub fn create_request_span(ctx: &RequestContext) -> RequestSpan {
     let mut builder = RequestSpanBuilder::new(
-        &ctx.auth.user_id,
+        &ctx.auth.actor.user_id,
         &ctx.request.session_id,
         &ctx.execution.trace_id,
     );

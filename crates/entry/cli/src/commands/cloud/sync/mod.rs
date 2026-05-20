@@ -4,7 +4,7 @@ mod interactive;
 use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOpState, SyncOperationResult, SyncService};
 
@@ -104,16 +104,6 @@ async fn execute_admin_user_sync(args: AdminUserSyncArgs) -> Result<()> {
 }
 
 async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<()> {
-    let secrets = SecretsBootstrap::get()
-        .map_err(|_| anyhow!("Failed to load secrets. Check profile configuration"))?;
-
-    let sync_token = secrets.sync_token.clone().ok_or_else(|| {
-        anyhow!(
-            "Sync token not configured in profile secrets.\nRun: systemprompt cloud tenant \
-             rotate-sync-token\nThen recreate profile or update secrets.json manually"
-        )
-    })?;
-
     let creds = get_credentials()?;
 
     let profile = ProfileBootstrap::get()
@@ -159,7 +149,6 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         api_token: creds.api_token.clone(),
         services_path,
         hostname: Some(hostname),
-        sync_token: Some(sync_token),
         local_database_url: None,
     };
 

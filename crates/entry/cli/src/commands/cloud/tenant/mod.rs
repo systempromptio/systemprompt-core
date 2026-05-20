@@ -17,7 +17,7 @@ pub use delete::delete_tenant;
 pub use docker::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
 pub use list::list_tenants;
-pub use rotate::{rotate_credentials, rotate_sync_token};
+pub use rotate::rotate_credentials;
 pub use select::{get_credentials, resolve_tenant_id};
 pub use show::show_tenant;
 pub use validation::{check_build_ready, find_services_config};
@@ -58,9 +58,6 @@ pub enum TenantCommands {
 
     #[command(about = "Rotate database credentials")]
     RotateCredentials(TenantRotateArgs),
-
-    #[command(about = "Rotate sync token")]
-    RotateSyncToken(TenantRotateArgs),
 
     #[command(about = "Cancel subscription and destroy tenant (IRREVERSIBLE)")]
     Cancel(TenantCancelArgs),
@@ -131,12 +128,6 @@ async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool
         TenantCommands::RotateCredentials(args) => {
             let result =
                 rotate_credentials(args.id, args.yes || !config.is_interactive(), config).await?;
-            render_result(&result);
-            Ok(false)
-        },
-        TenantCommands::RotateSyncToken(args) => {
-            let result =
-                rotate_sync_token(args.id, args.yes || !config.is_interactive(), config).await?;
             render_result(&result);
             Ok(false)
         },
