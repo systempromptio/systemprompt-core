@@ -54,8 +54,9 @@ fn server_error(description: String) -> Response {
 }
 
 fn token_response(body: AnonymousTokenResponse, jwt_token: &str, expires_in: i64) -> Response {
-    let cookie =
-        format!("access_token={jwt_token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={expires_in}");
+    let cookie = format!(
+        "access_token={jwt_token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={expires_in}"
+    );
     let mut response = (StatusCode::OK, Json(body)).into_response();
     if let Ok(cookie_value) = HeaderValue::from_str(&cookie) {
         response
