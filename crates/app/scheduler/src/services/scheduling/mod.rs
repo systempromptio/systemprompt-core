@@ -6,14 +6,17 @@ mod dispatch;
 mod lock;
 
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::models::SchedulerConfig;
+use crate::models::{JobConfig, SchedulerConfig};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
 use systemprompt_logging::SystemSpan;
+use systemprompt_models::auth::UserStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobContext};
+use systemprompt_users::UserRepository;
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{Instrument, debug, info, warn};
@@ -49,6 +52,8 @@ impl SchedulerService {
             return Ok(());
         }
 
+        let resolved_owners = Self::resolve_owners(&self.db_pool, &self.config.jobs).await?;
+
         let registered_jobs = Self::discover_jobs();
 
         debug!(
@@ -60,14 +65,14 @@ impl SchedulerService {
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
 
         let scheduler = JobScheduler::new().await?;
-        self.register_jobs(&scheduler, &registered_jobs, &running_jobs)
+        self.register_jobs(&scheduler, &registered_jobs, &running_jobs, &resolved_owners)
             .await?;
         scheduler.start().await?;
 
         info!("Scheduler started");
 
         let startup_job_names = self.collect_startup_job_names(&registered_jobs);
-        self.spawn_startup_jobs(startup_job_names, &running_jobs);
+        self.spawn_startup_jobs(startup_job_names, &running_jobs, &resolved_owners);
 
         Ok(())
     }
@@ -89,7 +94,12 @@ impl SchedulerService {
             .collect()
     }
 
-    fn spawn_startup_jobs(&self, startup_job_names: Vec<String>, running_jobs: &RunningJobs) {
+    fn spawn_startup_jobs(
+        &self,
+        startup_job_names: Vec<String>,
+        running_jobs: &RunningJobs,
+        owners: &HashMap<String, UserId>,
+    ) {
         if startup_job_names.is_empty() {
             return;
         }
@@ -100,14 +110,20 @@ impl SchedulerService {
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
         let distributed_lock = self.config.distributed_lock;
+        let owners = owners.clone();
 
         info!(count, "Spawning startup jobs in background");
 
         tokio::spawn(async move {
             for job_name in startup_job_names {
                 debug!(job_name = %job_name, "Running background startup job");
+                let Some(actor) = owners.get(&job_name).cloned() else {
+                    warn!(job_name = %job_name, "startup job has no resolved owner; skipping");
+                    continue;
+                };
                 dispatch::execute_job(dispatch::JobDispatch {
                     job_name,
+                    actor,
                     db_pool: Arc::clone(&db_pool),
                     repository: repository.clone(),
                     app_context: Arc::clone(&app_context),
@@ -118,6 +134,31 @@ impl SchedulerService {
             }
             info!("Background startup jobs completed");
         });
+    }
+
+    async fn resolve_owners(
+        db_pool: &DbPool,
+        jobs: &[JobConfig],
+    ) -> SchedulerResult<HashMap<String, UserId>> {
+        let users = UserRepository::new(db_pool)?;
+        let mut resolved = HashMap::with_capacity(jobs.len());
+        for job in jobs.iter().filter(|j| j.enabled) {
+            let owner = users.find_by_name(job.owner.as_str()).await?.ok_or_else(|| {
+                SchedulerError::UnresolvedJobOwner {
+                    job_name: job.name.clone(),
+                    owner: job.owner.as_str().to_string(),
+                }
+            })?;
+            if owner.status.as_deref() != Some(UserStatus::Active.as_str()) {
+                return Err(SchedulerError::UnresolvedJobOwner {
+                    job_name: job.name.clone(),
+                    owner: job.owner.as_str().to_string(),
+                });
+            }
+            debug!(job_name = %job.name, owner = %owner.id, "resolved job owner");
+            resolved.insert(job.name.clone(), owner.id);
+        }
+        Ok(resolved)
     }
 
     fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
@@ -132,9 +173,10 @@ impl SchedulerService {
         scheduler: &JobScheduler,
         registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
         running_jobs: &RunningJobs,
+        owners: &HashMap<String, UserId>,
     ) -> SchedulerResult<()> {
         for job_config in &self.config.jobs {
-            self.register_single_job(scheduler, registered_jobs, job_config, running_jobs)
+            self.register_single_job(scheduler, registered_jobs, job_config, running_jobs, owners)
                 .await?;
         }
         Ok(())
@@ -144,8 +186,9 @@ impl SchedulerService {
         &self,
         scheduler: &JobScheduler,
         registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
-        job_config: &crate::models::JobConfig,
+        job_config: &JobConfig,
         running_jobs: &RunningJobs,
+        owners: &HashMap<String, UserId>,
     ) -> SchedulerResult<()> {
         if !job_config.enabled {
             debug!("Skipping disabled job: {}", job_config.name);
@@ -155,6 +198,13 @@ impl SchedulerService {
         let Some(registered_job) = registered_jobs.get(job_config.name.as_str()) else {
             warn!("Job '{}' not found in inventory, skipping", job_config.name);
             return Ok(());
+        };
+
+        let Some(actor) = owners.get(&job_config.name).cloned() else {
+            return Err(SchedulerError::UnresolvedJobOwner {
+                job_name: job_config.name.clone(),
+                owner: job_config.owner.as_str().to_string(),
+            });
         };
 
         let schedule = job_config
@@ -167,7 +217,7 @@ impl SchedulerService {
             .upsert_job(&job_config.name, &schedule, job_config.enabled)
             .await?;
 
-        let job = self.create_job_from_trait(&job_config.name, &schedule, running_jobs)?;
+        let job = self.create_job_from_trait(&job_config.name, &schedule, running_jobs, actor)?;
         scheduler.add(job).await?;
         Ok(())
     }
@@ -177,6 +227,7 @@ impl SchedulerService {
         job_name: &str,
         schedule: &str,
         running_jobs: &RunningJobs,
+        actor: UserId,
     ) -> SchedulerResult<Job> {
         let job_name_owned = job_name.to_string();
         let schedule_owned = schedule.to_string();
@@ -188,6 +239,7 @@ impl SchedulerService {
 
         let job = Job::new_async(schedule_owned.as_str(), move |_uuid, _lock| {
             let job_name = job_name_owned.clone();
+            let actor = actor.clone();
             let db_pool = Arc::clone(&db_pool);
             let repository = repository.clone();
             let app_context = Arc::clone(&app_context);
@@ -197,6 +249,7 @@ impl SchedulerService {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
                 dispatch::execute_job(dispatch::JobDispatch {
                     job_name,
+                    actor,
                     db_pool,
                     repository,
                     app_context,
@@ -213,10 +266,14 @@ impl SchedulerService {
     }
 }
 
-pub(crate) fn make_job_context(db_pool: DbPool, app_context: Arc<AppContext>) -> JobContext {
+pub(crate) fn make_job_context(
+    actor: UserId,
+    db_pool: DbPool,
+    app_context: Arc<AppContext>,
+) -> JobContext {
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(app_context.app_paths_arc()));
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_context);
-    JobContext::new(db_pool_any, app_context_any, app_paths_any)
+    JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
 }
