@@ -191,6 +191,9 @@ where
             .context
             .as_ref()
             .and_then(|s| ContextId::try_new(s.clone()).ok()),
-        client_id: span_context.client.as_ref().map(|s| ClientId::new(s.clone())),
+        client_id: span_context
+            .client
+            .as_ref()
+            .map(|s| ClientId::new(s.clone())),
     })
 }

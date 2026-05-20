@@ -72,10 +72,11 @@ impl Default for SchedulerConfig {
     fn default() -> Self {
         // Why: bootstrap scheduler jobs (cleanup, retention) have no human originator,
         // so they declare the platform owner (admin until delegated) as their actor.
-        // `crates/app/scheduler/src/services/scheduling/mod.rs::resolve_owners` validates
-        // at startup that this name resolves to an active user; the platform refuses to
-        // start otherwise. This is the only sanctioned UserId::admin() call site outside
-        // the bootstrap CLI command and the actor module.
+        // `crates/app/scheduler/src/services/scheduling/mod.rs::resolve_owners`
+        // validates at startup that this name resolves to an active user; the
+        // platform refuses to start otherwise. This is the only sanctioned
+        // UserId::admin() call site outside the bootstrap CLI command and the
+        // actor module.
         let owner = UserId::admin();
         Self {
             enabled: true,

@@ -19,7 +19,9 @@ pub async fn update_client(
     let prev_client = repository
         .find_client_by_id(&client_id)
         .await?
-        .ok_or_else(|| OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found")))?;
+        .ok_or_else(|| {
+            OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found"))
+        })?;
 
     let client = repository
         .update_client(

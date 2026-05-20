@@ -40,9 +40,9 @@ pub async fn list_clients(
     OAuthRepo(repository): OAuthRepo,
     Query(query): Query<ListClientsQuery>,
 ) -> Result<Response, OAuthHttpError> {
-    query.validate().map_err(|e| {
-        OAuthHttpError::invalid_request(format!("Invalid query parameters: {e}"))
-    })?;
+    query
+        .validate()
+        .map_err(|e| OAuthHttpError::invalid_request(format!("Invalid query parameters: {e}")))?;
 
     let page = query.pagination.page;
     let per_page = query.pagination.per_page;

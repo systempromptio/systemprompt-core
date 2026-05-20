@@ -29,9 +29,8 @@ pub async fn create_client(
     Json(request): Json<CreateOAuthClientRequest>,
 ) -> Result<Response, OAuthHttpError> {
     let client_secret = Uuid::new_v4().to_string();
-    let client_secret_hash = hash(&client_secret, DEFAULT_COST).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to hash client secret: {e}"))
-    })?;
+    let client_secret_hash = hash(&client_secret, DEFAULT_COST)
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to hash client secret: {e}")))?;
 
     let params = CreateClientParams {
         client_id: request.client_id.clone(),
@@ -71,9 +70,8 @@ pub async fn create_client(
 
     let location = ApiPaths::oauth_client_location(&client.client_id);
     let response: OAuthClientResponse = client.into();
-    let mut response_json = serde_json::to_value(response).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to serialize response: {e}"))
-    })?;
+    let mut response_json = serde_json::to_value(response)
+        .map_err(|e| OAuthHttpError::server_error(format!("Failed to serialize response: {e}")))?;
     response_json["client_secret"] = serde_json::Value::String(client_secret);
     Ok(created_response(response_json, location))
 }

@@ -1,9 +1,9 @@
 //! Test-only `LogRow` shape exposed for unit tests that exercise the row→entry
 //! mapping shape. Production read paths use local non-Option `LogRow` structs
-//! defined in `repository/operations/queries.rs` and `trace/log_lookup_queries.rs`;
-//! they do not go through this type. The struct is preserved because removing
-//! it would force a cross-cutting rewrite of the logging test surface; it must
-//! not be used in production code.
+//! defined in `repository/operations/queries.rs` and
+//! `trace/log_lookup_queries.rs`; they do not go through this type. The struct
+//! is preserved because removing it would force a cross-cutting rewrite of the
+//! logging test surface; it must not be used in production code.
 
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;

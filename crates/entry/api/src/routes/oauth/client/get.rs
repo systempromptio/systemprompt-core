@@ -18,7 +18,9 @@ pub async fn get_client(
     let client = repository
         .find_client_by_id(&client_id)
         .await?
-        .ok_or_else(|| OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found")))?;
+        .ok_or_else(|| {
+            OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found"))
+        })?;
 
     tracing::info!(
         client_id = %client_id,

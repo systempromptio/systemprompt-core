@@ -42,8 +42,9 @@ pub async fn handle_authorize_get(
                 "CSRF token (state parameter) is required",
             ));
         },
-        Some(state_str) => CsrfToken::new(state_str)
-            .map_err(|_| OAuthHttpError::invalid_request("CSRF token (state parameter) is invalid"))?,
+        Some(state_str) => CsrfToken::new(state_str).map_err(|_| {
+            OAuthHttpError::invalid_request("CSRF token (state parameter) is invalid")
+        })?,
     };
 
     if params.response_type.is_empty() || params.client_id.as_str().is_empty() {
@@ -142,4 +143,3 @@ pub async fn handle_authorize_post(
         &query,
     ))
 }
-

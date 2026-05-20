@@ -45,15 +45,17 @@ impl LogEntry {
         }
     }
 
-    /// Constructor for platform-attributed log rows that have no human originator —
-    /// external telemetry ingest (OTLP), gateway access logs emitted by middleware
-    /// before any request context is bound, and similar platform-internal events.
+    /// Constructor for platform-attributed log rows that have no human
+    /// originator — external telemetry ingest (OTLP), gateway access logs
+    /// emitted by middleware before any request context is bound, and
+    /// similar platform-internal events.
     ///
-    /// Why this is the only sanctioned `UserId::admin()` call site in the logging
-    /// layer: per the security policy every log row must resolve to a real user,
-    /// even when that user is the platform owner. Routing these events through a
-    /// named constructor makes the platform attribution explicit at the call site
-    /// instead of hiding behind a Default.
+    /// Why this is the only sanctioned `UserId::admin()` call site in the
+    /// logging layer: per the security policy every log row must resolve to
+    /// a real user, even when that user is the platform owner. Routing
+    /// these events through a named constructor makes the platform
+    /// attribution explicit at the call site instead of hiding behind a
+    /// Default.
     #[must_use]
     pub fn platform_event(
         level: LogLevel,
