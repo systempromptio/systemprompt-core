@@ -90,7 +90,12 @@ pub async fn create_cloud_tenant(
     CliService::section("API Keys");
     let api_keys = collect_api_keys()?;
 
-    let profile = create_profile_for_tenant(&stored_tenant, &api_keys, &profile_name)?;
+    let profile = create_profile_for_tenant(
+        &stored_tenant,
+        &api_keys,
+        &profile_name,
+        Some(&creds.api_url),
+    )?;
     CliService::success(&format!("Profile '{}' created", profile.name));
 
     if result.needs_deploy {

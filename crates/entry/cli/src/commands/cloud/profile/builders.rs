@@ -5,7 +5,9 @@ use systemprompt_cloud::constants::{container, profile as consts};
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
+use systemprompt_models::profile::{
+    SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
+};
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileType,
@@ -131,6 +133,7 @@ pub struct CloudProfileBuilder {
     external_url: Option<String>,
     external_db_access: bool,
     secrets_path: Option<String>,
+    trusted_issuers: Vec<TrustedIssuer>,
 }
 
 impl CloudProfileBuilder {
@@ -141,7 +144,13 @@ impl CloudProfileBuilder {
             external_url: None,
             external_db_access: false,
             secrets_path: None,
+            trusted_issuers: Vec::new(),
         }
+    }
+
+    pub fn with_trusted_issuer(mut self, issuer: TrustedIssuer) -> Self {
+        self.trusted_issuers.push(issuer);
+        self
     }
 
     pub fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
@@ -217,7 +226,7 @@ impl CloudProfileBuilder {
                 allowed_resource_audiences: Vec::new(),
                 allow_registration: true,
                 signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-                trusted_issuers: Vec::new(),
+                trusted_issuers: self.trusted_issuers,
             },
             rate_limits: RateLimitsConfig::default(),
             runtime: RuntimeConfig {
