@@ -206,13 +206,13 @@ async fn test_refresh_token_lifecycle() {
     assert_eq!(returned_user_id.as_str(), user_id.as_str());
     assert_eq!(returned_scope, scopes);
 
-    let (user_from_consume, scope_from_consume) = repo
+    let consumed = repo
         .consume_refresh_token(&token_id, &client_id)
         .await
         .expect("Failed to consume refresh token");
 
-    assert_eq!(user_from_consume.as_str(), user_id.as_str());
-    assert_eq!(scope_from_consume, scopes);
+    assert_eq!(consumed.user_id.as_str(), user_id.as_str());
+    assert_eq!(consumed.scope, scopes);
 
     let validation_after_consume = repo.validate_refresh_token(&token_id, &client_id).await;
 

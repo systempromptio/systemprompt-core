@@ -24,10 +24,12 @@ systemprompt-agent = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-events = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
+systemprompt-security = { workspace = true }
 systemprompt-sync = { workspace = true }
 systemprompt-users = { workspace = true }

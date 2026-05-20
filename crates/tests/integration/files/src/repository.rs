@@ -8,9 +8,9 @@ use systemprompt_database::Database;
 use systemprompt_files::{File, FileMetadata, FileRepository, InsertFileRequest};
 use systemprompt_identifiers::{FileId, UserId};
 
-async fn get_db() -> Option<Database> {
+async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok()
+    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
 }
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
@@ -32,7 +32,7 @@ async fn test_file_repository_new() {
         return;
     };
 
-    let result = FileRepository::new(db.pool());
+    let result = FileRepository::new(&db);
     assert!(result.is_ok(), "Should create FileRepository successfully");
 }
 
@@ -43,7 +43,7 @@ async fn test_file_repository_insert_success() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("insert_success");
 
     let result = repo.insert(request.clone()).await;
@@ -65,7 +65,7 @@ async fn test_file_repository_insert_with_user_id() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("with_user_id")
         .with_user_id(UserId::new("user_test_123"));
 
@@ -87,7 +87,7 @@ async fn test_file_repository_insert_with_ai_content() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("ai_content")
         .with_ai_content(true);
 
@@ -108,7 +108,7 @@ async fn test_file_repository_insert_upsert_on_conflict() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
 
     let unique_path = format!("/storage/test/upsert_{}.png", uuid::Uuid::new_v4());
     let file_id1 = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -149,7 +149,7 @@ async fn test_file_repository_find_by_id_exists() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("find_by_id");
 
     repo.insert(request.clone()).await.expect("Insert should succeed");
@@ -172,7 +172,7 @@ async fn test_file_repository_find_by_id_not_exists() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let fake_id = FileId::new(uuid::Uuid::new_v4().to_string());
 
     let file = repo.find_by_id(&fake_id).await.expect("Query should succeed");
@@ -186,7 +186,7 @@ async fn test_file_repository_find_by_id_invalid_uuid() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let invalid_id = FileId::new("not-a-valid-uuid");
 
     let result = repo.find_by_id(&invalid_id).await;
@@ -200,7 +200,7 @@ async fn test_file_repository_find_by_path_exists() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let unique_path = format!("/storage/test/find_path_{}.png", uuid::Uuid::new_v4());
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
 
@@ -227,7 +227,7 @@ async fn test_file_repository_find_by_path_not_exists() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
 
     let file = repo.find_by_path("/nonexistent/path/file.png").await.expect("Query should succeed");
     assert!(file.is_none(), "Non-existent path should return None");
@@ -240,7 +240,7 @@ async fn test_file_repository_list_by_user() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let user_id = UserId::new(format!("user_list_test_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -276,7 +276,7 @@ async fn test_file_repository_list_by_user_with_pagination() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let user_id = UserId::new(format!("user_page_test_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -319,7 +319,7 @@ async fn test_file_repository_list_all() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
 
     let files = repo.list_all(100, 0).await.expect("List all should succeed");
     assert!(files.len() <= 100, "Should respect limit");
@@ -332,7 +332,7 @@ async fn test_file_repository_delete() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("delete");
 
     repo.insert(request.clone()).await.expect("Insert should succeed");
@@ -353,7 +353,7 @@ async fn test_file_repository_update_metadata() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("update_meta");
 
     repo.insert(request.clone()).await.expect("Insert should succeed");
@@ -377,7 +377,7 @@ async fn test_file_repository_insert_file() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let now = Utc::now();
     let file_id = uuid::Uuid::new_v4();
 
@@ -392,6 +392,7 @@ async fn test_file_repository_insert_file() {
         user_id: Some(UserId::new("user_insert_file")),
         session_id: None,
         trace_id: None,
+        context_id: None,
         created_at: now,
         updated_at: now,
         deleted_at: None,
@@ -417,7 +418,7 @@ async fn test_file_repository_list_ai_images() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
 
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
     let request = InsertFileRequest::new(
@@ -448,7 +449,7 @@ async fn test_file_repository_list_ai_images_by_user() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let user_id = UserId::new(format!("user_ai_{}", uuid::Uuid::new_v4()));
 
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
@@ -481,7 +482,7 @@ async fn test_file_repository_count_ai_images_by_user() {
         return;
     };
 
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
+    let repo = FileRepository::new(&db).expect("Failed to create repository");
     let user_id = UserId::new(format!("user_count_ai_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 

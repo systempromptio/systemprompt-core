@@ -43,6 +43,8 @@ fn make_security_config() -> SecurityConfig {
         audiences: vec![],
         allowed_resource_audiences: vec![],
         allow_registration: true,
+        signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
+        trusted_issuers: vec![],
     }
 }
 

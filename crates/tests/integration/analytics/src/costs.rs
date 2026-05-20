@@ -105,8 +105,9 @@ impl Fixture {
         let created_at = self.window_start + Duration::minutes(offset_minutes);
         sqlx::query(
             "INSERT INTO ai_requests (id, request_id, user_id, task_id, provider, model, \
-             cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, $3, \
-             $4, 'test-provider', 'test-model', $5, $6, 'completed', $7, $7)",
+             cost_microdollars, tokens_used, status, created_at, updated_at, actor_kind, \
+             actor_id) VALUES ($1, $2, $3, $4, 'test-provider', 'test-model', $5, $6, \
+             'completed', $7, $7, 'user', $3)",
         )
         .bind(&id)
         .bind(&id)
@@ -264,8 +265,9 @@ async fn make_other_user(fx: &Fixture) -> Result<String> {
     let created_at = fx.window_start + Duration::minutes(2);
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, \
-         cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, $3, $4, \
-         'test-provider', 'other-model', 99_999_999, 9_999, 'completed', $5, $5)",
+         cost_microdollars, tokens_used, status, created_at, updated_at, actor_kind, actor_id) \
+         VALUES ($1, $2, $3, $4, 'test-provider', 'other-model', 99_999_999, 9_999, 'completed', \
+         $5, $5, 'user', $3)",
     )
     .bind(&id)
     .bind(&id)
@@ -302,8 +304,9 @@ async fn insert_request_with_context(
     let created_at = fx.window_start + Duration::minutes(offset_minutes);
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, task_id, provider, model, \
-         cost_microdollars, tokens_used, status, created_at, updated_at) VALUES ($1, $2, $3, $4, \
-         $5, 'test-provider', $6, $7, $8, 'completed', $9, $9)",
+         cost_microdollars, tokens_used, status, created_at, updated_at, actor_kind, actor_id) \
+         VALUES ($1, $2, $3, $4, $5, 'test-provider', $6, $7, $8, 'completed', $9, $9, 'user', \
+         $3)",
     )
     .bind(&id)
     .bind(&id)
