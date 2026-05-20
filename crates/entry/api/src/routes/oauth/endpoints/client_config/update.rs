@@ -1,9 +1,10 @@
 use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Json};
+use axum::response::{IntoResponse, Json, Response};
 use systemprompt_models::Config;
 
 use super::validation::validate_registration_token;
+use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
@@ -14,69 +15,25 @@ pub async fn update_client_configuration(
     Path(client_id): Path<String>,
     headers: HeaderMap,
     Json(request): Json<DynamicRegistrationRequest>,
-) -> impl IntoResponse {
-    let registration_token = match validate_registration_token(&headers) {
-        Ok(token) => token,
-        Err(response) => return *response,
-    };
+) -> Result<Response, OAuthHttpError> {
+    let registration_token = validate_registration_token(&headers)?;
 
     let client_id = systemprompt_identifiers::ClientId::new(&client_id);
-    let existing_client = match repository.find_client_by_id(&client_id).await {
-        Ok(Some(client)) => client,
-        Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": "invalid_client_metadata",
-                    "error_description": "Client not found"
-                })),
-            )
-                .into_response();
-        },
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
-                    "error": "server_error",
-                    "error_description": format!("Database error: {e}")
-                })),
-            )
-                .into_response();
-        },
-    };
+    let existing_client = repository
+        .find_client_by_id(&client_id)
+        .await?
+        .ok_or_else(|| OAuthHttpError::invalid_client_metadata("Client not found"))?;
 
-    let client_name = match request.get_client_name() {
-        Ok(name) => name,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": "invalid_client_metadata",
-                    "error_description": e
-                })),
-            )
-                .into_response();
-        },
-    };
-    let redirect_uris = match request.get_redirect_uris() {
-        Ok(mut uris) => {
-            uris.sort();
-            uris.dedup();
-            uris
-        },
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": "invalid_client_metadata",
-                    "error_description": e
-                })),
-            )
-                .into_response();
-        },
-    };
+    let client_name = request
+        .get_client_name()
+        .map_err(OAuthHttpError::invalid_client_metadata)?;
+    let mut redirect_uris = request
+        .get_redirect_uris()
+        .map_err(OAuthHttpError::invalid_client_metadata)?;
+    redirect_uris.sort();
+    redirect_uris.dedup();
 
-    match repository
+    repository
         .update_client(
             &client_id,
             Some(&client_name),
@@ -84,51 +41,32 @@ pub async fn update_client_configuration(
             Some(&existing_client.scopes),
         )
         .await
-    {
-        Ok(_) => {
-            let base_url = match Config::get() {
-                Ok(c) => c.api_server_url.clone(),
-                Err(e) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(serde_json::json!({
-                            "error": "server_error",
-                            "error_description": format!("Configuration unavailable: {e}")
-                        })),
-                    )
-                        .into_response();
-                },
-            };
+        .map_err(|e| {
+            OAuthHttpError::invalid_client_metadata(format!("Failed to update client: {e}"))
+        })?;
 
-            let response = DynamicRegistrationResponse {
-                client_id: client_id.clone(),
-                client_secret: "***REDACTED***".to_string(),
-                client_name,
-                redirect_uris,
-                grant_types: existing_client.grant_types,
-                response_types: existing_client.response_types,
-                scope: existing_client.scopes.join(" "),
-                token_endpoint_auth_method: existing_client.token_endpoint_auth_method,
-                client_uri: request.client_uri,
-                logo_uri: request.logo_uri,
-                contacts: request.contacts,
-                client_secret_expires_at: 0,
-                client_id_issued_at: existing_client.created_at,
-                registration_access_token: registration_token.clone(),
-                registration_client_uri: format!(
-                    "{base_url}/api/v1/core/oauth/register/{client_id}"
-                ),
-            };
+    let base_url = Config::get()
+        .map_err(|e| OAuthHttpError::server_error(format!("Configuration unavailable: {e}")))?
+        .api_server_url
+        .clone();
 
-            (StatusCode::OK, Json(response)).into_response()
-        },
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "error": "invalid_client_metadata",
-                "error_description": format!("Failed to update client: {e}")
-            })),
-        )
-            .into_response(),
-    }
+    let response = DynamicRegistrationResponse {
+        client_id: client_id.clone(),
+        client_secret: "***REDACTED***".to_string(),
+        client_name,
+        redirect_uris,
+        grant_types: existing_client.grant_types,
+        response_types: existing_client.response_types,
+        scope: existing_client.scopes.join(" "),
+        token_endpoint_auth_method: existing_client.token_endpoint_auth_method,
+        client_uri: request.client_uri,
+        logo_uri: request.logo_uri,
+        contacts: request.contacts,
+        client_secret_expires_at: 0,
+        client_id_issued_at: existing_client.created_at,
+        registration_access_token: registration_token,
+        registration_client_uri: format!("{base_url}/api/v1/core/oauth/register/{client_id}"),
+    };
+
+    Ok((StatusCode::OK, Json(response)).into_response())
 }

@@ -1,40 +1,37 @@
 use axum::extract::Extension;
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json};
+use axum::response::{Json, Response};
 use bcrypt::{DEFAULT_COST, hash};
 use tracing::instrument;
 use uuid::Uuid;
 
+use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
-use super::super::responses::{created_response, error_response};
+use super::super::responses::created_response;
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_oauth::OauthError;
 use systemprompt_oauth::clients::api::{CreateOAuthClientRequest, OAuthClientResponse};
 use systemprompt_oauth::repository::CreateClientParams;
+
+fn is_unique_violation(err: &OauthError) -> bool {
+    if let OauthError::Repository(sqlx::Error::Database(db_err)) = err {
+        db_err.is_unique_violation()
+    } else {
+        false
+    }
+}
 
 #[instrument(skip(repository, req_ctx, request), fields(client_id = %request.client_id))]
 pub async fn create_client(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repository): OAuthRepo,
     Json(request): Json<CreateOAuthClientRequest>,
-) -> impl IntoResponse {
+) -> Result<Response, OAuthHttpError> {
     let client_secret = Uuid::new_v4().to_string();
-    let client_secret_hash = match hash(&client_secret, DEFAULT_COST) {
-        Ok(hash) => hash,
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                client_id = %request.client_id,
-                created_by = %req_ctx.auth.actor.user_id,
-                "OAuth client creation failed"
-            );
-            return error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "server_error",
-                &format!("Failed to hash client secret: {e}"),
-            );
-        },
-    };
+    let client_secret_hash = hash(&client_secret, DEFAULT_COST).map_err(|e| {
+        OAuthHttpError::server_error(format!("Failed to hash client secret: {e}"))
+    })?;
 
     let params = CreateClientParams {
         client_id: request.client_id.clone(),
@@ -54,52 +51,29 @@ pub async fn create_client(
         contacts: None,
     };
 
-    match repository.create_client(params).await {
-        Ok(client) => {
-            tracing::info!(
-                client_id = %client.client_id,
-                client_name = ?client.name,
-                redirect_uris = ?request.redirect_uris,
-                scopes = ?request.scopes,
-                created_by = %req_ctx.auth.actor.user_id,
-                "OAuth client created"
-            );
+    let client = repository.create_client(params).await.map_err(|e| {
+        if is_unique_violation(&e) {
+            OAuthHttpError::invalid_client_metadata("Client with this ID already exists")
+                .with_status(StatusCode::CONFLICT)
+        } else {
+            OAuthHttpError::invalid_request(format!("Failed to create client: {e}"))
+        }
+    })?;
 
-            let location = ApiPaths::oauth_client_location(&client.client_id);
-            let response: OAuthClientResponse = client.into();
+    tracing::info!(
+        client_id = %client.client_id,
+        client_name = ?client.name,
+        redirect_uris = ?request.redirect_uris,
+        scopes = ?request.scopes,
+        created_by = %req_ctx.auth.actor.user_id,
+        "OAuth client created"
+    );
 
-            match serde_json::to_value(response) {
-                Ok(mut response_json) => {
-                    response_json["client_secret"] = serde_json::Value::String(client_secret);
-                    created_response(response_json, location)
-                },
-                Err(e) => error_response(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "server_error",
-                    &format!("Failed to serialize response: {e}"),
-                ),
-            }
-        },
-        Err(e) => {
-            let error_msg = format!("Failed to create client: {e}");
-            let is_duplicate = error_msg.contains("UNIQUE constraint failed");
-
-            tracing::info!(
-                client_id = %request.client_id,
-                reason = if is_duplicate { "Client ID already exists" } else { &error_msg },
-                created_by = %req_ctx.auth.actor.user_id,
-                "OAuth client creation rejected"
-            );
-
-            if is_duplicate {
-                error_response(
-                    StatusCode::CONFLICT,
-                    "conflict",
-                    "Client with this ID already exists",
-                )
-            } else {
-                error_response(StatusCode::BAD_REQUEST, "bad_request", &error_msg)
-            }
-        },
-    }
+    let location = ApiPaths::oauth_client_location(&client.client_id);
+    let response: OAuthClientResponse = client.into();
+    let mut response_json = serde_json::to_value(response).map_err(|e| {
+        OAuthHttpError::server_error(format!("Failed to serialize response: {e}"))
+    })?;
+    response_json["client_secret"] = serde_json::Value::String(client_secret);
+    Ok(created_response(response_json, location))
 }
