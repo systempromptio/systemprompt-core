@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the agents CL
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -337,7 +337,7 @@ sp admin agents logs <agent_name> --follow
 | `--lines`, `-n` | 50 | Number of lines to show |
 | `--disk` | false | Force reading from disk files |
 | `--follow`, `-f` | false | Follow log output continuously |
-| `--logs-dir` | `/var/www/html/tyingshoelaces/logs` | Custom logs directory |
+| `--logs-dir` | _profile `system_path/logs`_ | Custom logs directory |
 
 **Output Structure (with agent):**
 ```json
@@ -594,7 +594,7 @@ This flow demonstrates interacting with running agents with authentication:
 
 ```bash
 # Step 1: Start services (in tyingshoelaces repo)
-cd /var/www/html/tyingshoelaces && just start
+cd <your-project> && just start
 
 # Step 2: Get authentication token
 TOKEN=$(sp admin session login --email your-admin@email.com --token-only)

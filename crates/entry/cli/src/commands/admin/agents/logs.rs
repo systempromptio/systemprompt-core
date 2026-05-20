@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Args;
 
 use super::logs_db::execute_db_mode;
@@ -8,8 +8,6 @@ use super::logs_disk::{execute_disk_mode, execute_follow_mode};
 use super::types::AgentLogsOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
-
-const DEFAULT_LOGS_DIR: &str = "/var/www/html/tyingshoelaces/logs";
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
@@ -35,8 +33,14 @@ pub struct LogsArgs {
 }
 
 pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<AgentLogsOutput>> {
-    let logs_dir = args.logs_dir.as_deref().unwrap_or(DEFAULT_LOGS_DIR);
-    let logs_path = PathBuf::from(logs_dir);
+    let logs_path = match args.logs_dir.as_deref() {
+        Some(dir) => PathBuf::from(dir),
+        None => PathBuf::from(
+            systemprompt_models::Config::get()
+                .context("agent log directory requires an initialised profile")?
+                .logs_path(),
+        ),
+    };
 
     if args.follow {
         return execute_follow_mode(&args, config, &logs_path);

@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the database 
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 

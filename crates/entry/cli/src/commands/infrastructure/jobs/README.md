@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the jobs CLI 
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -298,7 +298,7 @@ Jobs are registered at compile-time using the `inventory` crate. To create a new
 Create a new file in your extension or domain crate:
 
 ```
-/var/www/html/tyingshoelaces/extensions/blog/src/jobs/my_job.rs
+<your-project>/extensions/blog/src/jobs/my_job.rs
 ```
 
 ### Step 2: Implement the Job Trait
@@ -474,7 +474,7 @@ The schedule uses 6-field cron syntax:
 
 ## Example: Blog Extension Job
 
-Location: `/var/www/html/tyingshoelaces/extensions/blog/src/jobs/`
+Location: `<your-project>/extensions/blog/src/jobs/`
 
 ```rust
 // blog_content_ingestion.rs

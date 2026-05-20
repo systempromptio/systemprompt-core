@@ -100,6 +100,10 @@ impl Config {
     pub fn install(config: Self) -> Result<(), Box<Self>> {
         CONFIG.set(config).map_err(Box::new)
     }
+
+    pub fn logs_path(&self) -> String {
+        format!("{}/logs", self.system_path)
+    }
 }
 
 impl ConfigProvider for Config {

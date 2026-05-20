@@ -107,10 +107,14 @@ impl AgentLifecycle {
 
     pub(crate) async fn log_startup_failure(&self, agent_name: &str, port: u16) {
         let log_path = match systemprompt_models::Config::get() {
-            Ok(config) => format!("{}/logs/agent-{}.log", config.system_path, agent_name),
+            Ok(config) => format!("{}/agent-{}.log", config.logs_path(), agent_name),
             Err(e) => {
-                tracing::debug!(error = %e, "Config not available, using fallback log path");
-                format!("/tmp/logs/agent-{}.log", agent_name)
+                tracing::error!(
+                    agent = %agent_name,
+                    error = %e,
+                    "Cannot report agent startup failure: profile not initialised"
+                );
+                return;
             },
         };
 

@@ -808,12 +808,3 @@ plugins:
     );
 }
 
-#[test]
-fn test_external_template_smoke() {
-    let path = PathBuf::from("/var/www/html/systemprompt-template/services/config/config.yaml");
-    if !path.exists() {
-        return;
-    }
-
-    let _config = ConfigLoader::load_from_path(&path).expect("external template should load");
-}

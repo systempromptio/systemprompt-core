@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the web CLI c
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -300,7 +300,7 @@ sp --json web templates list
       "name": "blog-post",
       "content_types": ["blog"],
       "file_exists": true,
-      "file_path": "/var/www/html/tyingshoelaces/services/web/templates/blog-post.html"
+      "file_path": "<your-project>/services/web/templates/blog-post.html"
     }
   ]
 }
@@ -330,7 +330,7 @@ sp --json web templates show blog-post
 {
   "name": "blog-post",
   "content_types": ["blog"],
-  "file_path": "/var/www/html/tyingshoelaces/services/web/templates/blog-post.html",
+  "file_path": "<your-project>/services/web/templates/blog-post.html",
   "file_exists": true,
   "variables": ["TITLE", "CONTENT", "DATE", "AUTHOR"],
   "preview_lines": [
@@ -386,7 +386,7 @@ sp web templates create \
 ```json
 {
   "name": "tutorial",
-  "file_path": "/var/www/html/tyingshoelaces/services/web/templates/tutorial.html",
+  "file_path": "<your-project>/services/web/templates/tutorial.html",
   "message": "Template 'tutorial' created with HTML file at /path/to/tutorial.html"
 }
 ```
@@ -537,7 +537,7 @@ sp --json web assets show logos/logo.svg
 ```json
 {
   "path": "logos/logo.svg",
-  "absolute_path": "/var/www/html/tyingshoelaces/services/web/assets/logos/logo.svg",
+  "absolute_path": "<your-project>/services/web/assets/logos/logo.svg",
   "asset_type": "logo",
   "size_bytes": 2048,
   "modified": "2024-01-15T10:30:00Z",
@@ -617,7 +617,7 @@ sp web sitemap generate --include-dynamic
 **Output Structure:**
 ```json
 {
-  "output_path": "/var/www/html/tyingshoelaces/services/web/dist/sitemap.xml",
+  "output_path": "<your-project>/services/web/dist/sitemap.xml",
   "routes_count": 5,
   "message": "Sitemap generated with 5 URLs at /path/to/sitemap.xml"
 }
@@ -805,9 +805,9 @@ Create the markdown content file in the configured path.
 | `image` | String | Featured image path |
 
 ```bash
-mkdir -p /var/www/html/tyingshoelaces/services/content/tutorials
+mkdir -p <your-project>/services/content/tutorials
 
-cat << 'EOF' > /var/www/html/tyingshoelaces/services/content/tutorials/getting-started-rust.md
+cat << 'EOF' > <your-project>/services/content/tutorials/getting-started-rust.md
 ---
 title: Getting Started with Rust
 slug: getting-started-rust
@@ -892,7 +892,7 @@ sp web sitemap generate --base-url https://example.com
 Verify the generated sitemap:
 
 ```bash
-cat /var/www/html/tyingshoelaces/services/web/dist/sitemap.xml
+cat <your-project>/services/web/dist/sitemap.xml
 ```
 
 ### Phase 9: Verify Published URL
@@ -909,7 +909,7 @@ curl -s "https://example.com/tutorials/getting-started-rust" | head -20
 
 ```bash
 sp core content delete getting-started-rust --source tutorials --yes
-rm /var/www/html/tyingshoelaces/services/content/tutorials/getting-started-rust.md
+rm <your-project>/services/content/tutorials/getting-started-rust.md
 sp web templates delete tutorial --yes --delete-file
 sp web content-types delete tutorials --yes
 sp --json web validate

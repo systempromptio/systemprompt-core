@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the skills CL
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -132,7 +132,7 @@ sp core skills create \
 ```json
 {
   "name": "my_skill",
-  "path": "/var/www/html/tyingshoelaces/services/skills/my_skill.yaml",
+  "path": "<your-project>/services/skills/my_skill.yaml",
   "message": "Skill 'my_skill' created successfully"
 }
 ```
