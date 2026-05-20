@@ -97,10 +97,6 @@ pub fn execute(
     Ok(CommandResult::table(output).with_title(title))
 }
 
-/// Print the JSON schema for the `Profile` config type.
-///
-/// The schema is rendered directly (skip-render) so machine consumers
-/// receive a clean, unwrapped JSON document on stdout.
 fn print_profile_schema() -> Result<CommandResult<ConfigValidateOutput>> {
     let schema = schemars::schema_for!(Profile);
     let json = serde_json::to_string_pretty(&schema)
@@ -114,12 +110,6 @@ fn print_profile_schema() -> Result<CommandResult<ConfigValidateOutput>> {
     Ok(CommandResult::table(output).with_skip_render())
 }
 
-/// Validate a single `.yaml`/`.yml` file as a complete `Profile` document.
-///
-/// Returns `Err` (non-zero exit) when the file fails to deserialize so
-/// callers and CI can rely on the exit code. The serde error already
-/// names the offending field or rejected enum value — it is surfaced
-/// verbatim so the failure is actionable.
 fn validate_profile_file(path: &std::path::Path) -> Result<CommandResult<ConfigValidateOutput>> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| anyhow!("failed to read profile {}: {e}", path.display()))?;

@@ -37,9 +37,6 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         distributed_lock,
     } = dispatch;
 
-    // Two layers guard against duplicate runs: the in-process `RunningJobs`
-    // set is a zero-latency fast-path for one process; the Postgres advisory
-    // lock below additionally serialises across replicas sharing a database.
     {
         let mut guard = running_jobs.lock().await;
         if guard.contains(&job_name) {
@@ -117,11 +114,8 @@ async fn acquire_claim(
         },
     };
 
-    // The advisory lock serialises replicas but does not by itself stop a
-    // replica from re-running a tick a peer completed microseconds earlier.
-    // The scheduler's finest cron granularity is one second, so a `last_run`
-    // newer than that — written by the peer under this same lock — means the
-    // current tick is already done.
+    // Why: cron's finest granularity is 1s; a peer-completed tick within 900ms
+    // means this tick is already done — skip rather than re-run.
     match repository.find_job(job_name).await {
         Ok(Some(job)) => {
             if let Some(last_run) = job.last_run {

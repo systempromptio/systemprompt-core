@@ -56,10 +56,6 @@ impl std::fmt::Debug for JobLockGuard {
     }
 }
 
-/// Attempt to claim `job_name` for this replica.
-///
-/// Returns `Ok(Some(guard))` when this replica won the claim, `Ok(None)`
-/// when another replica already holds the lock.
 pub(super) async fn try_acquire_job_lock(
     write_pool: &PgPool,
     job_name: &str,
