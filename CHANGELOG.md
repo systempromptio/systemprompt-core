@@ -8,6 +8,9 @@ RFC 8693 token exchange, multi-issuer JWT validation, and an end-to-end RFC 8693
 
 - **Existing HS256-signed access tokens are invalidated.** The signing-key plane moves to RSA / RS256 — re-issued tokens carry a `kid` header and are verified against the deployment's published JWKS (`<control_plane>/.well-known/jwks.json`). Every active session must re-authenticate; cached tokens from prior releases will fail validation.
 - **Operators must publish a JWKS document.** Multi-tenant deployments and any caller that wants its tokens accepted by a peer deployment must serve `/.well-known/jwks.json` at the control-plane URL. Trusted-issuer entries must also point at a reachable, HTTPS-only JWKS endpoint; non-HTTPS or unlisted hosts are rejected by the JWKS client.
+- **`jwt_secret` is removed from `Secrets` and `CloudTenantSecrets`.** It was dead weight after the RS256 cutover — no production path consumed it, but operators still had to supply a 32-character HMAC secret. The field, `JWT_SECRET_MIN_LENGTH`, `SecretsBootstrap::jwt_secret()`, the `JwtSecretRequired` error, and the `JWT_SECRET` env propagation through `infra/config` are all gone. Subprocesses now read `OAUTH_AT_REST_PEPPER`; operators must delete `jwt_secret` from `secrets.json` and ensure `oauth_at_rest_pepper` (>= 32 chars) is set.
+- **`oauth_at_rest_pepper` is now a required deployment secret.** Refresh-token ids and authorisation codes are stored as the lowercase-hex HMAC-SHA-256 of the raw value under this pepper; a database read no longer yields live credentials. Migration `006_at_rest_pepper_hash.sql` invalidates pre-pepper rows on first migrate (active clients re-authenticate once).
+- **`systemprompt_models::GrantType` is removed.** The canonical 4-variant enum (`AuthorizationCode`, `RefreshToken`, `ClientCredentials`, `TokenExchange`) lives in `systemprompt_oauth`. Downstream code that imported `systemprompt_models::GrantType` must switch to `systemprompt_oauth::GrantType`.
 
 ### Added
 
@@ -15,6 +18,17 @@ RFC 8693 token exchange, multi-issuer JWT validation, and an end-to-end RFC 8693
 - **Multi-issuer JWT validation.** `profile.security.trusted_issuers` now propagates onto the runtime `Config`. The token-exchange path consults the registry to resolve issuer → JWKS URI → signing key for non-self-issued tokens.
 - **`invalid_target` rejection** per RFC 8707 when `resource` or `audience` falls outside `allowed_resource_audiences`.
 - **`generate_jwt_with_act`** in `systemprompt-oauth` mints a token carrying an explicit `ActClaim` outermost link, chaining any prior `act` underneath.
+- **HMAC-SHA-256 at-rest hashing for OAuth identifiers.** `systemprompt-security` exposes `hmac_sha256` and `hmac_sha256_hex` via a new `at_rest` module. `oauth_refresh_tokens.token_id`, `oauth_refresh_tokens.family_id` (when seeded from `token_id`), `oauth_auth_codes.code`, and `oauth_auth_codes.refresh_token_id` now hold the digest, not the raw identifier. Schema is unchanged; storage value is.
+
+### Fixed
+
+- **MCP RBAC propagates `act_chain` to the authenticated `RequestContext`.** Previously the chain was extracted for the authorization decision and dropped before building the per-request context, leaving MCP audit rows without delegation attribution while the REST middleware persisted the full chain. MCP and REST now behave identically.
+
+### Docs
+
+- **Security documentation refreshed to the RS256 / RFC 8693 reality.** `documentation/security/compliance-control-matrix.md` (ISO 27001:2022 A.8.24), `documentation/security/threat-model.md` (STRIDE spoofing/tampering rows), and `internal-reports/evaluation/scenario1-airgap-core.md` previously described HS256 + shared-secret JWT verification with RS256 as roadmap; they now describe the in-process `TokenAuthority`, `/.well-known/jwks.json`, `profile.security.trusted_issuers`, the Ed25519 manifest signing key, and the OAuth at-rest pepper.
+- **`.cargo/audit.toml` note on RUSTSEC-2023-0071** (rsa Marvin Attack) rewritten: the previous justification ("every JWT site pins HS256, so the rsa code path is unreachable") no longer holds. The note now documents the accepted risk and the mitigation options (`aws_lc_rs` backend, ES256/EdDSA, or upstream rsa fix).
+- **`crates/infra/security/README.md`** stripped of HS256 / `jwt_secret` examples (`SessionGenerator::new(jwt_secret, …)`, `AuthValidationService::new(secret, …)`, `AdminTokenParams { jwt_secret, … }`) — none of those signatures exist post-cutover. Replaced with the current `TokenAuthority`-backed APIs.
 
 ## [0.11.0] - 2026-05-20
 
