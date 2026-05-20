@@ -44,20 +44,19 @@ pub async fn execute(
 
     let admin_role = UserRole::Admin.as_str().to_string();
 
-    let (user, created) = match user_service.find_by_name(&args.name).await? {
-        Some(existing) => (existing, false),
-        None => {
-            let created = user_service
-                .create(&args.name, &args.email, Some(&args.full_name), None)
-                .await?;
-            (created, true)
-        },
+    let (user, created) = if let Some(existing) = user_service.find_by_name(&args.name).await? {
+        (existing, false)
+    } else {
+        let created = user_service
+            .create(&args.name, &args.email, Some(&args.full_name), None)
+            .await?;
+        (created, true)
     };
 
     if !user.is_active() {
         return Err(anyhow!(
-            "Bootstrap user '{}' exists but has status '{}'; expected '{}'. \
-             Re-activate it before running the platform.",
+            "Bootstrap user '{}' exists but has status '{}'; expected '{}'. Re-activate it before \
+             running the platform.",
             user.name,
             user.status.as_deref().unwrap_or("(none)"),
             UserStatus::Active.as_str(),
@@ -80,7 +79,10 @@ pub async fn execute(
     }
 
     let message = if created {
-        format!("Bootstrap user '{}' created and granted admin role", user.name)
+        format!(
+            "Bootstrap user '{}' created and granted admin role",
+            user.name
+        )
     } else {
         format!(
             "Bootstrap user '{}' already exists; admin role verified",
@@ -89,14 +91,18 @@ pub async fn execute(
     };
 
     let output = BootstrapOutput {
-        id: user.id.clone(),
-        name: user.name.clone(),
-        email: user.email.clone(),
+        id: user.id,
+        name: user.name,
+        email: user.email,
         created,
-        roles: user.roles.clone(),
+        roles: user.roles,
         message,
     };
 
-    let title = if created { "Admin Bootstrapped" } else { "Admin Verified" };
+    let title = if created {
+        "Admin Bootstrapped"
+    } else {
+        "Admin Verified"
+    };
     Ok(CommandResult::text(output).with_title(title))
 }

@@ -47,6 +47,10 @@ impl RegistryService {
 
             let config = crate::McpServerConfig {
                 name: server_name.clone(),
+                // Why: platform-loaded MCP server configs come from the deployment YAML, not
+                // a user action. Attributing them to the bootstrap admin row makes
+                // tool-call traces resolve to a real actor (the platform owner until
+                // delegated) instead of synthesising a fake principal mid-pipeline.
                 owner: UserId::admin(),
                 server_type: deployment.server_type,
                 binary: deployment.binary.clone(),

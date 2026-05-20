@@ -30,8 +30,8 @@ pub enum AdminCommands {
     Setup(setup::SetupArgs),
 
     #[command(
-        about = "Idempotently ensure the platform admin user exists with the admin role. \
-                 Required by every install recipe before services start."
+        about = "Idempotently ensure the platform admin user exists with the admin role. Required \
+                 by every install recipe before services start."
     )]
     Bootstrap(bootstrap::BootstrapArgs),
 
