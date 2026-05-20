@@ -1,29 +1,15 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use reqwest::Client;
-use serde::{Deserialize, Serialize};
 
 use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ClientId, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_users::{User, UserService};
 
 use super::login::{LoginArgs, LoginOutput};
 use crate::shared::CommandResult;
-
-#[derive(Debug, Serialize)]
-struct SessionRequest {
-    client_id: ClientId,
-    user_id: UserId,
-    email: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct SessionResponse {
-    session_id: SessionId,
-}
 
 pub(super) async fn try_use_existing_session(
     sessions_dir: &Path,
@@ -126,48 +112,6 @@ pub(super) async fn fetch_admin_user(
 
     CliService::success(&format!("Created admin user: {}", email));
     Ok(user)
-}
-
-pub(super) async fn create_session(
-    api_url: &str,
-    user_id: &UserId,
-    email: &str,
-) -> Result<SessionId> {
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .context("Failed to create HTTP client")?;
-
-    let url = format!(
-        "{}/api/v1/core/oauth/session",
-        api_url.trim_end_matches('/')
-    );
-
-    let request = SessionRequest {
-        client_id: ClientId::new("sp_cli"),
-        user_id: user_id.clone(),
-        email: email.to_string(),
-    };
-
-    let response = client
-        .post(&url)
-        .json(&request)
-        .send()
-        .await
-        .context("Failed to send session request")?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_else(|_| String::new());
-        anyhow::bail!("Session creation failed ({}): {}", status, body);
-    }
-
-    let session_response: SessionResponse = response
-        .json()
-        .await
-        .context("Failed to parse session response")?;
-
-    Ok(session_response.session_id)
 }
 
 pub(super) struct SessionStoreParams<'a> {
