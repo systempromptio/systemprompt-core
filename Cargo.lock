@@ -5473,6 +5473,8 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "ed25519-dalek",
+ "hex",
+ "hmac 0.13.0",
  "inventory",
  "jsonwebtoken",
  "lru",

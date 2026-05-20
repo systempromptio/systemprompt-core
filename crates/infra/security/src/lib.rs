@@ -36,6 +36,7 @@
 //! # }
 //! ```
 
+pub mod at_rest;
 pub mod auth;
 pub mod authz;
 pub mod error;
@@ -45,6 +46,8 @@ pub mod keys;
 pub mod manifest_signing;
 pub mod services;
 pub mod session;
+
+pub use at_rest::{hmac_sha256, hmac_sha256_hex};
 
 pub use auth::{AuthMode, AuthValidationService, HookTokenValidator, ValidatedHookClaims};
 pub use error::{

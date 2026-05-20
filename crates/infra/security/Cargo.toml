@@ -36,6 +36,8 @@ chrono = { workspace = true }
 rsa = { workspace = true }
 pkcs8 = { workspace = true }
 sha2 = { workspace = true }
+hmac = { workspace = true }
+hex = { workspace = true }
 lru = { workspace = true }
 url = { workspace = true }
 
