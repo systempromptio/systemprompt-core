@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **RS256 token verification: `DecodingKey` now built from PKCS#1 RSAPublicKey DER, not SPKI.** `crates/infra/security/src/keys/authority.rs::build()` was calling `signing_key.public_key().to_public_key_der()` (which produces SubjectPublicKeyInfo DER) and feeding the bytes into `jsonwebtoken::DecodingKey::from_rsa_der`, which expects raw PKCS#1 `RSAPublicKey` DER. Every RS256 signature verified as `InvalidSignature` even though CLI and server held the identical private key under the same `kid` — the malformed decoding key could never reproduce the public exponent/modulus pair the encoding key signed with. Switched to `EncodeRsaPublicKey::to_pkcs1_der()` so encoding and decoding keys are derived from matching DER forms. Removed the now-unused `SpkiEncode` variant and `pkcs8::EncodePublicKey` import.
+- **Agent subprocess installs `SystemAdmin` before resolving MCP tools.** `crates/entry/cli/src/commands/admin/agents/run.rs::execute()` now calls `AppContext::new().await` before constructing `McpToolProvider`. Without this, the agent subprocess skipped the typed-SystemAdmin install introduced in `d5a04a2d` / `07ec7c18` and every MCP tool resolution failed with `"system admin not resolved: AppContext bootstrap must run before any system-attributed work"`. The CLI agent server path now mirrors the API server's bootstrap.
+
 ## [0.12.0] - 2026-05-20
 
 RFC 8693 token exchange, multi-issuer JWT validation, and an end-to-end RFC 8693 `act` claim chain on every minted token. Federated identity providers can now mint a `subject_token`; the deployment trades it for a delegated access token bound to the authenticated client, with the calling client appended as the outermost actor on a recursive `act` chain. The standard token validation path now resolves non-self-issued tokens against the `profile.security.trusted_issuers` registry and verifies them with the issuer's JWKS document.
