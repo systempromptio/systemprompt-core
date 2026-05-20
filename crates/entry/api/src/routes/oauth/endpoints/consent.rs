@@ -1,14 +1,14 @@
 #![allow(unused_qualifications)]
 
-use anyhow::Result;
 use axum::Json;
 use axum::extract::Query;
 use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse};
+use axum::response::{Html, IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::repository::OAuthRepository;
 
+use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
@@ -26,35 +26,13 @@ pub struct ConsentResponse {
     pub state: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ConsentError {
-    pub error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_description: Option<String>,
-}
-
 pub async fn handle_consent_get(
     Query(params): Query<ConsentQuery>,
     OAuthRepo(repo): OAuthRepo,
-) -> impl IntoResponse {
-    match get_consent_info(&repo, &params).await {
-        Ok(consent_info) => {
-            let consent_form = generate_consent_page(&consent_info, &params);
-            Html(consent_form).into_response()
-        },
-        Err(error) => {
-            tracing::warn!(
-                error = %error,
-                client_id = %params.client_id,
-                "Consent GET: get_consent_info failed"
-            );
-            let error = ConsentError {
-                error: "invalid_request".to_string(),
-                error_description: Some(error.to_string()),
-            };
-            (StatusCode::BAD_REQUEST, Json(error)).into_response()
-        },
-    }
+) -> Result<Response, OAuthHttpError> {
+    let consent_info = get_consent_info(&repo, &params).await?;
+    let consent_form = generate_consent_page(&consent_info, &params);
+    Ok(Html(consent_form).into_response())
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,25 +52,29 @@ pub async fn handle_consent_post(Json(decision): Json<ConsentRequest>) -> impl I
 async fn get_consent_info(
     repo: &OAuthRepository,
     params: &ConsentQuery,
-) -> Result<ConsentResponse> {
+) -> Result<ConsentResponse, OAuthHttpError> {
     let client = repo
         .find_client_by_id(&params.client_id)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
+        .ok_or_else(|| OAuthHttpError::invalid_client("Client not found"))?;
 
-    let requested_scopes = match &params.scope {
+    let requested_scopes: Vec<String> = match &params.scope {
         Some(scope_str) if !scope_str.is_empty() => scope_str
             .split_whitespace()
             .map(std::string::ToString::to_string)
             .collect(),
         _ => {
-            return Err(anyhow::anyhow!("Scope parameter is required"));
+            return Err(OAuthHttpError::invalid_request(
+                "Scope parameter is required",
+            ));
         },
     };
 
     for scope in &requested_scopes {
         if !client.scopes.contains(scope) {
-            return Err(anyhow::anyhow!("Invalid scope: {scope}"));
+            return Err(OAuthHttpError::invalid_scope(format!(
+                "Invalid scope: {scope}"
+            )));
         }
     }
 

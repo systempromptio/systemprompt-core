@@ -1,10 +1,10 @@
 use anyhow::Result;
+use axum::Form;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use axum::{Form, Json};
+use axum::response::{IntoResponse, Response};
 use jsonwebtoken::dangerous::insecure_decode;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::RequestContext;
@@ -14,6 +14,7 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
 use tracing::instrument;
 
+use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
@@ -24,29 +25,15 @@ pub struct RevokeRequest {
     pub client_secret: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct RevokeError {
-    pub error: String,
-    pub error_description: Option<String>,
-}
-
 #[instrument(skip(state, req_ctx, request, repo))]
 pub async fn handle_revoke(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
-) -> impl IntoResponse {
-    let audit_user = match get_audit_user(Some(&req_ctx.auth.actor.user_id)) {
-        Ok(user) => user,
-        Err(e) => {
-            let error = RevokeError {
-                error: "invalid_request".to_string(),
-                error_description: Some(format!("Authenticated user required: {e}")),
-            };
-            return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
-        },
-    };
+) -> Result<Response, OAuthHttpError> {
+    let audit_user = get_audit_user(Some(&req_ctx.auth.actor.user_id))
+        .map_err(|e| OAuthHttpError::invalid_request(format!("Authenticated user required: {e}")))?;
 
     let token_type = request
         .token_type_hint
@@ -60,64 +47,32 @@ pub async fn handle_revoke(
             .await
             .is_err()
         {
-            tracing::info!(
-                token_hash = %token_hash,
-                token_type = %token_type,
-                client_id = %client_id,
-                revocation_reason = "invalid_client_credentials",
-                error = "invalid_client",
-                "Token revocation failed"
-            );
-
-            let error = RevokeError {
-                error: "invalid_client".to_string(),
-                error_description: Some("Invalid client credentials".to_string()),
-            };
-            return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+            return Err(OAuthHttpError::invalid_client("Invalid client credentials"));
         }
     }
 
-    match revoke_token(&repo, &request.token, request.token_type_hint.as_deref()).await {
-        Ok(()) => {
-            if let Some(session_id) = extract_session_id_unverified(&request.token) {
-                if let Err(e) = state.analytics_provider().revoke_session(&session_id).await {
-                    tracing::warn!(
-                        session_id = %session_id,
-                        error = %e,
-                        "Failed to revoke session after token revocation"
-                    );
-                }
-            }
+    revoke_token(&repo, &request.token, request.token_type_hint.as_deref()).await?;
 
-            tracing::info!(
-                token_hash = %token_hash,
-                token_type = %token_type,
-                client_id = ?request.client_id,
-                revocation_reason = "user_request",
-                revoked_by = %audit_user,
-                "Token revoked"
-            );
-
-            StatusCode::OK.into_response()
-        },
-        Err(error) => {
-            tracing::info!(
-                token_hash = %token_hash,
-                token_type = %token_type,
-                client_id = ?request.client_id,
-                revocation_reason = "server_error",
-                error = %error,
-                revoked_by = %audit_user,
-                "Token revocation failed"
-            );
-
-            let error = RevokeError {
-                error: "server_error".to_string(),
-                error_description: Some(error.to_string()),
-            };
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-        },
+    if let Some(session_id) = extract_session_id_unverified(&request.token)
+        && let Err(e) = state.analytics_provider().revoke_session(&session_id).await
+    {
+        tracing::warn!(
+            session_id = %session_id,
+            error = %e,
+            "Failed to revoke session after token revocation"
+        );
     }
+
+    tracing::info!(
+        token_hash = %token_hash,
+        token_type = %token_type,
+        client_id = ?request.client_id,
+        revocation_reason = "user_request",
+        revoked_by = %audit_user,
+        "Token revoked"
+    );
+
+    Ok(StatusCode::OK.into_response())
 }
 
 async fn revoke_token(

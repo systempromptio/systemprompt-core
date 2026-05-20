@@ -75,13 +75,13 @@ impl OAuthErrorCode {
             | Self::InvalidScope
             | Self::InvalidClientMetadata
             | Self::ExpiredChallenge
-            | Self::InvalidCredential => StatusCode::BAD_REQUEST,
+            | Self::InvalidCredential
+            | Self::RegistrationFailed => StatusCode::BAD_REQUEST,
             Self::InvalidClient
             | Self::InvalidGrant
             | Self::UnauthorizedClient
             | Self::AccessDenied
             | Self::AuthenticationFailed => StatusCode::UNAUTHORIZED,
-            Self::RegistrationFailed => StatusCode::BAD_REQUEST,
             Self::UsernameUnavailable | Self::EmailExists => StatusCode::CONFLICT,
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
@@ -336,7 +336,6 @@ impl From<AuthProviderError> for OAuthHttpError {
             AuthProviderError::UserNotFound => Self::not_found(err.to_string()),
             AuthProviderError::TokenExpired => Self::invalid_grant(err.to_string()),
             AuthProviderError::InsufficientPermissions => Self::access_denied(err.to_string()),
-            AuthProviderError::Internal(_) => Self::server_error(err.to_string()),
             _ => Self::server_error(err.to_string()),
         }
     }

@@ -1,6 +1,5 @@
-use anyhow::Result;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
@@ -8,6 +7,7 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
 
+use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
@@ -43,75 +43,50 @@ pub struct IntrospectResponse {
     pub jti: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct IntrospectError {
-    pub error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_description: Option<String>,
-}
-
 pub async fn handle_introspect(
     OAuthRepo(repo): OAuthRepo,
     Form(request): Form<IntrospectRequest>,
-) -> impl IntoResponse {
-    let Some(client_id_str) = request.client_id.clone() else {
-        let error = IntrospectError {
-            error: "invalid_client".to_string(),
-            error_description: Some("Client authentication required".to_string()),
-        };
-        return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
-    };
+) -> Result<Response, OAuthHttpError> {
+    let client_id_str = request
+        .client_id
+        .clone()
+        .ok_or_else(|| OAuthHttpError::invalid_client("Client authentication required"))?;
     let client_id = ClientId::new(client_id_str);
 
     if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
         .is_err()
     {
-        let error = IntrospectError {
-            error: "invalid_client".to_string(),
-            error_description: Some("Invalid client credentials".to_string()),
-        };
-        return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
+        return Err(OAuthHttpError::invalid_client("Invalid client credentials"));
     }
 
-    match introspect_token(&repo, &request.token) {
-        Ok(Some(full)) => {
+    let response = match introspect_token(&repo, &request.token)? {
+        Some(full) => {
             let authoritative_client_id = full.client_id.as_deref();
-            let response = if authoritative_client_id == Some(client_id.as_str()) {
+            if authoritative_client_id == Some(client_id.as_str()) {
                 full
             } else {
                 IntrospectResponse {
                     active: true,
                     ..IntrospectResponse::default()
                 }
-            };
-            (StatusCode::OK, Json(response)).into_response()
+            }
         },
-        Ok(None) => (
-            StatusCode::OK,
-            Json(IntrospectResponse {
-                active: false,
-                ..IntrospectResponse::default()
-            }),
-        )
-            .into_response(),
-        Err(error) => {
-            tracing::error!(
-                error = %error,
-                client_id = %client_id,
-                "Introspect: token introspection failed"
-            );
-            let error = IntrospectError {
-                error: "server_error".to_string(),
-                error_description: Some(error.to_string()),
-            };
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
+        None => IntrospectResponse {
+            active: false,
+            ..IntrospectResponse::default()
         },
-    }
+    };
+    Ok((StatusCode::OK, Json(response)).into_response())
 }
 
-fn introspect_token(_repo: &OAuthRepository, token: &str) -> Result<Option<IntrospectResponse>> {
-    let config = systemprompt_models::Config::get()?;
+fn introspect_token(
+    _repo: &OAuthRepository,
+    token: &str,
+) -> Result<Option<IntrospectResponse>, OAuthHttpError> {
+    let config = systemprompt_models::Config::get().map_err(|e| {
+        OAuthHttpError::server_error(format!("Failed to load config: {e}"))
+    })?;
     match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
         Ok(claims) => Ok(Some(IntrospectResponse {
             active: true,
