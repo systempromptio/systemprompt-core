@@ -259,8 +259,9 @@ async fn validate_subject_token(
     })
 }
 
-/// Decode the `iss` claim from a JWT payload without validating its
-/// signature. The result is only used to route the token to the correct
+/// Decode the `iss` claim without validating the signature.
+///
+/// The result is only used to route the token to the correct
 /// signature-verification path; the actual `iss` and signature are
 /// re-validated downstream.
 pub fn peek_issuer(token: &str) -> Result<String> {
@@ -324,12 +325,13 @@ fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
         .collect()
 }
 
-/// Compute the effective permission set for a delegated token: requested
-/// permissions are filtered to those that exist in the subject token, the
-/// authenticated client's scope grant, and the client owner's role set.
-/// An empty client scope is treated as "no restriction beyond owner".
-/// Returned in descending hierarchy order. Errors when the intersection is
-/// empty so the caller can reject with `invalid_scope`.
+/// Compute the effective permission set for a delegated token.
+///
+/// Requested permissions are filtered to those that exist in the subject
+/// token, the authenticated client's scope grant, and the client owner's
+/// role set. An empty client scope is treated as "no restriction beyond
+/// owner". Returned in descending hierarchy order. Errors when the
+/// intersection is empty so the caller can reject with `invalid_scope`.
 pub fn intersect_scopes(
     requested: &[Permission],
     subject_scope: &[Permission],
