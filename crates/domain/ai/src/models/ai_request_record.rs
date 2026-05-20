@@ -141,10 +141,9 @@ impl AiRequestRecordBuilder {
         }
     }
 
-    /// Override the actor attribution for this AI request. When unset, the
-    /// record is attributed to the requesting user directly
-    /// ([`Actor::user`]). Job- or MCP-originated AI requests must call this
-    /// to record the upstream surface.
+    /// Unset means attribution to the requesting user directly
+    /// ([`Actor::user`]); job- or MCP-originated AI requests must call this
+    /// or the audit row will mis-attribute to the user.
     #[must_use]
     pub fn actor(mut self, actor: Actor) -> Self {
         self.actor = Some(actor);

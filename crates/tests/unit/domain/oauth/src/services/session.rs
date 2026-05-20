@@ -127,6 +127,15 @@ impl UserProvider for MockUserProvider {
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {
         Ok(())
     }
+
+    async fn find_or_create_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+        _claims: &systemprompt_traits::FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        Ok(UserId::new("user_fed"))
+    }
 }
 
 struct MockEventPublisher {

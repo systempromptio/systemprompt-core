@@ -62,6 +62,15 @@ impl Extension for UsersExtension {
                 "fingerprint".into(),
                 "label".into(),
             ]),
+            SchemaDefinition::new(
+                "federated_identities",
+                include_str!("../schema/federated_identities.sql"),
+            )
+            .with_required_columns(vec![
+                "issuer".into(),
+                "external_sub".into(),
+                "user_id".into(),
+            ]),
         ]
     }
 
