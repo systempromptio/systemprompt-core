@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
+use systemprompt_cloud::{CliSession, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
@@ -157,9 +157,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         session_token,
         session_id,
         context_id,
-        user_id,
-        email,
-        user_type,
+        SessionIdentity::new(user_id, email, user_type),
     )
     .with_session_key(session_key)
     .with_profile_path(profile_path)
