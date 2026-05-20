@@ -1,13 +1,31 @@
 //! Unit tests for LogEntry struct
 
+use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogEntry, LogLevel};
 use systemprompt_test_fixtures::fixture_user_id;
 
-const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+fn fixture_session_id() -> SessionId {
+    SessionId::new("test-session")
+}
+
+fn fixture_trace_id() -> TraceId {
+    TraceId::new("test-trace")
+}
+
+fn make_entry(level: LogLevel, module: &str, message: &str) -> LogEntry {
+    LogEntry::new(
+        level,
+        module,
+        message,
+        fixture_user_id(),
+        fixture_session_id(),
+        fixture_trace_id(),
+    )
+}
 
 #[test]
 fn test_log_entry_new() {
-    let entry = LogEntry::new(LogLevel::Info, "test_module", "Test message");
+    let entry = make_entry(LogLevel::Info, "test_module", "Test message");
 
     assert_eq!(entry.level, LogLevel::Info);
     assert_eq!(entry.module, "test_module");
@@ -16,12 +34,21 @@ fn test_log_entry_new() {
 }
 
 #[test]
+fn test_log_entry_carries_required_attribution() {
+    let entry = make_entry(LogLevel::Info, "module", "message");
+
+    assert_eq!(entry.user_id, fixture_user_id());
+    assert_eq!(entry.session_id, fixture_session_id());
+    assert_eq!(entry.trace_id, fixture_trace_id());
+}
+
+#[test]
 fn test_log_entry_new_with_different_levels() {
-    let error = LogEntry::new(LogLevel::Error, "module", "Error message");
-    let warn = LogEntry::new(LogLevel::Warn, "module", "Warn message");
-    let info = LogEntry::new(LogLevel::Info, "module", "Info message");
-    let debug = LogEntry::new(LogLevel::Debug, "module", "Debug message");
-    let trace = LogEntry::new(LogLevel::Trace, "module", "Trace message");
+    let error = make_entry(LogLevel::Error, "module", "Error message");
+    let warn = make_entry(LogLevel::Warn, "module", "Warn message");
+    let info = make_entry(LogLevel::Info, "module", "Info message");
+    let debug = make_entry(LogLevel::Debug, "module", "Debug message");
+    let trace = make_entry(LogLevel::Trace, "module", "Trace message");
 
     assert_eq!(error.level, LogLevel::Error);
     assert_eq!(warn.level, LogLevel::Warn);
@@ -32,8 +59,8 @@ fn test_log_entry_new_with_different_levels() {
 
 #[test]
 fn test_log_entry_has_generated_id() {
-    let entry1 = LogEntry::new(LogLevel::Info, "module", "message");
-    let entry2 = LogEntry::new(LogLevel::Info, "module", "message");
+    let entry1 = make_entry(LogLevel::Info, "module", "message");
+    let entry2 = make_entry(LogLevel::Info, "module", "message");
 
     assert_ne!(entry1.id.as_str(), entry2.id.as_str());
 }
@@ -41,7 +68,7 @@ fn test_log_entry_has_generated_id() {
 #[test]
 fn test_log_entry_has_timestamp() {
     let before = chrono::Utc::now();
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
+    let entry = make_entry(LogLevel::Info, "module", "message");
     let after = chrono::Utc::now();
 
     assert!(entry.timestamp >= before);
@@ -51,144 +78,82 @@ fn test_log_entry_has_timestamp() {
 #[test]
 fn test_log_entry_with_metadata() {
     let metadata = serde_json::json!({"key": "value"});
-    let entry = LogEntry::new(LogLevel::Info, "module", "message").with_metadata(metadata.clone());
+    let entry = make_entry(LogLevel::Info, "module", "message").with_metadata(metadata.clone());
 
     assert_eq!(entry.metadata, Some(metadata));
-}
-
-#[test]
-fn test_log_entry_with_user_id() {
-    let user_id = fixture_user_id();
-    let entry = LogEntry::new(LogLevel::Info, "module", "message").with_user_id(user_id.clone());
-
-    assert_eq!(entry.user_id, user_id);
-}
-
-#[test]
-fn test_log_entry_with_session_id() {
-    let session_id = systemprompt_identifiers::SessionId::new("test-session-456");
-    let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_session_id(session_id.clone());
-
-    assert_eq!(entry.session_id, session_id);
 }
 
 #[test]
 fn test_log_entry_with_task_id() {
     let task_id = systemprompt_identifiers::TaskId::new("test-task-789");
-    let entry = LogEntry::new(LogLevel::Info, "module", "message").with_task_id(task_id.clone());
+    let entry = make_entry(LogLevel::Info, "module", "message").with_task_id(task_id.clone());
 
     assert_eq!(entry.task_id, Some(task_id));
 }
 
 #[test]
-fn test_log_entry_with_trace_id() {
-    let trace_id = systemprompt_identifiers::TraceId::new("test-trace-abc");
-    let entry = LogEntry::new(LogLevel::Info, "module", "message").with_trace_id(trace_id.clone());
-
-    assert_eq!(entry.trace_id, trace_id);
-}
-
-#[test]
-fn test_log_entry_with_context_id() {
-    let context_id = systemprompt_identifiers::ContextId::new(TEST_CONTEXT_ID_A);
-    let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_context_id(context_id.clone());
-
-    assert_eq!(entry.context_id, Some(context_id));
-}
-
-#[test]
-fn test_log_entry_with_client_id() {
-    let client_id = systemprompt_identifiers::ClientId::new("test-client-ghi");
-    let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_client_id(client_id.clone());
-
-    assert_eq!(entry.client_id, Some(client_id));
-}
-
-#[test]
-fn test_log_entry_builder_chaining() {
-    let user_id = fixture_user_id();
-    let session_id = systemprompt_identifiers::SessionId::new("chain-session");
-    let metadata = serde_json::json!({"action": "test"});
-
-    let entry = LogEntry::new(LogLevel::Error, "auth", "Login failed")
-        .with_user_id(user_id.clone())
-        .with_session_id(session_id.clone())
-        .with_metadata(metadata.clone());
-
-    assert_eq!(entry.level, LogLevel::Error);
-    assert_eq!(entry.module, "auth");
-    assert_eq!(entry.message, "Login failed");
-    assert_eq!(entry.user_id, user_id);
-    assert_eq!(entry.session_id, session_id);
-    assert_eq!(entry.metadata, Some(metadata));
-}
-
-#[test]
 fn test_log_entry_validate_valid() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
+    let entry = make_entry(LogLevel::Info, "module", "message");
     entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_empty_module() {
-    let entry = LogEntry::new(LogLevel::Info, "", "message");
+    let entry = make_entry(LogLevel::Info, "", "message");
     entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_validate_empty_message() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "");
+    let entry = make_entry(LogLevel::Info, "module", "");
     entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_validate_with_object_metadata() {
     let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!({}));
+        make_entry(LogLevel::Info, "module", "message").with_metadata(serde_json::json!({}));
     entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_array_metadata() {
     let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!([]));
+        make_entry(LogLevel::Info, "module", "message").with_metadata(serde_json::json!([]));
     entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_string_metadata() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message")
-        .with_metadata(serde_json::json!("string"));
+    let entry =
+        make_entry(LogLevel::Info, "module", "message").with_metadata(serde_json::json!("string"));
     entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_null_metadata() {
     let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(null));
+        make_entry(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(null));
     entry.validate().expect("entry.validate() should succeed");
 }
 
 #[test]
 fn test_log_entry_validate_with_number_metadata() {
     let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(42));
+        make_entry(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(42));
     entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_validate_with_boolean_metadata() {
     let entry =
-        LogEntry::new(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(true));
+        make_entry(LogLevel::Info, "module", "message").with_metadata(serde_json::json!(true));
     entry.validate().unwrap_err();
 }
 
 #[test]
 fn test_log_entry_display_without_metadata() {
-    let entry = LogEntry::new(LogLevel::Info, "test_module", "Test message");
+    let entry = make_entry(LogLevel::Info, "test_module", "Test message");
     let display = entry.to_string();
 
     assert!(display.contains("[INFO ]"));
@@ -198,7 +163,7 @@ fn test_log_entry_display_without_metadata() {
 
 #[test]
 fn test_log_entry_display_with_metadata() {
-    let entry = LogEntry::new(LogLevel::Error, "module", "message")
+    let entry = make_entry(LogLevel::Error, "module", "message")
         .with_metadata(serde_json::json!({"key": "value"}));
     let display = entry.to_string();
 
@@ -212,27 +177,27 @@ fn test_log_entry_display_with_metadata() {
 #[test]
 fn test_log_entry_display_all_levels() {
     assert!(
-        LogEntry::new(LogLevel::Error, "m", "msg")
+        make_entry(LogLevel::Error, "m", "msg")
             .to_string()
             .contains("[ERROR]")
     );
     assert!(
-        LogEntry::new(LogLevel::Warn, "m", "msg")
+        make_entry(LogLevel::Warn, "m", "msg")
             .to_string()
             .contains("[WARN ]")
     );
     assert!(
-        LogEntry::new(LogLevel::Info, "m", "msg")
+        make_entry(LogLevel::Info, "m", "msg")
             .to_string()
             .contains("[INFO ]")
     );
     assert!(
-        LogEntry::new(LogLevel::Debug, "m", "msg")
+        make_entry(LogLevel::Debug, "m", "msg")
             .to_string()
             .contains("[DEBUG]")
     );
     assert!(
-        LogEntry::new(LogLevel::Trace, "m", "msg")
+        make_entry(LogLevel::Trace, "m", "msg")
             .to_string()
             .contains("[TRACE]")
     );
@@ -240,7 +205,7 @@ fn test_log_entry_display_all_levels() {
 
 #[test]
 fn test_log_entry_clone() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message")
+    let entry = make_entry(LogLevel::Info, "module", "message")
         .with_metadata(serde_json::json!({"key": "value"}));
     let cloned = entry.clone();
 
@@ -253,7 +218,7 @@ fn test_log_entry_clone() {
 
 #[test]
 fn test_log_entry_debug() {
-    let entry = LogEntry::new(LogLevel::Error, "debug_module", "debug_message");
+    let entry = make_entry(LogLevel::Error, "debug_module", "debug_message");
     let debug = format!("{:?}", entry);
 
     assert!(debug.contains("LogEntry"));
@@ -264,7 +229,7 @@ fn test_log_entry_debug() {
 
 #[test]
 fn test_log_entry_serialize() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
+    let entry = make_entry(LogLevel::Info, "module", "message");
     let json = serde_json::to_string(&entry).unwrap();
 
     assert!(json.contains("\"level\":\"INFO\""));
@@ -274,7 +239,7 @@ fn test_log_entry_serialize() {
 
 #[test]
 fn test_log_entry_roundtrip() {
-    let entry = LogEntry::new(LogLevel::Warn, "auth::login", "Authentication failed")
+    let entry = make_entry(LogLevel::Warn, "auth::login", "Authentication failed")
         .with_metadata(serde_json::json!({"attempt": 3, "ip": "192.168.1.1"}));
 
     let json = serde_json::to_string(&entry).unwrap();
@@ -287,40 +252,15 @@ fn test_log_entry_roundtrip() {
 }
 
 #[test]
-fn test_log_entry_default_user_id_is_admin() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert_eq!(entry.user_id, systemprompt_identifiers::UserId::admin());
-}
-
-#[test]
-fn test_log_entry_default_session_id_is_system() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert_eq!(
-        entry.session_id,
-        systemprompt_identifiers::SessionId::system()
+fn test_log_entry_platform_event_attributes_to_platform_owner() {
+    let entry = LogEntry::platform_event(
+        LogLevel::Info,
+        "module",
+        "platform-internal event",
+        TraceId::new("trace-platform"),
     );
-}
 
-#[test]
-fn test_log_entry_default_trace_id_is_system() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert_eq!(entry.trace_id, systemprompt_identifiers::TraceId::system());
-}
-
-#[test]
-fn test_log_entry_default_task_id_is_none() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert!(entry.task_id.is_none());
-}
-
-#[test]
-fn test_log_entry_default_context_id_is_none() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert!(entry.context_id.is_none());
-}
-
-#[test]
-fn test_log_entry_default_client_id_is_none() {
-    let entry = LogEntry::new(LogLevel::Info, "module", "message");
-    assert!(entry.client_id.is_none());
+    assert_eq!(entry.user_id, UserId::admin());
+    assert_eq!(entry.session_id, SessionId::system());
+    assert_eq!(entry.trace_id.as_str(), "trace-platform");
 }

@@ -57,10 +57,11 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
         } else {
             LogLevel::Info
         };
-        let entry = LogEntry::new(
+        let entry = LogEntry::platform_event(
             level,
             "systemprompt_api::gateway",
             format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
+            systemprompt_identifiers::TraceId::system(),
         )
         .with_metadata(metadata);
         if let Err(e) = repo

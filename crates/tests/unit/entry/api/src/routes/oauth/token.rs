@@ -1,9 +1,11 @@
+use axum::body::to_bytes;
+use axum::response::IntoResponse;
+use http::StatusCode;
+use systemprompt_api::routes::oauth::OAuthHttpError;
 use systemprompt_api::routes::oauth::discovery::{
     OAuthProtectedResourceResponse, WellKnownResponse,
 };
-use systemprompt_api::routes::oauth::endpoints::token::{
-    TokenError, TokenErrorResponse, TokenRequest, TokenResponse,
-};
+use systemprompt_api::routes::oauth::endpoints::token::{TokenError, TokenRequest, TokenResponse};
 
 #[test]
 fn test_token_error_invalid_request_display() {
@@ -63,129 +65,115 @@ fn test_token_error_server_error_display() {
     assert!(display.contains("database unavailable"));
 }
 
-#[test]
-fn test_token_error_response_from_invalid_request() {
-    let error = TokenError::InvalidRequest {
+async fn body_to_json(resp: axum::response::Response) -> serde_json::Value {
+    let body = to_bytes(resp.into_body(), 65_536).await.unwrap();
+    serde_json::from_slice(&body).unwrap()
+}
+
+#[tokio::test]
+async fn token_error_invalid_request_maps_to_invalid_request_wire_code() {
+    let http: OAuthHttpError = TokenError::InvalidRequest {
         field: "code".to_string(),
         message: "missing".to_string(),
-    };
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "invalid_request");
-    assert!(response.error_description.is_some());
-    let desc = response.error_description.unwrap();
+    }
+    .into();
+    let resp = http.into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_request");
+    let desc = json["error_description"].as_str().unwrap();
     assert!(desc.contains("code"));
     assert!(desc.contains("missing"));
 }
 
-#[test]
-fn test_token_error_response_from_unsupported_grant() {
-    let error = TokenError::UnsupportedGrantType {
+#[tokio::test]
+async fn token_error_unsupported_grant_maps_to_unsupported_grant_type() {
+    let http: OAuthHttpError = TokenError::UnsupportedGrantType {
         grant_type: "device_code".to_string(),
-    };
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "unsupported_grant_type");
-    assert!(
-        response
-            .error_description
-            .as_deref()
-            .unwrap()
-            .contains("device_code")
-    );
+    }
+    .into();
+    let resp = http.into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "unsupported_grant_type");
+    assert!(json["error_description"].as_str().unwrap().contains("device_code"));
 }
 
-#[test]
-fn test_token_error_response_from_invalid_client() {
-    let error = TokenError::InvalidClient;
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "invalid_client");
-    assert!(response.error_description.is_some());
+#[tokio::test]
+async fn token_error_invalid_client_maps_to_invalid_client_with_401() {
+    let resp = OAuthHttpError::from(TokenError::InvalidClient).into_response();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_client");
 }
 
-#[test]
-fn test_token_error_response_from_invalid_grant() {
-    let error = TokenError::InvalidGrant {
+#[tokio::test]
+async fn token_error_invalid_grant_maps_to_invalid_grant() {
+    let resp = OAuthHttpError::from(TokenError::InvalidGrant {
         reason: "code mismatch".to_string(),
-    };
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "invalid_grant");
-    assert_eq!(response.error_description.as_deref(), Some("code mismatch"));
+    })
+    .into_response();
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_grant");
+    assert_eq!(json["error_description"], "code mismatch");
 }
 
-#[test]
-fn test_token_error_response_from_expired_code() {
-    let error = TokenError::ExpiredCode;
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "invalid_grant");
-    assert!(
-        response
-            .error_description
-            .as_deref()
-            .unwrap()
-            .contains("expired")
-    );
+#[tokio::test]
+async fn token_error_expired_code_maps_to_invalid_grant() {
+    let resp = OAuthHttpError::from(TokenError::ExpiredCode).into_response();
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_grant");
+    assert!(json["error_description"].as_str().unwrap().contains("expired"));
 }
 
-#[test]
-fn test_token_error_response_from_server_error() {
-    let error = TokenError::ServerError {
+#[tokio::test]
+async fn token_error_server_error_maps_to_server_error_with_500() {
+    let resp = OAuthHttpError::from(TokenError::ServerError {
         message: "timeout".to_string(),
-    };
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "server_error");
-    assert_eq!(response.error_description.as_deref(), Some("timeout"));
+    })
+    .into_response();
+    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "server_error");
+    assert_eq!(json["error_description"], "timeout");
 }
 
-#[test]
-fn test_token_error_response_from_invalid_refresh_token() {
-    let error = TokenError::InvalidRefreshToken {
+#[tokio::test]
+async fn token_error_invalid_refresh_token_maps_to_invalid_grant() {
+    let resp = OAuthHttpError::from(TokenError::InvalidRefreshToken {
         reason: "token revoked".to_string(),
-    };
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "invalid_grant");
-    assert!(
-        response
-            .error_description
-            .as_deref()
-            .unwrap()
-            .contains("token revoked")
-    );
+    })
+    .into_response();
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_grant");
+    assert!(json["error_description"].as_str().unwrap().contains("token revoked"));
 }
 
-#[test]
-fn test_token_error_response_from_invalid_credentials() {
-    let error = TokenError::InvalidCredentials;
-    let response: TokenErrorResponse = error.into();
-
-    assert_eq!(response.error, "invalid_grant");
-    assert!(
-        response
-            .error_description
-            .as_deref()
-            .unwrap()
-            .contains("Invalid credentials")
-    );
+#[tokio::test]
+async fn token_error_invalid_credentials_maps_to_invalid_grant() {
+    let resp = OAuthHttpError::from(TokenError::InvalidCredentials).into_response();
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_grant");
 }
 
-#[test]
-fn test_token_error_response_from_invalid_client_secret() {
-    let error = TokenError::InvalidClientSecret;
-    let response: TokenErrorResponse = error.into();
+#[tokio::test]
+async fn token_error_invalid_client_secret_maps_to_invalid_client() {
+    let resp = OAuthHttpError::from(TokenError::InvalidClientSecret).into_response();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_client");
+    assert!(json["error_description"].as_str().unwrap().contains("client secret"));
+}
 
-    assert_eq!(response.error, "invalid_client");
-    assert!(
-        response
-            .error_description
-            .as_deref()
-            .unwrap()
-            .contains("client secret")
-    );
+#[tokio::test]
+async fn token_error_invalid_target_maps_to_invalid_target() {
+    let resp = OAuthHttpError::from(TokenError::InvalidTarget {
+        message: "unknown resource".to_string(),
+    })
+    .into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = body_to_json(resp).await;
+    assert_eq!(json["error"], "invalid_target");
 }
 
 #[test]
@@ -303,32 +291,6 @@ fn test_token_response_debug() {
     let debug = format!("{response:?}");
     assert!(debug.contains("TokenResponse"));
     assert!(debug.contains("at_test"));
-}
-
-#[test]
-fn test_token_error_response_serialize() {
-    let response = TokenErrorResponse {
-        error: "invalid_request".to_string(),
-        error_description: Some("Missing code parameter".to_string()),
-    };
-
-    let json = serde_json::to_value(&response).unwrap();
-
-    assert_eq!(json["error"], "invalid_request");
-    assert_eq!(json["error_description"], "Missing code parameter");
-}
-
-#[test]
-fn test_token_error_response_skip_none_description() {
-    let response = TokenErrorResponse {
-        error: "server_error".to_string(),
-        error_description: None,
-    };
-
-    let json = serde_json::to_value(&response).unwrap();
-
-    assert_eq!(json["error"], "server_error");
-    assert!(json.get("error_description").is_none());
 }
 
 #[test]
