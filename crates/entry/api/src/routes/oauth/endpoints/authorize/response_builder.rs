@@ -1,7 +1,4 @@
-use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
-use axum::Json;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Redirect};
+use super::{AuthorizeQuery, AuthorizeRequest};
 use std::collections::HashMap;
 use systemprompt_models::Config;
 use systemprompt_oauth::services::templating::TemplateEngine;
@@ -26,46 +23,6 @@ pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
 
 pub fn is_user_consent_granted(form: &AuthorizeRequest) -> bool {
     form.user_consent.as_deref() == Some("allow")
-}
-
-pub fn create_consent_denied_response(query: &AuthorizeQuery) -> axum::response::Response {
-    create_error_response(
-        query,
-        "access_denied",
-        "User denied the request",
-        StatusCode::UNAUTHORIZED,
-    )
-}
-
-pub fn create_error_response(
-    query: &AuthorizeQuery,
-    error_type: &str,
-    error_description: &str,
-    status_code: StatusCode,
-) -> axum::response::Response {
-    let state_value = query.state.as_deref().unwrap_or("");
-
-    if let Some(redirect_uri) = &query.redirect_uri {
-        let error_url = format!(
-            "{}?error={}&error_description={}&state={}",
-            redirect_uri,
-            error_type,
-            urlencoding::encode(error_description),
-            state_value
-        );
-        return Redirect::to(&error_url).into_response();
-    }
-
-    (
-        status_code,
-        Json(AuthorizeResponse {
-            code: None,
-            state: query.state.clone(),
-            error: Some(error_type.to_string()),
-            error_description: Some(error_description.to_string()),
-        }),
-    )
-        .into_response()
 }
 
 pub fn generate_webauthn_form(params: &AuthorizeQuery, resolved_scope: &str) -> String {

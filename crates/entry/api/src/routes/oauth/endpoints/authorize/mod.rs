@@ -4,10 +4,10 @@ pub mod validation;
 
 pub use handler::{handle_authorize_get, handle_authorize_post};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use systemprompt_identifiers::ClientId;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AuthorizeQuery {
     pub response_type: String,
     pub client_id: ClientId,
@@ -22,18 +22,6 @@ pub struct AuthorizeQuery {
     pub max_age: Option<i64>,
     pub ui_locales: Option<String>,
     pub resource: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AuthorizeResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
