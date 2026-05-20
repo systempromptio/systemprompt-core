@@ -13,8 +13,6 @@
 //! - HealthChecker builder pattern
 
 #[cfg(test)]
-mod bridge_audience;
-#[cfg(test)]
 mod middleware;
 #[cfg(test)]
 mod models;
