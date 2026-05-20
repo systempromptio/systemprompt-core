@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::auth::{
-    AuthProviderError, AuthResult, AuthUser, RoleProvider, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, RoleProvider, UserProvider,
 };
 
 use super::UserService;
@@ -55,6 +55,18 @@ impl UserProvider for UserService {
         Self::assign_roles(self, user_id, roles)
             .await
             .map(|_| ())
+            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+    }
+
+    async fn find_or_create_federated(
+        &self,
+        issuer: &str,
+        external_sub: &str,
+        claims: &FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        Self::find_or_create_federated(self, issuer, external_sub, claims)
+            .await
+            .map(|u| u.id)
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 }

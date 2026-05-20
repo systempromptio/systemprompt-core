@@ -14,8 +14,6 @@ pub struct Actor {
 }
 
 impl Actor {
-    /// A real user acting directly through an authenticated session. The user
-    /// IS the actor; there is no intermediate surface.
     #[must_use]
     pub const fn user(user_id: UserId) -> Self {
         Self {
@@ -24,7 +22,8 @@ impl Actor {
         }
     }
 
-    /// A scheduled job running on the configured owner's behalf.
+    /// `user_id` is the configured owner of the job, NOT the human who
+    /// authored the schedule entry. See `JobConfig.owner` resolution.
     #[must_use]
     pub fn job(user_id: UserId, job_name: impl Into<String>) -> Self {
         Self {
@@ -35,8 +34,9 @@ impl Actor {
         }
     }
 
-    /// An MCP tool invocation dispatched by a configured server with no human
-    /// session in the path.
+    /// `user_id` is the configured owner of the MCP server when invoked
+    /// without a human session; for human passthrough the caller passes the
+    /// session's user.
     #[must_use]
     pub fn mcp(user_id: UserId, server_name: impl Into<String>) -> Self {
         Self {
@@ -61,8 +61,8 @@ pub enum ActorKind {
 }
 
 impl ActorKind {
-    /// Stable string for the `actor_kind` column. Matches the
-    /// `CHECK (actor_kind IN (...))` clause on every audit table.
+    /// Values are pinned to the `CHECK (actor_kind IN ('user','job','mcp'))`
+    /// constraint on every audit table — do not rename without a migration.
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -72,8 +72,8 @@ impl ActorKind {
         }
     }
 
-    /// Surface-specific identifier for the `actor_id` column. For `User`
-    /// actors the `actor_id` is the `user_id` itself — the user is the actor.
+    /// `User` variants return the `user_id` as the `actor_id` — the user IS
+    /// the actor when no intermediate surface delegated the action.
     #[must_use]
     pub fn actor_id<'a>(&'a self, user_id: &'a UserId) -> &'a str {
         match self {

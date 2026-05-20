@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
-use systemprompt_traits::{AuthProviderError, AuthResult, AuthUser, UserProvider};
+use systemprompt_traits::{
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, UserProvider,
+};
 
 
 use crate::UserService;
@@ -81,6 +83,19 @@ impl UserProvider for UserProviderImpl {
             .assign_roles(user_id, roles)
             .await
             .map(|_| ())
+            .map_err(|e| AuthProviderError::Internal(e.to_string()))
+    }
+
+    async fn find_or_create_federated(
+        &self,
+        issuer: &str,
+        external_sub: &str,
+        claims: &FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        self.user_service
+            .find_or_create_federated(issuer, external_sub, claims)
+            .await
+            .map(|u| u.id)
             .map_err(|e| AuthProviderError::Internal(e.to_string()))
     }
 }
