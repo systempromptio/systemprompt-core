@@ -1,9 +1,9 @@
 use axum::body::to_bytes;
 use axum::http::StatusCode;
-use systemprompt_api::routes::oauth::endpoints::token::generation::{
-    convert_token_result_to_response, resolve_user_permissions,
-};
-use systemprompt_api::routes::oauth::endpoints::token::{TokenError, TokenResponse};
+use axum::response::IntoResponse;
+use systemprompt_api::routes::oauth::OAuthHttpError;
+use systemprompt_api::routes::oauth::endpoints::token::TokenError;
+use systemprompt_api::routes::oauth::endpoints::token::generation::resolve_user_permissions;
 use systemprompt_models::auth::Permission;
 
 #[test]
@@ -59,84 +59,49 @@ fn test_resolve_user_permissions_sorted_by_hierarchy() {
 }
 
 #[tokio::test]
-async fn test_convert_token_result_ok_returns_200() {
-    let token_response = TokenResponse {
-        access_token: "at_test123".to_string(),
-        token_type: "Bearer".to_string(),
-        expires_in: 3600,
-        refresh_token: Some("rt_test456".to_string()),
-        scope: Some("user".to_string()),
-        issued_token_type: None,
-    };
-    let response = convert_token_result_to_response(Ok(token_response));
-    assert_eq!(response.status(), StatusCode::OK);
+async fn token_error_invalid_client_secret_yields_401() {
+    let resp = OAuthHttpError::from(TokenError::InvalidClientSecret).into_response();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
-async fn test_convert_token_result_ok_body_contains_token() {
-    let token_response = TokenResponse {
-        access_token: "at_test_token".to_string(),
-        token_type: "Bearer".to_string(),
-        expires_in: 7200,
-        refresh_token: None,
-        scope: None,
-        issued_token_type: None,
-    };
-    let response = convert_token_result_to_response(Ok(token_response));
-    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(json["access_token"], "at_test_token");
-    assert_eq!(json["token_type"], "Bearer");
-    assert_eq!(json["expires_in"], 7200);
-}
-
-#[tokio::test]
-async fn test_convert_token_result_invalid_client_secret_returns_401() {
-    let result = Err(TokenError::InvalidClientSecret);
-    let response = convert_token_result_to_response(result);
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-}
-
-#[tokio::test]
-async fn test_convert_token_result_server_error_returns_500() {
-    let result = Err(TokenError::ServerError {
+async fn token_error_server_error_yields_500() {
+    let resp = OAuthHttpError::from(TokenError::ServerError {
         message: "db timeout".to_string(),
-    });
-    let response = convert_token_result_to_response(result);
-    assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    })
+    .into_response();
+    assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 
 #[tokio::test]
-async fn test_convert_token_result_invalid_request_returns_400() {
-    let result = Err(TokenError::InvalidRequest {
+async fn token_error_invalid_request_yields_400() {
+    let resp = OAuthHttpError::from(TokenError::InvalidRequest {
         field: "code".to_string(),
         message: "is required".to_string(),
-    });
-    let response = convert_token_result_to_response(result);
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    })
+    .into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
-async fn test_convert_token_result_invalid_grant_returns_400() {
-    let result = Err(TokenError::InvalidGrant {
+async fn token_error_invalid_grant_yields_400() {
+    let resp = OAuthHttpError::from(TokenError::InvalidGrant {
         reason: "code already used".to_string(),
-    });
-    let response = convert_token_result_to_response(result);
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    })
+    .into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
-async fn test_convert_token_result_expired_code_returns_400() {
-    let result = Err(TokenError::ExpiredCode);
-    let response = convert_token_result_to_response(result);
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+async fn token_error_expired_code_yields_400() {
+    let resp = OAuthHttpError::from(TokenError::ExpiredCode).into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]
-async fn test_convert_token_result_error_body_contains_error_type() {
-    let result = Err(TokenError::InvalidClient);
-    let response = convert_token_result_to_response(result);
-    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+async fn token_error_invalid_client_body_has_error_code() {
+    let resp = OAuthHttpError::from(TokenError::InvalidClient).into_response();
+    let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["error"], "invalid_client");
     assert!(json["error_description"].is_string());

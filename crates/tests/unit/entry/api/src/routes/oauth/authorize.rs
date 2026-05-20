@@ -368,31 +368,6 @@ fn test_authorize_query_various_display_values_accepted_by_serde() {
 }
 
 #[test]
-fn test_authorize_response_error_types() {
-    let error_types = vec![
-        "invalid_request",
-        "unauthorized_client",
-        "access_denied",
-        "unsupported_response_type",
-        "invalid_scope",
-        "server_error",
-        "temporarily_unavailable",
-    ];
-
-    for error_type in &error_types {
-        let response = AuthorizeResponse {
-            code: None,
-            state: Some("state".to_string()),
-            error: Some(error_type.to_string()),
-            error_description: Some(format!("Error: {error_type}")),
-        };
-
-        let json = serde_json::to_value(&response).expect("should serialize");
-        assert_eq!(json["error"], *error_type);
-    }
-}
-
-#[test]
 fn test_authorize_query_with_resource_uri() {
     let query = AuthorizeQuery {
         resource: Some("https://api.example.com/v1".to_string()),

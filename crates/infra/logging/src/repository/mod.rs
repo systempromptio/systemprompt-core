@@ -6,7 +6,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LogId;
 
-use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};
+use crate::models::{LogEntry, LogFilter, LoggingError};
 
 pub mod analytics;
 mod operations;
@@ -58,47 +58,6 @@ impl LoggingRepository {
         }
 
         Ok(())
-    }
-
-    pub async fn log_message(
-        &self,
-        level: LogLevel,
-        module: &str,
-        message: &str,
-    ) -> Result<(), LoggingError> {
-        let entry = LogEntry::new(level, module, message);
-        self.log(entry).await
-    }
-
-    pub async fn log_message_with_metadata(
-        &self,
-        level: LogLevel,
-        module: &str,
-        message: &str,
-        metadata: serde_json::Value,
-    ) -> Result<(), LoggingError> {
-        let entry = LogEntry::new(level, module, message).with_metadata(metadata);
-        self.log(entry).await
-    }
-
-    pub async fn error(&self, module: &str, message: &str) -> Result<(), LoggingError> {
-        self.log_message(LogLevel::Error, module, message).await
-    }
-
-    pub async fn warn(&self, module: &str, message: &str) -> Result<(), LoggingError> {
-        self.log_message(LogLevel::Warn, module, message).await
-    }
-
-    pub async fn info(&self, module: &str, message: &str) -> Result<(), LoggingError> {
-        self.log_message(LogLevel::Info, module, message).await
-    }
-
-    pub async fn debug(&self, module: &str, message: &str) -> Result<(), LoggingError> {
-        self.log_message(LogLevel::Debug, module, message).await
-    }
-
-    pub async fn trace(&self, module: &str, message: &str) -> Result<(), LoggingError> {
-        self.log_message(LogLevel::Trace, module, message).await
     }
 
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {

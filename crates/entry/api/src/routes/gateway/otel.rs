@@ -118,7 +118,12 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
                     .filter(|s| s.code == 2) // STATUS_CODE_ERROR
                     .map_or(LogLevel::Info, |_| LogLevel::Error);
 
-                let mut entry = LogEntry::new(
+                let trace_id = if trace_hex.is_empty() {
+                    TraceId::system()
+                } else {
+                    TraceId::new(trace_hex)
+                };
+                let entry = LogEntry::platform_event(
                     level,
                     MODULE,
                     if span.name.is_empty() {
@@ -126,11 +131,9 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
                     } else {
                         span.name.clone()
                     },
+                    trace_id,
                 )
                 .with_metadata(metadata);
-                if !trace_hex.is_empty() {
-                    entry = entry.with_trace_id(TraceId::new(trace_hex));
-                }
                 if let Err(e) = repo.log(entry).await {
                     tracing::warn!(error = %e, "otel: span log persist failed");
                 }
@@ -178,10 +181,13 @@ async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
                 } else {
                     body_text
                 };
-                let mut entry = LogEntry::new(level, MODULE, message).with_metadata(metadata);
-                if !trace_hex.is_empty() {
-                    entry = entry.with_trace_id(TraceId::new(trace_hex));
-                }
+                let trace_id = if trace_hex.is_empty() {
+                    TraceId::system()
+                } else {
+                    TraceId::new(trace_hex)
+                };
+                let entry = LogEntry::platform_event(level, MODULE, message, trace_id)
+                    .with_metadata(metadata);
                 if let Err(e) = repo.log(entry).await {
                     tracing::warn!(error = %e, "otel: log persist failed");
                 }

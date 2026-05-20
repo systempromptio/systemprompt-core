@@ -21,7 +21,14 @@ pub struct LogEntry {
 }
 
 impl LogEntry {
-    pub fn new(level: LogLevel, module: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn new(
+        level: LogLevel,
+        module: impl Into<String>,
+        message: impl Into<String>,
+        user_id: systemprompt_identifiers::UserId,
+        session_id: systemprompt_identifiers::SessionId,
+        trace_id: systemprompt_identifiers::TraceId,
+    ) -> Self {
         Self {
             id: LogId::generate(),
             timestamp: Utc::now(),
@@ -29,13 +36,39 @@ impl LogEntry {
             module: module.into(),
             message: message.into(),
             metadata: None,
-            user_id: systemprompt_identifiers::UserId::admin(),
-            session_id: systemprompt_identifiers::SessionId::system(),
+            user_id,
+            session_id,
             task_id: None,
-            trace_id: systemprompt_identifiers::TraceId::system(),
+            trace_id,
             context_id: None,
             client_id: None,
         }
+    }
+
+    /// Constructor for platform-attributed log rows that have no human originator —
+    /// external telemetry ingest (OTLP), gateway access logs emitted by middleware
+    /// before any request context is bound, and similar platform-internal events.
+    ///
+    /// Why this is the only sanctioned `UserId::admin()` call site in the logging
+    /// layer: per the security policy every log row must resolve to a real user,
+    /// even when that user is the platform owner. Routing these events through a
+    /// named constructor makes the platform attribution explicit at the call site
+    /// instead of hiding behind a Default.
+    #[must_use]
+    pub fn platform_event(
+        level: LogLevel,
+        module: impl Into<String>,
+        message: impl Into<String>,
+        trace_id: systemprompt_identifiers::TraceId,
+    ) -> Self {
+        Self::new(
+            level,
+            module,
+            message,
+            systemprompt_identifiers::UserId::admin(),
+            systemprompt_identifiers::SessionId::system(),
+            trace_id,
+        )
     }
 
     #[must_use]
@@ -45,26 +78,8 @@ impl LogEntry {
     }
 
     #[must_use]
-    pub fn with_user_id(mut self, user_id: systemprompt_identifiers::UserId) -> Self {
-        self.user_id = user_id;
-        self
-    }
-
-    #[must_use]
-    pub fn with_session_id(mut self, session_id: systemprompt_identifiers::SessionId) -> Self {
-        self.session_id = session_id;
-        self
-    }
-
-    #[must_use]
     pub fn with_task_id(mut self, task_id: systemprompt_identifiers::TaskId) -> Self {
         self.task_id = Some(task_id);
-        self
-    }
-
-    #[must_use]
-    pub fn with_trace_id(mut self, trace_id: systemprompt_identifiers::TraceId) -> Self {
-        self.trace_id = trace_id;
         self
     }
 
