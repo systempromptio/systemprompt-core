@@ -148,7 +148,7 @@ pub fn update_span_fields<S>(
     }
 }
 
-pub fn build_log_entry<S>(event: &Event<'_>, ctx: &Context<'_, S>) -> LogEntry
+pub fn build_log_entry<S>(event: &Event<'_>, ctx: &Context<'_, S>) -> Option<LogEntry>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
@@ -162,7 +162,7 @@ where
         .current_span()
         .id()
         .and_then(|id| ctx.span(id))
-        .map(extract_span_context);
+        .map(extract_span_context)?;
 
     let log_level = match level {
         tracing::Level::ERROR => LogLevel::Error,
@@ -172,36 +172,25 @@ where
         tracing::Level::TRACE => LogLevel::Trace,
     };
 
-    LogEntry {
+    let user_id = UserId::new(span_context.user.as_ref()?.clone());
+    let session_id = SessionId::new(span_context.session.as_ref()?.clone());
+    let trace_id = TraceId::new(span_context.trace.as_ref()?.clone());
+
+    Some(LogEntry {
         id: LogId::generate(),
         timestamp: Utc::now(),
         level: log_level,
         module,
         message: visitor.message,
         metadata: visitor.fields,
-        user_id: span_context
-            .as_ref()
-            .and_then(|c| c.user.as_ref())
-            .map_or_else(UserId::admin, |s| UserId::new(s.clone())),
-        session_id: span_context
-            .as_ref()
-            .and_then(|c| c.session.as_ref())
-            .map_or_else(SessionId::system, |s| SessionId::new(s.clone())),
-        task_id: span_context
-            .as_ref()
-            .and_then(|c| c.task.as_ref())
-            .map(|s| TaskId::new(s.clone())),
-        trace_id: span_context
-            .as_ref()
-            .and_then(|c| c.trace.as_ref())
-            .map_or_else(TraceId::system, |s| TraceId::new(s.clone())),
+        user_id,
+        session_id,
+        task_id: span_context.task.as_ref().map(|s| TaskId::new(s.clone())),
+        trace_id,
         context_id: span_context
+            .context
             .as_ref()
-            .and_then(|c| c.context.as_ref())
             .and_then(|s| ContextId::try_new(s.clone()).ok()),
-        client_id: span_context
-            .as_ref()
-            .and_then(|c| c.client.as_ref())
-            .map(|s| ClientId::new(s.clone())),
-    }
+        client_id: span_context.client.as_ref().map(|s| ClientId::new(s.clone())),
+    })
 }

@@ -165,6 +165,8 @@ where
     }
 
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
-        self.send_entry(build_log_entry(event, &ctx));
+        if let Some(entry) = build_log_entry(event, &ctx) {
+            self.send_entry(entry);
+        }
     }
 }
