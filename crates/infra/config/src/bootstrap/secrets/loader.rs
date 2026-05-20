@@ -10,7 +10,9 @@ use systemprompt_models::paths::constants::env_vars;
 use systemprompt_models::profile::{SecretsSource, resolve_with_home};
 use systemprompt_models::secrets::Secrets;
 
-use super::{JWT_SECRET_MIN_LENGTH, SecretsBootstrapError, handle_load_error};
+use systemprompt_models::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
+
+use super::{SecretsBootstrapError, handle_load_error};
 use crate::bootstrap::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -19,9 +21,11 @@ pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
     let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
 
     if is_subprocess || is_fly_environment {
-        if let Ok(jwt_secret) = std::env::var("JWT_SECRET") {
-            if jwt_secret.len() >= JWT_SECRET_MIN_LENGTH {
-                tracing::debug!("Using JWT_SECRET from environment (subprocess/container mode)");
+        if let Ok(pepper) = std::env::var("OAUTH_AT_REST_PEPPER") {
+            if pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH {
+                tracing::debug!(
+                    "Using OAUTH_AT_REST_PEPPER from environment (subprocess/container mode)"
+                );
                 return load_from_env();
             }
         }
@@ -90,7 +94,6 @@ fn load_from_file(path: &Path) -> ConfigResult<Secrets> {
 }
 
 fn load_from_env() -> ConfigResult<Secrets> {
-    let jwt_secret = read_env_required("JWT_SECRET", SecretsBootstrapError::JwtSecretRequired)?;
     let oauth_at_rest_pepper = read_env_required(
         "OAUTH_AT_REST_PEPPER",
         SecretsBootstrapError::OauthAtRestPepperRequired,
@@ -108,7 +111,6 @@ fn load_from_env() -> ConfigResult<Secrets> {
     });
 
     let secrets = Secrets {
-        jwt_secret,
         oauth_at_rest_pepper,
         manifest_signing_secret_seed: read_env_optional("MANIFEST_SIGNING_SECRET_SEED"),
         database_url,

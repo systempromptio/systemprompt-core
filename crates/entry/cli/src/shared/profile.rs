@@ -215,14 +215,6 @@ fn capitalize_first(name: &str) -> String {
     })
 }
 
-pub fn generate_jwt_secret() -> String {
-    let mut rng = rng();
-    (0..64)
-        .map(|_| rng.sample(Alphanumeric))
-        .map(char::from)
-        .collect()
-}
-
 pub fn generate_oauth_at_rest_pepper() -> String {
     let mut rng = rng();
     (0..64)

@@ -29,8 +29,6 @@ pub use logging::{
 
 static SECRETS: OnceLock<Secrets> = OnceLock::new();
 
-pub const JWT_SECRET_MIN_LENGTH: usize = 32;
-
 #[derive(Debug, Clone, Copy)]
 pub struct SecretsBootstrap;
 
@@ -56,12 +54,6 @@ pub enum SecretsBootstrapError {
 
     #[error("No secrets configured. Create a secrets.json file.")]
     NoSecretsConfigured,
-
-    #[error(
-        "JWT secret is required. Add 'jwt_secret' to your secrets file or set JWT_SECRET \
-         environment variable."
-    )]
-    JwtSecretRequired,
 
     #[error(
         "OAuth at-rest pepper is required. Add 'oauth_at_rest_pepper' (>= 32 chars) to your \
@@ -111,10 +103,6 @@ impl SecretsBootstrap {
         SECRETS
             .get()
             .ok_or_else(|| SecretsBootstrapError::NotInitialized.into())
-    }
-
-    pub fn jwt_secret() -> Result<&'static str, SecretsBootstrapError> {
-        Ok(&Self::get()?.jwt_secret)
     }
 
     pub fn oauth_at_rest_pepper() -> Result<&'static str, SecretsBootstrapError> {

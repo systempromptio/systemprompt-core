@@ -16,8 +16,8 @@ mod secrets;
 pub use manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 pub use profile::{ProfileBootstrap, ProfileBootstrapError};
 pub use secrets::{
-    JWT_SECRET_MIN_LENGTH, SecretsBootstrap, SecretsBootstrapError, build_loaded_secrets_message,
-    load_secrets_from_path, log_secrets_issue, log_secrets_skip, log_secrets_warn,
+    SecretsBootstrap, SecretsBootstrapError, build_loaded_secrets_message, load_secrets_from_path,
+    log_secrets_issue, log_secrets_skip, log_secrets_warn,
 };
 
 pub trait BootstrapState {}

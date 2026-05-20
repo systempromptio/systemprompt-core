@@ -23,7 +23,7 @@ pub fn log_secrets_skip(e: &ConfigError) {
 
 #[must_use]
 pub fn build_loaded_secrets_message(secrets: &Secrets) -> String {
-    let base = ["jwt_secret", "database_url"];
+    let base = ["oauth_at_rest_pepper", "database_url"];
     let optional_providers = [
         secrets
             .database_write_url
