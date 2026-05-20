@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.0] - 2026-05-20
+
+RFC 8693 token exchange, multi-issuer JWT validation, and an end-to-end RFC 8693 `act` claim chain on every minted token. Federated identity providers can now mint a `subject_token`; the deployment trades it for a delegated access token bound to the authenticated client, with the calling client appended as the outermost actor on a recursive `act` chain. The standard token validation path now resolves non-self-issued tokens against the `profile.security.trusted_issuers` registry and verifies them with the issuer's JWKS document.
+
+### Breaking
+
+- **Existing HS256-signed access tokens are invalidated.** The signing-key plane moves to RSA / RS256 — re-issued tokens carry a `kid` header and are verified against the deployment's published JWKS (`<control_plane>/.well-known/jwks.json`). Every active session must re-authenticate; cached tokens from prior releases will fail validation.
+- **Operators must publish a JWKS document.** Multi-tenant deployments and any caller that wants its tokens accepted by a peer deployment must serve `/.well-known/jwks.json` at the control-plane URL. Trusted-issuer entries must also point at a reachable, HTTPS-only JWKS endpoint; non-HTTPS or unlisted hosts are rejected by the JWKS client.
+
+### Added
+
+- **RFC 8693 token-exchange grant** at `/oauth/token` with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`. Validates the `subject_token` against the trusted-issuer registry (or the deployment's own signing key for self-issued tokens), intersects requested `scope` with the subject's scope, the client's scope grant, and the client owner's role set, and mints a delegated token whose `act` claim records the calling client. Pre-existing `act` chains on the subject token are preserved and chained underneath.
+- **Multi-issuer JWT validation.** `profile.security.trusted_issuers` now propagates onto the runtime `Config`. The token-exchange path consults the registry to resolve issuer → JWKS URI → signing key for non-self-issued tokens.
+- **`invalid_target` rejection** per RFC 8707 when `resource` or `audience` falls outside `allowed_resource_audiences`.
+- **`generate_jwt_with_act`** in `systemprompt-oauth` mints a token carrying an explicit `ActClaim` outermost link, chaining any prior `act` underneath.
+
 ## [0.11.0] - 2026-05-20
 
 Multi-replica deployment readiness, the gateway tenancy strip, the Service-JWT sync handshake, mandatory actor attribution on every audit-bearing row, RFC 8693 token-exchange with a published JWKS, federated identities, and a sweep of OAuth and session hardening. AI gateway and bridge-session paths no longer carry a runtime `tenant_id`; sync clients authenticate with a `client_credentials` Service-JWT instead of the legacy shared `SYNC_TOKEN`; events relay across replicas through a Postgres outbox; scheduled jobs claim work behind cross-replica advisory locks; database reads route to a configured read replica. Pre-1.0 SemVer dictates a minor bump for the `JwtAudience::Cowork → Bridge` rename in `systemprompt-models`.

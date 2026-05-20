@@ -21,6 +21,11 @@ pub struct TokenRequest {
     pub resource: Option<String>,
     pub plugin_id: Option<String>,
     pub audience: Option<String>,
+    pub subject_token: Option<String>,
+    pub subject_token_type: Option<String>,
+    pub actor_token: Option<String>,
+    pub actor_token_type: Option<String>,
+    pub requested_token_type: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,6 +38,10 @@ pub struct TokenResponse {
     pub refresh_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
+    /// RFC 8693 §2.2.1 `issued_token_type`. Only set by the
+    /// `urn:ietf:params:oauth:grant-type:token-exchange` flow.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issued_token_type: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -63,6 +72,9 @@ pub enum TokenError {
 
     #[error("Server error: {message}")]
     ServerError { message: String },
+
+    #[error("Invalid target resource: {message}")]
+    InvalidTarget { message: String },
 }
 
 #[derive(Debug, Serialize)]
@@ -103,6 +115,7 @@ impl From<TokenError> for TokenErrorResponse {
                 Some("Authorization code expired".to_string()),
             ),
             TokenError::ServerError { message } => ("server_error", Some(message.clone())),
+            TokenError::InvalidTarget { message } => ("invalid_target", Some(message.clone())),
         };
 
         Self {

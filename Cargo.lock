@@ -4898,6 +4898,7 @@ dependencies = [
  "tower-http",
  "tower_governor",
  "tracing",
+ "url",
  "urlencoding",
  "uuid",
  "validator",

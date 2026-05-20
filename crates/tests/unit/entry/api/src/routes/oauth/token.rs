@@ -258,6 +258,7 @@ fn test_token_response_serialize_full() {
         expires_in: 3600,
         refresh_token: Some("rt_abc".to_string()),
         scope: Some("openid profile".to_string()),
+        issued_token_type: None,
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -277,6 +278,7 @@ fn test_token_response_serialize_skip_none() {
         expires_in: 7200,
         refresh_token: None,
         scope: None,
+        issued_token_type: None,
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -295,6 +297,7 @@ fn test_token_response_debug() {
         expires_in: 3600,
         refresh_token: None,
         scope: None,
+        issued_token_type: None,
     };
 
     let debug = format!("{response:?}");

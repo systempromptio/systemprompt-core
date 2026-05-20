@@ -118,6 +118,41 @@ impl JwksClient {
             })
     }
 
+    /// Same as [`Self::fetch`], but takes an explicit JWKS URI (as configured
+    /// on a trusted issuer entry) rather than deriving
+    /// `<issuer>/.well-known/jwks.json`. The cache key remains the `issuer`
+    /// so two trusted issuers cannot collide even when they share the same
+    /// JWKS document host.
+    pub async fn fetch_at(
+        &self,
+        issuer: &str,
+        jwks_uri: &str,
+        kid: &str,
+    ) -> Result<Jwk, JwksClientError> {
+        if let Some(jwk) = self.lookup_cached(issuer, kid) {
+            return Ok(jwk);
+        }
+
+        let url = self.validate_uri(jwks_uri)?;
+        let (jwks, ttl) = self.fetch_remote(&url).await?;
+
+        let cached = CachedJwks {
+            jwks: jwks.clone(),
+            expires_at: Instant::now() + ttl,
+        };
+        if let Ok(mut guard) = self.cache.lock() {
+            guard.put(issuer.to_string(), cached);
+        }
+
+        jwks.keys
+            .into_iter()
+            .find(|k| k.kid == kid)
+            .ok_or_else(|| JwksClientError::KeyNotFound {
+                issuer: issuer.to_string(),
+                kid: kid.to_string(),
+            })
+    }
+
     fn lookup_cached(&self, issuer: &str, kid: &str) -> Option<Jwk> {
         let mut guard = self.cache.lock().ok()?;
         let entry = guard.get(issuer)?;
@@ -131,16 +166,24 @@ impl JwksClient {
     }
 
     fn build_jwks_url(&self, issuer: &str) -> Result<Url, JwksClientError> {
-        let parsed = Url::parse(issuer).map_err(|source| JwksClientError::InvalidIssuer {
-            issuer: issuer.to_string(),
+        let mut url = self.validate_uri(issuer)?;
+        url.set_path(WELLKNOWN_JWKS_PATH);
+        url.set_query(None);
+        url.set_fragment(None);
+        Ok(url)
+    }
+
+    fn validate_uri(&self, raw: &str) -> Result<Url, JwksClientError> {
+        let parsed = Url::parse(raw).map_err(|source| JwksClientError::InvalidIssuer {
+            issuer: raw.to_string(),
             source,
         })?;
         if parsed.scheme() != "https" {
-            return Err(JwksClientError::InsecureScheme(issuer.to_string()));
+            return Err(JwksClientError::InsecureScheme(raw.to_string()));
         }
         let host = parsed
             .host_str()
-            .ok_or_else(|| JwksClientError::HostNotAllowed(issuer.to_string()))?
+            .ok_or_else(|| JwksClientError::HostNotAllowed(raw.to_string()))?
             .to_string();
         if !self
             .allowed_hosts
@@ -149,11 +192,7 @@ impl JwksClient {
         {
             return Err(JwksClientError::HostNotAllowed(host));
         }
-        let mut url = parsed;
-        url.set_path(WELLKNOWN_JWKS_PATH);
-        url.set_query(None);
-        url.set_fragment(None);
-        Ok(url)
+        Ok(parsed)
     }
 
     async fn fetch_remote(&self, url: &Url) -> Result<(Jwks, Duration), JwksClientError> {

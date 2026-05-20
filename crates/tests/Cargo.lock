@@ -6775,6 +6775,7 @@ dependencies = [
  "tower-http",
  "tower_governor",
  "tracing",
+ "url",
  "urlencoding",
  "uuid",
  "validator",
@@ -6786,6 +6787,7 @@ name = "systemprompt-api-tests"
 version = "0.0.11"
 dependencies = [
  "axum",
+ "base64 0.22.1",
  "chrono",
  "http",
  "jsonwebtoken",
@@ -8066,6 +8068,10 @@ name = "systemprompt-test-fixtures"
 version = "0.1.0"
 dependencies = [
  "systemprompt-identifiers",
+<<<<<<< HEAD
+=======
+ "systemprompt-models",
+>>>>>>> b05e3fcc (feat(oauth): add RFC 8693 token-exchange grant)
  "uuid",
 ]
 

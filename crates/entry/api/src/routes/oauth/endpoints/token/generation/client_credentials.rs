@@ -127,6 +127,7 @@ pub async fn generate_client_tokens(
                 .collect::<Vec<_>>()
                 .join(" "),
         ),
+        issued_token_type: None,
     })
 }
 

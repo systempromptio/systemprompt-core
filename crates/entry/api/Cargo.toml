@@ -47,6 +47,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
 regex = { workspace = true }
 indexmap = { workspace = true }

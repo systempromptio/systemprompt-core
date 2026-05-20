@@ -11,7 +11,7 @@ use crate::models::JwtClaims;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{
-    AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
+    ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +51,83 @@ pub fn generate_secure_token(prefix: &str) -> String {
         .collect();
 
     format!("{prefix}_{token}")
+}
+
+/// Mint a delegated access token carrying an RFC 8693 `act` claim chain.
+///
+/// `act` is the outermost actor that requested this exchange (typically the
+/// authenticated client). Any pre-existing `act` chain inside the subject
+/// token is preserved by chaining it underneath the new outer actor.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_jwt_with_act(
+    user: &AuthenticatedUser,
+    config: JwtConfig,
+    jti: String,
+    session_id: &SessionId,
+    signing: &JwtSigningParams<'_>,
+    act: ActClaim,
+) -> Result<String> {
+    let mut token = build_claims(user, config, jti, session_id, signing)?;
+    token.act = Some(act);
+    encode_claims(&token, signing)
+}
+
+fn build_claims(
+    user: &AuthenticatedUser,
+    config: JwtConfig,
+    jti: String,
+    session_id: &SessionId,
+    signing: &JwtSigningParams<'_>,
+) -> Result<JwtClaims> {
+    let expires_in_hours = config.expires_in_hours.unwrap_or(24);
+    if expires_in_hours <= 0 || expires_in_hours > 8760 {
+        return Err(crate::error::OauthError::Internal(format!(
+            "Invalid token expiry: {expires_in_hours} hours. Must be between 1 and 8760 (1 year)"
+        )));
+    }
+    let expiration = Utc::now()
+        .checked_add_signed(Duration::hours(expires_in_hours))
+        .ok_or_else(|| {
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
+        })?
+        .timestamp();
+    let now = Utc::now().timestamp();
+    let user_type = user.user_type();
+    let mut audience = config.audience.clone();
+    if let Some(ref resource) = config.resource {
+        audience.push(JwtAudience::Resource(resource.clone()));
+    }
+    Ok(JwtClaims {
+        sub: user.id.to_string(),
+        iat: now,
+        exp: expiration,
+        iss: signing.issuer.to_string(),
+        aud: audience,
+        jti,
+        scope: config.permissions,
+        username: user.username.clone(),
+        email: user.email.clone(),
+        user_type,
+        roles: user.roles().to_vec(),
+        department: user.department().map(ToString::to_string),
+        client_id: None,
+        token_type: TokenType::Bearer,
+        auth_time: now,
+        session_id: Some(session_id.clone()),
+        rate_limit_tier: Some(user_type.rate_tier()),
+        plugin_id: config.plugin_id,
+        act: None,
+    })
+}
+
+fn encode_claims(claims: &JwtClaims, signing: &JwtSigningParams<'_>) -> Result<String> {
+    let header = Header::new(Algorithm::HS256);
+    let token = encode(
+        &header,
+        claims,
+        &EncodingKey::from_secret(signing.secret.as_bytes()),
+    )?;
+    Ok(token)
 }
 
 pub fn generate_jwt(
