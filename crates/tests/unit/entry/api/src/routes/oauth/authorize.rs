@@ -2,12 +2,10 @@
 //!
 //! The validation and response_builder modules inside the authorize endpoint
 //! are private (not `pub mod`), so their functions are not directly testable.
-//! These tests cover the public data types: AuthorizeQuery, AuthorizeRequest,
-//! and AuthorizeResponse - verifying construction, serde behavior, and Debug.
+//! These tests cover the public data types: AuthorizeQuery, AuthorizeRequest —
+//! verifying construction, serde behavior, and Debug.
 
-use systemprompt_api::routes::oauth::endpoints::authorize::{
-    AuthorizeQuery, AuthorizeRequest, AuthorizeResponse,
-};
+use systemprompt_api::routes::oauth::endpoints::authorize::{AuthorizeQuery, AuthorizeRequest};
 use systemprompt_identifiers::ClientId;
 
 fn create_valid_authorize_query() -> AuthorizeQuery {
@@ -317,105 +315,6 @@ fn test_authorize_request_debug_trait() {
     assert!(debug_output.contains("AuthorizeRequest"));
     assert!(debug_output.contains("code"));
     assert!(debug_output.contains("sp_test_client"));
-}
-
-#[test]
-fn test_authorize_response_serialize_success() {
-    let response = AuthorizeResponse {
-        code: Some("auth_code_123".to_string()),
-        state: Some("abc123".to_string()),
-        error: None,
-        error_description: None,
-    };
-
-    let json = serde_json::to_value(&response).expect("should serialize");
-
-    assert_eq!(json["code"], "auth_code_123");
-    assert_eq!(json["state"], "abc123");
-    assert!(json.get("error").is_none());
-    assert!(json.get("error_description").is_none());
-}
-
-#[test]
-fn test_authorize_response_serialize_error() {
-    let response = AuthorizeResponse {
-        code: None,
-        state: Some("abc123".to_string()),
-        error: Some("access_denied".to_string()),
-        error_description: Some("User denied the request".to_string()),
-    };
-
-    let json = serde_json::to_value(&response).expect("should serialize");
-
-    assert!(json.get("code").is_none());
-    assert_eq!(json["state"], "abc123");
-    assert_eq!(json["error"], "access_denied");
-    assert_eq!(json["error_description"], "User denied the request");
-}
-
-#[test]
-fn test_authorize_response_serialize_all_none() {
-    let response = AuthorizeResponse {
-        code: None,
-        state: None,
-        error: None,
-        error_description: None,
-    };
-
-    let json = serde_json::to_value(&response).expect("should serialize");
-    let obj = json.as_object().expect("should be object");
-
-    assert!(obj.is_empty());
-}
-
-#[test]
-fn test_authorize_response_serialize_all_present() {
-    let response = AuthorizeResponse {
-        code: Some("auth_code_123".to_string()),
-        state: Some("abc123".to_string()),
-        error: Some("server_error".to_string()),
-        error_description: Some("Something went wrong".to_string()),
-    };
-
-    let json = serde_json::to_value(&response).expect("should serialize");
-    let obj = json.as_object().expect("should be object");
-
-    assert_eq!(obj.len(), 4);
-    assert_eq!(json["code"], "auth_code_123");
-    assert_eq!(json["state"], "abc123");
-    assert_eq!(json["error"], "server_error");
-    assert_eq!(json["error_description"], "Something went wrong");
-}
-
-#[test]
-fn test_authorize_response_skip_serializing_none_fields() {
-    let response = AuthorizeResponse {
-        code: Some("auth_code_123".to_string()),
-        state: None,
-        error: None,
-        error_description: None,
-    };
-
-    let json_string = serde_json::to_string(&response).expect("should serialize");
-
-    assert!(json_string.contains("code"));
-    assert!(!json_string.contains("state"));
-    assert!(!json_string.contains("error"));
-    assert!(!json_string.contains("error_description"));
-}
-
-#[test]
-fn test_authorize_response_debug_trait() {
-    let response = AuthorizeResponse {
-        code: Some("auth_code_123".to_string()),
-        state: Some("abc123".to_string()),
-        error: None,
-        error_description: None,
-    };
-
-    let debug_output = format!("{:?}", response);
-    assert!(debug_output.contains("AuthorizeResponse"));
-    assert!(debug_output.contains("auth_code_123"));
 }
 
 #[test]

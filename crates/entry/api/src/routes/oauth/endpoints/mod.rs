@@ -12,8 +12,7 @@ pub mod webauthn_complete;
 
 pub use anonymous::*;
 pub use authorize::{
-    AuthorizeQuery, AuthorizeRequest, AuthorizeResponse, handle_authorize_get,
-    handle_authorize_post, response_builder,
+    AuthorizeQuery, AuthorizeRequest, handle_authorize_get, handle_authorize_post, response_builder,
 };
 pub use callback::*;
 pub use client_config::*;
