@@ -11,6 +11,7 @@ use systemprompt_logging;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_models::Config;
 use systemprompt_oauth::JwtValidationProviderImpl;
+use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {
@@ -22,6 +23,15 @@ pub struct RunArgs {
 }
 
 pub async fn execute(args: RunArgs) -> Result<()> {
+    // Install the typed SystemAdmin into the process-wide OnceLock so any
+    // system-attributed work (MCP tool resolution, etc.) can resolve it.
+    // The agent subprocess otherwise skips the AppContext bootstrap and the
+    // McpToolProvider fails with "AppContext bootstrap must run before any
+    // system-attributed work".
+    let _ = AppContext::new()
+        .await
+        .context("Failed to bootstrap AppContext for agent subprocess")?;
+
     let config = Config::get().context("Failed to get configuration")?;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 

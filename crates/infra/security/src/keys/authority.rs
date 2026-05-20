@@ -10,8 +10,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use jsonwebtoken::{DecodingKey, EncodingKey};
-use rsa::pkcs1::EncodeRsaPrivateKey;
-use rsa::pkcs8::EncodePublicKey;
+use rsa::pkcs1::{EncodeRsaPrivateKey, EncodeRsaPublicKey};
 use thiserror::Error;
 
 use crate::keys::{KeyError, RsaSigningKey};
@@ -33,11 +32,8 @@ pub enum TokenAuthorityError {
     #[error("jwt key conversion failed: {0}")]
     KeyConvert(#[source] jsonwebtoken::errors::Error),
 
-    #[error("private-key DER encoding failed: {0}")]
+    #[error("RSA DER encoding failed: {0}")]
     Pkcs1Encode(#[source] rsa::pkcs1::Error),
-
-    #[error("public-key DER encoding failed: {0}")]
-    SpkiEncode(#[source] pkcs8::spki::Error),
 }
 
 pub type TokenAuthorityResult<T> = Result<T, TokenAuthorityError>;
@@ -73,8 +69,8 @@ fn build(signing_key: RsaSigningKey) -> TokenAuthorityResult<Authority> {
     let encoding_key = EncodingKey::from_rsa_der(der.as_bytes());
     let pub_der = signing_key
         .public_key()
-        .to_public_key_der()
-        .map_err(TokenAuthorityError::SpkiEncode)?;
+        .to_pkcs1_der()
+        .map_err(TokenAuthorityError::Pkcs1Encode)?;
     let decoding_key = DecodingKey::from_rsa_der(pub_der.as_bytes());
     Ok(Authority {
         signing_key,
