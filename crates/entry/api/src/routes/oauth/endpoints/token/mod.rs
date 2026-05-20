@@ -6,6 +6,8 @@ pub use handler::handle_token;
 
 use serde::{Deserialize, Serialize};
 
+use crate::routes::oauth::OAuthHttpError;
+
 pub type TokenResult<T> = Result<T, TokenError>;
 
 #[derive(Debug, Deserialize)]
@@ -29,7 +31,6 @@ pub struct TokenRequest {
 }
 
 #[derive(Debug, Serialize)]
-
 pub struct TokenResponse {
     pub access_token: String,
     pub token_type: String,
@@ -77,50 +78,25 @@ pub enum TokenError {
     InvalidTarget { message: String },
 }
 
-#[derive(Debug, Serialize)]
-
-pub struct TokenErrorResponse {
-    pub error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_description: Option<String>,
-}
-
-impl From<TokenError> for TokenErrorResponse {
+impl From<TokenError> for OAuthHttpError {
     fn from(error: TokenError) -> Self {
-        let (error_type, description) = match &error {
+        match error {
             TokenError::InvalidRequest { field, message } => {
-                ("invalid_request", Some(format!("{field}: {message}")))
+                Self::invalid_request(format!("{field}: {message}"))
             },
-            TokenError::UnsupportedGrantType { grant_type } => (
-                "unsupported_grant_type",
-                Some(format!("Grant type '{grant_type}' is not supported")),
-            ),
-            TokenError::InvalidClient => (
-                "invalid_client",
-                Some("Client authentication failed".to_string()),
-            ),
-            TokenError::InvalidGrant { reason } => ("invalid_grant", Some(reason.clone())),
-            TokenError::InvalidRefreshToken { reason } => (
-                "invalid_grant",
-                Some(format!("Refresh token invalid: {reason}")),
-            ),
-            TokenError::InvalidCredentials => {
-                ("invalid_grant", Some("Invalid credentials".to_string()))
+            TokenError::UnsupportedGrantType { grant_type } => {
+                Self::unsupported_grant_type(format!("Grant type '{grant_type}' is not supported"))
             },
-            TokenError::InvalidClientSecret => {
-                ("invalid_client", Some("Invalid client secret".to_string()))
+            TokenError::InvalidClient => Self::invalid_client("Client authentication failed"),
+            TokenError::InvalidGrant { reason } => Self::invalid_grant(reason),
+            TokenError::InvalidRefreshToken { reason } => {
+                Self::invalid_grant(format!("Refresh token invalid: {reason}"))
             },
-            TokenError::ExpiredCode => (
-                "invalid_grant",
-                Some("Authorization code expired".to_string()),
-            ),
-            TokenError::ServerError { message } => ("server_error", Some(message.clone())),
-            TokenError::InvalidTarget { message } => ("invalid_target", Some(message.clone())),
-        };
-
-        Self {
-            error: error_type.to_string(),
-            error_description: description,
+            TokenError::InvalidCredentials => Self::invalid_grant("Invalid credentials"),
+            TokenError::InvalidClientSecret => Self::invalid_client("Invalid client secret"),
+            TokenError::ExpiredCode => Self::invalid_grant("Authorization code expired"),
+            TokenError::ServerError { message } => Self::server_error(message),
+            TokenError::InvalidTarget { message } => Self::invalid_target(message),
         }
     }
 }

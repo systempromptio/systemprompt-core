@@ -6,11 +6,9 @@ pub use token_exchange::{
     TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
 };
 
-use super::{TokenError, TokenErrorResponse, TokenResponse, TokenResult};
+use super::TokenResponse;
 use anyhow::Result;
-use axum::Json;
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::http::HeaderMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
@@ -178,21 +176,4 @@ pub fn resolve_user_permissions(
     }
 
     Ok(final_permissions)
-}
-
-pub fn convert_token_result_to_response(
-    result: TokenResult<TokenResponse>,
-) -> axum::response::Response {
-    match result {
-        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
-        Err(error) => {
-            let status = match &error {
-                TokenError::InvalidClientSecret => StatusCode::UNAUTHORIZED,
-                TokenError::ServerError { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-                _ => StatusCode::BAD_REQUEST,
-            };
-            let error_response: TokenErrorResponse = error.into();
-            (status, Json(error_response)).into_response()
-        },
-    }
 }
