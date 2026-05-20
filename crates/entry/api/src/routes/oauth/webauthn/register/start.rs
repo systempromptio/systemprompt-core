@@ -91,6 +91,11 @@ pub async fn start_register(
             let mut challenge_json = match serde_json::to_value(&challenge) {
                 Ok(json) => json,
                 Err(e) => {
+                    tracing::error!(
+                        error = %e,
+                        username = %params.username,
+                        "WebAuthn register start: challenge serialization failed"
+                    );
                     return (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(RegisterError {
@@ -113,6 +118,11 @@ pub async fn start_register(
 
             let mut headers = HeaderMap::new();
             let header_value = HeaderValue::from_str(&challenge_id).map_err(|e| {
+                tracing::error!(
+                    error = %e,
+                    challenge_id = %challenge_id,
+                    "WebAuthn register start: invalid challenge ID header value"
+                );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(RegisterError {
@@ -131,13 +141,20 @@ pub async fn start_register(
                 Err(response) => response,
             }
         },
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(RegisterError {
-                error: "registration_failed".to_string(),
-                error_description: e.to_string(),
-            }),
-        )
-            .into_response(),
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                username = %params.username,
+                "WebAuthn register start: start_registration failed"
+            );
+            (
+                StatusCode::BAD_REQUEST,
+                Json(RegisterError {
+                    error: "registration_failed".to_string(),
+                    error_description: e.to_string(),
+                }),
+            )
+                .into_response()
+        },
     }
 }

@@ -18,6 +18,11 @@ pub async fn list_content_by_source_handler(
     let content_service = match ContentRepository::new(ctx.db_pool()) {
         Ok(svc) => svc,
         Err(e) => {
+            tracing::error!(
+                error = %e,
+                source_id = %source_id,
+                "list_content_by_source: ContentRepository init failed"
+            );
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
@@ -32,11 +37,18 @@ pub async fn list_content_by_source_handler(
         .await
     {
         Ok(content) => Json(content).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()})),
-        )
-            .into_response(),
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                source_id = %source_id,
+                "list_content_by_source: list_by_source failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response()
+        },
     }
 }
 
@@ -49,6 +61,12 @@ pub async fn get_content_handler(
     let content_service = match ContentRepository::new(ctx.db_pool()) {
         Ok(svc) => svc,
         Err(e) => {
+            tracing::error!(
+                error = %e,
+                source_id = %source_id,
+                slug = %slug,
+                "get_content: ContentRepository init failed"
+            );
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
@@ -94,11 +112,19 @@ pub async fn get_content_handler(
             Json(serde_json::json!({"error": "Content not found"})),
         )
             .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()})),
-        )
-            .into_response(),
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                source_id = %source_id,
+                slug = %slug,
+                "get_content: get_by_source_and_slug failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response()
+        },
     }
 }
 
@@ -110,6 +136,12 @@ pub async fn get_content_markdown_handler(
     let content_service = match ContentRepository::new(ctx.db_pool()) {
         Ok(svc) => svc,
         Err(e) => {
+            tracing::error!(
+                error = %e,
+                source_id = %source_id,
+                slug = %slug,
+                "get_content_markdown: ContentRepository init failed"
+            );
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
@@ -131,11 +163,19 @@ pub async fn get_content_markdown_handler(
             Json(serde_json::json!({"error": "Content not found"})),
         )
             .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": e.to_string()})),
-        )
-            .into_response(),
+        Err(e) => {
+            tracing::error!(
+                error = %e,
+                source_id = %source_id,
+                slug = %slug,
+                "get_content_markdown: get_by_source_and_slug failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response()
+        },
     }
 }
 

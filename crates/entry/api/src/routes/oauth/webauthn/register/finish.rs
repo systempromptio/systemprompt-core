@@ -179,6 +179,10 @@ pub async fn finish_register(
         },
         Err(e) => {
             let error_msg = e.to_string();
+            tracing::warn!(
+                error = %e,
+                "WebAuthn register finish: finish_registration failed"
+            );
             let (status, error_code, description) = if error_msg.contains("username_already_taken")
             {
                 (

@@ -43,6 +43,11 @@ pub async fn handle_consent_get(
             Html(consent_form).into_response()
         },
         Err(error) => {
+            tracing::warn!(
+                error = %error,
+                client_id = %params.client_id,
+                "Consent GET: get_consent_info failed"
+            );
             let error = ConsentError {
                 error: "invalid_request".to_string(),
                 error_description: Some(error.to_string()),
