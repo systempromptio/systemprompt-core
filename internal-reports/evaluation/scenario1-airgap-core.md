@@ -141,13 +141,15 @@ config-/request-gated:
 Optional egress to disable in config (Bucket 2 owns this): `google_search_enabled` per
 provider, and cloud sync.
 
-**Authentication.** systemprompt issues its own HS256 (HMAC-SHA256, shared-secret)
-service tokens internally — `crates/infra/security/src/auth/validation.rs` accepts only
-`Algorithm::HS256`. Customer IdP federation is supported today via the OAuth2
-authorization-code flow, not direct asymmetric (RS256/ES256/EdDSA) JWT verification —
-the latter is documented as roadmap in `documentation/security/threat-model.md`. For an
-air-gapped deployment any IdP used via OAuth2 must sit **inside** the network; an
-out-of-network IdP would be egress.
+**Authentication.** systemprompt signs and verifies service tokens with RS256 —
+`crates/infra/security/src/auth/validation.rs` and `crates/domain/oauth/src/services/generation.rs`
+route through an in-process `TokenAuthority` keyed off the deployment's
+`signing_key_path` and publishes the public set at `/.well-known/jwks.json`. HS256 is
+rejected outright. Customer IdP federation works either via OAuth2 authorization-code
+flow or by adding the IdP's issuer URL to `profile.security.trusted_issuers` so its
+JWKS is fetched and verified directly. For an air-gapped deployment any IdP — whether
+federated by OAuth2 or by JWKS — must sit **inside** the network; an out-of-network
+IdP would be egress.
 
 **Existing harness.** `crates/tests/loadtest/` is a single-process generator. Scenarios
 are `pub async fn run(client, base_url, token, metrics)` functions, registered by a
