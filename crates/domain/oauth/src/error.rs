@@ -43,6 +43,18 @@ pub enum OauthError {
     #[error("webauthn error: {0}")]
     WebAuthn(String),
 
+    #[error("username already taken: {0}")]
+    UsernameTaken(String),
+
+    #[error("email already registered: {0}")]
+    EmailRegistered(String),
+
+    #[error("registration state expired or not found")]
+    RegistrationStateExpired,
+
+    #[error("webauthn verification failed: {0}")]
+    WebAuthnVerificationFailed(String),
+
     #[error("user error: {0}")]
     User(String),
 
@@ -72,7 +84,7 @@ pub type OauthResult<T> = Result<T, OauthError>;
 
 impl From<webauthn_rs::prelude::WebauthnError> for OauthError {
     fn from(err: webauthn_rs::prelude::WebauthnError) -> Self {
-        Self::WebAuthn(err.to_string())
+        Self::WebAuthnVerificationFailed(err.to_string())
     }
 }
 
