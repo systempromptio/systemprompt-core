@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.1] - 2026-05-20
+
+### Added
+
+- `at_rest` module exposing `hmac_sha256` and `hmac_sha256_hex` for storing identifiers (refresh-token ids, authorisation codes) as peppered HMAC-SHA-256 digests rather than plaintext.
+
+### Breaking
+
+- `SessionGenerator::new` now takes only `issuer`; the `jwt_secret` argument is gone. Tokens are signed via the process-wide `TokenAuthority` (RS256) and there is no shared secret to plumb through.
+- `AuthValidationService::new` likewise drops the leading `secret` parameter and now takes `(issuer, audiences)`.
+- `AdminTokenParams` no longer carries `jwt_secret`. Token signing reads the active RSA key from the `TokenAuthority` cache.
+
 ## [0.11.0] - 2026-05-20
 
 ### Added
