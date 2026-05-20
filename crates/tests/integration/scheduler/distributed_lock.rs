@@ -115,6 +115,8 @@ fn test_config(database_url: &str) -> Config {
         jwt_refresh_token_expiration: 86_400,
         jwt_audiences: vec![],
         allowed_resource_audiences: vec![],
+        trusted_issuers: vec![],
+        signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitConfig::default(),
         cors_allowed_origins: vec![],

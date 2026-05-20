@@ -161,6 +161,7 @@ rand = "0.9"
 bcrypt = "0.18"
 base64 = "0.22"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+rsa = { version = "0.9", features = ["pem", "sha2"] }
 sha2 = "0.10"
 
 # Testing utilities
