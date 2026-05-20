@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
@@ -9,9 +9,8 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 
+use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
-
-use super::LinkError;
 
 #[derive(Debug, Deserialize)]
 pub struct StartLinkQuery {
@@ -31,103 +30,49 @@ pub async fn start_link(
     Query(params): Query<StartLinkQuery>,
     State(state): State<OAuthState>,
     OAuthRepo(oauth_repo): OAuthRepo,
-) -> impl IntoResponse {
+) -> Result<Response, OAuthHttpError> {
     if params.token.is_empty() {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(LinkError {
-                error: "invalid_request".to_string(),
-                error_description: "Token is required".to_string(),
-            }),
-        )
-            .into_response();
+        return Err(OAuthHttpError::invalid_request("Token is required"));
     }
 
     let user_provider = Arc::clone(state.user_provider());
-    let webauthn_service =
-        match WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await {
-            Ok(service) => service,
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to initialize WebAuthn");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(LinkError {
-                        error: "server_error".to_string(),
-                        error_description: format!("Failed to initialize WebAuthn: {e}"),
-                    }),
-                )
-                    .into_response();
-            },
-        };
+    let webauthn_service = WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider)
+        .await
+        .map_err(|e| {
+            OAuthHttpError::server_error(format!("Failed to initialize WebAuthn: {e}"))
+        })?;
 
-    match webauthn_service
+    let (challenge, challenge_id, user_info) = webauthn_service
         .start_registration_with_token(&params.token, state.link_states())
         .await
+        .map_err(|e| OAuthHttpError::link_failed(e.to_string()))?;
+
+    let mut challenge_json = serde_json::to_value(&challenge).map_err(|e| {
+        OAuthHttpError::server_error(format!("Failed to serialize challenge: {e}"))
+    })?;
+
+    if let Some(public_key) = challenge_json.get_mut("publicKey")
+        && let Some(authenticator_selection) = public_key.get_mut("authenticatorSelection")
+        && let Some(obj) = authenticator_selection.as_object_mut()
     {
-        Ok((challenge, challenge_id, user_info)) => {
-            let mut challenge_json = match serde_json::to_value(&challenge) {
-                Ok(json) => json,
-                Err(e) => {
-                    return (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(LinkError {
-                            error: "server_error".to_string(),
-                            error_description: format!("Failed to serialize challenge: {e}"),
-                        }),
-                    )
-                        .into_response();
-                },
-            };
-
-            if let Some(public_key) = challenge_json.get_mut("publicKey") {
-                if let Some(authenticator_selection) = public_key.get_mut("authenticatorSelection")
-                {
-                    if let Some(obj) = authenticator_selection.as_object_mut() {
-                        obj.remove("authenticatorAttachment");
-                    }
-                }
-            }
-
-            let mut headers = HeaderMap::new();
-            let header_value = HeaderValue::from_str(&challenge_id).map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(LinkError {
-                        error: "server_error".to_string(),
-                        error_description: format!("Invalid challenge ID format: {e}"),
-                    }),
-                )
-                    .into_response()
-            });
-
-            match header_value {
-                Ok(val) => {
-                    headers.insert(HeaderName::from_static("x-challenge-id"), val);
-
-                    let response = serde_json::json!({
-                        "challenge": challenge_json,
-                        "user": StartLinkUserInfo {
-                            id: user_info.id,
-                            email: user_info.email,
-                            name: user_info.name,
-                        }
-                    });
-
-                    (StatusCode::OK, headers, Json(response)).into_response()
-                },
-                Err(response) => response,
-            }
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "Failed to start credential linking");
-            (
-                StatusCode::BAD_REQUEST,
-                Json(LinkError {
-                    error: "link_failed".to_string(),
-                    error_description: e.to_string(),
-                }),
-            )
-                .into_response()
-        },
+        obj.remove("authenticatorAttachment");
     }
+
+    let header_value = HeaderValue::from_str(&challenge_id).map_err(|e| {
+        OAuthHttpError::server_error(format!("Invalid challenge ID format: {e}"))
+    })?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(HeaderName::from_static("x-challenge-id"), header_value);
+
+    let response = serde_json::json!({
+        "challenge": challenge_json,
+        "user": StartLinkUserInfo {
+            id: user_info.id,
+            email: user_info.email,
+            name: user_info.name,
+        }
+    });
+
+    Ok((StatusCode::OK, headers, Json(response)).into_response())
 }

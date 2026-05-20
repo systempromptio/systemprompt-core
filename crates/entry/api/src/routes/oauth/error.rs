@@ -41,6 +41,7 @@ pub enum OAuthErrorCode {
     EmailExists,
     ExpiredChallenge,
     InvalidCredential,
+    LinkFailed,
     NotFound,
 }
 
@@ -65,6 +66,7 @@ impl OAuthErrorCode {
             Self::EmailExists => "email_exists",
             Self::ExpiredChallenge => "expired_challenge",
             Self::InvalidCredential => "invalid_credential",
+            Self::LinkFailed => "link_failed",
             Self::NotFound => "not_found",
         }
     }
@@ -78,6 +80,7 @@ impl OAuthErrorCode {
             | Self::InvalidClientMetadata
             | Self::ExpiredChallenge
             | Self::InvalidCredential
+            | Self::LinkFailed
             | Self::RegistrationFailed => StatusCode::BAD_REQUEST,
             Self::InvalidClient
             | Self::InvalidGrant
@@ -200,6 +203,11 @@ impl OAuthHttpError {
     }
 
     #[must_use]
+    pub fn link_failed(description: impl Into<String>) -> Self {
+        Self::new(OAuthErrorCode::LinkFailed, description)
+    }
+
+    #[must_use]
     pub fn not_found(description: impl Into<String>) -> Self {
         Self::new(OAuthErrorCode::NotFound, description)
     }
@@ -315,6 +323,7 @@ impl From<OauthError> for OAuthHttpError {
             OauthError::EmailRegistered(_) => {
                 Self::email_exists("An account with this email already exists.")
             },
+            OauthError::UserNotFound(_) => Self::not_found(err.to_string()),
             OauthError::RegistrationStateExpired => Self::expired_challenge(
                 "Registration challenge has expired. Please start the registration process again.",
             ),
