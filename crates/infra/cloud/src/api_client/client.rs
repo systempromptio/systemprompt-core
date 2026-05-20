@@ -1,18 +1,25 @@
 //! `CloudApiClient` constructor + accessors. Lower-level HTTP verbs
 //! live in `methods.rs`; high-level endpoints in `endpoints.rs`.
 
+use std::sync::Arc;
+use std::time::Instant;
+
 use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
+use tokio::sync::Mutex;
 
 use super::types::ApiError;
 use crate::error::{CloudError, CloudResult};
+
+pub(super) type TenantTokenCache = Arc<Mutex<Option<(String, Instant)>>>;
 
 #[derive(Debug)]
 pub struct CloudApiClient {
     pub(super) client: Client,
     pub(super) api_url: String,
     pub(super) token: String,
+    pub(super) tenant_token_cache: TenantTokenCache,
 }
 
 impl CloudApiClient {
@@ -24,6 +31,7 @@ impl CloudApiClient {
                 .build()?,
             api_url: api_url.to_string(),
             token: token.to_string(),
+            tenant_token_cache: Arc::new(Mutex::new(None)),
         })
     }
 

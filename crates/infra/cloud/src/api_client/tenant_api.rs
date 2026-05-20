@@ -20,13 +20,13 @@ struct DeployRequest {
 impl CloudApiClient {
     pub async fn get_tenant_status(&self, tenant_id: &TenantId) -> CloudResult<TenantStatus> {
         let response: ApiResponse<TenantStatus> =
-            self.get(&ApiPaths::tenant_status(tenant_id)).await?;
+            self.tenant_get(&ApiPaths::tenant_status(tenant_id)).await?;
         Ok(response.data)
     }
 
     pub async fn get_registry_token(&self, tenant_id: &TenantId) -> CloudResult<RegistryToken> {
         let response: ApiResponse<RegistryToken> = self
-            .get(&ApiPaths::tenant_registry_token(tenant_id))
+            .tenant_get(&ApiPaths::tenant_registry_token(tenant_id))
             .await?;
         Ok(response.data)
     }
@@ -36,7 +36,7 @@ impl CloudApiClient {
             image: image.to_string(),
         };
         let response: ApiResponse<DeployResponse> = self
-            .post(&ApiPaths::tenant_deploy(tenant_id), &request)
+            .tenant_post(&ApiPaths::tenant_deploy(tenant_id), &request)
             .await?;
         Ok(response.data)
     }
@@ -45,19 +45,20 @@ impl CloudApiClient {
         let path = secrets_url
             .strip_prefix(&self.api_url)
             .unwrap_or(secrets_url);
-        self.get(path).await
+        self.tenant_get(path).await
     }
 
     pub async fn delete_tenant(&self, tenant_id: &TenantId) -> CloudResult<()> {
-        self.delete(&ApiPaths::tenant(tenant_id)).await
+        self.tenant_delete(&ApiPaths::tenant(tenant_id)).await
     }
 
     pub async fn restart_tenant(&self, tenant_id: &TenantId) -> CloudResult<StatusResponse> {
-        self.post_empty(&ApiPaths::tenant_restart(tenant_id)).await
+        self.tenant_post_empty(&ApiPaths::tenant_restart(tenant_id))
+            .await
     }
 
     pub async fn retry_provision(&self, tenant_id: &TenantId) -> CloudResult<StatusResponse> {
-        self.post_empty(&ApiPaths::tenant_retry_provision(tenant_id))
+        self.tenant_post_empty(&ApiPaths::tenant_retry_provision(tenant_id))
             .await
     }
 
@@ -68,14 +69,14 @@ impl CloudApiClient {
     ) -> CloudResult<Vec<String>> {
         let keys: Vec<String> = secrets.keys().cloned().collect();
         let request = SetSecretsRequest { secrets };
-        self.put_no_content(&ApiPaths::tenant_secrets(tenant_id), &request)
+        self.tenant_put_no_content(&ApiPaths::tenant_secrets(tenant_id), &request)
             .await?;
         Ok(keys)
     }
 
     pub async fn unset_secret(&self, tenant_id: &TenantId, key: &str) -> CloudResult<()> {
         let path = format!("{}/{}", ApiPaths::tenant_secrets(tenant_id), key);
-        self.delete(&path).await
+        self.tenant_delete(&path).await
     }
 
     pub async fn set_external_db_access(
@@ -85,7 +86,7 @@ impl CloudApiClient {
     ) -> CloudResult<ExternalDbAccessResponse> {
         let request = SetExternalDbAccessRequest { enabled };
         let response: ApiResponse<ExternalDbAccessResponse> = self
-            .put(&ApiPaths::tenant_external_db_access(tenant_id), &request)
+            .tenant_put(&ApiPaths::tenant_external_db_access(tenant_id), &request)
             .await?;
         Ok(response.data)
     }
@@ -94,12 +95,12 @@ impl CloudApiClient {
         &self,
         tenant_id: &TenantId,
     ) -> CloudResult<RotateCredentialsResponse> {
-        self.post_empty(&ApiPaths::tenant_rotate_credentials(tenant_id))
+        self.tenant_post_empty(&ApiPaths::tenant_rotate_credentials(tenant_id))
             .await
     }
 
     pub async fn list_secrets(&self, tenant_id: &TenantId) -> CloudResult<ListSecretsResponse> {
-        self.get(&ApiPaths::tenant_secrets(tenant_id)).await
+        self.tenant_get(&ApiPaths::tenant_secrets(tenant_id)).await
     }
 
     pub async fn set_custom_domain(
@@ -111,7 +112,7 @@ impl CloudApiClient {
             domain: domain.to_string(),
         };
         let response: ApiResponse<CustomDomainResponse> = self
-            .post(&ApiPaths::tenant_custom_domain(tenant_id), &request)
+            .tenant_post(&ApiPaths::tenant_custom_domain(tenant_id), &request)
             .await?;
         Ok(response.data)
     }
@@ -120,18 +121,19 @@ impl CloudApiClient {
         &self,
         tenant_id: &TenantId,
     ) -> CloudResult<CustomDomainResponse> {
-        let response: ApiResponse<CustomDomainResponse> =
-            self.get(&ApiPaths::tenant_custom_domain(tenant_id)).await?;
+        let response: ApiResponse<CustomDomainResponse> = self
+            .tenant_get(&ApiPaths::tenant_custom_domain(tenant_id))
+            .await?;
         Ok(response.data)
     }
 
     pub async fn delete_custom_domain(&self, tenant_id: &TenantId) -> CloudResult<()> {
-        self.delete(&ApiPaths::tenant_custom_domain(tenant_id))
+        self.tenant_delete(&ApiPaths::tenant_custom_domain(tenant_id))
             .await
     }
 
     pub async fn cancel_subscription(&self, tenant_id: &TenantId) -> CloudResult<()> {
-        self.post_empty(&ApiPaths::tenant_subscription_cancel(tenant_id))
+        self.tenant_post_empty(&ApiPaths::tenant_subscription_cancel(tenant_id))
             .await
     }
 }
