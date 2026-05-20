@@ -179,7 +179,7 @@ pub use services::{
     AgentSummary, AiConfig, AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource,
     DEFAULT_AGENT_SYSTEM_PROMPT_FILE, DEFAULT_SKILL_CONTENT_FILE, DiskAgentConfig, DiskHookConfig,
     DiskSkillConfig, HOOK_CONFIG_FILENAME, HistoryConfig, HookAction, HookCategory, HookEvent,
-    HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, MarketplaceConfig,
+    HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, MarketplaceConfig, bootstrap_admin_owner,
     MarketplaceConfigFile, MarketplaceVisibility, McpConfig, OAuthConfig as AgentOAuthConfig,
     PluginAuthor, PluginComponentRef, PluginConfig, PluginConfigFile, PluginScript,
     PluginVariableDef, RuntimeStatus, SKILL_CONFIG_FILENAME, SamplingConfig, SchedulerConfig,
