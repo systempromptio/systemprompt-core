@@ -1,11 +1,11 @@
-use anyhow::Result;
 use axum::Json;
 use axum::extract::{Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Redirect};
+use axum::http::HeaderMap;
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::OAuthState;
@@ -28,101 +28,48 @@ pub struct WebAuthnCompleteQuery {
     pub resource: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct WebAuthnCompleteError {
-    pub error: String,
-    pub error_description: String,
-}
-
-fn error_response(
-    status: StatusCode,
-    error: &str,
-    description: impl Into<String>,
-) -> axum::response::Response {
-    (
-        status,
-        Json(WebAuthnCompleteError {
-            error: error.to_string(),
-            error_description: description.into(),
-        }),
-    )
-        .into_response()
-}
-
 async fn verify_completion(
     params: &WebAuthnCompleteQuery,
     state: &OAuthState,
     repo: &OAuthRepository,
-) -> Result<(UserId, String), axum::response::Response> {
-    let Some(auth_token) = &params.auth_token else {
-        return Err(error_response(
-            StatusCode::BAD_REQUEST,
-            "invalid_request",
-            "Missing auth_token parameter",
-        ));
-    };
+) -> Result<(UserId, String), OAuthHttpError> {
+    let auth_token = params
+        .auth_token
+        .as_deref()
+        .ok_or_else(|| OAuthHttpError::invalid_request("Missing auth_token parameter"))?;
 
     let webauthn_service =
         WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(state.user_provider()))
             .await
             .map_err(|e| {
-                tracing::error!(
-                    error = %e,
-                    "WebAuthn complete: service initialization failed"
-                );
-                error_response(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "server_error",
-                    format!("WebAuthn service initialization failed: {e}"),
-                )
+                OAuthHttpError::server_error(format!(
+                    "WebAuthn service initialization failed: {e}"
+                ))
             })?;
 
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
         .await
-        .map_err(|e| {
-            tracing::warn!(
-                error = %e,
-                claimed_user_id = %params.user_id,
-                "WebAuthn complete: auth_token verification failed"
-            );
-            error_response(
-                StatusCode::UNAUTHORIZED,
-                "access_denied",
-                "Invalid or expired authentication token",
-            )
+        .map_err(|_| {
+            OAuthHttpError::access_denied("Invalid or expired authentication token")
         })?;
 
     if params.user_id != verified_user_id {
-        tracing::warn!(
-            claimed_user_id = %params.user_id,
-            verified_user_id = %verified_user_id,
-            "WebAuthn complete user_id mismatch"
-        );
-        return Err(error_response(
-            StatusCode::UNAUTHORIZED,
-            "access_denied",
+        return Err(OAuthHttpError::access_denied(
             "User identity verification failed",
         ));
     }
 
     if params.client_id.is_none() {
-        return Err(error_response(
-            StatusCode::BAD_REQUEST,
-            "invalid_request",
-            "Missing client_id parameter",
-        ));
+        return Err(OAuthHttpError::invalid_request("Missing client_id parameter"));
     }
 
-    let Some(redirect_uri) = &params.redirect_uri else {
-        return Err(error_response(
-            StatusCode::BAD_REQUEST,
-            "invalid_request",
-            "Missing redirect_uri parameter",
-        ));
-    };
+    let redirect_uri = params
+        .redirect_uri
+        .clone()
+        .ok_or_else(|| OAuthHttpError::invalid_request("Missing redirect_uri parameter"))?;
 
-    Ok((verified_user_id, redirect_uri.clone()))
+    Ok((verified_user_id, redirect_uri))
 }
 
 #[allow(unused_qualifications)]
@@ -131,77 +78,38 @@ pub async fn handle_webauthn_complete(
     Query(params): Query<WebAuthnCompleteQuery>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
-) -> impl IntoResponse {
-    let (verified_user_id, redirect_uri) = match verify_completion(&params, &state, &repo).await {
-        Ok(verified) => verified,
-        Err(response) => return response,
-    };
+) -> Result<Response, OAuthHttpError> {
+    let (verified_user_id, redirect_uri) = verify_completion(&params, &state, &repo).await?;
 
-    match state.user_provider().find_by_id(&verified_user_id).await {
-        Ok(Some(_)) => {
-            let authorization_code = generate_secure_token("auth_code");
-
-            match store_authorization_code(&repo, &authorization_code, &params).await {
-                Ok(()) => create_successful_response(
-                    &headers,
-                    &redirect_uri,
-                    &authorization_code,
-                    &params,
-                ),
-                Err(error) => {
-                    tracing::error!(
-                        error = %error,
-                        user_id = %verified_user_id,
-                        client_id = ?params.client_id,
-                        "WebAuthn complete: store_authorization_code failed"
-                    );
-                    error_response(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "server_error",
-                        error.to_string(),
-                    )
-                },
-            }
-        },
-        Ok(None) => error_response(StatusCode::UNAUTHORIZED, "access_denied", "User not found"),
-        Err(error) => {
-            let is_not_found = error.to_string().contains("User not found");
-            let (status_code, error_type) = if is_not_found {
-                (StatusCode::UNAUTHORIZED, "access_denied")
-            } else {
-                (StatusCode::INTERNAL_SERVER_ERROR, "server_error")
-            };
-            if is_not_found {
-                tracing::warn!(
-                    error = %error,
-                    user_id = %verified_user_id,
-                    "WebAuthn complete: user not found during find_by_id"
-                );
-            } else {
-                tracing::error!(
-                    error = %error,
-                    user_id = %verified_user_id,
-                    "WebAuthn complete: user_provider.find_by_id failed"
-                );
-            }
-            error_response(status_code, error_type, error.to_string())
-        },
+    let user = state.user_provider().find_by_id(&verified_user_id).await?;
+    if user.is_none() {
+        return Err(OAuthHttpError::access_denied("User not found"));
     }
+
+    let authorization_code = generate_secure_token("auth_code");
+    store_authorization_code(&repo, &authorization_code, &params).await?;
+
+    Ok(create_successful_response(
+        &headers,
+        &redirect_uri,
+        &authorization_code,
+        &params,
+    ))
 }
 
 async fn store_authorization_code(
     repo: &OAuthRepository,
     code_str: &str,
     query: &WebAuthnCompleteQuery,
-) -> Result<()> {
+) -> Result<(), OAuthHttpError> {
     let client_id = query
         .client_id
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("client_id is required"))?;
+        .ok_or_else(|| OAuthHttpError::invalid_request("client_id is required"))?;
     let redirect_uri = query
         .redirect_uri
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("redirect_uri is required"))?;
+        .ok_or_else(|| OAuthHttpError::invalid_request("redirect_uri is required"))?;
     let scope = query.scope.as_ref().map_or_else(
         || {
             let default_roles = OAuthRepository::get_default_roles();
@@ -233,9 +141,8 @@ async fn store_authorization_code(
         builder = builder.with_resource(resource);
     }
 
-    repo.store_authorization_code(builder.build())
-        .await
-        .map_err(Into::into)
+    repo.store_authorization_code(builder.build()).await?;
+    Ok(())
 }
 
 #[derive(Debug, Serialize)]
@@ -251,7 +158,7 @@ fn create_successful_response(
     redirect_uri: &str,
     authorization_code: &str,
     params: &WebAuthnCompleteQuery,
-) -> axum::response::Response {
+) -> Response {
     let state = params.state.as_deref().filter(|s| !s.is_empty());
 
     if is_browser_request(headers) {

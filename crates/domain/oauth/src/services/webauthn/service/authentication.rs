@@ -20,7 +20,7 @@ impl WebAuthnService {
             .oauth_repo
             .find_user_by_email(email)
             .await?
-            .ok_or_else(|| crate::error::OauthError::Internal("User not found".to_string()))?;
+            .ok_or_else(|| crate::error::OauthError::UserNotFound(email.to_string()))?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;
 

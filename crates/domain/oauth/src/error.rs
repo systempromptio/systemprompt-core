@@ -49,6 +49,9 @@ pub enum OauthError {
     #[error("email already registered: {0}")]
     EmailRegistered(String),
 
+    #[error("user not found: {0}")]
+    UserNotFound(String),
+
     #[error("registration state expired or not found")]
     RegistrationStateExpired,
 

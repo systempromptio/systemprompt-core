@@ -43,7 +43,7 @@ impl OAuthRepository {
         )
         .fetch_optional(self.pool_ref())
         .await?
-        .ok_or_else(|| OauthError::Validation(format!("User not found: {user_id}")))?;
+        .ok_or_else(|| OauthError::UserNotFound(user_id.to_string()))?;
 
         let permissions: Vec<Permission> = row
             .roles
