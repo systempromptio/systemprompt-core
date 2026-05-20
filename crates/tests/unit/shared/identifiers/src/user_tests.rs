@@ -1,11 +1,6 @@
 use systemprompt_identifiers::{DbValue, ToDbValue, UserId};
 
 #[test]
-fn admin_factory_value() {
-    assert_eq!(UserId::admin().as_str(), "admin");
-}
-
-#[test]
 fn display_format() {
     let id = UserId::new("user-42");
     assert_eq!(format!("{}", id), "user-42");

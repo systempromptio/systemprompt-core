@@ -6,6 +6,7 @@ use super::{
     default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public, default_stream,
     default_tasks,
 };
+use crate::services::SystemAdminConfig;
 
 impl Profile {
     pub fn from_env(profile_name: &str, display_name: &str) -> ProfileResult<Self> {
@@ -24,6 +25,9 @@ impl Profile {
             paths: paths_config_from_env()?,
             security: security_config_from_env()?,
             rate_limits: rate_limits_from_env(),
+            system_admin: SystemAdminConfig {
+                username: require_env("SYSTEM_ADMIN_USERNAME")?,
+            },
             runtime: runtime_config_from_env()?,
             cloud: None,
             secrets: None,

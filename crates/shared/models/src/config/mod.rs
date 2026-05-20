@@ -84,6 +84,7 @@ pub struct Config {
     pub content_negotiation: ContentNegotiationConfig,
     pub security_headers: SecurityHeadersConfig,
     pub allow_registration: bool,
+    pub system_admin_username: String,
 }
 
 impl Config {

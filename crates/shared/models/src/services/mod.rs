@@ -13,6 +13,7 @@ pub mod runtime;
 pub mod scheduler;
 pub mod settings;
 pub mod skills;
+pub mod system_admin;
 
 pub use includable::IncludableString;
 
@@ -45,6 +46,7 @@ pub use skills::{
     DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
     SkillSummary, SkillsConfig, strip_frontmatter,
 };
+pub use system_admin::{SystemAdmin, SystemAdminConfig, SystemAdminNotInitialized};
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
 
 use crate::errors::ConfigValidationError;

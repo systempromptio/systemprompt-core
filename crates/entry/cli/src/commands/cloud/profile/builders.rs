@@ -8,6 +8,7 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
     SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
+use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileType,
@@ -123,6 +124,9 @@ impl LocalProfileBuilder {
             extensions: ExtensionsConfig::default(),
             gateway: None,
             governance: None,
+            system_admin: SystemAdminConfig {
+                username: "admin".to_string(),
+            },
         }
     }
 }
@@ -248,6 +252,9 @@ impl CloudProfileBuilder {
             extensions: ExtensionsConfig::default(),
             gateway: None,
             governance: None,
+            system_admin: SystemAdminConfig {
+                username: "admin".to_string(),
+            },
         }
     }
 }

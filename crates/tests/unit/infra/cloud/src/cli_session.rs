@@ -184,9 +184,11 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         SessionToken::new(""),
         SessionId::new("session"),
         ContextId::new(TEST_CONTEXT_ID_A),
-        fixture_user_id(),
-        Email::new("test@example.com"),
-        UserType::User,
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::new("test@example.com"),
+            UserType::User,
+        ),
     )
     .build();
 
@@ -262,7 +264,6 @@ fn test_cli_session_save_and_load() {
 
     let session = create_test_builder()
         .with_tenant_key(TenantId::new("test-tenant"))
-        .with_user(fixture_user_id(), Email::new("test@test.com"))
         .build();
 
     session.save_to_path(&session_path).unwrap();
@@ -373,9 +374,11 @@ fn test_cli_session_builder_method() {
         SessionToken::new("t"),
         SessionId::new("s"),
         ContextId::new(TEST_CONTEXT_ID_A),
-        fixture_user_id(),
-        Email::new("test@example.com"),
-        UserType::User,
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::new("test@example.com"),
+            UserType::User,
+        ),
     );
     let session = builder.build();
 

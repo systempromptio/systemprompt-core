@@ -12,10 +12,6 @@
 
 use crate::UserId;
 
-pub fn admin() -> UserId {
-    UserId::bootstrap("admin")
-}
-
 pub fn anonymous() -> UserId {
     UserId::bootstrap("anonymous")
 }

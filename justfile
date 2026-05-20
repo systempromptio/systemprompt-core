@@ -139,6 +139,31 @@ lint:
 lint-sqlx:
     ./ci/check-sqlx.sh
 
+# Reject UserId::admin() outside the sanctioned bootstrap call sites.
+# The sentinel is reserved for the actor model, the bootstrap CLI, the
+# scheduler default config, the MCP server registry, and the LogActor
+# platform-event constructor. Any other call site bypasses the actor
+# typing and silently attributes work to the platform owner.
+lint-no-untyped-admin:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hits=$(grep -rn 'UserId::admin()' crates/ --include='*.rs' \
+        | grep -v 'crates/tests/' \
+        | grep -v 'crates/shared/identifiers/src/actor.rs' \
+        | grep -v 'crates/shared/identifiers/src/bootstrap.rs' \
+        | grep -v 'crates/shared/identifiers/src/user.rs' \
+        | grep -v 'crates/entry/cli/src/commands/admin/bootstrap.rs' \
+        | grep -v 'crates/entry/cli/src/commands/infrastructure/jobs/run.rs' \
+        | grep -v 'crates/shared/models/src/services/scheduler.rs' \
+        | grep -v 'crates/domain/mcp/src/services/registry/manager.rs' \
+        | grep -v 'crates/infra/logging/src/models/log_entry.rs' \
+        || true)
+    if [ -n "$hits" ]; then
+        echo "lint-no-untyped-admin: untyped UserId::admin() outside the sanctioned call sites:"
+        echo "$hits"
+        exit 1
+    fi
+
 # Run cargo-deny: licenses, advisories, banned crates, source policies
 deny:
     cargo deny check

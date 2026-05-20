@@ -38,12 +38,12 @@ impl Actor {
     }
 
     /// Platform-originated work (bootstrap jobs, scheduler tick, internal
-    /// fallbacks). Attributed to the admin owner row, which must exist
-    /// before such work runs.
+    /// fallbacks). The caller passes the resolved system-admin user id;
+    /// no sentinel is fabricated inside the constructor.
     #[must_use]
-    pub fn system() -> Self {
+    pub const fn system(user_id: UserId) -> Self {
         Self {
-            user_id: UserId::admin(),
+            user_id,
             kind: ActorKind::System,
         }
     }

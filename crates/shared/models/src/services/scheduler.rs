@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
+use super::SystemAdmin;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct JobConfig {
@@ -68,16 +70,16 @@ fn default_bootstrap_jobs() -> Vec<String> {
     ]
 }
 
-impl Default for SchedulerConfig {
-    fn default() -> Self {
-        // Why: bootstrap scheduler jobs (cleanup, retention) have no human originator,
-        // so they declare the platform owner (admin until delegated) as their actor.
-        // `crates/app/scheduler/src/services/scheduling/mod.rs::resolve_owners`
-        // validates at startup that this name resolves to an active user; the
-        // platform refuses to start otherwise. This is the only sanctioned
-        // UserId::admin() call site outside the bootstrap CLI command and the
-        // actor module.
-        let owner = UserId::admin();
+impl SchedulerConfig {
+    /// Build the built-in scheduler configuration with the resolved
+    /// platform owner stamped onto every cleanup job. The four cleanup
+    /// jobs (`cleanup_anonymous_users`, `cleanup_empty_contexts`,
+    /// `cleanup_inactive_sessions`, `database_cleanup`) have no human
+    /// originator; attributing them to the system admin row ensures the
+    /// scheduler's `resolve_owners` pass succeeds against a real user.
+    #[must_use]
+    pub fn with_system_admin(admin: &SystemAdmin) -> Self {
+        let owner = admin.id().clone();
         Self {
             enabled: true,
             jobs: vec![

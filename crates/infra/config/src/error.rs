@@ -104,6 +104,12 @@ pub enum ConfigError {
     #[error("Regex capture group {index} missing")]
     MissingCaptureGroup { index: usize },
 
+    #[error(
+        "Profile is missing required `system_admin.username` and `SYSTEMPROMPT_SYSTEM_ADMIN` is \
+         not set. The platform refuses to start without an explicit system-admin identity."
+    )]
+    MissingSystemAdmin,
+
     #[error("{message}")]
     Other { message: String },
 }
