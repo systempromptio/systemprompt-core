@@ -1,14 +1,14 @@
-use anyhow::Result;
 use axum::Json;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::validate_jwt_token;
 
-#[derive(Debug, Serialize)]
+use crate::routes::oauth::OAuthHttpError;
 
+#[derive(Debug, Serialize)]
 pub struct UserinfoResponse {
     pub sub: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -21,40 +21,21 @@ pub struct UserinfoResponse {
     pub roles: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize)]
-
-pub struct UserinfoError {
-    pub error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_description: Option<String>,
-}
-
 #[allow(clippy::unused_async)]
 pub async fn handle_userinfo(
     State(_state): State<OAuthState>,
     headers: HeaderMap,
-) -> impl IntoResponse {
-    let Some(token) = extract_bearer_token(&headers) else {
-        let error = UserinfoError {
-            error: "invalid_request".to_string(),
-            error_description: Some("Missing or invalid Authorization header".to_string()),
-        };
-        return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
-    };
+) -> Result<Response, OAuthHttpError> {
+    let token = extract_bearer_token(&headers).ok_or_else(|| {
+        OAuthHttpError::invalid_request("Missing or invalid Authorization header")
+    })?;
 
-    get_userinfo(&token).map_or_else(
-        |_| {
-            let error = UserinfoError {
-                error: "invalid_token".to_string(),
-                error_description: Some(
-                    "The access token provided is expired, revoked, malformed, or invalid"
-                        .to_string(),
-                ),
-            };
-            (StatusCode::UNAUTHORIZED, Json(error)).into_response()
-        },
-        |userinfo| (StatusCode::OK, Json(userinfo)).into_response(),
-    )
+    let userinfo = get_userinfo(&token).map_err(|_| {
+        OAuthHttpError::invalid_token(
+            "The access token provided is expired, revoked, malformed, or invalid",
+        )
+    })?;
+    Ok((StatusCode::OK, Json(userinfo)).into_response())
 }
 
 fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
@@ -70,7 +51,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     auth_str.strip_prefix("Bearer ").map(ToString::to_string)
 }
 
-fn get_userinfo(token: &str) -> Result<UserinfoResponse> {
+fn get_userinfo(token: &str) -> anyhow::Result<UserinfoResponse> {
     let config = systemprompt_models::Config::get()?;
     let claims = validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences)?;
 
