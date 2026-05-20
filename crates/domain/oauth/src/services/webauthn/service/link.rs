@@ -75,8 +75,12 @@ impl WebAuthnService {
         let exclude_credentials: Vec<CredentialID> =
             existing_creds.iter().map(|c| c.cred_id().clone()).collect();
 
-        let user_unique_id =
-            Uuid::parse_str(token_record.user_id.as_str()).unwrap_or_else(|_| Uuid::new_v4());
+        let user_unique_id = Uuid::parse_str(token_record.user_id.as_str()).map_err(|e| {
+            crate::error::OauthError::Internal(format!(
+                "user_id {:?} is not a valid UUID: {e}",
+                token_record.user_id.as_str()
+            ))
+        })?;
 
         let (challenge, reg_state) = self.webauthn.start_passkey_registration(
             user_unique_id,
