@@ -91,6 +91,10 @@ fn load_from_file(path: &Path) -> ConfigResult<Secrets> {
 
 fn load_from_env() -> ConfigResult<Secrets> {
     let jwt_secret = read_env_required("JWT_SECRET", SecretsBootstrapError::JwtSecretRequired)?;
+    let oauth_at_rest_pepper = read_env_required(
+        "OAUTH_AT_REST_PEPPER",
+        SecretsBootstrapError::OauthAtRestPepperRequired,
+    )?;
     let database_url =
         read_env_required("DATABASE_URL", SecretsBootstrapError::DatabaseUrlRequired)?;
 
@@ -105,6 +109,7 @@ fn load_from_env() -> ConfigResult<Secrets> {
 
     let secrets = Secrets {
         jwt_secret,
+        oauth_at_rest_pepper,
         manifest_signing_secret_seed: read_env_optional("MANIFEST_SIGNING_SECRET_SEED"),
         database_url,
         database_write_url: read_env_optional("DATABASE_WRITE_URL"),

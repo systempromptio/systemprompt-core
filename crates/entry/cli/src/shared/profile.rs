@@ -223,6 +223,14 @@ pub fn generate_jwt_secret() -> String {
         .collect()
 }
 
+pub fn generate_oauth_at_rest_pepper() -> String {
+    let mut rng = rng();
+    (0..64)
+        .map(|_| rng.sample(Alphanumeric))
+        .map(char::from)
+        .collect()
+}
+
 pub fn save_profile_yaml(profile: &Profile, path: &Path, header: Option<&str>) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
