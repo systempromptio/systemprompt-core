@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Trait surface aligned to the 0.11.0 workspace: sync and gateway provider abstractions follow the tenancy strip in `domain/ai` and the Service-JWT handshake in `domain/oauth`. Implementors no longer thread a runtime `tenant_id` through provider calls.
+
 ## [0.2.0] - 2026-04-15
 
 ### Breaking

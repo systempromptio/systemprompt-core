@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. Cloud deployment tenancy is unchanged; the tenancy strip in `domain/ai` and `domain/oauth` covers the runtime data plane only.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Cross-replica job claim through Postgres advisory locks. Concurrent replicas race for the lock keyed by job + tick, and at most one executes a given tick.
+
+### Fixed
+- Distributed-lock key is now tick-deterministic, removing the time-drift flake that allowed two replicas to occasionally execute the same scheduled tick.
+
 ## [0.10.0] - 2026-05-15
 
 ### Removed
