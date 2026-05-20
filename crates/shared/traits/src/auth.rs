@@ -37,7 +37,8 @@ pub struct AuthUser {
     pub is_active: bool,
 }
 
-/// Federated-identity claim payload passed to [`UserProvider::find_or_create_federated`].
+/// Federated-identity claim payload passed to
+/// [`UserProvider::find_or_create_federated`].
 ///
 /// Carries only the OIDC fields needed to seed a freshly federated user — the
 /// trait stays free of any concrete JWT type so it can live in
