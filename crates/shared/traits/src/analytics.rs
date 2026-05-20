@@ -123,6 +123,11 @@ pub struct AnalyticsSession {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ActiveSession {
+    pub user_id: Option<UserId>,
+}
+
 #[derive(Debug)]
 pub struct CreateSessionInput<'a> {
     pub session_id: &'a SessionId,
@@ -150,6 +155,15 @@ pub trait AnalyticsProvider: Send + Sync {
         &self,
         session_id: &SessionId,
     ) -> AnalyticsResult<Option<AnalyticsSession>>;
+
+    async fn find_active_session_by_id(
+        &self,
+        session_id: &SessionId,
+    ) -> AnalyticsResult<Option<ActiveSession>>;
+
+    async fn revoke_session(&self, session_id: &SessionId) -> AnalyticsResult<()>;
+
+    async fn revoke_all_sessions_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64>;
 
     async fn migrate_user_sessions(
         &self,

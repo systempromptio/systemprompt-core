@@ -10,7 +10,7 @@ use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{ClientId, UserId};
 
 #[derive(Clone, Debug)]
 pub struct ClientRepository {
@@ -29,6 +29,7 @@ impl ClientRepository {
 #[derive(Debug, Clone)]
 pub struct CreateClientParams {
     pub client_id: ClientId,
+    pub owner_user_id: UserId,
     pub client_secret_hash: String,
     pub client_name: String,
     pub redirect_uris: Vec<String>,
