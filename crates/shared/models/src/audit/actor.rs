@@ -2,10 +2,11 @@ use std::fmt;
 
 use systemprompt_identifiers::UserId;
 
-/// The principal accountable for an action together with the surface that
-/// performed it. Every actor-bearing audit row persists `(user_id, kind,
-/// kind.actor_id())` as a unit — the three values cannot be separated at the
-/// call site because they live inside this struct.
+/// Principal + surface attribution for an action.
+///
+/// Every actor-bearing audit row persists `(user_id, kind, kind.actor_id())`
+/// as a unit — the three values cannot be separated at the call site because
+/// they live inside this struct.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Actor {
     pub user_id: UserId,
@@ -47,10 +48,11 @@ impl Actor {
     }
 }
 
-/// Discriminator for the surface that performed an action. The variant carries
-/// the surface-specific identifier (job name, MCP server name) so writers
-/// cannot persist a mismatched `(kind, actor_id)` pair — both columns are
-/// derived from the same enum value.
+/// Discriminator for the surface that performed an action.
+///
+/// The variant carries the surface-specific identifier (job name, MCP server
+/// name) so writers cannot persist a mismatched `(kind, actor_id)` pair —
+/// both columns are derived from the same enum value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ActorKind {
     User,
@@ -71,7 +73,7 @@ impl ActorKind {
     }
 
     /// Surface-specific identifier for the `actor_id` column. For `User`
-    /// actors the actor_id is the user_id itself — the user is the actor.
+    /// actors the `actor_id` is the `user_id` itself — the user is the actor.
     #[must_use]
     pub fn actor_id<'a>(&'a self, user_id: &'a UserId) -> &'a str {
         match self {
