@@ -13,13 +13,15 @@ mod token_tests;
 mod webauthn_tests;
 
 use std::env;
-use std::sync::Arc;
+use std::sync::{Arc, Once};
+use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::UserId;
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
 pub async fn setup_test_db() -> DbPool {
+    ensure_test_secrets_bootstrap();
     let database_url =
         env::var("DATABASE_URL").expect("DATABASE_URL environment variable required");
 
@@ -42,6 +44,32 @@ async fn seed_fixture_user(db: &DbPool) {
     .execute(pool.as_ref())
     .await
     .expect("seed fixture user");
+}
+
+fn ensure_test_secrets_bootstrap() {
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        // Tests set process env before any threads run; using the subprocess
+        // bootstrap path keeps SecretsBootstrap consistent with how server
+        // processes load deployment secrets in air-gapped/container modes.
+        // SAFETY: single-threaded test init.
+        unsafe {
+            env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
+            if env::var("JWT_SECRET").is_err() {
+                env::set_var(
+                    "JWT_SECRET",
+                    "test_jwt_secret_for_integration_tests_padding_zzz",
+                );
+            }
+            if env::var("OAUTH_AT_REST_PEPPER").is_err() {
+                env::set_var(
+                    "OAUTH_AT_REST_PEPPER",
+                    "test_oauth_at_rest_pepper_for_integration_tests_zzz",
+                );
+            }
+        }
+        let _ = SecretsBootstrap::try_init();
+    });
 }
 
 pub async fn create_test_user(db: &DbPool) -> UserId {
