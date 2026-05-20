@@ -96,6 +96,11 @@ pub async fn handle_introspect(
         )
             .into_response(),
         Err(error) => {
+            tracing::error!(
+                error = %error,
+                client_id = %client_id,
+                "Introspect: token introspection failed"
+            );
             let error = IntrospectError {
                 error: "server_error".to_string(),
                 error_description: Some(error.to_string()),

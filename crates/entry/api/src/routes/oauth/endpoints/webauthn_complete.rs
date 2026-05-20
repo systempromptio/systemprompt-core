@@ -66,6 +66,10 @@ async fn verify_completion(
         WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(state.user_provider()))
             .await
             .map_err(|e| {
+                tracing::error!(
+                    error = %e,
+                    "WebAuthn complete: service initialization failed"
+                );
                 error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "server_error",
@@ -76,7 +80,12 @@ async fn verify_completion(
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
         .await
-        .map_err(|_| {
+        .map_err(|e| {
+            tracing::warn!(
+                error = %e,
+                claimed_user_id = %params.user_id,
+                "WebAuthn complete: auth_token verification failed"
+            );
             error_response(
                 StatusCode::UNAUTHORIZED,
                 "access_denied",
@@ -139,26 +148,42 @@ pub async fn handle_webauthn_complete(
                     &authorization_code,
                     &params,
                 ),
-                Err(error) => error_response(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "server_error",
-                    error.to_string(),
-                ),
+                Err(error) => {
+                    tracing::error!(
+                        error = %error,
+                        user_id = %verified_user_id,
+                        client_id = ?params.client_id,
+                        "WebAuthn complete: store_authorization_code failed"
+                    );
+                    error_response(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "server_error",
+                        error.to_string(),
+                    )
+                },
             }
         },
         Ok(None) => error_response(StatusCode::UNAUTHORIZED, "access_denied", "User not found"),
         Err(error) => {
             let is_not_found = error.to_string().contains("User not found");
-            let status_code = if is_not_found {
-                StatusCode::UNAUTHORIZED
+            let (status_code, error_type) = if is_not_found {
+                (StatusCode::UNAUTHORIZED, "access_denied")
             } else {
-                StatusCode::INTERNAL_SERVER_ERROR
+                (StatusCode::INTERNAL_SERVER_ERROR, "server_error")
             };
-            let error_type = if is_not_found {
-                "access_denied"
+            if is_not_found {
+                tracing::warn!(
+                    error = %error,
+                    user_id = %verified_user_id,
+                    "WebAuthn complete: user not found during find_by_id"
+                );
             } else {
-                "server_error"
-            };
+                tracing::error!(
+                    error = %error,
+                    user_id = %verified_user_id,
+                    "WebAuthn complete: user_provider.find_by_id failed"
+                );
+            }
             error_response(status_code, error_type, error.to_string())
         },
     }
