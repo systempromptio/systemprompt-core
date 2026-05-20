@@ -82,7 +82,7 @@ pub async fn handle_callback(
         .unwrap_or("/");
 
     let cookie = format!(
-        "access_token={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={}",
+        "access_token={}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
         token_response.access_token,
         systemprompt_oauth::constants::token::COOKIE_MAX_AGE_SECONDS
     );
