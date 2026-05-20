@@ -26,7 +26,7 @@ pub fn configure_routes(
             message: e.to_string(),
         })?;
 
-    let jwt_extractor = build_jwt_extractor(ctx);
+    let jwt_extractor = build_jwt_extractor(ctx)?;
 
     let public_middleware = ContextMiddleware::public(jwt_extractor.clone());
     let user_middleware = ContextMiddleware::user_only(jwt_extractor.clone());

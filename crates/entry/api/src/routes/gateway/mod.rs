@@ -111,116 +111,118 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let responses_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiResponsesInbound);
 
-    Router::new()
-        .route(
-            "/messages",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_extractor);
-                let context = ctx_messages.clone();
-                let inbound = Arc::clone(&anthropic_inbound);
-                async move { messages::handle(inbound, extractor, context, request).await }
-            }),
-        )
-        .route(
-            "/responses",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_responses);
-                let context = ctx_responses.clone();
-                let inbound = Arc::clone(&responses_inbound);
-                async move { messages::handle(inbound, extractor, context, request).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/pat",
-            post(move |request| {
-                let context = ctx_pat.clone();
-                async move { auth::pat(context, request).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/session",
-            post(move |request| {
-                let context = ctx_session.clone();
-                async move { auth::session(context, request).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/mtls",
-            post(move |request| {
-                let context = ctx_mtls.clone();
-                async move { auth::mtls(context, request).await }
-            }),
-        )
-        .route(
-            "/auth/bridge/oauth-client",
-            post(move |request| {
-                let extractor = Arc::clone(&jwt_oauth_client);
-                let context = ctx_oauth_client.clone();
-                async move { auth::provision_oauth_client(extractor, context, request).await }
-            }),
-        )
-        .route("/auth/bridge/capabilities", get(auth::capabilities))
-        .route("/bridge/pubkey", get(bridge::pubkey))
-        .route("/bridge/profile", get(bridge::profile))
-        .route(
-            "/bridge/whoami",
-            get(move |headers| {
-                let extractor = Arc::clone(&jwt_whoami);
-                let context = ctx_whoami.clone();
-                async move { bridge_whoami::handle(extractor, context, headers).await }
-            }),
-        )
-        .route(
-            "/bridge/manifest",
-            get(move |headers| {
-                let extractor = Arc::clone(&jwt_manifest);
-                let context = ctx_manifest.clone();
-                async move { bridge_manifest::manifest(extractor, context, headers).await }
-            }),
-        )
-        .route(
-            "/bridge/profile/enabled_hosts",
-            post(move |headers, body| {
-                let extractor = Arc::clone(&jwt_enabled_hosts);
-                let context = ctx_enabled_hosts.clone();
-                async move { bridge::set_enabled_host(extractor, context, headers, body).await }
-            }),
-        )
-        .route(
-            "/bridge/profile/usage",
-            get(move |headers| {
-                let extractor = Arc::clone(&jwt_profile_usage);
-                let context = ctx_profile_usage.clone();
-                async move { bridge_profile_usage::handle(extractor, context, headers).await }
-            }),
-        )
-        .route(
-            "/bridge/heartbeat",
-            post(move |headers, body| {
-                let extractor = Arc::clone(&jwt_heartbeat);
-                let context = ctx_heartbeat.clone();
-                async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
-            }),
-        )
-        .route(
-            "/otel",
-            post(move |request| {
-                let pool = Arc::clone(ctx_otel.db_pool());
-                async move { otel::handle(pool, request).await }
-            }),
-        )
-        .route(
-            "/otel/{*rest}",
-            post(move |request| {
-                let pool = Arc::clone(ctx_otel_rest.db_pool());
-                async move { otel::handle(pool, request).await }
-            }),
-        )
-        .route("/models", get(models::list))
-        .route("/", get(models::root))
-        .layer(Extension(ctx.clone()))
-        .layer(axum::middleware::from_fn_with_state(
-            Arc::clone(ctx.db_pool()),
-            log_gateway_request,
-        ))
+    Some(
+        Router::new()
+            .route(
+                "/messages",
+                post(move |request| {
+                    let extractor = Arc::clone(&jwt_extractor);
+                    let context = ctx_messages.clone();
+                    let inbound = Arc::clone(&anthropic_inbound);
+                    async move { messages::handle(inbound, extractor, context, request).await }
+                }),
+            )
+            .route(
+                "/responses",
+                post(move |request| {
+                    let extractor = Arc::clone(&jwt_responses);
+                    let context = ctx_responses.clone();
+                    let inbound = Arc::clone(&responses_inbound);
+                    async move { messages::handle(inbound, extractor, context, request).await }
+                }),
+            )
+            .route(
+                "/auth/bridge/pat",
+                post(move |request| {
+                    let context = ctx_pat.clone();
+                    async move { auth::pat(context, request).await }
+                }),
+            )
+            .route(
+                "/auth/bridge/session",
+                post(move |request| {
+                    let context = ctx_session.clone();
+                    async move { auth::session(context, request).await }
+                }),
+            )
+            .route(
+                "/auth/bridge/mtls",
+                post(move |request| {
+                    let context = ctx_mtls.clone();
+                    async move { auth::mtls(context, request).await }
+                }),
+            )
+            .route(
+                "/auth/bridge/oauth-client",
+                post(move |request| {
+                    let extractor = Arc::clone(&jwt_oauth_client);
+                    let context = ctx_oauth_client.clone();
+                    async move { auth::provision_oauth_client(extractor, context, request).await }
+                }),
+            )
+            .route("/auth/bridge/capabilities", get(auth::capabilities))
+            .route("/bridge/pubkey", get(bridge::pubkey))
+            .route("/bridge/profile", get(bridge::profile))
+            .route(
+                "/bridge/whoami",
+                get(move |headers| {
+                    let extractor = Arc::clone(&jwt_whoami);
+                    let context = ctx_whoami.clone();
+                    async move { bridge_whoami::handle(extractor, context, headers).await }
+                }),
+            )
+            .route(
+                "/bridge/manifest",
+                get(move |headers| {
+                    let extractor = Arc::clone(&jwt_manifest);
+                    let context = ctx_manifest.clone();
+                    async move { bridge_manifest::manifest(extractor, context, headers).await }
+                }),
+            )
+            .route(
+                "/bridge/profile/enabled_hosts",
+                post(move |headers, body| {
+                    let extractor = Arc::clone(&jwt_enabled_hosts);
+                    let context = ctx_enabled_hosts.clone();
+                    async move { bridge::set_enabled_host(extractor, context, headers, body).await }
+                }),
+            )
+            .route(
+                "/bridge/profile/usage",
+                get(move |headers| {
+                    let extractor = Arc::clone(&jwt_profile_usage);
+                    let context = ctx_profile_usage.clone();
+                    async move { bridge_profile_usage::handle(extractor, context, headers).await }
+                }),
+            )
+            .route(
+                "/bridge/heartbeat",
+                post(move |headers, body| {
+                    let extractor = Arc::clone(&jwt_heartbeat);
+                    let context = ctx_heartbeat.clone();
+                    async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
+                }),
+            )
+            .route(
+                "/otel",
+                post(move |request| {
+                    let pool = Arc::clone(ctx_otel.db_pool());
+                    async move { otel::handle(pool, request).await }
+                }),
+            )
+            .route(
+                "/otel/{*rest}",
+                post(move |request| {
+                    let pool = Arc::clone(ctx_otel_rest.db_pool());
+                    async move { otel::handle(pool, request).await }
+                }),
+            )
+            .route("/models", get(models::list))
+            .route("/", get(models::root))
+            .layer(Extension(ctx.clone()))
+            .layer(axum::middleware::from_fn_with_state(
+                Arc::clone(ctx.db_pool()),
+                log_gateway_request,
+            )),
+    )
 }
