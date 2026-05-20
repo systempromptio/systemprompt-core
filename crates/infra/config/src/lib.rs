@@ -42,11 +42,11 @@ pub(crate) mod services;
 pub(crate) mod skill_validator;
 
 pub use bootstrap::{
-    BootstrapComplete, BootstrapSequence, BootstrapState, JWT_SECRET_MIN_LENGTH,
-    MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap, ProfileBootstrapError, ProfileInitialized,
-    SecretsBootstrap, SecretsBootstrapError, SecretsInitialized, Uninitialized,
-    build_loaded_secrets_message, decode_seed, generate_seed, load_secrets_from_path,
-    log_secrets_issue, log_secrets_skip, log_secrets_warn, persist_seed, presets,
+    BootstrapComplete, BootstrapSequence, BootstrapState, MANIFEST_SIGNING_SEED_BYTES,
+    ProfileBootstrap, ProfileBootstrapError, ProfileInitialized, SecretsBootstrap,
+    SecretsBootstrapError, SecretsInitialized, Uninitialized, build_loaded_secrets_message,
+    decode_seed, generate_seed, load_secrets_from_path, log_secrets_issue, log_secrets_skip,
+    log_secrets_warn, persist_seed, presets,
 };
 pub use config_loader::{
     build_from_profile, init_config, init_config_from_profile, try_init_config,

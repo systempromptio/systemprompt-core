@@ -109,7 +109,7 @@ fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
 fn is_standard_env_var(key: &str) -> bool {
     matches!(
         key,
-        "JWT_SECRET"
+        "OAUTH_AT_REST_PEPPER"
             | "DATABASE_URL"
             | "GEMINI_API_KEY"
             | "ANTHROPIC_API_KEY"

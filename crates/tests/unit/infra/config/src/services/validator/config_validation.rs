@@ -18,10 +18,6 @@ fn create_valid_config(environment: DeployEnvironment) -> EnvironmentConfig {
         "API_SERVER_URL".to_string(),
         "http://localhost:8080".to_string(),
     );
-    variables.insert(
-        "JWT_SECRET".to_string(),
-        "super_secret_key_12345".to_string(),
-    );
     variables.insert("JWT_ISSUER".to_string(), "test-issuer".to_string());
     variables.insert(
         "OAUTH_AT_REST_PEPPER".to_string(),
@@ -112,9 +108,9 @@ fn test_validate_missing_required_api_server_url() {
 }
 
 #[test]
-fn test_validate_missing_required_jwt_secret() {
+fn test_validate_missing_required_oauth_at_rest_pepper() {
     let mut config = create_valid_config(DeployEnvironment::Local);
-    config.variables.remove("JWT_SECRET");
+    config.variables.remove("OAUTH_AT_REST_PEPPER");
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -138,11 +134,11 @@ fn test_validate_empty_database_url() {
 }
 
 #[test]
-fn test_validate_empty_jwt_secret() {
+fn test_validate_empty_oauth_at_rest_pepper() {
     let mut config = create_valid_config(DeployEnvironment::Local);
     config
         .variables
-        .insert("JWT_SECRET".to_string(), String::new());
+        .insert("OAUTH_AT_REST_PEPPER".to_string(), String::new());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -158,11 +154,11 @@ fn test_validate_quoted_empty_database_url() {
 }
 
 #[test]
-fn test_validate_double_quoted_empty_jwt_secret() {
+fn test_validate_double_quoted_empty_oauth_at_rest_pepper() {
     let mut config = create_valid_config(DeployEnvironment::Local);
     config
         .variables
-        .insert("JWT_SECRET".to_string(), "\"\"".to_string());
+        .insert("OAUTH_AT_REST_PEPPER".to_string(), "\"\"".to_string());
 
     ConfigValidator::validate(&config).unwrap_err();
 }
@@ -235,7 +231,7 @@ fn test_validate_valid_https_api_url() {
 fn test_validate_multiple_errors() {
     let mut config = create_valid_config(DeployEnvironment::Local);
     config.variables.remove("DATABASE_URL");
-    config.variables.remove("JWT_SECRET");
+    config.variables.remove("OAUTH_AT_REST_PEPPER");
     config
         .variables
         .insert("PORT".to_string(), "invalid".to_string());

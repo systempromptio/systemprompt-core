@@ -9,9 +9,7 @@ use crate::commands::cloud::init::templates::ai_config;
 
 use crate::cloud::dockerfile::DockerfileBuilder;
 
-pub use crate::shared::profile::{
-    generate_display_name, generate_jwt_secret, generate_oauth_at_rest_pepper,
-};
+pub use crate::shared::profile::{generate_display_name, generate_oauth_at_rest_pepper};
 
 pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
     let header = format!(
@@ -146,7 +144,6 @@ pub fn save_secrets(
     }
 
     let mut secrets = json!({
-        "jwt_secret": generate_jwt_secret(),
         "oauth_at_rest_pepper": generate_oauth_at_rest_pepper(),
         "database_url": db_urls.external,
         "external_database_url": db_urls.external,

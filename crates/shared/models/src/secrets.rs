@@ -1,22 +1,19 @@
 //! Secrets document model.
 //!
-//! [`Secrets`] is the deserialized on-disk secrets file: JWT signing
-//! secret, OAuth at-rest pepper, database URLs, and provider credentials.
-//! [`JWT_SECRET_MIN_LENGTH`] and [`OAUTH_AT_REST_PEPPER_MIN_LENGTH`] are the
-//! enforced minimums. Validation returns [`crate::errors::SecretsError`].
+//! [`Secrets`] is the deserialized on-disk secrets file: OAuth at-rest
+//! pepper, database URLs, and provider credentials.
+//! [`OAUTH_AT_REST_PEPPER_MIN_LENGTH`] is the enforced minimum.
+//! Validation returns [`crate::errors::SecretsError`].
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::errors::SecretsError;
 
-pub const JWT_SECRET_MIN_LENGTH: usize = 32;
 pub const OAUTH_AT_REST_PEPPER_MIN_LENGTH: usize = 32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Secrets {
-    pub jwt_secret: String,
-
     pub oauth_at_rest_pepper: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -75,13 +72,6 @@ impl Secrets {
     }
 
     pub fn validate(&self) -> Result<(), SecretsError> {
-        if self.jwt_secret.len() < JWT_SECRET_MIN_LENGTH {
-            return Err(SecretsError::Invalid(format!(
-                "jwt_secret must be at least {} characters (got {})",
-                JWT_SECRET_MIN_LENGTH,
-                self.jwt_secret.len()
-            )));
-        }
         if self.oauth_at_rest_pepper.len() < OAUTH_AT_REST_PEPPER_MIN_LENGTH {
             return Err(SecretsError::Invalid(format!(
                 "oauth_at_rest_pepper must be at least {} characters (got {})",
@@ -111,7 +101,6 @@ impl Secrets {
 
     pub fn get(&self, key: &str) -> Option<&String> {
         match key {
-            "jwt_secret" | "JWT_SECRET" => Some(&self.jwt_secret),
             "oauth_at_rest_pepper" | "OAUTH_AT_REST_PEPPER" => Some(&self.oauth_at_rest_pepper),
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
             "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
@@ -157,7 +146,6 @@ impl Secrets {
     pub fn to_subprocess_env(&self) -> Vec<(String, String)> {
         let mut pairs: Vec<(String, String)> = Vec::new();
 
-        pairs.push(("JWT_SECRET".to_owned(), self.jwt_secret.clone()));
         pairs.push((
             "OAUTH_AT_REST_PEPPER".to_owned(),
             self.oauth_at_rest_pepper.clone(),

@@ -7,11 +7,11 @@ use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use crate::CliConfig;
-use crate::shared::profile::generate_jwt_secret;
+use crate::shared::profile::generate_oauth_at_rest_pepper;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecretsData {
-    pub jwt_secret: String,
+    pub oauth_at_rest_pepper: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub database_url: Option<String>,
@@ -62,13 +62,13 @@ pub fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<S
         CliService::section("Secrets Setup");
     }
 
-    let jwt_secret = generate_jwt_secret();
+    let oauth_at_rest_pepper = generate_oauth_at_rest_pepper();
     if !config.is_json_output() {
-        CliService::success("Generated secure JWT secret (64 characters)");
+        CliService::success("Generated secure OAuth at-rest pepper (64 characters)");
     }
 
     let secrets = SecretsData {
-        jwt_secret,
+        oauth_at_rest_pepper,
         database_url: None,
         gemini: args.gemini_key.clone(),
         anthropic: args.anthropic_key.clone(),
@@ -93,11 +93,11 @@ pub fn collect_interactive(
     CliService::section(&format!("Secrets Setup ({})", env_name));
     CliService::info("At least one AI provider API key is required.");
 
-    let jwt_secret = generate_jwt_secret();
-    CliService::success("Generated secure JWT secret (64 characters)");
+    let oauth_at_rest_pepper = generate_oauth_at_rest_pepper();
+    CliService::success("Generated secure OAuth at-rest pepper (64 characters)");
 
     let mut secrets = SecretsData {
-        jwt_secret,
+        oauth_at_rest_pepper,
         ..Default::default()
     };
 
@@ -188,8 +188,8 @@ fn prompt_optional_api_key(prompt: &str) -> Result<Option<String>> {
 }
 
 fn validate_secrets(secrets: &SecretsData) -> Result<()> {
-    if secrets.jwt_secret.len() < 32 {
-        anyhow::bail!("JWT secret must be at least 32 characters");
+    if secrets.oauth_at_rest_pepper.len() < 32 {
+        anyhow::bail!("OAuth at-rest pepper must be at least 32 characters");
     }
 
     if !secrets.has_ai_provider() {

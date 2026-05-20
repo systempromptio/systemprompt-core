@@ -49,8 +49,8 @@ pub async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
 
-    if let Ok(jwt_secret) = SecretsBootstrap::jwt_secret() {
-        cmd.env("JWT_SECRET", jwt_secret);
+    if let Ok(pepper) = SecretsBootstrap::oauth_at_rest_pepper() {
+        cmd.env("OAUTH_AT_REST_PEPPER", pepper);
     }
 
     if let Ok(database_url) = std::env::var("DATABASE_URL") {

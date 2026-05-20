@@ -89,7 +89,6 @@ impl ConfigValidator {
             "HOST",
             "PORT",
             "API_SERVER_URL",
-            "JWT_SECRET",
             "JWT_ISSUER",
             "OAUTH_AT_REST_PEPPER",
         ];
@@ -115,7 +114,7 @@ impl ConfigValidator {
     }
 
     fn check_empty_values(config: &EnvironmentConfig, report: &mut ValidationReport) {
-        let critical_vars = vec!["DATABASE_URL", "JWT_SECRET", "OAUTH_AT_REST_PEPPER"];
+        let critical_vars = vec!["DATABASE_URL", "OAUTH_AT_REST_PEPPER"];
 
         let mut empty = Vec::new();
 
