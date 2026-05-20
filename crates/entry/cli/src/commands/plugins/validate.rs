@@ -60,7 +60,7 @@ pub fn execute(
             extension_id: Some(ext.id().to_string()),
             warning_type: "asset_validation_skipped".to_string(),
             message: "Asset validation requires full profile initialization. Use 'systemprompt \
-                      infra validate'."
+                      infra db validate'."
                 .to_string(),
         });
     }

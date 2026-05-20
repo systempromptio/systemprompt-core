@@ -13,17 +13,21 @@ pub use dispatch::{execute, load_service_configs};
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum StartTarget {
+    #[command(about = "Start a single agent by name")]
     Agent { agent: String },
+    #[command(about = "Start a single MCP server by name")]
     Mcp { server_name: String },
 }
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum StopTarget {
+    #[command(about = "Stop a single agent by name")]
     Agent {
         agent: String,
         #[arg(long, help = "Force stop (SIGKILL)")]
         force: bool,
     },
+    #[command(about = "Stop a single MCP server by name")]
     Mcp {
         server_name: String,
         #[arg(long, help = "Force stop (SIGKILL)")]
@@ -139,10 +143,11 @@ pub enum ServicesCommands {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum RestartTarget {
+    #[command(about = "Restart the API server")]
     Api,
-    Agent {
-        agent: String,
-    },
+    #[command(about = "Restart a single agent by name")]
+    Agent { agent: String },
+    #[command(about = "Restart a single MCP server by name")]
     Mcp {
         server_name: String,
         #[arg(long, help = "Rebuild the binary before restarting")]

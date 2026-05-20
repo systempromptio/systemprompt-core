@@ -1,7 +1,7 @@
 use super::{ExtensionRegistration, ExtensionRegistry};
 use crate::error::LoaderError;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 impl ExtensionRegistry {
     pub fn discover() -> Result<Self, LoaderError> {
@@ -65,7 +65,7 @@ impl ExtensionRegistry {
                  attributes are present if using LTO."
             );
         } else {
-            info!(
+            debug!(
                 count = registry.len(),
                 extensions = ?extension_names,
                 "Extension discovery completed"

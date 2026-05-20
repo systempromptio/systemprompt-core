@@ -103,7 +103,7 @@ impl AppContextBuilder {
         systemprompt_logging::init_logging(Arc::clone(&database));
 
         if config.database_write_url.is_some() {
-            tracing::info!(
+            tracing::debug!(
                 "Database read/write separation enabled: reads from replica, writes to primary"
             );
         }
@@ -186,7 +186,7 @@ fn build_marketplace_filter(
     for reg in discover_filters() {
         match (reg.factory)(database) {
             Ok(filter) => {
-                tracing::info!(
+                tracing::debug!(
                     priority = reg.priority,
                     "marketplace filter registered via inventory; using highest-priority impl",
                 );

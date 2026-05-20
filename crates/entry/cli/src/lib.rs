@@ -227,7 +227,7 @@ fn resolve_log_level(cli_config: &CliConfig) -> Option<String> {
         }
     }
 
-    None
+    Some("warn".to_string())
 }
 
 async fn dispatch_command(command: Option<args::Commands>, config: &CliConfig) -> Result<()> {
