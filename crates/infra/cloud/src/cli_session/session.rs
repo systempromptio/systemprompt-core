@@ -11,8 +11,8 @@ use systemprompt_models::auth::UserType;
 use super::{LOCAL_SESSION_KEY, SessionKey};
 use crate::error::{CloudError, CloudResult};
 
-const CURRENT_VERSION: u32 = 4;
-const MIN_SUPPORTED_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 5;
+const MIN_SUPPORTED_VERSION: u32 = 5;
 const SESSION_DURATION_HOURS: i64 = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,15 +28,10 @@ pub struct CliSession {
     pub context_id: ContextId,
     pub user_id: UserId,
     pub user_email: Email,
-    #[serde(default = "default_user_type")]
     pub user_type: UserType,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub last_used: DateTime<Utc>,
-}
-
-const fn default_user_type() -> UserType {
-    UserType::Admin
 }
 
 #[derive(Debug)]
@@ -58,6 +53,9 @@ impl CliSessionBuilder {
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
+        user_id: UserId,
+        user_email: Email,
+        user_type: UserType,
     ) -> Self {
         Self {
             tenant_key: None,
@@ -66,9 +64,9 @@ impl CliSessionBuilder {
             session_token,
             session_id,
             context_id,
-            user_id: UserId::admin(),
-            user_email: Email::new("system@local.invalid"),
-            user_type: UserType::Admin,
+            user_id,
+            user_email,
+            user_type,
         }
     }
 
@@ -90,19 +88,6 @@ impl CliSessionBuilder {
     #[must_use]
     pub fn with_profile_path(mut self, profile_path: impl Into<PathBuf>) -> Self {
         self.profile_path = Some(profile_path.into());
-        self
-    }
-
-    #[must_use]
-    pub fn with_user(mut self, user_id: UserId, user_email: Email) -> Self {
-        self.user_id = user_id;
-        self.user_email = user_email;
-        self
-    }
-
-    #[must_use]
-    pub const fn with_user_type(mut self, user_type: UserType) -> Self {
-        self.user_type = user_type;
         self
     }
 
@@ -134,8 +119,19 @@ impl CliSession {
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
+        user_id: UserId,
+        user_email: Email,
+        user_type: UserType,
     ) -> CliSessionBuilder {
-        CliSessionBuilder::new(profile_name, session_token, session_id, context_id)
+        CliSessionBuilder::new(
+            profile_name,
+            session_token,
+            session_id,
+            context_id,
+            user_id,
+            user_email,
+            user_type,
+        )
     }
 
     pub const fn context_id(&self) -> &ContextId {

@@ -21,6 +21,9 @@ fn create_test_builder() -> CliSessionBuilder {
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
         ContextId::new(TEST_CONTEXT_ID_A),
+        fixture_user_id(),
+        Email::new("test@example.com"),
+        UserType::User,
     )
 }
 
@@ -33,23 +36,9 @@ fn test_cli_session_builder_new() {
     assert_eq!(session.session_token.as_str(), "test-token");
     assert_eq!(session.session_id.as_str(), "session-123");
     assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_A);
-}
-
-#[test]
-fn test_cli_session_builder_default_user() {
-    let builder = create_test_builder();
-    let session = builder.build();
-
-    assert_eq!(session.user_id, UserId::admin());
-    assert_eq!(session.user_email.as_str(), "system@local.invalid");
-}
-
-#[test]
-fn test_cli_session_builder_default_user_type() {
-    let builder = create_test_builder();
-    let session = builder.build();
-
-    assert_eq!(session.user_type, UserType::Admin);
+    assert_eq!(session.user_id, fixture_user_id());
+    assert_eq!(session.user_email.as_str(), "test@example.com");
+    assert_eq!(session.user_type, UserType::User);
 }
 
 #[test]
@@ -89,37 +78,14 @@ fn test_cli_session_builder_with_profile_path() {
 }
 
 #[test]
-fn test_cli_session_builder_with_user() {
-    let user_id = fixture_user_id();
-    let email = Email::new("test@example.com");
-    let builder = create_test_builder().with_user(user_id.clone(), email.clone());
-    let session = builder.build();
-
-    assert_eq!(session.user_id, user_id);
-    assert_eq!(session.user_email, email);
-}
-
-#[test]
-fn test_cli_session_builder_with_user_type() {
-    let builder = create_test_builder().with_user_type(UserType::User);
-    let session = builder.build();
-
-    assert_eq!(session.user_type, UserType::User);
-}
-
-#[test]
 fn test_cli_session_builder_chain() {
     let session = create_test_builder()
         .with_tenant_key(TenantId::new("tenant"))
         .with_profile_path("/profile.yaml")
-        .with_user(fixture_user_id(), Email::new("u@e.com"))
-        .with_user_type(UserType::User)
         .build();
 
     assert_eq!(session.tenant_key, Some(TenantId::new("tenant")));
     assert_eq!(session.profile_path, Some(PathBuf::from("/profile.yaml")));
-    assert_eq!(session.user_id, fixture_user_id());
-    assert_eq!(session.user_type, UserType::User);
 }
 
 #[test]
@@ -216,6 +182,9 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         SessionToken::new(""),
         SessionId::new("session"),
         ContextId::new(TEST_CONTEXT_ID_A),
+        fixture_user_id(),
+        Email::new("test@example.com"),
+        UserType::User,
     )
     .build();
 
@@ -402,6 +371,9 @@ fn test_cli_session_builder_method() {
         SessionToken::new("t"),
         SessionId::new("s"),
         ContextId::new(TEST_CONTEXT_ID_A),
+        fixture_user_id(),
+        Email::new("test@example.com"),
+        UserType::User,
     );
     let session = builder.build();
 

@@ -138,11 +138,12 @@ pub(super) fn build_cli_session(
         components.session_token,
         components.session_id,
         components.context_id,
+        admin_user.id.clone(),
+        email,
+        UserType::Admin,
     )
     .with_session_key(session_key)
     .with_profile_path(profile_ctx.path.clone())
-    .with_user(admin_user.id.clone(), email)
-    .with_user_type(UserType::Admin)
     .build())
 }
 

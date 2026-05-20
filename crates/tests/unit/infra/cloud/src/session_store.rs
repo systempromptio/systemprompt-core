@@ -19,6 +19,9 @@ fn test_builder(profile: &str) -> CliSessionBuilder {
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
         ContextId::new(TEST_CONTEXT_ID_A),
+        fixture_user_id(),
+        Email::new("test@example.com"),
+        UserType::User,
     )
 }
 
@@ -129,6 +132,9 @@ fn get_valid_session_returns_none_for_empty_token() {
         SessionToken::new(""),
         SessionId::new("sid"),
         ContextId::new(TEST_CONTEXT_ID_A),
+        fixture_user_id(),
+        Email::new("test@example.com"),
+        UserType::User,
     )
     .build();
     store.upsert_session(&key, session);
@@ -489,12 +495,18 @@ fn save_creates_parent_directories() {
 fn serde_roundtrip_preserves_all_fields() {
     let mut store = SessionStore::new();
     let key = SessionKey::Tenant(TenantId::new("serde-test"));
-    let session = test_builder("serde-prof")
-        .with_tenant_key(TenantId::new("serde-test"))
-        .with_user(fixture_user_id(), Email::new("serde@test.com"))
-        .with_user_type(UserType::User)
-        .with_profile_path("/serde/path.yaml")
-        .build();
+    let session = CliSessionBuilder::new(
+        ProfileName::new("serde-prof"),
+        SessionToken::new("token-abc"),
+        SessionId::new("sid-001"),
+        ContextId::new(TEST_CONTEXT_ID_A),
+        fixture_user_id(),
+        Email::new("serde@test.com"),
+        UserType::User,
+    )
+    .with_tenant_key(TenantId::new("serde-test"))
+    .with_profile_path("/serde/path.yaml")
+    .build();
     store.upsert_session(&key, session);
     store.set_active_with_profile(&key, "serde-prof");
 

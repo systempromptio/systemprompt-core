@@ -32,9 +32,10 @@ pub(super) fn try_session_from_env(profile: &Profile) -> Option<CliSessionContex
         SessionToken::new(auth_token),
         SessionId::new(session_id),
         ContextId::new(context_id),
+        UserId::new(user_id),
+        email,
+        UserType::Admin,
     )
-    .with_user(UserId::new(user_id), email)
-    .with_user_type(UserType::Admin)
     .build();
 
     Some(CliSessionContext {
