@@ -3,7 +3,7 @@
 use chrono::{Duration, Utc};
 use std::path::PathBuf;
 use systemprompt_cloud::cli_session::{
-    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionKey,
+    CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey,
 };
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
@@ -21,9 +21,11 @@ fn create_test_builder() -> CliSessionBuilder {
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
         ContextId::new(TEST_CONTEXT_ID_A),
-        fixture_user_id(),
-        Email::new("test@example.com"),
-        UserType::User,
+        SessionIdentity::new(
+            fixture_user_id(),
+            Email::new("test@example.com"),
+            UserType::User,
+        ),
     )
 }
 
