@@ -42,6 +42,7 @@ pub enum OAuthErrorCode {
     ExpiredChallenge,
     InvalidCredential,
     LinkFailed,
+    InvalidTarget,
     NotFound,
 }
 
@@ -67,6 +68,7 @@ impl OAuthErrorCode {
             Self::ExpiredChallenge => "expired_challenge",
             Self::InvalidCredential => "invalid_credential",
             Self::LinkFailed => "link_failed",
+            Self::InvalidTarget => "invalid_target",
             Self::NotFound => "not_found",
         }
     }
@@ -81,6 +83,7 @@ impl OAuthErrorCode {
             | Self::ExpiredChallenge
             | Self::InvalidCredential
             | Self::LinkFailed
+            | Self::InvalidTarget
             | Self::RegistrationFailed => StatusCode::BAD_REQUEST,
             Self::InvalidClient
             | Self::InvalidGrant
@@ -208,6 +211,11 @@ impl OAuthHttpError {
     }
 
     #[must_use]
+    pub fn invalid_target(description: impl Into<String>) -> Self {
+        Self::new(OAuthErrorCode::InvalidTarget, description)
+    }
+
+    #[must_use]
     pub fn not_found(description: impl Into<String>) -> Self {
         Self::new(OAuthErrorCode::NotFound, description)
     }
@@ -292,8 +300,9 @@ impl IntoResponse for OAuthHttpError {
         let mut response = (self.status, Json(body)).into_response();
 
         if self.status == StatusCode::UNAUTHORIZED
-            && let Ok(value) =
-                HeaderValue::from_str("Bearer resource_metadata=\"/.well-known/oauth-protected-resource\"")
+            && let Ok(value) = HeaderValue::from_str(
+                "Bearer resource_metadata=\"/.well-known/oauth-protected-resource\"",
+            )
         {
             response
                 .headers_mut()
@@ -328,7 +337,8 @@ impl From<OauthError> for OAuthHttpError {
                 "Registration challenge has expired. Please start the registration process again.",
             ),
             OauthError::WebAuthnVerificationFailed(_) => Self::invalid_credential(
-                "WebAuthn verification failed. Please ensure your authenticator and browser are compatible.",
+                "WebAuthn verification failed. Please ensure your authenticator and browser are \
+                 compatible.",
             ),
             OauthError::WebAuthn(_)
             | OauthError::User(_)
