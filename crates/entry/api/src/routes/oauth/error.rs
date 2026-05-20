@@ -301,6 +301,18 @@ impl From<OauthError> for OAuthHttpError {
             | OauthError::Expired(_) => Self::invalid_grant(err.to_string()),
             OauthError::Validation(_) => Self::invalid_request(err.to_string()),
             OauthError::Unauthorized(_) => Self::access_denied(err.to_string()),
+            OauthError::UsernameTaken(_) => Self::username_unavailable(
+                "Username is already taken. Please choose a different username.",
+            ),
+            OauthError::EmailRegistered(_) => {
+                Self::email_exists("An account with this email already exists.")
+            },
+            OauthError::RegistrationStateExpired => Self::expired_challenge(
+                "Registration challenge has expired. Please start the registration process again.",
+            ),
+            OauthError::WebAuthnVerificationFailed(_) => Self::invalid_credential(
+                "WebAuthn verification failed. Please ensure your authenticator and browser are compatible.",
+            ),
             OauthError::WebAuthn(_)
             | OauthError::User(_)
             | OauthError::Session(_)
