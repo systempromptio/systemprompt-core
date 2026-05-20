@@ -132,6 +132,17 @@ impl UserService {
         self.repository.create_anonymous(fingerprint).await
     }
 
+    pub async fn find_or_create_federated(
+        &self,
+        issuer: &str,
+        external_sub: &str,
+        claims: &systemprompt_traits::FederatedIdentityClaims,
+    ) -> Result<User> {
+        self.repository
+            .find_or_create_federated(issuer, external_sub, claims)
+            .await
+    }
+
     pub async fn update_email(&self, id: &UserId, email: &str) -> Result<User> {
         self.repository.update_email(id, email).await
     }

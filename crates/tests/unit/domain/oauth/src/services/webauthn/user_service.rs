@@ -89,6 +89,15 @@ impl UserProvider for MockUserProvider {
             .push((user_id.as_str().to_string(), roles.to_vec()));
         Ok(())
     }
+
+    async fn find_or_create_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+        _claims: &systemprompt_traits::FederatedIdentityClaims,
+    ) -> AuthResult<UserId> {
+        Ok(UserId::new(uuid::Uuid::new_v4().to_string()))
+    }
 }
 
 fn make_test_user(id: &str, name: &str, email: &str) -> AuthUser {

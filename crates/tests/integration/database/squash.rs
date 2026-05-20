@@ -62,7 +62,6 @@ struct SquashExtension {
     id: &'static str,
     schema_sql: &'static str,
     migrations: Vec<Migration>,
-    table: &'static str,
 }
 
 impl Extension for SquashExtension {
@@ -128,7 +127,6 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
             Migration::new(2, "add_col_b", m2_sql),
             Migration::new(3, "add_col_c", m3_sql),
         ],
-        table,
     };
 
     let db_arc = Arc::new(db);
@@ -165,7 +163,6 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
             Migration::new(2, "add_col_b", m2_sql),
             Migration::new(3, "add_col_c", m3_sql),
         ],
-        table,
     };
 
     let migration_service = MigrationService::new(db_arc.write_provider());
@@ -217,7 +214,6 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
             Migration::new(0, "baseline_v2", baseline_sql_static),
             Migration::new(3, "add_col_c", m3_sql),
         ],
-        table,
     };
 
     let mut registry_post = ExtensionRegistry::new();
@@ -275,7 +271,6 @@ async fn squash_refuses_when_target_range_not_fully_applied() {
         id: ext_id,
         schema_sql,
         migrations: vec![Migration::new(1, "m1", m1_sql)],
-        table,
     };
 
     let db_arc = Arc::new(db);
@@ -294,7 +289,6 @@ async fn squash_refuses_when_target_range_not_fully_applied() {
             Migration::new(1, "m1", m1_sql),
             Migration::new(2, "m2", m2_sql),
         ],
-        table,
     };
 
     let migration_service = MigrationService::new(db_arc.write_provider());
