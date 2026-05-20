@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use systemprompt_identifiers::UserId;
 
 use crate::error::ProviderResult;
 
@@ -61,6 +62,7 @@ impl JobResult {
 }
 
 pub struct JobContext {
+    actor: UserId,
     db_pool: Arc<dyn std::any::Any + Send + Sync>,
     app_context: Arc<dyn std::any::Any + Send + Sync>,
     app_paths: Arc<dyn std::any::Any + Send + Sync>,
@@ -70,6 +72,7 @@ pub struct JobContext {
 impl std::fmt::Debug for JobContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("JobContext")
+            .field("actor", &self.actor)
             .field("db_pool", &"<type-erased>")
             .field("app_context", &"<type-erased>")
             .field("app_paths", &"<type-erased>")
@@ -81,16 +84,23 @@ impl std::fmt::Debug for JobContext {
 impl JobContext {
     #[must_use]
     pub fn new(
+        actor: UserId,
         db_pool: Arc<dyn std::any::Any + Send + Sync>,
         app_context: Arc<dyn std::any::Any + Send + Sync>,
         app_paths: Arc<dyn std::any::Any + Send + Sync>,
     ) -> Self {
         Self {
+            actor,
             db_pool,
             app_context,
             app_paths,
             parameters: HashMap::new(),
         }
+    }
+
+    #[must_use]
+    pub const fn actor(&self) -> &UserId {
+        &self.actor
     }
 
     #[must_use]
