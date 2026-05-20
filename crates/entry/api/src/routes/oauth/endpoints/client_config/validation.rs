@@ -1,62 +1,23 @@
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Json};
+use axum::http::HeaderMap;
 
-pub fn validate_registration_token(
-    headers: &HeaderMap,
-) -> Result<String, Box<axum::response::Response>> {
-    let auth_header = match headers.get("authorization") {
-        Some(header) => match header.to_str() {
-            Ok(value) => value,
-            Err(_) => {
-                return Err(Box::new(
-                    (
-                        StatusCode::UNAUTHORIZED,
-                        Json(serde_json::json!({
-                            "error": "invalid_token",
-                            "error_description": "Invalid authorization header format"
-                        })),
-                    )
-                        .into_response(),
-                ));
-            },
-        },
-        None => {
-            return Err(Box::new(
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(serde_json::json!({
-                        "error": "invalid_token",
-                        "error_description": "Missing authorization header"
-                    })),
-                )
-                    .into_response(),
-            ));
-        },
-    };
+use crate::routes::oauth::OAuthHttpError;
 
-    let Some(token) = auth_header.strip_prefix("Bearer ") else {
-        return Err(Box::new(
-            (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({
-                    "error": "invalid_token",
-                    "error_description": "Authorization header must use Bearer scheme"
-                })),
-            )
-                .into_response(),
-        ));
-    };
+pub fn validate_registration_token(headers: &HeaderMap) -> Result<String, OAuthHttpError> {
+    let auth_header = headers
+        .get("authorization")
+        .ok_or_else(|| OAuthHttpError::invalid_token("Missing authorization header"))?
+        .to_str()
+        .map_err(|_| OAuthHttpError::invalid_token("Invalid authorization header format"))?;
+
+    let token = auth_header
+        .strip_prefix("Bearer ")
+        .ok_or_else(|| {
+            OAuthHttpError::invalid_token("Authorization header must use Bearer scheme")
+        })?;
 
     if !token.starts_with("reg_") {
-        return Err(Box::new(
-            (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({
-                    "error": "invalid_token",
-                    "error_description": "Invalid registration access token format"
-                })),
-            )
-                .into_response(),
+        return Err(OAuthHttpError::invalid_token(
+            "Invalid registration access token format",
         ));
     }
 

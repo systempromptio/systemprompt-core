@@ -1,9 +1,10 @@
 use axum::extract::{Extension, Path};
-use axum::response::IntoResponse;
+use axum::response::Response;
 use tracing::instrument;
 
+use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
-use super::super::responses::{internal_error, not_found, single_response};
+use super::super::responses::single_response;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::clients::api::OAuthClientResponse;
 
@@ -12,36 +13,19 @@ pub async fn get_client(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
-) -> impl IntoResponse {
+) -> Result<Response, OAuthHttpError> {
     let client_id = systemprompt_identifiers::ClientId::new(&client_id);
-    match repository.find_client_by_id(&client_id).await {
-        Ok(Some(client)) => {
-            tracing::info!(
-                client_id = %client_id,
-                client_name = ?client.name,
-                requested_by = %req_ctx.auth.actor.user_id,
-                "OAuth client retrieved"
-            );
-            let response: OAuthClientResponse = client.into();
-            single_response(response)
-        },
-        Ok(None) => {
-            tracing::info!(
-                client_id = %client_id,
-                reason = "Client not found",
-                requested_by = %req_ctx.auth.actor.user_id,
-                "OAuth client retrieval failed"
-            );
-            not_found(&format!("Client with ID '{client_id}' not found"))
-        },
-        Err(e) => {
-            tracing::error!(
-                error = %e,
-                client_id = %client_id,
-                requested_by = %req_ctx.auth.actor.user_id,
-                "OAuth client retrieval failed"
-            );
-            internal_error(&format!("Failed to get client: {e}"))
-        },
-    }
+    let client = repository
+        .find_client_by_id(&client_id)
+        .await?
+        .ok_or_else(|| OAuthHttpError::not_found(format!("Client with ID '{client_id}' not found")))?;
+
+    tracing::info!(
+        client_id = %client_id,
+        client_name = ?client.name,
+        requested_by = %req_ctx.auth.actor.user_id,
+        "OAuth client retrieved"
+    );
+    let response: OAuthClientResponse = client.into();
+    Ok(single_response(response))
 }

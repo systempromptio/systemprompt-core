@@ -7,8 +7,8 @@ use serde::Deserialize;
 use tracing::instrument;
 use validator::Validate;
 
+use super::super::OAuthHttpError;
 use super::super::extractors::OAuthRepo;
-use super::super::responses::{bad_request, internal_error};
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
 
@@ -39,46 +39,29 @@ pub async fn list_clients(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repository): OAuthRepo,
     Query(query): Query<ListClientsQuery>,
-) -> impl IntoResponse {
-    if let Err(e) = query.validate() {
-        tracing::info!(
-            reason = "Validation error",
-            requested_by = %req_ctx.auth.actor.user_id,
-            "OAuth clients list rejected - validation failed"
-        );
-        return bad_request(&format!("Invalid query parameters: {e}"));
-    }
+) -> Result<Response, OAuthHttpError> {
+    query.validate().map_err(|e| {
+        OAuthHttpError::invalid_request(format!("Invalid query parameters: {e}"))
+    })?;
 
     let page = query.pagination.page;
     let per_page = query.pagination.per_page;
     let offset = query.pagination.offset();
     let limit = query.pagination.limit();
 
-    let clients_result = repository.list_clients_paginated(limit, offset).await;
-    let count_result = repository.count_clients().await;
+    let clients = repository.list_clients_paginated(limit, offset).await?;
+    let total = repository.count_clients().await?;
 
-    match (clients_result, count_result) {
-        (Ok(clients), Ok(total)) => {
-            tracing::info!(
-                count = clients.len(),
-                total = total,
-                page = page,
-                per_page = per_page,
-                requested_by = %req_ctx.auth.actor.user_id,
-                "OAuth clients listed"
-            );
-            let pagination = PaginationInfo::new(total, page, per_page);
-            let items: Vec<systemprompt_oauth::clients::api::OAuthClientResponse> =
-                clients.into_iter().map(Into::into).collect();
-            paginated_response(&items, &pagination)
-        },
-        (Err(e), _) | (_, Err(e)) => {
-            tracing::error!(
-                error = %e,
-                requested_by = %req_ctx.auth.actor.user_id,
-                "OAuth clients list failed"
-            );
-            internal_error(&format!("Failed to list clients: {e}"))
-        },
-    }
+    tracing::info!(
+        count = clients.len(),
+        total = total,
+        page = page,
+        per_page = per_page,
+        requested_by = %req_ctx.auth.actor.user_id,
+        "OAuth clients listed"
+    );
+    let pagination = PaginationInfo::new(total, page, per_page);
+    let items: Vec<systemprompt_oauth::clients::api::OAuthClientResponse> =
+        clients.into_iter().map(Into::into).collect();
+    Ok(paginated_response(&items, &pagination))
 }
