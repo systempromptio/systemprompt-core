@@ -121,6 +121,10 @@ coverage-report/
 systemprompt-sbom*
 youtube-walkthrough.md
 
+# Rust standards audit ledger (local-only, append-only)
+/ISSUE.md
+/.audit-state
+
 # locally tracked dev tooling — not for crates.io
 ci/
 .sentrux/
