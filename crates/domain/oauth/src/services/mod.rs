@@ -8,6 +8,7 @@ pub mod http;
 pub mod jwt;
 pub mod providers;
 pub mod session;
+pub mod sync;
 pub mod templating;
 pub mod validation;
 pub mod webauthn;
@@ -22,6 +23,7 @@ pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_
 pub use session::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
+pub use sync::provision_sync_oauth_client;
 pub use templating::TemplateEngine;
 pub use webauthn::{JwtTokenValidator, UserCreationService, WebAuthnConfig, WebAuthnService};
 
