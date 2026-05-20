@@ -123,6 +123,7 @@ pub(super) struct SessionStoreParams<'a> {
     pub context_id: ContextId,
     pub user_id: UserId,
     pub user_email: &'a str,
+    pub user_type: systemprompt_models::auth::UserType,
 }
 
 pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()> {
@@ -135,6 +136,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         context_id,
         user_id,
         user_email,
+        user_type,
     } = params;
     let mut store = SessionStore::load_or_create(sessions_dir)?;
 
@@ -150,11 +152,18 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
     let email = systemprompt_identifiers::Email::try_new(user_email)
         .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
-    let cli_session = CliSession::builder(profile_name, session_token, session_id, context_id)
-        .with_session_key(session_key)
-        .with_profile_path(profile_path)
-        .with_user(user_id, email)
-        .build();
+    let cli_session = CliSession::builder(
+        profile_name,
+        session_token,
+        session_id,
+        context_id,
+        user_id,
+        email,
+        user_type,
+    )
+    .with_session_key(session_key)
+    .with_profile_path(profile_path)
+    .build();
 
     store.upsert_session(session_key, cli_session);
     store.set_active_with_profile(session_key, profile_name_str);

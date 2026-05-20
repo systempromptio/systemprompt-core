@@ -155,6 +155,7 @@ pub async fn login_for_profile(
         context_id,
         user_id: admin_user.id.clone(),
         user_email: &admin_user.email,
+        user_type: UserType::Admin,
     })?;
 
     let output = LoginOutput {
