@@ -188,19 +188,15 @@ fn extract_user_permissions(
         return Ok(vec![]);
     }
 
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-        crate::error::McpDomainError::Internal(format!("Failed to get JWT secret: {e}"))
-    })?;
-
     let config = systemprompt_models::Config::get().map_err(|e| {
         crate::error::McpDomainError::Internal(format!("Failed to get config: {e}"))
     })?;
 
-    let claims = validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences)
-        .map_err(|e| {
-        error!(error = %e, "JWT validation failed");
-        crate::error::McpDomainError::Internal(format!("JWT validation failed: {e}"))
-    })?;
+    let claims =
+        validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
+            error!(error = %e, "JWT validation failed");
+            crate::error::McpDomainError::Internal(format!("JWT validation failed: {e}"))
+        })?;
 
     Ok(claims.get_permissions())
 }

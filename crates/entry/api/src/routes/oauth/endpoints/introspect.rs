@@ -106,9 +106,8 @@ pub async fn handle_introspect(
 }
 
 fn introspect_token(_repo: &OAuthRepository, token: &str) -> Result<Option<IntrospectResponse>> {
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
-    match validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences) {
+    match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
         Ok(claims) => Ok(Some(IntrospectResponse {
             active: true,
             scope: Some(systemprompt_models::auth::permissions_to_string(

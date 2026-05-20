@@ -40,7 +40,6 @@ impl SessionCreationService {
         let config =
             systemprompt_models::Config::get().map_err(|e| OauthError::Config(e.to_string()))?;
         let signing = JwtSigningParams {
-            secret: params.jwt_secret,
             issuer: &config.jwt_issuer,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)

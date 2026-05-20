@@ -8,18 +8,13 @@ use crate::services::validation::jwt;
 
 #[derive(Clone, Debug)]
 pub struct JwtTokenValidator {
-    secret: String,
     issuer: String,
     audiences: Vec<JwtAudience>,
 }
 
 impl JwtTokenValidator {
-    pub const fn new(secret: String, issuer: String, audiences: Vec<JwtAudience>) -> Self {
-        Self {
-            secret,
-            issuer,
-            audiences,
-        }
+    pub const fn new(issuer: String, audiences: Vec<JwtAudience>) -> Self {
+        Self { issuer, audiences }
     }
 
     pub fn from_config() -> Result<Self, AuthError> {
@@ -27,13 +22,7 @@ impl JwtTokenValidator {
             systemprompt_models::Config::get().map_err(|e| AuthError::AuthenticationFailed {
                 message: format!("Failed to get config: {e}"),
             })?;
-        let secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .map_err(|e| AuthError::AuthenticationFailed {
-                message: format!("Failed to get JWT secret: {e}"),
-            })?
-            .to_string();
         Ok(Self {
-            secret,
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
         })
@@ -42,9 +31,11 @@ impl JwtTokenValidator {
 
 impl TokenValidator for JwtTokenValidator {
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
-        let claims = jwt::validate_jwt_token(token, &self.secret, &self.issuer, &self.audiences)
-            .map_err(|e| AuthError::AuthenticationFailed {
-                message: format!("JWT validation failed: {e}"),
+        let claims =
+            jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| {
+                AuthError::AuthenticationFailed {
+                    message: format!("JWT validation failed: {e}"),
+                }
             })?;
 
         let user_id =

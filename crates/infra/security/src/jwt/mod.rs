@@ -1,24 +1,24 @@
 //! JWT minting service.
 //!
-//! Produces administrator-scoped HS256 tokens for the bridge management
+//! Produces administrator-scoped RS256 tokens for the bridge management
 //! plane and CLI bootstrap flows. Session-scoped tokens are minted by
 //! [`crate::session::SessionGenerator`] instead.
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 
 use crate::error::{JwtError, JwtResult};
+use crate::keys::authority;
 
 #[derive(Debug)]
 pub struct AdminTokenParams<'a> {
     pub user_id: &'a UserId,
     pub session_id: &'a SessionId,
     pub email: &'a str,
-    pub jwt_secret: &'a str,
     pub issuer: &'a str,
     pub duration: Duration,
     pub client_id: Option<&'a ClientId>,
@@ -54,13 +54,11 @@ impl JwtService {
             act: None,
         };
 
-        let header = Header::new(Algorithm::HS256);
-        let token = encode(
-            &header,
-            &claims,
-            &EncodingKey::from_secret(params.jwt_secret.as_bytes()),
-        )
-        .map_err(JwtError::from)?;
+        let kid = authority::active_kid().map_err(|e| JwtError::Signing(e.to_string()))?;
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let key = authority::encoding_key().map_err(|e| JwtError::Signing(e.to_string()))?;
+        let token = encode(&header, &claims, key).map_err(JwtError::from)?;
 
         Ok(JwtToken::new(token))
     }

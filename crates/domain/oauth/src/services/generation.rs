@@ -2,7 +2,7 @@
 
 use crate::error::OauthResult as Result;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{Algorithm, Header, encode};
 use rand::distr::Alphanumeric;
 use rand::{RngExt, rng};
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ use systemprompt_models::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };
+use systemprompt_security::keys::authority;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtConfig {
@@ -27,7 +28,6 @@ pub struct JwtConfig {
 
 #[derive(Debug, Clone)]
 pub struct JwtSigningParams<'a> {
-    pub secret: &'a str,
     pub issuer: &'a str,
 }
 
@@ -120,13 +120,18 @@ fn build_claims(
     })
 }
 
-fn encode_claims(claims: &JwtClaims, signing: &JwtSigningParams<'_>) -> Result<String> {
-    let header = Header::new(Algorithm::HS256);
-    let token = encode(
-        &header,
-        claims,
-        &EncodingKey::from_secret(signing.secret.as_bytes()),
-    )?;
+fn encode_claims(claims: &JwtClaims, _signing: &JwtSigningParams<'_>) -> Result<String> {
+    encode_with_authority(claims)
+}
+
+fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
+    let kid = authority::active_kid()
+        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(kid.to_string());
+    let key = authority::encoding_key()
+        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let token = encode(&header, claims, key)?;
     Ok(token)
 }
 
@@ -182,14 +187,7 @@ pub fn generate_jwt(
         act: None,
     };
 
-    let header = Header::new(Algorithm::HS256);
-    let token = encode(
-        &header,
-        &claims,
-        &EncodingKey::from_secret(signing.secret.as_bytes()),
-    )?;
-
-    Ok(token)
+    encode_with_authority(&claims)
 }
 
 pub fn generate_client_secret() -> String {
@@ -265,14 +263,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         act: None,
     };
 
-    let header = Header::new(Algorithm::HS256);
-    let token = encode(
-        &header,
-        &claims,
-        &EncodingKey::from_secret(signing.secret.as_bytes()),
-    )?;
-
-    Ok(token)
+    encode_with_authority(&claims)
 }
 
 pub fn generate_admin_jwt(
@@ -334,12 +325,5 @@ pub fn generate_admin_jwt_with_expiry(
         act: None,
     };
 
-    let header = Header::new(Algorithm::HS256);
-    let token = encode(
-        &header,
-        &claims,
-        &EncodingKey::from_secret(signing.secret.as_bytes()),
-    )?;
-
-    Ok(token)
+    encode_with_authority(&claims)
 }

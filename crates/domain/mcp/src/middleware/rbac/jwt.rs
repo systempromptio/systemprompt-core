@@ -9,15 +9,11 @@ pub(super) fn validate_and_extract_claims(
     server_name: &str,
     token: &str,
 ) -> Result<JwtClaims, McpError> {
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-        tracing::error!(server = %server_name, error = %e, "Failed to get JWT secret");
-        McpError::invalid_request(format!("Failed to get JWT secret: {e}"), None)
-    })?;
     let config = systemprompt_models::Config::get().map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "Failed to get config");
         McpError::invalid_request(format!("Failed to get config: {e}"), None)
     })?;
-    validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
+    validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences).map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "JWT validation failed");
         McpError::invalid_request(format!("Invalid JWT token: {e}"), None)
     })

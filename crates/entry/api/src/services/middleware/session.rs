@@ -31,8 +31,7 @@ pub struct SessionMiddleware {
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> anyhow::Result<Self> {
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
-        let jwt_extractor = Arc::new(JwtExtractor::new(jwt_secret));
+        let jwt_extractor = Arc::new(JwtExtractor::new());
         let user_service = UserService::new(ctx.db_pool())?;
         let concrete = Arc::clone(ctx.analytics_service());
         let analytics: Arc<dyn AnalyticsProvider> = concrete;

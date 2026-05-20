@@ -222,9 +222,10 @@ pub(super) fn mount_content_and_misc(
             .with_auth(user_middleware.clone(), AuthzPolicy::admin()),
     );
 
-    if let Some(gateway) = crate::routes::gateway::gateway_router(ctx) {
-        router = router.nest(ApiPaths::GATEWAY_BASE, gateway);
-    }
+    router = router.nest(
+        ApiPaths::GATEWAY_BASE,
+        crate::routes::gateway::gateway_router(ctx),
+    );
 
     Ok(router)
 }

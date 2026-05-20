@@ -71,16 +71,9 @@ pub(super) fn build_static_router(
         .find_map(|ext| ext.site_auth());
 
     if let Some(auth_config) = site_auth_config {
-        let secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "JWT secret not available for site auth gate");
-                ""
-            })
-            .to_string();
         static_router.layer(axum::middleware::from_fn(move |req, next| {
             let config = auth_config;
-            let secret = secret.clone();
-            async move { site_auth_gate(req, next, config, secret).await }
+            async move { site_auth_gate(req, next, config).await }
         }))
     } else {
         static_router

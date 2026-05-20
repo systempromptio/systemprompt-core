@@ -66,15 +66,11 @@ impl Server {
         config.extract_oauth_scopes_from_card();
 
         let oauth_config = AgentOAuthConfig::default();
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .map_err(|e| crate::error::AgentError::Config(e.to_string()))?
-            .to_string();
         let global_config = systemprompt_models::Config::get()
             .map_err(|e| crate::error::AgentError::Config(e.to_string()))?;
         let mut oauth_state = AgentOAuthState::new(
             Arc::clone(&db_pool),
             oauth_config,
-            jwt_secret,
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
         );

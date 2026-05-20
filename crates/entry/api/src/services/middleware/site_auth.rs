@@ -12,12 +12,7 @@ const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".map", ".webp", ".avif",
 ];
 
-pub async fn site_auth_gate(
-    request: Request,
-    next: Next,
-    config: SiteAuthConfig,
-    jwt_secret: String,
-) -> Response {
+pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig) -> Response {
     let path = request.uri().path();
 
     if path == config.login_path || path == format!("{}/", config.login_path) {
@@ -68,7 +63,7 @@ pub async fn site_auth_gate(
                     );
                 })
                 .ok()?;
-            let extractor = JwtExtractor::new(&jwt_secret);
+            let extractor = JwtExtractor::new();
             let user_ctx = extractor
                 .extract_user_context(&token)
                 .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed"))

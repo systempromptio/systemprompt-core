@@ -2,35 +2,39 @@
 //! session claims and extracting the authenticated [`UserId`].
 
 use crate::services::shared::error::{AgentServiceError, Result};
-use jsonwebtoken::{DecodingKey, Validation, decode};
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_identifiers::UserId;
 pub use systemprompt_models::auth::JwtClaims;
+use systemprompt_security::keys::authority;
 use systemprompt_traits::AgentJwtClaims;
 
-pub struct JwtValidator {
-    decoding_key: DecodingKey,
-    validation: Validation,
-}
-
-impl std::fmt::Debug for JwtValidator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("JwtValidator")
-            .field("validation", &self.validation)
-            .field("decoding_key", &"<decoding_key>")
-            .finish()
-    }
-}
+#[derive(Debug, Default, Clone, Copy)]
+pub struct JwtValidator;
 
 impl JwtValidator {
-    pub fn new(secret: &str) -> Self {
-        Self {
-            decoding_key: DecodingKey::from_secret(secret.as_bytes()),
-            validation: Validation::default(),
-        }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
     }
 
+    #[allow(clippy::unused_self)]
     pub fn validate_token(&self, token: &str) -> Result<JwtClaims> {
-        decode::<JwtClaims>(token, &self.decoding_key, &self.validation)
+        let header = decode_header(token)
+            .map_err(|e| AgentServiceError::Authentication(format!("invalid token: {e}")))?;
+        if header.alg != Algorithm::RS256 {
+            return Err(AgentServiceError::Authentication(
+                "JWT must be RS256-signed".to_string(),
+            ));
+        }
+        let kid = header.kid.as_deref().ok_or_else(|| {
+            AgentServiceError::Authentication("JWT missing `kid` header".to_string())
+        })?;
+        let key = authority::decoding_key_for_kid(kid)
+            .map_err(|e| AgentServiceError::Authentication(format!("key lookup: {e}")))?
+            .ok_or_else(|| AgentServiceError::Authentication(format!("unknown `kid` `{kid}`")))?;
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_aud = false;
+        decode::<JwtClaims>(token, key, &validation)
             .map(|data| data.claims)
             .map_err(|e| AgentServiceError::Authentication(format!("invalid token: {e}")))
     }

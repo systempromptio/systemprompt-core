@@ -6,7 +6,6 @@ use rand::Rng;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
@@ -52,7 +51,6 @@ pub async fn issue_bridge_access_with(
     let repo = OAuthRepository::new(pool)?;
     let auth_user = repo.get_authenticated_user(user_id).await?;
 
-    let jwt_secret = SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
 
     let session_id = SessionId::generate();
@@ -68,7 +66,6 @@ pub async fn issue_bridge_access_with(
         plugin_id: None,
     };
     let signing = JwtSigningParams {
-        secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
     };
     let token = generate_jwt(

@@ -156,7 +156,6 @@ async fn exchange_code_for_token(
         .await?;
 
     let access_token_jti = generate_access_token_jti();
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions: permissions.clone(),
@@ -164,7 +163,6 @@ async fn exchange_code_for_token(
         ..Default::default()
     };
     let signing = JwtSigningParams {
-        secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
     };
     let access_token = generate_jwt(&user, config, access_token_jti, &session_id, &signing)?;

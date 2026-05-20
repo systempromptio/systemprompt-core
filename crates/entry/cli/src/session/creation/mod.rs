@@ -47,12 +47,7 @@ pub(super) async fn create_local_session(
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
-    let session_token = generate_admin_token(
-        &secrets.jwt_secret,
-        &profile.security.issuer,
-        &admin_user,
-        &session_id,
-    )?;
+    let session_token = generate_admin_token(&profile.security.issuer, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Local session created");
@@ -115,12 +110,7 @@ pub(super) async fn create_session_for_tenant(
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
-    let session_token = generate_admin_token(
-        &secrets.jwt_secret,
-        &profile.security.issuer,
-        &admin_user,
-        &session_id,
-    )?;
+    let session_token = generate_admin_token(&profile.security.issuer, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Session created");

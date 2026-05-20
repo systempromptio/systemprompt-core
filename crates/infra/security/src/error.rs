@@ -35,12 +35,37 @@ pub enum AuthError {
         "hook token: plugin_id `{actual}` in claim does not match request plugin_id `{expected}`"
     )]
     HookPluginIdMismatch { expected: String, actual: String },
+
+    #[error("token has unsupported algorithm; only RS256 is accepted")]
+    UnsupportedAlgorithm,
+
+    #[error("token is missing `kid` header")]
+    MissingKid,
+
+    #[error("token `kid` `{0}` does not match any known signing key")]
+    UnknownKid(String),
+
+    #[error("signing key lookup failed: {0}")]
+    KeyLookup(String),
+
+    #[error("issuer `{0}` is not trusted")]
+    UntrustedIssuer(String),
+
+    #[error("JWKS fetch failed for issuer `{issuer}`: {source}")]
+    JwksFetch {
+        issuer: String,
+        #[source]
+        source: crate::keys::JwksClientError,
+    },
 }
 
 #[derive(Debug, Error)]
 pub enum JwtError {
     #[error("jwt encoding failed: {0}")]
     Encoding(#[from] jsonwebtoken::errors::Error),
+
+    #[error("jwt signing key unavailable: {0}")]
+    Signing(String),
 }
 
 #[derive(Debug, Error)]
