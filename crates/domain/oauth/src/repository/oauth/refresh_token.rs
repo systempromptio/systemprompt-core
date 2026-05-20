@@ -89,17 +89,8 @@ impl OAuthRepository {
         let token_id_hash = hash_at_rest(params.token_id.as_str())?;
         let client_id = params.client_id.as_str();
         let user_id = params.user_id.as_str();
-        // First issuance: family is seeded from this token's hash so the
-        // family column is self-consistent with token_id under the pepper.
-        // Subsequent rotations carry the parent's family forward unchanged.
-        let family_id_owned;
-        let family_id: &str = match params.family_id {
-            Some(f) => f,
-            None => {
-                family_id_owned = token_id_hash.clone();
-                &family_id_owned
-            },
-        };
+        let family_id_owned = token_id_hash.clone();
+        let family_id: &str = params.family_id.unwrap_or(&family_id_owned);
 
         sqlx::query!(
             "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, \

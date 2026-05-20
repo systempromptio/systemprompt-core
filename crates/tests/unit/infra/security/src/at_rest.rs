@@ -1,5 +1,3 @@
-//! Unit coverage for the HMAC-SHA-256 at-rest helper.
-
 use systemprompt_security::{hmac_sha256, hmac_sha256_hex};
 
 const PEPPER_A: &[u8] = b"pepper_alpha_a_a_a_a_a_a_a_a_a_a_a_a_a";
