@@ -1,6 +1,10 @@
 mod client_credentials;
+mod token_exchange;
 
 pub use client_credentials::{ClientTokenOptions, generate_client_tokens};
+pub use token_exchange::{
+    TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
+};
 
 use super::{TokenError, TokenErrorResponse, TokenResponse, TokenResult};
 use anyhow::Result;
@@ -76,6 +80,7 @@ pub async fn generate_tokens_by_user_id(
             expires_in,
             refresh_token: Some(jwt_and_refresh.refresh_token_value),
             scope: Some(jwt_and_refresh.scope_string),
+            issued_token_type: None,
         },
         refresh_token_id: jwt_and_refresh.refresh_token_id,
     })

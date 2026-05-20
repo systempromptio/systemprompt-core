@@ -25,3 +25,4 @@ tokio = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }
 serde = { workspace = true }
+base64 = { workspace = true }

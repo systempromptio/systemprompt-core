@@ -66,6 +66,7 @@ async fn test_convert_token_result_ok_returns_200() {
         expires_in: 3600,
         refresh_token: Some("rt_test456".to_string()),
         scope: Some("user".to_string()),
+        issued_token_type: None,
     };
     let response = convert_token_result_to_response(Ok(token_response));
     assert_eq!(response.status(), StatusCode::OK);
@@ -79,6 +80,7 @@ async fn test_convert_token_result_ok_body_contains_token() {
         expires_in: 7200,
         refresh_token: None,
         scope: None,
+        issued_token_type: None,
     };
     let response = convert_token_result_to_response(Ok(token_response));
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();

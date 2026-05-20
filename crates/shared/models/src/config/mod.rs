@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 use systemprompt_traits::ConfigProvider;
 
 use crate::auth::JwtAudience;
-use crate::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use crate::profile::{ContentNegotiationConfig, SecurityHeadersConfig, TrustedIssuer};
 
 mod environment;
 mod paths;
@@ -74,6 +74,7 @@ pub struct Config {
     pub jwt_refresh_token_expiration: i64,
     pub jwt_audiences: Vec<JwtAudience>,
     pub allowed_resource_audiences: Vec<String>,
+    pub trusted_issuers: Vec<TrustedIssuer>,
     pub use_https: bool,
     pub rate_limits: RateLimitConfig,
     pub cors_allowed_origins: Vec<String>,

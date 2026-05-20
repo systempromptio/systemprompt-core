@@ -71,12 +71,14 @@ pub enum GrantType {
     AuthorizationCode,
     RefreshToken,
     ClientCredentials,
+    TokenExchange,
 }
 
 impl_str_enum!(GrantType, GrantType, {
     AuthorizationCode => "authorization_code",
     RefreshToken => "refresh_token",
     ClientCredentials => "client_credentials",
+    TokenExchange => "urn:ietf:params:oauth:grant-type:token-exchange",
 });
 
 impl GrantType {

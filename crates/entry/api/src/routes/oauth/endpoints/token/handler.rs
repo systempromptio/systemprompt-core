@@ -1,6 +1,7 @@
 use super::generation::{
-    ClientTokenOptions, TokenGenerationParams, convert_token_result_to_response,
-    generate_client_tokens, generate_tokens_by_user_id,
+    ClientTokenOptions, TokenExchangeRequest, TokenGenerationParams,
+    convert_token_result_to_response, generate_client_tokens, generate_tokens_by_user_id,
+    handle_token_exchange,
 };
 use super::validation::{
     AuthCodeValidationParams, extract_required_field, validate_authorization_code,
@@ -41,6 +42,9 @@ pub async fn handle_token(
         },
         Some(GrantType::ClientCredentials) => {
             handle_client_credentials_grant(repo, request, &headers, &state).await
+        },
+        Some(GrantType::TokenExchange) => {
+            handle_token_exchange_grant(repo, request, &headers, &state).await
         },
         None => {
             tracing::info!(
@@ -248,6 +252,99 @@ async fn handle_refresh_token_grant(
     }
 
     convert_token_result_to_response(result)
+}
+
+async fn handle_token_exchange_grant(
+    repo: OAuthRepository,
+    request: TokenRequest,
+    headers: &HeaderMap,
+    state: &OAuthState,
+) -> axum::response::Response {
+    let result = async {
+        let subject_token =
+            extract_required_field(request.subject_token.as_deref(), "subject_token")?;
+        let subject_token_type =
+            extract_required_field(request.subject_token_type.as_deref(), "subject_token_type")?;
+
+        let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
+        let client_id = ClientId::new(client_id_str);
+        validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
+            .await
+            .map_err(|_| TokenError::InvalidClientSecret)?;
+
+        let exchange = TokenExchangeRequest {
+            subject_token,
+            subject_token_type,
+            actor_token: request.actor_token.as_deref(),
+            actor_token_type: request.actor_token_type.as_deref(),
+            requested_token_type: request.requested_token_type.as_deref(),
+            scope: request.scope.as_deref(),
+            audience: request.audience.as_deref(),
+            resource: request.resource.as_deref(),
+        };
+
+        let response = handle_token_exchange(&repo, &client_id, exchange, headers, state)
+            .await
+            .map_err(|e| map_exchange_error(&e))?;
+
+        tracing::info!(
+            grant_type = "urn:ietf:params:oauth:grant-type:token-exchange",
+            client_id = %client_id,
+            scope = %response.scope.as_deref().unwrap_or(""),
+            "Token exchanged"
+        );
+
+        Ok(response)
+    }
+    .await;
+
+    if let Err(ref error) = result {
+        tracing::error!(
+            error = %error,
+            grant_type = "urn:ietf:params:oauth:grant-type:token-exchange",
+            client_id = ?request.client_id,
+            "Token exchange failed"
+        );
+    }
+
+    convert_token_result_to_response(result)
+}
+
+fn map_exchange_error(err: &anyhow::Error) -> TokenError {
+    if let Some(token_err) = err.downcast_ref::<TokenError>() {
+        return clone_token_error(token_err);
+    }
+    TokenError::ServerError {
+        message: err.to_string(),
+    }
+}
+
+fn clone_token_error(err: &TokenError) -> TokenError {
+    match err {
+        TokenError::InvalidRequest { field, message } => TokenError::InvalidRequest {
+            field: field.clone(),
+            message: message.clone(),
+        },
+        TokenError::UnsupportedGrantType { grant_type } => TokenError::UnsupportedGrantType {
+            grant_type: grant_type.clone(),
+        },
+        TokenError::InvalidClient => TokenError::InvalidClient,
+        TokenError::InvalidGrant { reason } => TokenError::InvalidGrant {
+            reason: reason.clone(),
+        },
+        TokenError::InvalidRefreshToken { reason } => TokenError::InvalidRefreshToken {
+            reason: reason.clone(),
+        },
+        TokenError::InvalidCredentials => TokenError::InvalidCredentials,
+        TokenError::InvalidClientSecret => TokenError::InvalidClientSecret,
+        TokenError::ExpiredCode => TokenError::ExpiredCode,
+        TokenError::ServerError { message } => TokenError::ServerError {
+            message: message.clone(),
+        },
+        TokenError::InvalidTarget { message } => TokenError::InvalidTarget {
+            message: message.clone(),
+        },
+    }
 }
 
 async fn handle_client_credentials_grant(
