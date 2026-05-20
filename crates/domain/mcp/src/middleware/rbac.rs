@@ -143,13 +143,28 @@ pub async fn enforce_rbac_from_registry(
     validate_audience(server_name, &claims, oauth_config)?;
     validate_scopes_for_permissions(server_name, &claims.get_permissions(), oauth_config)?;
 
-    enforce_authz_for_server(server_name, &claims).await?;
+    let act_chain = extract_act_chain(&claims);
 
-    let authenticated_context = build_authenticated_context(request_context, &claims, token)?;
+    enforce_authz_for_server(server_name, &claims, act_chain.clone()).await?;
+
+    let authenticated_context =
+        build_authenticated_context(request_context, &claims, token, act_chain)?;
     Ok(AuthResult::Authenticated(authenticated_context))
 }
 
-async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Result<(), McpError> {
+fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
+    claims
+        .act
+        .as_ref()
+        .map(systemprompt_models::auth::ActClaim::flatten_to_chain)
+        .unwrap_or_default()
+}
+
+async fn enforce_authz_for_server(
+    server_name: &str,
+    claims: &JwtClaims,
+    act_chain: Vec<Actor>,
+) -> Result<(), McpError> {
     let Some(hook) = systemprompt_security::authz::global_hook() else {
         tracing::error!(
             server = %server_name,
@@ -161,11 +176,6 @@ async fn enforce_authz_for_server(server_name: &str, claims: &JwtClaims) -> Resu
         ));
     };
     let user_id = UserId::new(claims.sub.clone());
-    let act_chain = claims
-        .act
-        .as_ref()
-        .map(systemprompt_models::auth::ActClaim::flatten_to_chain)
-        .unwrap_or_default();
     let req = AuthzRequest {
         entity_type: EntityKind::McpServer,
         entity_id: server_name.to_string(),
@@ -192,6 +202,7 @@ fn build_authenticated_context(
     request_context: RequestContext,
     claims: &JwtClaims,
     token: String,
+    act_chain: Vec<Actor>,
 ) -> Result<AuthenticatedRequestContext, McpError> {
     let user_id = claims.sub.parse().map_err(|e| {
         tracing::error!(error = %e, "Invalid user ID in JWT");
@@ -209,6 +220,7 @@ fn build_authenticated_context(
     let context = request_context
         .with_user(authenticated_user)
         .with_actor(Actor::user(UserId::new(claims.sub.clone())))
+        .with_act_chain(act_chain)
         .with_user_type(claims.user_type);
 
     Ok(AuthenticatedRequestContext::new(context, token))
