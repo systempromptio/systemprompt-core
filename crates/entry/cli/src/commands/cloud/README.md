@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the cloud CLI
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -320,13 +320,13 @@ sp --json cloud profile
   "profiles": [
     {
       "name": "local",
-      "path": "/var/www/html/tyingshoelaces/.systemprompt/profiles/local",
+      "path": "~/.systemprompt/profiles/local",
       "environment": "development",
       "active": true
     },
     {
       "name": "staging",
-      "path": "/var/www/html/tyingshoelaces/.systemprompt/profiles/staging",
+      "path": "~/.systemprompt/profiles/staging",
       "environment": "staging",
       "active": false
     }
@@ -357,7 +357,7 @@ sp --json cloud profile show local
 ```json
 {
   "name": "local",
-  "path": "/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml",
+  "path": "~/.systemprompt/profiles/local/profile.yaml",
   "environment": "development",
   "database": {
     "host": "localhost",
@@ -406,7 +406,7 @@ sp cloud profile create \
 ```json
 {
   "name": "staging",
-  "path": "/var/www/html/tyingshoelaces/.systemprompt/profiles/staging",
+  "path": "~/.systemprompt/profiles/staging",
   "message": "Profile 'staging' created successfully"
 }
 ```

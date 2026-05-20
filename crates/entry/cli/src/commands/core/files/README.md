@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the files CLI
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -280,7 +280,7 @@ sp --json files config
   "uploads_enabled": true,
   "max_file_size_bytes": 10485760,
   "persistence_mode": "local",
-  "storage_root": "/var/www/html/tyingshoelaces/storage/files",
+  "storage_root": "<your-project>/storage/files",
   "url_prefix": "/files",
   "allowed_types": {
     "images": true,

@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the setup CLI
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -144,7 +144,7 @@ The setup wizard performs these steps:
 ```json
 {
   "environment": "dev",
-  "profile_path": "/var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml",
+  "profile_path": "~/.systemprompt/profiles/dev/profile.yaml",
   "database": {
     "host": "localhost",
     "port": 5432,
@@ -183,10 +183,10 @@ sp admin setup \
 sp infra db status
 
 # Phase 3: Verify profile was created
-cat /var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml
+cat ~/.systemprompt/profiles/dev/profile.yaml
 
 # Phase 4: Test with the new profile
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/dev/profile.yaml
 sp admin agents list
 ```
 
@@ -344,7 +344,7 @@ logs_path: ./logs
 
 ```bash
 # Set profile for subsequent commands
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/dev/profile.yaml
 
 # Verify database connection
 sp infra db status

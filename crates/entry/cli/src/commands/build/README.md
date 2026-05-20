@@ -24,7 +24,7 @@ This document provides complete documentation for AI agents to use the build CLI
 ## Prerequisites
 
 ```bash
-export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/local/profile.yaml
+export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
 cd /var/www/html/systemprompt-core
 cargo build --package systemprompt-cli
 
@@ -105,7 +105,7 @@ sp build web --minify
 {
   "success": true,
   "mode": "development",
-  "output_path": "/var/www/html/tyingshoelaces/services/web/dist",
+  "output_path": "<your-project>/services/web/dist",
   "files_generated": 15,
   "total_size_bytes": 524288,
   "duration_seconds": 12,
