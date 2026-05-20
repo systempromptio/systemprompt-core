@@ -109,8 +109,8 @@ pub use analytics::{
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, DynUserProvider, RoleProvider,
-    UserProvider,
+    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, DynUserProvider,
+    FederatedIdentityClaims, RoleProvider, UserProvider,
 };
 
 pub use storage::{
