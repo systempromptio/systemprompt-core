@@ -8,7 +8,7 @@ use super::routes::configure_routes;
 use crate::models::ServerConfig;
 use crate::services::middleware::{
     AnalyticsMiddleware, ContextMiddleware, CorsMiddleware, JwtContextExtractor, SessionMiddleware,
-    inject_security_headers, inject_trace_header, remove_trailing_slash,
+    inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
 pub use super::discovery::*;
@@ -129,6 +129,8 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     router = router.layer(axum::middleware::from_fn(remove_trailing_slash));
 
     router = router.layer(axum::middleware::from_fn(inject_trace_header));
+
+    router = router.layer(axum::middleware::from_fn(inject_served_by));
 
     if ctx.config().content_negotiation.enabled {
         router = router.layer(axum::middleware::from_fn(

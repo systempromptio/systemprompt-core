@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Config types now derive `JsonSchema` (via `systemprompt-models`), so the loaded profile can be introspected and validated against a generated schema document.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added

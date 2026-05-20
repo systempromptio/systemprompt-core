@@ -5,7 +5,8 @@ const fn default_allow_registration() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SecurityConfig {
     #[serde(rename = "jwt_issuer")]
     pub issuer: String,

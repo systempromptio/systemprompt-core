@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Breaking
+- `bridge_sessions.tenant_id` removed. Migration `003_drop_bridge_session_tenant.sql` drops the column; bridge OAuth flows no longer scope to a per-row tenant identifier.
+
+### Added
+- `provision_sync_oauth_client` service mints the `sys_sync` OAuth client used by `app/sync` for the `client_credentials` Service-JWT handshake.
+- Per-tenant OAuth client provisioning, supporting the deployment-plane tenancy model now that runtime tenancy is gone from the gateway and bridge paths.
+
+### Changed
+- Long rustdoc paragraphs in module headers split for readability; no API change.
+
 ## [0.9.2] - 2026-05-14
 
 ### Added

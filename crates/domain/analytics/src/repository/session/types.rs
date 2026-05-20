@@ -38,6 +38,11 @@ pub struct SessionRecord {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ActiveSessionLookup {
+    pub user_id: Option<UserId>,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionBehavioralData {
     pub session_id: SessionId,
     pub fingerprint_hash: Option<String>,

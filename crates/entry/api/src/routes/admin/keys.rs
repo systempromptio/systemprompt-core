@@ -66,7 +66,7 @@ async fn issue_key(
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<IssueApiKeyRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let target_user = resolve_target_user(&req_ctx, body.target_user_id.as_deref())?;
+    let target_user = resolve_target_user(&req_ctx, body.target_user_id.as_deref());
     let service = ApiKeyService::new(ctx.db_pool())
         .map_err(|e| ApiError::internal_error(format!("API key service error: {e}")))?;
 
@@ -128,20 +128,9 @@ async fn revoke_key(
     }
 }
 
-#[allow(clippy::result_large_err)]
-fn resolve_target_user(
-    req_ctx: &RequestContext,
-    override_user_id: Option<&str>,
-) -> Result<UserId, ApiError> {
+fn resolve_target_user(req_ctx: &RequestContext, override_user_id: Option<&str>) -> UserId {
     match override_user_id {
-        Some(value) if !value.is_empty() => {
-            if req_ctx.user_type() != systemprompt_models::auth::UserType::Admin {
-                return Err(ApiError::forbidden(
-                    "Only admins can issue keys for other users",
-                ));
-            }
-            Ok(UserId::new(value.to_string()))
-        },
-        _ => Ok(req_ctx.user_id().clone()),
+        Some(value) if !value.is_empty() => UserId::new(value.to_string()),
+        _ => req_ctx.user_id().clone(),
     }
 }

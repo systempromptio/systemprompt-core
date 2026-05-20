@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Breaking
+- Sync routes drop the `SYNC_TOKEN` middleware and gate on `with_auth(_, AuthzPolicy::restricted_to(&[Service]))`. Sync clients must mint a `client_credentials` Service-JWT.
+
+### Added
+- `RouterExt::with_auth(_, AuthzPolicy::*)` registration: every authenticated route declares its authz tier at compile time; routes that forget to install a guard fail to compile.
+- `services/middleware/served_by.rs` middleware tagging each response with the serving replica identity (for load-balancer fairness measurement and Prometheus labelling).
+- Prometheus metrics endpoint.
+
+### Changed
+- Every per-item `///` rustdoc in `entry/api` is removed in line with the standing rustdoc rule; file-level `//!` blocks describe purpose where the value is real.
+- Gateway route extraction reflects the tenancy strip in `domain/ai` and `domain/oauth`: handlers no longer extract or thread a runtime `tenant_id`.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

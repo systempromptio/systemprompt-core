@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS bridge_sessions (
     session_id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    tenant_id TEXT,
     bridge_version TEXT NOT NULL,
     os TEXT NOT NULL,
     hostname TEXT NOT NULL,

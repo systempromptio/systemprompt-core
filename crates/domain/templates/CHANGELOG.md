@@ -1,9 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [0.11.0] - 2026-05-20
 
-### Changed
-- Removed unused `async-trait` and `indexmap` dependencies.
+### Removed
+- Unused `async-trait` and `indexmap` dependencies.
 
 ## [0.9.2] - 2026-05-14
 

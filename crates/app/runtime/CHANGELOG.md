@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Replica identity on `AppContext`, exposed to the API server (Prometheus `served_by` middleware) and the scheduler (advisory-lock keys).
+- Stream-concurrency config: a global semaphore caps in-flight A2A SSE streams, bounding file-descriptor use under fan-out.
+
 ## [0.10.2] - 2026-05-15
 
 ### Changed

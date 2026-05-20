@@ -4,7 +4,7 @@
 //! database -> logging -> extensions -> ancillary services. Failures at
 //! any step propagate as [`RuntimeError`](crate::error::RuntimeError).
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
@@ -160,6 +160,8 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| build_marketplace_filter(&database));
 
+        let event_bridge = Arc::new(OnceLock::new());
+
         Ok(AppContext::from_parts(AppContextParts {
             config,
             database,
@@ -173,6 +175,7 @@ impl AppContextBuilder {
             user_service,
             app_paths,
             marketplace_filter,
+            event_bridge,
         }))
     }
 }

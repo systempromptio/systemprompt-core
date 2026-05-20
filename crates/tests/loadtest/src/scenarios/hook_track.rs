@@ -29,7 +29,9 @@ pub async fn run(client: Client, base_url: String, token: Option<String>, metric
 
     let start = Instant::now();
     let res = client
-        .post(format!("{base_url}/api/public/hooks/track?plugin_id=loadtest"))
+        .post(format!(
+            "{base_url}/api/public/hooks/track?plugin_id=loadtest"
+        ))
         .header("Authorization", &auth)
         .header("Content-Type", "application/json")
         .json(&body)

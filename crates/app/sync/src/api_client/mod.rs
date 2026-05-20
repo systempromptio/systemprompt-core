@@ -6,17 +6,21 @@
 
 mod response;
 mod retry;
+mod token;
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_SYNC_DEPLOY_TIMEOUT};
+use tokio::sync::Mutex;
 use tokio::time::sleep;
 
 use crate::error::{SyncError, SyncResult};
 pub use retry::RetryConfig;
+use token::is_unauthorized;
 
 #[derive(Clone, Debug)]
 pub struct SyncApiClient {
@@ -24,7 +28,8 @@ pub struct SyncApiClient {
     api_url: String,
     token: String,
     hostname: Option<String>,
-    sync_token: Option<String>,
+    sync_client_secret: Option<String>,
+    cached_sync_token: Arc<Mutex<Option<String>>>,
     retry_config: RetryConfig,
 }
 
@@ -56,7 +61,8 @@ impl SyncApiClient {
             api_url: api_url.to_string(),
             token: token.to_string(),
             hostname: None,
-            sync_token: None,
+            sync_client_secret: None,
+            cached_sync_token: Arc::new(Mutex::new(None)),
             retry_config: RetryConfig::default(),
         })
     }
@@ -64,20 +70,23 @@ impl SyncApiClient {
     pub fn with_direct_sync(
         mut self,
         hostname: Option<String>,
-        sync_token: Option<String>,
+        sync_client_secret: Option<String>,
     ) -> Self {
         self.hostname = hostname;
-        self.sync_token = sync_token;
+        self.sync_client_secret = sync_client_secret;
         self
     }
 
-    fn direct_sync_credentials(&self) -> Option<(String, String)> {
-        match (&self.hostname, &self.sync_token) {
-            (Some(hostname), Some(token)) => {
-                let url = format!("https://{}/api/v1/sync/files", hostname);
-                Some((url, token.clone()))
+    const fn is_direct_sync(&self) -> bool {
+        self.hostname.is_some() && self.sync_client_secret.is_some()
+    }
+
+    fn files_url(&self, tenant_id: &systemprompt_identifiers::TenantId) -> String {
+        match (&self.hostname, &self.sync_client_secret) {
+            (Some(hostname), Some(_)) => {
+                format!("https://{hostname}/api/v1/sync/files")
             },
-            _ => None,
+            _ => format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
         }
     }
 
@@ -90,12 +99,10 @@ impl SyncApiClient {
         tenant_id: &systemprompt_identifiers::TenantId,
         data: Vec<u8>,
     ) -> SyncResult<UploadResponse> {
-        let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
-            (
-                format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
-                self.token.clone(),
-            )
-        });
+        let url = self.files_url(tenant_id);
+        let direct = self.is_direct_sync();
+        let mut bearer = self.bearer_token(false).await?;
+        let mut reminted = false;
 
         let mut current_delay = self.retry_config.initial_delay;
 
@@ -103,7 +110,7 @@ impl SyncApiClient {
             let response = self
                 .client
                 .post(&url)
-                .header("Authorization", format!("Bearer {}", token))
+                .header("Authorization", format!("Bearer {bearer}"))
                 .header("Content-Type", "application/octet-stream")
                 .body(data.clone())
                 .send()
@@ -111,6 +118,10 @@ impl SyncApiClient {
 
             match response::handle_json::<UploadResponse>(response).await {
                 Ok(upload) => return Ok(upload),
+                Err(error) if direct && !reminted && is_unauthorized(&error) => {
+                    reminted = true;
+                    bearer = self.bearer_token(true).await?;
+                },
                 Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
                     tracing::warn!(
                         attempt = attempt,
@@ -136,12 +147,10 @@ impl SyncApiClient {
         &self,
         tenant_id: &systemprompt_identifiers::TenantId,
     ) -> SyncResult<Vec<u8>> {
-        let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
-            (
-                format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
-                self.token.clone(),
-            )
-        });
+        let url = self.files_url(tenant_id);
+        let direct = self.is_direct_sync();
+        let mut bearer = self.bearer_token(false).await?;
+        let mut reminted = false;
 
         let mut current_delay = self.retry_config.initial_delay;
 
@@ -149,12 +158,16 @@ impl SyncApiClient {
             let response = self
                 .client
                 .get(&url)
-                .header("Authorization", format!("Bearer {}", token))
+                .header("Authorization", format!("Bearer {bearer}"))
                 .send()
                 .await?;
 
             match response::handle_binary(response).await {
                 Ok(data) => return Ok(data),
+                Err(error) if direct && !reminted && is_unauthorized(&error) => {
+                    reminted = true;
+                    bearer = self.bearer_token(true).await?;
+                },
                 Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
                     tracing::warn!(
                         attempt = attempt,

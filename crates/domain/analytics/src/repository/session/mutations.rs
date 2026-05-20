@@ -101,6 +101,30 @@ pub async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Result<()
     Ok(())
 }
 
+pub async fn revoke_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+    let id = session_id.as_str();
+    sqlx::query!(
+        "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE session_id = $1 AND \
+         revoked_at IS NULL",
+        id
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn revoke_all_for_user(pool: &PgPool, user_id: &UserId) -> Result<u64> {
+    let uid = user_id.as_str();
+    let result = sqlx::query!(
+        "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND \
+         revoked_at IS NULL",
+        uid
+    )
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected())
+}
+
 pub async fn mark_converted(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(

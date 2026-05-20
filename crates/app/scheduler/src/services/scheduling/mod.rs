@@ -3,6 +3,7 @@
 //! error boundary.
 
 mod dispatch;
+mod lock;
 
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::SchedulerConfig;
@@ -98,19 +99,21 @@ impl SchedulerService {
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
+        let distributed_lock = self.config.distributed_lock;
 
         info!(count, "Spawning startup jobs in background");
 
         tokio::spawn(async move {
             for job_name in startup_job_names {
                 debug!(job_name = %job_name, "Running background startup job");
-                dispatch::execute_job(
+                dispatch::execute_job(dispatch::JobDispatch {
                     job_name,
-                    Arc::clone(&db_pool),
-                    repository.clone(),
-                    Arc::clone(&app_context),
-                    Arc::clone(&running_jobs),
-                )
+                    db_pool: Arc::clone(&db_pool),
+                    repository: repository.clone(),
+                    app_context: Arc::clone(&app_context),
+                    running_jobs: Arc::clone(&running_jobs),
+                    distributed_lock,
+                })
                 .await;
             }
             info!("Background startup jobs completed");
@@ -181,6 +184,7 @@ impl SchedulerService {
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);
         let running_jobs = Arc::clone(running_jobs);
+        let distributed_lock = self.config.distributed_lock;
 
         let job = Job::new_async(schedule_owned.as_str(), move |_uuid, _lock| {
             let job_name = job_name_owned.clone();
@@ -191,9 +195,16 @@ impl SchedulerService {
 
             Box::pin(async move {
                 let span = SystemSpan::new(&format!("scheduler:{job_name}"));
-                dispatch::execute_job(job_name, db_pool, repository, app_context, running_jobs)
-                    .instrument(span.span().clone())
-                    .await;
+                dispatch::execute_job(dispatch::JobDispatch {
+                    job_name,
+                    db_pool,
+                    repository,
+                    app_context,
+                    running_jobs,
+                    distributed_lock,
+                })
+                .instrument(span.span().clone())
+                .await;
             })
         })
         .map_err(SchedulerError::from)?;

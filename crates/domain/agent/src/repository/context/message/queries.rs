@@ -132,10 +132,13 @@ pub async fn get_messages_by_context(
     Ok(messages)
 }
 
-pub async fn message_exists(pool: &Arc<PgPool>, message_id: &str) -> Result<bool, RepositoryError> {
+pub async fn message_exists(
+    pool: &Arc<PgPool>,
+    message_id: &MessageId,
+) -> Result<bool, RepositoryError> {
     let row = sqlx::query_scalar!(
         r#"SELECT EXISTS(SELECT 1 FROM task_messages WHERE message_id = $1)"#,
-        message_id,
+        message_id.as_str(),
     )
     .fetch_one(pool.as_ref())
     .await

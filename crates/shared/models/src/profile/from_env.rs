@@ -73,6 +73,8 @@ fn server_config_from_env() -> ProfileResult<ServerConfig> {
             ..Default::default()
         },
         security_headers: SecurityHeadersConfig::default(),
+        instance_id: None,
+        max_concurrent_streams: crate::config::DEFAULT_MAX_CONCURRENT_STREAMS,
     })
 }
 

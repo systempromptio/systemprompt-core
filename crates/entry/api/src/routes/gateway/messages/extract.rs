@@ -4,7 +4,7 @@ use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
 use systemprompt_identifiers::{
-    ContextId, GatewayConversationId, SessionId, TenantId, TraceId, UserId, headers as sp_headers,
+    ContextId, GatewayConversationId, SessionId, TraceId, UserId, headers as sp_headers,
 };
 use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
 
@@ -18,7 +18,6 @@ use super::auth::{AuthedPrincipal, authenticate};
 #[derive(Default)]
 pub(super) struct RejectionPartial {
     pub user_id: Option<UserId>,
-    pub tenant_id: Option<TenantId>,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
     pub gateway_conversation_id: Option<GatewayConversationId>,
@@ -61,19 +60,11 @@ pub(super) async fn extract_request_context(
         )
     })?;
 
-    let tenant_id = request
-        .headers()
-        .get(sp_headers::TENANT_ID)
-        .and_then(|v| v.to_str().ok())
-        .filter(|s| !s.is_empty())
-        .map(|s| TenantId::new(s.to_string()));
-    partial.tenant_id.clone_from(&tenant_id);
-
     let session_id = require_session_id(request.headers())?;
     partial.session_id = Some(session_id.clone());
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
-    let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx, tenant_id).await?;
+    let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx).await?;
     partial.user_id = Some(principal.user_id.clone());
     partial.trace_id.clone_from(&principal.trace_id);
 

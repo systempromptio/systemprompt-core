@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-05-20
+
+### Changed
+- Workspace-aligned release. Provider trait definitions track the tenancy strip in `domain/ai` and `domain/oauth`: provider call sites no longer thread a runtime `tenant_id`.
+
 ## [0.9.2] - 2026-05-14
 
 ### Changed

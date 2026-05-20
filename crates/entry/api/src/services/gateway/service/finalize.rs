@@ -61,7 +61,6 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
                 quota::post_update_tokens(
                     &db,
                     quota::PostUpdateParams {
-                        tenant_id: audit_clone.ctx.tenant_id.as_ref(),
                         user_id: &audit_clone.ctx.user_id,
                         windows: &policy.quota_windows,
                         input_tokens: usage.input_tokens,

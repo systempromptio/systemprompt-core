@@ -9,11 +9,8 @@ use tokio::time;
 use crate::config::LoadConfig;
 use crate::metrics::Metrics;
 
-pub async fn run_scenario<F, Fut>(
-    config: &LoadConfig,
-    metrics: Arc<Metrics>,
-    scenario_fn: F,
-) where
+pub async fn run_scenario<F, Fut>(config: &LoadConfig, metrics: Arc<Metrics>, scenario_fn: F)
+where
     F: Fn(Client, String, Option<String>, Arc<Metrics>) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = ()> + Send,
 {
@@ -35,8 +32,13 @@ pub async fn run_scenario<F, Fut>(
         if target > current {
             spawn_users(
                 current..target,
-                &client, config, &metrics, &shutdown, &active_users,
-                &scenario_fn, &mut user_handles,
+                &client,
+                config,
+                &metrics,
+                &shutdown,
+                &active_users,
+                &scenario_fn,
+                &mut user_handles,
             );
         } else if target < current {
             shutdown.store(true, Ordering::Relaxed);
@@ -46,8 +48,13 @@ pub async fn run_scenario<F, Fut>(
             let remaining = active_users.load(Ordering::Relaxed);
             spawn_users(
                 target..remaining.min(current),
-                &client, config, &metrics, &shutdown, &active_users,
-                &scenario_fn, &mut user_handles,
+                &client,
+                config,
+                &metrics,
+                &shutdown,
+                &active_users,
+                &scenario_fn,
+                &mut user_handles,
             );
         }
 
@@ -72,6 +79,7 @@ pub async fn run_scenario<F, Fut>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_users<F, Fut>(
     range: std::ops::Range<usize>,
     client: &Client,

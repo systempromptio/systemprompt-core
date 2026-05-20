@@ -29,18 +29,20 @@ use serde::{Deserialize, Serialize};
 
 pub const UNRESTRICTED_ACKNOWLEDGEMENT: &str = "I understand this disables all authorization";
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GovernanceConfig {
     #[serde(default)]
     pub authz: Option<AuthzConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AuthzConfig {
     pub hook: AuthzHookConfig,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthzMode {
     Webhook,
@@ -48,7 +50,8 @@ pub enum AuthzMode {
     Unrestricted,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AuthzHookConfig {
     pub mode: AuthzMode,
     #[serde(default)]

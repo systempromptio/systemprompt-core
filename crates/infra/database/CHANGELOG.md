@@ -2,6 +2,15 @@
 
 All notable changes to `systemprompt-database` are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-20
+
+### Added
+- Read-replica routing. `DbPool` honours an optional read-replica URL and routes read-only queries to it; writes continue to land on the primary.
+- `infra db migrate-repair --apply` reconciles migration checksum drift in place by retiring the drifted bookkeeping rows and re-applying the affected migrations idempotently.
+
+### Changed
+- The migration-runner checksum-drift error message now points operators at `infra db migrate-repair --apply`, replacing the previous `--allow-checksum-drift` hint which suppressed the symptom without resolving it.
+
 ## [0.10.2] - 2026-05-15
 
 ### Added

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
+use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{
     ContextMiddleware, JwtContextExtractor, RouterExt, site_auth_gate,
 };
@@ -61,7 +62,7 @@ pub(super) fn build_static_router(
         .route("/", get(serve_homepage))
         .fallback(smart_fallback_handler)
         .with_state(static_state)
-        .with_auth_middleware(public_middleware);
+        .with_auth(public_middleware, AuthzPolicy::public());
 
     let site_auth_config = ctx
         .extension_registry()
