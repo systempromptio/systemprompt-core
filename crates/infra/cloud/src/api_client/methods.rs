@@ -115,13 +115,15 @@ impl CloudApiClient {
         let parsed: TokenExchangeResponse = response.json().await?;
         let lifetime = parsed
             .expires_in
-            .map(Duration::from_secs)
-            .unwrap_or_else(|| Duration::from_secs(300));
+            .map_or_else(|| Duration::from_secs(300), Duration::from_secs);
         let expires_at = Instant::now() + lifetime;
 
-        let mut cached = self.tenant_token_cache.lock().await;
-        *cached = Some((parsed.access_token.clone(), expires_at));
-        Ok(parsed.access_token)
+        let access_token = parsed.access_token;
+        {
+            let mut cached = self.tenant_token_cache.lock().await;
+            *cached = Some((access_token.clone(), expires_at));
+        }
+        Ok(access_token)
     }
 
     async fn invalidate_tenant_token(&self) {
