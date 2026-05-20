@@ -3,7 +3,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, SessionKey};
+use systemprompt_cloud::{
+    CliSession, CloudCredentials, CredentialsBootstrap, SessionIdentity, SessionKey,
+};
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
@@ -138,9 +140,7 @@ pub(super) fn build_cli_session(
         components.session_token,
         components.session_id,
         components.context_id,
-        admin_user.id.clone(),
-        email,
-        UserType::Admin,
+        SessionIdentity::new(admin_user.id.clone(), email, UserType::Admin),
     )
     .with_session_key(session_key)
     .with_profile_path(profile_ctx.path.clone())
