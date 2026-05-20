@@ -11,10 +11,13 @@ keywords.workspace = true
 categories.workspace = true
 description = "Event bus, SSE broadcasters, and fan-out routing for systemprompt.io AI governance infrastructure. A2A, analytics, and context stream wiring for the MCP governance pipeline."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core runtime
