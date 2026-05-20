@@ -3,10 +3,11 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{AiToolCallId, SessionId, TraceId};
+use systemprompt_identifiers::{AiToolCallId, SessionId, TraceId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct ToolContext {
+    pub actor: UserId,
     pub auth_token: String,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
@@ -16,8 +17,9 @@ pub struct ToolContext {
 
 impl ToolContext {
     #[must_use]
-    pub fn new(auth_token: impl Into<String>) -> Self {
+    pub fn new(actor: UserId, auth_token: impl Into<String>) -> Self {
         Self {
+            actor,
             auth_token: auth_token.into(),
             session_id: None,
             trace_id: None,

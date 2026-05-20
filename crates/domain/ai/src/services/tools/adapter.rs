@@ -164,7 +164,7 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
 }
 
 pub fn request_context_to_tool_context(ctx: &RequestContext) -> ToolContext {
-    let mut tool_ctx = ToolContext::new(ctx.auth_token().as_str())
+    let mut tool_ctx = ToolContext::new(ctx.user_id().clone(), ctx.auth_token().as_str())
         .with_session_id(ctx.session_id().clone())
         .with_trace_id(ctx.trace_id().clone())
         .with_header("x-context-id", ctx.context_id().as_str())

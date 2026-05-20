@@ -78,7 +78,7 @@ fn create_test_tool(name: &str, description: &str) -> ToolDefinition {
 }
 
 fn _create_test_context() -> ToolContext {
-    ToolContext::new("test-token")
+    ToolContext::new(systemprompt_identifiers::UserId::new("test-user"), "test-token")
 }
 
 mod tool_discovery_tests {
