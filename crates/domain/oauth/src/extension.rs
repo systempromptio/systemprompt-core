@@ -48,20 +48,20 @@ impl Extension for OauthExtension {
             )
             .with_required_columns(vec!["client_id".into(), "contact_email".into()]),
             SchemaDefinition::new(
-                "oauth_auth_codes",
-                include_str!("../schema/oauth_auth_codes.sql"),
-            )
-            .with_required_columns(vec![
-                "code".into(),
-                "client_id".into(),
-                "user_id".into(),
-            ]),
-            SchemaDefinition::new(
                 "oauth_refresh_tokens",
                 include_str!("../schema/oauth_refresh_tokens.sql"),
             )
             .with_required_columns(vec![
                 "token_id".into(),
+                "client_id".into(),
+                "user_id".into(),
+            ]),
+            SchemaDefinition::new(
+                "oauth_auth_codes",
+                include_str!("../schema/oauth_auth_codes.sql"),
+            )
+            .with_required_columns(vec![
+                "code".into(),
                 "client_id".into(),
                 "user_id".into(),
             ]),

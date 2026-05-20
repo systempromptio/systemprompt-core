@@ -5,19 +5,19 @@
 BEGIN;
 
 ALTER TABLE oauth_refresh_tokens
-    ADD COLUMN family_id TEXT;
+    ADD COLUMN IF NOT EXISTS family_id TEXT;
 
 UPDATE oauth_refresh_tokens SET family_id = token_id WHERE family_id IS NULL;
 
 ALTER TABLE oauth_refresh_tokens
     ALTER COLUMN family_id SET NOT NULL;
 
-CREATE INDEX idx_oauth_refresh_tokens_family_id ON oauth_refresh_tokens(family_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_refresh_tokens_family_id ON oauth_refresh_tokens(family_id);
 
 ALTER TABLE oauth_auth_codes
-    ADD COLUMN refresh_token_id TEXT
+    ADD COLUMN IF NOT EXISTS refresh_token_id TEXT
     REFERENCES oauth_refresh_tokens(token_id) ON DELETE SET NULL;
 
-CREATE INDEX idx_oauth_auth_codes_refresh_token_id ON oauth_auth_codes(refresh_token_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_auth_codes_refresh_token_id ON oauth_auth_codes(refresh_token_id);
 
 COMMIT;
