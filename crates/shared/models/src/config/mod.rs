@@ -6,6 +6,7 @@
 //! validation, rate-limit shapes, and verbosity levels.
 //! Accessors return [`crate::errors::ConfigError`] when not initialized.
 
+use std::path::PathBuf;
 use std::sync::OnceLock;
 use systemprompt_traits::ConfigProvider;
 
@@ -75,6 +76,7 @@ pub struct Config {
     pub jwt_audiences: Vec<JwtAudience>,
     pub allowed_resource_audiences: Vec<String>,
     pub trusted_issuers: Vec<TrustedIssuer>,
+    pub signing_key_path: PathBuf,
     pub use_https: bool,
     pub rate_limits: RateLimitConfig,
     pub cors_allowed_origins: Vec<String>,

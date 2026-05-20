@@ -29,11 +29,8 @@
 //! use systemprompt_security::{AuthMode, AuthValidationService};
 //!
 //! # fn demo(headers: &axum::http::HeaderMap) -> systemprompt_security::AuthResult<()> {
-//! let svc = AuthValidationService::new(
-//!     "secret".to_string(),
-//!     "systemprompt.io".to_string(),
-//!     vec![JwtAudience::standard()],
-//! );
+//! let svc =
+//!     AuthValidationService::new("systemprompt.io".to_string(), vec![JwtAudience::standard()]);
 //! let _ctx = svc.validate_request(headers, AuthMode::Required)?;
 //! # Ok(())
 //! # }

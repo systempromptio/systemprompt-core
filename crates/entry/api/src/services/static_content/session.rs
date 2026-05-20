@@ -21,16 +21,10 @@ pub async fn ensure_session(
     uri: Option<&http::Uri>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers) {
-        if let Ok(claims) = validate_jwt_token(
-            &token,
-            jwt_secret,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        ) {
+        if let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences) {
             if let Some(session_id) = claims.session_id {
                 return Ok(SessionInfo {
                     session_id: SessionId::new(session_id),
@@ -54,7 +48,6 @@ pub async fn ensure_session(
             headers,
             uri,
             client_id: &client_id,
-            jwt_secret,
             session_source: SessionSource::Web,
         })
         .await?;

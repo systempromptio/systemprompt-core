@@ -1,9 +1,10 @@
 use anyhow::{Result, anyhow};
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
+use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_oauth::models::JwtClaims;
+use systemprompt_security::keys::authority;
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {
@@ -17,34 +18,40 @@ pub struct JwtUserContext {
     pub act_chain: Vec<Actor>,
 }
 
-pub struct JwtExtractor {
-    decoding_key: DecodingKey,
-    validation: Validation,
-}
-
-impl std::fmt::Debug for JwtExtractor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("JwtExtractor")
-            .field("decoding_key", &"<DecodingKey>")
-            .field("validation", &self.validation)
-            .finish()
-    }
-}
+#[derive(Debug, Default, Clone, Copy)]
+pub struct JwtExtractor;
 
 impl JwtExtractor {
-    pub fn new(jwt_secret: &str) -> Self {
-        let mut validation = Validation::new(Algorithm::HS256);
-        validation.validate_exp = true;
-        validation.validate_aud = false;
-
-        Self {
-            decoding_key: DecodingKey::from_secret(jwt_secret.as_bytes()),
-            validation,
-        }
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
     }
 
+    fn build_validation() -> Validation {
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_exp = true;
+        validation.validate_aud = false;
+        validation
+    }
+
+    fn decoding_key_for(token: &str) -> Result<&'static jsonwebtoken::DecodingKey, String> {
+        let header = decode_header(token).map_err(|e| format!("invalid header: {e}"))?;
+        if header.alg != Algorithm::RS256 {
+            return Err("JWT must be RS256-signed".to_string());
+        }
+        let kid = header
+            .kid
+            .as_deref()
+            .ok_or_else(|| "JWT missing `kid` header".to_string())?;
+        authority::decoding_key_for_kid(kid)
+            .map_err(|e| format!("key lookup: {e}"))?
+            .ok_or_else(|| format!("unknown `kid` `{kid}`"))
+    }
+
+    #[allow(clippy::unused_self)]
     pub fn validate_token(&self, token: &str) -> Result<(), String> {
-        match decode::<JwtClaims>(token, &self.decoding_key, &self.validation) {
+        let key = Self::decoding_key_for(token)?;
+        match decode::<JwtClaims>(token, key, &Self::build_validation()) {
             Ok(_) => Ok(()),
             Err(err) => {
                 let reason = err.to_string();
@@ -61,8 +68,10 @@ impl JwtExtractor {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub fn extract_user_context(&self, token: &str) -> Result<JwtUserContext> {
-        let token_data = decode::<JwtClaims>(token, &self.decoding_key, &self.validation)?;
+        let key = Self::decoding_key_for(token).map_err(|e| anyhow!(e))?;
+        let token_data = decode::<JwtClaims>(token, key, &Self::build_validation())?;
 
         let session_id_str = token_data
             .claims

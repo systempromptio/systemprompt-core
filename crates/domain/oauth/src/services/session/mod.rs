@@ -33,7 +33,6 @@ struct SessionCreationParams<'a> {
     is_ai_crawler: bool,
     fingerprint: String,
     client_id: &'a ClientId,
-    jwt_secret: &'a str,
     session_source: SessionSource,
 }
 
@@ -56,7 +55,6 @@ pub struct CreateAnonymousSessionInput<'a> {
     pub headers: &'a HeaderMap,
     pub uri: Option<&'a Uri>,
     pub client_id: &'a ClientId,
-    pub jwt_secret: &'a str,
     pub session_source: SessionSource,
 }
 
@@ -128,7 +126,6 @@ impl SessionCreationService {
             is_ai_crawler,
             fingerprint,
             client_id: input.client_id,
-            jwt_secret: input.jwt_secret,
             session_source: input.session_source,
         };
         self.create_session_internal(params).await
@@ -193,14 +190,14 @@ impl SessionCreationService {
             .await;
 
         if let Some(session) = self
-            .try_reuse_session_at_limit(&params.fingerprint, params.client_id, params.jwt_secret)
+            .try_reuse_session_at_limit(&params.fingerprint, params.client_id)
             .await
         {
             return Ok(session);
         }
 
         if let Some(session) = self
-            .try_find_existing_session(&params.fingerprint, params.client_id, params.jwt_secret)
+            .try_find_existing_session(&params.fingerprint, params.client_id)
             .await
         {
             return Ok(session);

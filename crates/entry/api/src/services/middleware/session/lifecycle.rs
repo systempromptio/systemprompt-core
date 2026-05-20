@@ -14,17 +14,11 @@ pub(super) async fn create_new_session(
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
     let client_id = ClientId::new("sp_web".to_string());
 
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-        tracing::error!(error = %e, "Failed to get JWT secret during session creation");
-        ApiError::internal_error("Failed to initialize session")
-    })?;
-
     session_creation_service
         .create_anonymous_session(CreateAnonymousSessionInput {
             headers,
             uri: Some(uri),
             client_id: &client_id,
-            jwt_secret,
             session_source: SessionSource::Web,
         })
         .await
@@ -64,11 +58,6 @@ pub(super) async fn refresh_session_for_user(
             },
         })?;
 
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret().map_err(|e| {
-        tracing::error!(error = %e, "Failed to get JWT secret during session refresh");
-        ApiError::internal_error("Failed to refresh session")
-    })?;
-
     let config = systemprompt_models::Config::get().map_err(|e| {
         tracing::error!(error = %e, "Failed to get config during session refresh");
         ApiError::internal_error("Failed to refresh session")
@@ -79,7 +68,6 @@ pub(super) async fn refresh_session_for_user(
         &session_id,
         &ClientId::new("sp_web".to_string()),
         &systemprompt_oauth::services::JwtSigningParams {
-            secret: jwt_secret,
             issuer: &config.jwt_issuer,
         },
     )

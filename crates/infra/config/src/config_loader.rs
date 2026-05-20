@@ -5,6 +5,8 @@
 //! secrets) into the runtime [`Config`] singleton consumed by the rest
 //! of the application.
 
+use std::path::{Path, PathBuf};
+
 use systemprompt_models::Config;
 use systemprompt_models::config::{
     format_path_errors, validate_postgres_url, validate_profile_paths,
@@ -96,14 +98,14 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
 
     let content = std::fs::read_to_string(path).map_err(|source| ConfigError::ReadProfilePath {
         field: field.to_string(),
-        path: std::path::PathBuf::from(path),
+        path: PathBuf::from(path),
         source,
     })?;
 
     serde_yaml::from_str::<serde_yaml::Value>(&content).map_err(|source| {
         ConfigError::InvalidProfileYaml {
             field: field.to_string(),
-            path: std::path::PathBuf::from(path),
+            path: PathBuf::from(path),
             source,
         }
     })?;
@@ -132,7 +134,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
             .clone()
             .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_string()),
         github_token: secrets.github.clone(),
-        system_path: paths.system,
+        system_path: paths.system.clone(),
         services_path: profile.paths.services.clone(),
         bin_path: profile.paths.bin.clone(),
         skills_path: paths.skills,
@@ -153,6 +155,10 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         jwt_audiences: profile.security.audiences.clone(),
         allowed_resource_audiences: profile.security.allowed_resource_audiences.clone(),
         trusted_issuers: profile.security.trusted_issuers.clone(),
+        signing_key_path: resolve_signing_key_path(
+            &profile.security.signing_key_path,
+            &paths.system,
+        ),
         use_https: profile.server.use_https,
         rate_limits: (&profile.rate_limits).into(),
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
@@ -161,6 +167,16 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         security_headers: profile.server.security_headers.clone(),
         allow_registration: profile.security.allow_registration,
     })
+}
+
+fn resolve_signing_key_path(profile_path: &Path, system_path: &str) -> PathBuf {
+    if profile_path.is_absolute() {
+        return profile_path.to_path_buf();
+    }
+    if system_path.is_empty() {
+        return profile_path.to_path_buf();
+    }
+    PathBuf::from(system_path).join(profile_path)
 }
 
 pub fn validate_database_config(config: &Config) -> ConfigResult<()> {

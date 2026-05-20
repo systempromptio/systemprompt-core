@@ -102,9 +102,7 @@ pub async fn generate_client_tokens(
         .await
         .map_err(|e| anyhow!("Failed to create session: {e}"))?;
 
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let signing = JwtSigningParams {
-        secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
     };
     let jwt_token = generate_jwt(

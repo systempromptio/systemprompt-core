@@ -16,7 +16,6 @@ use crate::session::resolution::ProfileContext;
 
 pub(super) struct ResolvedSecrets {
     pub database_url: String,
-    pub jwt_secret: String,
 }
 
 pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
@@ -30,7 +29,6 @@ pub(super) fn load_secrets() -> Result<ResolvedSecrets> {
 
     Ok(ResolvedSecrets {
         database_url: secrets.database_url.clone(),
-        jwt_secret: secrets.jwt_secret.clone(),
     })
 }
 
@@ -81,12 +79,11 @@ pub(super) async fn get_or_create_admin(
 }
 
 pub(super) fn generate_admin_token(
-    jwt_secret: &str,
     issuer: &str,
     user: &systemprompt_users::User,
     session_id: &SessionId,
 ) -> Result<SessionToken> {
-    let generator = SessionGenerator::new(jwt_secret, issuer);
+    let generator = SessionGenerator::new(issuer);
     generator
         .generate(&SessionParams {
             user_id: &user.id,

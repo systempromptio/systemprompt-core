@@ -35,12 +35,11 @@ impl std::fmt::Debug for JwtContextExtractor {
 
 impl JwtContextExtractor {
     pub fn new(
-        jwt_secret: &str,
         analytics_provider: Arc<dyn AnalyticsProvider>,
         user_provider: Arc<dyn UserProvider>,
     ) -> Self {
         Self {
-            jwt_extractor: Arc::new(JwtExtractor::new(jwt_secret)),
+            jwt_extractor: Arc::new(JwtExtractor::new()),
             token_extractor: TokenExtractor::browser_only(),
             analytics_provider,
             user_provider,

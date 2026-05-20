@@ -130,7 +130,7 @@ pub async fn login_for_profile(
     if !args.token_only {
         CliService::info("Generating token...");
     }
-    let session_generator = SessionGenerator::new(&secrets.jwt_secret, &profile.security.issuer);
+    let session_generator = SessionGenerator::new(&profile.security.issuer);
     let duration = ChronoDuration::hours(args.duration_hours);
     let session_token = session_generator
         .generate(&SessionParams {

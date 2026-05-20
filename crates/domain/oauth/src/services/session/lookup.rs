@@ -12,7 +12,6 @@ impl SessionCreationService {
         &self,
         fingerprint: &str,
         client_id: &ClientId,
-        jwt_secret: &str,
     ) -> Option<AnonymousSessionInfo> {
         let fp_provider = self.fingerprint_provider.as_ref()?;
 
@@ -59,7 +58,6 @@ impl SessionCreationService {
             })
             .ok()?;
         let signing = JwtSigningParams {
-            secret: jwt_secret,
             issuer: &config.jwt_issuer,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)
@@ -89,7 +87,6 @@ impl SessionCreationService {
         &self,
         fingerprint: &str,
         client_id: &ClientId,
-        jwt_secret: &str,
     ) -> Option<AnonymousSessionInfo> {
         let lookup_result = tokio::time::timeout(
             tokio::time::Duration::from_millis(SESSION_LOOKUP_TIMEOUT_MS),
@@ -119,7 +116,6 @@ impl SessionCreationService {
             })
             .ok()?;
         let signing = JwtSigningParams {
-            secret: jwt_secret,
             issuer: &config.jwt_issuer,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, client_id, &signing)

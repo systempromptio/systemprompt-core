@@ -14,18 +14,12 @@ impl AuthenticationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let claims = jwt_validation::validate_jwt_token(
-            &token,
-            jwt_secret,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        )
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let claims =
+            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
+                .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();

@@ -107,11 +107,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let user_provider = ctx
         .user_provider()
         .ok_or_else(|| anyhow::anyhow!("UserProvider required for JWT middleware"))?;
-    let jwt_extractor = JwtContextExtractor::new(
-        systemprompt_config::SecretsBootstrap::jwt_secret()?,
-        analytics,
-        user_provider,
-    );
+    let jwt_extractor = JwtContextExtractor::new(analytics, user_provider);
     let global_context_middleware = ContextMiddleware::public(jwt_extractor);
     router = router.layer(axum::middleware::from_fn({
         let middleware = global_context_middleware;

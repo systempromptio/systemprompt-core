@@ -73,10 +73,6 @@ async fn issue_anonymous_session(
     expires_in: i64,
 ) -> Response {
     let client_id = req.client_id.clone();
-    let jwt_secret = match systemprompt_config::SecretsBootstrap::jwt_secret() {
-        Ok(s) => s,
-        Err(e) => return server_error(format!("Failed to get JWT secret: {e}")),
-    };
     let session_source = SessionSource::from_client_id(&req.client_id);
 
     match session_service
@@ -84,7 +80,6 @@ async fn issue_anonymous_session(
             headers,
             uri: None,
             client_id: &client_id,
-            jwt_secret,
             session_source,
         })
         .await

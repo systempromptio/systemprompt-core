@@ -5,6 +5,7 @@ use systemprompt_models::execution::context::RequestContext;
 
 use crate::error::{AuthError, AuthResult};
 use crate::extraction::HeaderExtractor;
+use crate::keys::authority;
 use crate::session::ValidatedSessionClaims;
 
 const ANONYMOUS_SESSION_ID: &str = "anonymous";
@@ -23,19 +24,14 @@ pub enum AuthMode {
 
 #[derive(Debug)]
 pub struct AuthValidationService {
-    secret: String,
     issuer: String,
     audiences: Vec<JwtAudience>,
 }
 
 impl AuthValidationService {
     #[must_use]
-    pub const fn new(secret: String, issuer: String, audiences: Vec<JwtAudience>) -> Self {
-        Self {
-            secret,
-            issuer,
-            audiences,
-        }
+    pub const fn new(issuer: String, audiences: Vec<JwtAudience>) -> Self {
+        Self { issuer, audiences }
     }
 
     pub fn validate_request(
@@ -89,21 +85,26 @@ impl AuthValidationService {
     }
 
     fn validate_token(&self, token: &str) -> AuthResult<ValidatedSessionClaims> {
-        use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
+        use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 
-        let mut validation = Validation::new(Algorithm::HS256);
+        let header = decode_header(token).map_err(AuthError::InvalidToken)?;
+        if header.alg != Algorithm::RS256 {
+            return Err(AuthError::UnsupportedAlgorithm);
+        }
+        let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
+        let key = authority::decoding_key_for_kid(kid)
+            .map_err(|e| AuthError::KeyLookup(e.to_string()))?
+            .ok_or_else(|| AuthError::UnknownKid(kid.to_string()))?;
+
+        let mut validation = Validation::new(Algorithm::RS256);
 
         validation.set_issuer(&[&self.issuer]);
 
         let audience_strs: Vec<&str> = self.audiences.iter().map(JwtAudience::as_str).collect();
         validation.set_audience(&audience_strs);
 
-        let token_data = decode::<JwtClaims>(
-            token,
-            &DecodingKey::from_secret(self.secret.as_bytes()),
-            &validation,
-        )
-        .map_err(AuthError::InvalidToken)?;
+        let token_data =
+            decode::<JwtClaims>(token, key, &validation).map_err(AuthError::InvalidToken)?;
 
         let claims = token_data.claims;
 

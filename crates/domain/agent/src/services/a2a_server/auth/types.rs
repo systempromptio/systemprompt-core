@@ -33,17 +33,12 @@ impl AgentOAuthState {
     pub fn new(
         db: Arc<Database>,
         config: AgentOAuthConfig,
-        jwt_secret: String,
         jwt_issuer: String,
         jwt_audiences: Vec<JwtAudience>,
     ) -> Self {
         Self {
             config,
-            auth_service: Arc::new(AuthValidationService::new(
-                jwt_secret,
-                jwt_issuer,
-                jwt_audiences,
-            )),
+            auth_service: Arc::new(AuthValidationService::new(jwt_issuer, jwt_audiences)),
             db,
             jwt_provider: None,
             user_provider: None,

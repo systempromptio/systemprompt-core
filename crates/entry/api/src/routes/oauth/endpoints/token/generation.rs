@@ -113,7 +113,6 @@ async fn create_jwt_and_refresh_token(
 
     let scope_string = systemprompt_models::auth::permissions_to_string(&permissions);
     let access_token_jti = generate_access_token_jti();
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions,
@@ -123,7 +122,6 @@ async fn create_jwt_and_refresh_token(
         plugin_id: None,
     };
     let signing = JwtSigningParams {
-        secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
     };
     let access_token = generate_jwt(user, config, access_token_jti, session_id, &signing)?;

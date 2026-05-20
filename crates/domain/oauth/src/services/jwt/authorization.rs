@@ -25,17 +25,12 @@ impl AuthorizationService {
             );
             return Err(StatusCode::UNAUTHORIZED);
         };
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let Ok(claims) = jwt_validation::validate_jwt_token(
-            &token,
-            jwt_secret,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        ) else {
+        let Ok(claims) =
+            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
+        else {
             tracing::warn!(
                 service = %service_name,
                 "JWT validation failed"
@@ -62,18 +57,12 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let claims = jwt_validation::validate_jwt_token(
-            &token,
-            jwt_secret,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        )
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let claims =
+            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
+                .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         let required_aud =
             JwtAudience::from_str(required_audience).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -92,18 +81,12 @@ impl AuthorizationService {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;
-        let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let claims = jwt_validation::validate_jwt_token(
-            &token,
-            jwt_secret,
-            &config.jwt_issuer,
-            &config.jwt_audiences,
-        )
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let claims =
+            jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
+                .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
         let allowed_auds: Vec<JwtAudience> = allowed_audiences
             .iter()

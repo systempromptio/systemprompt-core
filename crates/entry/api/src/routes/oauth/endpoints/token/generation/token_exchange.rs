@@ -146,9 +146,7 @@ pub async fn handle_token_exchange(
         resource: resource.map(str::to_string),
         plugin_id: None,
     };
-    let jwt_secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
     let signing = JwtSigningParams {
-        secret: jwt_secret,
         issuer: &global.jwt_issuer,
     };
 
@@ -292,8 +290,37 @@ pub fn peek_issuer(token: &str) -> Result<String> {
 }
 
 fn validate_self_issued(token: &str, global: &Config) -> Result<SubjectIdentity> {
-    let secret = systemprompt_config::SecretsBootstrap::jwt_secret()?;
-    let mut validation = Validation::new(Algorithm::HS256);
+    use jsonwebtoken::decode_header;
+    use systemprompt_security::keys::authority;
+
+    let header = decode_header(token).map_err(|e| {
+        anyhow!(TokenError::InvalidGrant {
+            reason: format!("subject_token header decode failed: {e}"),
+        })
+    })?;
+    if header.alg != Algorithm::RS256 {
+        return Err(anyhow!(TokenError::InvalidGrant {
+            reason: "subject_token must be RS256-signed".to_string(),
+        }));
+    }
+    let kid = header.kid.as_deref().ok_or_else(|| {
+        anyhow!(TokenError::InvalidGrant {
+            reason: "subject_token missing `kid` header".to_string(),
+        })
+    })?;
+    let key = authority::decoding_key_for_kid(kid)
+        .map_err(|e| {
+            anyhow!(TokenError::InvalidGrant {
+                reason: format!("signing key lookup failed: {e}"),
+            })
+        })?
+        .ok_or_else(|| {
+            anyhow!(TokenError::InvalidGrant {
+                reason: format!("unknown `kid` `{kid}`"),
+            })
+        })?;
+
+    let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[&global.jwt_issuer]);
     let aud_strs: Vec<&str> = global
         .jwt_audiences
@@ -301,12 +328,7 @@ fn validate_self_issued(token: &str, global: &Config) -> Result<SubjectIdentity>
         .map(JwtAudience::as_str)
         .collect();
     validation.set_audience(&aud_strs);
-    let data = decode::<JwtClaims>(
-        token,
-        &DecodingKey::from_secret(secret.as_bytes()),
-        &validation,
-    )
-    .map_err(|e| {
+    let data = decode::<JwtClaims>(token, key, &validation).map_err(|e| {
         anyhow!(TokenError::InvalidGrant {
             reason: format!("subject_token rejected: {e}"),
         })

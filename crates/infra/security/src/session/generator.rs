@@ -1,11 +1,12 @@
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 
 use crate::error::{JwtError, JwtResult};
+use crate::keys::authority;
 
 #[derive(Debug)]
 pub struct SessionParams<'a> {
@@ -22,14 +23,12 @@ pub struct SessionParams<'a> {
 
 #[derive(Debug)]
 pub struct SessionGenerator {
-    jwt_secret: String,
     issuer: String,
 }
 
 impl SessionGenerator {
-    pub fn new(jwt_secret: impl Into<String>, issuer: impl Into<String>) -> Self {
+    pub fn new(issuer: impl Into<String>) -> Self {
         Self {
-            jwt_secret: jwt_secret.into(),
             issuer: issuer.into(),
         }
     }
@@ -60,13 +59,11 @@ impl SessionGenerator {
             act: None,
         };
 
-        let header = Header::new(Algorithm::HS256);
-        let token = encode(
-            &header,
-            &claims,
-            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
-        )
-        .map_err(JwtError::from)?;
+        let kid = authority::active_kid().map_err(|e| JwtError::Signing(e.to_string()))?;
+        let mut header = Header::new(Algorithm::RS256);
+        header.kid = Some(kid.to_string());
+        let key = authority::encoding_key().map_err(|e| JwtError::Signing(e.to_string()))?;
+        let token = encode(&header, &claims, key).map_err(JwtError::from)?;
 
         Ok(SessionToken::new(token))
     }

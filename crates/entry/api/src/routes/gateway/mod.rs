@@ -16,7 +16,6 @@ use axum::routing::{get, post};
 use axum::{Extension, Router};
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_config::SecretsBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_logging::{LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::AppContext;
@@ -78,14 +77,6 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
 }
 
 pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
-    let jwt_secret = match SecretsBootstrap::jwt_secret() {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::warn!(error = %e, "Gateway router: JWT secret unavailable — gateway disabled");
-            return None;
-        },
-    };
-
     let Some(analytics) = ctx.analytics_provider() else {
         tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
         return None;
@@ -94,11 +85,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         tracing::warn!("Gateway router: user provider unavailable — gateway disabled");
         return None;
     };
-    let jwt_extractor = Arc::new(JwtContextExtractor::new(
-        jwt_secret,
-        analytics,
-        user_provider,
-    ));
+    let jwt_extractor = Arc::new(JwtContextExtractor::new(analytics, user_provider));
 
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();
@@ -124,7 +111,7 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let anthropic_inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let responses_inbound: Arc<dyn InboundAdapter> = Arc::new(OpenAiResponsesInbound);
 
-    let router = Router::new()
+    Router::new()
         .route(
             "/messages",
             post(move |request| {
@@ -235,7 +222,5 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         .layer(axum::middleware::from_fn_with_state(
             Arc::clone(ctx.db_pool()),
             log_gateway_request,
-        ));
-
-    Some(router)
+        ))
 }
