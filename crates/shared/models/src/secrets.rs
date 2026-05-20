@@ -154,22 +154,52 @@ impl Secrets {
         tracing::info!(providers = ?configured, "Configured API providers");
     }
 
-    pub fn custom_env_vars(&self) -> Vec<(String, &str)> {
-        self.custom
-            .iter()
-            .flat_map(|(key, value)| {
-                let upper_key = key.to_uppercase();
-                let value_str = value.as_str();
-                if upper_key == *key {
-                    vec![(key.clone(), value_str)]
-                } else {
-                    vec![(key.clone(), value_str), (upper_key, value_str)]
-                }
-            })
-            .collect()
-    }
+    pub fn to_subprocess_env(&self) -> Vec<(String, String)> {
+        let mut pairs: Vec<(String, String)> = Vec::new();
 
-    pub fn custom_env_var_names(&self) -> Vec<String> {
-        self.custom.keys().map(|key| key.to_uppercase()).collect()
+        pairs.push(("JWT_SECRET".to_owned(), self.jwt_secret.clone()));
+        pairs.push((
+            "OAUTH_AT_REST_PEPPER".to_owned(),
+            self.oauth_at_rest_pepper.clone(),
+        ));
+        pairs.push(("DATABASE_URL".to_owned(), self.database_url.clone()));
+
+        let optionals: &[(&str, &Option<String>)] = &[
+            (
+                "MANIFEST_SIGNING_SECRET_SEED",
+                &self.manifest_signing_secret_seed,
+            ),
+            ("DATABASE_WRITE_URL", &self.database_write_url),
+            ("EXTERNAL_DATABASE_URL", &self.external_database_url),
+            ("INTERNAL_DATABASE_URL", &self.internal_database_url),
+            ("GEMINI_API_KEY", &self.gemini),
+            ("ANTHROPIC_API_KEY", &self.anthropic),
+            ("OPENAI_API_KEY", &self.openai),
+            ("GITHUB_TOKEN", &self.github),
+            ("MOONSHOT_API_KEY", &self.moonshot),
+            ("QWEN_API_KEY", &self.qwen),
+        ];
+        for (name, value) in optionals {
+            if let Some(v) = value
+                && !v.is_empty()
+            {
+                pairs.push(((*name).to_owned(), v.clone()));
+            }
+        }
+
+        if !self.custom.is_empty() {
+            let mut names: Vec<String> = Vec::with_capacity(self.custom.len());
+            for (key, value) in &self.custom {
+                let upper = key.to_uppercase();
+                names.push(upper.clone());
+                pairs.push((upper.clone(), value.clone()));
+                if upper != *key {
+                    pairs.push((key.clone(), value.clone()));
+                }
+            }
+            pairs.push(("SYSTEMPROMPT_CUSTOM_SECRETS".to_owned(), names.join(",")));
+        }
+
+        pairs
     }
 }

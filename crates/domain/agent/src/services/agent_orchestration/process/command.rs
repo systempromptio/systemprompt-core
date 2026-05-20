@@ -55,29 +55,6 @@ pub(super) fn prepare_agent_log_file(
         })
 }
 
-fn configure_secrets_env(command: &mut Command, secrets: &Secrets) {
-    if let Some(ref key) = secrets.gemini {
-        command.env("GEMINI_API_KEY", key);
-    }
-    if let Some(ref key) = secrets.anthropic {
-        command.env("ANTHROPIC_API_KEY", key);
-    }
-    if let Some(ref key) = secrets.openai {
-        command.env("OPENAI_API_KEY", key);
-    }
-    if let Some(ref key) = secrets.github {
-        command.env("GITHUB_TOKEN", key);
-    }
-
-    if !secrets.custom.is_empty() {
-        let uppercase_keys = secrets.custom_env_var_names();
-        command.env("SYSTEMPROMPT_CUSTOM_SECRETS", uppercase_keys.join(","));
-        for (env_name, value) in secrets.custom_env_vars() {
-            command.env(env_name, value);
-        }
-    }
-}
-
 pub(super) struct BuildAgentCommandParams<'a> {
     pub binary_path: &'a PathBuf,
     pub agent_name: &'a str,
@@ -117,15 +94,6 @@ pub(super) fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Comman
     command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
-        .env("JWT_SECRET", &secrets.jwt_secret)
-        .env(
-            "MANIFEST_SIGNING_SECRET_SEED",
-            secrets
-                .manifest_signing_secret_seed
-                .as_deref()
-                .unwrap_or(""),
-        )
-        .env("DATABASE_URL", &secrets.database_url)
         .env("AGENT_NAME", agent_name)
         .env("AGENT_PORT", port.to_string())
         .env("DATABASE_TYPE", &config.database_type)
@@ -133,10 +101,13 @@ pub(super) fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Comman
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
 
+    for (k, v) in secrets.to_subprocess_env() {
+        command.env(k, v);
+    }
+
     if let Ok(fly_app) = std::env::var("FLY_APP_NAME") {
         command.env("FLY_APP_NAME", fly_app);
     }
 
-    configure_secrets_env(&mut command, secrets);
     command
 }
