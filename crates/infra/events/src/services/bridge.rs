@@ -117,8 +117,7 @@ impl PostgresEventBridge {
             error!(channel = %row.channel, row_id, "event bridge: unknown outbox channel");
             return;
         };
-        let user_id = UserId::new(row.user_id);
-        Self::fan_in(channel, &user_id, row.payload).await;
+        Self::fan_in(channel, &row.user_id, row.payload).await;
     }
 
     /// Deserializes `payload` according to `channel` and routes it through
