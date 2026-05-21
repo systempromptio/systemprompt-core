@@ -75,11 +75,27 @@ pub async fn handle_callback(
         },
     };
 
-    let redirect_destination = params
-        .state
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .unwrap_or("/");
+    let state_token = match params.state.as_deref().filter(|s| !s.is_empty()) {
+        Some(s) => s,
+        None => {
+            return (StatusCode::BAD_REQUEST, "Missing state parameter").into_response();
+        },
+    };
+    let redirect_destination = match repo.consume_state_binding(state_token).await {
+        Ok(Some(binding)) => binding.return_to,
+        Ok(None) => {
+            tracing::warn!("state binding missing, expired, or already consumed");
+            return (StatusCode::BAD_REQUEST, "Invalid state parameter").into_response();
+        },
+        Err(e) => {
+            tracing::error!(error = %e, "state binding lookup failed");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to validate state",
+            )
+                .into_response();
+        },
+    };
 
     let cookie = format!(
         "access_token={}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
@@ -87,7 +103,7 @@ pub async fn handle_callback(
         systemprompt_oauth::constants::token::COOKIE_MAX_AGE_SECONDS
     );
 
-    let mut response = Redirect::to(redirect_destination).into_response();
+    let mut response = Redirect::to(&redirect_destination).into_response();
     if let Ok(cookie_value) = HeaderValue::from_str(&cookie) {
         response
             .headers_mut()

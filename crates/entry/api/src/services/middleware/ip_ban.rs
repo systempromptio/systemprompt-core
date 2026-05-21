@@ -1,46 +1,27 @@
-use axum::extract::Request;
+use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use ipnet::IpNet;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_models::api::ApiError;
 use systemprompt_users::BannedIpRepository;
 use tracing::warn;
 
-fn extract_client_ip(request: &Request) -> Option<String> {
-    request
-        .headers()
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .map(|s| s.trim().to_string())
-        .or_else(|| {
-            request
-                .headers()
-                .get("x-real-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(ToString::to_string)
-        })
-        .or_else(|| {
-            request
-                .headers()
-                .get("cf-connecting-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(ToString::to_string)
-        })
-        .or_else(|| {
-            request
-                .extensions()
-                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
-                .map(|ci| ci.0.ip().to_string())
-        })
-}
+use super::client_addr::resolve_client_ip;
 
 pub async fn ip_ban_middleware(
     request: Request,
     next: Next,
     banned_ip_repo: Arc<BannedIpRepository>,
+    trusted_proxies: Arc<Vec<IpNet>>,
 ) -> Response {
-    let ip_address = extract_client_ip(&request);
+    let ip_address = resolve_client_ip(
+        request.headers(),
+        request.extensions().get::<ConnectInfo<SocketAddr>>(),
+        &trusted_proxies,
+    )
+    .map(|a| a.to_string());
 
     if let Some(ip) = &ip_address {
         match banned_ip_repo.is_banned(ip).await {

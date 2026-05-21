@@ -6,6 +6,7 @@ use anyhow::Result;
 use systemprompt_oauth::repository::OAuthRepository;
 
 pub async fn validate_authorize_request(
+    state: &systemprompt_oauth::OAuthState,
     params: &AuthorizeQuery,
     repo: &OAuthRepository,
 ) -> Result<String> {
@@ -33,7 +34,7 @@ pub async fn validate_authorize_request(
     }
 
     let resource_scopes = match &params.resource {
-        Some(resource) => resource::resolve_resource_scopes(resource).await,
+        Some(resource) => resource::resolve_resource_scopes(state, resource).await,
         None => None,
     };
 

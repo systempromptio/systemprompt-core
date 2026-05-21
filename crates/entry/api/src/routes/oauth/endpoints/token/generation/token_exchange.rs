@@ -53,8 +53,6 @@ pub struct TokenExchangeRequest<'a> {
     pub resource: Option<&'a str>,
 }
 
-/// Outcome of validating a subject token: original scope and any
-/// pre-existing `act` chain to extend.
 struct SubjectIdentity {
     scope: Vec<Permission>,
     prior_act: Option<ActClaim>,
@@ -257,11 +255,9 @@ async fn validate_subject_token(
     })
 }
 
-/// Decode the `iss` claim without validating the signature.
-///
-/// The result is only used to route the token to the correct
-/// signature-verification path; the actual `iss` and signature are
-/// re-validated downstream.
+// The result is only used to route the token to the correct
+// signature-verification path; the actual `iss` and signature are
+// re-validated downstream.
 pub fn peek_issuer(token: &str) -> Result<String> {
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -347,13 +343,11 @@ fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
         .collect()
 }
 
-/// Compute the effective permission set for a delegated token.
-///
-/// Requested permissions are filtered to those that exist in the subject
-/// token, the authenticated client's scope grant, and the client owner's
-/// role set. An empty client scope is treated as "no restriction beyond
-/// owner". Returned in descending hierarchy order. Errors when the
-/// intersection is empty so the caller can reject with `invalid_scope`.
+// Requested permissions are filtered to those that exist in the subject
+// token, the client's scope grant, and the client owner's role set. An
+// empty client scope is treated as "no restriction beyond owner".
+// Returned in descending hierarchy order. Errors with invalid_scope when
+// the intersection is empty.
 pub fn intersect_scopes(
     requested: &[Permission],
     subject_scope: &[Permission],
@@ -401,9 +395,6 @@ fn resolve_audience(
     Ok(global.jwt_audiences.clone())
 }
 
-/// Append `client_id` as the outermost actor on the RFC 8693 `act` chain,
-/// chaining `prior` (the subject token's existing `act`, if any) underneath
-/// it. The result is always non-empty.
 pub fn build_act_chain(client_id: &ClientId, issuer: &str, prior: Option<ActClaim>) -> ActClaim {
     ActClaim {
         iss: issuer.to_string(),

@@ -58,6 +58,7 @@ pub fn authenticated_router() -> Router<OAuthState> {
             post(endpoints::introspect::handle_introspect),
         )
         .route("/revoke", post(endpoints::revoke::handle_revoke))
+        .route("/logout", post(endpoints::logout::handle_logout))
         .route("/userinfo", get(endpoints::userinfo::handle_userinfo))
         .route("/consent", get(endpoints::consent::handle_consent_get))
         .route("/consent", post(endpoints::consent::handle_consent_post))

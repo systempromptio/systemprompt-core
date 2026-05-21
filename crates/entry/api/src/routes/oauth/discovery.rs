@@ -1,10 +1,12 @@
 use axum::Json;
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
 use systemprompt_models::Config;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::OAuthServerConfig;
+use systemprompt_runtime::AppContext;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
 
@@ -61,7 +63,7 @@ pub async fn handle_well_known() -> impl IntoResponse {
         ],
         code_challenge_methods_supported: config.supported_code_challenge_methods,
         subject_types_supported: vec!["public".to_string()],
-        id_token_signing_alg_values_supported: vec!["HS256".to_string()],
+        id_token_signing_alg_values_supported: vec!["RS256".to_string()],
         claims_supported: vec![
             "sub".to_string(),
             "username".to_string(),
@@ -115,6 +117,7 @@ pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
 }
 
 pub async fn handle_oauth_protected_resource_with_path(
+    State(ctx): State<AppContext>,
     axum::extract::Path(path): axum::extract::Path<String>,
 ) -> impl IntoResponse {
     let mcp_prefix = ApiPaths::MCP_BASE.trim_start_matches('/');
@@ -146,7 +149,7 @@ pub async fn handle_oauth_protected_resource_with_path(
         },
     };
 
-    let scopes = get_mcp_server_scopes(&service_name)
+    let scopes = get_mcp_server_scopes(ctx.mcp_registry(), &service_name)
         .await
         .unwrap_or_else(|| vec!["user".to_string()]);
     let resource_url = format!(

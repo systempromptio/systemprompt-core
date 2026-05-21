@@ -245,28 +245,15 @@ impl OAuthRepository {
                 OauthError::Validation("Invalid authorization code".to_string())
             })?;
 
-            let computed_challenge = match method
-                .parse::<PkceMethod>()
-                .map_err(|e| {
-                    tracing::warn!(method = %method, error = %e, "Failed to parse PKCE method");
-                    e
-                })
-                .ok()
-            {
-                Some(PkceMethod::S256) => {
+            let computed_challenge = match method.parse::<PkceMethod>() {
+                Ok(PkceMethod::S256) => {
                     use sha2::{Digest, Sha256};
                     let mut hasher = Sha256::new();
                     hasher.update(verifier.as_bytes());
                     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hasher.finalize())
                 },
-                Some(PkceMethod::Plain) => {
-                    tracing::warn!("PKCE method 'plain' attempted");
-                    return Err(OauthError::Validation(
-                        "Invalid authorization code".to_string(),
-                    ));
-                },
-                None => {
-                    tracing::warn!(method = %method, "Unsupported code_challenge_method");
+                Err(e) => {
+                    tracing::warn!(method = %method, error = %e, "Unsupported code_challenge_method");
                     return Err(OauthError::Validation(
                         "Invalid authorization code".to_string(),
                     ));

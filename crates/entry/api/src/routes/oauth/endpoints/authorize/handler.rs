@@ -5,11 +5,31 @@ use super::validation::{validate_authorize_request, validate_oauth_parameters};
 use super::{AuthorizeQuery, AuthorizeRequest};
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
-use axum::extract::{Extension, Form, Query};
+use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::StateBindingParams;
+use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::validation::CsrfToken;
 use tracing::instrument;
+
+// Only same-origin, CR/LF-free absolute paths are accepted; everything else
+// (including opaque CSRF tokens used by external OAuth clients) collapses to
+// "/" so the callback never trusts an attacker-controlled return target.
+fn derive_return_to(client_state: &str) -> String {
+    let raw = client_state.trim();
+    if raw.is_empty()
+        || !raw.starts_with('/')
+        || raw.starts_with("//")
+        || raw.starts_with("/\\")
+        || raw.contains('\n')
+        || raw.contains('\r')
+    {
+        return "/".to_string();
+    }
+    raw.to_string()
+}
 
 fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHttpError {
     if let Some(uri) = query.redirect_uri.as_deref() {
@@ -21,6 +41,7 @@ fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHtt
 
 #[instrument(skip(repo, _req_ctx, params), fields(client_id = %params.client_id))]
 pub async fn handle_authorize_get(
+    State(state): State<OAuthState>,
     Extension(_req_ctx): Extension<RequestContext>,
     Query(params): Query<AuthorizeQuery>,
     OAuthRepo(repo): OAuthRepo,
@@ -63,7 +84,7 @@ pub async fn handle_authorize_get(
         ));
     }
 
-    match validate_authorize_request(&params, &repo).await {
+    match validate_authorize_request(&state, &params, &repo).await {
         Ok(resolved_scope) => {
             tracing::info!(
                 client_id = %params.client_id,
@@ -73,7 +94,23 @@ pub async fn handle_authorize_get(
                 "Authorization request validated"
             );
 
-            let webauthn_form = generate_webauthn_form(&params, &resolved_scope);
+            let server_state = generate_secure_token("state");
+            let return_to = derive_return_to(csrf_token.as_str());
+            let client_id_str = params.client_id.as_str();
+            let redirect_uri_str = params.redirect_uri.as_deref().unwrap_or("");
+            let binding = StateBindingParams::builder(&server_state)
+                .with_return_to(&return_to)
+                .with_client_id(client_id_str)
+                .with_redirect_uri(redirect_uri_str)
+                .build();
+            repo.store_state_binding(binding).await.map_err(|e| {
+                tracing::error!(error = %e, "Failed to persist OAuth state binding");
+                OAuthHttpError::server_error("Failed to persist authorization state")
+            })?;
+
+            let mut bound_params = params.clone();
+            bound_params.state = Some(server_state);
+            let webauthn_form = generate_webauthn_form(&bound_params, &resolved_scope);
             Ok(Html(webauthn_form).into_response())
         },
         Err(error) => {
@@ -94,6 +131,7 @@ pub async fn handle_authorize_get(
 
 #[instrument(skip(repo, _req_ctx, form), fields(client_id = %form.client_id))]
 pub async fn handle_authorize_post(
+    State(state): State<OAuthState>,
     Extension(_req_ctx): Extension<RequestContext>,
     OAuthRepo(repo): OAuthRepo,
     Form(form): Form<AuthorizeRequest>,
@@ -109,7 +147,7 @@ pub async fn handle_authorize_post(
         "Authorization form submission received"
     );
 
-    if let Err(error) = validate_authorize_request(&query, &repo).await {
+    if let Err(error) = validate_authorize_request(&state, &query, &repo).await {
         return Err(with_redirect_if_set(
             OAuthHttpError::invalid_request(error.to_string()),
             &query,

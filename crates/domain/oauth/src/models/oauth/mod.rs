@@ -90,12 +90,10 @@ impl GrantType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PkceMethod {
     S256,
-    Plain,
 }
 
 impl_str_enum!(PkceMethod, PkceMethod, {
     S256 => "S256",
-    Plain => "plain",
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -16,6 +16,8 @@ pub struct JwtUserContext {
     pub roles: Vec<String>,
     pub department: Option<String>,
     pub act_chain: Vec<Actor>,
+    pub jti: String,
+    pub exp: i64,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -102,6 +104,8 @@ impl JwtExtractor {
             roles: token_data.claims.roles,
             department: token_data.claims.department,
             act_chain,
+            jti: token_data.claims.jti,
+            exp: token_data.claims.exp,
         })
     }
 }

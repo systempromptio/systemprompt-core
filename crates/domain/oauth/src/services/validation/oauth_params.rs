@@ -9,7 +9,10 @@ use crate::models::{GrantType, ResponseType};
 pub struct CsrfToken(String);
 
 impl CsrfToken {
-    const MIN_STATE_LENGTH: usize = 16;
+    /// Minimum `state` length. OAuth 2.1 recommends ≥128 bits of entropy.
+    /// Base64url-encoded that is ~22 chars; we round up to a comfortable
+    /// margin so weak client RNGs still clear the bar.
+    const MIN_STATE_LENGTH: usize = 32;
 
     pub fn new(state: impl Into<String>) -> Result<Self, AuthError> {
         let state = state.into();

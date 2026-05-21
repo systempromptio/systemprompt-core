@@ -5,14 +5,18 @@
 //! authenticated-but-unauthorized — omitting the policy is a compile error.
 
 use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
+use crate::services::middleware::client_addr::resolve_client_ip;
 use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
+use crate::services::middleware::jti_revocation::{JtiRevocationState, jti_revocation_middleware};
 use axum::Router;
-use axum::extract::Request;
+use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use governor::clock::DefaultClock;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
+use ipnet::IpNet;
+use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
@@ -28,6 +32,8 @@ pub trait RouterExt<S> {
     fn with_auth<E>(self, auth: ContextMiddleware<E>, policy: AuthzPolicy) -> Self
     where
         E: ContextExtractor + Clone + Send + Sync + 'static;
+
+    fn with_jti_check(self, jti_state: JtiRevocationState) -> Self;
 }
 
 impl<S> RouterExt<S> for Router<S>
@@ -66,6 +72,13 @@ where
             async move { auth.handle(req, next).await }
         }))
     }
+
+    fn with_jti_check(self, jti_state: JtiRevocationState) -> Self {
+        self.layer(axum::middleware::from_fn_with_state(
+            jti_state,
+            jti_revocation_middleware,
+        ))
+    }
 }
 
 type KeyedRateLimiter = RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock>;
@@ -79,10 +92,19 @@ pub struct TieredRateLimiter {
     service_limiter: Arc<KeyedRateLimiter>,
     anon_limiter: Arc<KeyedRateLimiter>,
     disabled: bool,
+    trusted_proxies: Arc<Vec<IpNet>>,
 }
 
 impl TieredRateLimiter {
     pub fn new(config: &RateLimitConfig, base_per_second: u64) -> Self {
+        Self::with_trusted_proxies(config, base_per_second, Vec::new())
+    }
+
+    pub fn with_trusted_proxies(
+        config: &RateLimitConfig,
+        base_per_second: u64,
+        trusted_proxies: Vec<IpNet>,
+    ) -> Self {
         let create_limiter = |tier: RateLimitTier| -> Arc<KeyedRateLimiter> {
             let effective = config.effective_limit(base_per_second, tier);
             let burst = effective.saturating_mul(config.burst_multiplier);
@@ -102,6 +124,7 @@ impl TieredRateLimiter {
             service_limiter: create_limiter(RateLimitTier::Service),
             anon_limiter: create_limiter(RateLimitTier::Anon),
             disabled: config.disabled,
+            trusted_proxies: Arc::new(trusted_proxies),
         }
     }
 
@@ -116,7 +139,13 @@ impl TieredRateLimiter {
             service_limiter: Arc::clone(&limiter),
             anon_limiter: Arc::clone(&limiter),
             disabled: true,
+            trusted_proxies: Arc::new(Vec::new()),
         }
+    }
+
+    #[must_use]
+    pub fn trusted_proxies(&self) -> &[IpNet] {
+        &self.trusted_proxies
     }
 
     fn limiter_for_tier(&self, tier: RateLimitTier) -> &KeyedRateLimiter {
@@ -151,19 +180,9 @@ pub async fn tiered_rate_limit_middleware(
 
     let (tier, key) = request.extensions().get::<RequestContext>().map_or_else(
         || {
-            let ip = request
-                .headers()
-                .get("x-forwarded-for")
-                .and_then(|h| {
-                    h.to_str()
-                        .map_err(|e| {
-                            tracing::trace!(error = %e, "Invalid UTF-8 in x-forwarded-for header");
-                            e
-                        })
-                        .ok()
-                })
-                .and_then(|s| s.split(',').next())
-                .map_or_else(|| "unknown".to_string(), ToString::to_string);
+            let connect_info = request.extensions().get::<ConnectInfo<SocketAddr>>();
+            let ip = resolve_client_ip(request.headers(), connect_info, limiter.trusted_proxies())
+                .map_or_else(|| "unknown".to_string(), |a| a.to_string());
             (RateLimitTier::Anon, ip)
         },
         |ctx| {

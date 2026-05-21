@@ -210,6 +210,7 @@ tokio-stream = "0.1"
 tokio-util = "0.7"
 bytes = "1.0"
 hex = "0.4"
+ipnet = "2.10"
 schemars = { version = "1.2", features = ["derive"] }
 url = "2.5"
 urlencoding = "2.1"

@@ -24,9 +24,9 @@ pub struct TokenGenerationParams<'a> {
     pub scope: Option<&'a str>,
     pub headers: &'a HeaderMap,
     pub resource: Option<&'a str>,
-    /// If `Some`, the new refresh token joins this existing family (rotation).
-    /// `None` mints a fresh family rooted at the new token id (initial
-    /// authorization-code exchange).
+    // Some => the new refresh token joins this existing family (rotation).
+    // None => mint a fresh family rooted at the new token id (initial
+    // authorization-code exchange).
     pub family_id: Option<&'a str>,
 }
 

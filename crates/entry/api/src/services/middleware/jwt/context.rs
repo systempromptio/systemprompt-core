@@ -221,13 +221,10 @@ impl JwtContextExtractor {
     }
 }
 
-/// Settle the JWT-claimed `user_type` against the authoritative `users` row.
-///
-/// Human types (`Admin`, `User`) are downgraded if the database says the user
-/// is no longer an admin; an `Admin` JWT for a non-admin row is rewritten to
-/// `User`. Machine types (`Service`, `A2a`, `Mcp`, `Anon`) are trusted from
-/// the JWT — they are minted by the OAuth layer and not reflected in the
-/// `users.roles` column.
+// Human types (Admin, User) are settled against the users row: an Admin JWT
+// for a non-admin row is rewritten to User. Machine types (Service, A2a, Mcp,
+// Anon) are trusted from the JWT — they are minted by the OAuth layer and
+// are not reflected in the users.roles column.
 fn resolve_user_type(claimed: UserType, user: &AuthUser) -> UserType {
     match claimed {
         UserType::Admin if !user_is_admin(user) => UserType::User,

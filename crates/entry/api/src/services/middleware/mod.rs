@@ -1,9 +1,11 @@
 pub mod analytics;
 pub mod authz;
 pub mod bot_detector;
+pub mod client_addr;
 pub mod context;
 pub mod cors;
 pub mod ip_ban;
+pub mod jti_revocation;
 pub mod jwt;
 pub mod negotiation;
 pub mod rate_limit;
@@ -23,6 +25,7 @@ pub use context::{
 };
 pub use cors::*;
 pub use ip_ban::*;
+pub use jti_revocation::{JtiRevocationState, jti_revocation_middleware};
 pub use jwt::*;
 pub use negotiation::{
     AcceptedFormat, AcceptedMediaType, content_negotiation_middleware, parse_accept_header,
