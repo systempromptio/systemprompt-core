@@ -19,9 +19,11 @@ systemprompt-analytics = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-scheduler = { workspace = true }
+systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
