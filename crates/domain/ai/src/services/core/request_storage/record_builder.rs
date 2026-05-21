@@ -52,20 +52,29 @@ pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
 
     builder = builder.max_tokens(params.request.max_output_tokens());
 
-    if !params.context.session_id().as_str().is_empty() {
-        builder = builder.session_id(SessionId::new(params.context.session_id().as_str()));
+    let session_id_str = params.context.session_id().as_str();
+    if !session_id_str.is_empty() {
+        builder = builder.session_id(SessionId::new(session_id_str));
     }
 
     if let Some(task_id) = params.context.task_id() {
         builder = builder.task_id(TaskId::new(task_id.as_str()));
     }
 
-    if !params.context.context_id().as_str().is_empty() {
-        builder = builder.context_id(ContextId::new(params.context.context_id().as_str()));
+    let context_id_str = params.context.context_id().as_str();
+    if !context_id_str.is_empty() {
+        builder = builder.context_id(ContextId::new(context_id_str));
     }
 
-    if !params.context.trace_id().as_str().is_empty() {
-        builder = builder.trace_id(TraceId::new(params.context.trace_id().as_str()));
+    let trace_id_str = params.context.trace_id().as_str();
+    if trace_id_str.is_empty() {
+        tracing::warn!(
+            request_id = %params.response.request_id,
+            "ai_requests.trace_id missing: RequestContext.trace_id is empty — \
+             downstream trace correlation (trace list status, ai_requests count) will break"
+        );
+    } else {
+        builder = builder.trace_id(TraceId::new(trace_id_str));
     }
 
     if let Some(mcp_execution_id) = params.context.mcp_execution_id() {
