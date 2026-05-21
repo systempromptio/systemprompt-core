@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 use std::fs;
-use systemprompt_config::{ConfigManager, DeployEnvironment, EnvironmentConfig};
+use systemprompt_config::{ConfigService, DeployEnvironment, EnvironmentConfig};
 use tempfile::TempDir;
 
 #[test]
@@ -19,7 +19,7 @@ fn test_write_env_file_creates_file() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     assert!(output_path.exists());
 }
@@ -41,7 +41,7 @@ fn test_write_env_file_content_format() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -63,7 +63,7 @@ fn test_write_env_file_quotes_whitespace_values() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -84,7 +84,7 @@ fn test_write_env_file_quotes_tabs() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -106,7 +106,7 @@ fn test_write_env_file_alphabetical_order() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
     let lines: Vec<&str> = content.lines().collect();
@@ -127,7 +127,7 @@ fn test_write_env_file_empty_config() {
         variables: HashMap::new(),
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
     assert!(content.is_empty());
@@ -151,7 +151,7 @@ fn test_write_env_file_special_characters() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -175,7 +175,7 @@ fn test_write_env_file_equals_in_value() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -195,7 +195,7 @@ fn test_write_env_file_newlines_in_values() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -217,7 +217,7 @@ fn test_write_env_file_overwrites_existing() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -239,7 +239,7 @@ fn test_write_env_file_unicode_values() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -261,7 +261,7 @@ fn test_write_env_file_long_values() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
@@ -282,7 +282,7 @@ fn test_write_env_file_preserves_empty_string() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
 
