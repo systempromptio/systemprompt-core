@@ -13,7 +13,7 @@ pub mod permission;
 pub mod roles;
 pub mod types;
 
-pub use claims::{ActClaim, JwtClaims};
+pub use claims::{ActClaim, JwtClaims, MAX_ACT_CHAIN_DEPTH};
 pub use cloud_claims::CloudAuthClaims;
 pub use enums::*;
 pub use permission::{Permission, parse_permissions, permissions_to_string};

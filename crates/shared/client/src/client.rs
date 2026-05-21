@@ -172,6 +172,9 @@ impl SystempromptClient {
         http::delete(&self.client, &url, self.token.as_ref()).await
     }
 
+    // JSON: HTTP boundary. The shared client does not depend on the agent
+    // crate, so artifact rows are surfaced as raw JSON; callers that need
+    // typed access deserialize into `systemprompt_models::a2a::Artifact`.
     pub async fn list_artifacts(
         &self,
         context_id: &ContextId,
@@ -209,6 +212,9 @@ impl SystempromptClient {
         Ok(response.status().is_success())
     }
 
+    // JSON: A2A JSON-RPC 2.0 envelope. Both the inbound `message` and the
+    // returned response object are passed through as raw JSON so the shared
+    // client stays free of the agent-domain dependency.
     pub async fn send_message(
         &self,
         agent_name: &str,
@@ -247,6 +253,7 @@ impl SystempromptClient {
         http::get(&self.client, &url, self.token.as_ref()).await
     }
 
+    // JSON: HTTP boundary, see `list_artifacts`.
     pub async fn list_all_artifacts(
         &self,
         limit: Option<u32>,

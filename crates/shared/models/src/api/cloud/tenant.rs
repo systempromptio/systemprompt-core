@@ -93,7 +93,6 @@ pub struct CloudTenantStatusResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudTenantSecrets {
-    pub jwt_secret: String,
     pub database_url: String,
     pub internal_database_url: String,
     pub app_url: String,

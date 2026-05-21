@@ -23,11 +23,16 @@ pub struct ActClaim {
     pub act: Box<Option<Self>>,
 }
 
+/// Maximum delegation-chain depth accepted by the platform. RFC 8693
+/// does not bound `act` recursion; the cap protects audit storage and
+/// makes "ever-growing delegation lineage" rejectable at decode time.
+pub const MAX_ACT_CHAIN_DEPTH: usize = 16;
+
 impl ActClaim {
     /// Walk the `act` chain and return reconstructed [`Actor`] values in
     /// outermost-first order: index 0 is the most recent delegate
     /// (i.e. `self`), and the last element is the original delegating
-    /// principal.
+    /// principal. The chain is truncated at [`MAX_ACT_CHAIN_DEPTH`].
     ///
     /// Every link is reconstructed as [`Actor::user`] with the `sub`
     /// claim as the [`UserId`]; `ActorKind` cannot be discerned from a
@@ -37,10 +42,30 @@ impl ActClaim {
         let mut chain = Vec::new();
         let mut cursor = Some(self);
         while let Some(node) = cursor {
+            if chain.len() >= MAX_ACT_CHAIN_DEPTH {
+                break;
+            }
             chain.push(Actor::user(UserId::new(node.sub.clone())));
             cursor = node.act.as_ref().as_ref();
         }
         chain
+    }
+
+    /// Count nodes in the delegation chain without allocating. Returns
+    /// `MAX_ACT_CHAIN_DEPTH + 1` if the chain exceeds the cap so callers
+    /// can short-circuit with a single comparison.
+    #[must_use]
+    pub fn depth(&self) -> usize {
+        let mut depth = 0usize;
+        let mut cursor = Some(self);
+        while let Some(node) = cursor {
+            depth += 1;
+            if depth > MAX_ACT_CHAIN_DEPTH {
+                return depth;
+            }
+            cursor = node.act.as_ref().as_ref();
+        }
+        depth
     }
 }
 
@@ -49,6 +74,8 @@ pub struct JwtClaims {
     pub sub: String,
     pub iat: i64,
     pub exp: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbf: Option<i64>,
     pub iss: String,
     #[serde(
         serialize_with = "serialize_audiences",

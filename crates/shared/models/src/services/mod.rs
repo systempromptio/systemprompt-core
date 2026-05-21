@@ -46,7 +46,7 @@ pub use skills::{
     DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
     SkillSummary, SkillsConfig, strip_frontmatter,
 };
-pub use system_admin::{SystemAdmin, SystemAdminConfig, SystemAdminNotInitialized};
+pub use system_admin::{SystemAdmin, SystemAdminConfig};
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
 
 use crate::errors::ConfigValidationError;
