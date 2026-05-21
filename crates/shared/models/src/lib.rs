@@ -140,7 +140,7 @@ pub use content_config::{
     ContentRouting, ContentSourceConfigRaw, IndexingConfig, Metadata, OrganizationData,
     ParentRoute, SitemapConfig, SourceBranding, StructuredData,
 };
-pub use errors::{CoreError, RepositoryError, ServiceError};
+pub use errors::{RepositoryError, ServiceError};
 pub use events::{
     A2AEvent, A2AEventBuilder, A2AEventType, AnalyticsEvent, AnalyticsEventBuilder, ContextEvent,
     ContextSummary, SystemEvent, SystemEventBuilder, SystemEventType,
@@ -183,8 +183,8 @@ pub use services::{
     PluginAuthor, PluginComponentRef, PluginConfig, PluginConfigFile, PluginScript,
     PluginVariableDef, RuntimeStatus, SKILL_CONFIG_FILENAME, SamplingConfig, SchedulerConfig,
     ServiceType, ServicesConfig, Settings as ServicesSettings, SkillConfig, SkillsConfig,
-    SystemAdmin, SystemAdminConfig, SystemAdminNotInitialized, ToolModelConfig, ToolModelSettings,
-    WebConfig, strip_frontmatter,
+    SystemAdmin, SystemAdminConfig, ToolModelConfig, ToolModelSettings, WebConfig,
+    strip_frontmatter,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
 pub use users::{SessionSummary, UserSummary};
