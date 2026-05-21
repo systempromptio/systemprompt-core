@@ -18,6 +18,11 @@ use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  systemprompt plugins mcp call systemprompt systemprompt \\\n      \
+                  --args '{\"command\":\"core skills list\"}'\n\n  systemprompt plugins mcp call \
+                  <server> <tool> -a '{\"key\":\"value\"}'"
+)]
 pub struct CallArgs {
     #[arg(help = "MCP server name (required in non-interactive mode)")]
     pub server: Option<String>,
