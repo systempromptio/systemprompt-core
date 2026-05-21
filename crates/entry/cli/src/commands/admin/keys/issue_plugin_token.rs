@@ -93,7 +93,7 @@ pub async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<IssuePl
         user.name.clone(),
         user.email.clone(),
         vec![Permission::Admin],
-        user.roles.clone(),
+        user.roles,
     );
 
     let signing = JwtSigningParams {

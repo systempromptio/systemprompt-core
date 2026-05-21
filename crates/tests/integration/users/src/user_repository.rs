@@ -486,8 +486,7 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
     let db_pool = &db;
     let repo = UserRepository::new(&db_pool)?;
 
-    let deleted = repo.cleanup_old_anonymous(30).await?;
-    assert!(deleted >= 0);
+    repo.cleanup_old_anonymous(30).await?;
 
     Ok(())
 }
