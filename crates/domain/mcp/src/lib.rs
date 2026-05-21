@@ -133,7 +133,18 @@ pub struct SessionTimeouts {
 impl Default for McpHttpConfig {
     fn default() -> Self {
         Self {
-            allowed_hosts: Some(vec!["localhost".into(), "127.0.0.1".into(), "::1".into()]),
+            // Why: `0.0.0.0` and `[::]` are common bind addresses for the
+            // local MCP server; clients connecting via the bind URL send a
+            // matching `Host` header that the default allow-list must
+            // accept. Port-less entries match any port via rmcp's
+            // `host_is_allowed`.
+            allowed_hosts: Some(vec![
+                "localhost".into(),
+                "127.0.0.1".into(),
+                "0.0.0.0".into(),
+                "::1".into(),
+                "::".into(),
+            ]),
             allowed_origins: Vec::new(),
             session: SessionTimeouts::default(),
         }
