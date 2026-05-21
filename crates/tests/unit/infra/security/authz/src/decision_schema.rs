@@ -1,10 +1,8 @@
 //! Guards the schema↔enum contract for `governance_decisions.decision`.
 //!
-//! Sister to [`super::actor_kind_schema`]. The same class of regression that
-//! silently dropped `actor_kind = 'agent'` writes could repeat for the
-//! `decision` column the moment a new [`DecisionTag`] variant is added without
-//! the CHECK being extended. This test names every variant in the SQL so the
-//! drift is caught at compile time of the test crate, not in production.
+//! Sister to [`super::actor_kind_schema`]: asserts every [`DecisionTag`]
+//! variant appears in the column's CHECK allow-list so extending the enum
+//! without extending the constraint fails this test.
 
 use systemprompt_security::authz::DecisionTag;
 
