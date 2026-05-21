@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
-use systemprompt_models::services::{SystemAdmin, SystemAdminNotInitialized};
 
 use super::{LogLevel, LoggingError};
+use crate::attribution::{LogAttributionUnset, platform_owner_id};
 
 /// Mandatory attribution for every log row: who did the work, in which
 /// session, on which trace. Bundled so every `LogEntry::new` call carries
@@ -31,11 +31,11 @@ impl LogActor {
 
     /// Platform telemetry (gateway access logs, OTLP ingest) has no human
     /// originator, so it declares the resolved system-admin owner. Fails
-    /// when the runtime has not yet resolved the admin row; callers must
-    /// propagate that error rather than fabricating a sentinel.
-    pub fn platform(trace_id: TraceId) -> Result<Self, SystemAdminNotInitialized> {
+    /// when the runtime has not yet installed the logging attribution; the
+    /// caller must propagate the error rather than fabricating a sentinel.
+    pub fn platform(trace_id: TraceId) -> Result<Self, LogAttributionUnset> {
         Ok(Self {
-            user_id: SystemAdmin::current_id()?.clone(),
+            user_id: platform_owner_id()?.clone(),
             session_id: SessionId::system(),
             trace_id,
         })

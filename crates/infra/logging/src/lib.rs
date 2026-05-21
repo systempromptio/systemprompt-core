@@ -22,6 +22,7 @@
 //! - [`LoggingRepository`], [`AnalyticsRepository`] — direct repository access.
 //! - [`TraceQueryService`], [`AiTraceService`] — typed audit/trace queries.
 
+pub mod attribution;
 pub mod extension;
 pub mod layer;
 pub mod models;
@@ -29,6 +30,7 @@ pub mod repository;
 pub mod services;
 pub mod trace;
 
+pub use attribution::{LogAttributionUnset, install_log_attribution, platform_attribution};
 pub use extension::LoggingExtension;
 
 pub use layer::DatabaseLayer;
