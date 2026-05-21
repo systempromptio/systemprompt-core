@@ -5,7 +5,6 @@ use serde_json::json;
 use std::str::FromStr;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
-use systemprompt_mcp::McpServerRegistry;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::modules::ApiPaths;
@@ -22,7 +21,6 @@ impl AuthValidator {
     pub fn validate_service_access(
         headers: &HeaderMap,
         service_name: &str,
-        _ctx: &AppContext,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
         let result = AuthService::authorize_service_access(headers, service_name);
@@ -101,13 +99,13 @@ impl AccessValidator {
         req_context: Option<&RequestContext>,
     ) -> Result<Option<AuthenticatedUser>, ProxyError> {
         let (oauth_required, required_scopes) =
-            lookup_oauth_requirement(service, service_name).await?;
+            lookup_oauth_requirement(service, service_name, ctx).await?;
         if !oauth_required {
             return Ok(None);
         }
         let resource_path = resource_path_for(service, service_name);
         let authenticated_user =
-            match AuthValidator::validate_service_access(headers, service_name, ctx, req_context) {
+            match AuthValidator::validate_service_access(headers, service_name, req_context) {
                 Ok(user) => user,
                 Err(status_code) => {
                     if let Some(outcome) =
@@ -131,6 +129,7 @@ impl AccessValidator {
 async fn lookup_oauth_requirement(
     service: &ServiceConfig,
     service_name: &str,
+    ctx: &AppContext,
 ) -> Result<(bool, Vec<String>), ProxyError> {
     if service.module_name == "agent" {
         let registry =
@@ -147,12 +146,14 @@ async fn lookup_oauth_requirement(
                 })?;
         Ok((info.oauth.required, info.oauth.scopes))
     } else if service.module_name == "mcp" {
-        McpServerRegistry::validate().map_err(|e| ProxyError::ServiceNotRunning {
-            service: service_name.to_string(),
-            status: format!("Failed to load MCP registry: {e}"),
-        })?;
-        let registry = systemprompt_mcp::services::registry::RegistryManager;
-        let info = McpRegistryProvider::get_server(&registry, service_name)
+        let registry = ctx.mcp_registry();
+        registry
+            .validate()
+            .map_err(|e| ProxyError::ServiceNotRunning {
+                service: service_name.to_string(),
+                status: format!("Failed to load MCP registry: {e}"),
+            })?;
+        let info = McpRegistryProvider::get_server(registry, service_name)
             .await
             .map_err(|e| ProxyError::ServiceNotFound {
                 service: format!("MCP server '{}' not found in registry: {}", service_name, e),

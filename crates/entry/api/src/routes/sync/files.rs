@@ -118,6 +118,10 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
     let mut archive = Archive::new(decoder);
     let mut count = 0;
 
+    let canonical_target = target
+        .canonicalize()
+        .map_err(|e| format!("Failed to canonicalize target: {}", e))?;
+
     for entry in archive
         .entries()
         .map_err(|e| format!("Failed to read tarball entries: {}", e))?
@@ -125,12 +129,13 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
         let mut entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
 
         let entry_type = entry.header().entry_type();
-        if entry_type.is_symlink() || entry_type.is_hard_link() {
+        if !(entry_type.is_file() || entry_type.is_dir()) {
             let entry_path = entry
                 .path()
                 .map_err(|e| format!("Failed to get entry path: {}", e))?;
             return Err(format!(
-                "Symlinks not allowed in tarball: {}",
+                "Disallowed entry type {:?} in tarball: {}",
+                entry_type,
                 entry_path.to_string_lossy()
             ));
         }
@@ -139,8 +144,20 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
             .path()
             .map_err(|e| format!("Failed to get entry path: {}", e))?;
 
+        if entry_path.is_absolute() {
+            return Err(format!(
+                "Absolute path in tarball: {}",
+                entry_path.to_string_lossy()
+            ));
+        }
+
         let entry_path_str = entry_path.to_string_lossy();
-        if entry_path_str.contains("..") {
+        if entry_path.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir | std::path::Component::RootDir
+            )
+        }) {
             return Err(format!("Invalid path in tarball: {}", entry_path_str));
         }
 
@@ -153,19 +170,14 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
             return Err(format!("Path not in allowed directory: {}", entry_path_str));
         }
 
-        let dest_path = target.join(&*entry_path);
+        let dest_path = canonical_target.join(&*entry_path);
+
+        if !dest_path.starts_with(&canonical_target) {
+            return Err(format!("Path escapes target directory: {}", entry_path_str));
+        }
 
         if let Some(parent) = dest_path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
-            let canonical_parent = parent
-                .canonicalize()
-                .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
-            let canonical_target = target
-                .canonicalize()
-                .map_err(|e| format!("Failed to canonicalize target: {}", e))?;
-            if !canonical_parent.starts_with(&canonical_target) {
-                return Err(format!("Path escapes target directory: {}", entry_path_str));
-            }
         }
 
         entry

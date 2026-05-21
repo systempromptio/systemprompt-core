@@ -1,5 +1,5 @@
 use axum::http::StatusCode;
-use systemprompt_identifiers::{Actor, JwtToken, TraceId, UserId};
+use systemprompt_identifiers::{Actor, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
@@ -11,6 +11,9 @@ pub(super) struct AuthedPrincipal {
     pub roles: Vec<String>,
     pub department: String,
     pub act_chain: Vec<Actor>,
+    // None for API-key credentials (not session-bound). Gateways MUST refuse a
+    // request whose X-Session-ID header disagrees with this value.
+    pub jwt_session_id: Option<SessionId>,
 }
 
 pub(super) async fn authenticate(
@@ -47,6 +50,7 @@ async fn authenticate_api_key(
             roles: Vec::new(),
             department: String::new(),
             act_chain: Vec::new(),
+            jwt_session_id: None,
         }),
         None => Err((
             StatusCode::UNAUTHORIZED,
@@ -71,5 +75,6 @@ async fn authenticate_jwt(
         roles: claims.roles,
         department: claims.department.unwrap_or_else(String::new),
         act_chain: claims.act_chain,
+        jwt_session_id: Some(claims.session_id),
     })
 }

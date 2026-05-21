@@ -14,7 +14,10 @@ use crate::services::middleware::{ContextMiddleware, JwtContextExtractor, Router
 fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let analytics = ctx.analytics_provider()?;
     let users = ctx.user_provider()?;
-    let state = OAuthState::new(Arc::clone(ctx.db_pool()), analytics, users);
+    let mcp_registry: Arc<dyn systemprompt_traits::McpRegistryProvider> =
+        Arc::new(ctx.mcp_registry().clone());
+    let state = OAuthState::new(Arc::clone(ctx.db_pool()), analytics, users)
+        .with_mcp_registry(mcp_registry);
     Some(state)
 }
 
@@ -113,7 +116,7 @@ pub(super) fn mount_mcp_and_stream(
 
     router = router.nest(
         ApiPaths::MCP_REGISTRY,
-        crate::routes::mcp::registry_router()
+        crate::routes::mcp::registry_router(ctx)
             .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)
             .with_auth(public_middleware.clone(), AuthzPolicy::public()),
     );

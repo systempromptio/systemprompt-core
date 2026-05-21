@@ -7,7 +7,6 @@ use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::McpServerRegistry;
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{ApiError, Config};
@@ -109,7 +108,10 @@ pub struct McpAuthorizationServerMetadata {
     pub token_endpoint_auth_methods_supported: Vec<String>,
 }
 
-pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> impl IntoResponse {
+pub async fn handle_mcp_protected_resource(
+    State(state): State<McpState>,
+    Path(service_name): Path<String>,
+) -> impl IntoResponse {
     let base_url = match Config::get() {
         Ok(c) => c.api_external_url.clone(),
         Err(e) => {
@@ -122,7 +124,7 @@ pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> 
         },
     };
 
-    let scopes = get_mcp_server_scopes(&service_name)
+    let scopes = get_mcp_server_scopes(state.ctx.mcp_registry(), &service_name)
         .await
         .unwrap_or_else(|| vec!["user".to_string()]);
 
@@ -177,12 +179,11 @@ pub async fn handle_mcp_authorization_server(
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
-pub(crate) async fn get_mcp_server_scopes(service_name: &str) -> Option<Vec<String>> {
-    if McpServerRegistry::validate().is_err() {
-        return None;
-    }
-    let registry = systemprompt_mcp::services::registry::RegistryManager;
-    match McpRegistryProvider::get_server(&registry, service_name).await {
+pub(crate) async fn get_mcp_server_scopes(
+    registry: &dyn McpRegistryProvider,
+    service_name: &str,
+) -> Option<Vec<String>> {
+    match registry.get_server(service_name).await {
         Ok(server_info) if server_info.oauth.required => {
             let scopes: Vec<String> = server_info
                 .oauth
@@ -200,7 +201,10 @@ pub(crate) async fn get_mcp_server_scopes(service_name: &str) -> Option<Vec<Stri
     }
 }
 
-pub(crate) async fn get_mcp_server_scopes_from_resource(resource_uri: &str) -> Option<Vec<String>> {
+pub(crate) async fn get_mcp_server_scopes_from_resource(
+    registry: &dyn McpRegistryProvider,
+    resource_uri: &str,
+) -> Option<Vec<String>> {
     let url = reqwest::Url::parse(resource_uri).ok()?;
     let path = url.path();
     let parts: Vec<&str> = path.split('/').collect();
@@ -208,7 +212,7 @@ pub(crate) async fn get_mcp_server_scopes_from_resource(resource_uri: &str) -> O
         return None;
     }
     let server_name = parts[4];
-    get_mcp_server_scopes(server_name).await
+    get_mcp_server_scopes(registry, server_name).await
 }
 
 pub fn router(ctx: &AppContext) -> Router {

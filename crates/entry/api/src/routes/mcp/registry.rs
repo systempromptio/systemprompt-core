@@ -1,9 +1,10 @@
+use axum::extract::State;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
-use systemprompt_mcp::services::RegistryManager;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{ApiError, CollectionResponse};
+use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct McpRegistryServer {
@@ -20,8 +21,8 @@ pub struct McpRegistryServer {
 }
 
 #[allow(clippy::unused_async)]
-pub async fn handle_mcp_registry() -> impl IntoResponse {
-    let server_configs = match RegistryManager::get_enabled_servers() {
+pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResponse {
+    let server_configs = match ctx.mcp_registry().get_enabled_servers() {
         Ok(configs) => configs,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load MCP server configs");
