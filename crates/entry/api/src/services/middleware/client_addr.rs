@@ -63,10 +63,7 @@ pub fn resolve_client_ip(
     connect_info: Option<&ConnectInfo<SocketAddr>>,
     trusted: &[IpNet],
 ) -> Option<IpAddr> {
-    let peer = connect_info.map(|c| c.0.ip());
-    let Some(peer_ip) = peer else {
-        return None;
-    };
+    let peer_ip = connect_info.map(|c| c.0.ip())?;
 
     if !is_trusted(peer_ip, trusted) {
         return Some(peer_ip);

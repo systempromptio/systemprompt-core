@@ -47,10 +47,10 @@ pub async fn jti_revocation_middleware(
         return next.run(request).await;
     }
 
-    if let Some(true) = state.cache.peek(&jti) {
+    if state.cache.peek(&jti) == Some(true) {
         return token_revoked_response();
     }
-    if let Some(false) = state.cache.peek(&jti) {
+    if state.cache.peek(&jti) == Some(false) {
         return next.run(request).await;
     }
 

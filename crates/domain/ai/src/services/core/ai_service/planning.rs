@@ -65,7 +65,8 @@ impl AiService {
                 })
             },
             Err(e) => {
-                self.store_error(request, request_id, latency_ms, e.to_string()).await;
+                self.store_error(request, request_id, latency_ms, e.to_string())
+                    .await;
                 Err(e)
             },
         }

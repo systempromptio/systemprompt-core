@@ -1,5 +1,6 @@
-//! `POST /oauth/logout` — terminates a bearer JWT before its natural `exp` by
-//! writing the token's `jti` to `oauth_jti_revocations`. The JTI tower layer
+//! `POST /oauth/logout` — terminates a bearer JWT before its natural `exp`.
+//!
+//! Writes the token's `jti` to `oauth_jti_revocations`. The JTI tower layer
 //! consults this table on every authenticated request, so once logout returns
 //! the same bearer is rejected on the next call. Cookie is cleared in the
 //! response so browser flows do not silently re-present the dead token.

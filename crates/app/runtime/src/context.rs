@@ -15,7 +15,7 @@ use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
-use systemprompt_security::authz::AuthzHookInstalled;
+use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_users::UserService;
 
 use crate::builder::AppContextBuilder;
@@ -40,7 +40,7 @@ pub struct AppContext {
     pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub(crate) system_admin: Arc<SystemAdmin>,
     pub(crate) mcp_registry: RegistryManager,
-    pub(crate) authz_installed: AuthzHookInstalled,
+    pub(crate) authz_hook: SharedAuthzHook,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -60,6 +60,8 @@ impl std::fmt::Debug for AppContext {
             .field("marketplace_filter", &self.marketplace_filter)
             .field("event_bridge", &self.event_bridge.get().is_some())
             .field("system_admin", &self.system_admin.username())
+            .field("mcp_registry", &"RegistryManager")
+            .field("authz_hook", &"SharedAuthzHook")
             .finish()
     }
 }
@@ -81,7 +83,7 @@ pub struct AppContextParts {
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub system_admin: Arc<SystemAdmin>,
     pub mcp_registry: RegistryManager,
-    pub authz_installed: AuthzHookInstalled,
+    pub authz_hook: SharedAuthzHook,
 }
 
 impl AppContext {
@@ -111,7 +113,7 @@ impl AppContext {
             event_bridge: parts.event_bridge,
             system_admin: parts.system_admin,
             mcp_registry: parts.mcp_registry,
-            authz_installed: parts.authz_installed,
+            authz_hook: parts.authz_hook,
         }
     }
 
@@ -196,7 +198,7 @@ impl AppContext {
         &self.mcp_registry
     }
 
-    pub const fn authz_installed(&self) -> &AuthzHookInstalled {
-        &self.authz_installed
+    pub const fn authz_hook(&self) -> &SharedAuthzHook {
+        &self.authz_hook
     }
 }

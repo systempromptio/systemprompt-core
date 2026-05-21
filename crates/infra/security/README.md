@@ -70,7 +70,7 @@ src/
     ├── ingestion.rs           # AccessControlIngestionService
     ├── repository.rs          # AccessControlRepository, UpsertRuleParams
     ├── resolver.rs            # Deny-overrides resolve() entrypoint
-    ├── runtime.rs             # global_hook / install_global_hook
+    ├── runtime.rs             # build_authz_hook (config → SharedAuthzHook)
     ├── types.rs               # Access, AccessRule, AuthzDecision, AuthzRequest, EntityKind
     ├── audit/
     │   ├── mod.rs             # AuthzAuditSink, AuthzSource
@@ -139,7 +139,7 @@ Unified authorization decision plane shared by the gateway `/v1/messages` proxy 
 | Export | Type | Purpose |
 |--------|------|---------|
 | `resolve` | Fn | Deny-overrides resolver against `access_control_rules` |
-| `AuthzDecisionHook` | Trait | Pluggable decision surface installed as a global hook |
+| `AuthzDecisionHook` | Trait | Pluggable decision surface; concrete impl is carried on `AppContext` as `SharedAuthzHook` |
 | `AllowAllHook` / `DenyAllHook` / `WebhookHook` | Struct | Built-in `AuthzDecisionHook` implementations |
 | `AccessControlRepository` | Struct | CRUD over `access_control_rules` |
 | `AccessControlIngestionService` | Struct | Loads rule sets from configuration |
@@ -147,7 +147,8 @@ Unified authorization decision plane shared by the gateway `/v1/messages` proxy 
 | `AuthzAuditSink` / `DbAuditSink` / `NullAuditSink` | Trait + impls | Sinks for governance decision audit records |
 | `GovernanceDecisionRepository` | Struct | Reads `governance_decisions` audit rows |
 | `Access` / `AccessRule` / `AuthzDecision` / `AuthzRequest` / `Decision` / `EntityKind` / `RuleType` | Types | Authz request and decision data model |
-| `global_hook` / `install_global_hook` / `install_from_governance_config` / `clear_global_hook` | Fns | Process-wide hook installation |
+| `build_authz_hook` | Fn | Constructs the active `SharedAuthzHook` (Deny/Allow/Webhook) from `governance.authz` for the caller to store on its context |
+| `SharedAuthzHook` | Type alias | `Arc<dyn AuthzDecisionHook>` — the value threaded through DI |
 
 ### `manifest_signing`
 

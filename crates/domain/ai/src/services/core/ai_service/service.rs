@@ -39,7 +39,7 @@ impl std::fmt::Debug for AiService {
 
 impl AiService {
     pub fn new(
-        db_pool: DbPool,
+        db_pool: &DbPool,
         ai_config: &AiConfig,
         tool_provider: Arc<dyn ToolProvider>,
         session_provider: Option<DynAiSessionProvider>,
@@ -48,7 +48,7 @@ impl AiService {
         let missing_env_vars = Self::expand_secrets(&mut config)?;
         ConfigValidator::validate(&config, &missing_env_vars)?;
 
-        let providers = ProviderFactory::create_all(config.providers.clone(), Some(&db_pool))?;
+        let providers = ProviderFactory::create_all(config.providers.clone(), Some(db_pool))?;
         let default_provider = config.default_provider.clone();
 
         let provider = providers.get(&default_provider).ok_or_else(|| {
@@ -72,7 +72,7 @@ impl AiService {
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
 
-        let mut storage = RequestStorage::new(AiRequestRepository::new(&db_pool)?);
+        let mut storage = RequestStorage::new(AiRequestRepository::new(db_pool)?);
         if let Some(provider) = session_provider {
             storage = storage.with_session_provider(provider);
         }

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     ContextId, GatewayConversationId, SessionId, TraceId, UserId, headers as sp_headers,
 };
-use systemprompt_security::authz::{AuthzDecision, AuthzHookInstalled, AuthzRequest, EntityKind};
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind, SharedAuthzHook};
 
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
@@ -119,7 +119,7 @@ pub(super) async fn extract_request_context(
         &principal,
         route,
         &gateway_request.model,
-        rc.ctx.authz_installed(),
+        rc.ctx.authz_hook(),
     )
     .await?;
 
@@ -229,10 +229,8 @@ async fn enforce_authz_for_route(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
-    _installed: &AuthzHookInstalled,
+    hook: &SharedAuthzHook,
 ) -> Result<(), (StatusCode, String)> {
-    let hook = systemprompt_security::authz::global_hook()
-        .expect("AuthzHookInstalled witness held but global_hook slot empty");
     let req = build_authz_request(principal, route, model);
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),

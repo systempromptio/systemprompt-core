@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::TraceId;
-use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_security::authz::{
-    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind, clear_global_hook,
-    global_hook, install_global_hook,
+    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind,
 };
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[derive(Debug)]
 struct LocalDenyAllHook;
@@ -35,24 +34,15 @@ fn fixture_request(entity: EntityKind) -> AuthzRequest {
 }
 
 #[tokio::test]
-async fn install_and_replace_hook_round_trip() {
-    clear_global_hook();
-    assert!(global_hook().is_none(), "no hook installed initially");
+async fn allow_all_hook_evaluates_to_allow() {
+    let hook: Arc<dyn AuthzDecisionHook> = Arc::new(AllowAllHook::null());
+    let decision = hook.evaluate(fixture_request(EntityKind::GatewayRoute)).await;
+    assert_eq!(decision, AuthzDecision::Allow);
+}
 
-    install_global_hook(Arc::new(AllowAllHook::null()));
-    let allow_decision = global_hook()
-        .expect("AllowAll installed")
-        .evaluate(fixture_request(EntityKind::GatewayRoute))
-        .await;
-    assert_eq!(allow_decision, AuthzDecision::Allow);
-
-    install_global_hook(Arc::new(LocalDenyAllHook));
-    let deny_decision = global_hook()
-        .expect("DenyAll installed")
-        .evaluate(fixture_request(EntityKind::McpServer))
-        .await;
-    assert!(matches!(deny_decision, AuthzDecision::Deny { .. }));
-
-    clear_global_hook();
-    assert!(global_hook().is_none(), "clear_global_hook resets the slot");
+#[tokio::test]
+async fn deny_all_hook_evaluates_to_deny() {
+    let hook: Arc<dyn AuthzDecisionHook> = Arc::new(LocalDenyAllHook);
+    let decision = hook.evaluate(fixture_request(EntityKind::McpServer)).await;
+    assert!(matches!(decision, AuthzDecision::Deny { .. }));
 }

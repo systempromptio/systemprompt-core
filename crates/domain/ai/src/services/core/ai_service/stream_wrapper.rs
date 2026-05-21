@@ -129,12 +129,7 @@ impl StreamStorageWrapper {
 
     fn store_error(&self, error: &dyn std::fmt::Display) {
         let response = self.build_response();
-        self.spawn_audit(
-            response,
-            RequestStatus::Failed,
-            Some(error.to_string()),
-            0,
-        );
+        self.spawn_audit(response, RequestStatus::Failed, Some(error.to_string()), 0);
     }
 
     // Why: Stream::poll_next is sync; an async storage.store can only be

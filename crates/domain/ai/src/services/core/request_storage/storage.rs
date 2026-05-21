@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use crate::error::AiError;
-use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::RequestStatus;
+use crate::models::ai::{AiRequest, AiResponse};
 use crate::repository::AiRequestRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{AnalyticsEventPublisher, DynAiSessionProvider};
 
-use super::writes::{store_messages, store_request, store_tool_calls, update_session_usage};
 use super::record_builder::{
     BuildRecordParams, build_record, extract_messages, extract_tool_calls,
 };
+use super::writes::{store_messages, store_request, store_tool_calls, update_session_usage};
 
 #[derive(Debug)]
 pub struct StoreParams<'a> {

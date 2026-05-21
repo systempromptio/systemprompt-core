@@ -32,6 +32,10 @@ impl std::fmt::Debug for OAuthState {
                 "event_publisher",
                 &self.event_publisher.as_ref().map(|_| "<publisher>"),
             )
+            .field(
+                "mcp_registry",
+                &self.mcp_registry.as_ref().map(|_| "<registry>"),
+            )
             .field("link_states", &"<link_states>")
             .finish()
     }

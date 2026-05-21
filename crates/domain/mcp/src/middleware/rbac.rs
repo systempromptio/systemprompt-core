@@ -9,7 +9,7 @@ use systemprompt_identifiers::{Actor, TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind, SharedAuthzHook};
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -81,6 +81,7 @@ impl AuthResult {
 pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_name: &str,
+    hook: &SharedAuthzHook,
 ) -> Result<AuthResult, McpError> {
     let header_dump = mcp_context
         .extensions
@@ -145,7 +146,7 @@ pub async fn enforce_rbac_from_registry(
 
     let act_chain = extract_act_chain(&claims);
 
-    enforce_authz_for_server(server_name, &claims, act_chain.clone()).await?;
+    enforce_authz_for_server(server_name, &claims, act_chain.clone(), hook).await?;
 
     let authenticated_context =
         build_authenticated_context(request_context, &claims, token, act_chain)?;
@@ -164,17 +165,8 @@ async fn enforce_authz_for_server(
     server_name: &str,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
+    hook: &SharedAuthzHook,
 ) -> Result<(), McpError> {
-    let Some(hook) = systemprompt_security::authz::global_hook() else {
-        tracing::error!(
-            server = %server_name,
-            "authz hook not installed — denying MCP request (bootstrap order bug: install_from_governance_config must run before serving traffic)"
-        );
-        return Err(McpError::invalid_request(
-            "authz denied [authz_not_installed]: hook missing".to_string(),
-            None,
-        ));
-    };
     let user_id = UserId::new(claims.sub.clone());
     let req = AuthzRequest {
         entity_type: EntityKind::McpServer,

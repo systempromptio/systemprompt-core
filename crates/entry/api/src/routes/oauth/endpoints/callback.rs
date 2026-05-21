@@ -75,11 +75,8 @@ pub async fn handle_callback(
         },
     };
 
-    let state_token = match params.state.as_deref().filter(|s| !s.is_empty()) {
-        Some(s) => s,
-        None => {
-            return (StatusCode::BAD_REQUEST, "Missing state parameter").into_response();
-        },
+    let Some(state_token) = params.state.as_deref().filter(|s| !s.is_empty()) else {
+        return (StatusCode::BAD_REQUEST, "Missing state parameter").into_response();
     };
     let redirect_destination = match repo.consume_state_binding(state_token).await {
         Ok(Some(binding)) => binding.return_to,
