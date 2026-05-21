@@ -43,7 +43,6 @@ pub struct ResilienceGuard {
 }
 
 impl ResilienceGuard {
-    /// Build a guard for the dependency identified by `key`.
     pub fn new(key: impl Into<String>, cfg: ResilienceConfig) -> Self {
         let key = key.into();
         let breaker = CircuitBreaker::new(key.clone(), cfg.breaker);

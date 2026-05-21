@@ -78,4 +78,18 @@ impl CleanupRepository {
         .await?;
         Ok(result.rows_affected())
     }
+
+    pub async fn delete_expired_oauth_state_bindings(&self) -> DatabaseResult<u64> {
+        let result = sqlx::query!("DELETE FROM oauth_state_bindings WHERE expires_at < NOW()")
+            .execute(&self.write_pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_expired_oauth_jti_revocations(&self) -> DatabaseResult<u64> {
+        let result = sqlx::query!("DELETE FROM oauth_jti_revocations WHERE exp < NOW()")
+            .execute(&self.write_pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
 }

@@ -9,13 +9,13 @@
 //! rather than running SQL themselves.
 
 use sqlx::PgPool;
-use systemprompt_identifiers::{Actor, EventOutboxId};
+use systemprompt_identifiers::{Actor, EventOutboxId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
 pub struct OutboxRow {
     pub channel: String,
-    pub user_id: String,
+    pub user_id: UserId,
     // JSON: the `payload` jsonb column is polymorphic by `channel`; the
     // relay decodes it into the matching typed event after dispatch.
     pub payload: serde_json::Value,
@@ -64,7 +64,7 @@ impl EventOutboxRepository {
     pub async fn find(&self, id: &str) -> Result<Option<OutboxRow>, sqlx::Error> {
         sqlx::query_as!(
             OutboxRow,
-            "SELECT channel, user_id, payload FROM event_outbox WHERE id = $1",
+            r#"SELECT channel, user_id as "user_id!: UserId", payload FROM event_outbox WHERE id = $1"#,
             id,
         )
         .fetch_optional(&self.pool)

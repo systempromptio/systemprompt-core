@@ -40,7 +40,6 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    /// Create a breaker for the dependency identified by `key`.
     pub fn new(key: impl Into<String>, cfg: BreakerConfig) -> Self {
         Self {
             key: key.into(),

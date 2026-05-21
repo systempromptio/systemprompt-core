@@ -21,7 +21,6 @@ pub struct Bulkhead {
 }
 
 impl Bulkhead {
-    /// Create a bulkhead admitting `cfg.max_concurrent` in-flight calls.
     pub fn new(key: impl Into<String>, max_concurrent: usize) -> Self {
         Self {
             key: key.into(),
@@ -30,8 +29,8 @@ impl Bulkhead {
         }
     }
 
-    /// Try to admit a call. The returned permit must be held for the call's
-    /// duration (including, for streaming responses, the stream's lifetime).
+    // The returned permit must be held for the call's duration (and, for
+    // streaming responses, the stream's lifetime).
     pub fn try_acquire(&self) -> Result<OwnedSemaphorePermit, Full> {
         Arc::clone(&self.semaphore)
             .try_acquire_owned()
