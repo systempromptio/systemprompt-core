@@ -1,5 +1,5 @@
 use std::fs;
-use systemprompt_config::{ConfigManager, DeployEnvironment};
+use systemprompt_config::{ConfigService, DeployEnvironment};
 use tempfile::TempDir;
 
 fn create_test_environment(
@@ -36,7 +36,7 @@ name: test
     )
     .expect("Failed to write secrets");
 
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -65,7 +65,7 @@ name: test
     )
     .expect("Failed to write secrets");
 
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -97,7 +97,7 @@ API_KEY=real_key
     fs::write(temp_dir.path().join(".env.secrets"), secrets_content)
         .expect("Failed to write secrets");
 
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -119,7 +119,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -144,7 +144,7 @@ fn test_generate_config_invalid_yaml() {
 
     fs::write(env_dir.join("config.yaml"), "name: test").expect("Failed to write config.yaml");
 
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
     manager
         .generate_config(DeployEnvironment::Local)
         .unwrap_err();
@@ -162,7 +162,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -193,7 +193,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -216,7 +216,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)

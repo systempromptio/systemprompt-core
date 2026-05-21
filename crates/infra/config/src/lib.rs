@@ -13,7 +13,7 @@
 //!   active profile and secrets document.
 //! - [`init_config`] / [`build_from_profile`] — build a runtime
 //!   [`systemprompt_models::Config`] from the active profile.
-//! - [`ConfigManager`], [`ConfigValidator`] — utilities used by the
+//! - [`ConfigService`], [`ConfigValidator`] — utilities used by the
 //!   `systemprompt cloud config` deployment pipeline.
 //! - [`SkillConfigValidator`] — `DomainConfig` implementation that walks
 //!   `skills/` and reports missing or malformed manifests.
@@ -55,7 +55,7 @@ pub use config_loader::{
 pub use error::{ConfigError, ConfigResult};
 pub use profile_loader::load_profile_with_catalog;
 pub use services::{
-    ConfigManager, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
+    ConfigService, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
     EnvironmentConfig, ValidationReport, generate_schema, validate_config, validate_yaml_file,
     validate_yaml_str,
 };

@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use systemprompt_config::{ConfigManager, DeployEnvironment, EnvironmentConfig};
+use systemprompt_config::{ConfigService, DeployEnvironment, EnvironmentConfig};
 use tempfile::TempDir;
 
 fn create_test_environment_with_web(
@@ -39,7 +39,7 @@ name: test
 
     let temp_dir =
         create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -69,7 +69,7 @@ name: test
 
     let temp_dir =
         create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -94,7 +94,7 @@ name: test
 
     let temp_dir =
         create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "core/web");
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -119,7 +119,7 @@ name: docker-test
 
     let temp_dir =
         create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::DockerDev, "web");
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::DockerDev)
@@ -148,7 +148,7 @@ name: test
 
     let temp_dir =
         create_test_environment_with_web(base_yaml, env_yaml, DeployEnvironment::Local, "web");
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -183,7 +183,7 @@ fn test_write_env_file_different_environments() {
             variables,
         };
 
-        ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+        ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
         let content = fs::read_to_string(&output_path).expect("Should read env file");
         assert!(content.contains(&format!("ENVIRONMENT={}", env.as_str())));
@@ -205,7 +205,7 @@ fn test_write_env_file_creates_parent_directories() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     assert!(output_path.exists());
 }

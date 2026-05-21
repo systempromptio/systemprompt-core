@@ -163,6 +163,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         use_https: profile.server.use_https,
         rate_limits: (&profile.rate_limits).into(),
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
+        trusted_proxies: profile.server.trusted_proxies.clone(),
         is_cloud: profile.target.is_cloud(),
         content_negotiation: profile.server.content_negotiation.clone(),
         security_headers: profile.server.security_headers.clone(),

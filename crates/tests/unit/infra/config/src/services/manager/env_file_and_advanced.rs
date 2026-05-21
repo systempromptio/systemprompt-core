@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use systemprompt_config::{ConfigManager, DeployEnvironment, EnvironmentConfig};
+use systemprompt_config::{ConfigService, DeployEnvironment, EnvironmentConfig};
 use tempfile::TempDir;
 
 fn create_test_environment(
@@ -31,7 +31,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -56,7 +56,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -78,7 +78,7 @@ fn test_generate_config_different_environments() {
         let env_yaml = format!("environment: {}", env.as_str());
 
         let temp_dir = create_test_environment(base_yaml, &env_yaml, env);
-        let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+        let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
         let config = manager
             .generate_config(env)
@@ -105,7 +105,7 @@ name: test
 "#;
 
     let temp_dir = create_test_environment(base_yaml, env_yaml, DeployEnvironment::Local);
-    let manager = ConfigManager::new(temp_dir.path().to_path_buf());
+    let manager = ConfigService::new(temp_dir.path().to_path_buf());
 
     let config = manager
         .generate_config(DeployEnvironment::Local)
@@ -135,7 +135,7 @@ fn test_write_env_file_simple() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
     assert!(content.contains("HOST=localhost"));
@@ -157,7 +157,7 @@ fn test_write_env_file_sorted_keys() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
     let lines: Vec<&str> = content.lines().collect();
@@ -181,7 +181,7 @@ fn test_write_env_file_quotes_whitespace() {
         variables,
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
     assert!(content.contains("MESSAGE=\"hello world\""));
@@ -198,7 +198,7 @@ fn test_write_env_file_empty_variables() {
         variables: HashMap::new(),
     };
 
-    ConfigManager::write_env_file(&config, &output_path).expect("Should write env file");
+    ConfigService::write_env_file(&config, &output_path).expect("Should write env file");
 
     let content = fs::read_to_string(&output_path).expect("Should read env file");
     assert!(content.is_empty());

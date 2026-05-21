@@ -1,5 +1,5 @@
 //! On-disk writers for the deployment `.env` files produced by the
-//! [`super::ConfigManager`] pipeline.
+//! [`super::ConfigService`] pipeline.
 
 use std::fs;
 use std::path::{Path, PathBuf};

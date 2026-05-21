@@ -1,4 +1,4 @@
-//! `ConfigManager` — generate environment-specific deployment configs
+//! `ConfigService` — generate environment-specific deployment configs
 //! by merging `infrastructure/environments/<env>/config.yaml` over a
 //! shared `base.yaml`.
 
@@ -14,13 +14,13 @@ use super::writer::ConfigWriter;
 use crate::error::{ConfigError, ConfigResult};
 
 #[derive(Debug)]
-pub struct ConfigManager {
+pub struct ConfigService {
     project_root: PathBuf,
     environments_dir: PathBuf,
     writer: ConfigWriter,
 }
 
-impl ConfigManager {
+impl ConfigService {
     #[must_use]
     pub fn new(project_root: PathBuf) -> Self {
         let environments_dir = project_root.join("infrastructure/environments");
