@@ -75,20 +75,14 @@ fn test_pkce_method_s256_as_str() {
 }
 
 #[test]
-fn test_pkce_method_plain_as_str() {
-    assert_eq!(PkceMethod::Plain.as_str(), "plain");
-}
-
-#[test]
 fn test_pkce_method_from_str_s256() {
     let method = PkceMethod::from_str("S256").unwrap();
     assert_eq!(method, PkceMethod::S256);
 }
 
 #[test]
-fn test_pkce_method_from_str_plain() {
-    let method = PkceMethod::from_str("plain").unwrap();
-    assert_eq!(method, PkceMethod::Plain);
+fn test_pkce_method_from_str_plain_rejected() {
+    PkceMethod::from_str("plain").unwrap_err();
 }
 
 #[test]
@@ -100,7 +94,6 @@ fn test_pkce_method_from_str_invalid() {
 #[test]
 fn test_pkce_method_display() {
     assert_eq!(format!("{}", PkceMethod::S256), "S256");
-    assert_eq!(format!("{}", PkceMethod::Plain), "plain");
 }
 
 #[test]
