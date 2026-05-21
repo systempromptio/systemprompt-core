@@ -65,7 +65,15 @@ impl Job for DatabaseCleanupJob {
             .delete_expired_oauth_tokens()
             .await
             .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        total_deleted += oauth_codes + oauth_tokens;
+        let oauth_state_bindings = cleanup_repo
+            .delete_expired_oauth_state_bindings()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        let oauth_jti_revocations = cleanup_repo
+            .delete_expired_oauth_jti_revocations()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        total_deleted += oauth_codes + oauth_tokens + oauth_state_bindings + oauth_jti_revocations;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -76,6 +84,8 @@ impl Job for DatabaseCleanupJob {
             old_logs = old_logs,
             oauth_codes = oauth_codes,
             oauth_tokens = oauth_tokens,
+            oauth_state_bindings = oauth_state_bindings,
+            oauth_jti_revocations = oauth_jti_revocations,
             duration_ms = duration_ms,
             "Job completed"
         );

@@ -20,9 +20,9 @@ pub struct GeneratedFeed {
 }
 
 pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
-    let provider = DefaultRssFeedProvider::new(Arc::clone(&db_pool), paths).await?;
+    let provider = DefaultRssFeedProvider::new(db_pool, paths).await?;
     let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
-    let feeds = generate_feed_with_providers(&providers, db_pool).await?;
+    let feeds = generate_feed_with_providers(&providers).await?;
 
     let web_dir = paths.web().dist().to_path_buf();
 
@@ -42,7 +42,6 @@ pub async fn generate_feed(db_pool: DbPool, paths: &AppPaths) -> Result<()> {
 
 pub async fn generate_feed_with_providers(
     providers: &[Arc<dyn RssFeedProvider>],
-    _db_pool: DbPool,
 ) -> Result<Vec<GeneratedFeed>> {
     let global_config = Config::get().map_err(PublishError::other)?;
     let base_url = &global_config.api_external_url;

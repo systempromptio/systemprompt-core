@@ -73,13 +73,27 @@ impl UserRepository {
             .clone()
             .or_else(|| claims.name.clone())
             .unwrap_or_else(|| format!("fed_{}_{}", short_hash(issuer), short_hash(external_sub)));
-        let email = claims.email.clone().unwrap_or_else(|| {
+        let synthetic_email = || {
             format!(
                 "{}@{}.federated.local",
                 short_hash(external_sub),
                 short_host(issuer)
             )
-        });
+        };
+        let email = match (claims.email.as_deref(), claims.email_verified) {
+            (Some(addr), true) => addr.to_string(),
+            (Some(addr), false) => {
+                tracing::warn!(
+                    issuer,
+                    external_sub,
+                    upstream_email = addr,
+                    "upstream IdP did not assert email_verified; using synthetic local email to \
+                     prevent account-claim attacks"
+                );
+                synthetic_email()
+            },
+            (None, _) => synthetic_email(),
+        };
         let display_name = claims.name.clone();
         let status = UserStatus::Active.as_str();
         let roles = normalised_roles(&claims.roles);
