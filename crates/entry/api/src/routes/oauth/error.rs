@@ -345,7 +345,10 @@ impl From<OauthError> for OAuthHttpError {
             OauthError::WebAuthn(_)
             | OauthError::User(_)
             | OauthError::Session(_)
-            | OauthError::Token(_)
+            | OauthError::TokenInvalid(_)
+            | OauthError::TokenAlgMismatch { .. }
+            | OauthError::TokenMissingKid
+            | OauthError::TokenUnknownKid { .. }
             | OauthError::Provider(_)
             | OauthError::Repository(_)
             | OauthError::DatabaseRepository(_)

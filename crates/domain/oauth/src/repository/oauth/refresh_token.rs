@@ -154,10 +154,10 @@ impl OAuthRepository {
         )
         .fetch_optional(self.pool_ref())
         .await?
-        .ok_or_else(|| OauthError::Token("Invalid refresh token".to_string()))?;
+        .ok_or_else(|| OauthError::TokenInvalid("Invalid refresh token".to_string()))?;
 
         if row.expires_at < now {
-            return Err(OauthError::Token("Refresh token expired".to_string()));
+            return Err(OauthError::Expired("Refresh token expired".to_string()));
         }
 
         Ok((UserId::new(row.user_id), row.scope))
