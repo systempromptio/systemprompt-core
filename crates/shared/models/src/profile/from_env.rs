@@ -79,6 +79,7 @@ fn server_config_from_env() -> ProfileResult<ServerConfig> {
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
         max_concurrent_streams: crate::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        trusted_proxies: Vec::new(),
     })
 }
 

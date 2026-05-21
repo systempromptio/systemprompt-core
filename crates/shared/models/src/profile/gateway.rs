@@ -220,11 +220,9 @@ pub fn slugify_pattern(pattern: &str) -> String {
     out
 }
 
-/// Build a stable route id from `(model_pattern, provider, endpoint)`.
-///
-/// The id is `<slug>-<6 hex chars>` where the hex digest is the first 6
-/// chars of `DefaultHasher` over the same triple. Mirrors the template
-/// logic so ids stay identical across the seam.
+// Format: <slug>-<6 hex chars> where the hex digest is the first 6 chars of
+// DefaultHasher over (model_pattern, provider, endpoint). Mirrors the template
+// logic so ids stay identical across the core/template seam.
 #[must_use]
 pub fn synthesize_route_id(model_pattern: &str, provider: &str, endpoint: &str) -> String {
     let mut hasher = DefaultHasher::new();

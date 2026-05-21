@@ -57,6 +57,10 @@ pub trait SitemapProvider: Send + Sync {
         vec![]
     }
 
+    // JSON: `content` is a polymorphic per-source content object (markdown
+    // frontmatter, blog row, etc.) consumed by the provider to fill
+    // placeholders in the URL pattern. Defining a typed enum here would force
+    // every consumer into a tagged union; trait boundary input.
     async fn resolve_placeholders(
         &self,
         ctx: &SitemapContext<'_>,

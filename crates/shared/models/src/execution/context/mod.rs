@@ -47,6 +47,8 @@ impl RequestContext {
                 actor: Actor::user(UserId::anonymous()),
                 user_type: UserType::Anon,
                 act_chain: Vec::new(),
+                jti: String::new(),
+                token_exp: 0,
             },
             request: RequestMetadata {
                 session_id,
@@ -126,6 +128,28 @@ impl RequestContext {
     pub fn with_auth_token(mut self, token: impl Into<String>) -> Self {
         self.auth.auth_token = JwtToken::new(token.into());
         self
+    }
+
+    #[must_use]
+    pub fn with_jti(mut self, jti: impl Into<String>) -> Self {
+        self.auth.jti = jti.into();
+        self
+    }
+
+    #[must_use]
+    pub const fn with_token_exp(mut self, token_exp: i64) -> Self {
+        self.auth.token_exp = token_exp;
+        self
+    }
+
+    #[must_use]
+    pub fn jti(&self) -> &str {
+        &self.auth.jti
+    }
+
+    #[must_use]
+    pub const fn token_exp(&self) -> i64 {
+        self.auth.token_exp
     }
 
     #[must_use]

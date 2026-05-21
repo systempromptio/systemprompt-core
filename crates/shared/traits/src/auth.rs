@@ -46,6 +46,11 @@ pub struct AuthUser {
 #[derive(Debug, Clone, Default)]
 pub struct FederatedIdentityClaims {
     pub email: Option<String>,
+    /// Whether the upstream `IdP` has asserted `email_verified=true` for this
+    /// subject. When `false`, callers must refuse to link the federated
+    /// identity to a local account that owns the same email — a hostile
+    /// upstream could otherwise claim arbitrary accounts.
+    pub email_verified: bool,
     pub name: Option<String>,
     pub preferred_username: Option<String>,
     pub roles: Vec<String>,

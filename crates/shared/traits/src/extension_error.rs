@@ -28,6 +28,7 @@ impl ApiError {
 pub struct McpErrorData {
     pub code: i32,
     pub message: String,
+    // JSON: JSON-RPC 2.0 §5.1 error `data` field — protocol boundary.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
 }

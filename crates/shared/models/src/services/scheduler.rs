@@ -71,12 +71,10 @@ fn default_bootstrap_jobs() -> Vec<String> {
 }
 
 impl SchedulerConfig {
-    /// Build the built-in scheduler configuration with the resolved
-    /// platform owner stamped onto every cleanup job. The four cleanup
-    /// jobs (`cleanup_anonymous_users`, `cleanup_empty_contexts`,
-    /// `cleanup_inactive_sessions`, `database_cleanup`) have no human
-    /// originator; attributing them to the system admin row ensures the
-    /// scheduler's `resolve_owners` pass succeeds against a real user.
+    // The four cleanup jobs (cleanup_anonymous_users, cleanup_empty_contexts,
+    // cleanup_inactive_sessions, database_cleanup) have no human originator;
+    // attributing them to the system admin row keeps the scheduler's
+    // resolve_owners pass green against a real user.
     #[must_use]
     pub fn with_system_admin(admin: &SystemAdmin) -> Self {
         let owner = admin.id().clone();
