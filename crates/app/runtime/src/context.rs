@@ -12,8 +12,10 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
+use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
+use systemprompt_security::authz::AuthzHookInstalled;
 use systemprompt_users::UserService;
 
 use crate::builder::AppContextBuilder;
@@ -37,6 +39,8 @@ pub struct AppContext {
     pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub(crate) system_admin: Arc<SystemAdmin>,
+    pub(crate) mcp_registry: RegistryManager,
+    pub(crate) authz_installed: AuthzHookInstalled,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -76,6 +80,8 @@ pub struct AppContextParts {
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub system_admin: Arc<SystemAdmin>,
+    pub mcp_registry: RegistryManager,
+    pub authz_installed: AuthzHookInstalled,
 }
 
 impl AppContext {
@@ -104,6 +110,8 @@ impl AppContext {
             marketplace_filter: parts.marketplace_filter,
             event_bridge: parts.event_bridge,
             system_admin: parts.system_admin,
+            mcp_registry: parts.mcp_registry,
+            authz_installed: parts.authz_installed,
         }
     }
 
@@ -182,5 +190,13 @@ impl AppContext {
 
     pub fn system_admin(&self) -> &SystemAdmin {
         &self.system_admin
+    }
+
+    pub const fn mcp_registry(&self) -> &RegistryManager {
+        &self.mcp_registry
+    }
+
+    pub const fn authz_installed(&self) -> &AuthzHookInstalled {
+        &self.authz_installed
     }
 }
