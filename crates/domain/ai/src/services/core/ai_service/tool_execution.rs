@@ -82,7 +82,8 @@ impl AiService {
         let (response, tool_calls) = match ai_result {
             Ok(result) => result,
             Err(e) => {
-                self.store_error(request, request_id, latency_ms, e.to_string()).await;
+                self.store_error(request, request_id, latency_ms, e.to_string())
+                    .await;
                 return Err(e);
             },
         };
@@ -212,7 +213,8 @@ impl AiService {
                 Ok((response, tool_calls))
             },
             Err(e) => {
-                self.store_error(request, request_id, latency_ms, e.to_string()).await;
+                self.store_error(request, request_id, latency_ms, e.to_string())
+                    .await;
                 Err(e)
             },
         }

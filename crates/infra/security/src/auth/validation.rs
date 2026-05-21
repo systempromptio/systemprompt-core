@@ -16,7 +16,7 @@ const BEARER_PREFIX: &str = "Bearer ";
 /// Maximum clock-skew tolerance (seconds) for `exp`, `nbf`, and `iat`
 /// validation. Pinned explicitly so deployments see this value in code
 /// review rather than inheriting the `jsonwebtoken` default.
-pub(crate) const JWT_LEEWAY_SECONDS: u64 = 30;
+pub(super) const JWT_LEEWAY_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMode {

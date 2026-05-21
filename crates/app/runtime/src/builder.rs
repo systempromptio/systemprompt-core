@@ -97,7 +97,7 @@ impl AppContextBuilder {
         );
 
         let authz_audit_pool = database.write_pool_arc().ok();
-        let authz_installed = systemprompt_security::authz::install_from_governance_config(
+        let authz_hook = systemprompt_security::authz::build_authz_hook(
             profile.governance.as_ref(),
             authz_audit_pool,
         )
@@ -184,7 +184,7 @@ impl AppContextBuilder {
             event_bridge,
             system_admin,
             mcp_registry,
-            authz_installed,
+            authz_hook,
         }))
     }
 }

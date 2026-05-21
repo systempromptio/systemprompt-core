@@ -17,9 +17,10 @@ use thiserror::Error;
 
 static PLATFORM_OWNER: OnceLock<SystemAdmin> = OnceLock::new();
 
-/// Park the resolved system-admin in the logging-attribution cell. Called
-/// once during `AppContext` bootstrap, immediately after the admin row is
-/// resolved against the `users` table. Subsequent calls in the same process
+/// Park the resolved system-admin in the logging-attribution cell.
+///
+/// Called once during `AppContext` bootstrap, immediately after the admin row
+/// is resolved against the `users` table. Subsequent calls in the same process
 /// observe the installed value and return it; the input is dropped.
 pub fn install_log_attribution(admin: SystemAdmin) -> &'static SystemAdmin {
     PLATFORM_OWNER.get_or_init(|| admin)

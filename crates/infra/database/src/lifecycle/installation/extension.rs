@@ -7,8 +7,8 @@
 //! A session-scoped advisory lock serialises concurrent boots. See
 //! `instructions/information/migrations.md`.
 
-use sqlx::pool::PoolConnection;
 use sqlx::Postgres;
+use sqlx::pool::PoolConnection;
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
 use tracing::{debug, info, warn};
 
@@ -252,24 +252,21 @@ impl BootstrapLockGuard {
             return Ok(Self { conn: None });
         };
 
-        let mut conn =
-            pool.acquire()
-                .await
-                .map_err(|e| LoaderError::SchemaInstallationFailed {
-                    extension: "database".to_string(),
-                    message: format!("Failed to acquire bootstrap lock connection: {e}"),
-                })?;
+        let mut conn = pool
+            .acquire()
+            .await
+            .map_err(|e| LoaderError::SchemaInstallationFailed {
+                extension: "database".to_string(),
+                message: format!("Failed to acquire bootstrap lock connection: {e}"),
+            })?;
 
-        sqlx::query!(
-            "SELECT pg_advisory_lock($1)",
-            BOOTSTRAP_ADVISORY_LOCK_KEY
-        )
-        .execute(conn.as_mut())
-        .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: "database".to_string(),
-            message: format!("Failed to acquire bootstrap advisory lock: {e}"),
-        })?;
+        sqlx::query!("SELECT pg_advisory_lock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
+            .execute(conn.as_mut())
+            .await
+            .map_err(|e| LoaderError::SchemaInstallationFailed {
+                extension: "database".to_string(),
+                message: format!("Failed to acquire bootstrap advisory lock: {e}"),
+            })?;
 
         debug!(
             key = BOOTSTRAP_ADVISORY_LOCK_KEY,
@@ -281,12 +278,10 @@ impl BootstrapLockGuard {
 
     async fn release(mut self) {
         if let Some(mut conn) = self.conn.take() {
-            if let Err(e) = sqlx::query_scalar!(
-                "SELECT pg_advisory_unlock($1)",
-                BOOTSTRAP_ADVISORY_LOCK_KEY
-            )
-            .fetch_one(conn.as_mut())
-            .await
+            if let Err(e) =
+                sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
+                    .fetch_one(conn.as_mut())
+                    .await
             {
                 warn!(
                     error = %e,
@@ -302,8 +297,8 @@ impl Drop for BootstrapLockGuard {
         if self.conn.is_some() {
             warn!(
                 key = BOOTSTRAP_ADVISORY_LOCK_KEY,
-                "BootstrapLockGuard dropped without explicit release; \
-                 lock will clear when the pooled connection recycles"
+                "BootstrapLockGuard dropped without explicit release; lock will clear when the \
+                 pooled connection recycles"
             );
         }
     }

@@ -14,9 +14,9 @@
 //!   the `subject_token` against `profile.security.trusted_issuers` (or the
 //!   deployment's own RS256 signing key for self-issued tokens), intersects the
 //!   requested `scope` with the subject's scope, the client's scope grant, and
-//!   the client owner's role set, and mints a delegated token whose
-//!   the `act` claim records the calling client. Pre-existing `act` chains on the
-//!   subject token are preserved and chained underneath.
+//!   the client owner's role set, and mints a delegated token whose the `act`
+//!   claim records the calling client. Pre-existing `act` chains on the subject
+//!   token are preserved and chained underneath.
 //! - **Federated identities** — `find_or_create_federated` provisions a user
 //!   from a trusted-issuer subject token on first appearance.
 //! - **`WebAuthn`** — passkey registration and authentication backed by

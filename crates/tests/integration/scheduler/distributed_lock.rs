@@ -34,7 +34,7 @@ use systemprompt_models::{AppPaths, Config, RouteClassifier};
 use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_runtime::{AppContext, AppContextParts, ModuleApiRegistry};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
-use systemprompt_security::authz::{DenyAllHook, NullAuditSink, install_global_hook};
+use systemprompt_security::authz::{DenyAllHook, NullAuditSink};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_test_fixtures::{fixture_system_admin, fixture_user_id};
 
@@ -166,7 +166,7 @@ fn test_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>
         event_bridge: Arc::new(OnceLock::new()),
         system_admin: Arc::new(fixture_system_admin("admin")),
         mcp_registry: RegistryManager::new(fixture_user_id()),
-        authz_installed: install_global_hook(Arc::new(DenyAllHook::new(Arc::new(NullAuditSink)))),
+        authz_hook: Arc::new(DenyAllHook::new(Arc::new(NullAuditSink))),
     };
 
     Ok(Arc::new(AppContext::from_parts(parts)))

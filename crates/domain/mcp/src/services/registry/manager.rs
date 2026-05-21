@@ -86,6 +86,7 @@ impl RegistryService {
         Ok(enabled)
     }
 
+    #[allow(clippy::unused_self)]
     pub fn validate_registry(&self) -> McpDomainResult<()> {
         DeploymentService::validate_config()?;
         Ok(())

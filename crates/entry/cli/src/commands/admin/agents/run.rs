@@ -43,7 +43,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         &services_config.ai.mcp.resilience,
     ));
     let ai_service = Arc::new(
-        AiService::new(db_pool, &services_config.ai, tool_provider, None)
+        AiService::new(&db_pool, &services_config.ai, tool_provider, None)
             .context("Failed to create AI service")?,
     );
 
