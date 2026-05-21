@@ -44,7 +44,16 @@ pub fn execute_with_config(command: WebCommands, config: &CliConfig) -> Result<(
         WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config),
         WebCommands::Validate(args) => {
             let result = validate::execute(&args, config)?;
+            let valid = result.data.valid;
+            let error_count = result.data.errors.len();
+            let warning_count = result.data.warnings.len();
             render_result(&result);
+            if !valid {
+                return Err(anyhow::anyhow!(
+                    "web configuration is invalid: {error_count} error(s), {warning_count} \
+                     warning(s) — see report above",
+                ));
+            }
             Ok(())
         },
     }
