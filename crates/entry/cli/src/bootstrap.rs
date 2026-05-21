@@ -32,12 +32,9 @@ pub fn resolve_and_display_profile(
 
     let profile = ProfileBootstrap::get()?;
 
-    // Why: the banner used to fire on every command in default (local +
-    // Normal verbosity) mode and dominated demo logs without conveying new
-    // information — operators on a local profile already know they're on a
-    // local profile. Print it only when the operator opted in via
-    // `--verbose` (or higher) or when the active profile is non-local
-    // (where knowing which env you're hitting actually matters).
+    // Why: only print the banner when the operator opted in (`--verbose`+)
+    // or when the active profile is non-local — for local profiles at default
+    // verbosity it is pure noise.
     let banner_requested = cli_config.verbosity >= VerbosityLevel::Verbose;
     let banner_warranted = profile.target.is_cloud();
     if cli_config.output_format == OutputFormat::Table

@@ -133,14 +133,10 @@ async fn initialize_post_routing(
     desc: &CommandDescriptor,
     needs_cloud: bool,
 ) -> Result<RoutingAction> {
-    // Why: cloud credentials are only consulted by commands that actually
-    // talk to the cloud control plane. Running the cred check on every CLI
-    // call (e.g. `infra services status`) caused a `WARN ... Token expired`
-    // to fire on every invocation and dominate every demo log. Gating on
-    // `needs_cloud` keeps cred validation where it belongs — on `cloud *`
-    // and `admin session *` — and stays silent everywhere else. The
-    // existing `external_db_access` carve-out is preserved because that
-    // path runs against a cloud-resolved DB URL even from a local CLI.
+    // Why: only commands that hit the cloud control plane should consult
+    // cloud credentials. `external_db_access` is preserved because that
+    // path resolves the DB URL from cloud-issued creds even from a local
+    // CLI.
     if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
         bootstrap::init_credentials_gracefully(needs_cloud).await?;
     }
