@@ -29,6 +29,7 @@ pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::resolve;
 pub use runtime::{
-    clear_global_hook, global_hook, install_from_governance_config, install_global_hook,
+    AuthzHookInstalled, clear_global_hook, global_hook, install_from_governance_config,
+    install_global_hook,
 };
 pub use types::{Access, AccessRule, AuthzDecision, AuthzRequest, Decision, EntityKind, RuleType};

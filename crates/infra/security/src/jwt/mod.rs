@@ -36,6 +36,7 @@ impl JwtService {
             sub: params.user_id.to_string(),
             iat: now.timestamp(),
             exp: expiry.timestamp(),
+            nbf: Some(now.timestamp()),
             iss: params.issuer.to_string(),
             aud: JwtAudience::standard(),
             jti: uuid::Uuid::new_v4().to_string(),

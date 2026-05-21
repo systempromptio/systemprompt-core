@@ -1,6 +1,8 @@
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
+use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
+use systemprompt_models::auth::{
+    JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, UserType,
+};
 use systemprompt_models::execution::context::RequestContext;
 
 use crate::error::{AuthError, AuthResult};
@@ -9,17 +11,17 @@ use crate::keys::authority;
 use crate::session::ValidatedSessionClaims;
 
 const ANONYMOUS_SESSION_ID: &str = "anonymous";
-const TEST_SESSION_ID: &str = "test";
-const TEST_TRACE_ID: &str = "test-trace";
-const TEST_AGENT_NAME: &str = "test-agent";
-const TEST_USER_ID: &str = "test-user";
 const BEARER_PREFIX: &str = "Bearer ";
+
+/// Maximum clock-skew tolerance (seconds) for `exp`, `nbf`, and `iat`
+/// validation. Pinned explicitly so deployments see this value in code
+/// review rather than inheriting the `jsonwebtoken` default.
+pub(crate) const JWT_LEEWAY_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMode {
     Required,
     Optional,
-    Disabled,
 }
 
 #[derive(Debug)]
@@ -42,7 +44,6 @@ impl AuthValidationService {
         match mode {
             AuthMode::Required => self.validate_and_fail_fast(headers),
             AuthMode::Optional => Ok(self.try_validate_or_anonymous(headers)),
-            AuthMode::Disabled => Ok(Self::create_test_context()),
         }
     }
 
@@ -97,6 +98,8 @@ impl AuthValidationService {
             .ok_or_else(|| AuthError::UnknownKid(kid.to_string()))?;
 
         let mut validation = Validation::new(Algorithm::RS256);
+        validation.leeway = JWT_LEEWAY_SECONDS;
+        validation.validate_nbf = true;
 
         validation.set_issuer(&[&self.issuer]);
 
@@ -107,6 +110,16 @@ impl AuthValidationService {
             decode::<JwtClaims>(token, key, &validation).map_err(AuthError::InvalidToken)?;
 
         let claims = token_data.claims;
+
+        if let Some(ref act) = claims.act {
+            let depth = act.depth();
+            if depth > MAX_ACT_CHAIN_DEPTH {
+                return Err(AuthError::ActChainTooDeep {
+                    depth,
+                    max: MAX_ACT_CHAIN_DEPTH,
+                });
+            }
+        }
 
         let user_type = if claims.scope.contains(&Permission::Admin) {
             UserType::Admin
@@ -121,6 +134,8 @@ impl AuthValidationService {
                 .map(SessionId::new)
                 .ok_or(AuthError::MissingSessionId)?,
             user_type,
+            jti: claims.jti,
+            exp: claims.exp,
         })
     }
 
@@ -141,6 +156,8 @@ impl AuthValidationService {
         .with_actor(Actor::user(user_id))
         .with_auth_token(token)
         .with_user_type(claims.user_type)
+        .with_jti(claims.jti.clone())
+        .with_token_exp(claims.exp)
     }
 
     fn create_anonymous_context(headers: &HeaderMap) -> RequestContext {
@@ -154,16 +171,5 @@ impl AuthValidationService {
             systemprompt_identifiers::bootstrap::anonymous(),
         ))
         .with_user_type(UserType::Anon)
-    }
-
-    fn create_test_context() -> RequestContext {
-        RequestContext::new(
-            SessionId::new(TEST_SESSION_ID.to_string()),
-            TraceId::new(TEST_TRACE_ID.to_string()),
-            ContextId::generate(),
-            AgentName::new(TEST_AGENT_NAME.to_string()),
-        )
-        .with_actor(Actor::user(UserId::new(TEST_USER_ID.to_string())))
-        .with_user_type(UserType::User)
     }
 }

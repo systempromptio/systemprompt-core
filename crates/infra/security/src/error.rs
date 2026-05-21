@@ -57,6 +57,9 @@ pub enum AuthError {
         #[source]
         source: crate::keys::JwksClientError,
     },
+
+    #[error("token `act` delegation chain exceeds maximum depth of {max} (got {depth})")]
+    ActChainTooDeep { depth: usize, max: usize },
 }
 
 #[derive(Debug, Error)]
