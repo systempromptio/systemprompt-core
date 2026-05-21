@@ -11,7 +11,7 @@ use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
-    #[command(about = "Show paths configuration")]
+    #[command(about = "Show paths configuration", alias = "list")]
     Show,
 
     #[command(about = "Validate that all configured paths exist")]

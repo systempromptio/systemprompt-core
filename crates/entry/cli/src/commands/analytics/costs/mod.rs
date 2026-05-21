@@ -13,7 +13,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum CostsCommands {
-    #[command(about = "Cost summary")]
+    #[command(about = "Cost summary", alias = "list")]
     Summary(summary::SummaryArgs),
 
     #[command(about = "Cost trends over time")]

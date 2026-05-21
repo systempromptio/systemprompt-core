@@ -13,7 +13,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum SessionsCommands {
-    #[command(about = "Session statistics")]
+    #[command(about = "Session statistics", alias = "list")]
     Stats(stats::StatsArgs),
 
     #[command(about = "Session trends over time")]

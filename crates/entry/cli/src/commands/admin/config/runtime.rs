@@ -13,7 +13,7 @@ use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum RuntimeCommands {
-    #[command(about = "Show runtime configuration")]
+    #[command(about = "Show runtime configuration", alias = "list")]
     Show,
 
     #[command(about = "Set runtime configuration value")]

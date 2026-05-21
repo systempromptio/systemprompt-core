@@ -15,7 +15,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum RateLimitsCommands {
-    #[command(about = "Show current rate limits configuration")]
+    #[command(about = "Show current rate limits configuration", alias = "list")]
     Show,
 
     #[command(about = "Show effective limits for a specific tier")]

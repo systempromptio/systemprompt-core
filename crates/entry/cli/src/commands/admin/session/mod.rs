@@ -17,7 +17,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum SessionCommands {
-    #[command(about = "Show current session and routing info")]
+    #[command(about = "Show current session and routing info", alias = "current")]
     Show,
 
     #[command(about = "Switch to a different profile")]
