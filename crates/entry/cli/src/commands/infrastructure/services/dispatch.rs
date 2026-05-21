@@ -172,9 +172,7 @@ async fn execute_restart(
     Ok(())
 }
 
-pub fn load_service_configs(
-    _ctx: &AppContext,
-) -> Result<Vec<systemprompt_scheduler::ServiceConfig>> {
+pub fn load_service_configs() -> Result<Vec<systemprompt_scheduler::ServiceConfig>> {
     use systemprompt_loader::ConfigLoader;
     use systemprompt_scheduler::{ServiceConfig, ServiceType};
 

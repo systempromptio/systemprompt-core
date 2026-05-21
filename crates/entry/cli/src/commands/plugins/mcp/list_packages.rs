@@ -6,8 +6,7 @@ use clap::Args;
 use super::types::McpPackagesOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
-use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::registry::RegistryManager;
+use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListPackagesArgs {
@@ -15,13 +14,17 @@ pub struct ListPackagesArgs {
     pub raw: bool,
 }
 
-pub fn execute(
+pub async fn execute(
     args: ListPackagesArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<McpPackagesOutput>> {
-    let _services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let servers =
-        RegistryManager::get_enabled_servers().context("Failed to get enabled MCP servers")?;
+    let ctx = AppContext::new()
+        .await
+        .context("Failed to bootstrap AppContext")?;
+    let servers = ctx
+        .mcp_registry()
+        .get_enabled_servers()
+        .context("Failed to get enabled MCP servers")?;
 
     let packages: Vec<String> = servers.iter().map(|s| s.name.clone()).collect();
 

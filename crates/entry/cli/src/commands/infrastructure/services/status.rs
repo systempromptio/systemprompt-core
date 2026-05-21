@@ -106,7 +106,7 @@ pub async fn execute(
 ) -> Result<CommandResult<ServiceStatusOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
 
-    let Ok(configs) = super::load_service_configs(&ctx) else {
+    let Ok(configs) = super::load_service_configs() else {
         let mut validator = StartupValidator::new();
         let report = validator.validate(ctx.config());
         if report.has_errors() {

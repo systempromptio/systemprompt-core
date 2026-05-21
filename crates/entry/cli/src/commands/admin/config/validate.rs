@@ -15,9 +15,11 @@ pub struct ValidateArgs {
     #[arg(long)]
     pub strict: bool,
 
-    /// Print the generated JSON schema for the `Profile` config type
-    /// instead of validating any file.
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Print the generated JSON schema for the Profile config type instead of validating \
+                any file"
+    )]
     pub schema: bool,
 }
 

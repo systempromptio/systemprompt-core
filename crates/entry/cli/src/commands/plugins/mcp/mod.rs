@@ -79,8 +79,9 @@ pub async fn execute_with_config(command: McpCommands, config: &CliConfig) -> Re
             Ok(())
         },
         McpCommands::ListPackages(args) => {
-            let result =
-                list_packages::execute(args, config).context("Failed to list MCP packages")?;
+            let result = list_packages::execute(args, config)
+                .await
+                .context("Failed to list MCP packages")?;
             render_result(&result);
             Ok(())
         },

@@ -5,11 +5,8 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_ai::AiService;
-use systemprompt_database::Database;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_logging;
 use systemprompt_mcp::McpToolProvider;
-use systemprompt_models::Config;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 
@@ -23,25 +20,12 @@ pub struct RunArgs {
 }
 
 pub async fn execute(args: RunArgs) -> Result<()> {
-    // Install the typed SystemAdmin into the process-wide OnceLock so any
-    // system-attributed work (MCP tool resolution, etc.) can resolve it.
-    // The agent subprocess otherwise skips the AppContext bootstrap and the
-    // McpToolProvider fails with "AppContext bootstrap must run before any
-    // system-attributed work".
-    let _ = AppContext::new()
+    let ctx = AppContext::new()
         .await
         .context("Failed to bootstrap AppContext for agent subprocess")?;
 
-    let config = Config::get().context("Failed to get configuration")?;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-
-    let db_pool = Arc::new(
-        Database::from_config(&config.database_type, &config.database_url)
-            .await
-            .context("Failed to connect to database")?,
-    );
-
-    systemprompt_logging::init_logging(Arc::clone(&db_pool));
+    let db_pool = Arc::clone(ctx.db_pool());
 
     let jwt_provider = Arc::new(
         JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
@@ -49,12 +33,13 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(&db_pool),
-        Arc::new(config.clone()),
+        Arc::new(ctx.config().clone()),
         jwt_provider,
     ));
 
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(&db_pool),
+        ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
     ));
     let ai_service = Arc::new(
