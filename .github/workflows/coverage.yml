@@ -84,6 +84,7 @@ jobs:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           LLVM_PROFILE_FILE: ${{ github.workspace }}/coverage-profraw/%p-%m.profraw
           RUSTFLAGS: "-C instrument-coverage"
+          SQLX_OFFLINE: "false"
         run: |
           mkdir -p "${{ github.workspace }}/coverage-profraw"
           cargo test \

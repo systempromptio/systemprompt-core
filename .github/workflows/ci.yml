@@ -120,6 +120,7 @@ jobs:
       - name: Run test suite
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
+          SQLX_OFFLINE: "false"
         run: |
           cargo test \
             --manifest-path crates/tests/Cargo.toml \
