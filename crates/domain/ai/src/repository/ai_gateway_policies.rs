@@ -90,8 +90,6 @@ impl AiGatewayPolicyRepository {
         Ok(names)
     }
 
-    /// Delete a policy by name. Used by the YAML ingestion path to drop
-    /// policies removed from the committed config (`delete_orphans`).
     pub async fn delete_by_name(&self, name: &str) -> Result<(), RepositoryError> {
         sqlx::query!("DELETE FROM ai_gateway_policies WHERE name = $1", name)
             .execute(self.write_pool.as_ref())

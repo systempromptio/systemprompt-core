@@ -5,18 +5,17 @@
 //! The resilience decorator applies its own per-attempt timeout on top of this;
 //! the client-level bound is defence in depth and covers the streaming connect
 //! phase.
+//!
+//! A timeout-only configuration cannot make the builder fail for any reason
+//! other than the TLS backend failing to initialise — and `Client::new()`
+//! panics on that same condition, so the fallback path only runs in a process
+//! that is already doomed; it logs the builder error first so the failure is
+//! diagnosable rather than silent.
 
 use std::time::Duration;
 
 use reqwest::Client;
 
-/// Build a `reqwest::Client` with a bounded request and connect timeout.
-///
-/// A timeout-only configuration cannot make the builder fail for any reason
-/// other than the TLS backend failing to initialise — and `Client::new()`
-/// panics on that same condition. The fallback therefore only ever runs in a
-/// process that is already doomed; it logs the builder error first so the
-/// failure is diagnosable rather than silent.
 #[must_use]
 pub fn build_client(request_timeout: Duration, connect_timeout: Duration) -> Client {
     Client::builder()

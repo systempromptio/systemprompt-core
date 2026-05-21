@@ -148,8 +148,7 @@ pub enum RepositoryError {
 }
 
 impl AiError {
-    /// Build an [`AiError::HttpStatus`] from a non-success provider response,
-    /// consuming the body and parsing any `Retry-After` header.
+    // Consumes the response body and parses any Retry-After header.
     pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
         let status = response.status().as_u16();
         let retry_after = parse_retry_after(response.headers());
@@ -162,8 +161,6 @@ impl AiError {
         }
     }
 
-    /// Classify this error for the resilience layer — which failures are worth
-    /// retrying (transient) and which cannot be helped by a retry (permanent).
     #[must_use]
     pub fn classify(&self) -> Outcome {
         match self {
