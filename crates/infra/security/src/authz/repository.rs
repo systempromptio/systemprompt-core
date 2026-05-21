@@ -198,8 +198,7 @@ impl AccessControlRepository {
         })
     }
 
-    /// Update only the justification on an existing rule. Pass `None` to
-    /// clear the operator note.
+    // None clears the operator note.
     pub async fn set_justification(
         &self,
         rule_id: &RuleId,

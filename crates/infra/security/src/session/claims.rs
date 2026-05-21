@@ -6,4 +6,6 @@ pub struct ValidatedSessionClaims {
     pub user_id: UserId,
     pub session_id: SessionId,
     pub user_type: UserType,
+    pub jti: String,
+    pub exp: i64,
 }

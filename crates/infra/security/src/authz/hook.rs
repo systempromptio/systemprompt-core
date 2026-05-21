@@ -41,9 +41,8 @@ impl DenyAllHook {
         Self { sink }
     }
 
-    /// Construct a `DenyAllHook` with no audit sink. Intended for tests and
-    /// pre-database bootstrap; production paths should always pass a real
-    /// sink so denies during outages are observable.
+    // Tests and pre-database bootstrap. Production paths should always pass a
+    // real sink so denies during outages stay observable.
     pub fn null() -> Self {
         Self {
             sink: Arc::new(NullAuditSink),
@@ -75,9 +74,8 @@ impl AllowAllHook {
         Self { sink }
     }
 
-    /// Construct an `AllowAllHook` with no audit sink. Tests only — production
-    /// installs only happen via the explicit unrestricted opt-in path which
-    /// always wires a real sink.
+    // Tests only — production installs go through the explicit unrestricted
+    // opt-in path which always wires a real sink.
     pub fn null() -> Self {
         Self {
             sink: Arc::new(NullAuditSink),

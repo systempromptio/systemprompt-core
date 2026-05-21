@@ -35,6 +35,7 @@ fn sample_claims(iss: &str) -> JwtClaims {
         sub: "user-1".to_string(),
         iat: now.timestamp(),
         exp: (now + Duration::hours(1)).timestamp(),
+        nbf: Some(now.timestamp()),
         iss: iss.to_string(),
         aud: vec![JwtAudience::Api],
         jti: "jti-1".to_string(),

@@ -35,10 +35,20 @@ fn slot() -> &'static RwLock<Option<SharedHook>> {
     SLOT.get_or_init(|| RwLock::new(None))
 }
 
-pub fn install_global_hook(hook: SharedHook) {
+/// Zero-sized witness that [`install_global_hook`] has run at least once.
+/// Downstream router builders take `&AuthzHookInstalled` as a parameter,
+/// making "build router before installing hook" a compile error rather than
+/// a silent fail-closed at request time.
+#[derive(Debug, Clone, Copy)]
+pub struct AuthzHookInstalled {
+    _private: (),
+}
+
+pub fn install_global_hook(hook: SharedHook) -> AuthzHookInstalled {
     if let Ok(mut guard) = slot().write() {
         *guard = Some(hook);
     }
+    AuthzHookInstalled { _private: () }
 }
 
 pub fn clear_global_hook() {
@@ -47,6 +57,10 @@ pub fn clear_global_hook() {
     }
 }
 
+/// Internal accessor. Always returns `Some` after [`install_global_hook`] has
+/// run; the [`AuthzHookInstalled`] witness is the public proof that bootstrap
+/// completed, so call sites should consume the witness and unwrap
+/// unconditionally.
 #[must_use]
 pub fn global_hook() -> Option<SharedHook> {
     slot().read().ok().and_then(|g| g.clone())
@@ -55,22 +69,20 @@ pub fn global_hook() -> Option<SharedHook> {
 pub fn install_from_governance_config(
     governance: Option<&GovernanceConfig>,
     pool: Option<Arc<sqlx::PgPool>>,
-) -> AuthzResult<()> {
+) -> AuthzResult<AuthzHookInstalled> {
     let sink = build_sink(pool);
 
     let Some(authz) = governance.and_then(|g| g.authz.as_ref()) else {
         tracing::error!(
             "governance.authz block missing — installing DenyAllHook (all requests will be denied)"
         );
-        install_global_hook(Arc::new(DenyAllHook::new(sink)));
-        return Ok(());
+        return Ok(install_global_hook(Arc::new(DenyAllHook::new(sink))));
     };
 
     match authz.hook.mode {
         AuthzMode::Disabled => {
             tracing::warn!("governance.authz.hook.mode = disabled — all requests will be denied");
-            install_global_hook(Arc::new(DenyAllHook::new(sink)));
-            Ok(())
+            Ok(install_global_hook(Arc::new(DenyAllHook::new(sink))))
         },
         AuthzMode::Unrestricted => {
             let ack = authz.hook.acknowledgement.as_deref().map_or("", str::trim);
@@ -84,8 +96,7 @@ pub fn install_from_governance_config(
                 "governance.authz.hook.mode = unrestricted — ALL REQUESTS WILL BE ALLOWED. This \
                  MUST NOT run in production."
             );
-            install_global_hook(Arc::new(AllowAllHook::new(sink)));
-            Ok(())
+            Ok(install_global_hook(Arc::new(AllowAllHook::new(sink))))
         },
         AuthzMode::Webhook => {
             let url = authz
@@ -97,8 +108,7 @@ pub fn install_from_governance_config(
                 .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
                 .to_owned();
             let hook = WebhookHook::new(url, Duration::from_millis(authz.hook.timeout_ms), sink)?;
-            install_global_hook(Arc::new(hook));
-            Ok(())
+            Ok(install_global_hook(Arc::new(hook)))
         },
     }
 }

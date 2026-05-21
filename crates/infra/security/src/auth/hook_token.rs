@@ -19,6 +19,7 @@
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission};
 
+use super::validation::JWT_LEEWAY_SECONDS;
 use crate::error::{AuthError, AuthResult};
 use crate::keys::authority;
 
@@ -87,6 +88,8 @@ impl HookTokenValidator {
             .ok_or_else(|| AuthError::UnknownKid(kid.to_string()))?;
 
         let mut validation = Validation::new(Algorithm::RS256);
+        validation.leeway = JWT_LEEWAY_SECONDS;
+        validation.validate_nbf = true;
         validation.set_issuer(&[&self.issuer]);
         validation.set_audience(&[JwtAudience::Hook.as_str()]);
 
