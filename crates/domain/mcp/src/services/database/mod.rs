@@ -8,6 +8,7 @@ pub mod sync;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
+use crate::services::registry::RegistryManager;
 use std::sync::Arc;
 use systemprompt_database::ServiceRepository;
 use systemprompt_models::AppPaths;
@@ -16,11 +17,20 @@ use systemprompt_models::AppPaths;
 pub struct DatabaseManager {
     db_pool: systemprompt_database::DbPool,
     app_paths: Arc<AppPaths>,
+    registry: RegistryManager,
 }
 
 impl DatabaseManager {
-    pub const fn new(db_pool: systemprompt_database::DbPool, app_paths: Arc<AppPaths>) -> Self {
-        Self { db_pool, app_paths }
+    pub const fn new(
+        db_pool: systemprompt_database::DbPool,
+        app_paths: Arc<AppPaths>,
+        registry: RegistryManager,
+    ) -> Self {
+        Self {
+            db_pool,
+            app_paths,
+            registry,
+        }
     }
 
     pub fn app_paths(&self) -> &AppPaths {
@@ -44,7 +54,7 @@ impl DatabaseManager {
     }
 
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
-        state::get_running_servers(&self.db_pool).await
+        state::get_running_servers(&self.db_pool, &self.registry).await
     }
 
     pub async fn update_service_status(&self, name: &str, status: &str) -> McpDomainResult<()> {

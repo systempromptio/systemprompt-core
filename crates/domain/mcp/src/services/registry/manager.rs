@@ -1,17 +1,29 @@
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::UserId;
 use systemprompt_loader::ExtensionRegistry;
 use systemprompt_models::Config;
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_models::services::SystemAdmin;
 
 use crate::error::McpDomainResult;
 use crate::services::deployment::DeploymentService;
 
-#[derive(Debug, Clone, Copy)]
-pub struct RegistryService;
+#[derive(Debug, Clone)]
+pub struct RegistryService {
+    owner: UserId,
+}
 
 impl RegistryService {
-    pub fn get_enabled_servers_as_config() -> McpDomainResult<Vec<crate::McpServerConfig>> {
+    #[must_use]
+    pub const fn new(owner: UserId) -> Self {
+        Self { owner }
+    }
+
+    #[must_use]
+    pub const fn owner(&self) -> &UserId {
+        &self.owner
+    }
+
+    pub fn get_enabled_servers_as_config(&self) -> McpDomainResult<Vec<crate::McpServerConfig>> {
         use systemprompt_loader::ConfigLoader;
 
         let global_config = Config::get()?;
@@ -47,11 +59,7 @@ impl RegistryService {
 
             let config = crate::McpServerConfig {
                 name: server_name.clone(),
-                // Why: platform-loaded MCP server configs come from the deployment YAML, not
-                // a user action. Attributing them to the resolved system-admin row makes
-                // tool-call traces resolve to a real actor instead of synthesising a fake
-                // principal mid-pipeline.
-                owner: SystemAdmin::current_id()?.clone(),
+                owner: self.owner.clone(),
                 server_type: deployment.server_type,
                 binary: deployment.binary.clone(),
                 enabled: deployment.enabled,
@@ -78,7 +86,7 @@ impl RegistryService {
         Ok(enabled)
     }
 
-    pub fn validate_registry() -> McpDomainResult<()> {
+    pub fn validate_registry(&self) -> McpDomainResult<()> {
         DeploymentService::validate_config()?;
         Ok(())
     }

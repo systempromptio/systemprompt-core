@@ -9,11 +9,15 @@ use super::{EventHandler, McpEvent};
 #[derive(Debug)]
 pub struct LifecycleHandler {
     lifecycle: LifecycleManager,
+    registry: RegistryManager,
 }
 
 impl LifecycleHandler {
-    pub const fn new(lifecycle: LifecycleManager) -> Self {
-        Self { lifecycle }
+    pub const fn new(lifecycle: LifecycleManager, registry: RegistryManager) -> Self {
+        Self {
+            lifecycle,
+            registry,
+        }
     }
 }
 
@@ -22,7 +26,7 @@ impl EventHandler for LifecycleHandler {
     async fn handle(&self, event: &McpEvent) -> McpDomainResult<()> {
         match event {
             McpEvent::ServiceStartRequested { service_name } => {
-                let config = RegistryManager::get_server(service_name)?;
+                let config = self.registry.get_server(service_name)?;
                 tracing::info!(service = %service_name, "Starting MCP service");
                 self.lifecycle.start_server(&config).await?;
             },
@@ -45,7 +49,7 @@ impl EventHandler for LifecycleHandler {
                     reason = %reason,
                     "Restarting service"
                 );
-                let config = RegistryManager::get_server(service_name)?;
+                let config = self.registry.get_server(service_name)?;
                 self.lifecycle.restart_server(&config).await?;
             },
             _ => {},

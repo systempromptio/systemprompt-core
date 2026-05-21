@@ -72,9 +72,6 @@ domain_error! {
 
         #[error("Config validation: {0}")]
         ConfigValidation(String),
-
-        #[error("System admin not initialized: {0}")]
-        SystemAdminNotInitialized(#[from] systemprompt_models::services::SystemAdminNotInitialized),
     }
 }
 

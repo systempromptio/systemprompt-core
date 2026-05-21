@@ -4,7 +4,6 @@ use crate::models::ValidationResultType;
 use crate::services::client::McpConnectionResult;
 use chrono::{DateTime, Utc};
 use std::time::Duration;
-use systemprompt_database::DbPool;
 use tokio::time::{interval, timeout};
 use tracing::Instrument;
 
@@ -172,7 +171,6 @@ impl HealthMonitorState {
 pub async fn monitor_health_continuously(
     config: &McpServerConfig,
     report_interval: Duration,
-    _db_pool: DbPool,
 ) -> McpDomainResult<()> {
     let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_health_monitor").into();
     async move {

@@ -41,15 +41,24 @@ pub struct McpOrchestrator {
     database: DatabaseManager,
     monitoring: MonitoringManager,
     db_pool: DbPool,
+    registry: RegistryManager,
 }
 
 impl McpOrchestrator {
     #[allow(clippy::needless_pass_by_value)]
-    pub fn new(db_pool: DbPool, app_paths: Arc<AppPaths>) -> McpDomainResult<Self> {
+    pub fn new(
+        db_pool: DbPool,
+        app_paths: Arc<AppPaths>,
+        registry: RegistryManager,
+    ) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
-        RegistryManager::validate()?;
-        let database = DatabaseManager::new(Arc::clone(&db_pool), Arc::clone(&app_paths));
+        registry.validate()?;
+        let database = DatabaseManager::new(
+            Arc::clone(&db_pool),
+            Arc::clone(&app_paths),
+            registry.clone(),
+        );
         let network = NetworkManager::new();
         let process = ProcessManager::new();
         let monitoring = MonitoringManager::new();
@@ -61,9 +70,12 @@ impl McpOrchestrator {
             Arc::clone(&app_paths),
         );
 
-        event_bus.register_handler(Arc::new(LifecycleHandler::new(lifecycle.clone())));
+        event_bus.register_handler(Arc::new(LifecycleHandler::new(
+            lifecycle.clone(),
+            registry.clone(),
+        )));
 
-        event_bus.register_handler(Arc::new(MonitoringHandler::new(Arc::clone(&db_pool))));
+        event_bus.register_handler(Arc::new(MonitoringHandler));
 
         event_bus.register_handler(Arc::new(DatabaseSyncHandler::new(database.clone())));
 
@@ -76,7 +88,12 @@ impl McpOrchestrator {
             database,
             monitoring,
             db_pool,
+            registry,
         })
+    }
+
+    pub const fn registry(&self) -> &RegistryManager {
+        &self.registry
     }
 
     pub(super) fn event_bus(&self) -> &EventBus {
@@ -92,7 +109,7 @@ impl McpOrchestrator {
     }
 
     pub async fn list_services(&self) -> McpDomainResult<()> {
-        let servers = RegistryManager::get_enabled_servers()?;
+        let servers = self.registry.get_enabled_servers()?;
         let status_data = self.monitoring.get_status_for_all(&servers).await?;
         MonitoringManager::display_status(&servers, &status_data);
         Ok(())
@@ -104,7 +121,7 @@ impl McpOrchestrator {
 
     pub async fn sync_database_state(&self) -> McpDomainResult<()> {
         tracing::info!("Synchronizing service database state");
-        let servers = RegistryManager::get_enabled_servers()?;
+        let servers = self.registry.get_enabled_servers()?;
         self.database.sync_state(&servers).await
     }
 
@@ -121,13 +138,14 @@ impl McpOrchestrator {
             lifecycle: &self.lifecycle,
             event_bus: &self.event_bus,
             db_pool: &self.db_pool,
+            registry: &self.registry,
             events,
         })
         .await
     }
 
     pub async fn validate_service(&self, service_name: &str) -> McpDomainResult<()> {
-        service_validation::validate_service(service_name, &self.database).await
+        service_validation::validate_service(service_name, &self.database, &self.registry).await
     }
 
     pub async fn get_running_servers(&self) -> McpDomainResult<Vec<McpServerConfig>> {
@@ -142,7 +160,13 @@ impl McpOrchestrator {
     }
 
     pub async fn run_daemon(&self) -> McpDomainResult<()> {
-        daemon::run_daemon(&self.event_bus, &self.lifecycle, &self.database).await
+        daemon::run_daemon(
+            &self.event_bus,
+            &self.lifecycle,
+            &self.database,
+            &self.registry,
+        )
+        .await
     }
 
     pub fn subscribe_events(&self) -> tokio::sync::broadcast::Receiver<McpEvent> {
