@@ -10,9 +10,12 @@ use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
 
 use crate::services::middleware::authz::AuthzPolicy;
+use crate::services::middleware::client_addr::parse_trusted_proxies;
 use crate::services::middleware::{
-    ContextMiddleware, JwtContextExtractor, RouterExt, ip_ban_middleware,
+    ContextMiddleware, JtiRevocationState, JwtContextExtractor, RouterExt, ip_ban_middleware,
+    jti_revocation_middleware,
 };
+use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
 
 pub fn configure_routes(
     ctx: &AppContext,
@@ -80,13 +83,33 @@ pub fn configure_routes(
             message: e.to_string(),
         }
     })?);
+    let trusted_proxies = Arc::new(parse_trusted_proxies(&ctx.config().trusted_proxies));
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
         let repo = Arc::clone(&banned_ip_repo);
-        async move { ip_ban_middleware(req, next, repo).await }
+        let proxies = Arc::clone(&trusted_proxies);
+        async move { ip_ban_middleware(req, next, repo, proxies).await }
     }));
 
+    let jti_state = build_jti_revocation_state(ctx)?;
+    router = router.layer(axum::middleware::from_fn_with_state(
+        jti_state,
+        jti_revocation_middleware,
+    ));
+
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
+}
+
+fn build_jti_revocation_state(ctx: &AppContext) -> Result<JtiRevocationState, LoaderError> {
+    let repo =
+        OAuthRepository::new(ctx.db_pool()).map_err(|e| LoaderError::InitializationFailed {
+            extension: "jti_revocation".to_string(),
+            message: e.to_string(),
+        })?;
+    Ok(JtiRevocationState {
+        repo: Arc::new(repo),
+        cache: Arc::new(JtiRevocationCache::new()),
+    })
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
@@ -117,5 +140,5 @@ fn authenticated_discovery_router(ctx: &AppContext) -> Router {
 }
 
 fn wellknown_router(ctx: &AppContext) -> Router {
-    crate::routes::oauth::wellknown_routes().merge(crate::routes::wellknown_router(ctx))
+    crate::routes::oauth::wellknown_routes(ctx).merge(crate::routes::wellknown_router(ctx))
 }

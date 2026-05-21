@@ -6,7 +6,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     ContextId, GatewayConversationId, SessionId, TraceId, UserId, headers as sp_headers,
 };
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind};
+use systemprompt_security::authz::{AuthzDecision, AuthzHookInstalled, AuthzRequest, EntityKind};
 
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
@@ -68,6 +68,21 @@ pub(super) async fn extract_request_context(
     partial.user_id = Some(principal.user_id.clone());
     partial.trace_id.clone_from(&principal.trace_id);
 
+    if let Some(ref jwt_session) = principal.jwt_session_id
+        && jwt_session.as_str() != session_id.as_str()
+    {
+        tracing::warn!(
+            header_session = %session_id.as_str(),
+            jwt_session = %jwt_session.as_str(),
+            user_id = %principal.user_id,
+            "X-Session-ID header does not match bearer JWT session_id; rejecting"
+        );
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "X-Session-ID does not match authenticated session".to_string(),
+        ));
+    }
+
     let (body_bytes, gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
     let gateway_conversation_id = match header_gateway_conversation {
@@ -100,7 +115,13 @@ pub(super) async fn extract_request_context(
         .effective_upstream_model(&gateway_request.model)
         .to_string();
 
-    enforce_authz_for_route(&principal, route, &gateway_request.model).await?;
+    enforce_authz_for_route(
+        &principal,
+        route,
+        &gateway_request.model,
+        rc.ctx.authz_installed(),
+    )
+    .await?;
 
     Ok(PreparedRequest {
         principal,
@@ -208,17 +229,10 @@ async fn enforce_authz_for_route(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
+    _installed: &AuthzHookInstalled,
 ) -> Result<(), (StatusCode, String)> {
-    let Some(hook) = systemprompt_security::authz::global_hook() else {
-        tracing::error!(
-            "authz hook not installed — denying gateway request (bootstrap order bug: \
-             install_from_governance_config must run before serving traffic)"
-        );
-        return Err((
-            StatusCode::FORBIDDEN,
-            "authz denied [authz_not_installed]: hook missing".to_string(),
-        ));
-    };
+    let hook = systemprompt_security::authz::global_hook()
+        .expect("AuthzHookInstalled witness held but global_hook slot empty");
     let req = build_authz_request(principal, route, model);
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),

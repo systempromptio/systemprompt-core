@@ -58,13 +58,15 @@ impl ServiceResolver {
     }
 
     async fn attempt_restart(service_name: &str, ctx: &AppContext) -> Result<(), ProxyError> {
-        let orchestrator =
-            McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc())).map_err(
-                |e| ProxyError::ServiceNotRunning {
-                    service: service_name.to_string(),
-                    status: format!("Failed to create orchestrator: {e}"),
-                },
-            )?;
+        let orchestrator = McpManager::new(
+            Arc::clone(ctx.db_pool()),
+            Arc::clone(ctx.app_paths_arc()),
+            ctx.mcp_registry().clone(),
+        )
+        .map_err(|e| ProxyError::ServiceNotRunning {
+            service: service_name.to_string(),
+            status: format!("Failed to create orchestrator: {e}"),
+        })?;
 
         match orchestrator
             .start_services(Some(service_name.to_string()))

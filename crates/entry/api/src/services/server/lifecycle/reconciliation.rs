@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{OptionalStartupEventExt, Phase, StartupEventSender};
 
@@ -31,7 +30,7 @@ pub async fn reconcile_system_services(
         },
     }
 
-    let required_servers = RegistryManager::get_enabled_servers()?;
+    let required_servers = ctx.mcp_registry().get_enabled_servers()?;
     let required_count = required_servers.len();
 
     match mcp_orchestrator.reconcile().await {
