@@ -58,14 +58,23 @@ pub async fn list_traces(
             WHERE trace_id IS NOT NULL
               AND ($2::timestamptz IS NULL OR started_at >= $2)
               AND ($1::text IS NULL OR trace_id IN (SELECT trace_id FROM tool_traces))
+            UNION ALL
+            SELECT trace_id, created_at as ts FROM agent_tasks
+            WHERE trace_id IS NOT NULL AND trace_id <> ''
+              AND ($2::timestamptz IS NULL OR created_at >= $2)
+              AND ($1::text IS NULL OR trace_id IN (SELECT trace_id FROM tool_traces))
         ),
         grouped AS (
             SELECT
                 t.trace_id,
                 MIN(t.ts) as first_ts,
                 MAX(t.ts) as last_ts,
-                (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as agent,
-                (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as status,
+                (SELECT at.agent_name FROM agent_tasks at
+                    WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
+                    ORDER BY at.updated_at DESC LIMIT 1) as agent,
+                (SELECT at.status FROM agent_tasks at
+                    WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
+                    ORDER BY at.updated_at DESC LIMIT 1) as status,
                 (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as ai_requests,
                 (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as mcp_calls
             FROM all_traces t
