@@ -132,8 +132,7 @@ async fn service_count_users() -> Result<()> {
     let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
-    let count = service.count().await?;
-    assert!(count >= 0);
+    service.count().await?;
 
     Ok(())
 }
@@ -292,8 +291,7 @@ async fn service_cleanup_old_anonymous() -> Result<()> {
     let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
-    let deleted = service.cleanup_old_anonymous(30).await?;
-    assert!(deleted >= 0);
+    service.cleanup_old_anonymous(30).await?;
 
     Ok(())
 }
@@ -516,10 +514,7 @@ async fn service_get_stats() -> Result<()> {
     let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
-    let stats = service.get_stats().await?;
-    assert!(stats.total >= 0);
-    assert!(stats.active >= 0);
-    assert!(stats.admins >= 0);
+    service.get_stats().await?;
 
     Ok(())
 }
@@ -534,8 +529,7 @@ async fn service_count_with_breakdown() -> Result<()> {
     let db_pool = &db;
     let service = UserService::new(&db_pool)?;
 
-    let breakdown = service.count_with_breakdown().await?;
-    assert!(breakdown.total >= 0);
+    service.count_with_breakdown().await?;
 
     Ok(())
 }
@@ -742,9 +736,7 @@ async fn service_merge_users() -> Result<()> {
     let target_name = format!("svcmergetgt_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let target = service.create(&target_name, &target_email, None, None).await?;
 
-    let result = service.merge_users(&source.id, &target.id).await?;
-    assert!(result.sessions_transferred >= 0);
-    assert!(result.tasks_transferred >= 0);
+    service.merge_users(&source.id, &target.id).await?;
 
     let source_found = service.find_by_id(&source.id).await?;
     assert!(source_found.is_none());

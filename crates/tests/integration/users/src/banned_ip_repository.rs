@@ -32,8 +32,7 @@ async fn repository_creation_from_db_pool() -> Result<()> {
     let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
-    let count = repo.count_active_bans().await?;
-    assert!(count >= 0);
+    repo.count_active_bans().await?;
 
     Ok(())
 }
@@ -48,8 +47,7 @@ async fn repository_creation_from_pool_arc() -> Result<()> {
     let pool = db.pool_arc()?;
     let repo = BannedIpRepository::from_pool(pool);
 
-    let count = repo.count_active_bans().await?;
-    assert!(count >= 0);
+    repo.count_active_bans().await?;
 
     Ok(())
 }
@@ -418,8 +416,7 @@ async fn count_active_bans_returns_count() -> Result<()> {
     let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
-    let count = repo.count_active_bans().await?;
-    assert!(count >= 0);
+    repo.count_active_bans().await?;
 
     Ok(())
 }
@@ -434,8 +431,7 @@ async fn cleanup_expired_runs_without_error() -> Result<()> {
     let db_pool = &db;
     let repo = BannedIpRepository::new(&db_pool)?;
 
-    let deleted = repo.cleanup_expired().await?;
-    assert!(deleted >= 0);
+    repo.cleanup_expired().await?;
 
     Ok(())
 }
