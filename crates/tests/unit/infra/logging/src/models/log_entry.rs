@@ -1,12 +1,11 @@
 //! Unit tests for LogEntry struct
 
 use systemprompt_identifiers::{SessionId, TraceId};
-use systemprompt_logging::{LogActor, LogEntry, LogLevel};
-use systemprompt_models::services::SystemAdmin;
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, install_log_attribution};
 use systemprompt_test_fixtures::{fixture_system_admin, fixture_user_id};
 
 fn ensure_system_admin_installed() {
-    SystemAdmin::get_or_install(fixture_system_admin("platform-admin"));
+    install_log_attribution(fixture_system_admin("platform-admin"));
 }
 
 fn fixture_session_id() -> SessionId {
@@ -257,11 +256,12 @@ fn test_log_entry_roundtrip() {
 #[test]
 fn test_log_entry_platform_event_attributes_to_platform_owner() {
     ensure_system_admin_installed();
-    let expected_user_id = SystemAdmin::current_id()
-        .expect("SystemAdmin installed for the test")
+    let expected_user_id = systemprompt_logging::platform_attribution()
+        .expect("log attribution installed for the test")
+        .id()
         .clone();
     let actor = LogActor::platform(TraceId::new("trace-platform"))
-        .expect("SystemAdmin installed for the test");
+        .expect("log attribution installed for the test");
     let entry = LogEntry::new(LogLevel::Info, "module", "platform-internal event", actor);
 
     assert_eq!(entry.user_id, expected_user_id);
