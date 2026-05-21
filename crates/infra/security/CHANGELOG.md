@@ -1,10 +1,6 @@
 # Changelog
 
-## [0.11.1] - 2026-05-20
-
-### Added
-
-- `at_rest` module exposing `hmac_sha256` and `hmac_sha256_hex` for storing identifiers (refresh-token ids, authorisation codes) as peppered HMAC-SHA-256 digests rather than plaintext.
+## [0.11.0] - 2026-05-20
 
 ### Breaking
 
@@ -12,15 +8,17 @@
 - `AuthValidationService::new` likewise drops the leading `secret` parameter and now takes `(issuer, audiences)`.
 - `AdminTokenParams` no longer carries `jwt_secret`. Token signing reads the active RSA key from the `TokenAuthority` cache.
 
-## [0.11.0] - 2026-05-20
-
 ### Added
+
+- `at_rest` module exposing `hmac_sha256` and `hmac_sha256_hex` for storing identifiers (refresh-token ids, authorisation codes) as peppered HMAC-SHA-256 digests rather than plaintext.
 - Authorisation policy plumbing supporting the new compile-time `RouterExt::with_auth(_, AuthzPolicy::*)` middleware in `entry/api`. Every authenticated route declares its policy at registration.
 
 ### Changed
+
 - `repository.rs` query sites use compile-time-verified `query!` / `query_scalar!` macros throughout, in line with the repository-pattern rule.
 
 ### Fixed
+
 - Authz `bootstrap.rs` tests are no longer flaky: a process-wide `tokio::sync::Mutex` serialises the shared global hook slot, so concurrent tests no longer observe half-installed hooks.
 
 ## [0.9.2] - 2026-05-14
