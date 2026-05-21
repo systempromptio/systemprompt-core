@@ -150,6 +150,55 @@ pub enum Decision {
     },
 }
 
+impl Decision {
+    #[must_use]
+    pub const fn tag(&self) -> DecisionTag {
+        match self {
+            Self::Allow => DecisionTag::Allow,
+            Self::Deny { .. } => DecisionTag::Deny,
+        }
+    }
+}
+
+/// Discriminant-only view of [`Decision`] / [`AuthzDecision`], bound to the
+/// `governance_decisions.decision` column.
+///
+/// Typing the column at the Rust boundary couples it to the SQL CHECK
+/// allow-list; adding a `Decision` variant without extending the constraint
+/// fails the build.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum DecisionTag {
+    Allow,
+    Deny,
+}
+
+impl DecisionTag {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Allow => "allow",
+            Self::Deny => "deny",
+        }
+    }
+}
+
+impl fmt::Display for DecisionTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl From<&AuthzDecision> for DecisionTag {
+    fn from(d: &AuthzDecision) -> Self {
+        match d {
+            AuthzDecision::Allow => Self::Allow,
+            AuthzDecision::Deny { .. } => Self::Deny,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthzRequest {
     pub entity_type: EntityKind,

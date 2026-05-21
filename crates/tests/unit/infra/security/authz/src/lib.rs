@@ -5,7 +5,11 @@ mod access_control_config;
 #[cfg(test)]
 mod act_chain;
 #[cfg(test)]
+mod actor_kind_schema;
+#[cfg(test)]
 mod bootstrap;
+#[cfg(test)]
+mod decision_schema;
 #[cfg(test)]
 mod hook_runtime;
 #[cfg(test)]

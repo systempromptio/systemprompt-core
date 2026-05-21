@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.11.1] - 2026-05-21
+
+Hardening pass on the 0.11.0 governance-audit path: the `governance_decisions.actor_kind` CHECK is re-aligned with `ActorKind`, the audit insert is typed at the Rust boundary so the next enum/constraint drift fails at `cargo check`, and a Prometheus counter surfaces write failures.
+
+### Breaking
+
+- **`GovernanceDecisionRecord.decision` is now `DecisionTag`** (re-exported from `systemprompt-security::authz`) instead of `&str`. Callers constructing the record from an `AuthzDecision` use `DecisionTag::from(&decision)`; from a `Decision`, use `decision.tag()`. The change makes the column allow-list and the Rust enum drift together at compile time.
+
+### Added
+
+- **`ActorKindTag` in `systemprompt-identifiers`** — discriminant-only view of `ActorKind` with `#[derive(sqlx::Type)]` (behind the `sqlx` feature). Bound by the audit writer as the `actor_kind` column value via `ActorKind::tag()`.
+- **`DecisionTag` in `systemprompt-security::authz`** — discriminant-only view of `Decision` / `AuthzDecision` with `#[derive(sqlx::Type)]`, plus `Decision::tag()` and `From<&AuthzDecision> for DecisionTag`.
+- **`governance_audit_write_failed_total` Prometheus counter** — incremented inside `insert_governance_decision` whenever the INSERT errors, labelled `{actor_kind, decision, policy}`. Exposed as `pub const AUDIT_WRITE_FAILED_TOTAL` so alert rules can reference the metric by symbol.
+- **Schema-drift unit tests** under `crates/tests/unit/infra/security/authz/`: `actor_kind_schema.rs` and `decision_schema.rs` assert every enum variant appears in the table's CHECK allow-list and the most recent migration. The next variant added without a matching schema update fails CI instead of dropping rows in production.
+
+### Fixed
+
+- **`governance_decisions` CHECK constraint extended to every `ActorKind` variant** by migration `005_actor_kind_extend.sql`. The base allow-list `('user', 'job', 'mcp')` did not include `anonymous`, `system`, or `agent`, so every hook write that resolved to `Actor::agent(...)` was rejected by the constraint inside a detached `tokio::spawn` and the failure never reached the caller. Migration is idempotent.
+
 ## [0.11.0] - 2026-05-20
 
 Multi-replica deployment readiness, the gateway tenancy strip, the Service-JWT sync handshake, mandatory actor attribution on every audit-bearing row, RFC 8693 token-exchange with a published JWKS, federated identities, and a sweep of OAuth and session hardening. AI gateway and bridge-session paths no longer carry a runtime `tenant_id`; sync clients authenticate with a `client_credentials` Service-JWT instead of the legacy shared `SYNC_TOKEN`; events relay across replicas through a Postgres outbox; scheduled jobs claim work behind cross-replica advisory locks; database reads route to a configured read replica. The signing-key plane moves to RSA / RS256 with a published JWKS; HS256 is gone. Pre-1.0 SemVer dictates a minor bump for the `JwtAudience::Cowork → Bridge` rename in `systemprompt-models`.

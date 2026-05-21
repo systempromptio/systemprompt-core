@@ -137,7 +137,60 @@ impl ActorKind {
     }
 }
 
+impl ActorKind {
+    #[must_use]
+    pub const fn tag(&self) -> ActorKindTag {
+        match self {
+            Self::User => ActorKindTag::User,
+            Self::Anonymous => ActorKindTag::Anonymous,
+            Self::System => ActorKindTag::System,
+            Self::Job { .. } => ActorKindTag::Job,
+            Self::Mcp { .. } => ActorKindTag::Mcp,
+            Self::Agent { .. } => ActorKindTag::Agent,
+        }
+    }
+}
+
 impl fmt::Display for ActorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Discriminant-only view of [`ActorKind`], bound to the `actor_kind` column
+/// in `governance_decisions`.
+///
+/// Binding a typed value couples the SQL CHECK allow-list to the enum at
+/// compile time; adding a variant without extending the constraint fails the
+/// build instead of silently rejecting rows at runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+#[cfg_attr(feature = "sqlx", sqlx(type_name = "TEXT", rename_all = "snake_case"))]
+#[serde(rename_all = "snake_case")]
+pub enum ActorKindTag {
+    User,
+    Anonymous,
+    System,
+    Job,
+    Mcp,
+    Agent,
+}
+
+impl ActorKindTag {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Anonymous => "anonymous",
+            Self::System => "system",
+            Self::Job => "job",
+            Self::Mcp => "mcp",
+            Self::Agent => "agent",
+        }
+    }
+}
+
+impl fmt::Display for ActorKindTag {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }

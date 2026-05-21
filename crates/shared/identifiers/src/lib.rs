@@ -80,7 +80,7 @@ pub mod error;
 pub mod headers;
 pub mod macros;
 
-pub use actor::{Actor, ActorKind};
+pub use actor::{Actor, ActorKind, ActorKindTag};
 pub use agent::{AgentId, AgentName, ExternalAgentId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,

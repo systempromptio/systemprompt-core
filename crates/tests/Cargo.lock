@@ -7922,6 +7922,7 @@ dependencies = [
  "inventory",
  "jsonwebtoken",
  "lru",
+ "metrics",
  "pkcs8",
  "reqwest 0.12.28",
  "rsa",

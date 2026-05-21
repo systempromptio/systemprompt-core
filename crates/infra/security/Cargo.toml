@@ -52,6 +52,7 @@ inventory = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+metrics = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-models = { workspace = true }
