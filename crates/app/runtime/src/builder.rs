@@ -11,6 +11,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
+use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
@@ -96,7 +97,7 @@ impl AppContextBuilder {
         );
 
         let authz_audit_pool = database.write_pool_arc().ok();
-        systemprompt_security::authz::install_from_governance_config(
+        let authz_installed = systemprompt_security::authz::install_from_governance_config(
             profile.governance.as_ref(),
             authz_audit_pool,
         )
@@ -159,6 +160,7 @@ impl AppContextBuilder {
         };
 
         let system_admin = resolve_and_install_system_admin(&config, user_service.as_ref()).await?;
+        let mcp_registry = RegistryManager::new(system_admin.id().clone());
 
         let marketplace_filter = self
             .marketplace_filter
@@ -181,6 +183,8 @@ impl AppContextBuilder {
             marketplace_filter,
             event_bridge,
             system_admin,
+            mcp_registry,
+            authz_installed,
         }))
     }
 }
@@ -194,7 +198,8 @@ async fn resolve_and_install_system_admin(
         username: config.system_admin_username.clone(),
     };
     let resolved = context_loaders::resolve_system_admin(&cfg, users.as_ref()).await?;
-    Ok(Arc::new(SystemAdmin::get_or_install(resolved).clone()))
+    systemprompt_logging::install_log_attribution(resolved.clone());
+    Ok(Arc::new(resolved))
 }
 
 fn build_marketplace_filter(
