@@ -82,7 +82,7 @@ impl AiService {
         let (response, tool_calls) = match ai_result {
             Ok(result) => result,
             Err(e) => {
-                self.store_error(request, request_id, latency_ms, &e);
+                self.store_error(request, request_id, latency_ms, e.to_string()).await;
                 return Err(e);
             },
         };
@@ -111,14 +111,15 @@ impl AiService {
         storage_response.latency_ms = latency_ms;
         storage_response.tool_calls.clone_from(&tool_calls);
         storage_response.tool_results.clone_from(&tool_results);
-        self.storage.store(&StoreParams {
+        self.audit(&StoreParams {
             request,
             response: &storage_response,
             context: &request.context,
             status: RequestStatus::Completed,
             error_message: None,
             cost_microdollars: cost,
-        });
+        })
+        .await;
 
         let final_response = AiResponse::new(
             request_id,
@@ -199,18 +200,19 @@ impl AiService {
                 response.latency_ms = latency_ms;
                 response.tool_calls.clone_from(&tool_calls);
                 let cost = self.estimate_cost(&response);
-                self.storage.store(&StoreParams {
+                self.audit(&StoreParams {
                     request,
                     response: &response,
                     context: &request.context,
                     status: RequestStatus::Completed,
                     error_message: None,
                     cost_microdollars: cost,
-                });
+                })
+                .await;
                 Ok((response, tool_calls))
             },
             Err(e) => {
-                self.store_error(request, request_id, latency_ms, &e);
+                self.store_error(request, request_id, latency_ms, e.to_string()).await;
                 Err(e)
             },
         }

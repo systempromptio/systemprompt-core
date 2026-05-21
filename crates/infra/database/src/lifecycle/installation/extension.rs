@@ -7,8 +7,10 @@
 //! A session-scoped advisory lock serialises concurrent boots. See
 //! `instructions/information/migrations.md`.
 
+use sqlx::pool::PoolConnection;
+use sqlx::Postgres;
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use super::prepare::{PreparedSchema, prepare_extension_schema};
 use super::seeds::apply_seeds;
@@ -58,13 +60,11 @@ pub async fn install_extension_schemas_full(
         schema_extensions.len()
     );
 
-    acquire_advisory_lock(db).await?;
+    let guard = BootstrapLockGuard::acquire(db).await?;
 
     let result = run_install(db, &schema_extensions, migration_config).await;
 
-    if let Err(e) = release_advisory_lock(db).await {
-        tracing::warn!(error = %e, "Failed to release bootstrap advisory lock");
-    }
+    guard.release().await;
 
     result?;
 
@@ -236,24 +236,75 @@ async fn validate_single_column(
     Ok(())
 }
 
-async fn acquire_advisory_lock(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
-    let sql = format!("SELECT pg_advisory_lock({BOOTSTRAP_ADVISORY_LOCK_KEY})");
-    db.execute_raw(&sql)
+/// Holds the dedicated Postgres session that owns the bootstrap advisory lock.
+///
+/// `pg_advisory_lock` is session-scoped: only the backend that acquired the
+/// lock can release it. The guard pins one [`PoolConnection`] for the install's
+/// lifetime so acquire and release run on the same session. Non-Postgres
+/// providers skip locking — bootstrap concurrency is a Postgres-only concern.
+struct BootstrapLockGuard {
+    conn: Option<PoolConnection<Postgres>>,
+}
+
+impl BootstrapLockGuard {
+    async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
+        let Some(pool) = db.get_postgres_pool() else {
+            return Ok(Self { conn: None });
+        };
+
+        let mut conn =
+            pool.acquire()
+                .await
+                .map_err(|e| LoaderError::SchemaInstallationFailed {
+                    extension: "database".to_string(),
+                    message: format!("Failed to acquire bootstrap lock connection: {e}"),
+                })?;
+
+        sqlx::query!(
+            "SELECT pg_advisory_lock($1)",
+            BOOTSTRAP_ADVISORY_LOCK_KEY
+        )
+        .execute(conn.as_mut())
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {
             extension: "database".to_string(),
             message: format!("Failed to acquire bootstrap advisory lock: {e}"),
         })?;
-    debug!(
-        key = BOOTSTRAP_ADVISORY_LOCK_KEY,
-        "Acquired bootstrap advisory lock"
-    );
-    Ok(())
+
+        debug!(
+            key = BOOTSTRAP_ADVISORY_LOCK_KEY,
+            "Acquired bootstrap advisory lock"
+        );
+
+        Ok(Self { conn: Some(conn) })
+    }
+
+    async fn release(mut self) {
+        if let Some(mut conn) = self.conn.take() {
+            if let Err(e) = sqlx::query_scalar!(
+                "SELECT pg_advisory_unlock($1)",
+                BOOTSTRAP_ADVISORY_LOCK_KEY
+            )
+            .fetch_one(conn.as_mut())
+            .await
+            {
+                warn!(
+                    error = %e,
+                    "Failed to release bootstrap advisory lock; connection recycle will clear it"
+                );
+            }
+        }
+    }
 }
 
-async fn release_advisory_lock(
-    db: &dyn DatabaseProvider,
-) -> Result<(), crate::error::RepositoryError> {
-    let sql = format!("SELECT pg_advisory_unlock({BOOTSTRAP_ADVISORY_LOCK_KEY})");
-    db.execute_raw(&sql).await
+impl Drop for BootstrapLockGuard {
+    fn drop(&mut self) {
+        if self.conn.is_some() {
+            warn!(
+                key = BOOTSTRAP_ADVISORY_LOCK_KEY,
+                "BootstrapLockGuard dropped without explicit release; \
+                 lock will clear when the pooled connection recycles"
+            );
+        }
+    }
 }

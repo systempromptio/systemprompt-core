@@ -124,27 +124,51 @@ impl StreamStorageWrapper {
     fn store_completion(&self) {
         let response = self.build_response();
         let cost = self.calculate_cost();
-
-        self.storage.store(&StoreParams {
-            request: &self.request,
-            response: &response,
-            context: &self.request.context,
-            status: RequestStatus::Completed,
-            error_message: None,
-            cost_microdollars: cost,
-        });
+        self.spawn_audit(response, RequestStatus::Completed, None, cost);
     }
 
     fn store_error(&self, error: &dyn std::fmt::Display) {
         let response = self.build_response();
+        self.spawn_audit(
+            response,
+            RequestStatus::Failed,
+            Some(error.to_string()),
+            0,
+        );
+    }
 
-        self.storage.store(&StoreParams {
-            request: &self.request,
-            response: &response,
-            context: &self.request.context,
-            status: RequestStatus::Failed,
-            error_message: Some(&error.to_string()),
-            cost_microdollars: 0,
+    // Why: Stream::poll_next is sync; an async storage.store can only be
+    // dispatched off the stream boundary via tokio::spawn. Errors are logged
+    // inside the spawned task — never `.ok()`-swallowed.
+    fn spawn_audit(
+        &self,
+        response: AiResponse,
+        status: RequestStatus,
+        error_message: Option<String>,
+        cost_microdollars: i64,
+    ) {
+        let storage = self.storage.clone();
+        let request = self.request.clone();
+        tokio::spawn(async move {
+            let result = storage
+                .store(&StoreParams {
+                    request: &request,
+                    response: &response,
+                    context: &request.context,
+                    status,
+                    error_message: error_message.as_deref(),
+                    cost_microdollars,
+                })
+                .await;
+            if let Err(e) = result {
+                tracing::error!(
+                    error = %e,
+                    provider = %request.provider(),
+                    model = %request.model(),
+                    status = ?status,
+                    "audit write failed (streaming)"
+                );
+            }
         });
     }
 }

@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT pg_try_advisory_lock($1) AS \"acquired!\"",
+  "query": "SELECT pg_advisory_unlock($1)",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "acquired!",
+        "name": "pg_advisory_unlock",
         "type_info": "Bool"
       }
     ],
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "8da419734f41296de7dd848d4b2659623a2e31379ba795b68a366b2d6439a516"
+  "hash": "0115c52b6c77a377e6585308ba0df3daaaf7d30a19a37b28abcae7efbe9b4ca7"
 }

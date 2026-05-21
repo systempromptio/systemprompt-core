@@ -39,6 +39,7 @@ impl AiService {
             request,
             model,
         })
+        .await
     }
 
     async fn execute_generate(
@@ -65,7 +66,7 @@ impl AiService {
         provider.generate(base).await
     }
 
-    fn finalize_response(&self, params: FinalizeResponseParams<'_>) -> Result<AiResponse> {
+    async fn finalize_response(&self, params: FinalizeResponseParams<'_>) -> Result<AiResponse> {
         let FinalizeResponseParams {
             result,
             request_id,
@@ -79,14 +80,15 @@ impl AiService {
                 response.request_id = request_id;
                 response.latency_ms = latency_ms;
                 let cost = self.estimate_cost(&response);
-                self.storage.store(&StoreParams {
+                self.audit(&StoreParams {
                     request,
                     response: &response,
                     context: &request.context,
                     status: RequestStatus::Completed,
                     error_message: None,
                     cost_microdollars: cost,
-                });
+                })
+                .await;
                 request_logging::log_request_success(&response);
                 Ok(response)
             },
@@ -98,14 +100,15 @@ impl AiService {
                     model.to_string(),
                 )
                 .with_latency(latency_ms);
-                self.storage.store(&StoreParams {
+                self.audit(&StoreParams {
                     request,
                     response: &error_response,
                     context: &request.context,
                     status: RequestStatus::Failed,
                     error_message: Some(&e.to_string()),
                     cost_microdollars: 0,
-                });
+                })
+                .await;
                 request_logging::log_request_error(request_id, request.provider(), latency_ms, &e);
                 Err(e)
             },

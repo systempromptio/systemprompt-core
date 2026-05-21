@@ -37,14 +37,15 @@ impl AiService {
                 response.latency_ms = latency_ms;
                 response.tool_calls.clone_from(&tool_calls);
                 let cost = self.estimate_cost(&response);
-                self.storage.store(&StoreParams {
+                self.audit(&StoreParams {
                     request,
                     response: &response,
                     context: &request.context,
                     status: RequestStatus::Completed,
                     error_message: None,
                     cost_microdollars: cost,
-                });
+                })
+                .await;
 
                 Ok(if tool_calls.is_empty() {
                     systemprompt_models::ai::PlanningResult::DirectResponse {
@@ -64,7 +65,7 @@ impl AiService {
                 })
             },
             Err(e) => {
-                self.store_error(request, request_id, latency_ms, &e);
+                self.store_error(request, request_id, latency_ms, e.to_string()).await;
                 Err(e)
             },
         }

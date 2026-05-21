@@ -1,3 +1,4 @@
+use crate::error::AiError;
 use crate::models::AiRequestRecord;
 use crate::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_identifiers::{AiRequestId, SessionId, SessionSource, UserId};
@@ -6,20 +7,14 @@ use tracing::error;
 
 use super::record_builder::{MessageData, ToolCallData};
 
-pub async fn store_request_async(
+pub async fn store_request(
     repo: &AiRequestRepository,
     record: &AiRequestRecord,
-) -> Option<AiRequestId> {
-    repo.insert(record)
-        .await
-        .map_err(|e| {
-            error!(error = %e, "Failed to store AI request record");
-            e
-        })
-        .ok()
+) -> Result<AiRequestId, AiError> {
+    repo.insert(record).await.map_err(AiError::from)
 }
 
-pub async fn store_messages_async(
+pub async fn store_messages(
     repo: &AiRequestRepository,
     db_id: &AiRequestId,
     messages: Vec<MessageData>,
@@ -39,7 +34,7 @@ pub async fn store_messages_async(
     }
 }
 
-pub async fn store_tool_calls_async(
+pub async fn store_tool_calls(
     repo: &AiRequestRepository,
     db_id: &AiRequestId,
     tool_calls: Vec<ToolCallData>,
@@ -65,7 +60,7 @@ pub async fn store_tool_calls_async(
     }
 }
 
-pub async fn update_session_usage_async(
+pub async fn update_session_usage(
     session_provider: &dyn AiSessionProvider,
     user_id: &UserId,
     session_id: Option<&SessionId>,

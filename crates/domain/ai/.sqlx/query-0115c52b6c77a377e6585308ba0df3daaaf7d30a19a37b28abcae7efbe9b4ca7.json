@@ -1,22 +1,22 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)",
+  "query": "SELECT pg_advisory_unlock($1)",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "exists",
+        "name": "pg_advisory_unlock",
         "type_info": "Bool"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int8"
       ]
     },
     "nullable": [
       null
     ]
   },
-  "hash": "1220d15a56dbf823eaa452fbafa17442ab0568bc81a31fa38e16e3df3278e5f9"
+  "hash": "0115c52b6c77a377e6585308ba0df3daaaf7d30a19a37b28abcae7efbe9b4ca7"
 }
