@@ -72,6 +72,8 @@ const NOISE_FILTERS: &[&str] = &[
     "systemprompt_templates=info",
     "systemprompt_extension::registry=info",
     "systemprompt_api::services::middleware::session=info",
+    "rmcp=warn",
+    "rmcp::transport=warn",
 ];
 
 fn build_filter(base: &str) -> EnvFilter {
