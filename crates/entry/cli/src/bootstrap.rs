@@ -32,8 +32,17 @@ pub fn resolve_and_display_profile(
 
     let profile = ProfileBootstrap::get()?;
 
+    // Why: the banner used to fire on every command in default (local +
+    // Normal verbosity) mode and dominated demo logs without conveying new
+    // information — operators on a local profile already know they're on a
+    // local profile. Print it only when the operator opted in via
+    // `--verbose` (or higher) or when the active profile is non-local
+    // (where knowing which env you're hitting actually matters).
+    let banner_requested = cli_config.verbosity >= VerbosityLevel::Verbose;
+    let banner_warranted = profile.target.is_cloud();
     if cli_config.output_format == OutputFormat::Table
         && cli_config.verbosity != VerbosityLevel::Quiet
+        && (banner_requested || banner_warranted)
     {
         let tenant = profile
             .cloud
@@ -111,15 +120,22 @@ pub fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
     Some(profile.runtime.log_level)
 }
 
-pub async fn init_credentials_gracefully() -> Result<()> {
+pub async fn init_credentials_gracefully(announce: bool) -> Result<()> {
     match CredentialsBootstrap::init().await {
         Ok(_) => Ok(()),
         Err(e) if e.is_local_mode_recoverable() => {
-            tracing::warn!(
-                error = %e,
-                "Cloud credentials unavailable; continuing in local-only mode. \
-                 Cloud commands will require 'systemprompt cloud login'."
-            );
+            if announce {
+                tracing::warn!(
+                    error = %e,
+                    "Cloud credentials unavailable; continuing in local-only mode. \
+                     Cloud commands will require 'systemprompt cloud login'."
+                );
+            } else {
+                tracing::debug!(
+                    error = %e,
+                    "Cloud credentials unavailable; continuing in local-only mode"
+                );
+            }
             CredentialsBootstrap::init_empty();
             Ok(())
         },

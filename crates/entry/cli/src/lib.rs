@@ -80,7 +80,8 @@ async fn bootstrap_profile(
 
     enforce_routing_policy(&ctx, cli, desc).await?;
 
-    match initialize_post_routing(&ctx, desc).await? {
+    let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
+    match initialize_post_routing(&ctx, desc, needs_cloud).await? {
         RoutingAction::ExternalDbUrl(url) => Ok(Some(url)),
         RoutingAction::ContinueLocal => Ok(None),
     }
@@ -130,9 +131,18 @@ const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
 async fn initialize_post_routing(
     ctx: &bootstrap::ProfileContext,
     desc: &CommandDescriptor,
+    needs_cloud: bool,
 ) -> Result<RoutingAction> {
-    if !ctx.is_cloud || ctx.external_db_access {
-        bootstrap::init_credentials_gracefully().await?;
+    // Why: cloud credentials are only consulted by commands that actually
+    // talk to the cloud control plane. Running the cred check on every CLI
+    // call (e.g. `infra services status`) caused a `WARN ... Token expired`
+    // to fire on every invocation and dominate every demo log. Gating on
+    // `needs_cloud` keeps cred validation where it belongs — on `cloud *`
+    // and `admin session *` — and stays silent everywhere else. The
+    // existing `external_db_access` carve-out is preserved because that
+    // path runs against a cloud-resolved DB URL even from a local CLI.
+    if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
+        bootstrap::init_credentials_gracefully(needs_cloud).await?;
     }
 
     if desc.secrets() {
