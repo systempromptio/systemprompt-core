@@ -15,6 +15,12 @@ use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  systemprompt admin agents message developer_agent \\\n      -m \
+                  'Use --safe-mode when running migrations.' --blocking\n\n  Always single-quote \
+                  the -m value so flag-like tokens (--foo) inside the\n  message are not \
+                  interpreted by the shell or by clap."
+)]
 pub struct MessageArgs {
     #[arg(help = "Agent name to send message to (required in non-interactive mode)")]
     pub agent: Option<String>,
