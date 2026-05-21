@@ -37,13 +37,16 @@ where
     let mut archive = Archive::new(decoder);
     let mut count = 0;
 
+    let canonical_target = target.canonicalize()?;
+
     for entry in archive.entries()? {
         let mut entry = entry?;
 
         let entry_type = entry.header().entry_type();
-        if entry_type.is_symlink() || entry_type.is_hard_link() {
+        if !(entry_type.is_file() || entry_type.is_dir()) {
             return Err(SyncError::TarballUnsafe(format!(
-                "symlinks not allowed in tarball: {}",
+                "disallowed entry type {:?} in tarball: {}",
+                entry_type,
                 entry.path()?.to_string_lossy()
             )));
         }
@@ -52,9 +55,12 @@ where
         let entry_path_str = entry_path.to_string_lossy();
 
         if entry_path.is_absolute()
-            || entry_path
-                .components()
-                .any(|c| matches!(c, std::path::Component::ParentDir))
+            || entry_path.components().any(|c| {
+                matches!(
+                    c,
+                    std::path::Component::ParentDir | std::path::Component::RootDir
+                )
+            })
         {
             return Err(SyncError::TarballUnsafe(format!(
                 "invalid path in tarball: {entry_path_str}"
@@ -78,17 +84,16 @@ where
             continue;
         }
 
-        let dest_path = target.join(&entry_path);
+        let dest_path = canonical_target.join(&entry_path);
+
+        if !dest_path.starts_with(&canonical_target) {
+            return Err(SyncError::TarballUnsafe(format!(
+                "path escapes target directory: {entry_path_str}"
+            )));
+        }
 
         if let Some(parent) = dest_path.parent() {
             fs::create_dir_all(parent)?;
-            let canonical_parent = parent.canonicalize()?;
-            let canonical_target = target.canonicalize()?;
-            if !canonical_parent.starts_with(&canonical_target) {
-                return Err(SyncError::TarballUnsafe(format!(
-                    "path escapes target directory: {entry_path_str}"
-                )));
-            }
         }
 
         entry.unpack(&dest_path)?;

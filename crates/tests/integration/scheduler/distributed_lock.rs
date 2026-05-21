@@ -120,6 +120,7 @@ fn test_config(database_url: &str) -> Config {
         use_https: false,
         rate_limits: RateLimitConfig::default(),
         cors_allowed_origins: vec![],
+        trusted_proxies: vec![],
         is_cloud: false,
         system_admin_username: "admin".to_string(),
         content_negotiation: ContentNegotiationConfig::default(),
