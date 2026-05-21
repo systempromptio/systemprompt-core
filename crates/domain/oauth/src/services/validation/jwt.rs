@@ -14,17 +14,19 @@ pub fn validate_jwt_token(
     audiences: &[JwtAudience],
 ) -> OauthResult<JwtClaims> {
     let header = decode_header(token)
-        .map_err(|e| OauthError::Token(format!("JWT header decode failed: {e}")))?;
+        .map_err(|e| OauthError::TokenInvalid(format!("JWT header decode failed: {e}")))?;
     if header.alg != Algorithm::RS256 {
-        return Err(OauthError::Token("JWT must be RS256-signed".to_string()));
+        return Err(OauthError::TokenAlgMismatch {
+            got: format!("{:?}", header.alg),
+            expected: "RS256".to_string(),
+        });
     }
-    let kid = header
-        .kid
-        .as_deref()
-        .ok_or_else(|| OauthError::Token("JWT is missing `kid` header".to_string()))?;
+    let kid = header.kid.as_deref().ok_or(OauthError::TokenMissingKid)?;
     let key = authority::decoding_key_for_kid(kid)
-        .map_err(|e| OauthError::Token(format!("signing key lookup failed: {e}")))?
-        .ok_or_else(|| OauthError::Token(format!("unknown `kid` `{kid}`")))?;
+        .map_err(|e| OauthError::TokenInvalid(format!("signing key lookup failed: {e}")))?
+        .ok_or_else(|| OauthError::TokenUnknownKid {
+            kid: kid.to_string(),
+        })?;
 
     let mut validation = Validation::new(Algorithm::RS256);
 
@@ -34,12 +36,12 @@ pub fn validate_jwt_token(
     validation.set_audience(&audience_strs);
 
     let token_data = decode::<JwtClaims>(token, key, &validation)
-        .map_err(|e| OauthError::Token(format!("JWT validation failed: {e}")))?;
+        .map_err(|e| OauthError::TokenInvalid(format!("JWT validation failed: {e}")))?;
 
     let now = Utc::now().timestamp();
 
     if token_data.claims.exp < now {
-        return Err(OauthError::Token("Token has expired".to_string()));
+        return Err(OauthError::Expired("Token has expired".to_string()));
     }
 
     Ok(token_data.claims)

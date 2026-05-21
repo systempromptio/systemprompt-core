@@ -43,7 +43,7 @@ impl SessionCreationService {
             issuer: &config.jwt_issuer,
         };
         let token = generate_anonymous_jwt(&user_id, &session_id, params.client_id, &signing)
-            .map_err(|e| OauthError::Token(e.to_string()))?;
+            .map_err(|e| OauthError::TokenInvalid(e.to_string()))?;
 
         self.publish_event(UserEvent::UserCreated {
             user_id: user_id.clone(),

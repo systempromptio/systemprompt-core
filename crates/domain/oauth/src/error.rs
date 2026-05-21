@@ -14,7 +14,16 @@ pub enum OauthError {
     Provider(String),
 
     #[error("token error: {0}")]
-    Token(String),
+    TokenInvalid(String),
+
+    #[error("token signed with `{got}`, expected `{expected}`")]
+    TokenAlgMismatch { got: String, expected: String },
+
+    #[error("token is missing the `kid` header")]
+    TokenMissingKid,
+
+    #[error("token references unknown signing key `{kid}`")]
+    TokenUnknownKid { kid: String },
 
     #[error("token not found: {0}")]
     TokenNotFound(String),
@@ -99,7 +108,7 @@ impl From<bcrypt::BcryptError> for OauthError {
 
 impl From<jsonwebtoken::errors::Error> for OauthError {
     fn from(err: jsonwebtoken::errors::Error) -> Self {
-        Self::Token(err.to_string())
+        Self::TokenInvalid(err.to_string())
     }
 }
 
