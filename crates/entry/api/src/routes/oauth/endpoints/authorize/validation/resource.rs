@@ -59,8 +59,12 @@ fn is_forbidden_host(host: &str) -> bool {
     false
 }
 
-pub(super) async fn resolve_resource_scopes(resource: &str) -> Option<String> {
-    crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(resource)
+pub(super) async fn resolve_resource_scopes(
+    state: &systemprompt_oauth::OAuthState,
+    resource: &str,
+) -> Option<String> {
+    let registry = state.mcp_registry()?;
+    crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(registry.as_ref(), resource)
         .await
         .map(|scopes| scopes.join(" "))
 }

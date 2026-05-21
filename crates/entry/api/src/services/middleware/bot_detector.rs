@@ -1,8 +1,12 @@
-use axum::extract::Request;
+use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;
 use axum::response::Response;
+use ipnet::IpNet;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use systemprompt_analytics::matches_bot_pattern;
+
+use super::client_addr::resolve_client_ip;
 
 const DATACENTER_IP_PREFIXES: &[&str] = &[
     "47.79.", "47.82.", "47.88.", "47.89.", "47.90.", "47.91.", "47.92.", "47.93.", "47.94.",
@@ -30,7 +34,11 @@ pub enum BotType {
     Human,
 }
 
-pub async fn detect_bots_early(mut req: Request, next: Next) -> Response {
+pub async fn detect_bots_early(
+    mut req: Request,
+    next: Next,
+    trusted_proxies: Arc<Vec<IpNet>>,
+) -> Response {
     let user_agent = req
         .headers()
         .get("user-agent")
@@ -45,7 +53,12 @@ pub async fn detect_bots_early(mut req: Request, next: Next) -> Response {
         .unwrap_or("")
         .to_string();
 
-    let ip_address = extract_ip_address(&req);
+    let ip_address = resolve_client_ip(
+        req.headers(),
+        req.extensions().get::<ConnectInfo<SocketAddr>>(),
+        &trusted_proxies,
+    )
+    .map(|a| a.to_string());
     let uri_path = req.uri().path().to_string();
 
     let marker = if is_known_bot(&user_agent) {
@@ -80,31 +93,6 @@ pub async fn detect_bots_early(mut req: Request, next: Next) -> Response {
 
     req.extensions_mut().insert(Arc::new(marker));
     next.run(req).await
-}
-
-fn extract_ip_address(req: &Request) -> Option<String> {
-    req.headers()
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.split(',').next())
-        .map(|s| s.trim().to_string())
-        .or_else(|| {
-            req.headers()
-                .get("x-real-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(ToString::to_string)
-        })
-        .or_else(|| {
-            req.headers()
-                .get("cf-connecting-ip")
-                .and_then(|v| v.to_str().ok())
-                .map(ToString::to_string)
-        })
-        .or_else(|| {
-            req.extensions()
-                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
-                .map(|ci| ci.0.ip().to_string())
-        })
 }
 
 pub fn is_datacenter_ip(ip: Option<&str>) -> bool {

@@ -11,16 +11,13 @@ use super::token::JwtUserContext;
 
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
 
-/// Validation outcome with the authoritative user row (used downstream to
-/// settle admin claims against the database).
 pub(super) struct ValidatedUser {
     pub user: AuthUser,
 }
 
-/// Process-local LRU-ish cache: a `HashMap` of user-id to `(user, fetched_at)`.
-/// Why mutex (not RwLock): writes happen on every fetch (TTL refresh), so a
-/// reader-writer split would barely help; the contention window is the
-/// negligible `HashMap` lookup. No `.await` is held across the guard.
+// Why mutex (not RwLock): writes happen on every fetch (TTL refresh), so a
+// reader-writer split would barely help; the contention window is the
+// negligible HashMap lookup. No `.await` is held across the guard.
 #[derive(Default)]
 pub(super) struct UserCache {
     entries: Mutex<HashMap<UserId, (AuthUser, Instant)>>,

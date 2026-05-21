@@ -10,6 +10,16 @@
 //! `From` impls bridge the underlying domain errors (`OauthError`,
 //! `AuthProviderError`, `SecretsBootstrapError`) so handlers use `?` and the
 //! variant-to-RFC-code mapping lives in one place.
+//!
+//! `OAuthErrorCode` lists the RFC 6749 §5.2 codes plus the WebAuthn/RFC 7591
+//! extensions used by this server; `Display` yields the wire string. The
+//! default HTTP status follows §5.2: token-endpoint errors return 400 except
+//! `invalid_client`, which RFC 6749 permits to return 401 to advertise
+//! authentication schemes — and so we do. `access_denied`, `invalid_token`,
+//! and `authentication_failed` retain 401 because they signal that the
+//! *caller* (not the request) was rejected (RFC 6750 §3.1). The redirect
+//! variant carries the §4.1.2.1 context so the response renders as a 302 to
+//! the client's `redirect_uri`.
 
 use axum::Json;
 use axum::http::{HeaderValue, StatusCode, header};
@@ -19,9 +29,6 @@ use systemprompt_config::SecretsBootstrapError;
 use systemprompt_oauth::OauthError;
 use systemprompt_traits::auth::AuthProviderError;
 
-/// RFC 6749 §5.2 error codes plus the WebAuthn/RFC 7591 extensions used by
-/// this server. `Display` returns the wire string, so the enum doubles as the
-/// `error` field source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OAuthErrorCode {
     InvalidRequest,
@@ -73,12 +80,6 @@ impl OAuthErrorCode {
         }
     }
 
-    /// HTTP status per RFC 6749 §5.2: token-endpoint errors return 400 except
-    /// `invalid_client`, which "MAY use the HTTP 401 (Unauthorized) status code
-    /// to indicate which HTTP authentication schemes are supported" — we do.
-    /// `access_denied`, `invalid_token`, `authentication_failed` retain 401
-    /// because they signal that the *caller* (not the request) was rejected
-    /// (RFC 6750 §3.1).
     #[must_use]
     pub const fn default_status(self) -> StatusCode {
         match self {
@@ -105,7 +106,6 @@ impl OAuthErrorCode {
     }
 }
 
-/// Authorize-flow redirect context (RFC 6749 §4.1.2.1).
 #[derive(Debug, Clone)]
 pub struct RedirectContext {
     pub uri: String,
@@ -226,17 +226,13 @@ impl OAuthHttpError {
         Self::new(OAuthErrorCode::NotFound, description)
     }
 
-    /// Override the default HTTP status. Use sparingly — the per-code default
-    /// already encodes the spec mapping.
+    // Use sparingly — the per-code default already encodes the spec mapping.
     #[must_use]
     pub const fn with_status(mut self, status: StatusCode) -> Self {
         self.status = status;
         self
     }
 
-    /// Attach RFC 6749 §4.1.2.1 redirect context. When set, `IntoResponse`
-    /// emits a 302 to `uri?error=...&error_description=...&state=...` instead
-    /// of a JSON body.
     #[must_use]
     pub fn with_redirect(mut self, uri: impl Into<String>, state: Option<String>) -> Self {
         self.redirect = Some(RedirectContext {

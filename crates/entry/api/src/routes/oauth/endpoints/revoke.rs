@@ -89,12 +89,13 @@ async fn revoke_token(
             repo.revoke_refresh_token(&token_id).await?;
         },
         Some("access_token") => {
-            tracing::debug!("Access token revocation requested - JWT tokens are stateless");
+            revoke_access_token_jti(repo, token).await;
         },
         _ => {
             let token_id = RefreshTokenId::new(token);
             if let Err(e) = repo.revoke_refresh_token(&token_id).await {
-                tracing::debug!(error = %e, "Token revocation failed - may be access token");
+                tracing::debug!(error = %e, "Refresh-token revocation no-op; trying access-token JTI path");
+                revoke_access_token_jti(repo, token).await;
             }
         },
     }
@@ -102,15 +103,35 @@ async fn revoke_token(
     Ok(())
 }
 
-/// Decode an access-token JWT without verifying its signature to recover the
-/// `session_id` claim for server-side revocation.
-///
-/// Why: RFC 7009 token revocation already authenticates the *client*; the
-/// signature on the token itself is irrelevant for the revocation decision
-/// (we only need to know which session to mark revoked). A forged token will
-/// produce a `session_id` that either doesn't exist or belongs to a different
-/// principal — either way the `revoke_session` query is a no-op or rejected
-/// downstream, and we have not accepted the token for authentication.
+async fn revoke_access_token_jti(repo: &OAuthRepository, token: &str) {
+    let Some(claims) = insecure_decode::<JwtClaims>(token).ok().map(|d| d.claims) else {
+        tracing::debug!("Access token did not parse as JWT; cannot revoke jti");
+        return;
+    };
+    if claims.jti.is_empty() {
+        tracing::debug!("Access token has no jti; nothing to revoke");
+        return;
+    }
+    let exp = chrono::DateTime::<chrono::Utc>::from_timestamp(claims.exp, 0)
+        .unwrap_or_else(chrono::Utc::now);
+    let user_uuid = match uuid::Uuid::parse_str(&claims.sub) {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::debug!(error = %e, sub = %claims.sub, "Access token sub is not a UUID; cannot revoke");
+            return;
+        },
+    };
+    if let Err(e) = repo.revoke_jti(&claims.jti, user_uuid, exp).await {
+        tracing::warn!(error = %e, "Failed to record JTI revocation for access token");
+    }
+}
+
+// Why: RFC 7009 token revocation already authenticates the *client*; the
+// signature on the token itself is irrelevant for the revocation decision
+// (we only need to know which session to mark revoked). A forged token
+// produces a session_id that either doesn't exist or belongs to a different
+// principal — either way the revoke_session query is a no-op or rejected
+// downstream, and we have not accepted the token for authentication.
 fn extract_session_id_unverified(token: &str) -> Option<SessionId> {
     let data = insecure_decode::<JwtClaims>(token).ok()?;
     data.claims.session_id
