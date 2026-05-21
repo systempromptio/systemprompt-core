@@ -75,6 +75,12 @@ Multi-replica deployment readiness, the gateway tenancy strip, the Service-JWT s
 - **Tighter authentication scope on OAuth endpoints.** `/oauth/register` and `/oauth/introspect` now require client authentication; `/oauth/introspect` responses are limited to the authenticated client's own subjects.
 - **Scheduler lock probe takes an explicit owner.** The distributed-lock test path no longer relies on a placeholder `UserId`.
 - **`entry/api` service-proxy auth wired through `AppContext::mcp_registry()`.** `lookup_oauth_requirement` previously tried to construct `RegistryManager` as if it were a unit struct and to call its `validate()` as an associated fn, both of which mismatched the current shape of the type. It now obtains the registry through the bootstrapped `AppContext` and invokes the method on the instance, matching the API-server bootstrap.
+- **Bootstrap advisory lock now released on the session that acquired it.** Extension-schema installation in `systemprompt-database` previously called `pg_advisory_lock` and `pg_advisory_unlock` through `DatabaseProvider::execute_raw`, which checks out a fresh pooled connection per call. The unlock ran on a different Postgres session than the lock, logged `WARNING: you don't own a lock of type ExclusiveLock`, and returned `false`; the lock survived until the original pooled connection was recycled. A new `BootstrapLockGuard` pins one `PoolConnection<Postgres>` for the install's lifetime so acquire and release run on the same session.
+- **`infra/events` enables the `sqlx` feature on `systemprompt-identifiers`.** The outbox repository binds `user_id` as a typed `UserId` in its `query_as!` macro; without the feature flag `UserId` lacked `sqlx::Decode<Postgres>` and the workspace failed to compile under `cargo package` / offline check.
+
+### Changed
+
+- **`RequestStorage::store` in `systemprompt-ai` is now async and fallible.** The primary `ai_requests` insert previously ran inside a detached `tokio::spawn`, so a broken trigger or schema drift was silently swallowed and never reached the caller. `store` is now an `async fn` returning `Result<(), AiError>`; every `AiService` path awaits it and propagates the error. Secondary writes (per-message rows, per-tool-call rows, session usage, analytics events) remain best-effort and log on failure. The internal module `request_storage::async_operations` is renamed to `request_storage::writes` to reflect that the calls are no longer detached.
 
 ### Docs
 

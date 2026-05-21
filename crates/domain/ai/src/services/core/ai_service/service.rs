@@ -167,12 +167,24 @@ impl AiService {
             .ok_or_else(|| crate::error::AiError::Internal(format!("Provider {name} not found")))
     }
 
-    pub(super) fn store_error(
+    pub(super) async fn audit(&self, params: &StoreParams<'_>) {
+        if let Err(e) = self.storage.store(params).await {
+            tracing::error!(
+                error = %e,
+                provider = %params.request.provider(),
+                model = %params.request.model(),
+                status = ?params.status,
+                "audit write failed"
+            );
+        }
+    }
+
+    pub(super) async fn store_error(
         &self,
         request: &AiRequest,
         request_id: uuid::Uuid,
         latency_ms: u64,
-        error: &dyn std::fmt::Display,
+        error_message: String,
     ) {
         use crate::models::ai::AiResponse;
 
@@ -183,13 +195,14 @@ impl AiService {
             request.model().to_string(),
         )
         .with_latency(latency_ms);
-        self.storage.store(&StoreParams {
+        self.audit(&StoreParams {
             request,
             response: &error_response,
             context: &request.context,
             status: RequestStatus::Failed,
-            error_message: Some(&error.to_string()),
+            error_message: Some(&error_message),
             cost_microdollars: 0,
-        });
+        })
+        .await;
     }
 }

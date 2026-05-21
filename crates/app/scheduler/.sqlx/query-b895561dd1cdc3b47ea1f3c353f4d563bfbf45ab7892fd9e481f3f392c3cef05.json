@@ -1,22 +1,22 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT hashtext($1)::bigint AS \"key!\"",
+  "query": "SELECT pg_advisory_lock($1)",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "key!",
-        "type_info": "Int8"
+        "name": "pg_advisory_lock",
+        "type_info": "Void"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int8"
       ]
     },
     "nullable": [
       null
     ]
   },
-  "hash": "67be6ba3f4a980be89f8b9e3dac3d7cb732f099dac3f0a2bfa6bd336a7da48bd"
+  "hash": "b895561dd1cdc3b47ea1f3c353f4d563bfbf45ab7892fd9e481f3f392c3cef05"
 }

@@ -39,7 +39,7 @@ chrono = { workspace = true }
 # systemprompt.io dependencies
 systemprompt-extension = { workspace = true }
 inventory = { workspace = true }
-systemprompt-identifiers = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 
 [dev-dependencies]
