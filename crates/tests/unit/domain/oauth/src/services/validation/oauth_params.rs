@@ -183,21 +183,23 @@ fn test_get_audit_user_uuid_format() {
 
 #[test]
 fn test_csrf_token_new_success() {
-    let result = CsrfToken::new("valid_state_12345678");
+    let result = CsrfToken::new("valid_state_1234567890abcdef0123456789");
     result.expect("valid state should succeed");
 }
 
 #[test]
 fn test_csrf_token_as_str() {
-    let token = CsrfToken::new("my_state_is_valid").expect("should create token");
-    assert_eq!(token.as_str(), "my_state_is_valid");
+    let value = "my_state_is_valid_abcdef012345678";
+    let token = CsrfToken::new(value).expect("should create token");
+    assert_eq!(token.as_str(), value);
 }
 
 #[test]
 fn test_csrf_token_into_string() {
-    let token = CsrfToken::new("state_to_consume_123").expect("should create token");
+    let value = "state_to_consume_123_abcdef0123456";
+    let token = CsrfToken::new(value).expect("should create token");
     let s: String = token.into_string();
-    assert_eq!(s, "state_to_consume_123");
+    assert_eq!(s, value);
 }
 
 #[test]
@@ -211,7 +213,7 @@ fn test_csrf_token_too_short() {
     let result = CsrfToken::new("short");
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
-            assert!(reason.contains("16 characters"));
+            assert!(reason.contains("32 characters"));
         },
         _ => panic!("Expected InvalidRequest error for short state"),
     }
@@ -219,37 +221,33 @@ fn test_csrf_token_too_short() {
 
 #[test]
 fn test_csrf_token_with_hyphen() {
-    let result = CsrfToken::new("state-with-hyphens-ok");
-    assert_eq!(
-        result.expect("should create token").as_str(),
-        "state-with-hyphens-ok"
-    );
+    let value = "state-with-hyphens-ok-abcdef0123456";
+    let result = CsrfToken::new(value);
+    assert_eq!(result.expect("should create token").as_str(), value);
 }
 
 #[test]
 fn test_csrf_token_with_underscore() {
-    let result = CsrfToken::new("state_with_underscores");
-    assert_eq!(
-        result.expect("should create token").as_str(),
-        "state_with_underscores"
-    );
+    let value = "state_with_underscores_abcdef0123456";
+    let result = CsrfToken::new(value);
+    assert_eq!(result.expect("should create token").as_str(), value);
 }
 
 #[test]
 fn test_csrf_token_alphanumeric_only() {
-    let result = CsrfToken::new("ABC123xyzABC123xyz");
+    let result = CsrfToken::new("ABC123xyzABC123xyzABC123xyz0123456");
     result.expect("alphanumeric state should succeed");
 }
 
 #[test]
 fn test_csrf_token_special_chars_valid() {
-    let result = CsrfToken::new("state_valid_!@#$%^");
+    let result = CsrfToken::new("state_valid_!@#$%^abcdef0123456789");
     result.expect("special chars state should succeed");
 }
 
 #[test]
 fn test_csrf_token_control_chars_invalid() {
-    let result = CsrfToken::new("state_with_\x00_null");
+    let result = CsrfToken::new("state_with_\x00_null_abcdef0123456789ab");
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("printable ASCII"));
@@ -260,13 +258,13 @@ fn test_csrf_token_control_chars_invalid() {
 
 #[test]
 fn test_csrf_token_with_space() {
-    let result = CsrfToken::new("state with spaces here");
+    let result = CsrfToken::new("state with spaces here abcdef0123456");
     result.unwrap_err();
 }
 
 #[test]
 fn test_csrf_token_with_dot() {
-    let result = CsrfToken::new("state.with.dot.here");
+    let result = CsrfToken::new("state.with.dot.here.abcdef.0123456789");
     result.expect("dotted state should succeed");
 }
 
@@ -281,20 +279,18 @@ fn test_csrf_token_mcp_inspector_format() {
 
 #[test]
 fn test_csrf_token_from_string() {
-    let state = String::from("string_state_valid");
-    let result = CsrfToken::new(state);
-    assert_eq!(
-        result.expect("should create token").as_str(),
-        "string_state_valid"
-    );
+    let value = String::from("string_state_valid_abcdef0123456789");
+    let result = CsrfToken::new(value.clone());
+    assert_eq!(result.expect("should create token").as_str(), value);
 }
 
 #[test]
 fn test_csrf_token_debug() {
-    let token = CsrfToken::new("debug_state_valid").expect("should create token");
+    let value = "debug_state_valid_abcdef0123456789";
+    let token = CsrfToken::new(value).expect("should create token");
     let debug_str = format!("{:?}", token);
     assert!(debug_str.contains("CsrfToken"));
-    assert!(debug_str.contains("debug_state_valid"));
+    assert!(debug_str.contains(value));
 }
 
 #[test]
