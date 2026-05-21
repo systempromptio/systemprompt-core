@@ -43,7 +43,7 @@ pub async fn setup_test_db() -> DbPool {
 async fn seed_fixture_user(db: &DbPool) {
     let pool = db.pool_arc().expect("read pool");
     sqlx::query(
-        "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT (id) DO NOTHING",
+        "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
     )
     .bind(systemprompt_test_fixtures::fixture_user_id().as_str())
     .bind("test-user@example.invalid")
