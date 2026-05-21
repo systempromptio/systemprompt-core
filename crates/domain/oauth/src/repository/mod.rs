@@ -15,7 +15,10 @@ pub use client::{
     ClientRepository, ClientSummary, ClientUsageSummary, CreateClientParams, UpdateClientParams,
 };
 pub use exchange_code::CreateExchangeCodeParams;
-pub use oauth::{AuthCodeParams, AuthCodeValidationResult, OAuthRepository, RefreshTokenParams};
+pub use oauth::{
+    AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, OAuthRepository,
+    RefreshTokenParams, StateBindingParams, StateBindingRow,
+};
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
 };
