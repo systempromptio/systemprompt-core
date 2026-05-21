@@ -18,7 +18,7 @@ pub mod runtime;
 pub mod types;
 
 pub use audit::{
-    AuthzAuditSink, AuthzSource, DbAuditSink, GovernanceDecisionRecord,
+    AUDIT_WRITE_FAILED_TOTAL, AuthzAuditSink, AuthzSource, DbAuditSink, GovernanceDecisionRecord,
     GovernanceDecisionRepository, NullAuditSink, insert_governance_decision,
 };
 pub use config::{AccessControlConfig, DepartmentEntry, RuleEntry};
@@ -29,4 +29,6 @@ pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::resolve;
 pub use runtime::{SharedAuthzHook, build_authz_hook};
-pub use types::{Access, AccessRule, AuthzDecision, AuthzRequest, Decision, EntityKind, RuleType};
+pub use types::{
+    Access, AccessRule, AuthzDecision, AuthzRequest, Decision, DecisionTag, EntityKind, RuleType,
+};

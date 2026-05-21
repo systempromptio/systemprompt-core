@@ -9,7 +9,7 @@ use systemprompt_identifiers::Actor;
 
 use super::repository::{GovernanceDecisionRecord, GovernanceDecisionRepository};
 use super::{AuthzAuditSink, AuthzSource};
-use crate::authz::types::{AuthzDecision, AuthzRequest};
+use crate::authz::types::{AuthzDecision, AuthzRequest, DecisionTag};
 
 #[derive(Debug, Clone)]
 pub struct DbAuditSink {
@@ -26,9 +26,10 @@ impl DbAuditSink {
 impl AuthzAuditSink for DbAuditSink {
     async fn record(&self, req: &AuthzRequest, decision: &AuthzDecision, source: AuthzSource) {
         let id = uuid::Uuid::new_v4().to_string();
-        let (decision_str, reason_str) = match decision {
-            AuthzDecision::Allow => ("allow", String::new()),
-            AuthzDecision::Deny { reason, .. } => ("deny", reason.clone()),
+        let decision_tag = DecisionTag::from(decision);
+        let reason_str = match decision {
+            AuthzDecision::Allow => String::new(),
+            AuthzDecision::Deny { reason, .. } => reason.clone(),
         };
         let entity_type = req.entity_type.as_str();
         let evaluated = serde_json::json!({
@@ -48,7 +49,7 @@ impl AuthzAuditSink for DbAuditSink {
             tool_name: &req.entity_id,
             agent_id: None,
             agent_scope: entity_type,
-            decision: decision_str,
+            decision: decision_tag,
             policy: source.policy(),
             reason: &reason_str,
             evaluated_rules: &evaluated,

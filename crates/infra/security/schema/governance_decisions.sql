@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     reason TEXT NOT NULL,
     evaluated_rules JSONB DEFAULT '[]',
     plugin_id TEXT,
-    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'job', 'mcp')),
+    actor_kind TEXT NOT NULL CHECK (actor_kind IN ('user', 'anonymous', 'system', 'job', 'mcp', 'agent')),
     actor_id TEXT NOT NULL CHECK (length(actor_id) > 0),
     act_chain JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
