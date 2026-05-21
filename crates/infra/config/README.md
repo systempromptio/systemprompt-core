@@ -34,13 +34,13 @@ Profile-based configuration for systemprompt.io AI governance infrastructure. Bo
 
 ## Overview
 
-This crate is the bootstrap layer for the platform. It loads the active profile YAML, the matching secrets document, and installs both into process-wide singletons before any other layer (database, runtime, agent) starts. It also exposes the deployment-time `ConfigManager` used by `systemprompt cloud config` and a `DomainConfig` validator for skill manifests.
+This crate is the bootstrap layer for the platform. It loads the active profile YAML, the matching secrets document, and installs both into process-wide singletons before any other layer (database, runtime, agent) starts. It also exposes the deployment-time `ConfigService` used by `systemprompt cloud config` and a `DomainConfig` validator for skill manifests.
 
 - **Type-state bootstrap**: `BootstrapSequence` enforces *profile before secrets* at compile time.
 - **Profile loading**: Parses `.systemprompt/profiles/<name>/profile.yaml`, with optional catalog overlay.
 - **Secrets loading**: Reads the secrets document referenced by the active profile and seeds the in-process store.
 - **Runtime config construction**: Builds a `systemprompt_models::Config` from the active profile.
-- **Deployment config**: `ConfigManager` resolves `${VAR}` / `${VAR:-default}` patterns and emits `.env` files for downstream services.
+- **Deployment config**: `ConfigService` resolves `${VAR}` / `${VAR:-default}` patterns and emits `.env` files for downstream services.
 - **Schema validation**: Generic YAML/JSON validation utilities and a `SkillConfigValidator` for the `skills/` tree.
 
 ## Architecture
@@ -64,7 +64,7 @@ src/
 │       └── logging.rs          # log_secrets_issue / skip / warn helpers
 └── services/
     ├── mod.rs                  # Re-exports
-    ├── manager.rs              # ConfigManager — YAML loading, merging, variable resolution
+    ├── manager.rs              # ConfigService — YAML loading, merging, variable resolution
     ├── report.rs               # ValidationReport
     ├── schema_validation.rs    # validate_config, validate_yaml_file, generate_schema
     ├── types.rs                # DeployEnvironment, DeploymentConfig, EnvironmentConfig
@@ -79,7 +79,7 @@ Process-wide cells for the active profile and secrets document, plus the type-st
 Builds a runtime `Config` from the active profile via `init_config`, `try_init_config`, `init_config_from_profile`, and `build_from_profile`. `validate_database_config` checks database wiring before startup.
 
 ### `services/`
-Deployment-pipeline utilities consumed by `systemprompt cloud config`: `ConfigManager` loads and merges YAML, `ConfigValidator` produces a `ValidationReport`, and the schema-validation helpers operate over arbitrary `serde` types.
+Deployment-pipeline utilities consumed by `systemprompt cloud config`: `ConfigService` loads and merges YAML, `ConfigValidator` produces a `ValidationReport`, and the schema-validation helpers operate over arbitrary `serde` types.
 
 ### `skill_validator.rs`
 `SkillConfigValidator` walks the `skills/` directory and reports missing or malformed manifests through the `DomainConfig` trait.
@@ -88,7 +88,7 @@ Deployment-pipeline utilities consumed by `systemprompt cloud config`: `ConfigMa
 
 ```toml
 [dependencies]
-systemprompt-config = "0.9.2"
+systemprompt-config = "0.11.0"
 ```
 
 ```rust
@@ -127,7 +127,7 @@ use systemprompt_config::{
     ConfigError, ConfigResult,
 
     // Deployment services
-    ConfigManager, ConfigValidator, ConfigValidationError,
+    ConfigService, ConfigValidator, ConfigValidationError,
     DeployEnvironment, DeploymentConfig, EnvironmentConfig,
     ValidationReport,
     generate_schema, validate_config, validate_yaml_file, validate_yaml_str,

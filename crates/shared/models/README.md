@@ -53,7 +53,7 @@ systemprompt-models = "0.9"
 | `bridge` | Cowork desktop bridge manifest types. |
 | `config` | Global `Config` singleton assembled from profile + secrets. |
 | `content`, `content_config` | Published content metadata and on-disk content routing. |
-| `errors` | `thiserror`-derived `CoreError`, `RepositoryError`, `ServiceError`. |
+| `errors` | `thiserror`-derived `RepositoryError`, `ServiceError`, and the per-concern parse, secrets, validation, provider, metadata, and row enums. |
 | `events` | Analytics, A2A, context, and system event envelopes. |
 | `execution` | `RequestContext`, `ExecutionStep`, planned-tool bookkeeping. |
 | `extension` | Extension framework manifest and discovery types. |

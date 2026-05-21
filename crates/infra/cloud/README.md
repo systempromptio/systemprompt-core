@@ -116,7 +116,7 @@ cloud/
 
 ```toml
 [dependencies]
-systemprompt-cloud = "0.9.2"
+systemprompt-cloud = "0.11.0"
 ```
 
 ```rust

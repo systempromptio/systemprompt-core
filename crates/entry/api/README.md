@@ -134,7 +134,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-api = "0.9.2"
+systemprompt-api = "0.11.0"
 ```
 
 ```rust
@@ -151,7 +151,9 @@ The API server is configured through `systemprompt-runtime::Config` and the acti
 
 - `api_external_url` — public URL advertised in discovery metadata.
 - `rate_limits` — per-endpoint rate limit configuration.
-- `jwt_secret` — JWT signing secret (loaded via the secrets bootstrap).
+- `security.signing_key_path` — RSA private key the in-process `TokenAuthority` uses to sign RS256 access tokens. The matching public set is published at `/.well-known/jwks.json`; `systemprompt admin keys generate` mints the keypair.
+- `security.trusted_issuers` — additional issuer → JWKS URI entries consulted by the RFC 8693 token-exchange grant when validating non-self-issued subject tokens.
+- `oauth_at_rest_pepper` — HMAC pepper (>= 32 chars, loaded via the secrets bootstrap) under which refresh-token ids and authorisation codes are stored as HMAC-SHA-256 digests.
 - `cors` — allowed origins.
 - `paths.system` — root used by `static_content` to locate prebuilt web assets.
 

@@ -174,7 +174,7 @@ Validates: files, rate limits, web config, content config, agents, MCP servers, 
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.9.2"
+systemprompt-runtime = "0.11.0"
 ```
 
 ### Macros
