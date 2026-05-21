@@ -138,7 +138,7 @@ pub enum DbCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum MigrationsCommands {
-    #[command(about = "Show migration status for all extensions")]
+    #[command(about = "Show migration status for all extensions", alias = "list")]
     Status,
     #[command(about = "Show migration history for an extension")]
     History {

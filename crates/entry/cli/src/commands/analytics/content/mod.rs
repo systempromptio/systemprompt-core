@@ -13,7 +13,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum ContentCommands {
-    #[command(about = "Content engagement statistics")]
+    #[command(about = "Content engagement statistics", alias = "list")]
     Stats(stats::StatsArgs),
 
     #[command(about = "Top performing content")]

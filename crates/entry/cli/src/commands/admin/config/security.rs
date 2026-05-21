@@ -12,7 +12,7 @@ use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum SecurityCommands {
-    #[command(about = "Show security configuration")]
+    #[command(about = "Show security configuration", alias = "list")]
     Show,
 
     #[command(about = "Set security configuration value")]

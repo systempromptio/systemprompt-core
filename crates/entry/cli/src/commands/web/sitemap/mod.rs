@@ -9,7 +9,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum SitemapCommands {
-    #[command(about = "Show sitemap configuration")]
+    #[command(about = "Show sitemap configuration", alias = "list")]
     Show(show::ShowArgs),
 
     #[command(about = "Generate sitemap.xml")]

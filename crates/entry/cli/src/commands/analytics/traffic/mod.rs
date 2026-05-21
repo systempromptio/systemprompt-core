@@ -14,7 +14,7 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum TrafficCommands {
-    #[command(about = "Traffic source breakdown")]
+    #[command(about = "Traffic source breakdown", alias = "list")]
     Sources(sources::SourcesArgs),
 
     #[command(about = "Geographic distribution")]

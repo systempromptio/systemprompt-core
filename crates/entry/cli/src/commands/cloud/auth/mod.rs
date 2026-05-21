@@ -20,7 +20,10 @@ pub enum AuthCommands {
     #[command(about = "Clear saved cloud credentials")]
     Logout(LogoutArgs),
 
-    #[command(about = "Show current authenticated user and token status")]
+    #[command(
+        about = "Show current authenticated user and token status",
+        alias = "status"
+    )]
     Whoami,
 }
 
