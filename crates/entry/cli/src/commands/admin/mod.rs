@@ -76,7 +76,7 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
         AdminCommands::Session(cmd) => session::execute(cmd, config).await,
         AdminCommands::Bridge(cmd) => bridge::execute(cmd, config).await,
         AdminCommands::AccessControl(cmd) => access_control::execute(cmd, config).await,
-        AdminCommands::Keys(cmd) => keys::execute(cmd),
+        AdminCommands::Keys(cmd) => keys::execute(cmd).await,
     }
 }
 
