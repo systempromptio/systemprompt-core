@@ -89,18 +89,17 @@ pub async fn get_service_by_name(
 
 pub async fn get_running_servers(
     db_pool: &systemprompt_database::DbPool,
+    registry: &crate::services::registry::RegistryManager,
 ) -> McpDomainResult<Vec<McpServerConfig>> {
-    use crate::services::registry::RegistryManager;
-
     let repo = ServiceRepository::new(db_pool)?;
     let all_services = repo.get_mcp_services().await?;
 
-    RegistryManager::validate()?;
+    registry.validate()?;
     let mut running_configs = Vec::new();
 
     for service in all_services {
         if service.status == "running" {
-            if let Some(config) = RegistryManager::find_server(&service.name)? {
+            if let Some(config) = registry.find_server(&service.name)? {
                 running_configs.push(config);
             }
         }

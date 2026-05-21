@@ -28,8 +28,6 @@ pub use validation::{
     validate_connection_with_auth,
 };
 
-use systemprompt_database::DbPool;
-
 #[derive(Debug, Clone)]
 pub struct McpClientHandler {
     progress_dispatcher: ProgressDispatcher,
@@ -68,15 +66,10 @@ pub struct McpClient;
 
 impl McpClient {
     pub async fn list_tools(
-        service_id: &str,
+        server_config: &systemprompt_models::mcp::McpServerConfig,
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
-        use crate::services::registry::RegistryManager;
-
-        RegistryManager::validate()?;
-        let server_config = RegistryManager::find_server(service_id)?
-            .ok_or_else(|| crate::error::McpDomainError::ServerNotFound(service_id.to_string()))?;
-
+        let service_id = server_config.name.as_str();
         let url = server_config.endpoint(&Config::get()?.api_server_url);
         let url = rewrite_url_for_internal_use(&url);
         let requires_auth = server_config.oauth.required;
@@ -149,19 +142,12 @@ impl McpClient {
     }
 
     pub async fn call_tool(
-        service_name: &str,
+        server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,
         arguments: Option<serde_json::Value>,
         context: &systemprompt_models::RequestContext,
-        _db_pool: &DbPool,
     ) -> McpDomainResult<systemprompt_models::CallToolResult> {
-        use crate::services::registry::RegistryManager;
-
-        RegistryManager::validate()?;
-        let server_config = RegistryManager::find_server(service_name)?.ok_or_else(|| {
-            crate::error::McpDomainError::ServerNotFound(service_name.to_string())
-        })?;
-
+        let service_name = server_config.name.as_str();
         let url = server_config.endpoint(&Config::get()?.api_server_url);
         let url = rewrite_url_for_internal_use(&url);
 

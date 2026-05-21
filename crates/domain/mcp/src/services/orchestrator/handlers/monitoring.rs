@@ -1,17 +1,10 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 
 use super::{EventHandler, McpEvent};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct MonitoringHandler;
-
-impl MonitoringHandler {
-    pub fn new(_db_pool: DbPool) -> Self {
-        Self
-    }
-}
 
 #[async_trait]
 impl EventHandler for MonitoringHandler {

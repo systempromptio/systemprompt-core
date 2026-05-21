@@ -23,7 +23,7 @@ impl McpRegistry for RegistryManager {
     }
 
     async fn find_server(&self, name: &str) -> ProviderResult<Option<McpServerState>> {
-        let server_config = Self::find_server(name)
+        let server_config = RegistryManager::find_server(self, name)
             .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
         Ok(server_config.map(|config| McpServerState {
             name: config.name,
@@ -48,7 +48,9 @@ impl McpToolProvider for RegistryManager {
         server_name: &str,
         context: &RequestContext,
     ) -> ProviderResult<Vec<McpTool>> {
-        McpClient::list_tools(server_name, context)
+        let server_config = RegistryManager::get_server(self, server_name)
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))?;
+        McpClient::list_tools(&server_config, context)
             .await
             .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()))
     }
@@ -61,7 +63,25 @@ impl McpToolProvider for RegistryManager {
         let mut tools_by_server = HashMap::new();
 
         for server_name in server_names {
-            match McpClient::list_tools(server_name, context).await {
+            let server_config = match RegistryManager::find_server(self, server_name) {
+                Ok(Some(cfg)) => cfg,
+                Ok(None) => {
+                    tracing::warn!(
+                        server = %server_name,
+                        "MCP server not found in registry"
+                    );
+                    continue;
+                },
+                Err(e) => {
+                    tracing::warn!(
+                        server = %server_name,
+                        error = %e,
+                        "Failed to resolve MCP server"
+                    );
+                    continue;
+                },
+            };
+            match McpClient::list_tools(&server_config, context).await {
                 Ok(tools) => {
                     tools_by_server.insert(server_name.clone(), tools);
                 },
@@ -97,7 +117,8 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
 #[async_trait]
 impl McpRegistryProvider for RegistryManager {
     async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
-        let server = Self::get_server(name).map_err(|e| RegistryError::NotFound(e.to_string()))?;
+        let server = RegistryManager::get_server(self, name)
+            .map_err(|e| RegistryError::NotFound(e.to_string()))?;
 
         Ok(McpServerInfo {
             name: server.name,
@@ -117,8 +138,8 @@ impl McpRegistryProvider for RegistryManager {
     }
 
     async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
-        let servers =
-            Self::get_enabled_servers().map_err(|e| RegistryError::Unavailable(e.to_string()))?;
+        let servers = RegistryManager::get_enabled_servers(self)
+            .map_err(|e| RegistryError::Unavailable(e.to_string()))?;
 
         Ok(servers
             .into_iter()

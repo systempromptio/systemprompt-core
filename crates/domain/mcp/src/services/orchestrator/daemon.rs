@@ -12,13 +12,14 @@ pub async fn run_daemon(
     event_bus: &Arc<EventBus>,
     lifecycle: &LifecycleManager,
     database: &DatabaseManager,
+    registry: &RegistryManager,
 ) -> McpDomainResult<()> {
     let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_orchestrator").into();
     async move {
         tracing::info!("Starting MCP daemon mode");
 
         database.cleanup_stale_services().await?;
-        let servers = RegistryManager::get_enabled_servers()?;
+        let servers = registry.get_enabled_servers()?;
         database.sync_state(&servers).await?;
         let server_count = servers.len();
 

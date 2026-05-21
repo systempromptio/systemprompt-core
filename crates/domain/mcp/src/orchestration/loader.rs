@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use crate::error::McpDomainResult;
 use systemprompt_database::DbPool;
@@ -14,15 +13,15 @@ use crate::services::registry::RegistryManager;
 
 #[derive(Debug, Clone)]
 pub struct McpToolLoader {
-    _db_pool: DbPool,
     service_manager: ServiceStateManager,
+    registry: RegistryManager,
 }
 
 impl McpToolLoader {
-    pub fn new(db_pool: &DbPool) -> McpDomainResult<Self> {
+    pub fn new(db_pool: &DbPool, registry: RegistryManager) -> McpDomainResult<Self> {
         Ok(Self {
             service_manager: ServiceStateManager::new(db_pool)?,
-            _db_pool: Arc::clone(db_pool),
+            registry,
         })
     }
 
@@ -78,7 +77,8 @@ impl McpToolLoader {
                             server_name, service.status
                         )));
                     }
-                    return McpClient::list_tools(server_name, context).await;
+                    let server_config = self.registry.get_server(server_name)?;
+                    return McpClient::list_tools(&server_config, context).await;
                 },
                 Ok(None) => {
                     if retries < max_retries {
@@ -147,7 +147,9 @@ impl McpToolLoader {
                     .await?
                     .map_or_else(|| "not_started".to_string(), |s| s.status);
 
-                let version = RegistryManager::find_server(server_name)
+                let version = self
+                    .registry
+                    .find_server(server_name)
                     .ok()
                     .flatten()
                     .map(|s| s.version);

@@ -7,8 +7,9 @@ use crate::services::registry::RegistryManager;
 pub async fn validate_service(
     service_name: &str,
     database: &DatabaseManager,
+    registry: &RegistryManager,
 ) -> McpDomainResult<()> {
-    let servers = RegistryManager::get_enabled_servers()?;
+    let servers = registry.get_enabled_servers()?;
     let server = servers
         .iter()
         .find(|s| s.name == service_name)

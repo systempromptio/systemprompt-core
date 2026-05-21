@@ -24,6 +24,7 @@ pub struct ReconcileParams<'a> {
     pub lifecycle: &'a LifecycleManager,
     pub event_bus: &'a Arc<EventBus>,
     pub db_pool: &'a DbPool,
+    pub registry: &'a RegistryManager,
     pub events: Option<&'a StartupEventSender>,
 }
 
@@ -33,6 +34,7 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<usize> {
         lifecycle,
         event_bus,
         db_pool,
+        registry,
         events,
     } = params;
 
@@ -40,7 +42,7 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<usize> {
         database.cleanup_stale_services().await?;
         database.delete_crashed_services().await?;
 
-        let enabled_servers = RegistryManager::get_enabled_servers()?;
+        let enabled_servers = registry.get_enabled_servers()?;
 
         let deleted = database.delete_disabled_services(&enabled_servers).await?;
         if deleted > 0 {

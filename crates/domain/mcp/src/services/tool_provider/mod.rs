@@ -24,7 +24,7 @@ use crate::error::McpDomainError;
 use crate::services::client::{
     McpClient, rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
 };
-use crate::services::registry::RegistryManager;
+pub use crate::services::registry::RegistryManager;
 
 use context::{create_request_context, load_agent_servers};
 use conversions::{to_tool_definition, to_tool_result};
@@ -50,14 +50,20 @@ type GuardMap = Arc<Mutex<HashMap<String, Arc<ResilienceGuard>>>>;
 #[derive(Debug, Clone)]
 pub struct McpToolProvider {
     db_pool: DbPool,
+    registry: RegistryManager,
     resilience: ResilienceSettings,
     guards: GuardMap,
 }
 
 impl McpToolProvider {
-    pub fn new(db_pool: DbPool, resilience: &ResilienceSettings) -> Self {
+    pub fn new(
+        db_pool: DbPool,
+        registry: RegistryManager,
+        resilience: &ResilienceSettings,
+    ) -> Self {
         Self {
             db_pool,
+            registry,
             resilience: *resilience,
             guards: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -67,9 +73,6 @@ impl McpToolProvider {
         &self.db_pool
     }
 
-    /// The resilience guard for `server`, created on first use. Guards are
-    /// shared across clones of the provider so breaker and bulkhead state
-    /// accumulates.
     fn guard_for(&self, server: &str) -> Arc<ResilienceGuard> {
         let mut guards = self.guards.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(existing) = guards.get(server) {
@@ -104,13 +107,13 @@ impl ToolProvider for McpToolProvider {
         let mut all_tools = Vec::new();
 
         for server_name in &assigned_servers {
-            let server_config = RegistryManager::get_server(server_name).map_err(|e| {
+            let server_config = self.registry.get_server(server_name).map_err(|e| {
                 ToolProviderError::ConfigurationError(format!(
                     "Failed to resolve MCP server {server_name}: {e}"
                 ))
             })?;
             let request_ctx = create_request_context(context, &server_config)?;
-            match McpClient::list_tools(server_name, &request_ctx).await {
+            match McpClient::list_tools(&server_config, &request_ctx).await {
                 Ok(tools) => {
                     info!(
                         server = server_name,
@@ -146,7 +149,7 @@ impl ToolProvider for McpToolProvider {
         service_id: &str,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
-        let server_config = RegistryManager::get_server(service_id).map_err(|e| {
+        let server_config = self.registry.get_server(service_id).map_err(|e| {
             ToolProviderError::ConfigurationError(format!(
                 "Failed to resolve MCP server {service_id}: {e}"
             ))
@@ -163,11 +166,10 @@ impl ToolProvider for McpToolProvider {
         let result = guard
             .execute(McpDomainError::classify, || {
                 McpClient::call_tool(
-                    service_id,
+                    &server_config,
                     request.name.clone(),
                     Some(request.arguments.clone()),
                     &request_ctx,
-                    &self.db_pool,
                 )
             })
             .await
@@ -187,7 +189,7 @@ impl ToolProvider for McpToolProvider {
             "Refreshing MCP connections for agent"
         );
 
-        RegistryManager::validate().map_err(|e| {
+        self.registry.validate().map_err(|e| {
             ToolProviderError::Internal(format!("Failed to validate registry: {e}"))
         })?;
 
@@ -197,7 +199,7 @@ impl ToolProvider for McpToolProvider {
             .clone();
 
         for server_name in assigned_servers {
-            validate_server_connection(&server_name, &api_server_url).await;
+            validate_server_connection(&self.registry, &server_name, &api_server_url).await;
         }
 
         Ok(())
@@ -211,7 +213,7 @@ impl ToolProvider for McpToolProvider {
             .api_server_url
             .clone();
 
-        if let Ok(servers) = RegistryManager::get_enabled_servers() {
+        if let Ok(servers) = self.registry.get_enabled_servers() {
             for server in servers {
                 let is_healthy =
                     check_server_health(&server.name, server.port, &config_api_server_url).await;
@@ -229,8 +231,12 @@ impl ToolProvider for McpToolProvider {
     }
 }
 
-async fn validate_server_connection(server_name: &str, api_server_url: &str) {
-    if let Ok(Some(server_config)) = RegistryManager::find_server(server_name) {
+async fn validate_server_connection(
+    registry: &RegistryManager,
+    server_name: &str,
+    api_server_url: &str,
+) {
+    if let Ok(Some(server_config)) = registry.find_server(server_name) {
         let host = &server_config.host;
         let port = server_config.port;
 
