@@ -4,12 +4,16 @@
 mod at_rest;
 mod auth_code;
 mod cleanup;
+mod jti_revocation;
 mod refresh_token;
 mod scopes;
+mod state_binding;
 mod user;
 
 pub use auth_code::{AuthCodeParams, AuthCodeValidationResult};
+pub use jti_revocation::JtiRevocationCache;
 pub use refresh_token::RefreshTokenParams;
+pub use state_binding::{StateBindingParams, StateBindingRow};
 
 pub(super) use at_rest::hash_at_rest;
 

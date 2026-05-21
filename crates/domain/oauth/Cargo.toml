@@ -60,6 +60,9 @@ webauthn-rs = { workspace = true }
 # HTTP types (framework-agnostic)
 http = { workspace = true }
 
+# LRU cache for JTI revocation lookups
+lru = { workspace = true }
+
 axum = { workspace = true }
 
 # HTTP client for CLI-to-REST calls

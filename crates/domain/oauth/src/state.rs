@@ -4,7 +4,7 @@ use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{
-    AnalyticsProvider, FingerprintProvider, UserEventPublisher, UserProvider,
+    AnalyticsProvider, FingerprintProvider, McpRegistryProvider, UserEventPublisher, UserProvider,
 };
 
 #[derive(Clone)]
@@ -14,6 +14,7 @@ pub struct OAuthState {
     user_provider: Arc<dyn UserProvider>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     event_publisher: Option<Arc<dyn UserEventPublisher>>,
+    mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
     link_states: LinkStates,
 }
 
@@ -48,8 +49,19 @@ impl OAuthState {
             user_provider,
             fingerprint_provider: None,
             event_publisher: None,
+            mcp_registry: None,
             link_states: create_link_states(),
         }
+    }
+
+    #[must_use]
+    pub fn with_mcp_registry(mut self, registry: Arc<dyn McpRegistryProvider>) -> Self {
+        self.mcp_registry = Some(registry);
+        self
+    }
+
+    pub fn mcp_registry(&self) -> Option<&Arc<dyn McpRegistryProvider>> {
+        self.mcp_registry.as_ref()
     }
 
     #[must_use]

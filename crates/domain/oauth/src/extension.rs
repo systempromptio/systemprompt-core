@@ -66,6 +66,20 @@ impl Extension for OauthExtension {
                 "user_id".into(),
             ]),
             SchemaDefinition::new(
+                "oauth_state_bindings",
+                include_str!("../schema/oauth_state_bindings.sql"),
+            )
+            .with_required_columns(vec![
+                "state_token_hash".into(),
+                "return_to".into(),
+                "expires_at".into(),
+            ]),
+            SchemaDefinition::new(
+                "oauth_jti_revocations",
+                include_str!("../schema/oauth_jti_revocations.sql"),
+            )
+            .with_required_columns(vec!["jti".into(), "user_id".into(), "exp".into()]),
+            SchemaDefinition::new(
                 "webauthn_credentials",
                 include_str!("../schema/webauthn_credentials.sql"),
             )
