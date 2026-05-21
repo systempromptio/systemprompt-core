@@ -31,8 +31,12 @@ pub async fn execute(
 
     let bin_path = ctx.app_paths().build().bin().to_path_buf();
 
-    let manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
-        .context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::clone(ctx.app_paths_arc()),
+        ctx.mcp_registry().clone(),
+    )
+    .context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

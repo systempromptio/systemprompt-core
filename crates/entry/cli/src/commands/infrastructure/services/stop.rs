@@ -214,8 +214,12 @@ pub async fn execute_individual_mcp(
         CliService::section(&format!("Stopping MCP Server: {}", server_name));
     }
 
-    let manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
-        .context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::clone(ctx.app_paths_arc()),
+        ctx.mcp_registry().clone(),
+    )
+    .context("Failed to initialize MCP manager")?;
 
     manager.stop_services(Some(server_name.to_string())).await?;
 

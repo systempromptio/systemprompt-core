@@ -36,7 +36,11 @@ pub async fn execute(
         .await
         .context("Failed to initialize application context")?;
 
-    let database = DatabaseManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()));
+    let database = DatabaseManager::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::clone(ctx.app_paths_arc()),
+        ctx.mcp_registry().clone(),
+    );
 
     let servers_to_validate: Vec<String> =
         if args.all || (args.server.is_none() && !config.is_interactive()) {

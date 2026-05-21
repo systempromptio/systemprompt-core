@@ -77,11 +77,15 @@ pub async fn execute_all_mcp(
         CliService::section("Restarting All MCP Servers");
     }
 
-    let mcp_manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
-        .context("Failed to initialize MCP manager")?;
+    let mcp_manager = McpManager::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::clone(ctx.app_paths_arc()),
+        ctx.mcp_registry().clone(),
+    )
+    .context("Failed to initialize MCP manager")?;
 
-    systemprompt_mcp::services::RegistryManager::validate()?;
-    let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;
+    ctx.mcp_registry().validate()?;
+    let servers = ctx.mcp_registry().get_enabled_servers()?;
 
     let mut restarted = 0usize;
     let mut failed = 0usize;
@@ -228,11 +232,15 @@ async fn restart_failed_mcp(
     failed_count: &mut usize,
     quiet: bool,
 ) -> Result<()> {
-    let mcp_manager = McpManager::new(Arc::clone(ctx.db_pool()), Arc::clone(ctx.app_paths_arc()))
-        .context("Failed to initialize MCP manager")?;
+    let mcp_manager = McpManager::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::clone(ctx.app_paths_arc()),
+        ctx.mcp_registry().clone(),
+    )
+    .context("Failed to initialize MCP manager")?;
 
-    systemprompt_mcp::services::RegistryManager::validate()?;
-    let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;
+    ctx.mcp_registry().validate()?;
+    let servers = ctx.mcp_registry().get_enabled_servers()?;
 
     for server in servers {
         if !server.enabled {
@@ -242,6 +250,7 @@ async fn restart_failed_mcp(
         let database = systemprompt_mcp::services::DatabaseManager::new(
             Arc::clone(ctx.db_pool()),
             Arc::clone(ctx.app_paths_arc()),
+            ctx.mcp_registry().clone(),
         );
         let service_info = database.get_service_by_name(&server.name).await?;
 
