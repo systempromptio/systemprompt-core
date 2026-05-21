@@ -164,7 +164,7 @@ PostgreSQL-specific implementation of the provider surface.
 
 ```toml
 [dependencies]
-systemprompt-database = "0.9.0"
+systemprompt-database = "0.11.0"
 ```
 
 ```rust

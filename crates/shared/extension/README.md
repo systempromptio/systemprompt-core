@@ -61,7 +61,7 @@ Provides the compile-time framework for building and loading systemprompt.io ext
 
 ```toml
 [dependencies]
-systemprompt-extension = "0.9.2"
+systemprompt-extension = "0.11.0"
 ```
 
 ```rust

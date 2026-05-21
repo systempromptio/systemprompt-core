@@ -2,7 +2,7 @@
 
 Upstream API, protocol, and runtime versions supported by each systemprompt.io release.
 
-## Current — 0.3.x
+## Current — 0.11.x
 
 ### AI Provider APIs
 
