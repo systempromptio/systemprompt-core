@@ -79,7 +79,7 @@ pub use services::monitoring::health::HealthStatus;
 pub use services::registry::McpServerRegistry;
 pub use services::registry::trait_impl::McpDeploymentProviderImpl;
 pub use services::tool_provider::McpToolProvider;
-pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, ServiceManager};
+pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator};
 
 pub use orchestration::{
     McpServerConnectionInfo, McpServerMetadata, McpServiceState, McpToolLoader, ServerStatus,
