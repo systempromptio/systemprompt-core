@@ -40,6 +40,28 @@ pub enum GatewayProfileError {
 
     #[error("gateway catalog provider '{name}' has empty endpoint")]
     ProviderEmptyEndpoint { name: String },
+
+    #[error("gateway {label} endpoint '{endpoint}' is not permitted: {reason}")]
+    BlockedEndpoint {
+        label: String,
+        endpoint: String,
+        reason: String,
+    },
+}
+
+/// Reject gateway upstream endpoints that point at the local host or private
+/// network ranges; an operator-configured endpoint pointing at
+/// `169.254.169.254` or an internal service would otherwise turn the inference
+/// proxy into an SSRF primitive. Delegates to the shared outbound-URL guard so
+/// gateway, webhook, and authz destinations enforce one policy.
+fn validate_endpoint(label: &str, endpoint: &str) -> GatewayResult<()> {
+    crate::net::validate_outbound_url(endpoint)
+        .map(|_| ())
+        .map_err(|e| GatewayProfileError::BlockedEndpoint {
+            label: label.to_string(),
+            endpoint: endpoint.to_string(),
+            reason: e.to_string(),
+        })
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;
@@ -86,6 +108,13 @@ impl GatewayConfig {
     pub fn find_route(&self, model: &str) -> Option<&GatewayRoute> {
         self.routes.iter().find(|route| route.matches(model))
     }
+
+    pub fn validate_routes(&self) -> GatewayResult<()> {
+        for route in &self.routes {
+            validate_endpoint(&format!("route '{}'", route.model_pattern), &route.endpoint)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
@@ -119,6 +148,7 @@ impl GatewayCatalog {
                     name: provider.name.clone(),
                 });
             }
+            validate_endpoint(&format!("provider '{}'", provider.name), &provider.endpoint)?;
         }
         Ok(())
     }

@@ -4,50 +4,7 @@ use crate::models::external_integrations::{IntegrationError, IntegrationResult};
 use serde_json::Value;
 use std::collections::HashMap;
 use systemprompt_identifiers::WebhookEndpointId;
-
-/// Reject outbound webhook destinations that point at the local host or known
-/// private network ranges; these would otherwise let an operator-configured
-/// webhook exfiltrate cloud-metadata endpoints (e.g. `169.254.169.254`) or
-/// internal services on the same subnet. The URL scheme must be `https` for
-/// production destinations; `http` is only allowed for explicit loopback names
-/// used during local development.
-fn validate_outbound_webhook_url(url: &str) -> IntegrationResult<()> {
-    let parsed = url::Url::parse(url)
-        .map_err(|e| IntegrationError::Webhook(format!("invalid webhook url: {e}")))?;
-    match parsed.scheme() {
-        "https" => {},
-        "http" => {
-            let host = parsed.host_str().unwrap_or("");
-            if !matches!(host, "localhost" | "127.0.0.1" | "[::1]" | "::1") {
-                return Err(IntegrationError::Webhook(
-                    "http webhook url only permitted for loopback hosts".to_string(),
-                ));
-            }
-        },
-        scheme => {
-            return Err(IntegrationError::Webhook(format!(
-                "unsupported webhook url scheme: {scheme}"
-            )));
-        },
-    }
-    if let Some(host) = parsed.host_str() {
-        let blocked = host == "169.254.169.254"
-            || host.starts_with("10.")
-            || host.starts_with("192.168.")
-            || (host.starts_with("172.")
-                && host
-                    .split('.')
-                    .nth(1)
-                    .and_then(|s| s.parse::<u8>().ok())
-                    .is_some_and(|n| (16..=31).contains(&n)));
-        if blocked {
-            return Err(IntegrationError::Webhook(format!(
-                "webhook host {host} is in a blocked private range"
-            )));
-        }
-    }
-    Ok(())
-}
+use systemprompt_models::net::validate_outbound_url;
 
 impl WebhookService {
     pub async fn send_webhook(
@@ -56,7 +13,8 @@ impl WebhookService {
         payload: Value,
         config: Option<WebhookConfig>,
     ) -> IntegrationResult<WebhookDeliveryResult> {
-        validate_outbound_webhook_url(url)?;
+        validate_outbound_url(url)
+            .map_err(|e| IntegrationError::Webhook(format!("invalid webhook url: {e}")))?;
         let config = config.unwrap_or_else(WebhookConfig::default);
 
         let mut request_builder = self

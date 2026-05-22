@@ -36,6 +36,9 @@ serde_yaml = { workspace = true }
 # HTTP types for context propagation
 http = { workspace = true }
 
+# URL parsing for outbound-endpoint (SSRF) validation
+url = { workspace = true }
+
 # Validation
 validator = { workspace = true }
 
