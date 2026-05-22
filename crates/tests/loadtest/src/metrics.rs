@@ -323,6 +323,7 @@ impl Report {
                     time_series: Vec::new(),
                 },
                 per_node: nodes,
+                thresholds,
             },
         );
     }

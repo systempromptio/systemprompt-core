@@ -2,15 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::config::Thresholds;
 use crate::metrics::{Report, ScenarioJson};
-
-#[derive(Serialize)]
-struct ThresholdsJson {
-    p95_ms: u64,
-    p99_ms: u64,
-    max_error_rate: f64,
-}
 
 #[derive(Serialize)]
 struct Aggregate {
@@ -20,18 +12,21 @@ struct Aggregate {
 
 #[derive(Serialize)]
 struct JsonReport {
-    thresholds: ThresholdsJson,
     scenarios: BTreeMap<String, ScenarioJson>,
     aggregate: Aggregate,
 }
 
-pub fn write(report: &Report, thresholds: &Thresholds, out_file: &str) -> Result<bool, String> {
+/// Serialize the report to `out_file`. Each scenario carries its own SLO and
+/// `passed` verdict (judged against that scenario's thresholds), and the
+/// aggregate `all_passed` is the conjunction of those verdicts. Returns
+/// `all_passed` so the caller can set the process exit code.
+pub fn write(report: &Report, out_file: &str) -> Result<bool, String> {
     let mut scenarios = BTreeMap::new();
     let mut total_requests = 0u64;
     let mut all_passed = true;
 
     for (name, scenario) in &report.scenarios {
-        let mut record = scenario.aggregate.to_json(thresholds);
+        let mut record = scenario.aggregate.to_json(&scenario.thresholds);
         for (node, snapshot) in &scenario.per_node {
             record
                 .nodes
@@ -45,11 +40,6 @@ pub fn write(report: &Report, thresholds: &Thresholds, out_file: &str) -> Result
     }
 
     let json_report = JsonReport {
-        thresholds: ThresholdsJson {
-            p95_ms: thresholds.p95_ms,
-            p99_ms: thresholds.p99_ms,
-            max_error_rate: thresholds.max_error_rate,
-        },
         scenarios,
         aggregate: Aggregate {
             total_requests,
