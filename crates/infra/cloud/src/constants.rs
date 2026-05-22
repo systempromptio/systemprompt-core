@@ -35,6 +35,13 @@ pub mod credentials {
 
     pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
     pub const DEFAULT_FILE_NAME: &str = file_names::CREDENTIALS;
+
+    /// Cached validation TTL for `/api/v1/auth/me`.
+    ///
+    /// Skip the round-trip when on-disk credentials were validated within this
+    /// window — short enough that a revoked token is rejected on the next demo
+    /// turn, long enough to absorb back-to-back CLI invocations.
+    pub const VALIDATION_TTL_SECS: i64 = 900;
 }
 
 pub mod tenants {

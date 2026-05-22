@@ -25,16 +25,21 @@ pub struct CloudCredentials {
 
     #[validate(email(message = "User email must be a valid email address"))]
     pub user_email: String,
+
+    #[serde(default)]
+    pub last_validated_at: Option<DateTime<Utc>>,
 }
 
 impl CloudCredentials {
     #[must_use]
     pub fn new(api_token: String, api_url: String, user_email: String) -> Self {
+        let now = Utc::now();
         Self {
             api_token,
             api_url,
-            authenticated_at: Utc::now(),
+            authenticated_at: now,
             user_email,
+            last_validated_at: Some(now),
         }
     }
 

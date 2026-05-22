@@ -11,6 +11,7 @@ use systemprompt_models::Profile;
 
 use super::context::CliSessionContext;
 use crate::CliConfig;
+use crate::cli_settings::{OutputFormat, VerbosityLevel};
 use crate::paths::ResolvedPaths;
 use helpers::{
     create_new_session, extract_profile_name, initialize_profile_bootstraps,
@@ -146,7 +147,13 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
 pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
     let ctx = resolve_session(config).await?;
 
-    if config.is_interactive() {
+    let banner_requested = config.verbosity >= VerbosityLevel::Verbose;
+    let banner_warranted = ctx.profile.target.is_cloud();
+    if config.is_interactive()
+        && config.output_format == OutputFormat::Table
+        && config.verbosity != VerbosityLevel::Quiet
+        && (banner_requested || banner_warranted)
+    {
         let tenant = ctx
             .session
             .tenant_key
