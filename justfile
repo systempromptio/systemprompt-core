@@ -535,6 +535,28 @@ api-nuke:
 # TESTING
 # =============================================================================
 
+# Run the Rust test workspace (crates/tests) end to end against a fresh database.
+# Mirrors the CI `test` job: drop+recreate the target DB, apply every extension
+# schema with the migrate tool built OFFLINE (the schema does not exist yet, so
+# live query verification of its core-crate deps would fail), then run the suite
+# LIVE against the migrated schema. Override the target with TEST_DATABASE_URL;
+# the default points at a dedicated `systemprompt_test` DB on the local server.
+test-rust *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    db="${TEST_DATABASE_URL:-postgres://postgres:postgres@localhost:5432/systemprompt_test}"
+    base="${db%/*}"
+    name="${db##*/}"
+    echo "▶ resetting test database: ${name}"
+    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
+    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
+    echo "▶ applying extension schemas (offline build)"
+    SQLX_OFFLINE=true DATABASE_URL="${db}" \
+        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --release
+    echo "▶ running Rust test workspace (live against migrated schema)"
+    SQLX_OFFLINE=false DATABASE_URL="${db}" \
+        cargo test --manifest-path crates/tests/Cargo.toml --workspace --lib {{args}}
+
 # Initialize test database (REQUIRED before running tests)
 test-setup:
     #!/usr/bin/env bash
