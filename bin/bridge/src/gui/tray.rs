@@ -107,6 +107,8 @@ pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
             TrayStatus::Normal => handles.icon_normal.clone(),
             TrayStatus::Alert => handles.icon_alert.clone(),
         };
+        // Why: tray icon refresh is cosmetic; a failed swap leaves the prior icon
+        // and must not abort the status-tracking update that follows.
         let _ = handles.tray.set_icon(Some(icon));
         handles.status = target;
     }
