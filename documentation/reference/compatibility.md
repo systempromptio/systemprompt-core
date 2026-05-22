@@ -13,40 +13,41 @@ Upstream API, protocol, and runtime versions supported by each systemprompt.io r
 | Google | Gemini `generateContent` | Gemini 2.x Pro / Flash | Streaming, tool calling |
 | Self-hosted | OpenAI-compatible endpoints | vLLM, TGI, Ollama, llama.cpp | Configurable `base_url` |
 
-Provider adapters are tracking surface per [stability-contract.md §2.1](stability-contract.md). New provider features appear in point releases.
+Provider adapters are tracking surface per [stability-contract.md §2.1](../security/stability-contract.md). New provider features appear in point releases.
 
 ### Protocols
 
 | Protocol | Tracked revision | Notes |
 |----------|------------------|-------|
-| MCP (Model Context Protocol) | 2025-06 / 2025-11 | Both stdio and SSE transports; signed manifest allowlist for server identity |
+| MCP (Model Context Protocol) | 1.6 (via `rmcp` 1.6) | Streamable-HTTP and stdio transports; signed manifest allowlist for server identity |
 | A2A (Agent-to-Agent) | 0.2.x | Task / Message / TaskState types per current public spec |
-| OAuth 2.1 | RFC 9207 + PKCE (RFC 7636) | Required for authorisation code flow |
-| OIDC | 1.0 Core | Discovery + standard claims |
-| Prometheus exposition | 0.0.4 text format | via `/metrics` endpoint |
+| OAuth 2.x / OIDC | PKCE S256 (RFC 7636); OIDC 1.0 Core | PKCE required for the authorisation code flow; discovery + standard claims |
+| Prometheus exposition | 0.0.4 text format | via `/metrics` endpoint (always mounted) |
 
 ### Runtime
 
 | Component | Version |
 |-----------|---------|
-| Rust toolchain | pinned via `rust-toolchain.toml` |
+| Rust toolchain | pinned via `rust-toolchain.toml` (nightly) |
 | Rust edition | 2024 |
-| PostgreSQL | 15, 16, 17 |
+| PostgreSQL | 18+ |
 | Minimum glibc (Linux binaries) | 2.28 |
-| Tokio | 1.x |
-| Axum | 0.7.x |
-| SQLx | 0.7.x |
+| Tokio | 1.49 |
+| Axum | 0.8 |
+| SQLx | 0.8 (postgres, compile-time macros, rustls) |
+| rmcp | 1.6 |
+| webauthn-rs | 0.5 |
 
 ### Release Targets
 
-Pre-built signed binaries published per release:
+Pre-built binaries published per release:
 
 - `aarch64-apple-darwin` (macOS, Apple Silicon)
 - `x86_64-apple-darwin` (macOS, Intel)
 - `x86_64-pc-windows-msvc` (Windows)
 - `x86_64-unknown-linux-gnu` (Linux)
 
-Other targets buildable from source.
+Other targets are buildable from source.
 
 ## Historical
 
@@ -63,10 +64,11 @@ Per-release detail is in `CHANGELOG.md`.
 - **Within a minor series**, the supported matrix above only grows. New provider models, new protocol revisions, and new release targets are additive.
 - **Removing a supported provider model** requires a `BREAKING` CHANGELOG entry and a one-minor deprecation window.
 - **Removing support for a Postgres major version** requires the same.
-- **Upstream provider deprecations** propagate at the provider's cadence, not ours. When a provider retires a model, we surface the deprecation in the CHANGELOG and in runtime warnings; we do not block requests until the provider does.
+- **Upstream provider deprecations** propagate at the provider's cadence, not ours. When a provider retires a model, the deprecation is surfaced in the CHANGELOG and in runtime warnings; requests are not blocked until the provider does.
 
 ## Revision
 
 | Date | Change |
 |------|--------|
 | 2026-04-23 | Initial public publication. |
+| 2026-05-22 | Corrected axum 0.7.x → 0.8 and sqlx 0.7.x → 0.8 against root `Cargo.toml`. Pinned Tokio to 1.49, Postgres to 18+, and added rmcp 1.6 / webauthn-rs 0.5. Restated the MCP revision as 1.6 (the version tracked via `rmcp`) and the OAuth row as OAuth 2.x / OIDC with PKCE S256. |
