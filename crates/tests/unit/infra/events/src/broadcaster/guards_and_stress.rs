@@ -163,6 +163,40 @@ async fn test_broadcaster_many_connections_stress() {
 }
 
 #[tokio::test]
+async fn test_broadcaster_rejects_beyond_per_user_cap() {
+    let broadcaster: TestBroadcaster = GenericBroadcaster::new();
+    let user_id = test_user_id();
+    let cap = TestBroadcaster::MAX_CONNECTIONS_PER_USER;
+    let mut receivers = Vec::new();
+
+    for i in 0..cap {
+        let (sender, receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+        let accepted = broadcaster
+            .register(&user_id, &ConnectionId::new(format!("conn-{i}")), sender)
+            .await;
+        assert!(accepted, "registration {i} within the cap must be accepted");
+        receivers.push(receiver);
+    }
+
+    let (over_sender, _over_rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let over_cap = broadcaster
+        .register(&user_id, &ConnectionId::new("conn-over"), over_sender)
+        .await;
+    assert!(!over_cap, "registration beyond the cap must be rejected");
+    assert_eq!(broadcaster.connection_count(&user_id).await, cap);
+
+    let (replace_sender, _replace_rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    let replace = broadcaster
+        .register(&user_id, &ConnectionId::new("conn-0"), replace_sender)
+        .await;
+    assert!(
+        replace,
+        "re-registering an existing connection id at the cap must still be accepted"
+    );
+    assert_eq!(broadcaster.connection_count(&user_id).await, cap);
+}
+
+#[tokio::test]
 async fn test_broadcaster_many_users() {
     let broadcaster: TestBroadcaster = GenericBroadcaster::new();
     let mut receivers = Vec::new();

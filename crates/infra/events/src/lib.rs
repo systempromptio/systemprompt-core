@@ -52,12 +52,14 @@ pub use sse::ToSse;
 pub trait Broadcaster: Send + Sync {
     type Event: Clone + Send;
 
+    /// Returns `false` when the user is already at the per-user connection cap;
+    /// the caller must then reject the stream rather than open it.
     fn register(
         &self,
         user_id: &UserId,
         connection_id: &ConnectionId,
         sender: EventSender,
-    ) -> impl Future<Output = ()> + Send;
+    ) -> impl Future<Output = bool> + Send;
 
     fn unregister(
         &self,

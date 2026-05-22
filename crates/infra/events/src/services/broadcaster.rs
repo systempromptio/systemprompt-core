@@ -39,6 +39,8 @@ impl<E: ToSse + Clone + Send + Sync> std::fmt::Debug for GenericBroadcaster<E> {
 }
 
 impl<E: ToSse + Clone + Send + Sync> GenericBroadcaster<E> {
+    pub const MAX_CONNECTIONS_PER_USER: usize = 10;
+
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -73,11 +75,29 @@ impl<E: ToSse + Clone + Send + Sync> Default for GenericBroadcaster<E> {
 impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaster<E> {
     type Event = E;
 
-    async fn register(&self, user_id: &UserId, connection_id: &ConnectionId, sender: EventSender) {
+    async fn register(
+        &self,
+        user_id: &UserId,
+        connection_id: &ConnectionId,
+        sender: EventSender,
+    ) -> bool {
+        let connection_key = connection_id.to_string();
         let mut connections = self.connections.write().await;
         let user_connections = connections.entry(user_id.to_string()).or_default();
-        user_connections.insert(connection_id.to_string(), sender);
+        if user_connections.len() >= Self::MAX_CONNECTIONS_PER_USER
+            && !user_connections.contains_key(&connection_key)
+        {
+            drop(connections);
+            tracing::warn!(
+                user_id = %user_id,
+                max = Self::MAX_CONNECTIONS_PER_USER,
+                "rejecting SSE registration: per-user connection cap reached"
+            );
+            return false;
+        }
+        user_connections.insert(connection_key, sender);
         drop(connections);
+        true
     }
 
     async fn unregister(&self, user_id: &UserId, connection_id: &ConnectionId) {
