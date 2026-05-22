@@ -7,9 +7,9 @@
 //! the response renders as a 302 to the client's `redirect_uri` with the same
 //! error fields encoded as query parameters.
 //!
-//! `From` impls (in [`conversions`]) bridge the underlying domain errors
-//! (`OauthError`, `AuthProviderError`, `SecretsBootstrapError`) so handlers use
-//! `?` and the variant-to-RFC-code mapping lives in one place.
+//! `From` impls (in the `conversions` submodule) bridge the underlying domain
+//! errors (`OauthError`, `AuthProviderError`, `SecretsBootstrapError`) so
+//! handlers use `?` and the variant-to-RFC-code mapping lives in one place.
 
 use axum::Json;
 use axum::http::{HeaderValue, StatusCode, header};
