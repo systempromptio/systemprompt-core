@@ -187,6 +187,40 @@ scenario. Not blocking, but cheap.
 
 ---
 
+## 8. `x-forwarded-for` is trusted without a proxy allowlist
+
+**Severity:** medium — IP-based controls are bypassable. The rate
+limiter, IP-ban middleware, and bot detector all derive the client IP
+from the `x-forwarded-for` header without verifying the request arrived
+through a trusted proxy. A client connecting directly can set the header
+to any value and evade all IP-keyed protections.
+
+**Where:** `crates/entry/api/src/services/middleware/rate_limit.rs`,
+`crates/entry/api/src/services/middleware/ip_ban.rs`, and the bot
+detector.
+
+**Fix:** a `TrustedProxies` layer that only honours `x-forwarded-for`
+when the peer address is in a configured proxy allowlist (profile-driven),
+applied ahead of the IP-keyed middleware.
+
+---
+
+## 9. No JWT revocation path
+
+**Severity:** medium — a leaked or stale token stays valid until `exp`.
+There is no denylist and no revocation endpoint, so logout and
+permission-change events cannot terminate an outstanding token
+server-side.
+
+**Where:** JWT validation in `crates/infra/security/src/auth/validation.rs`;
+OAuth session lifecycle in `crates/domain/oauth/src/services/`.
+
+**Fix:** a short-lived `jti` denylist (in-memory LRU, optionally backed by
+a shared store) consulted during validation, populated on logout /
+permission change; keep access-token TTLs short with refresh rotation.
+
+---
+
 ## Triage suggestion
 
 | # | Area | Effort | Blast radius |
@@ -198,6 +232,8 @@ scenario. Not blocking, but cheap.
 | 5 | Anon variant           | S | Low |
 | 6 | user_type re-derivation| XS| Low (defence-in-depth) |
 | 7 | Delegation demo        | S | None (capability proof) |
+| 8 | x-forwarded-for trust  | M | Medium (IP-control bypass) |
+| 9 | JWT revocation         | M | Medium (stale-token window) |
 
 Recommend bundling **#2 + #6** into one auth-extractor hardening PR
 (both touch `jwt/token.rs`, both add to the validation pass) and
