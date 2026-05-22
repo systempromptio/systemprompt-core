@@ -5,7 +5,7 @@ use clap::Args;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 
 use super::call_client::{
@@ -58,7 +58,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         .await
         .context("Failed to initialize application context")?;
 
-    let manager = McpManager::new(
+    let manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

@@ -4,7 +4,7 @@ mod event_bus;
 mod events;
 mod events_extended;
 mod monitor_types;
-mod port_manager_types;
+mod port_service_types;
 mod reconciler_types;
 mod status;
 mod status_extended;

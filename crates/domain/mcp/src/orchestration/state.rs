@@ -4,11 +4,11 @@ use systemprompt_database::{DbPool, ServiceRepository};
 use super::models::McpServiceState;
 
 #[derive(Debug, Clone)]
-pub struct ServiceStateManager {
+pub struct ServiceStateService {
     service_repo: ServiceRepository,
 }
 
-impl ServiceStateManager {
+impl ServiceStateService {
     pub fn new(db_pool: &DbPool) -> McpDomainResult<Self> {
         Ok(Self {
             service_repo: ServiceRepository::new(db_pool)?,

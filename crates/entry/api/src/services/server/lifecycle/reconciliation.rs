@@ -7,14 +7,14 @@ struct ReconcileSuccessParams<'a> {
     running_count: usize,
     required_count: usize,
     required_servers: &'a [systemprompt_mcp::McpServerConfig],
-    mcp_orchestrator: &'a Arc<systemprompt_mcp::services::McpManager>,
+    mcp_orchestrator: &'a Arc<systemprompt_mcp::services::McpOrchestrator>,
     ctx: &'a AppContext,
     events: Option<&'a StartupEventSender>,
 }
 
 pub async fn reconcile_system_services(
     ctx: &AppContext,
-    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
+    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     events.phase_started(Phase::McpServers);
@@ -85,7 +85,7 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
 #[allow(clippy::collection_is_never_read)]
 async fn handle_missing_servers(
     required_servers: &[systemprompt_mcp::McpServerConfig],
-    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
+    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     let running_servers = mcp_orchestrator.get_running_servers().await?;

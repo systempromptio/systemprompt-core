@@ -1,4 +1,4 @@
-use systemprompt_mcp::services::process::pid_manager::{
+use systemprompt_mcp::services::process::pid::{
     find_pid_by_port, find_pids_by_name, find_process_on_port_with_name, get_port_by_pid,
     get_process_name_by_pid,
 };

@@ -7,7 +7,7 @@ use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
@@ -214,7 +214,7 @@ pub async fn execute_individual_mcp(
         CliService::section(&format!("Stopping MCP Server: {}", server_name));
     }
 
-    let manager = McpManager::new(
+    let manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

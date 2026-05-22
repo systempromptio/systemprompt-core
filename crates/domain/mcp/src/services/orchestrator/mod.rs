@@ -26,22 +26,22 @@ pub use events::McpEvent;
 pub use handlers::{DatabaseSyncHandler, HealthCheckHandler, LifecycleHandler, MonitoringHandler};
 pub use reconciliation::ReconcileParams;
 
-use super::database::DatabaseManager;
-use super::lifecycle::LifecycleManager;
-use super::monitoring::MonitoringManager;
-use super::network::NetworkManager;
-use super::process::ProcessManager;
-use super::registry::RegistryManager;
+use super::database::DatabaseService;
+use super::lifecycle::LifecycleOrchestrator;
+use super::monitoring::MonitoringService;
+use super::network::NetworkService;
+use super::process::ProcessService;
+use super::registry::RegistryService;
 use crate::McpServerConfig;
 
 #[derive(Debug)]
 pub struct McpOrchestrator {
     event_bus: Arc<EventBus>,
-    lifecycle: LifecycleManager,
-    database: DatabaseManager,
-    monitoring: MonitoringManager,
+    lifecycle: LifecycleOrchestrator,
+    database: DatabaseService,
+    monitoring: MonitoringService,
     db_pool: DbPool,
-    registry: RegistryManager,
+    registry: RegistryService,
 }
 
 impl McpOrchestrator {
@@ -49,20 +49,20 @@ impl McpOrchestrator {
     pub fn new(
         db_pool: DbPool,
         app_paths: Arc<AppPaths>,
-        registry: RegistryManager,
+        registry: RegistryService,
     ) -> McpDomainResult<Self> {
         let mut event_bus = EventBus::new(100);
 
         registry.validate()?;
-        let database = DatabaseManager::new(
+        let database = DatabaseService::new(
             Arc::clone(&db_pool),
             Arc::clone(&app_paths),
             registry.clone(),
         );
-        let network = NetworkManager::new();
-        let process = ProcessManager::new();
-        let monitoring = MonitoringManager::new();
-        let lifecycle = LifecycleManager::new(
+        let network = NetworkService::new();
+        let process = ProcessService::new();
+        let monitoring = MonitoringService::new();
+        let lifecycle = LifecycleOrchestrator::new(
             process,
             network,
             database.clone(),
@@ -92,7 +92,7 @@ impl McpOrchestrator {
         })
     }
 
-    pub const fn registry(&self) -> &RegistryManager {
+    pub const fn registry(&self) -> &RegistryService {
         &self.registry
     }
 
@@ -100,18 +100,18 @@ impl McpOrchestrator {
         &self.event_bus
     }
 
-    pub(super) const fn lifecycle(&self) -> &LifecycleManager {
+    pub(super) const fn lifecycle(&self) -> &LifecycleOrchestrator {
         &self.lifecycle
     }
 
-    pub(super) const fn database(&self) -> &DatabaseManager {
+    pub(super) const fn database(&self) -> &DatabaseService {
         &self.database
     }
 
     pub async fn list_services(&self) -> McpDomainResult<()> {
         let servers = self.registry.get_enabled_servers()?;
         let status_data = self.monitoring.get_status_for_all(&servers).await?;
-        MonitoringManager::display_status(&servers, &status_data);
+        MonitoringService::display_status(&servers, &status_data);
         Ok(())
     }
 

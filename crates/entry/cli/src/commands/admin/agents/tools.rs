@@ -12,7 +12,7 @@ use crate::commands::plugins::mcp::types::McpToolEntry;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -70,7 +70,7 @@ pub async fn execute(
         .await
         .context("Failed to initialize application context")?;
 
-    let manager = McpManager::new(
+    let manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

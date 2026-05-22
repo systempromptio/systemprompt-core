@@ -11,7 +11,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
-use systemprompt_mcp::services::registry::RegistryManager;
+use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
@@ -160,7 +160,7 @@ impl AppContextBuilder {
         };
 
         let system_admin = resolve_and_install_system_admin(&config, user_service.as_ref()).await?;
-        let mcp_registry = RegistryManager::new(system_admin.id().clone());
+        let mcp_registry = RegistryService::new(system_admin.id().clone());
 
         let marketplace_filter = self
             .marketplace_filter

@@ -7,7 +7,7 @@ use super::types::McpStatusOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Args)]
@@ -31,7 +31,7 @@ pub async fn execute(
 
     let bin_path = ctx.app_paths().build().bin().to_path_buf();
 
-    let manager = McpManager::new(
+    let manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

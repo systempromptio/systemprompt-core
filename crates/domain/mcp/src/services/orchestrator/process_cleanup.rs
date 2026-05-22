@@ -3,12 +3,12 @@ use tracing::Instrument;
 
 use crate::McpServerConfig;
 use crate::services::database::state::get_binary_mtime_for_service;
-use crate::services::database::{DatabaseManager, ServiceInfo};
-use crate::services::process::ProcessManager;
+use crate::services::database::{DatabaseService, ServiceInfo};
+use crate::services::process::ProcessService;
 
 pub async fn detect_and_handle_orphaned_processes(
     servers: &[McpServerConfig],
-    database: &DatabaseManager,
+    database: &DatabaseService,
 ) -> McpDomainResult<usize> {
     let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
@@ -26,10 +26,10 @@ pub async fn detect_and_handle_orphaned_processes(
 
 async fn kill_orphaned_process(
     server: &McpServerConfig,
-    database: &DatabaseManager,
+    database: &DatabaseService,
 ) -> McpDomainResult<bool> {
     let Some(orphaned_pid) =
-        ProcessManager::find_process_on_port_with_name(server.port, &server.name)?
+        ProcessService::find_process_on_port_with_name(server.port, &server.name)?
     else {
         return Ok(false);
     };
@@ -45,7 +45,7 @@ async fn kill_orphaned_process(
         "Found orphaned process"
     );
 
-    ProcessManager::force_kill(orphaned_pid)?;
+    ProcessService::force_kill(orphaned_pid)?;
 
     tracing::info!(
         service_name = %server.name,
@@ -59,7 +59,7 @@ async fn kill_orphaned_process(
 
 pub async fn detect_and_handle_stale_binaries(
     servers: &[McpServerConfig],
-    database: &DatabaseManager,
+    database: &DatabaseService,
 ) -> McpDomainResult<usize> {
     let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
@@ -77,7 +77,7 @@ pub async fn detect_and_handle_stale_binaries(
 
 async fn restart_stale_binary(
     server: &McpServerConfig,
-    database: &DatabaseManager,
+    database: &DatabaseService,
 ) -> McpDomainResult<bool> {
     let service_info = match database.get_service_by_name(&server.name).await? {
         Some(info) if info.status == "running" => info,
@@ -123,11 +123,11 @@ fn get_stale_binary_mtimes(
 
 async fn kill_and_unregister(
     server: &McpServerConfig,
-    database: &DatabaseManager,
+    database: &DatabaseService,
     service_info: &ServiceInfo,
 ) -> McpDomainResult<()> {
     if let Some(pid) = service_info.pid {
-        ProcessManager::force_kill(pid as u32)?;
+        ProcessService::force_kill(pid as u32)?;
     }
     database.unregister_service(&server.name).await
 }

@@ -9,12 +9,12 @@ use systemprompt_models::mcp::{
 use systemprompt_models::{RequestContext, ServicesConfig};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
-use super::RegistryManager;
+use super::RegistryService;
 use crate::services::client::McpClient;
 use crate::services::deployment::DeploymentService;
 
 #[async_trait]
-impl McpRegistry for RegistryManager {
+impl McpRegistry for RegistryService {
     async fn list_servers(&self) -> ProviderResult<Vec<String>> {
         use systemprompt_loader::ConfigLoader;
         let config = ConfigLoader::load()
@@ -42,7 +42,7 @@ impl McpRegistry for RegistryManager {
 }
 
 #[async_trait]
-impl McpToolProvider for RegistryManager {
+impl McpToolProvider for RegistryService {
     async fn list_tools(
         &self,
         server_name: &str,
@@ -115,7 +115,7 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
 }
 
 #[async_trait]
-impl McpRegistryProvider for RegistryManager {
+impl McpRegistryProvider for RegistryService {
     async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
         let server =
             Self::get_server(self, name).map_err(|e| RegistryError::NotFound(e.to_string()))?;

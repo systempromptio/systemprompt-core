@@ -1,11 +1,11 @@
-use super::LifecycleManager;
+use super::LifecycleOrchestrator;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
-use crate::services::process::ProcessManager;
+use crate::services::process::ProcessService;
 
 pub async fn check_server_health(
-    manager: &LifecycleManager,
+    manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
     if !is_process_running(manager, config).await? {
@@ -28,10 +28,10 @@ pub async fn check_server_health(
 }
 
 async fn is_process_running(
-    manager: &LifecycleManager,
+    manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
-    let Some(pid) = ProcessManager::find_pid_by_port(config.port)? else {
+    let Some(pid) = ProcessService::find_pid_by_port(config.port)? else {
         manager
             .database()
             .update_service_status(&config.name, "stopped")
@@ -39,7 +39,7 @@ async fn is_process_running(
         return Ok(false);
     };
 
-    if !ProcessManager::is_running(pid) {
+    if !ProcessService::is_running(pid) {
         manager
             .database()
             .update_service_status(&config.name, "stopped")
@@ -51,7 +51,7 @@ async fn is_process_running(
 }
 
 async fn mark_service_error(
-    manager: &LifecycleManager,
+    manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
     health_result: &HealthCheckResult,
 ) -> McpDomainResult<()> {

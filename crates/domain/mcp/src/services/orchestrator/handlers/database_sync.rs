@@ -1,17 +1,17 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
-use crate::services::database::DatabaseManager;
+use crate::services::database::DatabaseService;
 
 use super::{EventHandler, McpEvent};
 
 #[derive(Debug)]
 pub struct DatabaseSyncHandler {
-    database: DatabaseManager,
+    database: DatabaseService,
 }
 
 impl DatabaseSyncHandler {
-    pub const fn new(database: DatabaseManager) -> Self {
+    pub const fn new(database: DatabaseService) -> Self {
         Self { database }
     }
 }

@@ -8,23 +8,23 @@ pub mod sync;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::registry::RegistryManager;
+use crate::services::registry::RegistryService;
 use std::sync::Arc;
 use systemprompt_database::ServiceRepository;
 use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone)]
-pub struct DatabaseManager {
+pub struct DatabaseService {
     db_pool: systemprompt_database::DbPool,
     app_paths: Arc<AppPaths>,
-    registry: RegistryManager,
+    registry: RegistryService,
 }
 
-impl DatabaseManager {
+impl DatabaseService {
     pub const fn new(
         db_pool: systemprompt_database::DbPool,
         app_paths: Arc<AppPaths>,
-        registry: RegistryManager,
+        registry: RegistryService,
     ) -> Self {
         Self {
             db_pool,

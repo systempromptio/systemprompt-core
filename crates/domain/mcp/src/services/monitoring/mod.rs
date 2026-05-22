@@ -12,9 +12,9 @@ use crate::error::McpDomainResult;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct MonitoringManager;
+pub struct MonitoringService;
 
-impl MonitoringManager {
+impl MonitoringService {
     pub const fn new() -> Self {
         Self
     }

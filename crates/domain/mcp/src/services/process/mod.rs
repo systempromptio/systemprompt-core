@@ -3,7 +3,7 @@
 
 pub mod cleanup;
 pub mod monitor;
-pub mod pid_manager;
+pub mod pid;
 pub mod spawner;
 pub mod utils;
 
@@ -12,9 +12,9 @@ use crate::error::McpDomainResult;
 use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ProcessManager;
+pub struct ProcessService;
 
-impl ProcessManager {
+impl ProcessService {
     pub const fn new() -> Self {
         Self
     }
@@ -28,11 +28,11 @@ impl ProcessManager {
     }
 
     pub fn find_pid_by_port(port: u16) -> McpDomainResult<Option<u32>> {
-        pid_manager::find_pid_by_port(port)
+        pid::find_pid_by_port(port)
     }
 
     pub fn find_process_on_port_with_name(port: u16, name: &str) -> McpDomainResult<Option<u32>> {
-        pid_manager::find_process_on_port_with_name(port, name)
+        pid::find_process_on_port_with_name(port, name)
     }
 
     pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {

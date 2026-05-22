@@ -12,19 +12,19 @@ use super::process_cleanup::{
 use super::schema_sync::validate_schemas;
 use super::server_startup::{StartPendingServersParams, start_pending_servers};
 use crate::McpServerConfig;
-use crate::services::database::DatabaseManager;
-use crate::services::lifecycle::LifecycleManager;
-use crate::services::network::port_manager::{self, POST_KILL_DELAY_MS};
-use crate::services::process::ProcessManager;
-use crate::services::registry::RegistryManager;
+use crate::services::database::DatabaseService;
+use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::network::port::{self, POST_KILL_DELAY_MS};
+use crate::services::process::ProcessService;
+use crate::services::registry::RegistryService;
 
 #[derive(Debug)]
 pub struct ReconcileParams<'a> {
-    pub database: &'a DatabaseManager,
-    pub lifecycle: &'a LifecycleManager,
+    pub database: &'a DatabaseService,
+    pub lifecycle: &'a LifecycleOrchestrator,
     pub event_bus: &'a Arc<EventBus>,
     pub db_pool: &'a DbPool,
-    pub registry: &'a RegistryManager,
+    pub registry: &'a RegistryService,
     pub events: Option<&'a StartupEventSender>,
 }
 
@@ -82,7 +82,7 @@ fn notify_cleanup(events: Option<&StartupEventSender>, count: usize, reason: &st
 }
 
 async fn cleanup_orphaned_and_stale(
-    database: &DatabaseManager,
+    database: &DatabaseService,
     servers: &[McpServerConfig],
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
@@ -128,7 +128,7 @@ fn log_and_notify_cleanup(
 }
 
 async fn kill_all_running_servers(
-    database: &DatabaseManager,
+    database: &DatabaseService,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
     let running_servers = database.get_running_servers().await?;
@@ -136,7 +136,7 @@ async fn kill_all_running_servers(
     for server in running_servers {
         let port = server.port;
         kill_single_server(database, &server.name, events).await?;
-        if let Err(e) = port_manager::wait_for_port_release(port).await {
+        if let Err(e) = port::wait_for_port_release(port).await {
             tracing::warn!(port = port, error = %e, "Port release wait failed, continuing");
         }
     }
@@ -146,7 +146,7 @@ async fn kill_all_running_servers(
 }
 
 async fn kill_single_server(
-    database: &DatabaseManager,
+    database: &DatabaseService,
     server_name: &str,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
@@ -160,11 +160,11 @@ async fn kill_single_server(
                     tracing::warn!(error = %e, "Failed to send cleanup notification");
                 }
             }
-            if let Err(e) = ProcessManager::terminate_gracefully(pid as u32) {
+            if let Err(e) = ProcessService::terminate_gracefully(pid as u32) {
                 tracing::warn!(pid = pid, error = %e, "Failed to terminate process gracefully");
             }
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-            if let Err(e) = ProcessManager::force_kill(pid as u32) {
+            if let Err(e) = ProcessService::force_kill(pid as u32) {
                 tracing::warn!(pid = pid, error = %e, "Failed to force kill process");
             }
         }

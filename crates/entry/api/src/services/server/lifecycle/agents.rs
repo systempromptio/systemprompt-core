@@ -171,7 +171,7 @@ async fn enforce_clean_agent_state(
     desired_port: u16,
     events: Option<&StartupEventSender>,
 ) -> Result<bool> {
-    use systemprompt_agent::services::agent_orchestration::{AgentStatus, PortManager};
+    use systemprompt_agent::services::agent_orchestration::{AgentStatus, PortService};
 
     if let Ok(status) = orchestrator.get_status(agent).await {
         match status {
@@ -198,7 +198,7 @@ async fn enforce_clean_agent_state(
         }
     }
 
-    let port_manager = PortManager::new();
+    let port_manager = PortService::new();
     if let Err(e) = port_manager.cleanup_port_if_needed(desired_port).await {
         events.error(
             format!("Failed to cleanup port {desired_port} for agent {agent}: {e}"),

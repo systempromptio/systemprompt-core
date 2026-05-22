@@ -1,13 +1,13 @@
 use crate::error::McpDomainResult;
 
 use crate::services::client::validate_connection_with_auth;
-use crate::services::database::DatabaseManager;
-use crate::services::registry::RegistryManager;
+use crate::services::database::DatabaseService;
+use crate::services::registry::RegistryService;
 
 pub async fn validate_service(
     service_name: &str,
-    database: &DatabaseManager,
-    registry: &RegistryManager,
+    database: &DatabaseService,
+    registry: &RegistryService,
 ) -> McpDomainResult<()> {
     let servers = registry.get_enabled_servers()?;
     let server = servers

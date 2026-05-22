@@ -7,8 +7,8 @@ use std::sync::Arc;
 use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 
 use super::process_cleanup::ProcessCleanup;
-use super::state_manager::{ServiceConfig, ServiceStateManager};
 use super::state_types::ServiceAction;
+use super::state_verifier::{ServiceConfig, ServiceStateVerifier};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
 
@@ -48,14 +48,14 @@ impl ReconciliationResult {
 
 #[derive(Debug)]
 pub struct ServiceReconciler {
-    state_manager: ServiceStateManager,
+    state_verifier: ServiceStateVerifier,
     db_pool: DbPool,
 }
 
 impl ServiceReconciler {
     pub fn new(db_pool: DbPool) -> Self {
         Self {
-            state_manager: ServiceStateManager::new(Arc::clone(&db_pool)),
+            state_verifier: ServiceStateVerifier::new(Arc::clone(&db_pool)),
             db_pool,
         }
     }
@@ -69,7 +69,7 @@ impl ServiceReconciler {
         F: Fn(String, u16) -> Fut + Send + Sync,
         Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
     {
-        let states = self.state_manager.get_verified_states(configs).await?;
+        let states = self.state_verifier.get_verified_states(configs).await?;
         let mut result = ReconciliationResult::new();
 
         for state in states {

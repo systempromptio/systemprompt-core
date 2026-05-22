@@ -35,11 +35,11 @@ pub struct DbServiceRecord {
 }
 
 #[derive(Debug)]
-pub struct ServiceStateManager {
+pub struct ServiceStateVerifier {
     db_pool: DbPool,
 }
 
-impl ServiceStateManager {
+impl ServiceStateVerifier {
     pub const fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }

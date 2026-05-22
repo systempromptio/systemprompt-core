@@ -8,11 +8,11 @@ use crate::error::McpDomainResult;
 use crate::services::deployment::DeploymentService;
 
 #[derive(Debug, Clone)]
-pub struct RegistryService {
+pub struct RegistryResolver {
     owner: UserId,
 }
 
-impl RegistryService {
+impl RegistryResolver {
     #[must_use]
     pub const fn new(owner: UserId) -> Self {
         Self { owner }

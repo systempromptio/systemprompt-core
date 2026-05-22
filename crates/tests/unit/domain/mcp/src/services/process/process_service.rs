@@ -1,57 +1,57 @@
-//! Unit tests for ProcessManager
+//! Unit tests for ProcessService
 
-use systemprompt_mcp::services::process::ProcessManager;
+use systemprompt_mcp::services::process::ProcessService;
 
 #[test]
 fn test_process_manager_new() {
-    let manager = ProcessManager::new();
+    let manager = ProcessService::new();
     let debug = format!("{:?}", manager);
-    assert!(debug.contains("ProcessManager"));
+    assert!(debug.contains("ProcessService"));
 }
 
 #[test]
 fn test_process_manager_default() {
-    let manager = ProcessManager::default();
+    let manager = ProcessService::default();
     let debug = format!("{:?}", manager);
-    assert!(debug.contains("ProcessManager"));
+    assert!(debug.contains("ProcessService"));
 }
 
 #[test]
 fn test_process_manager_clone() {
-    let manager = ProcessManager::new();
+    let manager = ProcessService::new();
     let cloned = manager.clone();
     let debug = format!("{:?}", cloned);
-    assert!(debug.contains("ProcessManager"));
+    assert!(debug.contains("ProcessService"));
 }
 
 #[test]
 fn test_process_manager_is_running_nonexistent_pid_high() {
-    let result = ProcessManager::is_running(4_194_305);
+    let result = ProcessService::is_running(4_194_305);
     assert!(!result);
 }
 
 #[test]
 fn test_process_manager_is_running_nonexistent_pid_higher() {
-    let result = ProcessManager::is_running(4_194_306);
+    let result = ProcessService::is_running(4_194_306);
     assert!(!result);
 }
 
 #[test]
 fn test_process_manager_is_running_current_process() {
     let pid = std::process::id();
-    let result = ProcessManager::is_running(pid);
+    let result = ProcessService::is_running(pid);
     assert!(result);
 }
 
 #[test]
 fn test_process_manager_find_pid_by_port_unused() {
-    let result = ProcessManager::find_pid_by_port(59999);
+    let result = ProcessService::find_pid_by_port(59999);
     result.expect("expected success");
 }
 
 #[test]
 fn test_process_manager_find_process_on_port_with_name_unused() {
-    let result = ProcessManager::find_process_on_port_with_name(59998, "nonexistent");
+    let result = ProcessService::find_process_on_port_with_name(59998, "nonexistent");
     let val = result.expect("expected success");
     assert!(val.is_none());
 }

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
-use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 
 use super::super::types::RestartOutput;
@@ -77,7 +77,7 @@ pub async fn execute_all_mcp(
         CliService::section("Restarting All MCP Servers");
     }
 
-    let mcp_manager = McpManager::new(
+    let mcp_manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
@@ -232,7 +232,7 @@ async fn restart_failed_mcp(
     failed_count: &mut usize,
     quiet: bool,
 ) -> Result<()> {
-    let mcp_manager = McpManager::new(
+    let mcp_manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
@@ -247,7 +247,7 @@ async fn restart_failed_mcp(
             continue;
         }
 
-        let database = systemprompt_mcp::services::DatabaseManager::new(
+        let database = systemprompt_mcp::services::DatabaseService::new(
             Arc::clone(ctx.db_pool()),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),

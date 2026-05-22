@@ -24,7 +24,7 @@ use crate::error::McpDomainError;
 use crate::services::client::{
     McpClient, rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
 };
-pub use crate::services::registry::RegistryManager;
+pub use crate::services::registry::RegistryService;
 
 use context::{create_request_context, load_agent_servers};
 use conversions::{to_tool_definition, to_tool_result};
@@ -50,7 +50,7 @@ type GuardMap = Arc<Mutex<HashMap<String, Arc<ResilienceGuard>>>>;
 #[derive(Debug, Clone)]
 pub struct McpToolProvider {
     db_pool: DbPool,
-    registry: RegistryManager,
+    registry: RegistryService,
     resilience: ResilienceSettings,
     guards: GuardMap,
 }
@@ -58,7 +58,7 @@ pub struct McpToolProvider {
 impl McpToolProvider {
     pub fn new(
         db_pool: DbPool,
-        registry: RegistryManager,
+        registry: RegistryService,
         resilience: &ResilienceSettings,
     ) -> Self {
         Self {
@@ -232,7 +232,7 @@ impl ToolProvider for McpToolProvider {
 }
 
 async fn validate_server_connection(
-    registry: &RegistryManager,
+    registry: &RegistryService,
     server_name: &str,
     api_server_url: &str,
 ) {

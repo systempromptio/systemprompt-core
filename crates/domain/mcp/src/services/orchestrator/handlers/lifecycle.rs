@@ -1,19 +1,19 @@
 use crate::error::McpDomainResult;
 use async_trait::async_trait;
 
-use crate::services::lifecycle::LifecycleManager;
-use crate::services::registry::RegistryManager;
+use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::registry::RegistryService;
 
 use super::{EventHandler, McpEvent};
 
 #[derive(Debug)]
 pub struct LifecycleHandler {
-    lifecycle: LifecycleManager,
-    registry: RegistryManager,
+    lifecycle: LifecycleOrchestrator,
+    registry: RegistryService,
 }
 
 impl LifecycleHandler {
-    pub const fn new(lifecycle: LifecycleManager, registry: RegistryManager) -> Self {
+    pub const fn new(lifecycle: LifecycleOrchestrator, registry: RegistryService) -> Self {
         Self {
             lifecycle,
             registry,
