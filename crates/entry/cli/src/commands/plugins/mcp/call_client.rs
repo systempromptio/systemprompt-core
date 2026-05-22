@@ -56,10 +56,14 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
     let mut params = CallToolRequestParams::new(tool_name.to_string());
     params.arguments = arguments.and_then(|v| v.as_object().cloned());
 
-    let result = client
-        .call_tool(params)
-        .await
-        .context("Tool execution failed")?;
+    let result = client.call_tool(params).await.map_err(|e| {
+        anyhow::anyhow!(
+            "MCP tool '{}' on '{}' rejected the call: {}",
+            tool_name,
+            server_name,
+            e
+        )
+    })?;
 
     client.cancel().await?;
     Ok(result)

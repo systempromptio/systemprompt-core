@@ -13,7 +13,10 @@ pub struct ShowArgs {
     #[arg(help = "Content ID or slug")]
     pub identifier: String,
 
-    #[arg(long, help = "Source ID (required when using slug)")]
+    #[arg(
+        long,
+        help = "Source ID — only required when the slug exists in more than one source"
+    )]
     pub source: Option<String>,
 }
 
@@ -31,6 +34,7 @@ pub async fn execute_with_pool(
     _config: &CliConfig,
 ) -> Result<CommandResult<ContentDetailOutput>> {
     let repo = ContentRepository::new(pool)?;
+    let locale = LocaleCode::new("en");
 
     let content = if args.identifier.starts_with("content_")
         || args.identifier.contains('-') && args.identifier.len() > 30
@@ -39,21 +43,39 @@ pub async fn execute_with_pool(
         repo.get_by_id(&id)
             .await?
             .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?
-    } else {
-        let source_id = args
-            .source
-            .as_ref()
-            .ok_or_else(|| anyhow!("Source ID required when using slug"))?;
+    } else if let Some(source_id) = args.source.as_ref() {
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &args.identifier, &LocaleCode::new("en"))
+        repo.get_by_source_and_slug(&source, &args.identifier, &locale)
             .await?
             .ok_or_else(|| {
                 anyhow!(
-                    "Content not found: {} in source {}",
+                    "Content not found: slug '{}' in source '{}'",
                     args.identifier,
                     source_id
                 )
             })?
+    } else {
+        let sources = repo.find_sources_by_slug(&args.identifier, &locale).await?;
+        match sources.as_slice() {
+            [] => return Err(anyhow!("No content with slug '{}' found", args.identifier)),
+            [only] => repo
+                .get_by_source_and_slug(only, &args.identifier, &locale)
+                .await?
+                .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?,
+            many => {
+                let list = many
+                    .iter()
+                    .map(SourceId::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Err(anyhow!(
+                    "Slug '{}' exists in multiple sources: [{}]. Re-run with --source <SOURCE> to \
+                     disambiguate.",
+                    args.identifier,
+                    list
+                ));
+            },
+        }
     };
 
     let keywords: Vec<String> = content

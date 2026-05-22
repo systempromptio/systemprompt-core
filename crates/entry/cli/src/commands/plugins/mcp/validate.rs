@@ -19,6 +19,13 @@ pub struct ValidateArgs {
     #[arg(help = "MCP server name")]
     pub server: Option<String>,
 
+    #[arg(
+        long = "service",
+        conflicts_with = "server",
+        help = "Alias for the positional MCP server name"
+    )]
+    pub service: Option<String>,
+
     #[arg(long, help = "Validate all configured servers")]
     pub all: bool,
 
@@ -42,11 +49,13 @@ pub async fn execute(
         ctx.mcp_registry().clone(),
     );
 
+    let server_arg = args.server.or(args.service);
+
     let servers_to_validate: Vec<String> =
-        if args.all || (args.server.is_none() && !config.is_interactive()) {
+        if args.all || (server_arg.is_none() && !config.is_interactive()) {
             services_config.mcp_servers.keys().cloned().collect()
         } else {
-            let service = resolve_required(args.server, "server", config, || {
+            let service = resolve_required(server_arg, "server", config, || {
                 prompt_server_selection(&services_config)
             })?;
 

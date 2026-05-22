@@ -15,7 +15,7 @@ use super::types::{McpCallOutput, McpToolContent};
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::session::{CliSessionContext, get_or_create_session};
-use crate::shared::CommandResult;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 #[command(
@@ -104,34 +104,69 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
 
     let execution_time_ms = start_time.elapsed().as_millis() as u64;
 
-    let output = match result {
+    let (output, failure) = match result {
         Ok(tool_result) => {
             let content: Vec<McpToolContent> = tool_result
                 .content
                 .iter()
                 .map(|c| convert_content(&c.raw))
                 .collect();
+            let is_error = tool_result.is_error.unwrap_or(false);
+            let failure = is_error.then(|| {
+                let detail = content
+                    .iter()
+                    .filter_map(|c| c.text.as_deref())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if detail.is_empty() {
+                    format!(
+                        "MCP tool '{}' on '{}' reported is_error=true with no message",
+                        tool_name, server_name
+                    )
+                } else {
+                    format!(
+                        "MCP tool '{}' on '{}' reported is_error=true: {}",
+                        tool_name, server_name, detail
+                    )
+                }
+            });
 
-            McpCallOutput {
-                server: server_name.clone(),
-                tool: tool_name.clone(),
-                success: !tool_result.is_error.unwrap_or(false),
-                content,
-                execution_time_ms,
-                error: None,
-            }
+            (
+                McpCallOutput {
+                    server: server_name.clone(),
+                    tool: tool_name.clone(),
+                    success: !is_error,
+                    content,
+                    execution_time_ms,
+                    error: failure.clone(),
+                },
+                failure,
+            )
         },
-        Err(e) => McpCallOutput {
-            server: server_name.clone(),
-            tool: tool_name.clone(),
-            success: false,
-            content: vec![],
-            execution_time_ms,
-            error: Some(e.to_string()),
+        Err(e) => {
+            let msg = e.to_string();
+            (
+                McpCallOutput {
+                    server: server_name.clone(),
+                    tool: tool_name.clone(),
+                    success: false,
+                    content: vec![],
+                    execution_time_ms,
+                    error: Some(msg.clone()),
+                },
+                Some(msg),
+            )
         },
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Tool Execution: {}", tool_name)))
+    let card = CommandResult::card(output).with_title(format!("Tool Execution: {}", tool_name));
+
+    if let Some(msg) = failure {
+        render_result(&card);
+        return Err(anyhow!(msg));
+    }
+
+    Ok(card)
 }
 
 fn prompt_server_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

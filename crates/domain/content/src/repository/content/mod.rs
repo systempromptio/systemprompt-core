@@ -71,6 +71,14 @@ impl ContentRepository {
         queries::list_by_source_limited(&self.pool, source_id, locale, limit).await
     }
 
+    pub async fn find_sources_by_slug(
+        &self,
+        slug: &str,
+        locale: &LocaleCode,
+    ) -> Result<Vec<SourceId>, sqlx::Error> {
+        queries::find_sources_by_slug(&self.pool, slug, locale).await
+    }
+
     pub async fn list_slugs_with_locales_by_source(
         &self,
         source_id: &SourceId,

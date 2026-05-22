@@ -40,19 +40,11 @@ pub async fn execute_query(
             if msg.contains("does not exist") {
                 let table_name = extract_relation_name(&msg);
                 suggest_table_name(&table_name).map_or_else(
-                    || anyhow!("Table or relation '{}' does not exist", table_name),
-                    |suggestion| {
-                        anyhow!(
-                            "Table or relation '{}' does not exist\nHint: Did you mean '{}'?",
-                            table_name,
-                            suggestion
-                        )
-                    },
+                    || anyhow!("{}", msg),
+                    |suggestion| anyhow!("{}\nHint: Did you mean '{}'?", msg, suggestion),
                 )
-            } else if msg.contains("syntax error") {
-                anyhow!("SQL syntax error: {}", msg)
             } else {
-                anyhow!("Query failed: {}", msg)
+                anyhow!("{}", msg)
             }
         })?;
 
@@ -68,18 +60,10 @@ pub async fn execute_write(
     sql: &str,
     _config: &CliConfig,
 ) -> Result<CommandResult<DbExecuteOutput>> {
-    let result = executor.execute_write(sql).await.map_err(|e| {
-        let msg = e.to_string();
-        if msg.contains("does not exist") {
-            anyhow!("Table or column not found: {}", extract_relation_name(&msg))
-        } else if msg.contains("syntax error") {
-            anyhow!("SQL syntax error: {}", msg)
-        } else if msg.contains("violates") {
-            anyhow!("Constraint violation: {}", msg)
-        } else {
-            anyhow!("Execution failed: {}", msg)
-        }
-    })?;
+    let result = executor
+        .execute_write(sql)
+        .await
+        .map_err(|e| anyhow!("{}", e))?;
 
     let output = DbExecuteOutput {
         rows_affected: result.row_count as u64,

@@ -69,7 +69,7 @@ pub fn execute(
         sitemap_validation::validate_sitemap(profile, &mut errors, &mut warnings);
     }
 
-    let valid = errors.is_empty() && warnings.is_empty();
+    let valid = errors.is_empty();
     let items_checked = match category {
         ValidationCategory::All => 4,
         _ => 1,

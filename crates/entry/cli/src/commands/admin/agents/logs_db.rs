@@ -38,14 +38,16 @@ pub async fn execute_db_mode(
     let logs: Vec<String> = entries
         .iter()
         .map(|e| {
+            let message = console::strip_ansi_codes(&e.message);
             format!(
                 "{} {} [{}] {}",
                 e.timestamp.format("%Y-%m-%d %H:%M:%S"),
                 e.level,
                 e.module,
-                e.message
+                message
             )
         })
+        .filter(|line| !line.contains("[profile:"))
         .collect();
 
     let agent_label = args.agent.clone().unwrap_or_else(|| "all".to_string());
