@@ -2,6 +2,10 @@
 //!
 //! Run with: `cargo run -p systemprompt --example database --features database`
 //! (requires a reachable Postgres at `postgres://localhost/systemprompt`).
+//!
+//! This shows the standalone connect path. Inside an extension you do not open
+//! your own pool — you take the shared one from the context:
+//! `ctx.database().as_any().downcast_ref::<Database>()` then `db.pool()`.
 
 use systemprompt::database::Database;
 use systemprompt::prelude::DbPool;

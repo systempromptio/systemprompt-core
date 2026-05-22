@@ -2,22 +2,15 @@
 //!
 //! Run with: `cargo run -p systemprompt --example cli --features cli -- --help`
 
-use systemprompt::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel, run};
+use systemprompt::cli::run;
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
     tracing_subscriber::fmt::init();
-    let cfg = CliConfig::default()
-        .with_output_format(OutputFormat::Json)
-        .with_verbosity(VerbosityLevel::Verbose)
-        .with_color_mode(ColorMode::Auto);
-    tracing::info!(
-        output = ?cfg.output_format,
-        verbosity = ?cfg.verbosity,
-        color = ?cfg.color_mode,
-        "starting CLI"
-    );
 
+    // `run()` parses argv and builds its own config; this mirrors the template's
+    // `main.rs`. `CliConfig`/`OutputFormat`/`VerbosityLevel`/`ColorMode` are
+    // exposed for embedders that construct settings out-of-band.
     if let Err(err) = Box::pin(run()).await {
         tracing::error!(error = %err, "cli exited with error");
         std::process::exit(1);
