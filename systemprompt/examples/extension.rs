@@ -2,8 +2,7 @@
 //!
 //! Run with: `cargo run -p systemprompt --example extension --features core`
 
-use systemprompt::extension::ExtensionContext;
-use systemprompt::prelude::{Extension, ExtensionMetadata, ExtensionRouter, SchemaDefinition};
+use systemprompt::extension::prelude::*;
 
 #[derive(Default)]
 struct DemoExtension;
@@ -28,6 +27,8 @@ impl Extension for DemoExtension {
         None
     }
 }
+
+register_extension!(DemoExtension);
 
 fn main() {
     tracing_subscriber::fmt::init();
