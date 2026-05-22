@@ -113,7 +113,7 @@ pub async fn handle_token_exchange(
         &owner_perms,
     )?;
 
-    let audience = resolve_audience(request.audience, resource, global)?;
+    let audience = resolve_audience(request.audience, global)?;
 
     let issuer = &global.jwt_issuer;
     let act = build_act_chain(client_id, issuer, subject.prior_act);
