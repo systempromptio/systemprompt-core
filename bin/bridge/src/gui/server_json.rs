@@ -161,7 +161,10 @@ impl<'a> From<&'a VerifiedIdentity> for VerifiedIdentityPayload<'a> {
     fn from(v: &'a VerifiedIdentity) -> Self {
         Self {
             email: v.email.as_deref(),
-            user_id: v.user_id.as_deref(),
+            user_id: v
+                .user_id
+                .as_ref()
+                .map(systemprompt_identifiers::UserId::as_str),
             tenant_id: v
                 .tenant_id
                 .as_ref()

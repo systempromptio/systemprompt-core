@@ -110,9 +110,9 @@ fn identity_value(
         "email": whoami.and_then(|w| w.email.clone())
             .or_else(|| id.and_then(|i| i.email.clone())),
         "user_id": whoami.and_then(|w| w.user_id.as_ref().map(|u| u.as_str().to_string()))
-            .or_else(|| id.and_then(|i| i.user_id.clone())),
+            .or_else(|| id.and_then(|i| i.user_id.as_ref().map(|u| u.as_str().to_string()))),
         "tenant_id": whoami.and_then(|w| w.tenant_id.as_ref().map(|t| t.as_str().to_string()))
-            .or_else(|| id.and_then(|i| i.tenant_id.clone())),
+            .or_else(|| id.and_then(|i| i.tenant_id.as_ref().map(|t| t.as_str().to_string()))),
         "display_name": whoami.and_then(|w| w.display_name.clone()),
         "provider": whoami.and_then(|w| w.provider.clone()),
         "roles": whoami.map(|w| w.roles.clone()).unwrap_or_default(),

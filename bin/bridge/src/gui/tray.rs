@@ -144,7 +144,11 @@ fn format_identity(snap: &AppStateSnapshot) -> String {
                 let label = id
                     .email
                     .as_deref()
-                    .or(id.user_id.as_deref())
+                    .or_else(|| {
+                        id.user_id
+                            .as_ref()
+                            .map(systemprompt_identifiers::UserId::as_str)
+                    })
                     .unwrap_or("(verified)");
                 format!("Signed in as {label}")
             },
