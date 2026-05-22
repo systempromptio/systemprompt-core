@@ -27,22 +27,3 @@ pub use registry::RegistryService;
 
 pub use orchestrator::{EventBus, McpEvent};
 pub use tool_provider::McpToolProvider;
-
-
-use crate::error::McpDomainResult;
-use async_trait::async_trait;
-
-#[async_trait]
-pub trait ServiceManager {
-    async fn start(&self) -> McpDomainResult<()>;
-    async fn stop(&self) -> McpDomainResult<()>;
-    async fn restart(&self) -> McpDomainResult<()>;
-    async fn status(&self) -> McpDomainResult<String>;
-}
-
-#[async_trait]
-pub trait ServiceLifecycle {
-    async fn initialize(&mut self) -> McpDomainResult<()>;
-    async fn shutdown(&mut self) -> McpDomainResult<()>;
-    async fn health_check(&self) -> McpDomainResult<bool>;
-}
