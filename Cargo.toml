@@ -201,7 +201,7 @@ flate2 = "1.1"
 tar = "0.4"
 zip = { version = "8", default-features = false, features = ["deflate"] }
 tokio-cron-scheduler = "0.15"
-maxminddb = "0.27"
+maxminddb = "0.28"
 
 # Additional utilities
 futures = "0.3"
