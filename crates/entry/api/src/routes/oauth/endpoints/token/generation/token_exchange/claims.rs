@@ -38,7 +38,10 @@ pub fn intersect_scopes(
     Ok(out)
 }
 
-pub(super) fn resolve_audience(requested: Option<&str>, global: &Config) -> Result<Vec<JwtAudience>> {
+pub(super) fn resolve_audience(
+    requested: Option<&str>,
+    global: &Config,
+) -> Result<Vec<JwtAudience>> {
     if let Some(value) = requested {
         if !global
             .allowed_resource_audiences
