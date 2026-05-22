@@ -12,7 +12,7 @@ use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
 mod params;
 
-pub use params::{AuthCodeParams, AuthCodeParamsBuilder, AuthCodeValidationResult};
+pub use params::{AuthCodeParams, AuthCodeValidationResult};
 
 impl OAuthRepository {
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> OauthResult<()> {
