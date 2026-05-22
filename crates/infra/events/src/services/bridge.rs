@@ -26,10 +26,7 @@ use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
-/// Rows older than this are pruned opportunistically by the bridge.
 const OUTBOX_RETENTION: Duration = Duration::from_secs(3600);
-
-/// How often the bridge runs an opportunistic prune sweep.
 const PRUNE_INTERVAL: Duration = Duration::from_secs(300);
 
 /// Background relay that mirrors `event_outbox` rows into the local
@@ -45,9 +42,7 @@ impl PostgresEventBridge {
         Self { pool }
     }
 
-    /// Installs the relay pool on [`EventRouter`] and spawns the listener
-    /// task. The returned handle resolves when the listener stops; abort it
-    /// to shut the relay down.
+    /// Abort the returned handle to stop the relay.
     pub fn start(self) -> JoinHandle<()> {
         EventRouter::install_relay(self.pool.clone());
         tokio::spawn(async move {
@@ -97,8 +92,6 @@ impl PostgresEventBridge {
         }
     }
 
-    /// Loads the outbox row named by `row_id`, deserializes it, and fans it
-    /// into the local broadcasters. This is the relay's fan-in entry point.
     async fn deliver(&self, row_id: &str) {
         let repo = EventOutboxRepository::new(self.pool.clone());
         let row = match repo.find(row_id).await {
@@ -120,11 +113,6 @@ impl PostgresEventBridge {
         Self::fan_in(channel, &row.user_id, row.payload).await;
     }
 
-    /// Deserializes `payload` according to `channel` and routes it through
-    /// the local-only path so it never re-enters the outbox.
-    ///
-    /// Exposed within the crate so the relay logic can be exercised
-    /// directly without a live Postgres listener.
     pub(crate) async fn fan_in(
         channel: OutboxChannel,
         user_id: &UserId,

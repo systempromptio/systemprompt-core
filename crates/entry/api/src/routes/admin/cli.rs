@@ -24,11 +24,9 @@ const CLI_BINARY_PATH: &str = "/app/bin/systemprompt";
 const MAX_CLI_ARGS: usize = 32;
 const MAX_CLI_ARG_LEN: usize = 256;
 
-/// Reject CLI argv content that contains shell metacharacters, control bytes,
-/// or that exceeds the per-arg / total argument caps. The CLI subprocess is
-/// spawned without a shell so this is defence-in-depth against argv smuggling
-/// (e.g. flag injection via crafted `--foo=$(...)` payloads, or NUL-byte
-/// truncation) reaching downstream tooling that does invoke a shell.
+// The CLI subprocess is spawned without a shell, so this is defence-in-depth
+// against argv smuggling (flag injection via crafted `--foo=$(...)` payloads,
+// NUL-byte truncation) reaching downstream tooling that does invoke a shell.
 fn validate_cli_args(args: &[String]) -> Result<(), Box<ApiError>> {
     if args.is_empty() {
         return Err(Box::new(ApiError::bad_request(

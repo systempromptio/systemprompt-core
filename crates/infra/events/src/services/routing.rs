@@ -80,9 +80,7 @@ impl OutboxChannel {
 pub struct EventRouter;
 
 impl EventRouter {
-    /// Installs the outbox repository used to persist rows and emit
-    /// `NOTIFY`. Idempotent: a second call is ignored. Called once by the
-    /// [`crate::PostgresEventBridge`] at startup.
+    /// Idempotent: a second call is ignored.
     pub fn install_relay(pool: sqlx::PgPool) {
         if OUTBOX_REPO.set(EventOutboxRepository::new(pool)).is_err() {
             debug!("EventRouter relay pool already installed; ignoring");
@@ -115,9 +113,7 @@ impl EventRouter {
         }
     }
 
-    /// Fans an AG-UI event into the local broadcasters only. The relay
-    /// uses this entry point to re-inject events received from other
-    /// replicas without re-publishing them to the outbox.
+    /// Local-only: re-injects relayed events without re-publishing to the outbox.
     pub async fn route_agui_local(user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
         let event_type = event.event_type();
         let agui_count = AGUI_BROADCASTER.broadcast(user_id, event.clone()).await;
@@ -134,21 +130,18 @@ impl EventRouter {
         (agui_count, context_count)
     }
 
-    /// Fans an A2A event into the local broadcasters only.
     pub async fn route_a2a_local(user_id: &UserId, event: A2AEvent) -> (usize, usize) {
         let a2a_count = A2A_BROADCASTER.broadcast(user_id, event.clone()).await;
         let context_count = CONTEXT_BROADCASTER.broadcast(user_id, event.into()).await;
         (a2a_count, context_count)
     }
 
-    /// Fans a system event into the local context broadcaster only.
     pub async fn route_system_local(user_id: &UserId, event: SystemEvent) -> usize {
         CONTEXT_BROADCASTER
             .broadcast(user_id, ContextEvent::System(event))
             .await
     }
 
-    /// Fans an analytics event into the local analytics broadcaster only.
     pub async fn route_analytics_local(user_id: &UserId, event: AnalyticsEvent) -> usize {
         ANALYTICS_BROADCASTER.broadcast(user_id, event).await
     }
