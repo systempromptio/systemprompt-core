@@ -33,8 +33,6 @@ static CONFIG: OnceLock<Config> = OnceLock::new();
 /// Default global cap on concurrent A2A SSE streams.
 pub const DEFAULT_MAX_CONCURRENT_STREAMS: usize = 256;
 
-/// Resolve a stable instance identifier for this replica.
-///
 /// Prefers the `HOSTNAME` environment variable (set by most container
 /// runtimes and shells); falls back to a generated short id when absent.
 #[must_use]

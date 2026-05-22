@@ -17,17 +17,11 @@ use thiserror::Error;
 
 static PLATFORM_OWNER: OnceLock<SystemAdmin> = OnceLock::new();
 
-/// Park the resolved system-admin in the logging-attribution cell.
-///
-/// Called once during `AppContext` bootstrap, immediately after the admin row
-/// is resolved against the `users` table. Subsequent calls in the same process
-/// observe the installed value and return it; the input is dropped.
+/// Returns the first-installed value; on a repeat call the argument is dropped.
 pub fn install_log_attribution(admin: SystemAdmin) -> &'static SystemAdmin {
     PLATFORM_OWNER.get_or_init(|| admin)
 }
 
-// Errors with LogAttributionUnset before bootstrap has run. Reserved for
-// crate::models::LogActor::platform.
 pub fn platform_attribution() -> Result<&'static SystemAdmin, LogAttributionUnset> {
     PLATFORM_OWNER.get().ok_or(LogAttributionUnset)
 }
