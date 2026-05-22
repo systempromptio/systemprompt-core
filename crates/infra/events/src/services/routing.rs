@@ -113,7 +113,8 @@ impl EventRouter {
         }
     }
 
-    /// Local-only: re-injects relayed events without re-publishing to the outbox.
+    /// Local-only: re-injects relayed events without re-publishing to the
+    /// outbox.
     pub async fn route_agui_local(user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
         let event_type = event.event_type();
         let agui_count = AGUI_BROADCASTER.broadcast(user_id, event.clone()).await;

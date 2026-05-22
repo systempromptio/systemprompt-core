@@ -77,11 +77,17 @@ impl<E: Clone + Send> Default for MockBroadcaster<E> {
 impl<E: Clone + Send + Sync + 'static> Broadcaster for MockBroadcaster<E> {
     type Event = E;
 
-    async fn register(&self, user_id: &UserId, connection_id: &ConnectionId, _sender: EventSender) {
+    async fn register(
+        &self,
+        user_id: &UserId,
+        connection_id: &ConnectionId,
+        _sender: EventSender,
+    ) -> bool {
         self.registrations.lock().await.push(RegisterCall {
             user_id: user_id.clone(),
             connection_id: connection_id.clone(),
         });
+        true
     }
 
     async fn unregister(&self, user_id: &UserId, connection_id: &ConnectionId) {

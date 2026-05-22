@@ -25,9 +25,13 @@ pub async fn stream_context_state(
 
     let (tx, rx) = mpsc::channel(1024);
 
-    CONTEXT_BROADCASTER
+    if !CONTEXT_BROADCASTER
         .register(&user_id, &conn_id, tx.clone())
-        .await;
+        .await
+    {
+        tracing::warn!(user_id = %user_id_str, conn_id = %conn_id_str, "SSE stream rejected: per-user connection cap reached");
+        return http::StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
 
     match state
         .context_provider

@@ -90,7 +90,10 @@ pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
 
     let (tx, rx) = mpsc::channel(1024);
 
-    broadcaster.register(&user_id, &conn_id, tx.clone()).await;
+    if !broadcaster.register(&user_id, &conn_id, tx.clone()).await {
+        tracing::warn!(user_id = %user_id_str, stream = %stream_name, "SSE stream rejected: per-user connection cap reached");
+        return http::StatusCode::TOO_MANY_REQUESTS.into_response();
+    }
 
     let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id);
     let stream = ReceiverStream::new(rx);
