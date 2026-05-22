@@ -117,4 +117,4 @@ The main HTTP API server does not perform a graceful shutdown. `axum::serve` is 
 
 - [extensions.md](extensions.md) — how compile-time extensions plug capabilities into this graph without creating cross-crate edges.
 - [authentication.md](authentication.md) — the authentication and authorization controls in the request path.
-- [The deployment reference architecture](../deployment-reference-architecture.md) — how the layers map onto a deployed topology.
+- [The deployment reference architecture](../guides/deploy-production.md) — how the layers map onto a deployed topology.
