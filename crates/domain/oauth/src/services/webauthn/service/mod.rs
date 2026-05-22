@@ -23,6 +23,22 @@ use tokio::sync::Mutex;
 use webauthn_rs::prelude::*;
 use webauthn_rs::{Webauthn, WebauthnBuilder};
 
+fn cap_by_age<K: Clone + std::hash::Hash + Eq, V, F: Fn(&V) -> Instant>(
+    map: &mut HashMap<K, V>,
+    max: usize,
+    key_ts: F,
+) {
+    if map.len() <= max {
+        return;
+    }
+    let mut keyed: Vec<(K, Instant)> = map.iter().map(|(k, v)| (k.clone(), key_ts(v))).collect();
+    keyed.sort_by_key(|(_, ts)| *ts);
+    let to_drop = map.len() - max;
+    for (k, _) in keyed.into_iter().take(to_drop) {
+        map.remove(&k);
+    }
+}
+
 #[derive(Debug)]
 pub(super) struct AuthenticationStateData {
     pub state: PasskeyAuthentication,
@@ -85,6 +101,11 @@ impl WebAuthnService {
         })
     }
 
+    /// Hard cap on pending challenges per kind. Acts as a defence against
+    /// unbounded growth between [`Self::cleanup_expired_states`] sweeps if an
+    /// attacker initiates many half-finished `WebAuthn` ceremonies.
+    pub const MAX_PENDING_CHALLENGES: usize = 10_000;
+
     pub async fn cleanup_expired_states(&self) -> Result<()> {
         let now = Instant::now();
         let expiry_duration = self.config.challenge_expiry;
@@ -94,17 +115,24 @@ impl WebAuthnService {
             reg_states.retain(|_challenge_id, (_state, timestamp)| {
                 now.duration_since(*timestamp) < expiry_duration
             });
+            cap_by_age(&mut *reg_states, Self::MAX_PENDING_CHALLENGES, |v| v.1);
         }
 
         {
             let mut auth_states = self.auth_states.lock().await;
             auth_states
                 .retain(|_challenge_id, data| now.duration_since(data.timestamp) < expiry_duration);
+            cap_by_age(&mut *auth_states, Self::MAX_PENDING_CHALLENGES, |v| {
+                v.timestamp
+            });
         }
 
         {
             let mut verified = self.verified_auths.lock().await;
             verified.retain(|_token, data| now.duration_since(data.timestamp) < expiry_duration);
+            cap_by_age(&mut *verified, Self::MAX_PENDING_CHALLENGES, |v| {
+                v.timestamp
+            });
         }
 
         Ok(())

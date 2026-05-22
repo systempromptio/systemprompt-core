@@ -21,6 +21,52 @@ fn cli_event_to_sse(event: &CliOutputEvent) -> Event {
 
 const MAX_TIMEOUT_SECS: u64 = 600;
 const CLI_BINARY_PATH: &str = "/app/bin/systemprompt";
+const MAX_CLI_ARGS: usize = 32;
+const MAX_CLI_ARG_LEN: usize = 256;
+
+/// Reject CLI argv content that contains shell metacharacters, control bytes,
+/// or that exceeds the per-arg / total argument caps. The CLI subprocess is
+/// spawned without a shell so this is defence-in-depth against argv smuggling
+/// (e.g. flag injection via crafted `--foo=$(...)` payloads, or NUL-byte
+/// truncation) reaching downstream tooling that does invoke a shell.
+fn validate_cli_args(args: &[String]) -> Result<(), Box<ApiError>> {
+    if args.is_empty() {
+        return Err(Box::new(ApiError::bad_request(
+            "cli args must not be empty",
+        )));
+    }
+    if args.len() > MAX_CLI_ARGS {
+        return Err(Box::new(ApiError::bad_request(format!(
+            "too many cli args (max {MAX_CLI_ARGS})"
+        ))));
+    }
+    for (i, arg) in args.iter().enumerate() {
+        if arg.len() > MAX_CLI_ARG_LEN {
+            return Err(Box::new(ApiError::bad_request(format!(
+                "cli arg #{i} exceeds {MAX_CLI_ARG_LEN} bytes"
+            ))));
+        }
+        if arg
+            .chars()
+            .any(|c| c.is_control() || matches!(c, '`' | '$' | '|' | ';' | '&' | '\n' | '\r'))
+        {
+            return Err(Box::new(ApiError::bad_request(format!(
+                "cli arg #{i} contains forbidden character"
+            ))));
+        }
+    }
+    let first = &args[0];
+    let first_ok = first.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+        && first
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    if !first_ok {
+        return Err(Box::new(ApiError::bad_request(
+            "first cli arg must be a lowercase subcommand",
+        )));
+    }
+    Ok(())
+}
 
 pub fn router() -> Router<AppContext> {
     Router::new().route("/", post(execute_cli))
@@ -32,6 +78,7 @@ async fn execute_cli(
     Json(request): Json<CliExecuteRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let args = request.args;
+    validate_cli_args(&args).map_err(|e| *e)?;
     let timeout_secs = request.timeout_secs.min(MAX_TIMEOUT_SECS);
     let timeout = Duration::from_secs(timeout_secs);
 

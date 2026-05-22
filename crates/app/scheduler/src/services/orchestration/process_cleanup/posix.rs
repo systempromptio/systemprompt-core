@@ -4,6 +4,13 @@ use std::process::Command;
 
 use super::ProcessInfo;
 
+fn is_safe_pattern(p: &str) -> bool {
+    !p.is_empty()
+        && p.len() <= 128
+        && p.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/'))
+}
+
 pub(super) fn check_port(port: u16) -> Option<u32> {
     let output = match Command::new("lsof")
         .args(["-ti", &format!(":{}", port)])
@@ -60,6 +67,10 @@ pub(super) fn process_exists(pid: u32) -> bool {
 }
 
 pub(super) fn kill_by_pattern(pattern: &str) -> usize {
+    if !is_safe_pattern(pattern) {
+        tracing::warn!(pattern = %pattern, "rejecting kill_by_pattern: pattern contains unsafe characters");
+        return 0;
+    }
     match Command::new("pkill").args(["-9", "-f", pattern]).output() {
         Ok(output) => usize::from(output.status.success()),
         Err(e) => {

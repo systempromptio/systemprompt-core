@@ -90,7 +90,7 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<StartupEventSender>) ->
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let mut router = router;
 
-    router = router.layer(DefaultBodyLimit::max(100 * 1024 * 1024));
+    router = router.layer(DefaultBodyLimit::max(2 * 1024 * 1024));
 
     let analytics_middleware = AnalyticsMiddleware::new(ctx)?;
     router = router.layer(axum::middleware::from_fn({

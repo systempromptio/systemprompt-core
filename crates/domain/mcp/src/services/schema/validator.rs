@@ -138,6 +138,7 @@ impl<'a> SchemaValidator<'a> {
         table_name: &str,
         required_columns: &[String],
     ) -> McpDomainResult<()> {
+        validate_sql_identifier(table_name)?;
         let query = format!("PRAGMA table_info({table_name})");
         let rows = self.db.fetch_all(&query, &[]).await?;
 
@@ -214,20 +215,23 @@ impl<'a> SchemaValidator<'a> {
 
         Ok(())
     }
+}
 
-    pub async fn get_table_info(&self, table_name: &str) -> McpDomainResult<Vec<(String, String)>> {
-        let query = format!("PRAGMA table_info({table_name})");
-        let rows = self.db.fetch_all(&query, &[]).await?;
-
-        let columns: Vec<(String, String)> = rows
-            .iter()
-            .filter_map(|row| {
-                let name = row.get("name").and_then(|v| v.as_str())?;
-                let col_type = row.get("type").and_then(|v| v.as_str())?;
-                Some((name.to_string(), col_type.to_string()))
-            })
-            .collect();
-
-        Ok(columns)
+/// `SQLite` identifiers cannot be parameter-bound in PRAGMA / DDL contexts, so
+/// any identifier that reaches `format!`-built SQL must be charset-checked
+/// first. Accepts the `SQLite`-safe subset: leading letter / underscore, then
+/// up to 63 further alphanumerics / underscores.
+fn validate_sql_identifier(name: &str) -> McpDomainResult<()> {
+    let mut chars = name.chars();
+    let first_ok = chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_');
+    let rest_ok = chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if first_ok && rest_ok && name.len() <= 64 {
+        Ok(())
+    } else {
+        Err(crate::error::McpDomainError::SchemaValidation(format!(
+            "invalid SQL identifier: {name:?}"
+        )))
     }
 }

@@ -12,34 +12,84 @@ mod field_names {
     pub const CLIENT_ID: &str = "client_id";
 }
 
+const REDACTED_FIELD_NAMES: &[&str] = &[
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "access_token",
+    "refresh_token",
+    "id_token",
+    "authorization",
+    "auth_token",
+    "cookie",
+    "set-cookie",
+    "set_cookie",
+    "api_key",
+    "apikey",
+    "client_secret",
+    "private_key",
+];
+
+fn is_redacted(field_name: &str) -> bool {
+    let lower = field_name.to_ascii_lowercase();
+    REDACTED_FIELD_NAMES.iter().any(|n| lower == *n)
+}
+
 #[derive(Debug, Default)]
 pub struct FieldVisitor {
     pub message: String,
     pub fields: Option<serde_json::Value>,
 }
 
+fn strip_ansi(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1B' {
+            if matches!(chars.next(), Some('[')) {
+                for next in chars.by_ref() {
+                    if next.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+        out.push(c);
+    }
+    out
+}
+
 impl Visit for FieldVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         if field.name() == field_names::MESSAGE {
-            self.message = format!("{value:?}");
+            self.message = strip_ansi(&format!("{value:?}"));
         } else {
             let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
             if let Some(obj) = fields.as_object_mut() {
-                obj.insert(
-                    field.name().to_string(),
-                    serde_json::json!(format!("{value:?}")),
-                );
+                let rendered = if is_redacted(field.name()) {
+                    serde_json::json!("[REDACTED]")
+                } else {
+                    serde_json::json!(format!("{value:?}"))
+                };
+                obj.insert(field.name().to_string(), rendered);
             }
         }
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == field_names::MESSAGE {
-            self.message = value.to_string();
+            self.message = strip_ansi(value);
         } else {
             let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
             if let Some(obj) = fields.as_object_mut() {
-                obj.insert(field.name().to_string(), serde_json::json!(value));
+                let rendered = if is_redacted(field.name()) {
+                    serde_json::json!("[REDACTED]")
+                } else {
+                    serde_json::json!(value)
+                };
+                obj.insert(field.name().to_string(), rendered);
             }
         }
     }
@@ -47,21 +97,36 @@ impl Visit for FieldVisitor {
     fn record_i64(&mut self, field: &Field, value: i64) {
         let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = fields.as_object_mut() {
-            obj.insert(field.name().to_string(), serde_json::json!(value));
+            let rendered = if is_redacted(field.name()) {
+                serde_json::json!("[REDACTED]")
+            } else {
+                serde_json::json!(value)
+            };
+            obj.insert(field.name().to_string(), rendered);
         }
     }
 
     fn record_u64(&mut self, field: &Field, value: u64) {
         let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = fields.as_object_mut() {
-            obj.insert(field.name().to_string(), serde_json::json!(value));
+            let rendered = if is_redacted(field.name()) {
+                serde_json::json!("[REDACTED]")
+            } else {
+                serde_json::json!(value)
+            };
+            obj.insert(field.name().to_string(), rendered);
         }
     }
 
     fn record_bool(&mut self, field: &Field, value: bool) {
         let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = fields.as_object_mut() {
-            obj.insert(field.name().to_string(), serde_json::json!(value));
+            let rendered = if is_redacted(field.name()) {
+                serde_json::json!("[REDACTED]")
+            } else {
+                serde_json::json!(value)
+            };
+            obj.insert(field.name().to_string(), rendered);
         }
     }
 }
