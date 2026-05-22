@@ -152,11 +152,18 @@ impl Profile {
                 continue;
             }
 
-            let is_valid = origin.starts_with("http://") || origin.starts_with("https://");
-            if !is_valid {
+            if origin == "*" {
+                errors.push("CORS origin '*' is not permitted; list explicit origins".to_string());
+                continue;
+            }
+
+            let is_https = origin.starts_with("https://");
+            let is_loopback_http = origin.starts_with("http://localhost")
+                || origin.starts_with("http://127.0.0.1")
+                || origin.starts_with("http://[::1]");
+            if !is_https && !is_loopback_http {
                 errors.push(format!(
-                    "Invalid CORS origin (must start with http:// or https://): {}",
-                    origin
+                    "Invalid CORS origin (must be https:// or http://localhost): {origin}"
                 ));
             }
         }

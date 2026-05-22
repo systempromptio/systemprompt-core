@@ -36,12 +36,15 @@ pub async fn handle_logout(
 
     revoke_jti(&repo, &jti, user_uuid, exp_dt).await?;
 
+    let cookie = HeaderValue::from_str(
+        "access_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
+    )
+    .map_err(|e| {
+        tracing::error!(error = %e, "Failed to build logout Set-Cookie header");
+        OAuthHttpError::server_error("Logout failed")
+    })?;
     let mut response = (StatusCode::NO_CONTENT).into_response();
-    if let Ok(cookie) =
-        HeaderValue::from_str("access_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict")
-    {
-        response.headers_mut().insert(header::SET_COOKIE, cookie);
-    }
+    response.headers_mut().insert(header::SET_COOKIE, cookie);
     Ok(response)
 }
 

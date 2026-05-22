@@ -25,9 +25,14 @@ pub struct WebhookService {
 
 impl WebhookService {
     pub fn new() -> Self {
+        let http_client = Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| Client::new());
         Self {
             endpoints: RwLock::new(HashMap::new()),
-            http_client: Client::new(),
+            http_client,
         }
     }
 

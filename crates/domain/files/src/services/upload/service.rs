@@ -163,6 +163,18 @@ impl FileUploadService {
             }
         }
 
+        if filename.contains('\0')
+            || filename.contains('/')
+            || filename.contains('\\')
+            || filename == ".."
+            || filename == "."
+            || filename.is_empty()
+        {
+            return Err(FileUploadError::PathValidation(
+                "Invalid filename: must be a single path component".to_string(),
+            ));
+        }
+
         let (full_path, relative) = match upload_config.persistence_mode {
             FilePersistenceMode::ContextScoped => {
                 let rel = format!(
@@ -188,6 +200,18 @@ impl FileUploadService {
                 return Err(FileUploadError::PersistenceDisabled);
             },
         };
+
+        for component in std::path::Path::new(&relative).components() {
+            use std::path::Component;
+            match component {
+                Component::Normal(_) | Component::CurDir => {},
+                Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                    return Err(FileUploadError::PathValidation(
+                        "Resolved path contains traversal or absolute component".to_string(),
+                    ));
+                },
+            }
+        }
 
         if !full_path.starts_with(&base) {
             return Err(FileUploadError::PathValidation(

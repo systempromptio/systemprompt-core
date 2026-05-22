@@ -76,17 +76,11 @@ async fn test_expired_jwt_token_rejected() -> Result<()> {
         .await?;
 
     let status = response.status();
-    assert!(
-        status.as_u16() == 401 || status.as_u16() == 200,
-        "Expired JWT handling returned: {}",
-        status
+    assert_eq!(
+        status.as_u16(),
+        401,
+        "Expired JWT must be rejected with 401 (got {status})"
     );
-
-    if status.as_u16() == 401 {
-        println!("✓ Expired JWT token rejected with 401");
-    } else {
-        println!("✓ API is configured for token validation (accepting any token for testing)");
-    }
 
     Ok(())
 }
