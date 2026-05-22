@@ -22,13 +22,4 @@ ignore = [
     # surface), or (c) wait for an upstream rsa fix. Until then the advisory is ignored
     # to keep CI green; this is a known accepted risk, not a clean bill of health.
     "RUSTSEC-2023-0071",
-
-    # RUSTSEC-2026-0002 — lru `IterMut` Stacked Borrows soundness issue.
-    # `lru 0.12.x` is pulled in by `systemprompt-oauth` (JTI revocation peek
-    # cache) and `systemprompt-security` (JWKS-by-issuer cache). Neither
-    # consumer calls `IterMut::next` / `IterMut::next_back` — both use only
-    # `peek`, `put`, and `pop`, so the unsound code path is not exercised.
-    # Patched in `lru >= 0.16.3`; bumping is a breaking-API task tracked
-    # separately for the next minor.
-    "RUSTSEC-2026-0002",
 ]

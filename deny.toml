@@ -10,7 +10,6 @@ version = 2
 yanked = "warn"
 ignore = [
     { id = "RUSTSEC-2023-0071", reason = "Marvin Attack in `rsa` crate. Transitively pulled by `jsonwebtoken` for RSA-family JWT verification. No upstream fix available — the `rsa` crate does not yet provide constant-time implementations. Systemprompt mitigations: (1) recommended signing algorithms for customer IdP tokens are ES256 / ES384 / EdDSA, which do not execute the vulnerable RSA path; (2) JWT verification is CPU-bounded and not exposed as an unauthenticated high-throughput endpoint, limiting exploitability of the timing side-channel; (3) tracked — we will drop the ignore as soon as a fixed `rsa` release is available. See documentation/threat-model.md §4.1." },
-    { id = "RUSTSEC-2026-0002", reason = "Stacked Borrows soundness issue in `lru 0.12.x` IterMut. Pulled by `systemprompt-oauth` (JTI revocation peek cache) and `systemprompt-security` (JWKS-by-issuer cache). Neither caller constructs `IterMut` — both use only `peek`, `put`, and `pop`, so the unsound path is unreachable. Patched in `lru >= 0.16.3` (breaking API). Upgrade tracked for the next minor." },
 ]
 
 [licenses]

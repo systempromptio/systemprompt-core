@@ -242,7 +242,7 @@ hmac = "0.13"
 webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 pkcs8 = { version = "0.10", features = ["pem"] }
-lru = "0.12"
+lru = "0.18"
 
 
 # Internal workspace crates (use workspace = true in dependencies)
