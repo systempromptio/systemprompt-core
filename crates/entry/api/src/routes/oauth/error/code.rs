@@ -1,4 +1,4 @@
-//! RFC 6749 §5.2 error codes plus the WebAuthn / RFC 7591 extensions this
+//! RFC 6749 §5.2 error codes plus the `WebAuthn` / RFC 7591 extensions this
 //! server emits, and their default HTTP status mapping.
 //!
 //! `Display` (via [`OAuthErrorCode::as_str`]) yields the wire string. The
