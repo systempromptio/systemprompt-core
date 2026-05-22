@@ -161,8 +161,6 @@ impl AppContext {
         self.content_config.as_ref().map(AsRef::as_ref)
     }
 
-    /// Returns the loaded content config as a [`ContentRouting`] trait object,
-    /// or `None` when no content config is present.
     pub fn content_routing(&self) -> Option<Arc<dyn ContentRouting>> {
         let concrete = Arc::clone(self.content_config.as_ref()?);
         let routing: Arc<dyn ContentRouting> = concrete;
