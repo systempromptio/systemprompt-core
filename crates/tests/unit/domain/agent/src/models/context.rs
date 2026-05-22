@@ -6,6 +6,7 @@
 //! - ContextStateEvent variants and methods
 
 use chrono::Utc;
+use systemprompt_agent::models::a2a::{Part, TextPart};
 use systemprompt_agent::models::context::{ContextDetail, ContextMessage, ContextStateEvent};
 use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId};
 use systemprompt_models::UserContext;
@@ -26,7 +27,9 @@ fn test_context_message_serialize() {
         role: "user".to_string(),
         created_at: Utc::now(),
         sequence_number: 1,
-        parts: vec![serde_json::json!({"type": "text", "text": "Hello"})],
+        parts: vec![Part::Text(TextPart {
+            text: "Hello".to_string(),
+        })],
     };
 
     let json = serde_json::to_string(&message).unwrap();
@@ -42,7 +45,7 @@ fn test_context_message_deserialize() {
         "role": "assistant",
         "created_at": "2024-01-01T00:00:00Z",
         "sequence_number": 2,
-        "parts": [{"type": "text", "content": "Response"}]
+        "parts": [{"text": "Response"}]
     }"#;
 
     let message: ContextMessage = serde_json::from_str(json).unwrap();
@@ -74,7 +77,9 @@ fn test_context_message_clone() {
         role: "system".to_string(),
         created_at: Utc::now(),
         sequence_number: 5,
-        parts: vec![serde_json::json!({"test": true})],
+        parts: vec![Part::Text(TextPart {
+            text: "test".to_string(),
+        })],
     };
 
     let cloned = message.clone();
@@ -117,14 +122,18 @@ fn test_context_detail_with_messages() {
                 role: "user".to_string(),
                 created_at: Utc::now(),
                 sequence_number: 1,
-                parts: vec![serde_json::json!({"text": "Hello"})],
+                parts: vec![Part::Text(TextPart {
+                    text: "Hello".to_string(),
+                })],
             },
             ContextMessage {
                 message_id: MessageId::new("msg-2"),
                 role: "assistant".to_string(),
                 created_at: Utc::now(),
                 sequence_number: 2,
-                parts: vec![serde_json::json!({"text": "Hi there"})],
+                parts: vec![Part::Text(TextPart {
+                    text: "Hi there".to_string(),
+                })],
             },
         ],
     };

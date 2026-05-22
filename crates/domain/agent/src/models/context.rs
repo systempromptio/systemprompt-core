@@ -15,7 +15,7 @@ pub struct ContextMessage {
     pub role: String,
     pub created_at: DateTime<Utc>,
     pub sequence_number: i32,
-    pub parts: Vec<serde_json::Value>,
+    pub parts: Vec<super::a2a::Part>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
