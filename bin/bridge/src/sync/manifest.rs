@@ -63,7 +63,9 @@ async fn resolve_pubkey(
         .fetch_pubkey()
         .await
         .map_err(|e| SyncError::Network(e.to_string()))?;
-    let _ = config::persist_pinned_pubkey(&fetched);
+    if let Err(e) = config::persist_pinned_pubkey(&fetched) {
+        tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
+    }
     let prefix: String = fetched.chars().take(12).collect();
     tracing::info!(
         "pinned manifest pubkey ({prefix}…) — future syncs will reject any pubkey rotation"
@@ -84,7 +86,9 @@ async fn fetch_fresh_token() -> Option<Secret> {
     for p in &chain {
         match p.authenticate(&session_id).await {
             Ok(out) => {
-                let _ = crate::auth::cache::write(&out);
+                if let Err(e) = crate::auth::cache::write(&out) {
+                    tracing::warn!(error = %e, "failed to cache fresh token; will re-authenticate next call");
+                }
                 return Some(out.token);
             },
             Err(AuthError::NotConfigured) => {},
