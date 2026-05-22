@@ -44,7 +44,7 @@ jobs:
     needs: checks
     runs-on: ${{ matrix.runner }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -82,6 +82,7 @@ jobs:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
           if-no-files-found: error
+          retention-days: 7
 
   release:
     name: Sign & publish
