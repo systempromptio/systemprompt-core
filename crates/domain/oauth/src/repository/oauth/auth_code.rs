@@ -7,6 +7,7 @@ use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;
 use base64::Engine;
 use chrono::Utc;
+use subtle::ConstantTimeEq;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
 #[derive(Debug)]
@@ -260,7 +261,11 @@ impl OAuthRepository {
                 },
             };
 
-            if computed_challenge != *challenge {
+            let challenge_matches: bool = computed_challenge
+                .as_bytes()
+                .ct_eq(challenge.as_bytes())
+                .into();
+            if !challenge_matches {
                 tracing::warn!("PKCE validation failed");
                 return Err(OauthError::Validation(
                     "Invalid authorization code".to_string(),
