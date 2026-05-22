@@ -63,7 +63,7 @@ List content with pagination and filtering.
 
 ```bash
 sp core content list
-sp --json content list
+sp --json core content list
 sp core content list --limit 50 --offset 0
 sp core content list --source blog
 sp core content list --category tutorials
@@ -108,7 +108,7 @@ Show detailed content information.
 
 ```bash
 sp core content show <content-id>
-sp --json content show dc2ae776-debb-4a75-9e8d-90c9131382e0
+sp --json core content show dc2ae776-debb-4a75-9e8d-90c9131382e0
 sp core content show getting-started --source blog
 ```
 
@@ -153,7 +153,7 @@ Search content by query.
 
 ```bash
 sp core content search <query>
-sp --json content search "getting started"
+sp --json core content search "getting started"
 sp core content search "tutorial" --source blog
 sp core content search "api" --category docs --limit 10
 ```
@@ -330,7 +330,7 @@ Get popular content based on views.
 
 ```bash
 sp core content popular --source blog
-sp --json content popular --source blog
+sp --json core content popular --source blog
 sp core content popular --source blog --limit 10
 sp core content popular --source blog --since 7d
 sp core content popular --source docs --since 1w
@@ -428,7 +428,7 @@ Show link details by short code.
 
 ```bash
 sp core content link show <short-code>
-sp --json content link show 6WRVOTgT
+sp --json core content link show 6WRVOTgT
 ```
 
 **Required Arguments:**
@@ -465,7 +465,7 @@ List links by campaign or content.
 ```bash
 sp core content link list --campaign my-campaign
 sp core content link list --content content_abc123
-sp --json content link list --campaign my-campaign
+sp --json core content link list --campaign my-campaign
 ```
 
 **Required Flags (at least one):**
@@ -503,7 +503,7 @@ Show link performance metrics.
 
 ```bash
 sp core content link performance <link-id>
-sp --json content link performance abc123
+sp --json core content link performance abc123
 ```
 
 **Required Arguments:**
@@ -561,7 +561,7 @@ Show click history for a link.
 
 ```bash
 sp core content analytics clicks <link-id>
-sp --json content analytics clicks abc123
+sp --json core content analytics clicks abc123
 sp core content analytics clicks abc123 --limit 50
 ```
 
@@ -607,7 +607,7 @@ Show campaign-level analytics.
 
 ```bash
 sp core content analytics campaign <campaign-id>
-sp --json content analytics campaign my-campaign
+sp --json core content analytics campaign my-campaign
 ```
 
 **Required Arguments:**
@@ -636,7 +636,7 @@ Show content navigation graph.
 
 ```bash
 sp core content analytics journey
-sp --json content analytics journey
+sp --json core content analytics journey
 sp core content analytics journey --limit 50
 ```
 
@@ -691,20 +691,20 @@ sp core content ingest /tmp/tutorials --source tutorials --dry-run
 sp core content ingest /tmp/tutorials --source tutorials
 
 # Phase 4: Verify content
-sp --json content list --source tutorials
-sp --json content show getting-started --source tutorials
+sp --json core content list --source tutorials
+sp --json core content show getting-started --source tutorials
 
 # Phase 5: Search content
-sp --json content search "getting started"
+sp --json core content search "getting started"
 
 # Phase 6: Check popular content
-sp --json content popular --source tutorials --since 7d
+sp --json core content popular --source tutorials --since 7d
 
 # Phase 7: Generate trackable link
 sp core content link generate --url https://example.com --campaign test --utm-source cli
 
 # Phase 8: View link analytics
-sp --json content analytics clicks <link-id>
+sp --json core content analytics clicks <link-id>
 
 # Phase 9: Delete content
 sp core content delete getting-started --source tutorials --yes
@@ -751,12 +751,12 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json content list | jq .
+sp --json core content list | jq .
 
 # Extract specific fields
-sp --json content list | jq '.items[].title'
-sp --json content show content_abc | jq '.body'
-sp --json content popular --source blog | jq '.items[] | {title, kind}'
+sp --json core content list | jq '.items[].title'
+sp --json core content show content_abc | jq '.body'
+sp --json core content popular --source blog | jq '.items[] | {title, kind}'
 ```
 
 ---

@@ -186,7 +186,7 @@ Show detailed service status.
 
 ```bash
 sp infra services status
-sp --json services status
+sp --json infra services status
 sp infra services status --detailed
 sp infra services status --health
 ```
@@ -250,7 +250,7 @@ Clean up orphaned processes and stale entries.
 sp infra services cleanup              # Interactive mode prompts for confirmation
 sp infra services cleanup --yes        # Skip confirmation
 sp infra services cleanup --dry-run    # Preview what would be cleaned
-sp --json services cleanup --yes
+sp --json infra services cleanup --yes
 ```
 
 **Optional Flags:**
@@ -316,16 +316,16 @@ This flow demonstrates managing services:
 
 ```bash
 # Phase 1: Check current status
-sp --json services status
+sp --json infra services status
 
 # Phase 2: Start all services
 sp infra services start
 
 # Phase 3: Verify status
-sp --json services status --health
+sp --json infra services status --health
 
 # Phase 4: Check specific service
-sp --json services status | jq '.agents[] | select(.name == "primary")'
+sp --json infra services status | jq '.agents[] | select(.name == "primary")'
 
 # Phase 5: Restart failed services
 sp infra services restart --failed
@@ -362,14 +362,14 @@ sp infra services start
 sp infra services start
 
 # Health check
-sp --json services status --health
+sp --json infra services status --health
 
 # Graceful restart
 sp infra services stop
 sp infra services start
 
 # Monitor status
-watch -n 5 'sp --json services status | jq .summary'
+watch -n 5 'sp --json infra services status | jq .summary'
 ```
 
 ---
@@ -388,7 +388,7 @@ agents:
     enabled: true
     port: 8001
     provider: anthropic
-    model: claude-3-5-sonnet-20241022
+    model: claude-sonnet-4-6-20250610
 
 mcp_servers:
   filesystem:
@@ -443,18 +443,18 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json services status | jq .
+sp --json infra services status | jq .
 
 # Extract specific fields
-sp --json services status | jq '.api.port'
-sp --json services status | jq '.agents[].name'
-sp --json services status | jq '.summary'
+sp --json infra services status | jq '.api.port'
+sp --json infra services status | jq '.agents[].name'
+sp --json infra services status | jq '.summary'
 
 # Check running services
-sp --json services status | jq '.agents[] | select(.status == "running")'
+sp --json infra services status | jq '.agents[] | select(.status == "running")'
 
 # Get health status
-sp --json services status --health | jq '.agents[] | {name, health}'
+sp --json infra services status --health | jq '.agents[] | {name, health}'
 ```
 
 ---

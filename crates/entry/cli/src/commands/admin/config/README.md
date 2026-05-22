@@ -57,7 +57,7 @@ Show current rate limit configuration from the profile.
 
 ```bash
 sp admin config rate-limits show
-sp --json config rate-limits show
+sp --json admin config rate-limits show
 ```
 
 **Output Structure:**
@@ -99,7 +99,7 @@ Show effective limits for a specific tier (base rates multiplied by tier multipl
 sp admin config rate-limits tier admin
 sp admin config rate-limits tier user
 sp admin config rate-limits tier anon
-sp --json config rate-limits tier a2a
+sp --json admin config rate-limits tier a2a
 ```
 
 **Arguments:**
@@ -138,7 +138,7 @@ Show comprehensive rate limits documentation including base rates, tier multipli
 
 ```bash
 sp admin config rate-limits docs
-sp --json config rate-limits docs
+sp --json admin config rate-limits docs
 ```
 
 **Output Structure:**
@@ -210,7 +210,7 @@ Enable rate limiting.
 
 ```bash
 sp admin config rate-limits enable
-sp --json config rate-limits enable
+sp --json admin config rate-limits enable
 ```
 
 **Output Structure:**
@@ -231,7 +231,7 @@ Disable rate limiting.
 
 ```bash
 sp admin config rate-limits disable
-sp --json config rate-limits disable
+sp --json admin config rate-limits disable
 ```
 
 **Output Structure:**
@@ -252,7 +252,7 @@ Validate rate limit configuration for errors and warnings.
 
 ```bash
 sp admin config rate-limits validate
-sp --json config rate-limits validate
+sp --json admin config rate-limits validate
 ```
 
 **Validation Checks:**
@@ -282,7 +282,7 @@ Compare effective limits across all tiers side-by-side.
 
 ```bash
 sp admin config rate-limits compare
-sp --json config rate-limits compare
+sp --json admin config rate-limits compare
 ```
 
 **Output Structure:**
@@ -413,19 +413,19 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Get full rate limits as JSON
-sp --json config rate-limits show | jq .
+sp --json admin config rate-limits show | jq .
 
 # Get specific tier effective limits
-sp --json config rate-limits tier admin | jq '.effective_limits.contexts_per_second'
+sp --json admin config rate-limits tier admin | jq '.effective_limits.contexts_per_second'
 
 # Check if rate limiting is disabled
-sp --json config rate-limits show | jq '.disabled'
+sp --json admin config rate-limits show | jq '.disabled'
 
 # Compare all tiers
-sp --json config rate-limits compare | jq '.endpoints[] | select(.endpoint == "Contexts")'
+sp --json admin config rate-limits compare | jq '.endpoints[] | select(.endpoint == "Contexts")'
 
 # Validate and check for errors
-sp --json config rate-limits validate | jq '.errors'
+sp --json admin config rate-limits validate | jq '.errors'
 ```
 
 ---
@@ -434,13 +434,13 @@ sp --json config rate-limits validate | jq '.errors'
 
 ```bash
 # Phase 1: View current configuration
-sp --json config rate-limits show
+sp --json admin config rate-limits show
 
 # Phase 2: Validate configuration
-sp --json config rate-limits validate
+sp --json admin config rate-limits validate
 
 # Phase 3: Compare across tiers
-sp --json config rate-limits compare
+sp --json admin config rate-limits compare
 
 # Phase 4: Make changes
 sp admin config rate-limits set --endpoint contexts --rate 100
@@ -448,7 +448,7 @@ sp admin config rate-limits set --tier admin --multiplier 15.0
 sp admin config rate-limits enable
 
 # Phase 5: Verify changes
-sp --json config rate-limits show
+sp --json admin config rate-limits show
 
 # Phase 6: Reset if needed
 sp admin config rate-limits reset --dry-run

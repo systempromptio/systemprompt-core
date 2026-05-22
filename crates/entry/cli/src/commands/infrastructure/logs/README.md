@@ -60,7 +60,7 @@ View log entries with filtering.
 
 ```bash
 sp infra logs view
-sp --json logs view
+sp --json infra logs view
 sp infra logs view --tail 100
 sp infra logs view --level error
 sp infra logs view --since 1h
@@ -108,7 +108,7 @@ Search logs by pattern.
 
 ```bash
 sp infra logs search <pattern>
-sp --json logs search "error"
+sp --json infra logs search "error"
 sp infra logs search "timeout" --level error
 sp infra logs search "agent" --since 1h
 sp infra logs search "failed" --module database
@@ -277,7 +277,7 @@ Show aggregate statistics about logs.
 
 ```bash
 sp infra logs summary
-sp --json logs summary
+sp --json infra logs summary
 sp infra logs summary --since 24h
 ```
 
@@ -324,7 +324,7 @@ List execution traces for debugging.
 
 ```bash
 sp infra logs trace list
-sp --json logs trace list
+sp --json infra logs trace list
 sp infra logs trace list -n 50
 sp infra logs trace list --since 1h
 sp infra logs trace list --agent primary
@@ -431,11 +431,11 @@ List AI requests.
 
 ```bash
 sp infra logs request list
-sp --json logs request list
+sp --json infra logs request list
 sp infra logs request list -n 50
 sp infra logs request list --since 1h
 sp infra logs request list --provider anthropic
-sp infra logs request list --model claude-3-5-sonnet-20241022
+sp infra logs request list --model claude-sonnet-4-6-20250610
 ```
 
 **Flags:**
@@ -454,7 +454,7 @@ sp infra logs request list --model claude-3-5-sonnet-20241022
       "request_id": "req_abc123",
       "timestamp": "2024-01-15 10:30:00",
       "provider": "anthropic",
-      "model": "claude-3-5-sonnet-20241022",
+      "model": "claude-sonnet-4-6-20250610",
       "tokens": "500/200",
       "cost": "$0.000700",
       "latency_ms": 850
@@ -475,7 +475,7 @@ Show detailed AI request.
 
 ```bash
 sp infra logs request show <request-id>
-sp --json logs request show req_abc123
+sp --json infra logs request show req_abc123
 sp infra logs request show abc123 --messages
 sp infra logs request show abc123 --tools
 sp infra logs request show abc123 --messages --tools
@@ -497,7 +497,7 @@ sp infra logs request show abc123 --messages --tools
 {
   "request_id": "req_abc123",
   "provider": "anthropic",
-  "model": "claude-3-5-sonnet-20241022",
+  "model": "claude-sonnet-4-6-20250610",
   "input_tokens": 500,
   "output_tokens": 200,
   "cost_dollars": 0.0007,
@@ -523,7 +523,7 @@ Show aggregate AI request statistics.
 
 ```bash
 sp infra logs request stats
-sp --json logs request stats
+sp --json infra logs request stats
 sp infra logs request stats --since 24h
 sp infra logs request stats --since 7d
 ```
@@ -562,7 +562,7 @@ sp infra logs request stats --since 7d
   ],
   "by_model": [
     {
-      "model": "claude-3-5-sonnet-20241022",
+      "model": "claude-sonnet-4-6-20250610",
       "provider": "anthropic",
       "request_count": 80,
       "total_tokens": 50000,
@@ -585,7 +585,7 @@ When you send a message to an agent via the A2A protocol, you can trace the full
 
 ```bash
 # Send a message and capture the response
-RESPONSE=$(sp --json agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
 echo "$RESPONSE"
 
 # Extract task_id and context_id from response
@@ -631,7 +631,7 @@ sp infra logs request stats --since 1h
 ```bash
 # Phase 1: Send message to agent
 TOKEN=$(sp admin session login --email admin@example.com --token-only)
-RESPONSE=$(sp --json agents message admin -m "Show me traffic stats" --token "$TOKEN" --blocking)
+RESPONSE=$(sp --json admin agents message admin -m "Show me traffic stats" --token "$TOKEN" --blocking)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 
 # Phase 2: View the execution trace
@@ -653,28 +653,28 @@ sp infra logs request stats --since 1h
 
 ```bash
 # Phase 1: View recent logs
-sp --json logs view --tail 20
+sp --json infra logs view --tail 20
 
 # Phase 2: Get summary statistics
-sp --json logs summary --since 24h
+sp --json infra logs summary --since 24h
 
 # Phase 3: Search for errors
-sp --json logs search "error" --since 24h
+sp --json infra logs search "error" --since 24h
 
 # Phase 4: View specific module logs
-sp --json logs view --module agent --level warn
+sp --json infra logs view --module agent --level warn
 
 # Phase 5: Export logs for analysis
 sp infra logs export --format json --since 7d -o ./weekly-logs.json
 
 # Phase 6: Trace debugging
-sp --json logs trace list --since 1h
+sp --json infra logs trace list --since 1h
 sp infra logs trace show trace_abc123 --all
 
 # Phase 7: AI request analysis
-sp --json logs request list --since 24h --provider anthropic
-sp --json logs request show req_abc123 --messages --tools
-sp --json logs request stats --since 24h
+sp --json infra logs request list --since 24h --provider anthropic
+sp --json infra logs request show req_abc123 --messages --tools
+sp --json infra logs request stats --since 24h
 
 # Phase 8: Cleanup old logs
 sp infra logs cleanup --older-than 30d --dry-run
@@ -733,7 +733,7 @@ sp infra logs trace show nonexistent
 ```bash
 sp infra logs request show nonexistent
 # Warning: AI request not found: nonexistent
-# Tip: Use 'systemprompt logs request list' to see recent requests
+# Tip: Use 'systemprompt infra logs request list' to see recent requests
 ```
 
 ---
@@ -744,18 +744,18 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json logs view | jq .
+sp --json infra logs view | jq .
 
 # Extract specific fields
-sp --json logs view | jq '.data.logs[].message'
-sp --json logs trace list | jq '.data.traces[] | {trace_id, duration_ms}'
-sp --json logs request list | jq '.data.requests[] | select(.latency_ms > 1000)'
-sp --json logs request stats | jq '.data.total_cost_dollars'
-sp --json logs summary | jq '.data.by_level'
+sp --json infra logs view | jq '.data.logs[].message'
+sp --json infra logs trace list | jq '.data.traces[] | {trace_id, duration_ms}'
+sp --json infra logs request list | jq '.data.requests[] | select(.latency_ms > 1000)'
+sp --json infra logs request stats | jq '.data.total_cost_dollars'
+sp --json infra logs summary | jq '.data.by_level'
 
 # Filter by criteria
-sp --json logs view | jq '.data.logs[] | select(.level == "ERROR")'
-sp --json logs trace list | jq '.data.traces[] | select(.status == "failed")'
+sp --json infra logs view | jq '.data.logs[] | select(.level == "ERROR")'
+sp --json infra logs trace list | jq '.data.traces[] | select(.status == "failed")'
 ```
 
 ---

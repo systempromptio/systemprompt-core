@@ -632,7 +632,7 @@ sp analytics requests models --since 7d
   "models": [
     {
       "provider": "anthropic",
-      "model": "claude-3-5-sonnet-20241022",
+      "model": "claude-sonnet-4-6-20250610",
       "request_count": 800,
       "total_tokens": 350000,
       "total_cost_microdollars": 3150,
@@ -641,7 +641,7 @@ sp analytics requests models --since 7d
     },
     {
       "provider": "openai",
-      "model": "gpt-4-turbo",
+      "model": "gpt-4.1",
       "request_count": 400,
       "total_tokens": 150000,
       "total_cost_microdollars": 1370,
@@ -1075,14 +1075,14 @@ sp analytics costs breakdown --by agent
   "breakdown_by": "model",
   "items": [
     {
-      "name": "claude-3-5-sonnet-20241022",
+      "name": "claude-sonnet-4-6-20250610",
       "cost_microdollars": 3150,
       "request_count": 800,
       "tokens": 350000,
       "percentage": 69.7
     },
     {
-      "name": "gpt-4-turbo",
+      "name": "gpt-4.1",
       "cost_microdollars": 1370,
       "request_count": 400,
       "tokens": 150000,
