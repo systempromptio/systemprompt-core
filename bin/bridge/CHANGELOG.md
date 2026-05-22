@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.0] - 2026-05-22
+
+### Fixed
+
+- **Session binding: bridge persists and binds its stable `x-session-id`.** The bridge now stores its `x-session-id` and replays the same value across requests, so `/v1/messages` and `/bridge/heartbeat` no longer return `401 "Session missing or revoked"` or `"X-Session-ID does not match"` after the first call. A regenerated session id per request previously orphaned the gateway-side session record.
 
 ### Added
 
