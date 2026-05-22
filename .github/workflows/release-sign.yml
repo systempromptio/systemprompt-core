@@ -1,0 +1,144 @@
+name: Release — sign & publish bridge binary
+
+on:
+  push:
+    tags: ["bridge-v*"]
+  workflow_dispatch:
+    inputs:
+      bridge_tag:
+        description: "Bridge release tag (e.g. bridge-v0.9.0) — for re-runs without retagging"
+        required: true
+
+concurrency:
+  group: release-sign-${{ github.event.inputs.bridge_tag || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+
+jobs:
+  checks:
+    name: Quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: cargo fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bin/bridge
+      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets -- -D warnings
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: checks
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            asset: systemprompt-bridge-x86_64-unknown-linux-gnu
+          - target: aarch64-apple-darwin
+            runner: macos-14
+            asset: systemprompt-bridge-aarch64-apple-darwin
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            asset: systemprompt-bridge-x86_64-pc-windows-msvc.exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bin/bridge
+          key: ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --manifest-path bin/bridge/Cargo.toml --release --locked --target ${{ matrix.target }}
+
+      - name: Rename output (unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp "bin/bridge/target/${{ matrix.target }}/release/systemprompt-bridge" "${{ matrix.asset }}"
+      - name: Rename output (windows)
+        if: runner.os == 'Windows'
+        run: |
+          Copy-Item "bin/bridge/target/${{ matrix.target }}/release/systemprompt-bridge.exe" "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    name: Sign & publish
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.bridge_tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum systemprompt-bridge-* > SHA256SUMS
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign artifacts (keyless)
+        working-directory: dist
+        run: |
+          for f in systemprompt-bridge-* SHA256SUMS; do
+            cosign sign-blob --yes \
+              --output-signature "${f}.sig" \
+              --output-certificate "${f}.pem" \
+              "${f}"
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          body: |
+            ## systemprompt bridge ${{ steps.tag.outputs.tag }}
+
+            See the [bridge CHANGELOG](https://github.com/systempromptio/systemprompt-core/blob/main/bin/bridge/CHANGELOG.md) for the full list of changes.
+
+            ### Verifying a signature (cosign keyless)
+
+            ```bash
+            cosign verify-blob \
+              --certificate-identity-regexp='https://github.com/systempromptio/systemprompt-core/' \
+              --certificate-oidc-issuer='https://token.actions.githubusercontent.com' \
+              --signature systemprompt-bridge-x86_64-unknown-linux-gnu.sig \
+              --certificate systemprompt-bridge-x86_64-unknown-linux-gnu.pem \
+              systemprompt-bridge-x86_64-unknown-linux-gnu
+            ```
+          files: |
+            dist/systemprompt-bridge-*
+            dist/SHA256SUMS
+            dist/SHA256SUMS.sig
+            dist/SHA256SUMS.pem
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
