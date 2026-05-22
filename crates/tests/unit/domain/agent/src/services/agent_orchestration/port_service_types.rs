@@ -1,4 +1,4 @@
-use systemprompt_agent::services::agent_orchestration::port_manager::{PortService, ProcessInfo};
+use systemprompt_agent::services::agent_orchestration::port_service::{PortService, ProcessInfo};
 
 #[test]
 fn test_port_manager_new() {
