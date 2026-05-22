@@ -12,7 +12,7 @@ Snapshot of the codebase's RFI / enterprise-security review posture. Every item 
 | Vulnerability disclosure policy | `SECURITY.md` | published |
 | Public evaluation pack entry point | `documentation/README.md` | published |
 | STRIDE threat model | `documentation/security/threat-model.md` | published |
-| Production deployment runbook | `documentation/deployment-reference-architecture.md` | published |
+| Production deployment runbook | `documentation/guides/deploy-production.md` | published |
 | Compliance control matrix (HIPAA / SOC 2 / ISO 27001) | `documentation/security/compliance-control-matrix.md` | published |
 | Stability contract | `documentation/security/stability-contract.md` | published |
 | Compatibility matrix (providers, protocols, runtime) | `documentation/reference/compatibility.md` | published |
@@ -55,8 +55,9 @@ Full justification is recorded inline in `deny.toml` under `[advisories].ignore`
 | Supply Chain (cargo-deny: advisories, licenses, bans, sources) | `.github/workflows/supply-chain.yml` | push, PR, daily cron | present |
 | Quality (cargo-deny + cargo-audit) | `.github/workflows/quality.yml` | push, PR, cron | present |
 | Coverage (instrumented tests via RUSTFLAGS → LCOV + JSON + summary) | `.github/workflows/coverage.yml` | push on main, weekly cron, manual | present |
+| Bridge release sign & publish (cosign keyless) | `.github/workflows/release-sign.yml` | `bridge-v*` tags, manual | present |
 
-SBOM generation, release signing, and CodeQL static analysis are **not yet authored** — no `.github/workflows/sbom.yml`, `release-sign.yml`, or CodeQL configuration exists in the repository. See §6 (Known Gaps).
+Bridge release artefacts are signed with Sigstore `cosign` (keyless) via `release-sign.yml` on `bridge-v*` tags. SBOM generation and CodeQL static analysis are **not yet authored** — no `.github/workflows/sbom.yml` or CodeQL configuration exists — and signing of the core platform release is not yet wired. See §6 (Known Gaps).
 
 ### Local Verification Performed
 
@@ -143,7 +144,7 @@ Full pre-answers live in [compliance-control-matrix.md §4](compliance-control-m
 - **Encryption**: TLS 1.2+ in transit (enforced at entry). Secrets-at-rest via the customer's envelope-encryption infrastructure (KMS / Vault / sops) — the binary receives plaintext only after the customer's tooling opens the envelope, so the master key never enters the binary. DB-level encryption at rest is customer-managed.
 - **SSO**: OIDC through the customer's IdP.
 - **SBOM**: Generated on demand from the committed `Cargo.lock` (see §7). A CI-attached SBOM workflow is not yet authored.
-- **Release integrity**: Release-signing automation is not yet authored (see §6).
+- **Release integrity**: Bridge binaries are signed with Sigstore `cosign` (keyless) via `release-sign.yml` on `bridge-v*` tags. Signing of the core platform release is not yet wired (see §6).
 - **Business continuity**: Source-available under BSL-1.1 with automatic conversion to Apache 2.0 four years after each version's publication. The customer keeps indefinite usage rights under the licence.
 
 ## 6. Known Gaps (Honest List)
@@ -153,7 +154,7 @@ These are artefacts an enterprise reviewer might ask for that are **not** yet in
 | Gap | Why it matters | Plan |
 |-----|----------------|------|
 | SBOM CI workflow (`sbom.yml`) | A CI-attached CycloneDX SBOM per release is a common procurement requirement | Author the workflow; until then the SBOM is generated on demand from the committed `Cargo.lock` |
-| Release signing workflow (`release-sign.yml`, cosign keyless / Rekor) | Supply-chain integrity attestation on release artefacts | Author the workflow before the first signed enterprise release |
+| Core-platform release signing | `release-sign.yml` signs the **bridge** binary (cosign keyless) but the core platform release artefacts are not yet signed | Extend the signing workflow to core release artefacts before the first signed enterprise release |
 | CodeQL static analysis | Automated security scanning signal | Enable GitHub default-setup CodeQL or author a workflow, then cite once it has run |
 | Third-party penetration test report | Large healthcare buyers frequently require one | Commission before first enterprise deployment, or invite the customer to run their own |
 | SOC 2 Type I / II attestation for systemprompt.io Ltd | Useful but not required for the self-hosted model | Revisit when customer count and team size justify the audit cost |
@@ -184,4 +185,5 @@ All commands should complete without errors on a clean checkout.
 | Date | Change |
 |------|--------|
 | 2026-04-23 | Initial audit following an enterprise RFI inbound. 37 Dependabot advisories resolved to 1 LOW documented ignore; public evaluation pack shipped. |
-| 2026-05-22 | Fidelity pass against `main` (0.11.1). Corrected the RUSTSEC-2023-0071 rationale to the real RS256-only mitigations (no ES/EdDSA path exists; the exploitable surface is RSA decryption, not the signature-verification path exercised here). Marked `sbom.yml` / `release-sign.yml` / CodeQL as not yet authored rather than present-but-untriggered. Corrected the test-workspace figure to 52 workspace members and flagged the per-crate coverage table as a dated snapshot to re-measure. Repointed the secrets-bootstrap citation to `crates/infra/config/src/bootstrap/secrets/`. Noted `validate_aud=false` as a tracked open item and that the audit-table grant is operator-provisioned. |
+| 2026-05-22 | Fidelity pass against `main` (0.11.1). Corrected the RUSTSEC-2023-0071 rationale to the real RS256-only mitigations (no ES/EdDSA path exists; the exploitable surface is RSA decryption, not the signature-verification path exercised here). Corrected the test-workspace figure to 52 workspace members and flagged the per-crate coverage table as a dated snapshot to re-measure. Repointed the secrets-bootstrap citation to `crates/infra/config/src/bootstrap/secrets/`. Noted `validate_aud=false` as a tracked open item and that the audit-table grant is operator-provisioned. |
+| 2026-05-22 | `release-sign.yml` now exists and signs the bridge binary (Sigstore `cosign` keyless, `bridge-v*` tags) — recorded it in the CI table and reframed the gap as core-platform release signing. SBOM (`sbom.yml`) and CodeQL remain not authored. |

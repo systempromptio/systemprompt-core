@@ -18,11 +18,11 @@ systemprompt.io is **source-available infrastructure**, not a managed service. T
 | Standard | Requirement | Systemprompt support | Evidence |
 |----------|-------------|----------------------|----------|
 | §164.312(a)(1) Access control | Unique user identification | Every request is authenticated; identity propagated as a typed user ID through every layer | `crates/shared/identifiers/src/lib.rs` (typed `UserId`), `crates/infra/security/` (JWT verification) |
-| §164.312(a)(1) Access control | Emergency access procedure | Operational; deployment guide describes break-glass role provisioning | [../deployment-reference-architecture.md §6](../deployment-reference-architecture.md) |
+| §164.312(a)(1) Access control | Emergency access procedure | Operational; deployment guide describes break-glass role provisioning | [../guides/deploy-production.md §6](../guides/deploy-production.md) |
 | §164.312(a)(1) Access control | Automatic logoff | Session / token TTL enforced; configurable per IdP | `crates/domain/oauth/` token expiry |
-| §164.312(a)(2) Encryption and decryption | Encryption of ePHI at rest and in transit | TLS 1.2+ enforced at entry. Prompt and response content not persisted by default. For secrets-at-rest (provider API keys, JWT signing key): the binary loads secrets from a profile-referenced file or environment; the expected deployment pattern is that the customer uses their existing envelope-encryption infrastructure (HashiCorp Vault, AWS/GCP/Azure KMS, sops + age) to protect the secrets file — the master key never enters the binary. DB-level encryption at rest is customer-managed (RDS/AKS storage encryption, dm-crypt, etc.) | `crates/infra/config/src/bootstrap/secrets/`, `crates/shared/models/src/secrets.rs`, [../deployment-reference-architecture.md §2](../deployment-reference-architecture.md) |
+| §164.312(a)(2) Encryption and decryption | Encryption of ePHI at rest and in transit | TLS 1.2+ enforced at entry. Prompt and response content not persisted by default. For secrets-at-rest (provider API keys, JWT signing key): the binary loads secrets from a profile-referenced file or environment; the expected deployment pattern is that the customer uses their existing envelope-encryption infrastructure (HashiCorp Vault, AWS/GCP/Azure KMS, sops + age) to protect the secrets file — the master key never enters the binary. DB-level encryption at rest is customer-managed (RDS/AKS storage encryption, dm-crypt, etc.) | `crates/infra/config/src/bootstrap/secrets/`, `crates/shared/models/src/secrets.rs`, [../guides/deploy-production.md §2](../guides/deploy-production.md) |
 | §164.312(b) Audit controls | Record and examine activity | Every governed request produces a structured log or analytics event with identity, endpoint, outcome, timestamp | `crates/infra/logging/schema/log.sql`, `crates/infra/logging/schema/analytics.sql` |
-| §164.312(c) Integrity | ePHI not altered or destroyed improperly | Append-only discipline is an operator-provisioned control: the systemprompt DB role is granted `INSERT, SELECT` (not `UPDATE, DELETE`) on the audit/log tables. **The grant itself is not shipped in the schema migrations** — the operator applies it per the deployment guide. No schema-level immutability triggers are shipped; recommended hardening DDL (a BEFORE UPDATE/DELETE trigger) is published in the deployment guide for customers whose programme requires defense-in-depth | [../deployment-reference-architecture.md §4](../deployment-reference-architecture.md), [threat-model.md §4.2](threat-model.md) |
+| §164.312(c) Integrity | ePHI not altered or destroyed improperly | Append-only discipline is an operator-provisioned control: the systemprompt DB role is granted `INSERT, SELECT` (not `UPDATE, DELETE`) on the audit/log tables. **The grant itself is not shipped in the schema migrations** — the operator applies it per the deployment guide. No schema-level immutability triggers are shipped; recommended hardening DDL (a BEFORE UPDATE/DELETE trigger) is published in the deployment guide for customers whose programme requires defense-in-depth | [../guides/deploy-production.md §4](../guides/deploy-production.md), [threat-model.md §4.2](threat-model.md) |
 | §164.312(d) Person or entity authentication | Verify identity of user | OAuth2/OIDC with PKCE; JWT signature and issuer validation; rejects `alg: none` and any algorithm other than RS256 | `crates/infra/security/`, `crates/domain/oauth/` |
 | §164.312(e)(1) Transmission security | Integrity + encryption in transit | TLS at entry; outbound provider requests over HTTPS; no plaintext listener | `crates/entry/api/` |
 
@@ -59,7 +59,7 @@ Common Criteria mappings. Mirrors the 2017 TSC revision (effective through curre
 
 | Criterion | Systemprompt support | Evidence |
 |-----------|----------------------|----------|
-| CC7.1 Detection of anomalies | Structured metrics + audit event stream to the customer SIEM | [../deployment-reference-architecture.md §7](../deployment-reference-architecture.md) |
+| CC7.1 Detection of anomalies | Structured metrics + audit event stream to the customer SIEM | [../guides/deploy-production.md §7](../guides/deploy-production.md) |
 | CC7.2 Monitors system capacity | Prometheus metrics; recommended alerts documented | deployment guide §7.1 |
 | CC7.3 Evaluates security events | Customer SIEM responsibility; systemprompt provides the feed | — |
 | CC7.4 Incident response | SECURITY.md disclosure + customer incident response process | SECURITY.md |
@@ -119,7 +119,7 @@ Pre-answers to the questions an enterprise security questionnaire (CAIQ, SIG, SI
 | How do you handle vulnerabilities? | SECURITY.md defines reporting, SLAs, and coordinated disclosure. Continuous dependency audit (cargo-deny, cargo-audit) runs in CI and blocks merges. |
 | Do you run penetration tests? | Customer-commissioned penetration testing is supported under commercial agreement. |
 | Do you publish an SBOM? | A CycloneDX SBOM is generated on demand via `cargo cyclonedx`. Automated per-release SBOM publication is planned, not yet wired. |
-| Are releases signed? | Signed release artefacts (Sigstore cosign keyless) are planned, not yet wired; no signing workflow is committed today. |
+| Are releases signed? | Bridge release artefacts are signed with Sigstore `cosign` (keyless) via `.github/workflows/release-sign.yml` on `bridge-v*` tags. Signing of the core platform release is planned, not yet wired. |
 | What is your business continuity plan? | Source-available under BSL-1.1 with conversion to Apache 2.0 four years after each version's publication. The customer retains indefinite usage rights under licence and can continue operating without vendor involvement. See [stability-contract.md](stability-contract.md). |
 | Do you have cyber liability insurance? | Commercial insurance particulars available under NDA with qualified prospects. |
 
@@ -131,17 +131,18 @@ Pre-answers to the questions an enterprise security questionnaire (CAIQ, SIG, SI
 | Architecture narrative | `crates/`-level READMEs; repository root `README.md` |
 | Security policy and disclosure | `SECURITY.md` |
 | Threat model | [threat-model.md](threat-model.md) |
-| Deployment and operations | [../deployment-reference-architecture.md](../deployment-reference-architecture.md) |
+| Deployment and operations | [../guides/deploy-production.md](../guides/deploy-production.md) |
 | Stability and compatibility | [stability-contract.md](stability-contract.md), [../reference/compatibility.md](../reference/compatibility.md) |
 | Change history | `CHANGELOG.md` |
 | Supply-chain continuous verification | `.github/workflows/supply-chain.yml`, `deny.toml` |
 | Licence | `LICENSE` (BSL-1.1 → Apache 2.0 four-year conversion) |
 
-Release-signing and per-release SBOM publication (`cosign` keyless signing, CycloneDX attachment) are planned but not yet wired; no `release-sign.yml` or `sbom.yml` workflow is committed.
+Bridge release artefacts are signed with `cosign` keyless (`.github/workflows/release-sign.yml`, `bridge-v*` tags). Per-release SBOM publication (CycloneDX attachment) and signing of the core platform release are planned but not yet wired; no `sbom.yml` workflow is committed.
 
 ## 6. Revision
 
 | Date | Change |
 |------|--------|
 | 2026-04-23 | Initial public publication. |
-| 2026-05-22 | Removed evidence citations for non-existent `sbom.yml` and `release-sign.yml` workflows (marked SBOM/signing as planned, not yet wired). Repointed the audit-table schema citation to `crates/infra/logging/schema/{log,analytics}.sql`. Restated the A.8.24 cryptography control as RS256-only with the real at-rest mitigations; removed the audience-validation claim. Marked the §164.312(c) integrity grant as operator-provisioned. |
+| 2026-05-22 | Removed evidence citations for the non-existent `sbom.yml` workflow (SBOM remains generated on demand). Repointed the audit-table schema citation to `crates/infra/logging/schema/{log,analytics}.sql`. Restated the A.8.24 cryptography control as RS256-only with the real at-rest mitigations; removed the audience-validation claim. Marked the §164.312(c) integrity grant as operator-provisioned. |
+| 2026-05-22 | Recorded that `release-sign.yml` exists and signs the bridge binary (cosign keyless, `bridge-v*` tags); reframed release-signing answers as bridge-signed with core-platform signing still planned. |
