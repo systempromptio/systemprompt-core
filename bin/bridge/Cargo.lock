@@ -4120,7 +4120,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.9.2"
+version = "0.11.1"
 dependencies = [
  "axum",
  "inventory",
@@ -4135,7 +4135,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.9.2"
+version = "0.11.1"
 dependencies = [
  "chrono",
  "schemars",
@@ -4147,9 +4147,8 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.9.2"
+version = "0.11.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64",
  "chrono",
@@ -4169,15 +4168,15 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.18",
  "tracing",
+ "url",
  "uuid",
  "validator",
 ]
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.9.2"
+version = "0.11.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "chrono",
  "futures",
@@ -4191,9 +4190,8 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.9.2"
+version = "0.11.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "axum",
  "chrono",
