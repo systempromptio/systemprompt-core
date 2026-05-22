@@ -12,6 +12,7 @@ use systemprompt_oauth::services::{
     provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::{AnalyticsProvider, AppContext as _};
 use systemprompt_users::{ApiKeyService, DeviceCertService};
 
 use crate::services::middleware::JwtContextExtractor;
@@ -78,30 +79,39 @@ pub async fn pat(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or_else(|| (StatusCode::UNAUTHORIZED, "Invalid PAT".into()))?;
 
-    let result = issue_bridge_access(ctx.db_pool(), &record.user_id)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let analytics = require_analytics(&ctx)?;
+    let result = issue_bridge_access(
+        ctx.db_pool(),
+        analytics.as_ref(),
+        request.headers(),
+        &record.user_id,
+    )
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(Json(result.into()))
 }
 
 pub async fn session(
     ctx: AppContext,
+    headers: HeaderMap,
     Json(body): Json<SessionExchangeBody>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
     if body.code.trim().is_empty() {
         return Err((StatusCode::BAD_REQUEST, "missing exchange code".into()));
     }
 
-    let result = exchange_bridge_session_code(ctx.db_pool(), body.code.trim())
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                "exchange code invalid, expired, or already consumed".into(),
-            )
-        })?;
+    let analytics = require_analytics(&ctx)?;
+    let result =
+        exchange_bridge_session_code(ctx.db_pool(), analytics.as_ref(), &headers, body.code.trim())
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+            .ok_or_else(|| {
+                (
+                    StatusCode::UNAUTHORIZED,
+                    "exchange code invalid, expired, or already consumed".into(),
+                )
+            })?;
 
     Ok(Json(result.into()))
 }
@@ -145,6 +155,7 @@ fn build_token_endpoint() -> Result<String, String> {
 
 pub async fn mtls(
     ctx: AppContext,
+    headers: HeaderMap,
     Json(body): Json<MtlsRequestBody>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
     let fingerprint = body.device_cert_fingerprint.trim();
@@ -169,7 +180,8 @@ pub async fn mtls(
             )
         })?;
 
-    let result = issue_bridge_access(ctx.db_pool(), &record.user_id)
+    let analytics = require_analytics(&ctx)?;
+    let result = issue_bridge_access(ctx.db_pool(), analytics.as_ref(), &headers, &record.user_id)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
@@ -180,4 +192,15 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
     let auth = hdrs.get(headers::AUTHORIZATION)?.to_str().ok()?;
     auth.strip_prefix(BEARER_PREFIX)
         .map(|s| s.trim().to_string())
+}
+
+fn require_analytics(
+    ctx: &AppContext,
+) -> Result<Arc<dyn AnalyticsProvider>, (StatusCode, String)> {
+    ctx.analytics_provider().ok_or_else(|| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "analytics provider unavailable".into(),
+        )
+    })
 }

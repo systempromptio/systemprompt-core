@@ -1,7 +1,8 @@
 //! Bridge session exchange code generation and consumption.
 
-use crate::error::OauthResult as Result;
+use crate::error::{OauthError, OauthResult as Result};
 use chrono::{Duration as ChronoDuration, Utc};
+use http::HeaderMap;
 use rand::Rng;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -12,6 +13,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::Config;
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_traits::{AnalyticsProvider, CreateSessionInput};
 
 use crate::repository::{CreateClientParams, CreateExchangeCodeParams, OAuthRepository};
 use crate::services::generation::{
@@ -30,9 +32,16 @@ pub struct BridgeAuthResult {
     pub headers: HashMap<String, String>,
 }
 
-pub async fn issue_bridge_access(pool: &DbPool, user_id: &UserId) -> Result<BridgeAuthResult> {
+pub async fn issue_bridge_access(
+    pool: &DbPool,
+    analytics: &dyn AnalyticsProvider,
+    request_headers: &HeaderMap,
+    user_id: &UserId,
+) -> Result<BridgeAuthResult> {
     issue_bridge_access_with(
         pool,
+        analytics,
+        request_headers,
         user_id,
         ClientId::bridge(),
         SessionSource::Bridge,
@@ -43,6 +52,8 @@ pub async fn issue_bridge_access(pool: &DbPool, user_id: &UserId) -> Result<Brid
 
 pub async fn issue_bridge_access_with(
     pool: &DbPool,
+    analytics: &dyn AnalyticsProvider,
+    request_headers: &HeaderMap,
     user_id: &UserId,
     client_id: ClientId,
     session_source: SessionSource,
@@ -75,6 +86,26 @@ pub async fn issue_bridge_access_with(
         &session_id,
         &signing,
     )?;
+
+    // The JWT embeds `session_id`, but the hardened gateway validator only
+    // honours tokens whose session row exists and is unrevoked. Persist the row
+    // here so the token and its session are born together. Analytics is
+    // captured from the credential-exchange request so the session is traceable
+    // to the device that minted it.
+    let session_analytics = analytics.extract_analytics(request_headers, None);
+    let expires_at = Utc::now() + ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(0));
+    analytics
+        .create_session(CreateSessionInput {
+            session_id: &session_id,
+            user_id: Some(user_id),
+            analytics: &session_analytics,
+            session_source,
+            is_bot: false,
+            is_ai_crawler: false,
+            expires_at,
+        })
+        .await
+        .map_err(|e| OauthError::Session(e.to_string()))?;
 
     let mut hdrs = HashMap::new();
     hdrs.insert(headers::USER_ID.to_string(), user_id.to_string());
@@ -124,6 +155,8 @@ pub async fn issue_bridge_exchange_code(
 
 pub async fn exchange_bridge_session_code(
     pool: &DbPool,
+    analytics: &dyn AnalyticsProvider,
+    request_headers: &HeaderMap,
     code: &str,
 ) -> Result<Option<BridgeAuthResult>> {
     let code_hash = hash_exchange_code(code);
@@ -131,7 +164,7 @@ pub async fn exchange_bridge_session_code(
     let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
         return Ok(None);
     };
-    let result = issue_bridge_access(pool, &user_id).await?;
+    let result = issue_bridge_access(pool, analytics, request_headers, &user_id).await?;
     Ok(Some(result))
 }
 
