@@ -1,13 +1,11 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
-use reqwest::Client;
-use systemprompt_agent::models::a2a::jsonrpc::{
-    JSON_RPC_VERSION_2_0, JsonRpcResponse, Request, RequestId,
-};
+use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, Request, RequestId};
 use systemprompt_agent::models::a2a::protocol::TaskQueryParams;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::{Task, methods};
 
+use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::session::get_or_create_session;
@@ -24,13 +22,12 @@ pub struct TaskArgs {
     #[arg(long, help = "Number of history messages to retrieve")]
     pub history_length: Option<u32>,
 
-    #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
+    #[arg(long, help = "Gateway URL (overrides profile's api_external_url)")]
     pub url: Option<String>,
 
     #[arg(
         long,
-        env = "SYSTEMPROMPT_TOKEN",
-        help = "Bearer token for authentication"
+        help = "Bearer token override (defaults to the active CLI session token)"
     )]
     pub token: Option<String>,
 
@@ -45,6 +42,8 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         Err(anyhow!("Agent name is required"))
     })?;
 
+    ensure_agent_exists(&agent)?;
+
     let task_id = resolve_required(args.task, "task-id", config, || {
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
@@ -57,8 +56,6 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         .as_deref()
         .unwrap_or_else(|| session_ctx.session_token().as_str());
 
-    let request_id = RequestId::String(uuid::Uuid::new_v4().to_string());
-
     let request = Request {
         jsonrpc: JSON_RPC_VERSION_2_0.to_string(),
         method: methods::GET_TASK.to_string(),
@@ -66,59 +63,17 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
             id: TaskId::new(task_id.clone()),
             history_length: args.history_length,
         },
-        id: request_id,
+        id: RequestId::String(uuid::Uuid::new_v4().to_string()),
     };
 
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(args.timeout))
-        .build()
-        .context("Failed to create HTTP client")?;
-
-    let request_builder = client
-        .post(&agent_url)
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {}", auth_token));
-
-    let response = request_builder
-        .json(&request)
-        .send()
-        .await
-        .with_context(|| format!("Failed to get task from agent at {}", agent_url))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_else(|_| String::new());
-        anyhow::bail!("Agent request failed with status {}: {}", status, body);
-    }
-
-    let json_response: JsonRpcResponse<Task> = response
-        .json()
-        .await
-        .context("Failed to parse agent response")?;
-
-    if json_response.jsonrpc != JSON_RPC_VERSION_2_0 {
-        anyhow::bail!(
-            "Invalid JSON-RPC version: expected {}, got {}",
-            JSON_RPC_VERSION_2_0,
-            json_response.jsonrpc
-        );
-    }
-
-    if let Some(error) = json_response.error {
-        let details = error
-            .data
-            .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
-        anyhow::bail!(
-            "Agent returned error ({}): {}{}",
-            error.code,
-            error.message,
-            details
-        );
-    }
-
-    let task = json_response
-        .result
-        .ok_or_else(|| anyhow!("No result in agent response"))?;
+    let task: Task = send_a2a_request(A2aCall {
+        agent: &agent,
+        agent_url: &agent_url,
+        auth_token,
+        request: &request,
+        timeout: args.timeout,
+    })
+    .await?;
 
     Ok(CommandResult::card(task).with_title("Task Details"))
 }

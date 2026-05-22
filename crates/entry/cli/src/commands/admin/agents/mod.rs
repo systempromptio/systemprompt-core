@@ -1,5 +1,6 @@
 pub mod types;
 
+mod client;
 mod create;
 mod delete;
 mod edit;

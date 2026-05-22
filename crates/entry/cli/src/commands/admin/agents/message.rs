@@ -6,6 +6,7 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart, methods};
 
+use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
 use super::message_streaming::execute_streaming;
 use super::types::MessageOutput;
@@ -77,6 +78,8 @@ pub async fn execute(
     let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
+
+    ensure_agent_exists(&agent)?;
 
     let message_text = resolve_required(args.message, "message", config, || {
         Err(anyhow!("Message text is required. Use -m or --message"))

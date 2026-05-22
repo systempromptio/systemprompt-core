@@ -13,10 +13,20 @@ pub enum RoleCommands {
     #[command(about = "Assign roles to a user")]
     Assign(assign::AssignArgs),
 
-    #[command(about = "Promote user to admin")]
+    #[command(
+        about = "Promote a user to the admin role",
+        long_about = "Promote a user to the admin role.\n\nThis command operates only on the \
+                      built-in 'admin' role. To assign other roles use:\n  systemprompt admin \
+                      users role assign <USER_ID> --roles <ROLE>..."
+    )]
     Promote(promote::PromoteArgs),
 
-    #[command(about = "Demote user from admin")]
+    #[command(
+        about = "Demote a user from the admin role",
+        long_about = "Demote a user from the admin role.\n\nThis command operates only on the \
+                      built-in 'admin' role. To revoke other roles use:\n  systemprompt admin \
+                      users role assign <USER_ID> --roles <ROLE>..."
+    )]
     Demote(demote::DemoteArgs),
 }
 

@@ -236,6 +236,26 @@ pub async fn get_popular_content_ids(
     Ok(rows.into_iter().map(ContentId::new).collect())
 }
 
+pub async fn find_sources_by_slug(
+    pool: &Arc<PgPool>,
+    slug: &str,
+    locale: &LocaleCode,
+) -> Result<Vec<SourceId>, sqlx::Error> {
+    let rows: Vec<String> = sqlx::query_scalar!(
+        r#"
+        SELECT source_id as "source_id!"
+        FROM markdown_content
+        WHERE slug = $1 AND locale = $2
+        ORDER BY source_id
+        "#,
+        slug,
+        locale.as_str()
+    )
+    .fetch_all(&**pool)
+    .await?;
+    Ok(rows.into_iter().map(SourceId::new).collect())
+}
+
 pub async fn list_slugs_with_locales_by_source(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
