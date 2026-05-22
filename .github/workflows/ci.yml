@@ -111,6 +111,10 @@ jobs:
       - name: Migrate test database
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
+          # Build the migrate tool against the committed .sqlx cache: the schema
+          # it is about to create does not exist yet, so live query verification
+          # of its core-crate dependencies would fail on a cold build cache.
+          SQLX_OFFLINE: "true"
         run: |
           cargo run \
             --manifest-path crates/tests/Cargo.toml \
