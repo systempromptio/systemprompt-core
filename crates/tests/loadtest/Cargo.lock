@@ -982,6 +982,7 @@ dependencies = [
 name = "systemprompt-loadtest"
 version = "0.0.1"
 dependencies = [
+ "base64",
  "clap",
  "reqwest",
  "serde",

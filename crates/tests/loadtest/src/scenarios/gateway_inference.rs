@@ -1,6 +1,5 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
 
 use reqwest::Client;
 use serde_json::json;
@@ -8,20 +7,18 @@ use tokio::time::{Duration, sleep};
 
 use crate::metrics::Metrics;
 
-static ITER: AtomicU64 = AtomicU64::new(0);
+// The gateway enforces `x-session-id == token.session_id`, so the header must
+// carry the token's own session id (decoded once — it is constant per run),
+// not a fresh per-iteration label, or every request 401s before policy eval.
+static SESSION_ID: OnceLock<String> = OnceLock::new();
 
 pub async fn run(client: Client, base_url: String, token: Option<String>, metrics: Arc<Metrics>) {
-    let auth = match &token {
-        Some(t) => format!("Bearer {t}"),
-        None => return,
+    let Some(t) = token.as_deref() else {
+        return;
     };
-
-    let iter = ITER.fetch_add(1, Ordering::Relaxed);
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system time before epoch")
-        .as_millis();
-    let session_id = format!("loadtest-infer-{now}-{iter}");
+    let auth = format!("Bearer {t}");
+    let session_id = SESSION_ID
+        .get_or_init(|| crate::auth::session_id_from_jwt(t).unwrap_or_else(|| t.to_string()));
 
     let body = json!({
         "model": "claude-haiku-4-5",
@@ -33,7 +30,7 @@ pub async fn run(client: Client, base_url: String, token: Option<String>, metric
     let res = client
         .post(format!("{base_url}/v1/messages"))
         .header("Authorization", &auth)
-        .header("x-session-id", &session_id)
+        .header("x-session-id", session_id)
         .header("Content-Type", "application/json")
         .json(&body)
         .send()

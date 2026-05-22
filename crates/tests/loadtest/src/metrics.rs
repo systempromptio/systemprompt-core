@@ -166,6 +166,7 @@ impl MetricsSnapshot {
             p99_ms: self.p99().as_millis(),
             error_rate: self.error_rate(),
             passed: self.check_thresholds(thresholds),
+            thresholds: thresholds.clone(),
             nodes: BTreeMap::new(),
             served_by: self.served_by.clone(),
             time_series: self.time_series.clone(),
@@ -217,6 +218,9 @@ pub struct ScenarioJson {
     pub p99_ms: u128,
     pub error_rate: f64,
     pub passed: bool,
+    /// The SLO this scenario was judged against — embedded per scenario so the
+    /// report is self-describing and `passed` is unambiguous.
+    pub thresholds: Thresholds,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub nodes: BTreeMap<String, NodeJson>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
@@ -249,6 +253,9 @@ impl MetricsSnapshot {
 pub struct ScenarioReport {
     pub aggregate: MetricsSnapshot,
     pub per_node: BTreeMap<NodeId, MetricsSnapshot>,
+    /// The SLO this scenario is judged against (resolved per scenario by the
+    /// active profile).
+    pub thresholds: Thresholds,
 }
 
 pub struct Report {
@@ -262,17 +269,23 @@ impl Report {
         }
     }
 
-    pub fn add(&mut self, name: ScenarioId, metrics: &Metrics) {
+    pub fn add(&mut self, name: ScenarioId, metrics: &Metrics, thresholds: Thresholds) {
         self.scenarios.insert(
             name,
             ScenarioReport {
                 aggregate: metrics.snapshot(),
                 per_node: BTreeMap::new(),
+                thresholds,
             },
         );
     }
 
-    pub fn add_distributed(&mut self, name: ScenarioId, per_node: &[(NodeId, MetricsSnapshot)]) {
+    pub fn add_distributed(
+        &mut self,
+        name: ScenarioId,
+        per_node: &[(NodeId, MetricsSnapshot)],
+        thresholds: Thresholds,
+    ) {
         let mut latencies = Vec::new();
         let mut errors = 0u64;
         let mut total = 0u64;
