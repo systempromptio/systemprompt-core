@@ -81,7 +81,7 @@ If your research requires testing against a production deployment not owned by y
 
 ## Further Reading
 
-- [Threat Model](documentation/security/threat-model.md)
-- [Deployment Reference Architecture](documentation/security/deployment-reference-architecture.md)
-- [Compliance Control Matrix](documentation/security/compliance-control-matrix.md)
-- [Stability Contract](documentation/security/stability-contract.md)
+- [Threat Model](documentation/threat-model.md)
+- [Deployment Reference Architecture](documentation/deployment-reference-architecture.md)
+- [Compliance Control Matrix](documentation/compliance-control-matrix.md)
+- [Stability Contract](documentation/stability-contract.md)

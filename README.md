@@ -382,11 +382,12 @@ Release binaries are built in GitHub-hosted CI and signed with Sigstore `cosign`
 
 The [`documentation/`](documentation/) directory is the public evaluation pack for prospective customers, security reviewers, and RFI / procurement teams.
 
-- [Compliance Control Matrix](documentation/security/compliance-control-matrix.md) — HIPAA, SOC 2, ISO 27001 mappings
-- [Threat Model](documentation/security/threat-model.md) — STRIDE analysis with code paths
-- [Deployment Reference Architecture](documentation/security/deployment-reference-architecture.md) — HA, backup, DR, key rotation, monitoring, air-gap
-- [Stability Contract](documentation/security/stability-contract.md) — what is stable vs. what tracks upstream
-- [Compatibility Matrix](documentation/security/compatibility-matrix.md) — providers, protocols, runtime versions
+- [Compliance Control Matrix](documentation/compliance-control-matrix.md) — HIPAA, SOC 2, ISO 27001 mappings
+- [Threat Model](documentation/threat-model.md) — STRIDE analysis with code paths
+- [Deployment Reference Architecture](documentation/deployment-reference-architecture.md) — HA, backup, DR, key rotation, monitoring, air-gap
+- [Stability Contract](documentation/stability-contract.md) — what is stable vs. what tracks upstream
+- [Compatibility Matrix](documentation/compatibility-matrix.md) — providers, protocols, runtime versions
+- [RFI Readiness Audit](documentation/rfi-readiness-audit.md) — evaluation posture, supply-chain checks, known gaps
 
 RFI and licensing contact: [ed@systemprompt.io](mailto:ed@systemprompt.io).
 

@@ -75,7 +75,7 @@ just build-bridge aarch64-apple-darwin         # cross target
 just build-bridge-all                          # mac arm+x86, windows x86_64, linux x86_64
 ```
 
-For the full build, release, versioning, and per-OS reference, see [`documentation/bridge/`](../../documentation/bridge/README.md).
+The authoritative build commands are the `build-bridge*` recipes in the root `justfile`; CI mirrors them. Detailed build, release, versioning, and per-OS maintainer reference lives in the project's internal documentation.
 
 ---
 

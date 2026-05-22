@@ -96,7 +96,7 @@ Common Criteria mappings. Mirrors the 2017 TSC revision (effective through curre
 | A.8.24 Use of cryptography | Policy + controls | TLS 1.2+ required at entry. JWT verification via `jsonwebtoken::Validation::new(Algorithm::RS256)`, with the active `kid` resolved against the in-process `TokenAuthority` cache and the public set published at `/.well-known/jwks.json`. HS256 and `alg: none` are rejected; multi-issuer trust is configured via `profile.security.trusted_issuers`. PKCE `S256` enforced for OAuth2 code flow. MCP manifest signatures via Ed25519. OAuth refresh-token ids and authorisation codes are stored as HMAC-SHA-256 digests under the deployment `oauth_at_rest_pepper`. Other secrets-at-rest are expected via customer envelope encryption (Vault / KMS / sops) — the binary does not perform its own symmetric at-rest encryption |
 | A.8.25 Secure development lifecycle | Apply secure SDLC | Compile-time SQL verification, fmt/clippy/tests in CI, threat model maintained |
 | A.8.26 Application security requirements | Identify and apply | This document + threat model |
-| A.8.28 Secure coding | Apply principles | Rust memory safety; no unsafe blocks outside crypto primitives; coding standards enforced (`instructions/rust.md` referenced internally) |
+| A.8.28 Secure coding | Apply principles | Rust memory safety; no unsafe blocks outside crypto primitives; coding standards enforced (canonical Rust standard maintained internally) |
 | A.8.31 Separation of environments | Dev / test / prod | Profile-based config allows per-environment overrides |
 | A.8.32 Change management | Controlled changes | CI + CHANGELOG + stability contract |
 

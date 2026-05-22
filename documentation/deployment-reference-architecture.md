@@ -245,7 +245,7 @@ Air-gap is a first-class deployment mode, not an afterthought. The binary does n
 ### 9.1 Update
 
 1. Pull new release; verify cosign signature and SBOM
-2. Review the [CHANGELOG.md](../../CHANGELOG.md) for breaking changes — in particular, scan for any entry tagged `BREAKING` under the target version
+2. Review the [CHANGELOG.md](../CHANGELOG.md) for breaking changes — in particular, scan for any entry tagged `BREAKING` under the target version
 3. Apply database migrations: `systemprompt infra db migrate --dry-run` then `--apply`. Migrations are forward-compatible for one minor version — see [stability-contract.md](stability-contract.md)
 4. Rolling restart: replace one replica at a time; wait for readiness before proceeding
 
