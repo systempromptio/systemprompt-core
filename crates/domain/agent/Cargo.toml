@@ -102,6 +102,5 @@ walkdir = { workspace = true }
 [dev-dependencies]
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
-axum-test = { workspace = true }
 url = { workspace = true }
 futures = { workspace = true }

@@ -143,7 +143,6 @@ variant_size_differences = "warn"
 # Core dependencies
 tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"
-axum-test = "18.0"
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
