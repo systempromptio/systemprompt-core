@@ -38,11 +38,7 @@ pub fn intersect_scopes(
     Ok(out)
 }
 
-pub(super) fn resolve_audience(
-    requested: Option<&str>,
-    resource: Option<&str>,
-    global: &Config,
-) -> Result<Vec<JwtAudience>> {
+pub(super) fn resolve_audience(requested: Option<&str>, global: &Config) -> Result<Vec<JwtAudience>> {
     if let Some(value) = requested {
         if !global
             .allowed_resource_audiences
@@ -57,7 +53,6 @@ pub(super) fn resolve_audience(
             JwtAudience::from_str(value).map_err(|e| anyhow!("Invalid audience '{value}': {e}"))?;
         return Ok(vec![aud]);
     }
-    let _ = resource;
     Ok(global.jwt_audiences.clone())
 }
 
