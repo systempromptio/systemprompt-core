@@ -85,9 +85,10 @@ async fn concurrent_broadcast_during_registration_storm() {
 async fn concurrent_cleanup_under_contention() {
     let broadcaster: Arc<GenericBroadcaster<A2AEvent>> = Arc::new(GenericBroadcaster::new());
     let user = test_user_id(1);
+    let cap = GenericBroadcaster::<A2AEvent>::MAX_CONNECTIONS_PER_USER;
     let mut receivers = Vec::new();
 
-    for i in 0..100 {
+    for i in 0..cap {
         let (tx, rx) = mpsc::channel(systemprompt_events::SSE_BUFFER);
         broadcaster
             .register(&user, &ConnectionId::new(format!("conn-{i}")), tx)
@@ -95,10 +96,10 @@ async fn concurrent_cleanup_under_contention() {
         receivers.push(rx);
     }
 
-    assert_eq!(broadcaster.connection_count(&user).await, 100);
+    assert_eq!(broadcaster.connection_count(&user).await, cap);
 
     let mut join_set = JoinSet::new();
-    for i in 0..100 {
+    for i in 0..cap {
         let b = broadcaster.clone();
         let u = user.clone();
         join_set.spawn(async move {
