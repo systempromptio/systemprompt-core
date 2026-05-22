@@ -21,6 +21,14 @@ use crate::context_loaders;
 use crate::error::{RuntimeError, RuntimeResult};
 use crate::registry::ModuleApiRegistry;
 
+/// Assembles an [`AppContext`], owning the bootstrap order described on the
+/// module.
+///
+/// All fields default to a no-op build: extensions are discovered via
+/// inventory, schema installation is off, and the marketplace filter falls
+/// back to the inventory-registered implementation (or an allow-all filter).
+/// Override these with the `with_*` methods before calling
+/// [`build`](Self::build).
 #[derive(Default)]
 pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
@@ -48,6 +56,8 @@ impl AppContextBuilder {
         Self::default()
     }
 
+    /// Supplies an explicit extension registry. When unset, `build()`
+    /// discovers extensions via inventory ([`ExtensionRegistry::discover`]).
     #[must_use]
     pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
         self.extension_registry = Some(registry);
@@ -60,6 +70,9 @@ impl AppContextBuilder {
         self
     }
 
+    /// Supplies an explicit marketplace filter. When unset, `build()` selects
+    /// the highest-priority inventory-registered filter, falling back to an
+    /// allow-all filter when none succeeds.
     #[must_use]
     pub fn with_marketplace_filter(mut self, filter: Arc<dyn MarketplaceFilter>) -> Self {
         self.marketplace_filter = Some(filter);
