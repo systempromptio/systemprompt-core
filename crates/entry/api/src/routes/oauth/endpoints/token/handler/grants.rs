@@ -1,60 +1,23 @@
-use super::generation::{
+//! Per-`grant_type` token issuance: authorization-code, refresh-token,
+//! client-credentials, and RFC 8693 token-exchange.
+
+use axum::http::HeaderMap;
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
+use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::OAuthRepository;
+
+use super::super::generation::{
     ClientTokenOptions, TokenExchangeRequest, TokenGenerationParams, generate_client_tokens,
     generate_tokens_by_user_id, handle_token_exchange,
 };
-use super::validation::{
+use super::super::validation::{
     AuthCodeValidationParams, extract_required_field, validate_authorization_code,
     validate_client_credentials,
 };
-use super::{TokenError, TokenRequest, TokenResponse};
-use axum::extract::{Extension, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Response};
-use axum::{Form, Json};
-use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
-use systemprompt_models::RequestContext;
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::{GrantType, OAuthState};
-use tracing::instrument;
+use super::super::{TokenError, TokenRequest, TokenResponse};
+use super::map_exchange_error;
 
-use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
-
-#[instrument(skip(state, _req_ctx, headers, request, repo), fields(grant_type = %request.grant_type))]
-pub async fn handle_token(
-    Extension(_req_ctx): Extension<RequestContext>,
-    State(state): State<OAuthState>,
-    OAuthRepo(repo): OAuthRepo,
-    headers: HeaderMap,
-    Form(request): Form<TokenRequest>,
-) -> Result<Response, OAuthHttpError> {
-    tracing::info!(grant_type = %request.grant_type, "Token request received");
-
-    let parsed = request.grant_type.parse::<GrantType>().ok();
-    let response = match parsed {
-        Some(GrantType::AuthorizationCode) => {
-            handle_authorization_code_grant(repo, request, &headers, &state).await?
-        },
-        Some(GrantType::RefreshToken) => {
-            handle_refresh_token_grant(repo, request, &headers, &state).await?
-        },
-        Some(GrantType::ClientCredentials) => {
-            handle_client_credentials_grant(repo, request, &headers, &state).await?
-        },
-        Some(GrantType::TokenExchange) => {
-            handle_token_exchange_grant(repo, request, &headers, &state).await?
-        },
-        None => {
-            return Err(TokenError::UnsupportedGrantType {
-                grant_type: request.grant_type.clone(),
-            }
-            .into());
-        },
-    };
-    Ok((StatusCode::OK, Json(response)).into_response())
-}
-
-async fn handle_authorization_code_grant(
+pub(super) async fn handle_authorization_code_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
@@ -132,7 +95,7 @@ async fn handle_authorization_code_grant(
     Ok(token_response)
 }
 
-async fn handle_refresh_token_grant(
+pub(super) async fn handle_refresh_token_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
@@ -217,7 +180,7 @@ async fn handle_refresh_token_grant(
     Ok(token_response)
 }
 
-async fn handle_token_exchange_grant(
+pub(super) async fn handle_token_exchange_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
@@ -258,44 +221,7 @@ async fn handle_token_exchange_grant(
     Ok(response)
 }
 
-fn map_exchange_error(err: &anyhow::Error) -> TokenError {
-    if let Some(token_err) = err.downcast_ref::<TokenError>() {
-        return clone_token_error(token_err);
-    }
-    TokenError::ServerError {
-        message: err.to_string(),
-    }
-}
-
-fn clone_token_error(err: &TokenError) -> TokenError {
-    match err {
-        TokenError::InvalidRequest { field, message } => TokenError::InvalidRequest {
-            field: field.clone(),
-            message: message.clone(),
-        },
-        TokenError::UnsupportedGrantType { grant_type } => TokenError::UnsupportedGrantType {
-            grant_type: grant_type.clone(),
-        },
-        TokenError::InvalidClient => TokenError::InvalidClient,
-        TokenError::InvalidGrant { reason } => TokenError::InvalidGrant {
-            reason: reason.clone(),
-        },
-        TokenError::InvalidRefreshToken { reason } => TokenError::InvalidRefreshToken {
-            reason: reason.clone(),
-        },
-        TokenError::InvalidCredentials => TokenError::InvalidCredentials,
-        TokenError::InvalidClientSecret => TokenError::InvalidClientSecret,
-        TokenError::ExpiredCode => TokenError::ExpiredCode,
-        TokenError::ServerError { message } => TokenError::ServerError {
-            message: message.clone(),
-        },
-        TokenError::InvalidTarget { message } => TokenError::InvalidTarget {
-            message: message.clone(),
-        },
-    }
-}
-
-async fn handle_client_credentials_grant(
+pub(super) async fn handle_client_credentials_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
