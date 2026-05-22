@@ -148,16 +148,16 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
             )
             .route(
                 "/auth/bridge/session",
-                post(move |request| {
+                post(move |headers, body| {
                     let context = ctx_session.clone();
-                    async move { auth::session(context, request).await }
+                    async move { auth::session(context, headers, body).await }
                 }),
             )
             .route(
                 "/auth/bridge/mtls",
-                post(move |request| {
+                post(move |headers, body| {
                     let context = ctx_mtls.clone();
-                    async move { auth::mtls(context, request).await }
+                    async move { auth::mtls(context, headers, body).await }
                 }),
             )
             .route(

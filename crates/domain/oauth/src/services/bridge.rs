@@ -32,6 +32,15 @@ pub struct BridgeAuthResult {
     pub headers: HashMap<String, String>,
 }
 
+#[derive(Debug)]
+pub struct BridgeAccessRequest<'a> {
+    pub request_headers: &'a HeaderMap,
+    pub user_id: &'a UserId,
+    pub client_id: ClientId,
+    pub session_source: SessionSource,
+    pub ttl_seconds: u64,
+}
+
 pub async fn issue_bridge_access(
     pool: &DbPool,
     analytics: &dyn AnalyticsProvider,
@@ -41,11 +50,13 @@ pub async fn issue_bridge_access(
     issue_bridge_access_with(
         pool,
         analytics,
-        request_headers,
-        user_id,
-        ClientId::bridge(),
-        SessionSource::Bridge,
-        DEFAULT_ACCESS_TTL_SECONDS,
+        BridgeAccessRequest {
+            request_headers,
+            user_id,
+            client_id: ClientId::bridge(),
+            session_source: SessionSource::Bridge,
+            ttl_seconds: DEFAULT_ACCESS_TTL_SECONDS,
+        },
     )
     .await
 }
@@ -53,12 +64,16 @@ pub async fn issue_bridge_access(
 pub async fn issue_bridge_access_with(
     pool: &DbPool,
     analytics: &dyn AnalyticsProvider,
-    request_headers: &HeaderMap,
-    user_id: &UserId,
-    client_id: ClientId,
-    session_source: SessionSource,
-    ttl_seconds: u64,
+    request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
+    let BridgeAccessRequest {
+        request_headers,
+        user_id,
+        client_id,
+        session_source,
+        ttl_seconds,
+    } = request;
+
     let repo = OAuthRepository::new(pool)?;
     let auth_user = repo.get_authenticated_user(user_id).await?;
 

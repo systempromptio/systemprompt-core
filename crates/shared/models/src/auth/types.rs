@@ -86,19 +86,7 @@ impl AuthenticatedUser {
     }
 
     pub fn user_type(&self) -> UserType {
-        if self.has_permission(Permission::Admin) {
-            UserType::Admin
-        } else if self.has_permission(Permission::User) {
-            UserType::User
-        } else if self.has_permission(Permission::A2a) {
-            UserType::A2a
-        } else if self.has_permission(Permission::Mcp) {
-            UserType::Mcp
-        } else if self.has_permission(Permission::Service) {
-            UserType::Service
-        } else {
-            UserType::Anon
-        }
+        UserType::from_permissions(&self.permissions)
     }
 }
 

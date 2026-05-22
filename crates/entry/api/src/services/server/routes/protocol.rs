@@ -29,21 +29,17 @@ pub(super) fn mount_oauth(
 ) -> Router {
     let rate_config = &ctx.config().rate_limits;
     if let Some(oauth_state) = create_oauth_state(ctx) {
-        router = router.nest(
-            ApiPaths::OAUTH_BASE,
-            crate::routes::oauth::public_router()
-                .with_state(oauth_state.clone())
-                .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
-                .with_auth(public_middleware.clone(), AuthzPolicy::public()),
-        );
-
-        router = router.nest(
-            ApiPaths::OAUTH_BASE,
-            crate::routes::oauth::authenticated_router()
-                .with_state(oauth_state)
-                .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
-                .with_auth(user_middleware.clone(), AuthzPolicy::user()),
-        );
+        let oauth = crate::routes::oauth::public_router()
+            .with_state(oauth_state.clone())
+            .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
+            .with_auth(public_middleware.clone(), AuthzPolicy::public())
+            .merge(
+                crate::routes::oauth::authenticated_router()
+                    .with_state(oauth_state)
+                    .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
+                    .with_auth(user_middleware.clone(), AuthzPolicy::user()),
+            );
+        router = router.nest(ApiPaths::OAUTH_BASE, oauth);
     }
     router
 }
@@ -158,12 +154,15 @@ pub(super) fn mount_content_and_misc(
 ) -> Result<Router, LoaderError> {
     let rate_config = &ctx.config().rate_limits;
 
-    router = router.nest(
-        ApiPaths::CONTENT_BASE,
-        crate::routes::content::router(ctx)
-            .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
-    );
+    let content = crate::routes::content::public_router(ctx)
+        .with_rate_limit(rate_config, rate_config.content_per_second)
+        .with_auth(public_middleware.clone(), AuthzPolicy::public())
+        .merge(
+            crate::routes::content::authenticated_router(ctx)
+                .with_rate_limit(rate_config, rate_config.content_per_second)
+                .with_auth(user_middleware.clone(), AuthzPolicy::user()),
+        );
+    router = router.nest(ApiPaths::CONTENT_BASE, content);
 
     router = router.merge(
         crate::routes::content::redirect_router(ctx.db_pool())

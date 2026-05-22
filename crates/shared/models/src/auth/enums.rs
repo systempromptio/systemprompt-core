@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
+use super::permission::Permission;
 use crate::errors::ParseEnumError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
@@ -76,6 +77,31 @@ pub enum UserType {
 }
 
 impl UserType {
+    /// Derives the caller type from a permission set, the single source of
+    /// truth for the permission → type mapping. The precedence is
+    /// privilege-descending (`Admin` wins over `User`, etc.); the hook scopes
+    /// resolve to `Service` so a hook principal is never silently downgraded
+    /// to `Anon`.
+    pub fn from_permissions(permissions: &[Permission]) -> Self {
+        let has = |p: Permission| permissions.contains(&p);
+        if has(Permission::Admin) {
+            Self::Admin
+        } else if has(Permission::User) {
+            Self::User
+        } else if has(Permission::A2a) {
+            Self::A2a
+        } else if has(Permission::Mcp) {
+            Self::Mcp
+        } else if has(Permission::Service)
+            || has(Permission::HookGovern)
+            || has(Permission::HookTrack)
+        {
+            Self::Service
+        } else {
+            Self::Anon
+        }
+    }
+
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Admin => "admin",

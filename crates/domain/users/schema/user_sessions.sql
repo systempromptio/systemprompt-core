@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     behavioral_bot_score INTEGER NOT NULL DEFAULT 0,
     throttle_escalated_at TIMESTAMPTZ,
     session_source VARCHAR(50) DEFAULT 'web'
-        CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'unknown')),
+        CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'mcp', 'bridge', 'unknown')),
     revoked_at TIMESTAMPTZ,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );

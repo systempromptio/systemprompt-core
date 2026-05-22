@@ -92,7 +92,7 @@ pub async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<IssuePl
         user_uuid,
         user.name.clone(),
         user.email.clone(),
-        vec![Permission::Admin],
+        vec![Permission::HookGovern, Permission::HookTrack],
         user.roles,
     );
 
@@ -105,8 +105,8 @@ pub async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<IssuePl
 
     let expires_in_hours = i64::from(args.duration_days) * 24;
     let config = JwtConfig {
-        permissions: vec![Permission::Admin],
-        audience: vec![JwtAudience::Api],
+        permissions: vec![Permission::HookGovern, Permission::HookTrack],
+        audience: vec![JwtAudience::Hook],
         expires_in_hours: Some(expires_in_hours),
         resource: Some("plugin".to_string()),
         plugin_id: Some(args.plugin_id.clone()),

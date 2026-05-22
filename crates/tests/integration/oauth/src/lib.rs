@@ -4,6 +4,9 @@
 //! Set DATABASE_URL environment variable before running.
 
 #[cfg(test)]
+mod bridge_session_tests;
+
+#[cfg(test)]
 mod client_tests;
 
 #[cfg(test)]
