@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::{ServiceConfig, ServiceRepository};
-use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;
@@ -58,7 +58,7 @@ impl ServiceResolver {
     }
 
     async fn attempt_restart(service_name: &str, ctx: &AppContext) -> Result<(), ProxyError> {
-        let orchestrator = McpManager::new(
+        let orchestrator = McpOrchestrator::new(
             Arc::clone(ctx.db_pool()),
             Arc::clone(ctx.app_paths_arc()),
             ctx.mcp_registry().clone(),

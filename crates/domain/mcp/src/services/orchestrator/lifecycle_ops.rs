@@ -5,7 +5,7 @@ use crate::McpServerConfig;
 use crate::error::{McpDomainError, McpDomainResult};
 use systemprompt_traits::StartupEventSender;
 
-use super::super::process::ProcessManager;
+use super::super::process::ProcessService;
 use super::McpOrchestrator;
 use super::events::McpEvent;
 
@@ -162,7 +162,7 @@ impl McpOrchestrator {
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
-            ProcessManager::build_server(&server)?;
+            ProcessService::build_server(&server)?;
 
             tracing::info!(service = %server.name, "Restarting service");
             self.lifecycle().restart_server(&server).await?;
@@ -181,7 +181,7 @@ impl McpOrchestrator {
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
-            ProcessManager::build_server(&server)?;
+            ProcessService::build_server(&server)?;
         }
 
         tracing::info!("Build completed");

@@ -87,9 +87,9 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
 
 fn create_mcp_orchestrator(
     ctx: &AppContext,
-) -> Result<Arc<systemprompt_mcp::services::McpManager>> {
-    use systemprompt_mcp::services::McpManager;
-    let manager = McpManager::new(
+) -> Result<Arc<systemprompt_mcp::services::McpOrchestrator>> {
+    use systemprompt_mcp::services::McpOrchestrator;
+    let manager = McpOrchestrator::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),

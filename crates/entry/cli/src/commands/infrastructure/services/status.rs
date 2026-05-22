@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, StartupValidator, display_validation_report};
-use systemprompt_scheduler::{RuntimeStatus, ServiceStateManager, VerifiedServiceState};
+use systemprompt_scheduler::{RuntimeStatus, ServiceStateVerifier, VerifiedServiceState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServiceStatusOutput {
@@ -116,7 +116,7 @@ pub async fn execute(
         return Err(anyhow::anyhow!("Failed to load service configs"));
     };
 
-    let state_manager = ServiceStateManager::new(Arc::clone(ctx.db_pool()));
+    let state_manager = ServiceStateVerifier::new(Arc::clone(ctx.db_pool()));
 
     let states = state_manager.get_verified_states(&configs).await?;
 

@@ -2,7 +2,7 @@
 //! session management, and request-context/bearer-token extraction helpers.
 
 pub mod rbac;
-pub mod session_manager;
+pub mod session_handler;
 
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData as McpError, RoleServer};
@@ -10,7 +10,7 @@ use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_traits::ContextPropagation;
 
 pub use rbac::{AuthResult, AuthenticatedRequestContext, enforce_rbac_from_registry};
-pub use session_manager::DatabaseSessionManager;
+pub use session_handler::DatabaseSessionHandler;
 
 pub fn extract_bearer_token(
     mcp_context: &RequestContext<RoleServer>,

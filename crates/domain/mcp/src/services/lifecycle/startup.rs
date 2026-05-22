@@ -1,15 +1,15 @@
-use super::LifecycleManager;
+use super::LifecycleOrchestrator;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
-use crate::services::network::NetworkManager;
-use crate::services::network::port_manager::MAX_PORT_CLEANUP_ATTEMPTS;
-use crate::services::process::ProcessManager;
+use crate::services::network::NetworkService;
+use crate::services::network::port::MAX_PORT_CLEANUP_ATTEMPTS;
+use crate::services::process::ProcessService;
 use std::time::Duration;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 pub async fn start_server(
-    manager: &LifecycleManager,
+    manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
@@ -19,7 +19,7 @@ pub async fn start_server(
         tx.mcp_starting(&config.name, config.port);
     }
 
-    ProcessManager::verify_binary(manager.app_paths(), config)?;
+    ProcessService::verify_binary(manager.app_paths(), config)?;
 
     manager.network().prepare_port(config.port).await?;
 
@@ -28,7 +28,7 @@ pub async fn start_server(
         .wait_for_port_release_with_retry(config.port, MAX_PORT_CLEANUP_ATTEMPTS)
         .await?;
 
-    let pid = ProcessManager::spawn_server(manager.app_paths(), config)?;
+    let pid = ProcessService::spawn_server(manager.app_paths(), config)?;
 
     wait_for_startup(config, pid, events).await?;
 
@@ -58,13 +58,13 @@ async fn wait_for_startup(
             tx.mcp_health_check(&config.name, attempt as u8, max_attempts as u8);
         }
 
-        if !ProcessManager::is_running(expected_pid) {
+        if !ProcessService::is_running(expected_pid) {
             return Err(crate::error::McpDomainError::Internal(format!(
                 "Process {expected_pid} died during startup"
             )));
         }
 
-        if !NetworkManager::is_port_responsive(config.port) {
+        if !NetworkService::is_port_responsive(config.port) {
             continue;
         }
 

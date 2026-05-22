@@ -1,6 +1,6 @@
 //! Unit tests for port management functions
 
-use systemprompt_mcp::services::network::port_manager::{
+use systemprompt_mcp::services::network::port::{
     find_available_port, is_port_in_use, is_port_responsive,
 };
 
@@ -64,7 +64,7 @@ fn test_find_available_port_high_range() {
 
 #[tokio::test]
 async fn test_prepare_port_unused() {
-    use systemprompt_mcp::services::network::port_manager::prepare_port;
+    use systemprompt_mcp::services::network::port::prepare_port;
 
     let result = prepare_port(59989).await;
     result.expect("expected success");
@@ -72,7 +72,7 @@ async fn test_prepare_port_unused() {
 
 #[tokio::test]
 async fn test_wait_for_port_release_already_free() {
-    use systemprompt_mcp::services::network::port_manager::wait_for_port_release;
+    use systemprompt_mcp::services::network::port::wait_for_port_release;
 
     let result = wait_for_port_release(59988).await;
     result.expect("expected success");
@@ -80,7 +80,7 @@ async fn test_wait_for_port_release_already_free() {
 
 #[tokio::test]
 async fn test_cleanup_port_processes_no_processes() {
-    use systemprompt_mcp::services::network::port_manager::cleanup_port_processes;
+    use systemprompt_mcp::services::network::port::cleanup_port_processes;
 
     let result = cleanup_port_processes(59987).await;
     result.expect("expected success");

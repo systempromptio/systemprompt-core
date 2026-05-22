@@ -1,6 +1,6 @@
 //! Unit tests for config services module
 
-mod manager;
+mod config_service;
 mod schema_validation;
 mod types;
 mod validator;

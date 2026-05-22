@@ -4,15 +4,15 @@ use tracing::Instrument;
 
 use super::event_bus::EventBus;
 use super::events::McpEvent;
-use crate::services::database::DatabaseManager;
-use crate::services::lifecycle::LifecycleManager;
-use crate::services::registry::RegistryManager;
+use crate::services::database::DatabaseService;
+use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::registry::RegistryService;
 
 pub async fn run_daemon(
     event_bus: &Arc<EventBus>,
-    lifecycle: &LifecycleManager,
-    database: &DatabaseManager,
-    registry: &RegistryManager,
+    lifecycle: &LifecycleOrchestrator,
+    database: &DatabaseService,
+    registry: &RegistryService,
 ) -> McpDomainResult<()> {
     let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_orchestrator").into();
     async move {

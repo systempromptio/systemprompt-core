@@ -15,20 +15,19 @@ pub mod schema;
 pub mod tool_provider;
 pub mod ui_renderer;
 
-pub use database::{DatabaseManager, ServiceInfo};
+pub use database::{DatabaseService, ServiceInfo};
 pub use deployment::DeploymentService;
-pub use lifecycle::LifecycleManager;
-pub use monitoring::MonitoringManager;
+pub use lifecycle::LifecycleOrchestrator;
+pub use monitoring::MonitoringService;
 pub use monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
-pub use network::NetworkManager;
+pub use network::NetworkService;
 pub use orchestrator::McpOrchestrator;
-pub use process::ProcessManager;
-pub use registry::RegistryManager;
+pub use process::ProcessService;
+pub use registry::RegistryService;
 
 pub use orchestrator::{EventBus, McpEvent};
 pub use tool_provider::McpToolProvider;
 
-pub use McpOrchestrator as McpManager;
 
 use crate::error::McpDomainResult;
 use async_trait::async_trait;

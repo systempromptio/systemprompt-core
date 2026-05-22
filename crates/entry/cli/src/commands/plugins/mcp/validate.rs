@@ -11,7 +11,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
-use systemprompt_mcp::services::database::DatabaseManager;
+use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -43,7 +43,7 @@ pub async fn execute(
         .await
         .context("Failed to initialize application context")?;
 
-    let database = DatabaseManager::new(
+    let database = DatabaseService::new(
         Arc::clone(ctx.db_pool()),
         Arc::clone(ctx.app_paths_arc()),
         ctx.mcp_registry().clone(),
@@ -108,7 +108,7 @@ pub async fn execute(
 async fn validate_single_service(
     service_name: &str,
     services_config: &systemprompt_models::ServicesConfig,
-    database: &DatabaseManager,
+    database: &DatabaseService,
     timeout_secs: u64,
 ) -> McpValidateOutput {
     let Some(server) = services_config.mcp_servers.get(service_name) else {

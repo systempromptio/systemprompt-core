@@ -8,9 +8,8 @@
 //! # Layered components
 //!
 //! - [`extension::McpExtension`] — `Extension` registration entry-point.
-//! - [`services::McpManager`], [`services::orchestrator::McpOrchestrator`] —
-//!   top-level service supervisors.
-//! - [`services::registry::RegistryManager`] — registry of MCP servers
+//! - [`services::McpOrchestrator`] — top-level service supervisor.
+//! - [`services::registry::RegistryService`] — registry of MCP servers
 //!   configured via `services.yaml`.
 //! - [`services::tool_provider::McpToolProvider`] — tool-discovery + execution
 //!   facade.
@@ -80,11 +79,11 @@ pub use services::monitoring::health::HealthStatus;
 pub use services::registry::McpServerRegistry;
 pub use services::registry::trait_impl::McpDeploymentProviderImpl;
 pub use services::tool_provider::McpToolProvider;
-pub use services::{EventBus as McpEventBus, McpEvent, McpManager, ServiceManager};
+pub use services::{EventBus as McpEventBus, McpEvent, McpOrchestrator, ServiceManager};
 
 pub use orchestration::{
     McpServerConnectionInfo, McpServerMetadata, McpServiceState, McpToolLoader, ServerStatus,
-    ServiceStateManager, SkillLoadingResult,
+    ServiceStateService, SkillLoadingResult,
 };
 
 pub use systemprompt_models::mcp::{
@@ -97,7 +96,7 @@ pub fn mcp_protocol_version() -> String {
 }
 
 pub mod registry {
-    pub use crate::services::registry::RegistryManager;
+    pub use crate::services::registry::RegistryService;
 }
 
 pub use cli::{list_services, show_status, start_services, stop_services};
@@ -115,7 +114,7 @@ use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use systemprompt_database::DbPool;
 
-use crate::middleware::DatabaseSessionManager;
+use crate::middleware::DatabaseSessionHandler;
 
 #[derive(Debug, Clone)]
 pub struct McpHttpConfig {
@@ -216,7 +215,7 @@ where
     };
     let config = host_policy.with_sse_keep_alive(session.keep_alive);
 
-    let session_manager = DatabaseSessionManager::with_timeouts(db_pool, session);
+    let session_manager = DatabaseSessionHandler::with_timeouts(db_pool, session);
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);

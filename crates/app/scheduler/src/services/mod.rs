@@ -14,7 +14,7 @@ mod service_management;
 
 pub use orchestration::{
     DbServiceRecord, DesiredStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
-    RuntimeStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateManager,
+    RuntimeStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
     ServiceType, VerifiedServiceState,
 };
 pub use scheduling::SchedulerService;

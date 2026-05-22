@@ -12,7 +12,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
-use systemprompt_mcp::services::registry::RegistryManager;
+use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::services::SystemAdmin;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_security::authz::SharedAuthzHook;
@@ -39,7 +39,7 @@ pub struct AppContext {
     pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub(crate) system_admin: Arc<SystemAdmin>,
-    pub(crate) mcp_registry: RegistryManager,
+    pub(crate) mcp_registry: RegistryService,
     pub(crate) authz_hook: SharedAuthzHook,
 }
 
@@ -60,7 +60,7 @@ impl std::fmt::Debug for AppContext {
             .field("marketplace_filter", &self.marketplace_filter)
             .field("event_bridge", &self.event_bridge.get().is_some())
             .field("system_admin", &self.system_admin.username())
-            .field("mcp_registry", &"RegistryManager")
+            .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
             .finish()
     }
@@ -82,7 +82,7 @@ pub struct AppContextParts {
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
     pub system_admin: Arc<SystemAdmin>,
-    pub mcp_registry: RegistryManager,
+    pub mcp_registry: RegistryService,
     pub authz_hook: SharedAuthzHook,
 }
 
@@ -194,7 +194,7 @@ impl AppContext {
         &self.system_admin
     }
 
-    pub const fn mcp_registry(&self) -> &RegistryManager {
+    pub const fn mcp_registry(&self) -> &RegistryService {
         &self.mcp_registry
     }
 

@@ -4,7 +4,7 @@ pub mod events;
 pub mod lifecycle;
 pub mod monitor;
 pub mod orchestrator;
-pub mod port_manager;
+pub mod port_service;
 pub mod process;
 pub mod reconciler;
 
@@ -13,7 +13,7 @@ use systemprompt_identifiers::AgentId;
 pub use event_bus::AgentEventBus;
 pub use events::AgentEvent;
 pub use orchestrator::{AgentInfo, AgentOrchestrator};
-pub use port_manager::PortManager;
+pub use port_service::PortService;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentStatus {

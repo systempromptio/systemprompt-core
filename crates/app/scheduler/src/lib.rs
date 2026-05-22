@@ -9,7 +9,7 @@
 //!   [`CleanupInactiveSessionsJob`], …) that drive analytics and security
 //!   maintenance.
 //! - Process- and database-level service reconciliation primitives
-//!   ([`ProcessCleanup`], [`ServiceReconciler`], [`ServiceStateManager`]).
+//!   ([`ProcessCleanup`], [`ServiceReconciler`], [`ServiceStateVerifier`]).
 //!
 //! # Public error surface
 //!
@@ -53,5 +53,5 @@ pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     DbServiceRecord, DesiredStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
     RuntimeStatus, SchedulerService, ServiceAction, ServiceConfig, ServiceManagementService,
-    ServiceReconciler, ServiceStateManager, ServiceType, VerifiedServiceState,
+    ServiceReconciler, ServiceStateVerifier, ServiceType, VerifiedServiceState,
 };

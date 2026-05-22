@@ -1,33 +1,33 @@
-use systemprompt_agent::services::agent_orchestration::port_manager::{PortManager, ProcessInfo};
+use systemprompt_agent::services::agent_orchestration::port_manager::{PortService, ProcessInfo};
 
 #[test]
 fn test_port_manager_new() {
-    let pm = PortManager::new();
+    let pm = PortService::new();
     let debug_str = format!("{:?}", pm);
-    assert!(debug_str.contains("PortManager"));
+    assert!(debug_str.contains("PortService"));
 }
 
 #[test]
 fn test_port_manager_default() {
-    let pm = PortManager::default();
+    let pm = PortService::default();
     let debug_str = format!("{:?}", pm);
-    assert!(debug_str.contains("PortManager"));
+    assert!(debug_str.contains("PortService"));
 }
 
 #[test]
 fn test_port_manager_copy() {
-    let pm = PortManager::new();
+    let pm = PortService::new();
     let copied = pm;
     let debug_str = format!("{:?}", copied);
-    assert!(debug_str.contains("PortManager"));
+    assert!(debug_str.contains("PortService"));
 }
 
 #[test]
 fn test_port_manager_clone() {
-    let pm = PortManager::new();
+    let pm = PortService::new();
     let cloned = pm.clone();
     let debug_str = format!("{:?}", cloned);
-    assert!(debug_str.contains("PortManager"));
+    assert!(debug_str.contains("PortService"));
 }
 
 #[test]

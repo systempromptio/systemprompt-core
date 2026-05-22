@@ -9,15 +9,15 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 pub use probe::{ProcessInfo, find_process_using_port, get_process_info, is_agent_process};
 
 #[derive(Debug, Copy, Clone)]
-pub struct PortManager;
+pub struct PortService;
 
-impl Default for PortManager {
+impl Default for PortService {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PortManager {
+impl PortService {
     #[must_use]
     pub const fn new() -> Self {
         Self

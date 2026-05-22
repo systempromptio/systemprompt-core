@@ -3,36 +3,36 @@
 //! Port allocation and release, the base Axum router with CORS, and
 //! reverse-proxy routers to upstream services.
 
-pub mod port_manager;
+pub mod port;
 pub mod proxy;
 pub mod routing;
 
 use crate::error::McpDomainResult;
 
 #[derive(Debug, Clone, Copy)]
-pub struct NetworkManager;
+pub struct NetworkService;
 
-impl Default for NetworkManager {
+impl Default for NetworkService {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl NetworkManager {
+impl NetworkService {
     pub const fn new() -> Self {
         Self
     }
 
     pub async fn prepare_port(&self, port: u16) -> McpDomainResult<()> {
-        port_manager::prepare_port(port).await
+        port::prepare_port(port).await
     }
 
     pub fn is_port_responsive(port: u16) -> bool {
-        port_manager::is_port_responsive(port)
+        port::is_port_responsive(port)
     }
 
     pub async fn wait_for_port_release(&self, port: u16) -> McpDomainResult<()> {
-        port_manager::wait_for_port_release(port).await
+        port::wait_for_port_release(port).await
     }
 
     pub async fn wait_for_port_release_with_retry(
@@ -40,11 +40,11 @@ impl NetworkManager {
         port: u16,
         max_attempts: u32,
     ) -> McpDomainResult<()> {
-        port_manager::wait_for_port_release_with_retry(port, max_attempts).await
+        port::wait_for_port_release_with_retry(port, max_attempts).await
     }
 
     pub const fn cleanup_port_resources(port: u16) {
-        port_manager::cleanup_port_resources(port);
+        port::cleanup_port_resources(port);
     }
 
     pub fn create_router() -> axum::Router {

@@ -4,11 +4,11 @@
 //! the `McpRegistry`, `McpToolProvider`, and `McpRegistryProvider` traits.
 //!
 //! The registry is owner-scoped: every `McpServerConfig` it materialises is
-//! attributed to the [`UserId`] passed to [`RegistryManager::new`]. The
+//! attributed to the [`UserId`] passed to [`RegistryService::new`]. The
 //! platform constructs one instance during `AppContext` bootstrap with the
 //! resolved system-admin id; callers obtain it via `AppContext::mcp_registry`.
 
-pub mod manager;
+pub mod resolver;
 pub mod trait_impl;
 pub mod validator;
 
@@ -16,18 +16,18 @@ use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 
 use crate::error::{McpDomainError, McpDomainResult};
-use crate::services::registry::manager::RegistryService;
+use crate::services::registry::resolver::RegistryResolver;
 
 #[derive(Debug, Clone)]
-pub struct RegistryManager {
-    service: Arc<RegistryService>,
+pub struct RegistryService {
+    service: Arc<RegistryResolver>,
 }
 
-impl RegistryManager {
+impl RegistryService {
     #[must_use]
     pub fn new(owner: UserId) -> Self {
         Self {
-            service: Arc::new(RegistryService::new(owner)),
+            service: Arc::new(RegistryResolver::new(owner)),
         }
     }
 
@@ -55,4 +55,4 @@ impl RegistryManager {
     }
 }
 
-pub type McpServerRegistry = RegistryManager;
+pub type McpServerRegistry = RegistryService;

@@ -89,7 +89,7 @@ pub async fn get_service_by_name(
 
 pub async fn get_running_servers(
     db_pool: &systemprompt_database::DbPool,
-    registry: &crate::services::registry::RegistryManager,
+    registry: &crate::services::registry::RegistryService,
 ) -> McpDomainResult<Vec<McpServerConfig>> {
     let repo = ServiceRepository::new(db_pool)?;
     let all_services = repo.get_mcp_services().await?;

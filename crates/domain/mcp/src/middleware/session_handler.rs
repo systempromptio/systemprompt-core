@@ -50,21 +50,21 @@ impl From<LocalSessionManagerError> for DatabaseSessionManagerError {
     }
 }
 
-pub struct DatabaseSessionManager {
+pub struct DatabaseSessionHandler {
     local_manager: LocalSessionManager,
     repository: Arc<RwLock<Option<McpSessionRepository>>>,
 }
 
-impl fmt::Debug for DatabaseSessionManager {
+impl fmt::Debug for DatabaseSessionHandler {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("DatabaseSessionManager")
+        f.debug_struct("DatabaseSessionHandler")
             .field("local_manager", &self.local_manager)
             .field("repository", &self.repository)
             .finish()
     }
 }
 
-impl DatabaseSessionManager {
+impl DatabaseSessionHandler {
     pub fn new(db_pool: &DbPool) -> Self {
         Self::with_timeouts(db_pool, crate::SessionTimeouts::default())
     }
@@ -159,7 +159,7 @@ impl DatabaseSessionManager {
     }
 }
 
-impl SessionManager for DatabaseSessionManager {
+impl SessionManager for DatabaseSessionHandler {
     type Error = DatabaseSessionManagerError;
     type Transport = <LocalSessionManager as SessionManager>::Transport;
 

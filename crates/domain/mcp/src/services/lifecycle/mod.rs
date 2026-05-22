@@ -10,29 +10,29 @@ pub mod startup;
 
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::database::DatabaseManager;
-use crate::services::monitoring::MonitoringManager;
-use crate::services::network::NetworkManager;
-use crate::services::process::ProcessManager;
+use crate::services::database::DatabaseService;
+use crate::services::monitoring::MonitoringService;
+use crate::services::network::NetworkService;
+use crate::services::process::ProcessService;
 use std::sync::Arc;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 #[derive(Debug, Clone)]
-pub struct LifecycleManager {
-    process: ProcessManager,
-    network: NetworkManager,
-    database: DatabaseManager,
-    monitoring: MonitoringManager,
+pub struct LifecycleOrchestrator {
+    process: ProcessService,
+    network: NetworkService,
+    database: DatabaseService,
+    monitoring: MonitoringService,
     app_paths: Arc<AppPaths>,
 }
 
-impl LifecycleManager {
+impl LifecycleOrchestrator {
     pub const fn new(
-        process: ProcessManager,
-        network: NetworkManager,
-        database: DatabaseManager,
-        monitoring: MonitoringManager,
+        process: ProcessService,
+        network: NetworkService,
+        database: DatabaseService,
+        monitoring: MonitoringService,
         app_paths: Arc<AppPaths>,
     ) -> Self {
         Self {
@@ -72,19 +72,19 @@ impl LifecycleManager {
         health::check_server_health(self, config).await
     }
 
-    pub const fn process(&self) -> &ProcessManager {
+    pub const fn process(&self) -> &ProcessService {
         &self.process
     }
 
-    pub const fn network(&self) -> &NetworkManager {
+    pub const fn network(&self) -> &NetworkService {
         &self.network
     }
 
-    pub const fn database(&self) -> &DatabaseManager {
+    pub const fn database(&self) -> &DatabaseService {
         &self.database
     }
 
-    pub const fn monitoring(&self) -> &MonitoringManager {
+    pub const fn monitoring(&self) -> &MonitoringService {
         &self.monitoring
     }
 }

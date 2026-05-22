@@ -6,21 +6,21 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::McpTool;
 use tracing::{debug, error};
 
-use super::state::ServiceStateManager;
+use super::state::ServiceStateService;
 use crate::services::client::McpClient;
 use crate::services::deployment::DeploymentService;
-use crate::services::registry::RegistryManager;
+use crate::services::registry::RegistryService;
 
 #[derive(Debug, Clone)]
 pub struct McpToolLoader {
-    service_manager: ServiceStateManager,
-    registry: RegistryManager,
+    service_manager: ServiceStateService,
+    registry: RegistryService,
 }
 
 impl McpToolLoader {
-    pub fn new(db_pool: &DbPool, registry: RegistryManager) -> McpDomainResult<Self> {
+    pub fn new(db_pool: &DbPool, registry: RegistryService) -> McpDomainResult<Self> {
         Ok(Self {
-            service_manager: ServiceStateManager::new(db_pool)?,
+            service_manager: ServiceStateService::new(db_pool)?,
             registry,
         })
     }
@@ -106,7 +106,7 @@ impl McpToolLoader {
         }
     }
 
-    pub const fn service_manager(&self) -> &ServiceStateManager {
+    pub const fn service_manager(&self) -> &ServiceStateService {
         &self.service_manager
     }
 }
