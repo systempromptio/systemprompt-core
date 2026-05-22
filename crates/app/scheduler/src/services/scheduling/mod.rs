@@ -55,6 +55,9 @@ impl SchedulerService {
         })
     }
 
+    /// Resolves job owners, registers every enabled configured job against
+    /// the cron scheduler, and starts dispatching on schedule. Returns
+    /// immediately as a no-op when the scheduler is disabled in config.
     pub async fn start(self) -> SchedulerResult<()> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
@@ -92,6 +95,11 @@ impl SchedulerService {
     // itself — never read from this function — and clippy can't see the
     // cross-async-boundary read. The set is still required so the shared
     // dispatch path keeps its in-process concurrency-suppression contract.
+    /// Runs the configured `bootstrap_jobs` once, serially, at startup —
+    /// independent of the cron schedule used by [`start`](Self::start).
+    /// Jobs absent from the inventory are skipped with a warning. Emits
+    /// start/complete events through `events` when provided, and returns the
+    /// number of jobs discovered in the inventory.
     #[allow(clippy::collection_is_never_read)]
     pub async fn run_bootstrap_jobs(
         &self,

@@ -23,6 +23,20 @@ use crate::context_loaders;
 use crate::error::RuntimeResult;
 use crate::registry::ModuleApiRegistry;
 
+/// Application-wide runtime container shared across the HTTP server, the
+/// scheduler, and CLI commands.
+///
+/// Every field is an [`Arc`] (or an `Arc`-internal handle such as [`DbPool`]),
+/// so `clone` is a reference-count bump rather than a deep copy; the type is
+/// designed to be cloned freely into request handlers, jobs, and spawned
+/// tasks. Construct it via [`AppContext::builder`] (or [`AppContext::new`] for
+/// the default build); [`AppContext::from_parts`] bypasses the bootstrap and
+/// is intended for tests and embedders that assemble the parts themselves.
+///
+/// Some handles are optional: [`geoip_reader`](Self::geoip_reader),
+/// `content_config`, `fingerprint_repo`, and `user_service` are `None` when
+/// the corresponding resource is absent or failed to initialise, and callers
+/// must degrade gracefully rather than assume presence.
 #[derive(Clone)]
 pub struct AppContext {
     pub(crate) config: Arc<Config>,
@@ -66,6 +80,11 @@ impl std::fmt::Debug for AppContext {
     }
 }
 
+/// Owned constructor inputs for [`AppContext::from_parts`].
+///
+/// Exposes every field of [`AppContext`] as a public, movable value so an
+/// embedder or test can assemble a context without running the full
+/// [`AppContextBuilder`] bootstrap.
 #[derive(Debug)]
 pub struct AppContextParts {
     pub config: Arc<Config>,
@@ -87,6 +106,9 @@ pub struct AppContextParts {
 }
 
 impl AppContext {
+    /// Builds a context with default settings: schema installation off,
+    /// extensions discovered via inventory, and the inventory-registered
+    /// marketplace filter. Equivalent to `Self::builder().build().await`.
     pub async fn new() -> RuntimeResult<Self> {
         Self::builder().build().await
     }
@@ -96,6 +118,9 @@ impl AppContext {
         AppContextBuilder::new()
     }
 
+    /// Assembles a context directly from pre-built parts, bypassing the
+    /// [`AppContextBuilder`] bootstrap. Intended for tests and embedders that
+    /// own the construction of the individual handles.
     pub fn from_parts(parts: AppContextParts) -> Self {
         Self {
             config: parts.config,
@@ -136,6 +161,8 @@ impl AppContext {
         self.content_config.as_ref().map(AsRef::as_ref)
     }
 
+    /// Returns the loaded content config as a [`ContentRouting`] trait object,
+    /// or `None` when no content config is present.
     pub fn content_routing(&self) -> Option<Arc<dyn ContentRouting>> {
         let concrete = Arc::clone(self.content_config.as_ref()?);
         let routing: Arc<dyn ContentRouting> = concrete;
