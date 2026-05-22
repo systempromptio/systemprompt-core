@@ -148,7 +148,6 @@ pub enum RepositoryError {
 }
 
 impl AiError {
-    // Consumes the response body and parses any Retry-After header.
     pub async fn from_error_response(provider: &str, response: reqwest::Response) -> Self {
         let status = response.status().as_u16();
         let retry_after = parse_retry_after(response.headers());
