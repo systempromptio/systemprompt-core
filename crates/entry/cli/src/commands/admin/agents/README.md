@@ -48,6 +48,8 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `admin agents registry` | Get running agents from gateway | `Table` | Yes |
 | `admin agents message <agent>` | Send A2A message to agent | `Card` | Yes |
 | `admin agents task <agent>` | Get task details and response | `Card` | Yes |
+| `admin agents tools <agent>` | List MCP tools available to an agent | `Table` | Yes |
+| `admin agents run <agent>` | Run an agent server directly (bypasses orchestration) | `Text` | No |
 
 ---
 

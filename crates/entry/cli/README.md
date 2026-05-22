@@ -159,12 +159,6 @@ systemprompt --non-interactive --json admin agents create --name myagent
 | `--quiet` | | Minimal output |
 | `--verbose` | | Detailed output |
 
-## Related Documentation
-
-- [Validation Checklist](./validation.md)
-- [Compliance Status](./status.md)
-- [Audit Notes](./audit.md)
-
 ## License
 
 BSL-1.1 (Business Source License). Source-available for evaluation, testing, and non-production use. Production use requires a commercial licence. Each version converts to Apache 2.0 four years after publication. See [LICENSE](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE).

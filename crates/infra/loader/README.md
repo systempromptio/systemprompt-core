@@ -71,25 +71,19 @@ src/
 |--------|---------|
 | `ProfileLoader` | Loads and validates profile YAML files from the profiles directory |
 | `ConfigLoader` | Loads services configuration, merges includes, and validates strict schema |
-| `ModuleLoader` | Aggregates all module definitions for database schema management |
+| `ModuleLoader` | Thin wrapper over the `inventory`-driven `ExtensionRegistry`; discovers compiled-in extensions and collects their schemas |
 
 ### Extension Support
 
 | Module | Purpose |
 |--------|---------|
-| `ExtensionLoader` | Discovers extensions by scanning for `manifest.yaml` files |
+| `ExtensionLoader` | Discovers on-disk extensions by scanning for `manifest.yaml` files |
 | `ExtensionRegistry` | Runtime registry mapping binary names to extension metadata |
 | `ConfigWriter` | Creates, updates, and deletes agent configuration files |
 
-### Module Definitions
+### Module Aggregation
 
-The `modules/` directory contains definitions for each systemprompt.io module. Each definition specifies:
-
-- Module metadata (name, version, description)
-- Database schemas with required columns
-- Seed data for initial setup
-- API configuration
-- Module dependencies and load order (weight)
+The `modules` module re-exports the compile-time extension registry. `ModuleLoader::discover_extensions` returns every `inventory`-registered `Extension`, and `ModuleLoader::collect_extension_schemas` flattens their `SchemaDefinition`s for schema installation.
 
 ## Usage
 
@@ -112,13 +106,14 @@ use systemprompt_loader::{
 
 let config = ConfigLoader::load()?;
 
-let loader = ConfigLoader::from_env()?;
+let loader = ConfigLoader::for_active_profile()?;
 
 let profile = ProfileLoader::load_and_validate(services_path, "development")?;
 
-let modules = ModuleLoader::all();
+let extensions = ModuleLoader::discover_extensions()?;
+let schemas = ModuleLoader::collect_extension_schemas()?;
 
-let extensions = ExtensionLoader::discover(project_root);
+let discovered = ExtensionLoader::discover(project_root);
 ```
 
 ## Dependencies

@@ -28,7 +28,7 @@
 [![Docs.rs](https://img.shields.io/docsrs/systemprompt-users?style=flat-square)](https://docs.rs/systemprompt-users)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-User management for systemprompt.io AI governance infrastructure. 6-tier RBAC, sessions, IP bans, and role-scoped access control for the MCP governance pipeline. Provides user CRUD, session management, bulk operations, and anonymous user lifecycle management.
+User management for systemprompt.io AI governance infrastructure. Role-based access control (`UserRole`: Admin, User, Anonymous), sessions, API keys, device certificates, and IP bans for the MCP governance pipeline. Provides user CRUD, session management, bulk operations, and anonymous user lifecycle management.
 
 **Layer**: Domain — business-logic modules that implement systemprompt.io features. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
