@@ -1,7 +1,7 @@
 use crate::config::Thresholds;
 use crate::metrics::{MetricsSnapshot, Report};
 
-pub fn print(report: &Report, thresholds: &Thresholds) -> bool {
+pub fn print(report: &Report) -> bool {
     let mut all_passed = true;
 
     println!("\n{:=<70}", "");
@@ -12,7 +12,7 @@ pub fn print(report: &Report, thresholds: &Thresholds) -> bool {
         println!("  {name}:");
         print_snapshot(&scenario.aggregate, "    ");
 
-        if !check(&scenario.aggregate, thresholds) {
+        if !check(&scenario.aggregate, &scenario.thresholds) {
             all_passed = false;
         }
 

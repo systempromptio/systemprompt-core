@@ -150,7 +150,11 @@ async fn main() {
             if !dispatch_single(scenario_name, &config, &metrics, &cli.agent_id).await {
                 std::process::exit(1);
             }
-            report.add(ScenarioId::new(scenario_name), &metrics);
+            report.add(
+                ScenarioId::new(scenario_name),
+                &metrics,
+                config.thresholds_for(scenario_name).clone(),
+            );
         } else {
             let per_node: Vec<Arc<Metrics>> = (0..nodes.len())
                 .map(|_| Arc::new(Metrics::new(0)))
@@ -164,7 +168,11 @@ async fn main() {
                 .enumerate()
                 .map(|(i, m)| (NodeId(i), m.snapshot()))
                 .collect();
-            report.add_distributed(ScenarioId::new(scenario_name), &snapshots);
+            report.add_distributed(
+                ScenarioId::new(scenario_name),
+                &snapshots,
+                config.thresholds_for(scenario_name).clone(),
+            );
         }
     }
 
@@ -174,7 +182,7 @@ async fn main() {
                 .out_file
                 .clone()
                 .unwrap_or_else(|| "loadtest-report.json".to_string());
-            match reporters::json::write(&report, &config.thresholds, &out_file) {
+            match reporters::json::write(&report, &out_file) {
                 Ok(p) => {
                     println!("  JSON report written to {out_file}");
                     p
@@ -185,7 +193,7 @@ async fn main() {
                 },
             }
         },
-        OutputFormat::Text => reporters::text::print(&report, &config.thresholds),
+        OutputFormat::Text => reporters::text::print(&report),
     };
 
     if !passed {
