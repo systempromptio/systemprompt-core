@@ -78,6 +78,39 @@ async fn webhook_mode_with_blank_url_errors() {
 }
 
 #[tokio::test]
+async fn webhook_mode_with_metadata_ip_url_errors() {
+    let cfg = governance_with(AuthzMode::Webhook, Some("http://169.254.169.254/authz"), None);
+    let err =
+        build_authz_hook(Some(&cfg), None).expect_err("cloud-metadata url must fail bootstrap");
+    assert!(matches!(
+        err,
+        AuthzError::Bootstrap(AuthzBootstrapError::InvalidWebhookUrl(_))
+    ));
+}
+
+#[tokio::test]
+async fn webhook_mode_with_private_range_url_errors() {
+    let cfg = governance_with(AuthzMode::Webhook, Some("https://10.0.0.5/authz"), None);
+    let err =
+        build_authz_hook(Some(&cfg), None).expect_err("private-range url must fail bootstrap");
+    assert!(matches!(
+        err,
+        AuthzError::Bootstrap(AuthzBootstrapError::InvalidWebhookUrl(_))
+    ));
+}
+
+#[tokio::test]
+async fn webhook_mode_with_non_loopback_http_url_errors() {
+    let cfg = governance_with(AuthzMode::Webhook, Some("http://authz.example.com/h"), None);
+    let err =
+        build_authz_hook(Some(&cfg), None).expect_err("non-loopback http url must fail bootstrap");
+    assert!(matches!(
+        err,
+        AuthzError::Bootstrap(AuthzBootstrapError::InvalidWebhookUrl(_))
+    ));
+}
+
+#[tokio::test]
 async fn unrestricted_without_acknowledgement_errors() {
     let cfg = governance_with(AuthzMode::Unrestricted, None, None);
     let err = build_authz_hook(Some(&cfg), None)

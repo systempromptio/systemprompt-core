@@ -29,12 +29,15 @@ impl From<sqlx::Error> for AuthzError {
 
 pub type AuthzResult<T> = Result<T, AuthzError>;
 
-#[derive(Debug, Clone, Copy, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum AuthzBootstrapError {
     #[error(
         "governance.authz.hook.mode = webhook but `url` is missing or blank — refusing to start"
     )]
     MissingWebhookUrl,
+
+    #[error("governance.authz.hook.url is invalid or unsafe: {0} — refusing to start")]
+    InvalidWebhookUrl(String),
 
     #[error(
         "governance.authz.hook.mode = unrestricted requires `acknowledgement` field equal to the \

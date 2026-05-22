@@ -78,3 +78,6 @@ mod mcp_tool_result_metadata;
 
 #[cfg(test)]
 mod secrets;
+
+#[cfg(test)]
+mod net;

@@ -90,3 +90,74 @@ fn ensure_id_backfills_empty_id() {
     r.ensure_id();
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
 }
+
+fn config_with_endpoint(endpoint: &str) -> GatewayConfig {
+    let mut r = route("*");
+    r.endpoint = endpoint.to_string();
+    GatewayConfig {
+        enabled: true,
+        routes: vec![r],
+        ..GatewayConfig::default()
+    }
+}
+
+#[test]
+fn validate_routes_accepts_public_https_endpoint() {
+    assert!(
+        config_with_endpoint("https://api.anthropic.com/v1")
+            .validate_routes()
+            .is_ok()
+    );
+}
+
+#[test]
+fn validate_routes_allows_loopback_http_for_local_dev() {
+    assert!(
+        config_with_endpoint("http://localhost:8080")
+            .validate_routes()
+            .is_ok()
+    );
+    assert!(
+        config_with_endpoint("http://127.0.0.1:8080")
+            .validate_routes()
+            .is_ok()
+    );
+}
+
+#[test]
+fn validate_routes_rejects_cloud_metadata_endpoint() {
+    assert!(
+        config_with_endpoint("http://169.254.169.254/latest/meta-data/")
+            .validate_routes()
+            .is_err()
+    );
+}
+
+#[test]
+fn validate_routes_rejects_private_ranges() {
+    for endpoint in [
+        "https://10.0.0.5/v1",
+        "https://192.168.1.10/v1",
+        "https://172.16.0.1/v1",
+        "https://[fd00::1]/v1",
+    ] {
+        assert!(
+            config_with_endpoint(endpoint).validate_routes().is_err(),
+            "expected {endpoint} to be rejected as a private/ULA address"
+        );
+    }
+}
+
+#[test]
+fn validate_routes_rejects_non_http_scheme_and_plain_http_to_remote() {
+    assert!(
+        config_with_endpoint("ftp://example.com/v1")
+            .validate_routes()
+            .is_err()
+    );
+    assert!(
+        config_with_endpoint("http://api.anthropic.com/v1")
+            .validate_routes()
+            .is_err()
+    );
+}

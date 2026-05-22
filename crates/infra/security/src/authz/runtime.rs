@@ -8,11 +8,14 @@
 //!
 //! Branch table:
 //!
-//! - `mode: webhook` with a non-empty `url` → [`WebhookHook`] (fail-closed).
+//! - `mode: webhook` with a non-empty `url` that passes SSRF validation →
+//!   [`WebhookHook`] (fail-closed). A url pointing at loopback over `http`,
+//!   `169.254.169.254`, or an RFC1918 range fails bootstrap.
 //! - `mode: disabled`, or governance/authz absent → [`DenyAllHook`].
 //! - `mode: unrestricted` → [`AllowAllHook`], but ONLY when `acknowledgement`
 //!   exactly equals [`UNRESTRICTED_ACKNOWLEDGEMENT`]. Otherwise bootstrap
-//!   fails.
+//!   fails. An error-level warning is always logged; refusing this mode in
+//!   production is the operator's responsibility.
 //!
 //! Bootstrap ordering: called from `AppContextBuilder::build` after the
 //! database pool is created so the audit sink can write to
@@ -21,6 +24,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use systemprompt_models::net::validate_outbound_url;
 use systemprompt_models::profile::{AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT};
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, NullAuditSink};
@@ -70,6 +74,8 @@ pub fn build_authz_hook(
                 .filter(|s| !s.is_empty())
                 .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
                 .to_owned();
+            validate_outbound_url(&url)
+                .map_err(|e| AuthzBootstrapError::InvalidWebhookUrl(e.to_string()))?;
             let hook = WebhookHook::new(url, Duration::from_millis(authz.hook.timeout_ms), sink)?;
             Ok(Arc::new(hook))
         },
