@@ -50,7 +50,7 @@ DDL for tables that persist customer-observable state:
 - OAuth state tables
 - MCP server registry
 
-Migrations are **additive-only within a minor series**. A rolling upgrade from `0.3.N` to `0.3.N+1` is always safe. See deployment guide §9 for rollback semantics.
+Migrations are **additive-only within a minor series**. A rolling upgrade from `0.11.N` to `0.11.N+1` is always safe. See deployment guide §9 for rollback semantics.
 
 ### 1.5 Extension Framework
 
@@ -99,8 +99,8 @@ Anything inside `crates/` that is not exported through the public surfaces above
 
 For a customer on a supported version:
 
-1. **Within a minor series (e.g. `0.3.0` → `0.3.7`):** no breaking changes to the Stable Surface. Rolling upgrades are safe. Database migrations are additive-only. Rollback to the immediately prior minor is supported.
-2. **Across minors (e.g. `0.3.x` → `0.4.x`):** breaking changes possible only on the Stable Surface with a `BREAKING` entry in `CHANGELOG.md`, migration notes, and a deprecation window of at least one prior minor where both forms were accepted. Database migrations between minors are forward-compatible by design; rollback to the prior minor is supported.
+1. **Within a minor series (e.g. `0.11.0` → `0.11.7`):** no breaking changes to the Stable Surface. Rolling upgrades are safe. Database migrations are additive-only. Rollback to the immediately prior minor is supported.
+2. **Across minors (e.g. `0.11.x` → `0.12.x`):** breaking changes possible only on the Stable Surface with a `BREAKING` entry in `CHANGELOG.md`, migration notes, and a deprecation window of at least one prior minor where both forms were accepted. Database migrations between minors are forward-compatible by design; rollback to the prior minor is supported.
 3. **Upstream provider API changes:** handled in point releases; the governance API shields customers from most of these. When a provider ships a change that cannot be absorbed transparently (e.g. new required parameters, new capability flags customers want to opt into), it becomes a new optional field in the governance API.
 4. **Security fixes:** delivered per SECURITY.md SLAs regardless of minor boundary.
 5. **Licence stability:** BSL-1.1 with four-year conversion to Apache 2.0. The conversion commitment is permanent.

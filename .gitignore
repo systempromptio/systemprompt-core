@@ -94,14 +94,11 @@ audit/
 /plan
 /plan/*
 
-# Instructions (local-only documentation)
-instructions/*
+# Internal documentation (local-only: dev guides, audits, evaluations, legal)
+internal/
 
 # Assets (local-only, not part of the published tree)
 /assets/
-
-# Internal reports (local-only audits/evaluations)
-internal-reports/
 
 # Local-only scripts
 scripts/

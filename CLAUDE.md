@@ -50,8 +50,12 @@ systemprompt-core/
 │
 ├── systemprompt/         # Facade crate - re-exports with feature flags
 ├── defaults/             # Default templates, assets, web content
-└── instructions/         # Documentation
-    └── information/      # Architecture, boundaries, config docs
+├── documentation/        # External evaluation pack (committed, RFI/procurement-safe)
+└── internal/             # Local-only dev docs (gitignored)
+    ├── guides/          # Architecture, boundaries, standards, release, runbooks
+    ├── audits/          # Crate-by-crate compliance audits
+    ├── reports/         # Codebase evaluations, test roadmaps
+    └── legal/           # License compliance / SBOM
 ```
 
 ## Dependency Flow
@@ -62,19 +66,29 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 
 **Rule**: Dependencies flow downward only. No circular dependencies.
 
+## Documentation Layout
+
+Two buckets, kept strictly separate:
+
+- **`documentation/`** — the **external** evaluation pack: neutral, stable, committed, and safe to cite in an RFI / procurement / security review. No internal repo names, CI secrets, version-drift snapshots, or work-plans. Flat layout (security/RFI material at the top level). Anything here must read cleanly for an external consumer.
+- **`internal/`** — **local-only** engineering docs, **gitignored** (a few force-added files aside). Organised by purpose: `guides/` (architecture, boundaries, standards, release process, bridge build/release, runbooks), `audits/`, `reports/` (codebase evaluations, test roadmaps, deployment-scenario work), `legal/` (license/SBOM).
+
+When adding docs: external-consumer material → `documentation/`; anything about *how we build, release, audit, or evaluate* → `internal/` (use `git add -f` only if a specific internal file must be shared). Never deep-link from a committed file into `internal/` — external readers cannot see it.
+
 ## Key Documentation
 
 | Document | Purpose |
 |----------|---------|
-| `instructions/information/architecture.md` | Full crate taxonomy, extension framework, paths |
-| `instructions/information/boundaries.md` | Module boundary rules, acceptable patterns |
-| `instructions/information/config.md` | Configuration system (profiles, secrets, credentials) |
-| `instructions/information/cloud.md` | Cloud deployment and tenant management |
-| `instructions/prompt/rust.md` | Rust coding standards (canonical) |
+| `internal/guides/architecture.md` | Full crate taxonomy, extension framework, paths |
+| `internal/guides/boundaries.md` | Module boundary rules, acceptable patterns |
+| `internal/guides/cloud.md` | Cloud deployment and tenant management |
+| `internal/guides/rust.md` | Rust coding standards (canonical) |
+| `internal/guides/bridge/` | Bridge build, release, versioning, per-OS reference |
+| `documentation/` | External evaluation pack (security, compliance, stability, RFI) |
 
 ## Rust Standards
 
-**MANDATORY**: `instructions/prompt/rust.md` is the canonical source. The marketplace skill `rust-coding-standards` mirrors it. Key rules:
+**MANDATORY**: `internal/guides/rust.md` is the canonical source. The marketplace skill `rust-coding-standards` mirrors it. Key rules:
 
 - **Inline `//` comments**: banned for WHAT-comments. Permitted ONLY when encoding a non-obvious *why* (hidden constraint, subtle invariant, bug-workaround). Never narrate "what we just changed" or reference past callers/issues.
 - **`///` rustdoc**: NOT applied mechanically per pub item. Real `//!` blocks live on `lib.rs` and significant `pub mod` files (purpose, public surface, feature matrix, error model). Per-item `///` is added only where it captures non-obvious value — paraphrasing the function name and signature is a code smell. Banned in `entry/*` binaries and inside `crates/tests/**`.

@@ -8,11 +8,11 @@ Snapshot of the codebase's RFI / enterprise-security review posture, prepared in
 |----------|----------|--------|
 | Vulnerability disclosure policy | `SECURITY.md` | ✅ published |
 | Public evaluation pack entry point | `documentation/README.md` | ✅ published |
-| STRIDE threat model | `documentation/security/threat-model.md` | ✅ published |
-| Production deployment runbook | `documentation/security/deployment-reference-architecture.md` | ✅ published |
-| Compliance control matrix (HIPAA / SOC 2 / ISO 27001) | `documentation/security/compliance-control-matrix.md` | ✅ published |
-| Stability contract | `documentation/security/stability-contract.md` | ✅ published |
-| Compatibility matrix (providers, protocols, runtime) | `documentation/security/compatibility-matrix.md` | ✅ published |
+| STRIDE threat model | `documentation/threat-model.md` | ✅ published |
+| Production deployment runbook | `documentation/deployment-reference-architecture.md` | ✅ published |
+| Compliance control matrix (HIPAA / SOC 2 / ISO 27001) | `documentation/compliance-control-matrix.md` | ✅ published |
+| Stability contract | `documentation/stability-contract.md` | ✅ published |
+| Compatibility matrix (providers, protocols, runtime) | `documentation/compatibility-matrix.md` | ✅ published |
 | Architecture (layered crates) | `README.md` + `CLAUDE.md` (repository root) | ✅ published |
 | Change history | `CHANGELOG.md` | ✅ active, per-release entries |
 | Licence | `LICENSE` — BSL-1.1 with four-year conversion to Apache 2.0 | ✅ published |
@@ -130,7 +130,7 @@ The test and coverage investment is substantial and largely hidden behind the `c
   Put differently: of the 18,802 covered lines, the great majority are in crates handling authentication, audit, and configuration — exactly the surfaces a healthcare InfoSec reviewer asks about.
 
 - **CI integration** is live. `.github/workflows/coverage.yml` runs on every push to `main` plus a weekly cron. It applies all extension schemas to a CI Postgres service via the new `systemprompt-test-migrate` binary, runs the full test workspace with `RUSTFLAGS='-C instrument-coverage'` so path-dependency production crates get instrumented, then merges profdata and emits text, JSON, and LCOV artefacts. A per-run GitHub step summary makes the number visible without downloading anything.
-- **Testing roadmap and history** are documented under `report/testing/01-22.md` (local, not published — contains internal campaign tracking). The eight-wave parallel coverage campaign that produced the current state added ~1,963 meaningful tests and replaced ~320 trivial identifier tests with ~250 focused validation tests.
+- **Testing roadmap and history** are documented under `internal/reports/testing/01-22.md` (local, not published — contains internal campaign tracking). The eight-wave parallel coverage campaign that produced the current state added ~1,963 meaningful tests and replaced ~320 trivial identifier tests with ~250 focused validation tests.
 
 Response to the question "what is your test coverage?" — the honest sentence is:
 
@@ -161,7 +161,7 @@ These are the artefacts an enterprise reviewer might ask for that are **not** ye
 | Formal incident-response playbook (beyond SECURITY.md) | Full IR runbook for customer-facing incidents | Draft alongside first paid customer |
 | Public CI badges on README | Visible signal of maintained project | Add once workflows have produced a stable history |
 | Per-PR coverage delta comments | Visible coverage ratchet on every change | Shipped after the `main`-push run produces the first baseline; extend `coverage.yml` with a compare-to-base job |
-| Coverage measurement for `domain/agent`, `domain/ai`, `domain/content`, `domain/files`, `domain/mcp`, `app/*`, `entry/*` | These crates are listed as "not yet measured" in the baseline report | Add `#[cfg(test)]` unit-test modules plus cross-crate integration tests in the next coverage wave |
+| Coverage measurement for `domain/agent`, `domain/ai`, `domain/content`, `domain/files`, `domain/mcp`, `app/*`, `entry/*` | These crates are listed as "not yet measured" in the baseline report | Add unit and cross-crate integration tests in the `crates/tests/` workspace in the next coverage wave |
 
 ## 7. Verification
 

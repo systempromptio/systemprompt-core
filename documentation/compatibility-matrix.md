@@ -50,11 +50,13 @@ Other targets buildable from source.
 
 ## Historical
 
-| systemprompt version | Released | Notes |
-|----------------------|----------|-------|
-| 0.3.0 | 2026-04 | Current. Gateway tracing fixes, extension-framework refinements. See CHANGELOG.md. |
-| 0.2.x | 2026-03 → 2026-04 | Prior supported line. Security fixes through 2026-07. |
-| < 0.2 | — | No longer supported. |
+| systemprompt version | Status |
+|----------------------|--------|
+| 0.11.x | Current supported line. |
+| 0.10.x | Prior line; security fixes only. |
+| < 0.10 | No longer supported. |
+
+Per-release detail is in `CHANGELOG.md`.
 
 ## Compatibility Commitments
 
