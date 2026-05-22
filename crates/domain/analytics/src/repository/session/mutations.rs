@@ -184,6 +184,9 @@ pub async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> 
             started_at, last_activity_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT (session_id) DO UPDATE SET
+            last_activity_at = CURRENT_TIMESTAMP,
+            expires_at = EXCLUDED.expires_at
         "#,
         session_id,
         user_id,

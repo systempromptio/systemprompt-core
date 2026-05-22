@@ -6872,6 +6872,7 @@ dependencies = [
  "async-trait",
  "reqwest 0.12.28",
  "systemprompt-bridge",
+ "systemprompt-identifiers",
  "tokio",
 ]
 

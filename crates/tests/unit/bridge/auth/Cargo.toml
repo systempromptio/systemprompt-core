@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 async-trait = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }

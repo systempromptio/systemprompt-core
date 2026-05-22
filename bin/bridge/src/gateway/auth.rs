@@ -9,7 +9,7 @@
 
 use std::time::Instant;
 
-use systemprompt_identifiers::{ClientId, PluginId};
+use systemprompt_identifiers::{ClientId, PluginId, SessionId, headers as sp_headers};
 
 use crate::auth::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
 use crate::gateway::errors::GatewayError;
@@ -17,15 +17,21 @@ use crate::gateway::types::{BridgeOAuthClientResponse, HookTokenResponse};
 use crate::gateway::{GatewayClient, record_span};
 
 impl GatewayClient {
-    pub async fn mtls_exchange(&self, req: &MtlsRequest) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/bridge/mtls", req, "mtls").await
+    pub async fn mtls_exchange(
+        &self,
+        req: &MtlsRequest,
+        session_id: &SessionId,
+    ) -> Result<AuthResponse, GatewayError> {
+        self.post_json("/v1/auth/bridge/mtls", req, "mtls", session_id)
+            .await
     }
 
     pub async fn session_exchange(
         &self,
         req: &SessionExchangeRequest,
+        session_id: &SessionId,
     ) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/bridge/session", req, "session")
+        self.post_json("/v1/auth/bridge/session", req, "session", session_id)
             .await
     }
 
@@ -34,7 +40,11 @@ impl GatewayClient {
         skip(self, pat),
         fields(endpoint = "pat", status, latency_ms)
     )]
-    pub async fn pat_exchange(&self, pat: &str) -> Result<AuthResponse, GatewayError> {
+    pub async fn pat_exchange(
+        &self,
+        pat: &str,
+        session_id: &SessionId,
+    ) -> Result<AuthResponse, GatewayError> {
         let url = self.url("/v1/auth/bridge/pat");
         let started = Instant::now();
         let resp = self
@@ -42,6 +52,7 @@ impl GatewayClient {
             .post(&url)
             .bearer_auth(pat)
             .header("content-type", "application/json")
+            .header(sp_headers::SESSION_ID, session_id.as_str())
             .body("{}")
             .send()
             .await
@@ -137,6 +148,7 @@ impl GatewayClient {
         path: &str,
         body: &T,
         endpoint: &'static str,
+        session_id: &SessionId,
     ) -> Result<AuthResponse, GatewayError> {
         let url = self.url(path);
         let payload = serde_json::to_vec(body)?;
@@ -145,6 +157,7 @@ impl GatewayClient {
             .http()
             .post(&url)
             .header("content-type", "application/json")
+            .header(sp_headers::SESSION_ID, session_id.as_str())
             .body(payload)
             .send()
             .await

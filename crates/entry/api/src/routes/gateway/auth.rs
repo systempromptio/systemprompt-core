@@ -4,7 +4,7 @@ use axum::http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{JwtToken, SessionId, UserId, headers};
+use systemprompt_identifiers::{JwtToken, UserId, headers};
 use systemprompt_models::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
 use systemprompt_oauth::services::{
@@ -48,15 +48,11 @@ pub async fn capabilities() -> Json<Capabilities> {
 #[derive(Debug, Deserialize)]
 pub struct MtlsRequestBody {
     pub device_cert_fingerprint: String,
-    #[serde(default)]
-    pub session_id: Option<SessionId>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SessionExchangeBody {
     pub code: String,
-    #[serde(default)]
-    pub session_id: Option<SessionId>,
 }
 
 pub async fn pat(

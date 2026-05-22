@@ -1,5 +1,7 @@
 use std::process::ExitCode;
 
+use systemprompt_identifiers::SessionId;
+
 use crate::auth::ChainError;
 use crate::cli::output;
 use crate::gateway::GatewayClient;
@@ -10,7 +12,7 @@ pub(crate) fn cmd_whoami() -> ExitCode {
     match crate::proxy::block_on(async {
         let cfg = config::load();
         let gateway = config::gateway_url_or_default(&cfg);
-        let out = match auth::acquire_bearer(&cfg).await {
+        let out = match auth::acquire_bearer(&cfg, &SessionId::generate()).await {
             Ok(out) => out,
             Err(ChainError::PreferredTransient { provider, source }) => {
                 diag(&format!(

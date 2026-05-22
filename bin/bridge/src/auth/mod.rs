@@ -14,6 +14,7 @@ use crate::auth::providers::{AuthError, AuthFailedSource, AuthProvider};
 use crate::auth::types::HelperOutput;
 use crate::config;
 use crate::obs::output::diag;
+use systemprompt_identifiers::{SessionId, headers as sp_headers};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -28,25 +29,48 @@ pub enum ChainError {
     },
 }
 
-pub async fn acquire_bearer(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
+pub async fn acquire_bearer(
+    cfg: &config::Config,
+    session_id: &SessionId,
+) -> Result<HelperOutput, ChainError> {
     if let Some(out) = cache::read_valid() {
         return Ok(out);
     }
-    run_chain(cfg, true).await
+    run_chain(cfg, true, session_id).await
 }
 
-pub async fn obtain_live_token(cfg: &config::Config) -> Option<HelperOutput> {
+pub async fn obtain_live_token(
+    cfg: &config::Config,
+    session_id: &SessionId,
+) -> Option<HelperOutput> {
     if let Some(out) = cache::read_valid() {
         return Some(out);
     }
-    mint_fresh(cfg).await.ok()
+    mint_fresh(cfg, session_id).await.ok()
 }
 
-pub async fn read_or_refresh(cfg: &config::Config, threshold_secs: u64) -> Option<HelperOutput> {
-    if let Some(out) = cache::read_with_threshold(threshold_secs) {
+pub async fn read_or_refresh(
+    cfg: &config::Config,
+    threshold_secs: u64,
+    session_id: &SessionId,
+) -> Option<HelperOutput> {
+    // A cached token only counts if it was minted for the current session id;
+    // after a bridge restart the session id changes, so a token bound to the
+    // previous id would be rejected by the gateway's X-Session-ID check.
+    if let Some(out) = cache::read_with_threshold(threshold_secs)
+        && cached_session_matches(&out, session_id)
+    {
         return Some(out);
     }
-    mint_fresh(cfg).await.ok()
+    mint_fresh(cfg, session_id).await.ok()
+}
+
+fn cached_session_matches(out: &HelperOutput, session_id: &SessionId) -> bool {
+    out.headers
+        .iter()
+        .find(|(name, _)| name.as_str() == sp_headers::SESSION_ID)
+        .and_then(|(_, value)| value.to_str().ok())
+        .is_some_and(|s| s == session_id.as_str())
 }
 
 #[must_use]
@@ -96,8 +120,11 @@ fn provider_chain(cfg: &config::Config) -> Vec<Box<dyn AuthProvider>> {
     ]
 }
 
-pub async fn mint_fresh(cfg: &config::Config) -> Result<HelperOutput, ChainError> {
-    run_chain(cfg, true).await
+pub async fn mint_fresh(
+    cfg: &config::Config,
+    session_id: &SessionId,
+) -> Result<HelperOutput, ChainError> {
+    run_chain(cfg, true, session_id).await
 }
 
 fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
@@ -111,11 +138,15 @@ fn preferred_provider(cfg: &config::Config) -> Option<&'static str> {
     None
 }
 
-async fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutput, ChainError> {
+async fn run_chain(
+    cfg: &config::Config,
+    write_cache: bool,
+    session_id: &SessionId,
+) -> Result<HelperOutput, ChainError> {
     let chain = provider_chain(cfg);
     let preferred = preferred_provider(cfg);
     let providers: Vec<&dyn AuthProvider> = chain.iter().map(AsRef::as_ref).collect();
-    let result = evaluate_chain(&providers, preferred).await;
+    let result = evaluate_chain(&providers, preferred, session_id).await;
     if write_cache
         && let Ok(out) = result.as_ref()
         && let Err(e) = cache::write(out)
@@ -128,9 +159,10 @@ async fn run_chain(cfg: &config::Config, write_cache: bool) -> Result<HelperOutp
 pub async fn evaluate_chain(
     chain: &[&dyn AuthProvider],
     preferred: Option<&'static str>,
+    session_id: &SessionId,
 ) -> Result<HelperOutput, ChainError> {
     for p in chain {
-        match p.authenticate().await {
+        match p.authenticate(session_id).await {
             Ok(out) => return Ok(out),
             Err(AuthError::NotConfigured) => {},
             Err(AuthError::Failed { provider, source }) => {
