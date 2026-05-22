@@ -254,7 +254,7 @@ Schemas live in `schema/` and are registered via `AgentExtension`:
 | `user_contexts.sql` | User conversation contexts |
 | `user_session_analytics.sql` | Session analytics view |
 
-State transitions live in `schema/migrations/`. See `instructions/information/migrations.md` in the workspace root for the schema / migration separation rule.
+Versioned migrations live in `schema/migrations/`, discovered at build time by the crate's `build.rs` and returned through the `extension_migrations!` macro. Schema DDL (`schema/*.sql`) is for first-install table creation; migrations carry subsequent state transitions.
 
 ## Key Components
 

@@ -32,7 +32,7 @@ Axum-based HTTP server and API gateway for systemprompt.io AI governance infrast
 
 **Layer**: Entry — application boundary. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
-> This crate exposes a public library surface (`ApiServer`, route routers, middleware extractors) consumed by `entry/cli`. Per repository convention, entry-layer crates do not carry per-item `///` rustdoc; the README is the canonical user-facing reference.
+> This crate exposes a public library surface (`ApiServer`, route routers, middleware extractors) consumed by `entry/cli`.
 
 ## Overview
 
@@ -42,7 +42,7 @@ The Entry layer turns an `AppContext` into a running Axum server. Responsibiliti
 - **Middleware stack** — JWT, sessions, CORS, IP ban, rate limiting, throttling, bot detection, analytics emission, context extraction, content negotiation, security headers, and trailing-slash normalization.
 - **Gateway** — proxies Claude API traffic with quota enforcement, safety filtering, OTel ingest, audit, and pricing capture.
 - **Static content** — serves the prebuilt web frontend with ETag, SPA fallback, and per-route session handling.
-- **Server lifecycle** — readiness probes, agent reconciliation, scheduler bootstrap, and graceful shutdown.
+- **Server lifecycle** — readiness probes, agent reconciliation, and scheduler bootstrap.
 
 ## Source layout
 

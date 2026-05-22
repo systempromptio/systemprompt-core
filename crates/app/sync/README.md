@@ -135,7 +135,7 @@ let config = SyncConfig::builder(
 .with_dry_run(false)
 .build();
 
-let service = SyncService::new(config);
+let service = SyncService::new(config)?;
 let results = service.sync_all().await?;
 ```
 

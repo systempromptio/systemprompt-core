@@ -172,7 +172,7 @@ The scheduler discovers all registered jobs at startup and schedules them based 
 ```rust
 use systemprompt_scheduler::{SchedulerService, SchedulerConfig};
 
-let config = SchedulerConfig::from_context(&app_context);
+let config = SchedulerConfig::with_system_admin(&system_admin);
 let service = SchedulerService::new(config, db_pool, app_context)?;
 service.start().await?;
 ```

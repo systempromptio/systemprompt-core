@@ -55,7 +55,7 @@ systemprompt-analytics = "0.11.0"
 Optional `geolocation` feature enables MaxMind GeoIP enrichment via `maxminddb`:
 
 ```toml
-systemprompt-analytics = { version = "0.9.2", features = ["geolocation"] }
+systemprompt-analytics = { version = "0.11", features = ["geolocation"] }
 ```
 
 ## Directory Structure
