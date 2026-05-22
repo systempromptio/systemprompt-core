@@ -694,7 +694,7 @@ The web CLI integrates with scheduled jobs for content ingestion and publishing.
 
 ```bash
 sp infra jobs list
-sp --json jobs list
+sp --json infra jobs list
 ```
 
 ### Run Content Ingestion
@@ -853,7 +853,7 @@ Ingest the markdown content into the database:
 sp infra jobs run content_ingestion
 
 sp core content list --source tutorials
-sp --json content show getting-started-rust --source tutorials
+sp --json core content show getting-started-rust --source tutorials
 ```
 
 ### Phase 6: Validate Configuration
@@ -900,7 +900,7 @@ cat <your-project>/services/web/dist/sitemap.xml
 ```bash
 sp --json web sitemap show | jq '.routes[] | select(.source == "tutorials")'
 
-sp --json content show getting-started-rust --source tutorials | jq '.slug, .title'
+sp --json core content show getting-started-rust --source tutorials | jq '.slug, .title'
 
 curl -s "https://example.com/tutorials/getting-started-rust" | head -20
 ```

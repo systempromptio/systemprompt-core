@@ -57,7 +57,7 @@ List all available scheduled jobs from the registry.
 
 ```bash
 sp infra jobs list
-sp --json jobs list
+sp --json infra jobs list
 ```
 
 **Output Structure:**
@@ -87,7 +87,7 @@ Show detailed information about a specific job.
 
 ```bash
 sp infra jobs show content_ingestion
-sp --json jobs show database_cleanup
+sp --json infra jobs show database_cleanup
 ```
 
 **Output Structure:**
@@ -528,7 +528,7 @@ systemprompt_traits::submit_job!(&BlogContentIngestionJob);
 
 ```bash
 # List all jobs
-sp --json jobs list | jq '.data.jobs[].name'
+sp --json infra jobs list | jq '.data.jobs[].name'
 
 # Check job details before running
 sp infra jobs show content_ingestion
@@ -541,7 +541,7 @@ sp infra jobs log-cleanup --days 7 --dry-run
 sp infra jobs run content_ingestion
 
 # Check execution history
-sp --json jobs history --job content_ingestion
+sp --json infra jobs history --job content_ingestion
 ```
 
 ### Maintenance Workflow
@@ -554,7 +554,7 @@ sp infra jobs run cleanup_inactive_sessions cleanup_empty_contexts database_clea
 sp infra jobs run --all
 
 # Check results
-sp --json jobs history -n 10
+sp --json infra jobs history -n 10
 ```
 
 ### Disable/Enable Workflow

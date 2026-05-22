@@ -62,7 +62,7 @@ List all files with pagination and filtering.
 
 ```bash
 sp core files list
-sp --json files list
+sp --json core files list
 sp core files list --limit 50 --offset 0
 sp core files list --user user_abc123
 sp core files list --mime "image/*"
@@ -112,7 +112,7 @@ Display detailed information for a specific file.
 
 ```bash
 sp core files show <file-id>
-sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp --json core files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 ```
 
 **Required Arguments:**
@@ -235,7 +235,7 @@ Validate a file before upload.
 
 ```bash
 sp core files validate <path>
-sp --json files validate ./image.png
+sp --json core files validate ./image.png
 ```
 
 **Required Arguments:**
@@ -271,7 +271,7 @@ Show file upload configuration.
 
 ```bash
 sp core files config
-sp --json files config
+sp --json core files config
 ```
 
 **Output Structure:**
@@ -308,7 +308,7 @@ Search files by path pattern.
 
 ```bash
 sp core files search <query>
-sp --json files search uploads
+sp --json core files search uploads
 sp core files search logo --limit 10
 ```
 
@@ -352,7 +352,7 @@ Show file storage statistics.
 
 ```bash
 sp core files stats
-sp --json files stats
+sp --json core files stats
 ```
 
 **Output Structure:**
@@ -399,7 +399,7 @@ List content-file links. Use `--content` to list files attached to content, or `
 ```bash
 sp core files content list --content content_abc123
 sp core files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
-sp --json files content list --content content_abc123
+sp --json core files content list --content content_abc123
 ```
 
 **Required Flags (one of):**
@@ -528,7 +528,7 @@ Get or set the featured image for content.
 ```bash
 sp core files content featured <content-id>
 sp core files content featured content_abc123 --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
-sp --json files content featured content_abc123
+sp --json core files content featured content_abc123
 ```
 
 **Required Arguments:**
@@ -579,7 +579,7 @@ List AI-generated images.
 
 ```bash
 sp core files ai list
-sp --json files ai list
+sp --json core files ai list
 sp core files ai list --limit 50
 sp core files ai list --user user_abc123
 ```
@@ -622,7 +622,7 @@ Count AI-generated images. The `--user` flag is optional; when omitted, counts a
 
 ```bash
 sp core files ai count
-sp --json files ai count
+sp --json core files ai count
 sp core files ai count --user user_abc123
 ```
 
@@ -657,28 +657,28 @@ This flow demonstrates the full file management lifecycle:
 
 ```bash
 # Phase 1: Check configuration and storage stats
-sp --json files config
-sp --json files stats
+sp --json core files config
+sp --json core files stats
 
 # Phase 2: Validate file before upload
-sp --json files validate ./image.png
+sp --json core files validate ./image.png
 
 # Phase 3: Upload file
-sp --json files upload ./image.png --context ctx_abc123
+sp --json core files upload ./image.png --context ctx_abc123
 
 # Phase 4: Verify upload
-sp --json files list --limit 5
-sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp --json core files list --limit 5
+sp --json core files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 
 # Phase 5: Search for files
-sp --json files search uploads
+sp --json core files search uploads
 
 # Phase 6: Link file to content
 sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --role attachment
 
 # Phase 7: List content-file links (both directions)
-sp --json files content list --content content_xyz
-sp --json files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp --json core files content list --content content_xyz
+sp --json core files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 
 # Phase 8: Set featured image
 sp core files content featured content_xyz --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
@@ -692,7 +692,7 @@ sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content cont
 sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
 
 # Phase 11: Verify deletion
-sp --json files stats
+sp --json core files stats
 ```
 
 ---
@@ -701,19 +701,19 @@ sp --json files stats
 
 ```bash
 # Phase 1: Count all AI-generated images
-sp --json files ai count
+sp --json core files ai count
 
 # Phase 2: List AI-generated images
-sp --json files ai list --limit 10
+sp --json core files ai list --limit 10
 
 # Phase 3: Count AI images for specific user
-sp --json files ai count --user user_abc123
+sp --json core files ai count --user user_abc123
 
 # Phase 4: Upload new AI-generated image
 sp core files upload ./generated.png --context ctx_abc123 --ai
 
 # Phase 5: Verify AI flag
-sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp --json core files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 # Should show "ai_content": true
 ```
 
@@ -782,18 +782,18 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json files list | jq .
+sp --json core files list | jq .
 
 # Extract specific fields
-sp --json files list | jq '.data.files[].id'
-sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d | jq '.data.public_url'
-sp --json files config | jq '.data.max_file_size_bytes'
-sp --json files stats | jq '.data.by_category.images'
+sp --json core files list | jq '.data.files[].id'
+sp --json core files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d | jq '.data.public_url'
+sp --json core files config | jq '.data.max_file_size_bytes'
+sp --json core files stats | jq '.data.by_category.images'
 
 # Filter by criteria
-sp --json files list | jq '.data.files[] | select(.ai_content == true)'
-sp --json files list | jq '.data.files[] | select(.size_bytes > 100000)'
-sp --json files search uploads | jq '.data.files[] | select(.mime_type | startswith("image/"))'
+sp --json core files list | jq '.data.files[] | select(.ai_content == true)'
+sp --json core files list | jq '.data.files[] | select(.size_bytes > 100000)'
+sp --json core files search uploads | jq '.data.files[] | select(.mime_type | startswith("image/"))'
 ```
 
 ---

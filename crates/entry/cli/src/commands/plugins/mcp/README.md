@@ -54,7 +54,7 @@ List all configured MCP servers from the services configuration.
 
 ```bash
 sp plugins mcp list
-sp --json mcp list
+sp --json plugins mcp list
 sp plugins mcp list --enabled
 sp plugins mcp list --disabled
 ```
@@ -101,7 +101,7 @@ Show running MCP server status with binary information.
 
 ```bash
 sp plugins mcp status
-sp --json mcp status
+sp --json plugins mcp status
 sp plugins mcp status --detailed
 sp plugins mcp status --server content-manager
 ```
@@ -146,7 +146,7 @@ Validate MCP server connection and capabilities. Returns rich validation data in
 
 ```bash
 sp plugins mcp validate <server-name>
-sp --json mcp validate filesystem
+sp --json plugins mcp validate filesystem
 sp plugins mcp validate database --timeout 30
 sp plugins mcp validate --all
 sp plugins mcp validate --all --timeout 5
@@ -277,7 +277,7 @@ List MCP package names for build commands.
 
 ```bash
 sp plugins mcp list-packages
-sp --json mcp list-packages
+sp --json plugins mcp list-packages
 sp plugins mcp list-packages --raw
 ```
 
@@ -318,21 +318,21 @@ This flow demonstrates MCP server management:
 
 ```bash
 # Phase 1: List configured servers
-sp --json mcp list
+sp --json plugins mcp list
 
 # Phase 2: Check build status
-sp --json mcp list-packages
+sp --json plugins mcp list-packages
 sp build mcp --release
 
 # Phase 3: Check running status
-sp --json mcp status
-sp --json mcp status --server filesystem
+sp --json plugins mcp status
+sp --json plugins mcp status --server filesystem
 
 # Phase 4: Validate specific server with timeout
-sp --json mcp validate filesystem --timeout 30
+sp --json plugins mcp validate filesystem --timeout 30
 
 # Phase 5: Validate all servers
-sp --json mcp validate --all
+sp --json plugins mcp validate --all
 
 # Phase 6: Check logs with level filtering
 sp plugins mcp logs filesystem --lines 20 --level error
@@ -382,14 +382,14 @@ mcp_servers:
 
 ```bash
 # Check if binary exists
-sp --json mcp status --server filesystem
+sp --json plugins mcp status --server filesystem
 # Look for "binary_exists": false or no debug/release binary
 
 # Build the server
 sp build mcp --server filesystem
 
 # Re-check status
-sp --json mcp status --server filesystem
+sp --json plugins mcp status --server filesystem
 ```
 
 ### Connection Issues
@@ -399,7 +399,7 @@ sp --json mcp status --server filesystem
 sp plugins mcp validate filesystem --timeout 30
 
 # Check validation type in response
-sp --json mcp validate filesystem | jq '.results[0].validation_type'
+sp --json plugins mcp validate filesystem | jq '.results[0].validation_type'
 
 # Check logs for errors
 sp plugins mcp logs filesystem --level error --lines 100
@@ -409,23 +409,23 @@ sp plugins mcp logs filesystem --level error --lines 100
 
 ```bash
 # Validate and check tools count
-sp --json mcp validate filesystem | jq '.results[0].tools_count'
+sp --json plugins mcp validate filesystem | jq '.results[0].tools_count'
 
 # Check server info
-sp --json mcp validate filesystem | jq '.results[0].server_info'
+sp --json plugins mcp validate filesystem | jq '.results[0].server_info'
 ```
 
 ### Batch Validation
 
 ```bash
 # Validate all servers at once
-sp --json mcp validate --all
+sp --json plugins mcp validate --all
 
 # Check summary
-sp --json mcp validate --all | jq '.summary'
+sp --json plugins mcp validate --all | jq '.summary'
 
 # Find unhealthy servers
-sp --json mcp validate --all | jq '.results[] | select(.health_status != "healthy")'
+sp --json plugins mcp validate --all | jq '.results[] | select(.health_status != "healthy")'
 ```
 
 ---
@@ -475,20 +475,20 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json mcp list | jq .
+sp --json plugins mcp list | jq .
 
 # Extract specific fields
-sp --json mcp list | jq '.servers[].name'
-sp --json mcp status | jq '.servers[] | select(.running == true)'
-sp --json mcp validate --all | jq '.results[] | select(.valid == false)'
-sp --json mcp list-packages | jq '.packages[]'
+sp --json plugins mcp list | jq '.servers[].name'
+sp --json plugins mcp status | jq '.servers[] | select(.running == true)'
+sp --json plugins mcp validate --all | jq '.results[] | select(.valid == false)'
+sp --json plugins mcp list-packages | jq '.packages[]'
 
 # Check all server health
-sp --json mcp status | jq '.summary'
-sp --json mcp validate --all | jq '.summary'
+sp --json plugins mcp status | jq '.summary'
+sp --json plugins mcp validate --all | jq '.summary'
 
 # Get raw package list for shell scripts
-sp --json mcp list-packages --raw | jq -r '.raw_packages'
+sp --json plugins mcp list-packages --raw | jq -r '.raw_packages'
 ```
 
 ---

@@ -61,7 +61,7 @@ List all configured agents from the services configuration.
 
 ```bash
 sp admin agents list
-sp --json agents list
+sp --json admin agents list
 sp admin agents list --enabled
 sp admin agents list --disabled
 ```
@@ -99,7 +99,7 @@ Display detailed configuration for a specific agent.
 
 ```bash
 sp admin agents show <agent_name>
-sp --json agents show primary
+sp --json admin agents show primary
 ```
 
 **Required Arguments:**
@@ -117,7 +117,7 @@ sp --json agents show primary
   "endpoint": "/api/v1/agents/primary",
   "enabled": true,
   "provider": "anthropic",
-  "model": "claude-3-5-sonnet-20241022",
+  "model": "claude-sonnet-4-6-20250610",
   "mcp_servers": ["filesystem", "database"],
   "skills_count": 3
 }
@@ -133,7 +133,7 @@ Check agent configurations for errors and warnings.
 
 ```bash
 sp admin agents validate
-sp --json agents validate
+sp --json admin agents validate
 sp admin agents validate <agent_name>
 ```
 
@@ -171,7 +171,7 @@ sp admin agents create \
   --display-name "My Agent" \
   --description "A custom agent" \
   --provider anthropic \
-  --model claude-3-5-sonnet-20241022 \
+  --model claude-sonnet-4-6-20250610 \
   --enabled
 ```
 
@@ -187,7 +187,7 @@ sp admin agents create \
 | `--display-name` | Same as name | Human-readable name |
 | `--description` | Empty | Agent description |
 | `--provider` | `anthropic` | AI provider |
-| `--model` | `claude-3-5-sonnet-20241022` | AI model |
+| `--model` | `claude-sonnet-4-6-20250610` | AI model |
 | `--enabled` | `false` | Enable agent after creation |
 
 **Validation Rules:**
@@ -214,7 +214,7 @@ Edit an existing agent configuration.
 sp admin agents edit <agent_name> --enable
 sp admin agents edit <agent_name> --disable
 sp admin agents edit <agent_name> --port 8098
-sp admin agents edit <agent_name> --provider openai --model gpt-4
+sp admin agents edit <agent_name> --provider openai --model gpt-4.1
 sp admin agents edit <agent_name> --set card.description="New description"
 ```
 
@@ -297,7 +297,7 @@ Show agent process status (running state, PID, port).
 
 ```bash
 sp admin agents status
-sp --json agents status
+sp --json admin agents status
 sp admin agents status <agent_name>
 ```
 
@@ -381,7 +381,7 @@ Discover running agents from the gateway registry endpoint.
 
 ```bash
 sp admin agents registry
-sp --json agents registry
+sp --json admin agents registry
 sp admin agents registry --url http://localhost:8080
 sp admin agents registry --running
 sp admin agents registry --verbose
@@ -507,7 +507,7 @@ Get task details including conversation history and agent response.
 
 ```bash
 sp admin agents task <agent_name> --task-id <task-id> --token "$TOKEN"
-sp --json agents task primary --task-id task_abc123 --token "$TOKEN"
+sp --json admin agents task primary --task-id task_abc123 --token "$TOKEN"
 sp admin agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TOKEN"
 ```
 
@@ -552,10 +552,10 @@ This flow demonstrates the full lifecycle of agent management:
 
 ```bash
 # Phase 1: List existing agents
-sp --json agents list
+sp --json admin agents list
 
 # Phase 2: Validate configuration
-sp --json agents validate
+sp --json admin agents validate
 
 # Phase 3: Create new agent
 sp admin agents create \
@@ -564,19 +564,19 @@ sp admin agents create \
   --display-name "Test Agent" \
   --description "Created for testing" \
   --provider anthropic \
-  --model claude-3-5-sonnet-20241022
+  --model claude-sonnet-4-6-20250610
 
 # Phase 4: Verify creation
-sp --json agents show test-agent
+sp --json admin agents show test-agent
 
 # Phase 5: Edit agent
 sp admin agents edit test-agent --enable --port 8198
 
 # Phase 6: Validate after edit
-sp --json agents validate test-agent
+sp --json admin agents validate test-agent
 
 # Phase 7: Check status
-sp --json agents status test-agent
+sp --json admin agents status test-agent
 
 # Phase 8: View logs (after agent runs)
 sp admin agents logs test-agent --lines 20
@@ -585,7 +585,7 @@ sp admin agents logs test-agent --lines 20
 sp admin agents delete test-agent --yes
 
 # Phase 10: Verify deletion
-sp --json agents list
+sp --json admin agents list
 ```
 
 ---
@@ -604,10 +604,10 @@ TOKEN=$(sp admin session login --email your-admin@email.com --token-only)
 echo "Token length: ${#TOKEN}"
 
 # Step 3: Discover available agents
-sp --json agents registry --running
+sp --json admin agents registry --running
 
 # Step 4: Send initial message to agent (auto-creates context)
-RESPONSE=$(sp --json agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
 echo "$RESPONSE"
 # Extract task_id and context_id from response (note: JSON output wraps data)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
@@ -618,7 +618,7 @@ sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 # Returns structured history and artifacts in JSON output
 
 # Step 6: Continue conversation (use context_id from previous response)
-sp --json agents message admin \
+sp --json admin agents message admin \
   -m "Now multiply that by 10" \
   --context-id "$CONTEXT_ID" \
   --token "$TOKEN" \
@@ -728,15 +728,15 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json agents list | jq .
+sp --json admin agents list | jq .
 
 # Extract specific fields (JSON output wraps data in .data)
-sp --json agents list | jq '.data.agents[].name'
-sp --json agents show primary | jq '.data.port'
-sp --json agents validate | jq '.data.valid'
-sp --json agents status | jq '.data.agents[] | select(.is_running == true)'
-sp --json agents registry | jq '.data.agents[] | select(.status == "running")'
-sp --json agents message primary -m "test" --token "$TOKEN" | jq '.data.task.task_id'
+sp --json admin agents list | jq '.data.agents[].name'
+sp --json admin agents show primary | jq '.data.port'
+sp --json admin agents validate | jq '.data.valid'
+sp --json admin agents status | jq '.data.agents[] | select(.is_running == true)'
+sp --json admin agents registry | jq '.data.agents[] | select(.status == "running")'
+sp --json admin agents message primary -m "test" --token "$TOKEN" | jq '.data.task.task_id'
 ```
 
 ---
@@ -747,7 +747,7 @@ After sending a message to an agent, you can trace the full execution flow using
 
 ```bash
 # Send message and get task ID
-RESPONSE=$(sp --json agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+RESPONSE=$(sp --json admin agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 
 # View the execution trace (accepts task ID directly)

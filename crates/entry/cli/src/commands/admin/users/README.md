@@ -76,7 +76,7 @@ List all users with pagination and filtering.
 
 ```bash
 sp admin users list
-sp --json users list
+sp --json admin users list
 sp admin users list --limit 50 --offset 0
 sp admin users list --role admin
 sp admin users list --status active
@@ -119,7 +119,7 @@ Display detailed information for a specific user.
 sp admin users show johndoe
 sp admin users show john@example.com
 sp admin users show a602013b-f059-47eb-9169-df6e8f1372d4
-sp --json users show johndoe
+sp --json admin users show johndoe
 sp admin users show johndoe --sessions
 sp admin users show johndoe --activity
 ```
@@ -163,7 +163,7 @@ Search users by name, email, or full name.
 
 ```bash
 sp admin users search "john"
-sp --json users search "john"
+sp --json admin users search "john"
 sp admin users search "example.com" --limit 10
 ```
 
@@ -304,7 +304,7 @@ Get total user count.
 
 ```bash
 sp admin users count
-sp --json users count
+sp --json admin users count
 ```
 
 **Output Structure:**
@@ -410,7 +410,7 @@ List sessions for a specific user. Accepts username, email, or UUID.
 
 ```bash
 sp admin users session list johndoe
-sp --json users session list johndoe
+sp --json admin users session list johndoe
 sp admin users session list johndoe --active
 sp admin users session list johndoe --limit 10
 ```
@@ -514,7 +514,7 @@ List active IP bans.
 
 ```bash
 sp admin users ban list
-sp --json users ban list
+sp --json admin users ban list
 sp admin users ban list --limit 50
 ```
 
@@ -617,7 +617,7 @@ Check if an IP address is banned.
 
 ```bash
 sp admin users ban check 192.168.1.100
-sp --json users ban check 192.168.1.100
+sp --json admin users ban check 192.168.1.100
 ```
 
 **Arguments:**
@@ -673,15 +673,15 @@ This flow demonstrates the full user lifecycle:
 
 ```bash
 # Phase 1: List existing users
-sp --json users list
-sp --json users count
+sp --json admin users list
+sp --json admin users count
 
 # Phase 2: Create new user
 sp admin users create --name "newuser" --email "new@example.com" --full-name "New User"
 
 # Phase 3: Verify creation
-sp --json users show newuser
-sp --json users search "newuser"
+sp --json admin users show newuser
+sp --json admin users search "newuser"
 
 # Phase 4: Update user
 sp admin users update newuser --display-name "Newbie"
@@ -690,20 +690,20 @@ sp admin users update newuser --display-name "Newbie"
 sp admin users role promote newuser
 
 # Phase 6: Verify role
-sp --json users show newuser
+sp --json admin users show newuser
 # Should show roles: ["user", "admin"]
 
 # Phase 7: Demote from admin
 sp admin users role demote newuser
 
 # Phase 8: Check sessions
-sp --json users session list newuser
+sp --json admin users session list newuser
 
 # Phase 9: Delete user
 sp admin users delete newuser --yes
 
 # Phase 10: Verify deletion
-sp --json users list
+sp --json admin users list
 ```
 
 ---
@@ -712,7 +712,7 @@ sp --json users list
 
 ```bash
 # Check for active sessions
-sp --json users session list johndoe --active
+sp --json admin users session list johndoe --active
 
 # End specific session
 sp admin users session end sess_suspicious123 --yes
@@ -724,10 +724,10 @@ sp admin users session end --user johndoe --all --yes
 sp admin users ban add 10.0.0.100 --reason "Multiple failed login attempts"
 
 # Check ban status
-sp --json users ban check 10.0.0.100
+sp --json admin users ban check 10.0.0.100
 
 # List all bans
-sp --json users ban list
+sp --json admin users ban list
 
 # Remove ban after investigation
 sp admin users ban remove 10.0.0.100 --yes
@@ -781,17 +781,17 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json users list | jq .
+sp --json admin users list | jq .
 
 # Extract specific fields
-sp --json users list | jq '.users[].email'
-sp --json users show johndoe | jq '.roles'
-sp --json users count | jq '.count'
+sp --json admin users list | jq '.users[].email'
+sp --json admin users show johndoe | jq '.roles'
+sp --json admin users count | jq '.count'
 
 # Filter by criteria
-sp --json users list | jq '.users[] | select(.status == "active")'
-sp --json users list | jq '.users[] | select(.roles | contains(["admin"]))'
-sp --json users session list johndoe | jq '.sessions[] | select(.is_active == true)'
+sp --json admin users list | jq '.users[] | select(.status == "active")'
+sp --json admin users list | jq '.users[] | select(.roles | contains(["admin"]))'
+sp --json admin users session list johndoe | jq '.sessions[] | select(.is_active == true)'
 ```
 
 ---

@@ -67,7 +67,7 @@ List all contexts with statistics.
 
 ```bash
 sp core contexts list
-sp --json contexts list
+sp --json core contexts list
 ```
 
 **Output columns:** ID (truncated), Name, Tasks, Messages, Updated, Active
@@ -101,7 +101,7 @@ Display detailed information about a context.
 ```bash
 sp core contexts show a1b2c3d4
 sp core contexts show "My Project"
-sp --json contexts show a1b2c3d4
+sp --json core contexts show a1b2c3d4
 ```
 
 **Arguments:**
@@ -116,7 +116,7 @@ Create a new context without switching to it.
 ```bash
 sp core contexts create
 sp core contexts create --name "My Project"
-sp --json contexts create --name "API Testing"
+sp --json core contexts create --name "API Testing"
 ```
 
 **Flags:**
@@ -189,7 +189,7 @@ Create a new context and immediately switch to it (shortcut for `create` + `use`
 ```bash
 sp core contexts new
 sp core contexts new --name "New Session"
-sp --json contexts new --name "Debug Session"
+sp --json core contexts new --name "Debug Session"
 ```
 
 **Flags:**
@@ -228,7 +228,7 @@ sp admin agents message primary -m "Continue from where we left off"
 
 ```bash
 # List contexts to find old ones
-sp --json contexts list | jq '.contexts[] | select(.message_count == 0)'
+sp --json core contexts list | jq '.contexts[] | select(.message_count == 0)'
 
 # Delete unused context
 sp core contexts delete "Old Test" --yes

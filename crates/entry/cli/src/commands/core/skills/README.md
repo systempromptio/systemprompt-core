@@ -54,7 +54,7 @@ List all configured skills from disk and database.
 
 ```bash
 sp core skills list
-sp --json skills list
+sp --json core skills list
 sp core skills list --source disk
 sp core skills list --source database
 sp core skills list --agent primary
@@ -222,7 +222,7 @@ Show database sync status for skills.
 
 ```bash
 sp core skills status
-sp --json skills status
+sp --json core skills status
 sp core skills status --agent primary
 ```
 
@@ -312,8 +312,8 @@ This flow demonstrates the full skills lifecycle:
 
 ```bash
 # Phase 1: List existing skills
-sp --json skills list
-sp --json skills status
+sp --json core skills list
+sp --json core skills status
 
 # Phase 2: Create new skill
 sp core skills create \
@@ -324,8 +324,8 @@ sp core skills create \
   --prompt "You are a technical writer assistant. Help users create clear, comprehensive documentation."
 
 # Phase 3: Verify creation
-sp --json skills list --source disk
-sp --json skills status
+sp --json core skills list --source disk
+sp --json core skills status
 
 # Phase 4: Sync to database
 sp core skills sync --direction to-db
@@ -348,7 +348,7 @@ sp core skills delete documentation_helper --yes
 sp core skills sync --direction to-db
 
 # Phase 10: Verify deletion
-sp --json skills list
+sp --json core skills list
 ```
 
 ---
@@ -455,13 +455,13 @@ All commands support `--json` flag for structured output:
 
 ```bash
 # Verify JSON is valid
-sp --json skills list | jq .
+sp --json core skills list | jq .
 
 # Extract specific fields
-sp --json skills list | jq '.skills[].name'
-sp --json skills status | jq '.summary'
-sp --json skills list | jq '.skills[] | select(.enabled == true)'
-sp --json skills status | jq '.skills[] | select(.synced == false)'
+sp --json core skills list | jq '.skills[].name'
+sp --json core skills status | jq '.summary'
+sp --json core skills list | jq '.skills[] | select(.enabled == true)'
+sp --json core skills status | jq '.skills[] | select(.synced == false)'
 ```
 
 ---
