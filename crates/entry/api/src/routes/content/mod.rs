@@ -16,8 +16,6 @@ pub use links::{
 };
 pub use query::query_handler;
 
-/// Read-only content and link-analytics routes safe to expose to anonymous
-/// callers. Mounted under [`AuthzPolicy::public`].
 pub fn public_router(ctx: &AppContext) -> Router {
     let suffix = ctx
         .config()
@@ -51,11 +49,6 @@ pub fn public_router(ctx: &AppContext) -> Router {
     router.with_state(ctx.clone())
 }
 
-/// Mutating link routes that create persistent, redirect-bearing rows.
-///
-/// Mounted behind an authenticated policy: `/links/generate` accepts an
-/// arbitrary `target_url`, so leaving it on the anonymous surface is an
-/// open-redirect and unauthenticated row-creation vector.
 pub fn authenticated_router(ctx: &AppContext) -> Router {
     Router::new()
         .route("/links/generate", post(generate_link_handler))
