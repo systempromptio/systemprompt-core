@@ -15,7 +15,10 @@ pub mod wellknown;
 
 pub use agent::{artifacts_router, contexts_router, registry_router, tasks_router, webhook_router};
 pub use analytics::{AnalyticsState, router as analytics_router};
-pub use content::{redirect_router, router as content_router};
+pub use content::{
+    authenticated_router as content_authenticated_router, public_router as content_public_router,
+    redirect_router,
+};
 pub use engagement::router as engagement_router;
 pub use mcp::registry_router as mcp_registry_router;
 pub use oauth::{

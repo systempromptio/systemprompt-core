@@ -226,3 +226,49 @@ mod act_claim {
         assert_eq!(flat[0].user_id.as_str(), "solo");
     }
 }
+
+mod user_type_from_permissions {
+    use systemprompt_models::auth::{Permission, UserType};
+
+    #[test]
+    fn admin_wins_over_lower_scopes() {
+        let perms = [Permission::User, Permission::Admin, Permission::Service];
+        assert_eq!(UserType::from_permissions(&perms), UserType::Admin);
+    }
+
+    #[test]
+    fn precedence_is_privilege_descending() {
+        assert_eq!(UserType::from_permissions(&[Permission::User]), UserType::User);
+        assert_eq!(UserType::from_permissions(&[Permission::A2a]), UserType::A2a);
+        assert_eq!(UserType::from_permissions(&[Permission::Mcp]), UserType::Mcp);
+        assert_eq!(
+            UserType::from_permissions(&[Permission::Service]),
+            UserType::Service
+        );
+    }
+
+    #[test]
+    fn hook_scopes_resolve_to_service_not_anon() {
+        assert_eq!(
+            UserType::from_permissions(&[Permission::HookGovern]),
+            UserType::Service
+        );
+        assert_eq!(
+            UserType::from_permissions(&[Permission::HookTrack]),
+            UserType::Service
+        );
+        assert_eq!(
+            UserType::from_permissions(&[Permission::HookGovern, Permission::HookTrack]),
+            UserType::Service
+        );
+    }
+
+    #[test]
+    fn empty_or_anonymous_only_is_anon() {
+        assert_eq!(UserType::from_permissions(&[]), UserType::Anon);
+        assert_eq!(
+            UserType::from_permissions(&[Permission::Anonymous]),
+            UserType::Anon
+        );
+    }
+}

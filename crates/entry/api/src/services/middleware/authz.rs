@@ -16,6 +16,16 @@
 //! One route group authenticates by bespoke means and deliberately does not
 //! use `with_auth`: the AI gateway (`/v1/messages`, its own credential
 //! extraction accepting `x-api-key`).
+//!
+//! `UserType::Anon` is a real, reachable principal — it is NOT true that every
+//! request carries a human user. An anonymous token is minted by
+//! `POST /oauth/session` and admitted only by [`AuthzPolicy::public`]. The
+//! public surface deliberately includes a few unauthenticated writes: the
+//! OAuth auth-establishment endpoints (token / authorize / webauthn, each
+//! gated by its own protocol) and append-only engagement telemetry ingestion.
+//! Every other public route is read-only; any new public-group handler that
+//! mutates state must enforce its own per-resource ownership check, because
+//! this gate will admit `Anon`.
 
 use axum::extract::Request;
 use axum::middleware::Next;

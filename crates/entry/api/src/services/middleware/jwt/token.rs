@@ -88,6 +88,18 @@ impl JwtExtractor {
 
         let client_id = token_data.claims.client_id.map(ClientId::new);
 
+        // Defence-in-depth: the `user_type` claim is set at mint time from the
+        // permission set; re-derive it here and reject any token whose claim
+        // disagrees, so a forged or mis-minted type cannot ride past the gate.
+        let derived_type = UserType::from_permissions(&token_data.claims.scope);
+        if derived_type != token_data.claims.user_type {
+            return Err(anyhow!(
+                "user_type claim '{}' does not match permissions (derived '{}')",
+                token_data.claims.user_type,
+                derived_type
+            ));
+        }
+
         let act_chain = token_data
             .claims
             .act
@@ -99,7 +111,7 @@ impl JwtExtractor {
             user_id: UserId::new(token_data.claims.sub),
             session_id: SessionId::new(session_id_str),
             role,
-            user_type: token_data.claims.user_type,
+            user_type: derived_type,
             client_id,
             roles: token_data.claims.roles,
             department: token_data.claims.department,

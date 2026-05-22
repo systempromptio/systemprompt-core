@@ -13,11 +13,15 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-analytics = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-users = { workspace = true }
+http = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 

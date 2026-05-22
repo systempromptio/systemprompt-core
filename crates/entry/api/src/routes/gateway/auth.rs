@@ -102,16 +102,20 @@ pub async fn session(
     }
 
     let analytics = require_analytics(&ctx)?;
-    let result =
-        exchange_bridge_session_code(ctx.db_pool(), analytics.as_ref(), &headers, body.code.trim())
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-            .ok_or_else(|| {
-                (
-                    StatusCode::UNAUTHORIZED,
-                    "exchange code invalid, expired, or already consumed".into(),
-                )
-            })?;
+    let result = exchange_bridge_session_code(
+        ctx.db_pool(),
+        analytics.as_ref(),
+        &headers,
+        body.code.trim(),
+    )
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "exchange code invalid, expired, or already consumed".into(),
+        )
+    })?;
 
     Ok(Json(result.into()))
 }
@@ -194,9 +198,7 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
         .map(|s| s.trim().to_string())
 }
 
-fn require_analytics(
-    ctx: &AppContext,
-) -> Result<Arc<dyn AnalyticsProvider>, (StatusCode, String)> {
+fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, (StatusCode, String)> {
     ctx.analytics_provider().ok_or_else(|| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

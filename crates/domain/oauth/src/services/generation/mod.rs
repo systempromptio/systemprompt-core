@@ -3,8 +3,6 @@
 use crate::error::OauthResult as Result;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, encode};
-use rand::distr::Alphanumeric;
-use rand::{RngExt, rng};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
@@ -14,6 +12,13 @@ use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::keys::authority;
+
+mod secret;
+
+pub use secret::{
+    generate_access_token_jti, generate_client_secret, generate_secure_token, hash_client_secret,
+    verify_client_secret,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtConfig {
@@ -41,16 +46,6 @@ impl Default for JwtConfig {
             plugin_id: None,
         }
     }
-}
-
-pub fn generate_secure_token(prefix: &str) -> String {
-    let mut rng = rng();
-    let token: String = (0..32)
-        .map(|_| rng.sample(Alphanumeric))
-        .map(char::from)
-        .collect();
-
-    format!("{prefix}_{token}")
 }
 
 /// Mint a delegated access token carrying an RFC 8693 `act` claim chain.
@@ -190,30 +185,6 @@ pub fn generate_jwt(
     };
 
     encode_with_authority(&claims)
-}
-
-pub fn generate_client_secret() -> String {
-    let mut rng = rng();
-    let secret: String = (0..64)
-        .map(|_| rng.sample(Alphanumeric))
-        .map(char::from)
-        .collect();
-
-    format!("secret_{secret}")
-}
-
-pub fn generate_access_token_jti() -> String {
-    uuid::Uuid::new_v4().to_string()
-}
-
-pub fn hash_client_secret(secret: &str) -> Result<String> {
-    use bcrypt::{DEFAULT_COST, hash};
-    Ok(hash(secret, DEFAULT_COST)?)
-}
-
-pub fn verify_client_secret(secret: &str, hash: &str) -> Result<bool> {
-    use bcrypt::verify;
-    Ok(verify(secret, hash)?)
 }
 
 pub fn generate_anonymous_jwt(
