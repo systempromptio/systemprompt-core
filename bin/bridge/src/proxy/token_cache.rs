@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
 
+use systemprompt_identifiers::SessionId;
+
 use crate::auth::types::HelperOutput;
 use crate::proxy::forward::{ForwardError, ForwardResult};
 use crate::{auth, config};
@@ -36,11 +38,12 @@ impl TokenCache {
     }
 
     #[must_use]
-    pub fn default_for_runtime() -> Self {
-        Self::new(Arc::new(|threshold| {
+    pub fn default_for_runtime(session_id: SessionId) -> Self {
+        Self::new(Arc::new(move |threshold| {
+            let session_id = session_id.clone();
             Box::pin(async move {
                 let cfg = config::load();
-                auth::read_or_refresh(&cfg, threshold).await
+                auth::read_or_refresh(&cfg, threshold, &session_id).await
             })
         }))
     }

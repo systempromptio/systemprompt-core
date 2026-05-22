@@ -82,6 +82,15 @@ fn exchange_request_headers() -> HeaderMap {
     headers
 }
 
+fn exchange_headers_with_session(session_id: &SessionId) -> HeaderMap {
+    let mut headers = exchange_request_headers();
+    headers.insert(
+        systemprompt_identifiers::headers::SESSION_ID,
+        session_id.as_str().parse().unwrap(),
+    );
+    headers
+}
+
 #[tokio::test]
 async fn fresh_bridge_jwt_has_active_session() {
     ensure_runtime();
@@ -148,4 +157,71 @@ async fn bridge_session_captures_request_analytics() {
         Some("test-agent/1.0"),
         "session row must record the exchanging device user-agent"
     );
+}
+
+#[tokio::test]
+async fn bridge_jwt_binds_supplied_session_id() {
+    ensure_runtime();
+    let db = setup_test_db().await;
+    let user_id = create_test_user(&db).await;
+    let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
+
+    let supplied = SessionId::generate();
+    let result = issue_bridge_access(
+        &db,
+        &analytics,
+        &exchange_headers_with_session(&supplied),
+        &user_id,
+    )
+    .await
+    .expect("mint bridge access");
+
+    assert_eq!(
+        result
+            .headers
+            .get(systemprompt_identifiers::headers::SESSION_ID)
+            .map(String::as_str),
+        Some(supplied.as_str()),
+        "minted JWT must carry the session id the bridge supplied via x-session-id"
+    );
+
+    let session = analytics
+        .find_active_session_by_id(&supplied)
+        .await
+        .expect("session lookup ok")
+        .expect("supplied session id must back an active row");
+    assert_eq!(
+        session.user_id.as_ref().map(|u| u.as_str()),
+        Some(user_id.as_str())
+    );
+}
+
+#[tokio::test]
+async fn repeated_mint_with_same_session_id_is_idempotent() {
+    ensure_runtime();
+    let db = setup_test_db().await;
+    let user_id = create_test_user(&db).await;
+    let analytics = AnalyticsService::new(&db, None, None).expect("analytics service");
+
+    let supplied = SessionId::generate();
+    let headers = exchange_headers_with_session(&supplied);
+
+    // The bridge re-mints hourly with its stable session id; both mints must
+    // succeed (idempotent upsert), not fail on the existing primary key.
+    issue_bridge_access(&db, &analytics, &headers, &user_id)
+        .await
+        .expect("first mint");
+    issue_bridge_access(&db, &analytics, &headers, &user_id)
+        .await
+        .expect("re-mint with the same session id must not fail");
+
+    let pool = db.pool_arc().expect("read pool");
+    let count = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM user_sessions WHERE session_id = $1",
+        supplied.as_str()
+    )
+    .fetch_one(pool.as_ref())
+    .await
+    .expect("count query");
+    assert_eq!(count, Some(1), "re-mint must reuse the single session row");
 }

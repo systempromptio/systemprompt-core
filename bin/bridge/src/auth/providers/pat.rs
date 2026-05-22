@@ -5,7 +5,7 @@ use crate::gateway::GatewayClient;
 use crate::ids::PatToken;
 use async_trait::async_trait;
 use std::{env, fs};
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
 pub struct PatProvider {
     base_url: ValidatedUrl,
@@ -39,11 +39,11 @@ impl AuthProvider for PatProvider {
         "pat"
     }
 
-    async fn authenticate(&self) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
         let pat = self.pat_source.as_ref().ok_or(AuthError::NotConfigured)?;
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
-            .pat_exchange(pat.as_str())
+            .pat_exchange(pat.as_str(), session_id)
             .await
             .map_err(|e| AuthError::Failed {
                 provider: "pat",

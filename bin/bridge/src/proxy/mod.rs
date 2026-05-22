@@ -90,9 +90,11 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
         },
     };
     let shared = runtime_config();
-    let token_cache = Arc::new(TokenCache::default_for_runtime());
-    let _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
     let session_context = Arc::new(SessionContext::new());
+    let token_cache = Arc::new(TokenCache::default_for_runtime(
+        session_context.session_id().clone(),
+    ));
+    let _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
     let handle = match server::start(
         rt,
         DEFAULT_PROXY_PORT,

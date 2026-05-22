@@ -2,6 +2,8 @@
 
 use std::process::ExitCode;
 
+use systemprompt_identifiers::SessionId;
+
 use crate::auth::ChainError;
 use crate::{auth, config, proxy};
 
@@ -27,7 +29,7 @@ pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
 
 fn emit_claude_via_chain() -> ExitCode {
     let cfg = config::load();
-    let acquired = match proxy::block_on(auth::acquire_bearer(&cfg)) {
+    let acquired = match proxy::block_on(auth::acquire_bearer(&cfg, &SessionId::generate())) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("{}", error_json(&format!("runtime init failed: {e}")));

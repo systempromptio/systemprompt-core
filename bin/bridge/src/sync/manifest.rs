@@ -73,14 +73,16 @@ async fn resolve_pubkey(
 
 async fn fetch_fresh_token() -> Option<Secret> {
     use crate::auth::providers::{AuthError, AuthProvider};
+    use systemprompt_identifiers::SessionId;
     let cfg = config::load();
+    let session_id = SessionId::generate();
     let chain: Vec<Box<dyn AuthProvider>> = vec![
         Box::new(crate::auth::providers::mtls::MtlsProvider::new(&cfg)),
         Box::new(crate::auth::providers::session::SessionProvider::new(&cfg)),
         Box::new(crate::auth::providers::pat::PatProvider::new(&cfg)),
     ];
     for p in &chain {
-        match p.authenticate().await {
+        match p.authenticate(&session_id).await {
             Ok(out) => {
                 let _ = crate::auth::cache::write(&out);
                 return Some(out.token);

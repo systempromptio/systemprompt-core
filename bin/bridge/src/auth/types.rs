@@ -1,7 +1,6 @@
 use crate::ids::{BearerToken, CertFingerprint};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use systemprompt_identifiers::SessionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BridgeProfile {
@@ -16,13 +15,11 @@ pub struct BridgeProfile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtlsRequest {
     pub device_cert_fingerprint: CertFingerprint,
-    pub session_id: SessionId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionExchangeRequest {
     pub code: String,
-    pub session_id: SessionId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

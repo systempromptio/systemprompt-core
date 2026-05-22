@@ -34,7 +34,7 @@ impl AuthProvider for SessionProvider {
         "session"
     }
 
-    async fn authenticate(&self) -> Result<HelperOutput, AuthError> {
+    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError> {
         if !self.configured {
             return Err(AuthError::NotConfigured);
         }
@@ -64,11 +64,10 @@ impl AuthProvider for SessionProvider {
 
         let req = SessionExchangeRequest {
             code: captured.code,
-            session_id: SessionId::generate(),
         };
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
-            .session_exchange(&req)
+            .session_exchange(&req, session_id)
             .await
             .map_err(|e| AuthError::Failed {
                 provider: "session",

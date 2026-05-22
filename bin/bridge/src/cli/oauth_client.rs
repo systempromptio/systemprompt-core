@@ -12,6 +12,8 @@
 
 use std::process::ExitCode;
 
+use systemprompt_identifiers::SessionId;
+
 use crate::auth::plugin_oauth;
 use crate::cli::output;
 use crate::gateway::GatewayClient;
@@ -65,7 +67,7 @@ fn cmd_rotate() -> ExitCode {
     let client = GatewayClient::new(base_url);
 
     let result = crate::proxy::block_on(async move {
-        let bearer = auth::obtain_live_token(&cfg)
+        let bearer = auth::obtain_live_token(&cfg, &SessionId::generate())
             .await
             .ok_or("no credential source configured (run `bridge login` first)")?;
         let token = bearer.token.as_str().to_string();

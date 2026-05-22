@@ -1,12 +1,15 @@
 use std::process::ExitCode;
 
+use systemprompt_identifiers::SessionId;
+
 use crate::auth::ChainError;
 use crate::obs::output::{diag, emit};
 use crate::{auth, config};
 
 pub(crate) fn cmd_run() -> ExitCode {
     let cfg = config::load();
-    let acquired = match crate::proxy::block_on(auth::acquire_bearer(&cfg)) {
+    let session_id = SessionId::generate();
+    let acquired = match crate::proxy::block_on(auth::acquire_bearer(&cfg, &session_id)) {
         Ok(r) => r,
         Err(e) => {
             diag(&format!("runtime init failed: {e}"));

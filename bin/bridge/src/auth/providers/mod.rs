@@ -1,5 +1,6 @@
 use crate::auth::types::HelperOutput;
 use async_trait::async_trait;
+use systemprompt_identifiers::SessionId;
 use thiserror::Error;
 
 pub mod mtls;
@@ -54,5 +55,8 @@ impl AuthFailedSource {
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn authenticate(&self) -> Result<HelperOutput, AuthError>;
+    /// `session_id` is the bridge's stable session id; the provider sends it on
+    /// the exchange so the minted JWT binds to the same id the bridge presents
+    /// as `x-session-id` on `/v1/messages`.
+    async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError>;
 }
