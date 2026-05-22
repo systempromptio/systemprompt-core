@@ -138,52 +138,7 @@ pub fn generate_jwt(
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
-    let expires_in_hours = config.expires_in_hours.unwrap_or(24);
-
-    if expires_in_hours <= 0 || expires_in_hours > 8760 {
-        return Err(crate::error::OauthError::Internal(format!(
-            "Invalid token expiry: {expires_in_hours} hours. Must be between 1 and 8760 (1 year)"
-        )));
-    }
-
-    let expiration = Utc::now()
-        .checked_add_signed(Duration::hours(expires_in_hours))
-        .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
-        })?
-        .timestamp();
-
-    let now = Utc::now().timestamp();
-    let user_type = user.user_type();
-
-    let mut audience = config.audience.clone();
-    if let Some(ref resource) = config.resource {
-        audience.push(JwtAudience::Resource(resource.clone()));
-    }
-
-    let claims = JwtClaims {
-        sub: user.id.to_string(),
-        iat: now,
-        exp: expiration,
-        nbf: Some(now),
-        iss: signing.issuer.to_string(),
-        aud: audience,
-        jti,
-        scope: config.permissions,
-        username: user.username.clone(),
-        email: user.email.clone(),
-        user_type,
-        roles: user.roles().to_vec(),
-        department: user.department().map(ToString::to_string),
-        client_id: None,
-        token_type: TokenType::Bearer,
-        auth_time: now,
-        session_id: Some(session_id.clone()),
-        rate_limit_tier: Some(user_type.rate_tier()),
-        plugin_id: config.plugin_id,
-        act: None,
-    };
-
+    let claims = build_claims(user, config, jti, session_id, signing)?;
     encode_with_authority(&claims)
 }
 
