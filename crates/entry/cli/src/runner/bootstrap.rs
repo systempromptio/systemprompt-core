@@ -15,7 +15,7 @@ use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};
 use crate::paths::ResolvedPaths;
 use crate::shared::resolve_profile_path;
 
-pub(crate) struct ProfileContext {
+pub(super) struct ProfileContext {
     pub profile_name: String,
     pub is_cloud: bool,
     pub external_db_access: bool,
@@ -23,7 +23,7 @@ pub(crate) struct ProfileContext {
     pub has_export: bool,
 }
 
-pub(crate) fn resolve_and_display_profile(
+pub(super) fn resolve_and_display_profile(
     cli_config: &CliConfig,
     has_export: bool,
 ) -> Result<ProfileContext> {
@@ -60,7 +60,7 @@ pub(crate) fn resolve_and_display_profile(
     })
 }
 
-pub(crate) fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
+pub(super) fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
     if let Some(profile_input) = cli_profile_override {
         if crate::shared::is_path_input(profile_input) {
             return crate::shared::resolve_profile_from_path(profile_input)
@@ -111,13 +111,13 @@ fn init_profile(path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
+pub(super) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
     let content = std::fs::read_to_string(profile_path).ok()?;
     let profile: Profile = serde_yaml::from_str(&content).ok()?;
     Some(profile.runtime.log_level)
 }
 
-pub(crate) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
+pub(super) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
     match CredentialsBootstrap::init().await {
         Ok(_) => Ok(()),
         Err(e) if e.is_local_mode_recoverable() => {
@@ -140,12 +140,12 @@ pub(crate) async fn init_credentials_gracefully(announce: bool) -> Result<()> {
     }
 }
 
-pub(crate) fn init_secrets() -> Result<()> {
+pub(super) fn init_secrets() -> Result<()> {
     SecretsBootstrap::init().context("Secrets initialization failed")?;
     Ok(())
 }
 
-pub(crate) fn init_paths() -> Result<()> {
+pub(super) fn init_paths() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let paths = AppPaths::from_profile(&profile.paths).context("Failed to build paths")?;
     systemprompt_config::try_init_config().context("Failed to initialize configuration")?;
@@ -153,7 +153,7 @@ pub(crate) fn init_paths() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn run_validation() -> Result<()> {
+pub(super) fn run_validation() -> Result<()> {
     let mut validator = StartupValidator::new();
     let report = validator.validate(Config::get()?);
 
@@ -169,7 +169,7 @@ pub(crate) fn run_validation() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment) {
+pub(super) fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment) {
     if env.is_remote_cli {
         return;
     }

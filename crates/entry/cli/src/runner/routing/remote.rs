@@ -7,7 +7,7 @@ use std::io::{self, Write};
 use systemprompt_logging::CliService;
 use systemprompt_models::api::{CliExecuteRequest, CliOutputEvent};
 
-pub(crate) async fn execute_remote(
+pub(in crate::runner) async fn execute_remote(
     hostname: &str,
     token: &str,
     context: &str,
