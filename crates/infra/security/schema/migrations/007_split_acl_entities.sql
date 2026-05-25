@@ -19,7 +19,7 @@
 -- EntityKind::GatewayModel was removed in the single-pass gateway authz
 -- refactor; the new check constraint on access_control_entities below does
 -- not include it, so leaving the rows in place would deadlock the INSERT
--- below (legacy:rule-derived sweep) and the FK validation later.
+-- below (bootstrap:rule_derived sweep) and the FK validation later.
 DELETE FROM access_control_rules WHERE entity_type = 'gateway_model';
 
 -- Rebuild the rules check constraint to match the entity-catalog whitelist.
@@ -36,11 +36,9 @@ CREATE TABLE IF NOT EXISTS access_control_entities (
         CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook')),
     entity_id TEXT NOT NULL,
     default_included BOOLEAN NOT NULL DEFAULT false,
-    -- Provenance: where this catalog row came from. Examples:
-    -- "profile:<name>" for the publish-pipeline entity bootstrap stage,
-    -- "roles.yaml" / "departments.yaml" for the access-control YAML loader,
-    -- "legacy:sentinel" / "legacy:rule-derived" for rows promoted from the
-    -- pre-split sentinel scheme by this migration.
+    -- Provenance label: "profile:<name>" (publish-pipeline bootstrap),
+    -- "roles.yaml" / "departments.yaml" (access-control loader), or
+    -- "bootstrap:*" for rows promoted from older schemas by a migration.
     source TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -64,7 +62,7 @@ BEGIN
     ) THEN
         EXECUTE $sql$
             INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-            SELECT entity_type, entity_id, BOOL_OR(default_included), 'legacy:sentinel'
+            SELECT entity_type, entity_id, BOOL_OR(default_included), 'bootstrap:default_promoted'
             FROM access_control_rules
             WHERE rule_type = 'role' AND rule_value = '__default__'
             GROUP BY entity_type, entity_id
@@ -77,7 +75,7 @@ END$$;
 -- otherwise the FK below would reject existing rules and any future
 -- list_rules_for_entity call would have nothing to anchor default_included to.
 INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-SELECT DISTINCT entity_type, entity_id, false, 'legacy:rule-derived'
+SELECT DISTINCT entity_type, entity_id, false, 'bootstrap:rule_derived'
 FROM access_control_rules
 WHERE NOT (rule_type = 'role' AND rule_value = '__default__')
 ON CONFLICT (entity_type, entity_id) DO NOTHING;
