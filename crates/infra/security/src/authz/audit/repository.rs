@@ -10,6 +10,7 @@ use sqlx::PgPool;
 use systemprompt_identifiers::Actor;
 
 use crate::authz::types::DecisionTag;
+use crate::policy::types::AccessScope;
 
 /// Prometheus counter incremented whenever a `governance_decisions` INSERT
 /// fails.
@@ -25,7 +26,7 @@ pub struct GovernanceDecisionRecord<'a> {
     pub session_id: &'a str,
     pub tool_name: &'a str,
     pub agent_id: Option<&'a str>,
-    pub agent_scope: &'a str,
+    pub agent_scope: Option<AccessScope>,
     pub decision: DecisionTag,
     pub policy: &'a str,
     pub reason: &'a str,
@@ -72,7 +73,7 @@ pub async fn insert_governance_decision(
         record.session_id,
         record.tool_name,
         record.agent_id,
-        record.agent_scope,
+        record.agent_scope.map(|s| s.as_str()),
         record.decision.as_str(),
         record.policy,
         record.reason,

@@ -20,7 +20,7 @@ use systemprompt_identifiers::{
 use thiserror::Error;
 
 use super::error::AuthzError;
-use crate::policy::types::{RateLimitWindow, SecretLocation};
+use crate::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
@@ -232,15 +232,16 @@ pub enum DenyReason {
     UnknownEntity { entity: EntityRef },
     #[error("authz hook unavailable for policy {policy}")]
     HookUnavailable { policy: String },
-    #[error("secret pattern {pattern_id} detected at {location:?}")]
+    #[error("secret detected: {pattern_name} at {location:?}")]
     SecretLeak {
         pattern_id: SecretPatternId,
+        pattern_name: Cow<'static, str>,
         location: SecretLocation,
     },
-    #[error("tool {tool} missing required scope {missing_scope}")]
+    #[error("tool {tool} requires {required} scope")]
     ScopeViolation {
         tool: McpToolName,
-        missing_scope: String,
+        required: AccessScope,
     },
     #[error("tool {tool} blocked by list {list_id}")]
     ToolBlocked {

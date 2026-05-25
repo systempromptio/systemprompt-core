@@ -7,11 +7,14 @@
 //! — secret scans, scope checks, blocklists, rate limits — which is
 //! orthogonal to the user→entity allow/deny resolver.
 
+use std::fmt;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{McpToolName, PolicyId, SessionId, UserId};
 
+use crate::authz::error::AuthzError;
 use crate::authz::types::Decision;
 
 /// Where in a tool-call payload a secret-scanner finding was located.
@@ -61,6 +64,59 @@ impl AgentScope {
     }
 }
 
+/// Permission tier carried alongside [`AgentScope`] in [`PolicyContext`].
+///
+/// `AgentScope` answers "who is acting" (user vs system process identity);
+/// `AccessScope` answers "what permission tier is granted to this invocation"
+/// (admin, plain user, unknown). The two are orthogonal — a system actor may
+/// have any tier, a user actor may be admin or plain — so they live as
+/// separate fields rather than a cartesian enum.
+///
+/// The source-of-truth producer today is the agent YAML loader
+/// (`extensions/web/admin/.../governance/scope.rs::resolve_agent_scope`).
+/// `Unknown` is the documented fallback when no `oauth.scopes` entry is
+/// declared on the agent card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum AccessScope {
+    Admin,
+    User,
+    Unknown,
+}
+
+impl AccessScope {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Admin => "admin",
+            Self::User => "user",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+impl fmt::Display for AccessScope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for AccessScope {
+    type Err = AuthzError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "admin" => Ok(Self::Admin),
+            "user" => Ok(Self::User),
+            "unknown" | "" => Ok(Self::Unknown),
+            other => Err(AuthzError::Validation(format!(
+                "unknown access scope: {other}"
+            ))),
+        }
+    }
+}
+
 /// Untyped MCP tool input wrapped at the protocol boundary.
 ///
 /// The MCP protocol mandates schema-less JSON for tool arguments — every tool
@@ -98,6 +154,7 @@ impl McpToolInput {
 pub struct PolicyContext<'a> {
     pub tool: McpToolName,
     pub agent_scope: AgentScope,
+    pub access_scope: AccessScope,
     pub session_id: &'a SessionId,
     pub user_id: &'a UserId,
     pub tool_input: &'a McpToolInput,
@@ -108,7 +165,7 @@ pub struct PolicyContext<'a> {
 /// Implementations are pure-sync and side-effect free; auditing happens
 /// outside the chain. First-deny-wins composition is provided by
 /// [`super::GovernanceChain`].
-pub trait GovernancePolicy: Send + Sync + std::fmt::Debug {
+pub trait GovernancePolicy: Send + Sync + fmt::Debug {
     fn id(&self) -> PolicyId;
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
