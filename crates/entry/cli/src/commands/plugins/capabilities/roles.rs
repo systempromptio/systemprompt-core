@@ -11,7 +11,7 @@ pub struct RolesArgs {
     pub extension: Option<String>,
 }
 
-pub(crate) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesListOutput> {
+pub(super) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesListOutput> {
     let registry = discover_registry();
 
     let roles: Vec<RoleWithExtension> = registry

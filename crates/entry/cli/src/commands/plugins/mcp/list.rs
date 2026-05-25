@@ -19,7 +19,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let project_root = ProjectRoot::discover().ok();
 

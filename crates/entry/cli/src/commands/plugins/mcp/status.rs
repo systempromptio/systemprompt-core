@@ -19,7 +19,7 @@ pub struct StatusArgs {
     pub server: Option<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: StatusArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<McpStatusOutput>> {

@@ -11,7 +11,7 @@ pub struct TemplatesArgs {
     pub extension: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &TemplatesArgs,
     _config: &CliConfig,
 ) -> CommandResult<TemplatesListOutput> {

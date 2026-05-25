@@ -28,7 +28,7 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ToolsArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<McpToolsOutput>> {

@@ -15,7 +15,7 @@ pub struct RunArgs {
     pub args: Vec<String>,
 }
 
-pub(crate) async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
 
     let extension = ExtensionLoader::find_cli_extension(&project_root, &args.extension)
