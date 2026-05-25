@@ -28,7 +28,7 @@ pub struct UnlinkArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: UnlinkArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentUnlinkOutput>> {
@@ -75,7 +75,7 @@ pub(crate) async fn execute(
     let output = ContentUnlinkOutput {
         file_id,
         content_id,
-        message: "File unlinked from content successfully".to_string(),
+        message: "File unlinked from content successfully".to_owned(),
     };
 
     Ok(CommandResult::card(output).with_title("File Unlinked"))
@@ -89,5 +89,5 @@ fn parse_file_id(id: &str) -> Result<FileId> {
             id
         )
     })?;
-    Ok(FileId::new(id.to_string()))
+    Ok(FileId::new(id.to_owned()))
 }

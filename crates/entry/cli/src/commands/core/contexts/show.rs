@@ -17,7 +17,7 @@ pub struct ShowArgs {
     pub context: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextSummary>> {
@@ -26,7 +26,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, &session_ctx.session, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ShowArgs,
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,

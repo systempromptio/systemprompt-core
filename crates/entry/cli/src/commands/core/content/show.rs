@@ -81,7 +81,7 @@ pub async fn execute_with_pool(
     let keywords: Vec<String> = content
         .keywords
         .split(',')
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .collect();
 

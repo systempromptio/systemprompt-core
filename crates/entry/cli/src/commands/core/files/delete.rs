@@ -25,7 +25,7 @@ pub struct DeleteArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<FileDeleteOutput>> {
@@ -88,5 +88,5 @@ fn parse_file_id(id: &str) -> Result<FileId> {
             id
         )
     })?;
-    Ok(FileId::new(id.to_string()))
+    Ok(FileId::new(id.to_owned()))
 }

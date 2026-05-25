@@ -24,7 +24,7 @@ pub struct ListArgs {
     pub mime: Option<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ListArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<FileListOutput>> {
@@ -32,7 +32,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,
@@ -79,12 +79,12 @@ pub(crate) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Files")
         .with_columns(vec![
-            "id".to_string(),
-            "path".to_string(),
-            "mime_type".to_string(),
-            "size_bytes".to_string(),
-            "ai_content".to_string(),
-            "created_at".to_string(),
+            "id".to_owned(),
+            "path".to_owned(),
+            "mime_type".to_owned(),
+            "size_bytes".to_owned(),
+            "ai_content".to_owned(),
+            "created_at".to_owned(),
         ]))
 }
 

@@ -15,7 +15,7 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileValidationOutput>> {
@@ -34,8 +34,8 @@ pub(crate) fn execute(
     let validator = FileValidator::new(*upload_config);
 
     let (valid, category, errors) = match validator.validate(&mime_type, size_bytes) {
-        Ok(cat) => (true, cat.display_name().to_string(), vec![]),
-        Err(e) => (false, "unknown".to_string(), vec![e.to_string()]),
+        Ok(cat) => (true, cat.display_name().to_owned(), vec![]),
+        Err(e) => (false, "unknown".to_owned(), vec![e.to_string()]),
     };
 
     let output = FileValidationOutput {

@@ -26,7 +26,7 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ArtifactSummary>> {
@@ -35,7 +35,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     config: &CliConfig,
@@ -55,17 +55,17 @@ pub(crate) async fn execute_with_pool(
         .iter()
         .map(|p| match p {
             Part::Text(text_part) => ArtifactPartOutput {
-                kind: "text".to_string(),
+                kind: "text".to_owned(),
                 text: Some(text_part.text.clone()),
                 data: None,
             },
             Part::Data(data_part) => ArtifactPartOutput {
-                kind: "data".to_string(),
+                kind: "data".to_owned(),
                 text: None,
                 data: Some(JsonValue::Object(data_part.data.clone())),
             },
             Part::File(file_part) => ArtifactPartOutput {
-                kind: "file".to_string(),
+                kind: "file".to_owned(),
                 text: file_part.file.name.clone(),
                 data: Some(serde_json::json!({
                     "mimeType": file_part.file.mime_type,

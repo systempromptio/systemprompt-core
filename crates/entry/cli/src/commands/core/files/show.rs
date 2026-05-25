@@ -18,7 +18,7 @@ pub struct ShowArgs {
     pub identifier: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
@@ -26,7 +26,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     _config: &CliConfig,
@@ -63,7 +63,7 @@ async fn find_file(service: &FileRepository, identifier: &str) -> Result<File> {
             .await?
             .ok_or_else(|| anyhow!("File not found with path: {}", identifier))
     } else {
-        let file_id = FileId::new(identifier.to_string());
+        let file_id = FileId::new(identifier.to_owned());
         service
             .find_by_id(&file_id)
             .await?

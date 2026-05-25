@@ -17,7 +17,7 @@ pub struct FeaturedArgs {
     pub set: Option<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: FeaturedArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FeaturedImageOutput>> {
@@ -33,7 +33,7 @@ pub(crate) async fn execute(
         let output = FeaturedImageOutput {
             content_id,
             file: None,
-            message: "Featured image set successfully".to_string(),
+            message: "Featured image set successfully".to_owned(),
         };
 
         return Ok(CommandResult::card(output).with_title("Featured Image Set"));
@@ -52,7 +52,7 @@ pub(crate) async fn execute(
     });
 
     let message = file_summary.as_ref().map_or_else(
-        || "No featured image set".to_string(),
+        || "No featured image set".to_owned(),
         |f| format!("Featured image: {}", f.path),
     );
 

@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use systemprompt_models::{ComponentFilter, ComponentSource, PluginConfig, strip_frontmatter};
 
-pub(crate) fn generate_skills(
+pub(super) fn generate_skills(
     plugin: &PluginConfig,
     skills_path: &Path,
     output_dir: &Path,
@@ -88,15 +88,15 @@ fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
             .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or(skill)
-            .to_string();
+            .to_owned();
         let desc = cfg
             .get("description")
             .and_then(|v| v.as_str())
             .unwrap_or("")
-            .to_string();
+            .to_owned();
         (name, desc)
     } else {
-        (skill.to_string(), String::new())
+        (skill.to_owned(), String::new())
     };
 
     let body = if index_md.exists() {

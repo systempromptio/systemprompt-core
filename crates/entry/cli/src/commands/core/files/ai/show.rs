@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub file: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
@@ -66,7 +66,7 @@ fn parse_file_id(id: &str) -> Result<FileId> {
             id
         )
     })?;
-    Ok(FileId::new(id.to_string()))
+    Ok(FileId::new(id.to_owned()))
 }
 
 fn convert_metadata(file: &systemprompt_files::File) -> FileMetadataOutput {

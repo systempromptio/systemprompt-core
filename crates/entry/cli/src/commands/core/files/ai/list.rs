@@ -20,7 +20,7 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesListOutput>> {
@@ -62,10 +62,10 @@ pub(crate) async fn execute(
     Ok(CommandResult::table(output)
         .with_title("AI-Generated Images")
         .with_columns(vec![
-            "id".to_string(),
-            "path".to_string(),
-            "mime_type".to_string(),
-            "size_bytes".to_string(),
-            "created_at".to_string(),
+            "id".to_owned(),
+            "path".to_owned(),
+            "mime_type".to_owned(),
+            "size_bytes".to_owned(),
+            "created_at".to_owned(),
         ]))
 }

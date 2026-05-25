@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 use systemprompt_models::PluginConfig;
 
-pub(crate) fn generate_mcp_json(
+pub(super) fn generate_mcp_json(
     plugin: &PluginConfig,
     services_path: &Path,
     output_dir: &Path,
@@ -19,7 +19,7 @@ pub(crate) fn generate_mcp_json(
         let port = resolve_mcp_port(mcp_name, &config_path).unwrap_or(5000);
         let url = format!("http://localhost:{}/api/v1/mcp/{}/mcp", port, mcp_name);
         let mut server = serde_json::Map::new();
-        server.insert("url".to_string(), serde_json::Value::String(url));
+        server.insert("url".to_owned(), serde_json::Value::String(url));
         mcp_servers.insert(mcp_name.clone(), serde_json::Value::Object(server));
     }
 

@@ -27,7 +27,7 @@ pub struct ListArgs {
 }
 
 #[derive(Tabled)]
-pub(crate) struct ArtifactRow {
+pub(super) struct ArtifactRow {
     #[tabled(rename = "ID")]
     id: String,
     #[tabled(rename = "Name")]
@@ -40,7 +40,7 @@ pub(crate) struct ArtifactRow {
     created_at: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ListArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ArtifactListOutput>> {
@@ -49,7 +49,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, &session_ctx.session.user_id, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ListArgs,
     user_id: &systemprompt_identifiers::UserId,
     pool: &DbPool,
@@ -100,9 +100,9 @@ pub(crate) async fn execute_with_pool(
                 .iter()
                 .map(|a| ArtifactRow {
                     id: truncate_with_ellipsis(a.artifact_id.as_str(), 12),
-                    name: a.name.clone().unwrap_or_else(|| "-".to_string()),
+                    name: a.name.clone().unwrap_or_else(|| "-".to_owned()),
                     artifact_type: a.artifact_type.clone(),
-                    tool_name: a.tool_name.clone().unwrap_or_else(|| "-".to_string()),
+                    tool_name: a.tool_name.clone().unwrap_or_else(|| "-".to_owned()),
                     created_at: a.created_at.format("%Y-%m-%d %H:%M").to_string(),
                 })
                 .collect();
@@ -117,10 +117,10 @@ pub(crate) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Artifacts")
         .with_columns(vec![
-            "id".to_string(),
-            "name".to_string(),
-            "artifact_type".to_string(),
-            "tool_name".to_string(),
-            "created_at".to_string(),
+            "id".to_owned(),
+            "name".to_owned(),
+            "artifact_type".to_owned(),
+            "tool_name".to_owned(),
+            "created_at".to_owned(),
         ]))
 }

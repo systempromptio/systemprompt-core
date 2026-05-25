@@ -30,7 +30,7 @@ struct ContextRow {
     active: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     _args: ListArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextListOutput>> {
@@ -39,7 +39,7 @@ pub(crate) async fn execute(
     execute_with_pool(&session_ctx.session, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,
     config: &CliConfig,
@@ -90,7 +90,7 @@ pub(crate) async fn execute_with_pool(
                     message_count: c.message_count,
                     updated_at: c.updated_at.format("%Y-%m-%d %H:%M").to_string(),
                     active: if c.is_active {
-                        "*".to_string()
+                        "*".to_owned()
                     } else {
                         String::new()
                     },
@@ -107,11 +107,11 @@ pub(crate) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Contexts")
         .with_columns(vec![
-            "id".to_string(),
-            "name".to_string(),
-            "task_count".to_string(),
-            "message_count".to_string(),
-            "updated_at".to_string(),
-            "is_active".to_string(),
+            "id".to_owned(),
+            "name".to_owned(),
+            "task_count".to_owned(),
+            "message_count".to_owned(),
+            "updated_at".to_owned(),
+            "is_active".to_owned(),
         ]))
 }

@@ -4,7 +4,7 @@ use systemprompt_models::{ComponentSource, PluginConfig};
 
 use super::DEFAULT_AGENT_TOOLS;
 
-pub(crate) fn generate_agents(
+pub(super) fn generate_agents(
     plugin: &PluginConfig,
     services_path: &Path,
     output_dir: &Path,
@@ -49,8 +49,8 @@ fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<Str
     if let Some(agents) = config.get("agents").and_then(|a| a.as_mapping()) {
         for (key, _) in agents {
             if let Some(name) = key.as_str() {
-                if !plugin.agents.exclude.contains(&name.to_string()) {
-                    ids.push(name.to_string());
+                if !plugin.agents.exclude.contains(&name.to_owned()) {
+                    ids.push(name.to_owned());
                 }
             }
         }
@@ -82,12 +82,12 @@ fn build_agent_md(agent: &str, services_agents_dir: &Path) -> Result<String> {
                     .get("card")
                     .and_then(|c| c.get("description"))
                     .and_then(|d| d.as_str())
-                    .map_or_else(|| format!("{agent} agent"), ToString::to_string);
+                    .map_or_else(|| format!("{agent} agent"), str::to_owned);
                 let system_prompt = agent_val
                     .get("metadata")
                     .and_then(|m| m.get("systemPrompt"))
                     .and_then(|s| s.as_str())
-                    .map_or_else(String::new, ToString::to_string);
+                    .map_or_else(String::new, str::to_owned);
                 return Ok(format!(
                     "---\nname: {}\ndescription: \"{}\"\ntools: {}\n---\n\n{}\n",
                     agent,

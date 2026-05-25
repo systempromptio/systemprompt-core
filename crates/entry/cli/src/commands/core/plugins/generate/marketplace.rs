@@ -4,7 +4,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::{MarketplaceConfig, PluginConfig};
 
-pub(crate) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
+pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
     let services = match ConfigLoader::load() {
         Ok(s) => s,
         Err(e) => {
@@ -76,7 +76,7 @@ fn render_marketplace(
     })
 }
 
-pub(crate) fn generate_plugin_json(
+pub(super) fn generate_plugin_json(
     plugin: &PluginConfig,
     output_dir: &Path,
     files_generated: &mut Vec<String>,
@@ -86,24 +86,24 @@ pub(crate) fn generate_plugin_json(
 
     let mut manifest = serde_json::Map::new();
     manifest.insert(
-        "name".to_string(),
+        "name".to_owned(),
         serde_json::Value::String(plugin.id.to_string()),
     );
     manifest.insert(
-        "description".to_string(),
+        "description".to_owned(),
         serde_json::Value::String(plugin.description.clone()),
     );
     manifest.insert(
-        "version".to_string(),
+        "version".to_owned(),
         serde_json::Value::String(plugin.version.clone()),
     );
 
     let mut author_obj = serde_json::Map::new();
     author_obj.insert(
-        "name".to_string(),
+        "name".to_owned(),
         serde_json::Value::String(plugin.author.name.clone()),
     );
-    manifest.insert("author".to_string(), serde_json::Value::Object(author_obj));
+    manifest.insert("author".to_owned(), serde_json::Value::Object(author_obj));
 
     if !plugin.keywords.is_empty() {
         let keywords: Vec<serde_json::Value> = plugin
@@ -111,7 +111,7 @@ pub(crate) fn generate_plugin_json(
             .iter()
             .map(|k| serde_json::Value::String(k.clone()))
             .collect();
-        manifest.insert("keywords".to_string(), serde_json::Value::Array(keywords));
+        manifest.insert("keywords".to_owned(), serde_json::Value::Array(keywords));
     }
 
     let plugin_json_path = claude_plugin_dir.join("plugin.json");
@@ -122,7 +122,7 @@ pub(crate) fn generate_plugin_json(
     Ok(())
 }
 
-pub(crate) fn copy_scripts(
+pub(super) fn copy_scripts(
     plugin: &PluginConfig,
     plugins_path: &Path,
     plugin_id: &str,
