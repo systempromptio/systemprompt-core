@@ -70,11 +70,27 @@ impl AccessControlIngestionService {
         };
 
         if options.delete_orphans {
+            // Why: `delete_orphans` clears stale role/department rules for the
+            // entities the YAML declares — not for the entire table. An
+            // unscoped sweep would race against any other writer (parallel
+            // test, concurrent bootstrap, another tenant's loader) that owns
+            // role/department rules under a different entity.
+            let entity_types: Vec<String> = targets
+                .iter()
+                .map(|t| t.entity_kind.as_str().to_owned())
+                .collect();
+            let entity_ids: Vec<String> =
+                targets.iter().map(|t| t.entity_id.to_owned()).collect();
             let res = sqlx::query!(
                 r#"
                 DELETE FROM access_control_rules
                 WHERE rule_type IN ('role', 'department')
+                  AND (entity_type, entity_id) IN (
+                      SELECT * FROM UNNEST($1::text[], $2::text[])
+                  )
                 "#,
+                &entity_types,
+                &entity_ids,
             )
             .execute(&mut *tx)
             .await?;

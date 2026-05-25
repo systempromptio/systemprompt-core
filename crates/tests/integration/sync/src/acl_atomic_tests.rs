@@ -111,11 +111,6 @@ async fn rename_replaces_old_rule_with_new_atomically() {
 }
 
 #[tokio::test]
-#[ignore = "AccessControlIngestionService::ingest_config(delete_orphans=true) issues an unscoped \
-            DELETE across role+department rules, so sibling tests in the same shared DB nuke this \
-            test's rules between commits. The single-tx atomicity it characterises holds at the \
-            SQL layer but cannot be observed under parallel cargo test against a shared database. \
-            Re-enable when ingestion DELETE is scoped to the YAML's entity set."]
 async fn concurrent_reader_during_replace_never_sees_empty_state() {
     let Some(db) = try_db().await else {
         eprintln!("skipping: DATABASE_URL not set");
