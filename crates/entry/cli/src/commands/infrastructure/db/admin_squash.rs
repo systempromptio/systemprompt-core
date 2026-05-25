@@ -14,13 +14,13 @@ use crate::shared::{CommandResult, render_result};
 
 use super::types::DbSquashOutput;
 
-pub(crate) struct SquashArgs<'a> {
+pub(super) struct SquashArgs<'a> {
     pub extension: &'a str,
     pub through: u32,
     pub apply: bool,
 }
 
-pub(crate) async fn execute_squash(config: &CliConfig, args: SquashArgs<'_>) -> Result<()> {
+pub(super) async fn execute_squash(config: &CliConfig, args: SquashArgs<'_>) -> Result<()> {
     let sys_config = Config::get()?;
 
     let database = Arc::new(
@@ -37,7 +37,7 @@ pub(crate) async fn execute_squash(config: &CliConfig, args: SquashArgs<'_>) -> 
     run_squash(&registry, database.write_provider(), config, &args).await
 }
 
-pub(crate) async fn execute_squash_standalone(
+pub(super) async fn execute_squash_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
     args: SquashArgs<'_>,

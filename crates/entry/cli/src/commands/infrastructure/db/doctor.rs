@@ -23,7 +23,7 @@ struct MissingColumn {
     column: String,
 }
 
-pub(crate) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Result<()> {
     let registry = ExtensionRegistry::discover()?;
     let write_provider = db_pool.write_provider();
 

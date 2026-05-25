@@ -14,7 +14,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(crate) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     require_confirmation(
         "Delete ALL log entries? This cannot be undone.",
         args.yes,

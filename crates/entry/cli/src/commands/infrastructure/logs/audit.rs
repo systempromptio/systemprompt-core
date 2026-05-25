@@ -25,7 +25,7 @@ pub struct AuditArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct AuditOutput {
+pub(super) struct AuditOutput {
     pub request_id: AiRequestId,
     pub provider: String,
     pub model: String,
@@ -40,7 +40,7 @@ pub(crate) struct AuditOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct AuditToolCall {
+pub(super) struct AuditToolCall {
     pub tool_name: String,
     pub tool_input: String,
     pub sequence: i32,

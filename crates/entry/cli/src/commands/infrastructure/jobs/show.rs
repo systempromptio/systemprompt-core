@@ -15,7 +15,7 @@ pub struct ShowArgs {
     pub job_name: String,
 }
 
-pub(crate) async fn execute(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
+pub(super) async fn execute(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
     let job = inventory::iter::<&'static dyn Job>
         .into_iter()
         .find(|&j| j.name() == args.job_name)

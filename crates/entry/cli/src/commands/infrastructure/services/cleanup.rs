@@ -16,7 +16,7 @@ fn get_api_port() -> u16 {
     ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     yes: bool,
     dry_run: bool,
     config: &CliConfig,

@@ -143,7 +143,7 @@ fn build_level_counts(rows: &[systemprompt_logging::LevelCount]) -> LevelCounts 
     counts
 }
 
-pub(crate) fn render_text_output(output: &LogsSummaryOutput) {
+pub(super) fn render_text_output(output: &LogsSummaryOutput) {
     use systemprompt_logging::CliService;
 
     CliService::section("Logs Summary");

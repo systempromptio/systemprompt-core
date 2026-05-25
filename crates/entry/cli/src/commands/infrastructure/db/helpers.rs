@@ -16,7 +16,7 @@ const KNOWN_TABLES: &[&str] = &[
     "sources",
 ];
 
-pub(crate) fn format_bytes(bytes: i64) -> String {
+pub(super) fn format_bytes(bytes: i64) -> String {
     const KB: i64 = 1024;
     const MB: i64 = KB * 1024;
     const GB: i64 = MB * 1024;
@@ -32,7 +32,7 @@ pub(crate) fn format_bytes(bytes: i64) -> String {
     }
 }
 
-pub(crate) fn extract_relation_name(msg: &str) -> String {
+pub(super) fn extract_relation_name(msg: &str) -> String {
     if let Some(start) = msg.find('"') {
         if let Some(end) = msg[start + 1..].find('"') {
             return msg[start + 1..start + 1 + end].to_string();
@@ -41,7 +41,7 @@ pub(crate) fn extract_relation_name(msg: &str) -> String {
     "unknown".to_string()
 }
 
-pub(crate) fn suggest_table_name(input: &str) -> Option<String> {
+pub(super) fn suggest_table_name(input: &str) -> Option<String> {
     let input_lower = input.to_lowercase();
     let input_parts: Vec<&str> = input_lower.split('_').collect();
 

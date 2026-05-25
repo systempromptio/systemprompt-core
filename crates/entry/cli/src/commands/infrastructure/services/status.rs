@@ -9,7 +9,7 @@ use systemprompt_runtime::{AppContext, StartupValidator, display_validation_repo
 use systemprompt_scheduler::{RuntimeStatus, ServiceStateVerifier, VerifiedServiceState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct ServiceStatusOutput {
+pub(super) struct ServiceStatusOutput {
     pub services: Vec<ServiceStatusRow>,
     pub summary: StatusSummary,
 }
@@ -98,7 +98,7 @@ fn execute_command(
         })
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     detailed: bool,
     json: bool,
     health: bool,

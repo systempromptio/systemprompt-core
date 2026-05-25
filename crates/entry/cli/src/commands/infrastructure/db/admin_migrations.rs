@@ -12,7 +12,7 @@ use super::types::{
     AppliedMigrationInfo, ExtensionMigrationStatus, MigrationHistoryOutput, MigrationStatusOutput,
 };
 
-pub(crate) async fn execute_migrations(
+pub(super) async fn execute_migrations(
     ctx: &systemprompt_runtime::AppContext,
     cmd: MigrationsCommands,
     config: &CliConfig,
@@ -30,7 +30,7 @@ pub(crate) async fn execute_migrations(
     }
 }
 
-pub(crate) async fn execute_migrations_standalone(
+pub(super) async fn execute_migrations_standalone(
     db_ctx: &DatabaseContext,
     cmd: MigrationsCommands,
     config: &CliConfig,
