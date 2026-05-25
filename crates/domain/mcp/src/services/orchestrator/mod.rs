@@ -45,7 +45,10 @@ pub struct McpOrchestrator {
 }
 
 impl McpOrchestrator {
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "consumes the value to satisfy ownership requirements of the spawned task"
+    )]
     pub fn new(
         db_pool: DbPool,
         app_paths: Arc<AppPaths>,

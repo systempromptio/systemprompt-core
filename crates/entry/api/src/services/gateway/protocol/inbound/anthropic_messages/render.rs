@@ -76,7 +76,10 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     }
 }
 
-#[expect(clippy::unnecessary_wraps)]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "returns Result to match trait signature for fallible renderers"
+)]
 pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {
         CanonicalEvent::MessageStart {

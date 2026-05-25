@@ -24,7 +24,7 @@ pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     }
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub struct CreateTaskParams<'a> {
     pub pool: &'a Arc<PgPool>,
     pub task: &'a Task,

@@ -42,7 +42,10 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
     }
 }
 
-#[expect(clippy::result_large_err)]
+#[expect(
+    clippy::result_large_err,
+    reason = "error variants carry detailed validation context; boxing would just hide allocation without runtime benefit"
+)]
 fn load_services_config() -> Result<ServicesConfig, ApiError> {
     ConfigLoader::load()
         .map_err(|e| ApiError::internal_error(format!("Failed to load services config: {e}")))

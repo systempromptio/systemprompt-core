@@ -1,5 +1,3 @@
-#![allow(clippy::unused_async)]
-
 pub mod models;
 pub mod routes;
 pub mod services;

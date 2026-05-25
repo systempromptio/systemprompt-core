@@ -66,7 +66,10 @@ impl ExtensionsConfig {
     }
 }
 
-#[expect(clippy::expect_used)]
+#[expect(
+    clippy::expect_used,
+    reason = "compile-time-constant regex literal; Regex::new is structurally infallible here"
+)]
 static ENV_VAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{(\w+)\}")
         .expect("ENV_VAR_REGEX is a valid regex - this is a compile-time constant")

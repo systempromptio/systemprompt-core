@@ -26,7 +26,10 @@
 //! `systemprompt-traits`, `systemprompt-provider-contracts`, and
 //! `systemprompt-identifiers`.
 
-#![allow(missing_debug_implementations)]
+#![expect(
+    missing_debug_implementations,
+    reason = "repositories and services hold pool/transaction handles that do not implement Debug; deriving Debug across this crate would add nothing useful"
+)]
 
 pub mod error;
 pub(crate) mod extension;

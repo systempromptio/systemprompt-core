@@ -65,7 +65,10 @@ fn human_bytes(bytes: i64) -> String {
     format!("{size:.1} {}", UNITS[idx])
 }
 
-#[expect(clippy::useless_conversion)]
+#[expect(
+    clippy::useless_conversion,
+    reason = "explicit conversion documents the StatusCode -> Response boundary"
+)]
 fn get_disk_usage() -> Option<serde_json::Value> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;
 

@@ -1,5 +1,3 @@
-#![allow(unused_qualifications)]
-
 use axum::Json;
 use axum::extract::Query;
 use axum::http::StatusCode;

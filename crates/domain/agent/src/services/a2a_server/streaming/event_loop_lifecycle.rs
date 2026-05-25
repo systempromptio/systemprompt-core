@@ -56,7 +56,7 @@ pub(super) fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
     }
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub struct EmitRunStartedParams<'a> {
     pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,

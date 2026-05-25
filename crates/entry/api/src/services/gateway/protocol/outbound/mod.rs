@@ -21,7 +21,7 @@ pub struct OutboundCtx<'a> {
     pub upstream_model: &'a str,
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub enum OutboundOutcome {
     Buffered(CanonicalResponse),
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),

@@ -22,7 +22,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_traits::{DynFileUploadProvider, DynSessionAnalyticsProvider, RepositoryError};
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub struct RepoCreateTaskParams<'a> {
     pub task: &'a Task,
     pub user_id: &'a UserId,

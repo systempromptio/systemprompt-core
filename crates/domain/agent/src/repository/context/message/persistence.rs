@@ -14,7 +14,7 @@ const fn role_to_str(role: &MessageRole) -> &'static str {
     }
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub struct PersistMessageSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub message: &'a Message,
@@ -106,7 +106,7 @@ pub async fn persist_message_sqlx(
     Ok(())
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub struct PersistMessageWithTxParams<'a> {
     pub tx: &'a mut dyn systemprompt_database::DatabaseTransaction,
     pub message: &'a Message,

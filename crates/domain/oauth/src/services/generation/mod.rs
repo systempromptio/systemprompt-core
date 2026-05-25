@@ -53,7 +53,10 @@ impl Default for JwtConfig {
 /// `act` is the outermost actor that requested this exchange (typically the
 /// authenticated client). Any pre-existing `act` chain inside the subject
 /// token is preserved by chaining it underneath the new outer actor.
-#[expect(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "OAuth token issuance requires the full claim set; bundling into a struct would just shift the field count without improving the call site"
+)]
 pub fn generate_jwt_with_act(
     user: &AuthenticatedUser,
     config: JwtConfig,
@@ -213,7 +216,10 @@ pub fn generate_admin_jwt(
     )
 }
 
-#[expect(clippy::too_many_arguments)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "OAuth token issuance requires the full claim set; bundling into a struct would just shift the field count without improving the call site"
+)]
 pub fn generate_admin_jwt_with_expiry(
     user_id: &UserId,
     session_id: &SessionId,

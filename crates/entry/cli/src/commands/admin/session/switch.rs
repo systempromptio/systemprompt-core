@@ -1,5 +1,3 @@
-#![allow(clippy::single_match_else)]
-
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;

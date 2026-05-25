@@ -58,7 +58,7 @@ fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
 pub struct SynthesizeToolResultsParams<'a> {
     pub ai_service: Arc<dyn AiProvider>,
     pub agent_runtime: &'a AgentRuntimeInfo,

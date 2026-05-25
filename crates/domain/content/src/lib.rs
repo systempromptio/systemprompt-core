@@ -30,7 +30,10 @@
 //! `systemprompt-provider-contracts`, `systemprompt-logging`, and
 //! `systemprompt-identifiers`.
 
-#![allow(clippy::use_self)]
+#![expect(
+    clippy::use_self,
+    reason = "spelling the concrete type clarifies intent in branding/config builders where Self would be ambiguous across nested impl blocks"
+)]
 
 pub(crate) mod branding_provider;
 pub(crate) mod config;

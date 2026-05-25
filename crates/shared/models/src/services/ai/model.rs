@@ -15,7 +15,10 @@ pub struct ToolModelSettings {
     pub max_output_tokens: Option<u32>,
 }
 
-#[expect(clippy::struct_excessive_bools)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each bool maps to an independent model capability flag that providers advertise separately"
+)]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ModelCapabilities {
     #[serde(default)]

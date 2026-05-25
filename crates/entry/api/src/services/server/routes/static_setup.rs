@@ -18,7 +18,10 @@ pub(super) fn build_static_router(
     events: Option<&StartupEventSender>,
 ) -> Router {
     let path = ctx.app_paths().system().content_config().to_path_buf();
-    #[expect(clippy::option_if_let_else)]
+    #[expect(
+        clippy::option_if_let_else,
+        reason = "if-let form keeps the binding name visible for the early-return path"
+    )]
     let content_matcher = if let Some(path_str) = path.to_str() {
         match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
