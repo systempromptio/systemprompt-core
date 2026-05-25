@@ -4,9 +4,9 @@ CREATE TABLE IF NOT EXISTS access_control_entities (
         CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook')),
     entity_id TEXT NOT NULL,
     default_included BOOLEAN NOT NULL DEFAULT false,
-    -- Provenance: "profile:<name>" (publish-pipeline bootstrap), "roles.yaml"
-    -- or "departments.yaml" (access-control loader), "legacy:sentinel" /
-    -- "legacy:rule-derived" (007_split_acl_entities migration).
+    -- Provenance label: "profile:<name>" (publish-pipeline bootstrap),
+    -- "roles.yaml" / "departments.yaml" (access-control loader), or
+    -- "bootstrap:*" for rows promoted from older schemas by a migration.
     source TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -152,8 +152,9 @@ pub struct AccessRule {
 ///
 /// Owns the per-entity `default_included` flag and a provenance string
 /// identifying which loader pass first registered the entity
-/// (`"profile:<name>"`, `"roles.yaml"`, `"departments.yaml"`, or `"legacy:*"`
-/// for pre-split rows). Callers pair this with [`AccessRule`]s from
+/// (`"profile:<name>"`, `"roles.yaml"`, `"departments.yaml"`, or
+/// `"bootstrap:*"` for rows promoted from older schemas by a migration).
+/// Callers pair this with [`AccessRule`]s from
 /// `access_control_rules` and hand both to [`super::resolver::resolve`].
 ///
 /// A `None` lookup result means the entity is unknown to access control and
