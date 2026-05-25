@@ -42,7 +42,7 @@ pub fn try_init_config() -> ConfigResult<()> {
 
 pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
     let profile_path =
-        ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_string(), ToString::to_string);
+        ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_owned(), str::to_owned);
 
     let path_report = validate_profile_paths(profile, &profile_path);
     if path_report.has_errors() {
@@ -86,31 +86,31 @@ fn canonicalize_path(path: &str, name: &str) -> ConfigResult<String> {
     std::fs::canonicalize(path)
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|source| ConfigError::CanonicalizePath {
-            name: name.to_string(),
+            name: name.to_owned(),
             source,
         })
 }
 
 fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
     let path = value.ok_or_else(|| ConfigError::MissingProfilePath {
-        field: field.to_string(),
+        field: field.to_owned(),
     })?;
 
     let content = std::fs::read_to_string(path).map_err(|source| ConfigError::ReadProfilePath {
-        field: field.to_string(),
+        field: field.to_owned(),
         path: PathBuf::from(path),
         source,
     })?;
 
     serde_yaml::from_str::<serde_yaml::Value>(&content).map_err(|source| {
         ConfigError::InvalidProfileYaml {
-            field: field.to_string(),
+            field: field.to_owned(),
             path: PathBuf::from(path),
             source,
         }
     })?;
 
-    Ok(path.to_string())
+    Ok(path.to_owned())
 }
 
 fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Config> {
@@ -133,7 +133,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
             .site
             .github_link
             .clone()
-            .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_string()),
+            .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_owned()),
         github_token: secrets.github.clone(),
         system_path: paths.system.clone(),
         services_path: profile.paths.services.clone(),
@@ -175,7 +175,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
 fn resolve_system_admin_username(profile: &Profile) -> ConfigResult<String> {
     let env_override = std::env::var("SYSTEMPROMPT_SYSTEM_ADMIN")
         .ok()
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty());
     if let Some(name) = env_override {
         return Ok(name);
@@ -184,7 +184,7 @@ fn resolve_system_admin_username(profile: &Profile) -> ConfigResult<String> {
     if profile_value.is_empty() {
         return Err(ConfigError::MissingSystemAdmin);
     }
-    Ok(profile_value.to_string())
+    Ok(profile_value.to_owned())
 }
 
 fn resolve_signing_key_path(profile_path: &Path, system_path: &str) -> PathBuf {
