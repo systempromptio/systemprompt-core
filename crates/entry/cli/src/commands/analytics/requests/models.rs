@@ -35,7 +35,7 @@ pub struct ModelsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ModelsArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ModelsOutput>> {
@@ -44,7 +44,7 @@ pub(crate) async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ModelsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

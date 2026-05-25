@@ -29,7 +29,7 @@ pub struct SummaryArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: SummaryArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<CostSummaryOutput>> {
@@ -38,7 +38,7 @@ pub(crate) async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: SummaryArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
