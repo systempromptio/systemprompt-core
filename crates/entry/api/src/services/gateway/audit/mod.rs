@@ -1,5 +1,5 @@
 mod message_text;
-mod payload;
+pub mod payload;
 
 use message_text::flatten_message_content;
 use payload::{slice_payload, truncate_for_tool_input};
