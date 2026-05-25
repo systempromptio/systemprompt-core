@@ -1,5 +1,6 @@
 use crate::error::{ClientError, ClientResult};
-use crate::http;
+
+mod http;
 use chrono::Utc;
 use reqwest::Client;
 use std::time::Duration;
