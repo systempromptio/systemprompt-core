@@ -29,7 +29,7 @@ pub(super) const fn is_unauthorized(error: &SyncError) -> bool {
 
 impl SyncApiClient {
     pub(super) async fn bearer_token(&self, force_refresh: bool) -> SyncResult<String> {
-        let Some(hostname) = &self.hostname else {
+        let Some(origin) = self.direct_sync_origin() else {
             return Ok(self.token.clone());
         };
 
@@ -40,7 +40,7 @@ impl SyncApiClient {
             }
         }
 
-        let token = exchange_subject_token(&self.client, hostname, &self.token).await?;
+        let token = exchange_subject_token_at(&self.client, origin, &self.token).await?;
         *cached = Some(token.clone());
         drop(cached);
         Ok(token)
@@ -52,7 +52,16 @@ pub async fn exchange_subject_token(
     hostname: &str,
     operator_token: &str,
 ) -> SyncResult<String> {
-    let url = format!("https://{hostname}/api/v1/core/oauth/token");
+    let origin = format!("https://{hostname}");
+    exchange_subject_token_at(client, &origin, operator_token).await
+}
+
+pub async fn exchange_subject_token_at(
+    client: &reqwest::Client,
+    origin: &str,
+    operator_token: &str,
+) -> SyncResult<String> {
+    let url = format!("{origin}/api/v1/core/oauth/token");
     let response = client
         .post(&url)
         .form(&[
