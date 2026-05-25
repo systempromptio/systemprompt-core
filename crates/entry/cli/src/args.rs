@@ -5,7 +5,7 @@ use crate::commands::{admin, analytics, build, cloud, core, infrastructure, plug
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
 #[derive(Debug, clap::Args)]
-struct VerbosityOpts {
+pub(crate) struct VerbosityOpts {
     #[arg(
         long,
         short = 'v',
@@ -30,7 +30,7 @@ struct VerbosityOpts {
 }
 
 #[derive(Debug, clap::Args)]
-struct OutputOpts {
+pub(crate) struct OutputOpts {
     #[arg(long, global = true, hide = true, help = "JSON output")]
     pub json: bool,
 
@@ -65,7 +65,7 @@ pub(crate) struct DatabaseOpts {
 }
 
 #[derive(Debug, clap::Args)]
-struct ProfileOpts {
+pub(crate) struct ProfileOpts {
     #[arg(
         long,
         global = true,

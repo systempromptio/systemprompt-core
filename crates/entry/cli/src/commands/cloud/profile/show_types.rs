@@ -103,7 +103,7 @@ pub(crate) struct CoreEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SystempromptEnvVars {
+pub(crate) struct SystempromptEnvVars {
     pub env: String,
     pub verbosity: String,
     pub services_path: Option<String>,
@@ -126,13 +126,13 @@ pub(crate) struct JwtEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct RateLimitEnvVars {
+pub(crate) struct RateLimitEnvVars {
     pub disabled: bool,
     pub burst_multiplier: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct PathsEnvVars {
+pub(crate) struct PathsEnvVars {
     pub system_path: String,
     pub services: String,
     pub skills: String,

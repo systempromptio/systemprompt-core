@@ -41,7 +41,7 @@ pub struct UpdateArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct DryRunOutput {
+pub(crate) struct DryRunOutput {
     pub dry_run: bool,
     pub would_update: usize,
     pub new_status: String,

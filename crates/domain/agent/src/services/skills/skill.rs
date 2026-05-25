@@ -118,7 +118,7 @@ impl SkillService {
 
     #[expect(
         clippy::unused_async,
-        reason = "trait method requires async signature; sync implementation here"
+        reason = "kept async to match sibling `SkillService::load_skill` (which does perform async I/O) so callers consume the whole surface with uniform `.await`"
     )]
     pub async fn list_skill_ids(&self) -> Result<Vec<String>> {
         list_enabled_skill_ids(self.skills_root.as_ref())
@@ -126,7 +126,7 @@ impl SkillService {
 
     #[expect(
         clippy::unused_async,
-        reason = "trait method requires async signature; sync implementation here"
+        reason = "kept async to match sibling `SkillService::load_skill` (which does perform async I/O) so callers consume the whole surface with uniform `.await`"
     )]
     pub async fn load_skill_metadata(&self, skill_id: &SkillId) -> Result<SkillMetadata> {
         let loaded = load_disk_skill(self.skills_root.as_ref(), skill_id)?;

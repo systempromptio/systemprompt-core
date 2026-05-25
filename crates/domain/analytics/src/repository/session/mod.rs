@@ -20,9 +20,9 @@ use systemprompt_identifiers::{SessionId, UserId};
 use crate::models::AnalyticsSession;
 
 pub use types::{
-    ActiveSessionLookup, CreateSessionParams, SessionBehavioralData, SessionMigrationResult,
-    SessionRecord,
+    CreateSessionParams, SessionBehavioralData, SessionMigrationResult, SessionRecord,
 };
+pub(crate) use types::ActiveSessionLookup;
 
 #[derive(Clone, Debug)]
 pub struct SessionRepository {

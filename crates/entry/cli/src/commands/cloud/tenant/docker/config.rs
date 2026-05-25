@@ -7,12 +7,12 @@ use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::TenantId;
 
 pub(crate) const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
-pub const SHARED_ADMIN_USER: &str = "systemprompt_admin";
-pub const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
-pub const SHARED_PORT: u16 = 5432;
+pub(crate) const SHARED_ADMIN_USER: &str = "systemprompt_admin";
+pub(crate) const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
+pub(crate) const SHARED_PORT: u16 = 5432;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SharedContainerConfig {
+pub(crate) struct SharedContainerConfig {
     pub admin_password: String,
     pub port: u16,
     pub created_at: DateTime<Utc>,
@@ -55,7 +55,7 @@ pub(crate) fn shared_config_path() -> PathBuf {
     ctx.docker_dir().join("shared_config.json")
 }
 
-pub fn load_shared_config() -> Result<Option<SharedContainerConfig>> {
+pub(crate) fn load_shared_config() -> Result<Option<SharedContainerConfig>> {
     let path = shared_config_path();
     if !path.exists() {
         return Ok(None);
@@ -67,7 +67,7 @@ pub fn load_shared_config() -> Result<Option<SharedContainerConfig>> {
     Ok(Some(config))
 }
 
-pub fn save_shared_config(config: &SharedContainerConfig) -> Result<()> {
+pub(crate) fn save_shared_config(config: &SharedContainerConfig) -> Result<()> {
     let path = shared_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;

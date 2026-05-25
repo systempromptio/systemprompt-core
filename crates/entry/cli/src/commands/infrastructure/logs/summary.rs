@@ -19,7 +19,7 @@ pub struct SummaryArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct LogsSummaryOutput {
+pub(crate) struct LogsSummaryOutput {
     pub total_logs: i64,
     pub by_level: LevelCounts,
     pub top_modules: Vec<ModuleCount>,
@@ -28,7 +28,7 @@ struct LogsSummaryOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-struct LevelCounts {
+pub(crate) struct LevelCounts {
     pub error: i64,
     pub warn: i64,
     pub info: i64,
@@ -37,13 +37,13 @@ struct LevelCounts {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct ModuleCount {
+pub(crate) struct ModuleCount {
     pub module: String,
     pub count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct TimeRange {
+pub(crate) struct TimeRange {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub earliest: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -53,7 +53,7 @@ struct TimeRange {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct DatabaseInfo {
+pub(crate) struct DatabaseInfo {
     pub logs_table_rows: i64,
 }
 

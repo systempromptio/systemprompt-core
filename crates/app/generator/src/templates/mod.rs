@@ -3,4 +3,5 @@
 
 mod engine;
 
-pub use engine::{get_templates_path, load_web_config};
+pub use engine::load_web_config;
+pub(crate) use engine::get_templates_path;

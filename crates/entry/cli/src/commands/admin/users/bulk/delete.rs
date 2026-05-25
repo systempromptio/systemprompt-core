@@ -38,7 +38,7 @@ pub struct DeleteArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct DryRunOutput {
+pub(crate) struct DryRunOutput {
     pub dry_run: bool,
     pub would_delete: usize,
     pub message: String,

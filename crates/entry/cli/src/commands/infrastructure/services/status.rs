@@ -15,7 +15,7 @@ pub(crate) struct ServiceStatusOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct ServiceStatusRow {
+pub(crate) struct ServiceStatusRow {
     pub name: String,
     pub service_type: String,
     pub status: String,
@@ -29,7 +29,7 @@ struct ServiceStatusRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct StatusSummary {
+pub(crate) struct StatusSummary {
     pub total: usize,
     pub running: usize,
     pub stopped: usize,

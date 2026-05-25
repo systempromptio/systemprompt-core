@@ -83,10 +83,6 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
-    #[expect(
-        clippy::collection_is_never_read,
-        reason = "map accumulates side-effecting transformer registrations"
-    )]
     let args_str = tool_arguments
         .and_then(|args| {
             serde_json::to_string(args)

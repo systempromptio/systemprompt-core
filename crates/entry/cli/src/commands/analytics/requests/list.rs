@@ -41,7 +41,7 @@ pub struct ListArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct RequestListRowOutput {
+pub(crate) struct RequestListRowOutput {
     pub id: AiRequestId,
     pub user_id: UserId,
     pub provider: String,

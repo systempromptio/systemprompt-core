@@ -37,7 +37,7 @@ pub struct SearchArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct ToolSearchResult {
+pub(crate) struct ToolSearchResult {
     pub timestamp: String,
     pub trace_id: TraceId,
     pub tool_name: String,

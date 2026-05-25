@@ -120,12 +120,9 @@ impl SchedulerService {
         Ok(registered_jobs.len())
     }
 
-    // Why: `running_jobs` is cloned into `JobDispatch` and read by
-    // `execute_job` across an `.await`; clippy's intra-function analysis
-    // cannot see that read and flags the param as write-only.
     #[expect(
         clippy::collection_is_never_read,
-        reason = "collection accumulates futures that are awaited via join_all; read by side effect"
+        reason = "`running_jobs` is cloned into `JobDispatch` and read by `execute_job` across an `.await`; clippy's intra-function analysis can't see that read"
     )]
     async fn dispatch_bootstrap_job(
         &self,

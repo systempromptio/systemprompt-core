@@ -12,11 +12,11 @@ use super::types::{DbAssignAdminOutput, DbStatusOutput};
 
 pub(crate) use super::admin_migrate::{execute_migrate, execute_migrate_standalone};
 pub(crate) use super::admin_migrate_down::{execute_migrate_down, execute_migrate_down_standalone};
-pub use super::admin_migrate_mark_applied::{
+pub(crate) use super::admin_migrate_mark_applied::{
     MarkAppliedArgs, execute_migrate_mark_applied, execute_migrate_mark_applied_standalone,
 };
 pub(crate) use super::admin_migrate_plan::{execute_migrate_plan, execute_migrate_plan_standalone};
-pub use super::admin_migrate_repair::{
+pub(crate) use super::admin_migrate_repair::{
     RepairArgs, execute_migrate_repair, execute_migrate_repair_standalone,
 };
 pub(crate) use super::admin_migrate_status::{execute_migrate_status, execute_migrate_status_standalone};

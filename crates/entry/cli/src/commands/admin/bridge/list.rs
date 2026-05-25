@@ -31,7 +31,7 @@ pub(crate) struct BridgeListOutput {
 }
 
 #[derive(Debug, Serialize)]
-struct BridgeSessionSummary {
+pub(crate) struct BridgeSessionSummary {
     pub session_id: SessionId,
     pub user_id: UserId,
     pub hostname: String,

@@ -32,12 +32,9 @@ impl AgentRegistry {
         })
     }
 
-    // The lookup methods below are `async` to match the `AgentRegistryProvider`
-    // trait surface; their bodies are pure synchronous reads of an `Arc` snapshot.
-
     #[expect(
         clippy::unused_async,
-        reason = "trait method requires async signature; sync implementation here"
+        reason = "matches the `AgentRegistryProvider` trait surface implemented in `registry_provider.rs`; the body is a pure sync read of an `Arc` snapshot"
     )]
     pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         self.config
@@ -49,7 +46,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "trait method requires async signature; sync implementation here"
+        reason = "matches the `AgentRegistryProvider` trait surface implemented in `registry_provider.rs`; the body is a pure sync read of an `Arc` snapshot"
     )]
     pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         Ok(self.config.agents.values().cloned().collect())
@@ -57,7 +54,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "trait method requires async signature; sync implementation here"
+        reason = "matches the `AgentRegistryProvider` trait surface implemented in `registry_provider.rs`; the body is a pure sync read of an `Arc` snapshot"
     )]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
@@ -72,7 +69,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "trait method requires async signature; sync implementation here"
+        reason = "matches the `AgentRegistryProvider` trait surface implemented in `registry_provider.rs`; the body is a pure sync read of an `Arc` snapshot"
     )]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);

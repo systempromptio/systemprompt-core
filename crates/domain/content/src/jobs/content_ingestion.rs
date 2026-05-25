@@ -8,7 +8,7 @@ use crate::error::{ContentError, ContentResult};
 use crate::services::IngestionService;
 use crate::{IngestionOptions, IngestionReport, IngestionSource};
 
-struct IngestionStats {
+pub(in crate::jobs) struct IngestionStats {
     processed: u64,
     errors: u64,
 }
