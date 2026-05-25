@@ -1,6 +1,6 @@
 use std::sync::Once;
 
-use axum::http::HeaderMap;
+use http::HeaderMap;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use systemprompt_identifiers::{ClientId, SessionId};

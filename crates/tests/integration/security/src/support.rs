@@ -35,7 +35,7 @@ impl TestKey {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct SwappableJwks {
     inner: Arc<Mutex<Jwks>>,
     fetch_count: Arc<Mutex<u32>>,
