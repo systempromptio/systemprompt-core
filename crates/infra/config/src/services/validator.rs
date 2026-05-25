@@ -59,7 +59,7 @@ impl ConfigValidator {
 
     fn check_unresolved_variables(config: &EnvironmentConfig, report: &mut ValidationReport) {
         let Ok(var_regex) = Regex::new(r"\$\{[^}]+\}") else {
-            report.add_error("Internal error: Invalid unresolved variable regex".to_string());
+            report.add_error("Internal error: Invalid unresolved variable regex".to_owned());
             return;
         };
         let mut unresolved = Vec::new();
@@ -141,7 +141,7 @@ impl ConfigValidator {
         let url_vars = vec!["DATABASE_URL", "API_SERVER_URL", "API_EXTERNAL_URL"];
 
         let Ok(url_regex) = Regex::new(r"^(https?|postgresql|mysql)://.*$") else {
-            report.add_error("Internal error: Invalid URL regex".to_string());
+            report.add_error("Internal error: Invalid URL regex".to_owned());
             return;
         };
 
@@ -181,7 +181,7 @@ impl ConfigValidator {
             }
         } else {
             CliService::warning("PORT not explicitly set, will use default");
-            report.add_warning("PORT not explicitly set".to_string());
+            report.add_warning("PORT not explicitly set".to_owned());
         }
     }
 
@@ -191,7 +191,7 @@ impl ConfigValidator {
                 if let Some(use_https) = config.variables.get("USE_HTTPS") {
                     if use_https != "true" {
                         CliService::warning("Production environment should have USE_HTTPS=true");
-                        report.add_warning("Production should have USE_HTTPS=true".to_string());
+                        report.add_warning("Production should have USE_HTTPS=true".to_owned());
                     }
                 }
 
@@ -200,7 +200,7 @@ impl ConfigValidator {
                         CliService::warning(
                             "Production environment should not have RUST_LOG=debug",
                         );
-                        report.add_warning("Production should not have RUST_LOG=debug".to_string());
+                        report.add_warning("Production should not have RUST_LOG=debug".to_owned());
                     }
                 }
 
