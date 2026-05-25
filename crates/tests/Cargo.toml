@@ -17,6 +17,7 @@ members = [
     "integration/files",
     "integration/gateway",
     "integration/oauth",
+    "integration/security",
     "integration/scheduler",
     "integration/users",
     # Unit tests - shared layer

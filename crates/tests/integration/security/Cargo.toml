@@ -1,0 +1,27 @@
+[package]
+name = "systemprompt-security-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-security crate (federated JWKS, kid rotation, DoS guard)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-security = { workspace = true, features = ["test-jwks-insecure-scheme"] }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+chrono = { workspace = true }
+jsonwebtoken = { workspace = true }
+rsa = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+serde_json = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+wiremock = { workspace = true }
