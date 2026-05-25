@@ -11,7 +11,7 @@ use super::provider::OpenAiProvider;
 use super::reasoning;
 
 impl OpenAiProvider {
-    pub(crate) async fn create_stream_request(
+    pub(super) async fn create_stream_request(
         &self,
         params: GenerationParams<'_>,
         tools: Option<Vec<OpenAiTool>>,
