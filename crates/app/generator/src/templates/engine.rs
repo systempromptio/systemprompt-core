@@ -5,7 +5,7 @@ use tokio::fs;
 
 pub async fn load_web_config(paths: &AppPaths) -> Result<WebConfig, WebConfigError> {
     let config = Config::get().map_err(|e| WebConfigError::InvalidValue {
-        field: "config".to_string(),
+        field: "config".to_owned(),
         message: e.to_string(),
     })?;
 
@@ -30,7 +30,7 @@ fn validate_paths(config: &WebConfig) -> Result<(), WebConfigError> {
 
     if !config.paths.templates.is_empty() && !templates_path.exists() {
         return Err(WebConfigError::PathNotFound {
-            field: "paths.templates".to_string(),
+            field: "paths.templates".to_owned(),
             path: templates_path.to_path_buf(),
         });
     }

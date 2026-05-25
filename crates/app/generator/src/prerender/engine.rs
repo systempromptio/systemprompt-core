@@ -98,7 +98,7 @@ async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<Page
             let mut page_data = spec.base_data;
             if let Some(obj) = page_data.as_object_mut() {
                 obj.insert(
-                    "locale".to_string(),
+                    "locale".to_owned(),
                     serde_json::Value::String(locale.to_string()),
                 );
             }
@@ -159,10 +159,10 @@ async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<Page
                 "Generated page"
             );
 
-            rendered_page_types.insert(page_type.to_string());
+            rendered_page_types.insert(page_type.to_owned());
 
             results.push(PagePrerenderResult {
-                page_type: page_type.to_string(),
+                page_type: page_type.to_owned(),
                 output_path,
             });
         }

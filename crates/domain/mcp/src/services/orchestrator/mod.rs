@@ -45,7 +45,11 @@ pub struct McpOrchestrator {
 }
 
 impl McpOrchestrator {
-    #[expect(clippy::needless_pass_by_value)]
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "owned RegistryService is taken so the orchestrator can store it without an \
+                  extra Arc clone at the call site"
+    )]
     pub fn new(
         db_pool: DbPool,
         app_paths: Arc<AppPaths>,

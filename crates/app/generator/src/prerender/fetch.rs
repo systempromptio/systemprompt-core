@@ -98,7 +98,7 @@ pub(super) async fn contents_to_json(
             async move {
                 for provider in providers {
                     let applies = provider.applies_to_sources();
-                    if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
+                    if !applies.is_empty() && !applies.contains(&source_name.to_owned()) {
                         continue;
                     }
 

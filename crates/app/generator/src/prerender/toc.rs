@@ -25,7 +25,7 @@ pub(super) fn generate_toc(markdown: &str, rendered_html: &str) -> TocResult {
     if entries.is_empty() {
         return TocResult {
             toc_html: String::new(),
-            content_html: rendered_html.to_string(),
+            content_html: rendered_html.to_owned(),
         };
     }
 
@@ -86,7 +86,7 @@ fn extract_text_from_node<'a>(node: &'a AstNode<'a>) -> String {
         }
     }
 
-    text.trim().to_string()
+    text.trim().to_owned()
 }
 
 fn slugify(text: &str) -> String {
@@ -101,9 +101,9 @@ fn slugify(text: &str) -> String {
 }
 
 fn deduplicate_slug(base_slug: &str, counts: &mut HashMap<String, usize>) -> String {
-    let count = counts.entry(base_slug.to_string()).or_insert(0);
+    let count = counts.entry(base_slug.to_owned()).or_insert(0);
     let slug = if *count == 0 {
-        base_slug.to_string()
+        base_slug.to_owned()
     } else {
         format!("{}-{}", base_slug, count)
     };
@@ -167,7 +167,7 @@ fn escape_html(text: &str) -> String {
 }
 
 fn inject_heading_ids(html: &str, entries: &[TocEntry]) -> String {
-    let mut result = html.to_string();
+    let mut result = html.to_owned();
 
     for entry in entries {
         let open_tag = format!("<h{}", entry.level);

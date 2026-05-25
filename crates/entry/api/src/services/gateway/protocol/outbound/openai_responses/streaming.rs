@@ -273,7 +273,7 @@ fn handle_completed(
     }));
 }
 
-pub(crate) fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, String>>) {
+pub(super) fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, String>>) {
     let msg = value
         .get("error")
         .and_then(|e| e.get("message"))

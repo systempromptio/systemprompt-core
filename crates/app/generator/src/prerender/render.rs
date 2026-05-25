@@ -125,7 +125,7 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
         .template_registry
         .render(template_name, &template_data)
         .map_err(|e| {
-            PublishError::render_failed(template_name, Some(slug.to_string()), e.to_string())
+            PublishError::render_failed(template_name, Some(slug.to_owned()), e.to_string())
         })?;
 
     write_rendered_page(

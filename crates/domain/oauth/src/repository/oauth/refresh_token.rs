@@ -262,8 +262,8 @@ impl OAuthRepository {
     }
 
     /// Drop expired tokens and consumed-token tombstones whose expiry has
-    /// also passed. Live tokens (consumed_at IS NULL, expires_at >= now) and
-    /// recently-consumed tombstones (still within their original expiry
+    /// also passed. Live tokens (`consumed_at` IS NULL, `expires_at` >= now)
+    /// and recently-consumed tombstones (still within their original expiry
     /// window) are preserved so replay detection retains evidence.
     pub async fn cleanup_expired_refresh_tokens(&self) -> OauthResult<u64> {
         let now = Utc::now();

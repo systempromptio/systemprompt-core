@@ -100,7 +100,6 @@ impl SchedulerService {
     /// Jobs absent from the inventory are skipped with a warning. Emits
     /// start/complete events through `events` when provided, and returns the
     /// number of jobs discovered in the inventory.
-    #[expect(clippy::collection_is_never_read)]
     pub async fn run_bootstrap_jobs(
         &self,
         events: Option<&StartupEventSender>,
@@ -124,7 +123,11 @@ impl SchedulerService {
     // Why: `running_jobs` is cloned into `JobDispatch` and read by
     // `execute_job` across an `.await`; clippy's intra-function analysis
     // cannot see that read and flags the param as write-only.
-    #[expect(clippy::collection_is_never_read)]
+    #[expect(
+        clippy::collection_is_never_read,
+        reason = "`running_jobs` is cloned into JobDispatch and read by execute_job across an \
+                  .await; intra-function clippy analysis cannot see that read"
+    )]
     async fn dispatch_bootstrap_job(
         &self,
         job_name: &str,

@@ -146,7 +146,7 @@ fn build_parent_urls(
                     ),
                 })
                 .chain(std::iter::once(SitemapUrlAlternate {
-                    hreflang: "x-default".to_string(),
+                    hreflang: "x-default".to_owned(),
                     href: format!("{}{}", base_url, parent_config.url),
                 }))
                 .collect();
@@ -266,7 +266,7 @@ async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<Sitemap
                     href: format!("{}{}{}", params.base_url, i18n.locale_prefix(alt), relative),
                 })
                 .chain(std::iter::once(SitemapUrlAlternate {
-                    hreflang: "x-default".to_string(),
+                    hreflang: "x-default".to_owned(),
                     href: default_url.clone(),
                 }))
                 .collect();
@@ -274,7 +274,7 @@ async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<Sitemap
             urls.push(SitemapUrl {
                 loc: format!("{}{}{}", params.base_url, prefix, relative),
                 lastmod: lastmod.clone(),
-                changefreq: params.changefreq.to_string(),
+                changefreq: params.changefreq.to_owned(),
                 priority: params.priority,
                 alternates,
             });

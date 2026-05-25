@@ -45,7 +45,7 @@ pub fn extract_frontmatter(content: &str) -> Option<(serde_yaml::Value, String)>
     }
 
     let frontmatter_str = parts[1].trim();
-    let body = parts[2].to_string();
+    let body = parts[2].to_owned();
 
     match serde_yaml::from_str(frontmatter_str) {
         Ok(yaml) => Some((yaml, body)),

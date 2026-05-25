@@ -13,7 +13,6 @@ pub enum FilePersistenceMode {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[expect(clippy::struct_excessive_bools)]
 pub struct AllowedFileTypes {
     pub images: bool,
     pub documents: bool,

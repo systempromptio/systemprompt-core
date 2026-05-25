@@ -27,7 +27,7 @@ impl HtmlBuilder {
     }
 
     pub fn body(mut self, html: &str) -> Self {
-        self.body = html.to_owned();
+        html.clone_into(&mut self.body);
         self
     }
 

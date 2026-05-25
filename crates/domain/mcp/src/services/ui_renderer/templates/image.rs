@@ -26,7 +26,7 @@ impl ImageRenderer {
                         .unwrap_or("image/png");
                     data.src = format!("data:{};base64,{}", mime, bytes);
                 } else if let Some(uri) = file.get("uri").and_then(|v| v.as_str()) {
-                    data.src = uri.to_owned();
+                    uri.clone_into(&mut data.src);
                 }
             }
 
@@ -36,7 +36,7 @@ impl ImageRenderer {
                     .or_else(|| part_data.get("url"))
                     .and_then(|v| v.as_str())
                 {
-                    data.src = src.to_owned();
+                    src.clone_into(&mut data.src);
                 }
                 if let Some(alt) = part_data.get("alt").and_then(|v| v.as_str()) {
                     data.alt = Some(alt.to_owned());

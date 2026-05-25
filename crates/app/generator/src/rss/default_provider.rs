@@ -115,7 +115,7 @@ impl RssFeedProvider for DefaultRssFeedProvider {
             title,
             link: global_config.api_external_url.clone(),
             description,
-            language: Some("en".to_string()),
+            language: Some("en".to_owned()),
         })
     }
 

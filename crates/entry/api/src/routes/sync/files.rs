@@ -39,7 +39,7 @@ fn get_services_path(ctx: &AppContext) -> Result<PathBuf, String> {
     Err("Services path not configured".into())
 }
 
-pub(crate) fn collect_files(
+pub(super) fn collect_files(
     services_path: &Path,
     directories: &[&str],
 ) -> Result<FileManifest, String> {
@@ -99,7 +99,7 @@ fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> Result<()
     Ok(())
 }
 
-pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, String> {
+pub(super) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, String> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut tar = Builder::new(&mut encoder);
@@ -116,7 +116,7 @@ pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec
         .map_err(|e| format!("Failed to finish gzip: {}", e))
 }
 
-pub(crate) fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
+pub(super) fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut count = 0;
@@ -192,7 +192,7 @@ pub(crate) fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, Strin
     Ok(count)
 }
 
-pub(crate) fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
+pub(super) fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut files = Vec::new();

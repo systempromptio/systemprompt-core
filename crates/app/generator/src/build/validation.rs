@@ -34,14 +34,14 @@ pub(super) async fn validate_build(web_dir: &Path) -> Result<()> {
 fn validate_required_paths(dist_dir: &Path) -> Result<()> {
     if !dist_dir.exists() {
         return Err(BuildError::ValidationFailed(
-            "dist directory not found".to_string(),
+            "dist directory not found".to_owned(),
         ));
     }
 
     let index_html = dist_dir.join("index.html");
     if !index_html.exists() {
         return Err(BuildError::ValidationFailed(
-            "index.html not found in dist".to_string(),
+            "index.html not found in dist".to_owned(),
         ));
     }
 
@@ -116,8 +116,8 @@ fn check_html_exists(
 
     tracing::warn!(path = %path, "Missing URL - no index.html found");
     Err(ValidationError {
-        url: url.to_string(),
-        path: path.to_string(),
+        url: url.to_owned(),
+        path: path.to_owned(),
         expected_file: html_path.display().to_string(),
     })
 }
@@ -176,7 +176,7 @@ fn extract_path_from_url(url: &str) -> Result<String> {
     }
 
     if url.starts_with('/') {
-        return Ok(url.to_string());
+        return Ok(url.to_owned());
     }
 
     Err(BuildError::ValidationFailed(format!(

@@ -30,7 +30,10 @@
 //! `systemprompt-provider-contracts`, `systemprompt-logging`, and
 //! `systemprompt-identifiers`.
 
-#![allow(clippy::use_self)]
+#![expect(
+    clippy::use_self,
+    reason = "explicit type names preferred over Self in this crate's public-facing APIs"
+)]
 
 pub(crate) mod branding_provider;
 pub(crate) mod config;

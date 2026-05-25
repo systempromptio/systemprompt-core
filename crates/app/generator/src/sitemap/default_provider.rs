@@ -58,8 +58,8 @@ impl SitemapProvider for DefaultSitemapProvider {
                         source_id: source.source_id.clone(),
                         url_pattern: sitemap.url_pattern.clone(),
                         placeholders: vec![PlaceholderMapping {
-                            placeholder: "{slug}".to_string(),
-                            field: "slug".to_string(),
+                            placeholder: "{slug}".to_owned(),
+                            field: "slug".to_owned(),
                         }],
                         priority: sitemap.priority,
                         changefreq: sitemap.changefreq.clone(),
@@ -104,7 +104,7 @@ impl SitemapProvider for DefaultSitemapProvider {
             if let Some(value) = content.get(&mapping.field) {
                 let string_value = match value {
                     serde_json::Value::String(s) => s.clone(),
-                    _ => value.to_string().trim_matches('"').to_string(),
+                    _ => value.to_string().trim_matches('"').to_owned(),
                 };
                 resolved.insert(mapping.placeholder.clone(), string_value);
             }
