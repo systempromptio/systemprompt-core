@@ -53,7 +53,7 @@ impl QueryExecutor {
         self.execute(sql, usize::MAX).await
     }
 
-    pub(crate) async fn execute(
+    pub(super) async fn execute(
         &self,
         sql: AdminSql,
         row_limit: usize,
