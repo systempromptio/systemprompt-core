@@ -42,6 +42,7 @@ use crate::config::paths;
 use crate::sync::ApplyError;
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 
+#[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;
 
 #[async_trait]

@@ -72,6 +72,7 @@ impl SignedManifestVerify for SignedManifest {
     }
 }
 
+#[derive(Debug)]
 pub struct SignedManifestBuilder {
     manifest_version: ManifestVersion,
     issued_at: String,

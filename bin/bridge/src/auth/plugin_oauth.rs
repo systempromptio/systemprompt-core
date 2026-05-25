@@ -235,12 +235,9 @@ pub struct PluginTokenCache {
 impl PluginTokenCache {
     pub fn get(&self, plugin_id: &PluginId, threshold_secs: u64) -> Option<CachedHookToken> {
         let guard = self.entries.lock().ok()?;
-        let cached = guard.get(plugin_id.as_str())?;
-        if cached.is_fresh(threshold_secs) {
-            Some(cached.clone())
-        } else {
-            None
-        }
+        let cached = guard.get(plugin_id.as_str())?.clone();
+        drop(guard);
+        cached.is_fresh(threshold_secs).then_some(cached)
     }
 
     pub fn put(&self, plugin_id: &PluginId, token: CachedHookToken) {

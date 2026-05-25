@@ -17,6 +17,7 @@ pub enum SetupError {
     Io(String),
 }
 
+#[derive(Debug)]
 pub struct PathLayout {
     pub config_dir: PathBuf,
     pub config_file: PathBuf,
@@ -109,6 +110,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     })
 }
 
+#[derive(Debug)]
 pub struct CleanReport {
     pub paths: PathLayout,
     pub pat_removed: bool,
@@ -133,6 +135,7 @@ pub fn status() -> Result<StatusReport, SetupError> {
     })
 }
 
+#[derive(Debug)]
 pub struct StatusReport {
     pub paths: PathLayout,
     pub config_present: bool,

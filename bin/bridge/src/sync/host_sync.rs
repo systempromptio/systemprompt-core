@@ -15,6 +15,7 @@ use crate::gateway::manifest::SignedManifest;
 
 use super::apply::ApplyError;
 
+#[derive(Debug)]
 pub struct HostSyncCtx<'a> {
     pub manifest: &'a SignedManifest,
     pub org_plugins_root: &'a Path,

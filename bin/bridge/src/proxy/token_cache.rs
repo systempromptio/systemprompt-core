@@ -21,6 +21,10 @@ struct CachedEntry {
     minted_at: Instant,
 }
 
+#[expect(
+    missing_debug_implementations,
+    reason = "holds a `dyn Fn -> Pin<Box<Future>>` refresh callback; cannot derive Debug"
+)]
 pub struct TokenCache {
     cached: Mutex<Option<CachedEntry>>,
     refresh_lock: Mutex<()>,
@@ -48,6 +52,10 @@ impl TokenCache {
         }))
     }
 
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "refresh_guard intentionally held to serialise concurrent refreshes"
+    )]
     pub async fn current(&self, refresh_threshold_secs: u64) -> ForwardResult<HelperOutput> {
         if let Some(token) = self.peek_fresh(refresh_threshold_secs).await {
             return Ok(token);
@@ -87,6 +95,10 @@ impl TokenCache {
         }
     }
 
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "guard scope is the whole function; entry borrows from it"
+    )]
     async fn peek_fresh(&self, refresh_threshold_secs: u64) -> Option<HelperOutput> {
         let guard = self.cached.lock().await;
         let entry = guard.as_ref()?;

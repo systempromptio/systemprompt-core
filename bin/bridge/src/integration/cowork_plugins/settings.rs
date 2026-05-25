@@ -19,7 +19,7 @@ pub fn enabled_plugins_key(plugin: &str, marketplace: &str) -> String {
     format!("{plugin}@{marketplace}")
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SettingsReport {
     pub set: bool,
     pub already: bool,

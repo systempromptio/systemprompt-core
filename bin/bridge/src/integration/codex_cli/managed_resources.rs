@@ -39,6 +39,7 @@ const PLUGIN_NAME: &str = "systemprompt-managed";
 // real semantic version travels in plugin.json.
 const PLUGIN_VERSION_DIR: &str = "current";
 
+#[derive(Clone, Copy, Debug)]
 pub struct CodexCliSync;
 
 #[async_trait]

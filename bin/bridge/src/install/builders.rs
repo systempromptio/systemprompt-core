@@ -4,7 +4,7 @@ use crate::schedule::Os;
 use std::path::PathBuf;
 use systemprompt_identifiers::ValidatedUrl;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct InstallOptionsBuilder {
     print_mdm: Option<Os>,
     emit_schedule_template: Option<Os>,
@@ -69,6 +69,7 @@ impl InstallOptionsBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct UninstallSummaryBuilder {
     metadata_removed: Option<PathBuf>,
     metadata_already_clean: Option<PathBuf>,

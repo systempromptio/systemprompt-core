@@ -26,6 +26,7 @@ use std::fs;
 use std::path::PathBuf;
 use systemprompt_identifiers::ValidatedUrl;
 
+#[derive(Debug)]
 pub struct InstallOptions {
     pub print_mdm: Option<Os>,
     pub emit_schedule_template: Option<Os>,
@@ -42,6 +43,7 @@ impl InstallOptions {
     }
 }
 
+#[derive(Debug)]
 pub struct InstallSummary {
     pub location: paths::OrgPluginsLocation,
     pub binary: PathBuf,
@@ -49,18 +51,21 @@ pub struct InstallSummary {
     pub schedule: Option<ScheduleEmit>,
 }
 
+#[derive(Debug)]
 pub enum MdmDisplay {
     Snippet { os: Os, snippet: String },
     Applied { os: Os, lines: Vec<String> },
     MobileconfigApplied { lines: Vec<String> },
 }
 
+#[derive(Debug)]
 pub struct ScheduleEmit {
     pub os: Os,
     pub path: PathBuf,
     pub install_hint: String,
 }
 
+#[derive(Debug)]
 pub struct UninstallSummary {
     pub metadata_removed: Option<PathBuf>,
     pub metadata_already_clean: Option<PathBuf>,
@@ -75,6 +80,7 @@ impl UninstallSummary {
     }
 }
 
+#[derive(Debug)]
 pub enum ManagedProfileOutcome {
     NotApplicable,
     Removed(&'static str),
@@ -82,6 +88,7 @@ pub enum ManagedProfileOutcome {
     RemoveFailed(String),
 }
 
+#[derive(Debug)]
 pub enum CredentialsOutcome {
     Purged(PathBuf),
     Kept,

@@ -5,7 +5,7 @@ use systemprompt_identifiers::ValidatedUrl;
 
 use crate::config::{self, Config};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RuntimeConfig {
     pub gateway_base: Arc<ValidatedUrl>,
 }

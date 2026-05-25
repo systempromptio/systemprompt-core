@@ -16,6 +16,7 @@ pub enum KeystoreError {
     Other(String),
 }
 
+#[derive(Debug)]
 pub struct DeviceCert {
     pub fingerprint: CertFingerprint,
 }

@@ -6,6 +6,7 @@ use crate::gateway::GatewayClient;
 use async_trait::async_trait;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
+#[derive(Debug)]
 pub struct MtlsProvider {
     base_url: ValidatedUrl,
     configured: bool,

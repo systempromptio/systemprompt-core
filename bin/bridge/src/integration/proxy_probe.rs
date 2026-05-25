@@ -12,7 +12,7 @@ pub struct ProxyHealth {
     pub probed_at_unix: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
 pub enum ProxyProbeState {
     #[default]
     Unknown,

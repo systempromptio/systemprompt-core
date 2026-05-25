@@ -32,10 +32,12 @@ pub enum LoopbackError {
 
 pub type Result<T> = std::result::Result<T, LoopbackError>;
 
+#[derive(Debug)]
 pub struct Captured {
     pub code: String,
 }
 
+#[derive(Debug)]
 pub struct LoopbackServer {
     listener: TcpListener,
     addr: SocketAddr,

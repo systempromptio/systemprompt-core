@@ -13,6 +13,10 @@ const PERSISTENT_MAX_BYTES: u64 = 10 * 1024 * 1024;
 
 pub type EmitHook = Box<dyn Fn(&LogEntry) + Send + Sync>;
 
+#[expect(
+    missing_debug_implementations,
+    reason = "holds Vec<Box<dyn Fn(&LogEntry) + Send + Sync>> hooks; cannot derive Debug"
+)]
 #[derive(Clone)]
 pub struct ActivityLog {
     inner: Arc<Mutex<LogState>>,
@@ -24,7 +28,7 @@ struct LogState {
     entries: VecDeque<LogEntry>,
 }
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct LogEntry {
     pub id: u64,
     pub ts_unix: u64,
@@ -148,6 +152,10 @@ impl PersistentWriter {
         }
     }
 
+    #[expect(
+        clippy::significant_drop_tightening,
+        reason = "guard intentionally held across the whole rollover: flush, rename, reopen"
+    )]
     fn try_rollover(&self) {
         let mut guard = self.file.lock();
         _ = guard.flush();

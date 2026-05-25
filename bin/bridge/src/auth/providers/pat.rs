@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use std::{env, fs};
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
+#[derive(Debug)]
 pub struct PatProvider {
     base_url: ValidatedUrl,
     pat_source: Option<PatToken>,

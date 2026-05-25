@@ -36,6 +36,7 @@ fn shared_client() -> reqwest::Client {
         .clone()
 }
 
+#[derive(Debug)]
 pub struct GatewayClient {
     base_url: ValidatedUrl,
     http: reqwest::Client,

@@ -44,7 +44,7 @@ impl ProfileState {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct HostConfigSchema {
     pub required_keys: &'static [&'static str],
     pub display_keys: &'static [&'static str],

@@ -16,13 +16,13 @@ use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
 use crate::proxy::{dispatch, heartbeat, secret};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ProxyHandle {
     pub port: u16,
     pub stats: Arc<ProxyStats>,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ProxyStats {
     pub forwarded_total: AtomicU64,
     pub last_forwarded_at_unix: AtomicU64,

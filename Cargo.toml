@@ -87,6 +87,7 @@ missing_panics_doc = "allow"
 derive_partial_eq_without_eq = "allow"
 cognitive_complexity = "allow"
 unwrap_or_default = "allow"
+redundant_pub_crate = "allow"
 
 too_many_arguments = "deny"
 type_complexity = "warn"

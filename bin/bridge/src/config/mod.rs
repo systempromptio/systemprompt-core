@@ -51,7 +51,7 @@ pub struct PatConfig {
     pub file: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
 pub struct SessionConfig {
     #[serde(default)]
     pub enabled: Option<bool>,

@@ -9,6 +9,7 @@ use std::process::Command;
 use std::time::Duration;
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
+#[derive(Debug)]
 pub struct SessionProvider {
     base_url: ValidatedUrl,
     configured: bool,

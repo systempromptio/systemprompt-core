@@ -10,6 +10,7 @@ use crate::integration::host_app::{
     ProfileGenInputs, ProfileState,
 };
 
+#[derive(Clone, Copy, Debug)]
 pub struct CodexCliHost;
 
 pub static CODEX_CLI_HOST: CodexCliHost = CodexCliHost;
