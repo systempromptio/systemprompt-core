@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaDefinition};
 
-pub(crate) fn discover_extensions() -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
+pub(super) fn discover_extensions() -> Result<Vec<Arc<dyn Extension>>, LoaderError> {
     Ok(ExtensionRegistry::discover()?.extensions().to_vec())
 }
 
-pub(crate) fn collect_extension_schemas() -> Result<Vec<SchemaDefinition>, LoaderError> {
+pub(super) fn collect_extension_schemas() -> Result<Vec<SchemaDefinition>, LoaderError> {
     let registry = ExtensionRegistry::discover()?;
     Ok(registry
         .schema_extensions()
