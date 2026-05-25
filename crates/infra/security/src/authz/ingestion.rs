@@ -79,8 +79,7 @@ impl AccessControlIngestionService {
                 .iter()
                 .map(|t| t.entity_kind.as_str().to_owned())
                 .collect();
-            let entity_ids: Vec<String> =
-                targets.iter().map(|t| t.entity_id.to_owned()).collect();
+            let entity_ids: Vec<String> = targets.iter().map(|t| t.entity_id.to_owned()).collect();
             let res = sqlx::query!(
                 r#"
                 DELETE FROM access_control_rules
