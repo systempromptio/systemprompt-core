@@ -27,7 +27,7 @@ pub struct ListArgs {
     pub asset_type: AssetTypeFilter,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AssetListOutput>> {

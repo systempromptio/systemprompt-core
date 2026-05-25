@@ -31,7 +31,7 @@ pub struct EditArgs {
     pub content_types: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: EditArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<TemplateEditOutput>> {

@@ -14,7 +14,7 @@ pub struct ListArgs {
     pub missing: bool,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<TemplateListOutput>> {

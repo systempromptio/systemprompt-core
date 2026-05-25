@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub preview: bool,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SitemapShowOutput>> {

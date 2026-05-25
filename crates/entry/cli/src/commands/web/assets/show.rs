@@ -17,7 +17,7 @@ pub struct ShowArgs {
     pub path: String,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AssetDetailOutput>> {

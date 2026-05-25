@@ -1,5 +1,5 @@
 mod create;
-pub(crate) mod delete;
+mod delete;
 mod edit;
 mod list;
 mod selection;
