@@ -30,6 +30,8 @@ pub struct GovernanceDecisionRecord<'a> {
     pub decision: DecisionTag,
     pub policy: &'a str,
     pub reason: &'a str,
+    // JSON: governance audit blob — typed `DecisionAudit` on the writing side;
+    // payload shape is documented in CHANGELOG and rendered by the dashboard.
     pub evaluated_rules: &'a serde_json::Value,
     pub plugin_id: Option<&'a str>,
     /// RFC 8693 delegation lineage in outermost-first order. Empty for
@@ -62,6 +64,9 @@ pub async fn insert_governance_decision(
 ) -> Result<(), sqlx::Error> {
     let actor_kind = record.actor.kind.tag();
     let actor_id = record.actor.kind.actor_id(&record.actor.user_id);
+    // Why: act_chain is `Vec<Actor>` which is unconditionally serde-compliant,
+    // so serialization failure is unreachable; falling back to `[]` keeps the
+    // audit row writable rather than dropping the entire governance record.
     let act_chain =
         serde_json::to_value(record.act_chain).unwrap_or_else(|_| serde_json::json!([]));
     let result = sqlx::query!(

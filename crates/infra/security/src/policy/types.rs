@@ -125,7 +125,11 @@ impl FromStr for AccessScope {
 /// preferred. Callers extract fields via [`Self::as_str`] / [`Self::as_path`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct McpToolInput(serde_json::Value);
+pub struct McpToolInput(
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec. Governance is the only consumer that reaches into this blob.
+    serde_json::Value,
+);
 
 impl McpToolInput {
     #[must_use]

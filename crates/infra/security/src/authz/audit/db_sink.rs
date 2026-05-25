@@ -33,6 +33,8 @@ impl AuthzAuditSink for DbAuditSink {
         };
         let entity_type = req.entity.kind().as_str();
         let entity_id = req.entity.id_str();
+        // JSON: audit blob constructed for core-side (non-template) authz
+        // denies — same payload shape as template's `DecisionAudit`.
         let evaluated = serde_json::json!({
             "entity_type": entity_type,
             "entity_id": entity_id,
