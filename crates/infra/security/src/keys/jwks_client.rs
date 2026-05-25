@@ -129,12 +129,7 @@ impl JwksClient {
     /// values; tests use shorter values to exercise expiry behaviour
     /// without sleeping.
     #[must_use]
-    pub const fn with_cache_ttl(
-        mut self,
-        min: Duration,
-        max: Duration,
-        default: Duration,
-    ) -> Self {
+    pub const fn with_cache_ttl(mut self, min: Duration, max: Duration, default: Duration) -> Self {
         self.min_cache_ttl = min;
         self.max_cache_ttl = max;
         self.default_cache_ttl = default;
@@ -149,8 +144,8 @@ impl JwksClient {
                     issuer: issuer.to_string(),
                     kid: kid.to_string(),
                 });
-            }
-            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {}
+            },
+            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {},
         }
 
         let url = self.build_jwks_url(issuer)?;
@@ -175,8 +170,8 @@ impl JwksClient {
                     issuer: issuer.to_string(),
                     kid: kid.to_string(),
                 });
-            }
-            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {}
+            },
+            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {},
         }
 
         let url = self.validate_uri(jwks_uri)?;
@@ -232,7 +227,7 @@ impl JwksClient {
         match entry.last_kid_miss_refetch_at {
             Some(last) if now.duration_since(last) < self.min_refresh_interval => {
                 CacheProbe::KidMissRecentlyFetched
-            }
+            },
             _ => CacheProbe::KidMissRefetchAllowed,
         }
     }

@@ -7076,6 +7076,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-cloud-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "serde_json",
+ "systemprompt-cloud",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-test-fixtures",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-cloud-tests"
 version = "0.0.11"
 dependencies = [
@@ -7392,6 +7407,26 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-gateway-tests"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "futures",
+ "serde_json",
+ "sqlx",
+ "systemprompt-ai",
+ "systemprompt-api",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-test-fixtures",
  "tokio",
  "uuid",
 ]
@@ -7967,6 +8002,25 @@ dependencies = [
  "systemprompt-security",
  "systemprompt-test-fixtures",
  "tokio",
+ "wiremock",
+]
+
+[[package]]
+name = "systemprompt-security-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "http",
+ "jsonwebtoken",
+ "rsa",
+ "serde_json",
+ "sha2 0.10.9",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-security",
+ "tokio",
+ "url",
  "wiremock",
 ]
 
