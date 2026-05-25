@@ -6,7 +6,7 @@ use systemprompt_logging::CliService;
 use super::{adjust_ssl_mode, ensure_pg_tool, find_pg_restore};
 use crate::cli_settings::CliConfig;
 
-pub(crate) fn execute(
+pub(super) fn execute(
     profile_name: &str,
     database_url: &str,
     file: &str,

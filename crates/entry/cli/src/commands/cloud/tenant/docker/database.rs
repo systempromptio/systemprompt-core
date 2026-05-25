@@ -16,7 +16,7 @@ fn sanitize_database_name(name: &str) -> String {
         .collect()
 }
 
-pub(crate) fn create_database_for_tenant(
+pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
     admin_password: &str,
     port: u16,
     db_name: &str,
@@ -83,7 +83,7 @@ pub(crate) fn create_database_for_tenant(
     Ok(())
 }
 
-pub(crate) fn drop_database_for_tenant(
+pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
     admin_password: &str,
     port: u16,
     db_name: &str,
@@ -143,7 +143,7 @@ pub(crate) fn drop_database_for_tenant(
     Ok(())
 }
 
-pub(crate) fn ensure_admin_role(admin_password: &str) -> Result<()> {
+pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str) -> Result<()> {
     let role_check_query = format!(
         "SELECT 1 FROM pg_roles WHERE rolname = '{}'",
         SHARED_ADMIN_USER

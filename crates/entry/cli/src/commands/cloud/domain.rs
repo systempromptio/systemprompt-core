@@ -28,7 +28,7 @@ pub enum DomainCommands {
     },
 }
 
-pub(crate) async fn execute(cmd: DomainCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: DomainCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         DomainCommands::Set { domain } => set_domain(domain).await,
         DomainCommands::Status => get_status().await,
@@ -36,7 +36,7 @@ pub(crate) async fn execute(cmd: DomainCommands, config: &CliConfig) -> Result<(
     }
 }
 
-pub(crate) fn get_tenant_id() -> Result<TenantId> {
+pub(super) fn get_tenant_id() -> Result<TenantId> {
     let profile =
         ProfileBootstrap::get().map_err(|_e| anyhow::anyhow!("Profile not initialized"))?;
 

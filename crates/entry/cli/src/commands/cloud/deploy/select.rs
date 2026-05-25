@@ -70,7 +70,7 @@ fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usize> {
         .context("Failed to select profile")
 }
 
-pub(crate) fn resolve_profile(
+pub(super) fn resolve_profile(
     profile_name: Option<&str>,
     config: &CliConfig,
 ) -> Result<(Profile, PathBuf)> {

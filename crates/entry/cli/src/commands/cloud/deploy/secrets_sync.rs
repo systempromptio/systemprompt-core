@@ -6,7 +6,7 @@ use systemprompt_cloud::{CloudApiClient, ProfilePath};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
-pub(crate) use super::super::secrets::sync_cloud_credentials;
+pub(super) use super::super::secrets::sync_cloud_credentials;
 use super::super::tenant::get_credentials;
 
 pub async fn sync_secrets_after_deploy(

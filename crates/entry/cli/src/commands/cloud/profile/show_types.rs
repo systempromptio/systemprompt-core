@@ -5,7 +5,7 @@ use systemprompt_models::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct FullConfig {
+pub(in crate::commands::cloud) struct FullConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub environment: Option<EnvironmentConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,7 +25,7 @@ pub(crate) struct FullConfig {
 }
 
 impl FullConfig {
-    pub(crate) const fn empty() -> Self {
+    pub(in crate::commands::cloud) const fn empty() -> Self {
         Self {
             environment: None,
             settings: None,
@@ -38,49 +38,58 @@ impl FullConfig {
         }
     }
 
-    pub(crate) fn with_environment(mut self, environment: EnvironmentConfig) -> Self {
+    pub(in crate::commands::cloud) fn with_environment(
+        mut self,
+        environment: EnvironmentConfig,
+    ) -> Self {
         self.environment = Some(environment);
         self
     }
 
-    pub(crate) fn with_settings(mut self, settings: SettingsOutput) -> Self {
+    pub(in crate::commands::cloud) fn with_settings(mut self, settings: SettingsOutput) -> Self {
         self.settings = Some(settings);
         self
     }
 
-    pub(crate) fn with_agents(mut self, agents: HashMap<String, AgentConfig>) -> Self {
+    pub(in crate::commands::cloud) fn with_agents(
+        mut self,
+        agents: HashMap<String, AgentConfig>,
+    ) -> Self {
         self.agents = Some(agents);
         self
     }
 
-    pub(crate) fn with_mcp_servers(mut self, mcp_servers: HashMap<String, Deployment>) -> Self {
+    pub(in crate::commands::cloud) fn with_mcp_servers(
+        mut self,
+        mcp_servers: HashMap<String, Deployment>,
+    ) -> Self {
         self.mcp_servers = Some(mcp_servers);
         self
     }
 
-    pub(crate) fn with_skills(mut self, skills: SkillsConfig) -> Self {
+    pub(in crate::commands::cloud) fn with_skills(mut self, skills: SkillsConfig) -> Self {
         self.skills = Some(skills);
         self
     }
 
-    pub(crate) fn with_ai(mut self, ai: AiConfig) -> Self {
+    pub(in crate::commands::cloud) fn with_ai(mut self, ai: AiConfig) -> Self {
         self.ai = Some(ai);
         self
     }
 
-    pub(crate) fn with_web(mut self, web: Option<WebConfig>) -> Self {
+    pub(in crate::commands::cloud) fn with_web(mut self, web: Option<WebConfig>) -> Self {
         self.web = web;
         self
     }
 
-    pub(crate) fn with_content(mut self, content: ContentConfigRaw) -> Self {
+    pub(in crate::commands::cloud) fn with_content(mut self, content: ContentConfigRaw) -> Self {
         self.content = Some(content);
         self
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct EnvironmentConfig {
+pub(in crate::commands::cloud) struct EnvironmentConfig {
     pub core: CoreEnvVars,
     pub systemprompt: SystempromptEnvVars,
     pub database: DatabaseEnvVars,
@@ -90,7 +99,7 @@ pub(crate) struct EnvironmentConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct CoreEnvVars {
+pub(in crate::commands::cloud) struct CoreEnvVars {
     pub sitename: String,
     pub host: String,
     pub port: u16,
@@ -112,13 +121,13 @@ struct SystempromptEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct DatabaseEnvVars {
+pub(in crate::commands::cloud) struct DatabaseEnvVars {
     pub database_type: String,
     pub database_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct JwtEnvVars {
+pub(in crate::commands::cloud) struct JwtEnvVars {
     pub issuer: String,
     pub secret: String,
     pub access_token_expiration: i64,
@@ -140,7 +149,7 @@ struct PathsEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct SettingsOutput {
+pub(in crate::commands::cloud) struct SettingsOutput {
     pub agent_port_range: (u16, u16),
     pub mcp_port_range: (u16, u16),
     pub auto_start_enabled: bool,
@@ -148,7 +157,7 @@ pub(crate) struct SettingsOutput {
     pub schema_validation_mode: String,
 }
 
-pub(crate) fn build_env_config(
+pub(in crate::commands::cloud) fn build_env_config(
     config: &systemprompt_models::Config,
     paths: Option<&systemprompt_models::AppPaths>,
 ) -> EnvironmentConfig {

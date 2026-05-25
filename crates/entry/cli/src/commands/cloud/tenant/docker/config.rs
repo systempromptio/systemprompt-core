@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::TenantId;
 
-pub(crate) const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
+pub(in crate::commands::cloud::tenant) const SHARED_CONTAINER_NAME: &str =
+    "systemprompt-postgres-shared";
 pub const SHARED_ADMIN_USER: &str = "systemprompt_admin";
 pub const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
 pub const SHARED_PORT: u16 = 5432;
@@ -20,13 +21,13 @@ pub struct SharedContainerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct TenantDatabaseMapping {
+pub(in crate::commands::cloud::tenant) struct TenantDatabaseMapping {
     pub tenant_id: TenantId,
     pub database_name: String,
 }
 
 impl SharedContainerConfig {
-    pub(crate) fn new(admin_password: String, port: u16) -> Self {
+    pub(in crate::commands::cloud::tenant) fn new(admin_password: String, port: u16) -> Self {
         Self {
             admin_password,
             port,
@@ -35,14 +36,21 @@ impl SharedContainerConfig {
         }
     }
 
-    pub(crate) fn add_tenant(&mut self, tenant: TenantId, database_name: String) {
+    pub(in crate::commands::cloud::tenant) fn add_tenant(
+        &mut self,
+        tenant: TenantId,
+        database_name: String,
+    ) {
         self.tenant_databases.push(TenantDatabaseMapping {
             tenant_id: tenant,
             database_name,
         });
     }
 
-    pub(crate) fn remove_tenant(&mut self, tenant: &str) -> Option<TenantDatabaseMapping> {
+    pub(in crate::commands::cloud::tenant) fn remove_tenant(
+        &mut self,
+        tenant: &str,
+    ) -> Option<TenantDatabaseMapping> {
         self.tenant_databases
             .iter()
             .position(|t| t.tenant_id == tenant)
@@ -50,7 +58,7 @@ impl SharedContainerConfig {
     }
 }
 
-pub(crate) fn shared_config_path() -> PathBuf {
+pub(in crate::commands::cloud::tenant) fn shared_config_path() -> PathBuf {
     let ctx = ProjectContext::discover();
     ctx.docker_dir().join("shared_config.json")
 }
