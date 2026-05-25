@@ -39,7 +39,7 @@ impl ConfigExtensionTyped for ValidatingConfigExtension {
         "validating"
     }
 
-    pub(crate) fn validate_config(&self, config: &serde_json::Value) -> Result<(), ConfigError> {
+    fn validate_config(&self, config: &serde_json::Value) -> Result<(), ConfigError> {
         if let Some(obj) = config.as_object() {
             if !obj.contains_key("required_field") {
                 return Err(ConfigError::InvalidValue {

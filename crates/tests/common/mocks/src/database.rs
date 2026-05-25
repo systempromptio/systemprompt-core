@@ -144,7 +144,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         true
     }
 
-    pub(crate) async fn execute(
+    async fn execute(
         &self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
@@ -242,7 +242,7 @@ impl DatabaseProvider for MockDatabaseProvider {
         }
     }
 
-    pub(crate) async fn test_connection(&self) -> DatabaseResult<()> {
+    async fn test_connection(&self) -> DatabaseResult<()> {
         self.record_call("test_connection");
         match self.next_response() {
             Some(MockDbResponse::TestConnection(result)) => convert_result(result),
@@ -291,7 +291,7 @@ struct MockDatabaseTransaction {
 
 #[async_trait]
 impl DatabaseTransaction for MockDatabaseTransaction {
-    pub(crate) async fn execute(
+    async fn execute(
         &mut self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],

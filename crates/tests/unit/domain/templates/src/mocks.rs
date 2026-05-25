@@ -83,7 +83,7 @@ impl TemplateProvider for MockProvider {
         self.priority
     }
 
-    pub(crate) fn templates(&self) -> Vec<TemplateDefinition> {
+    fn templates(&self) -> Vec<TemplateDefinition> {
         self.templates.clone()
     }
 }

@@ -28,7 +28,7 @@ impl MockUserProvider {
 
 #[async_trait]
 impl UserProvider for MockUserProvider {
-    pub(crate) async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
         let users = self.users.lock().expect("lock poisoned");
         Ok(users.iter().find(|u| u.id.as_str() == id.as_str()).cloned())
     }
