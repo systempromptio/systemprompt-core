@@ -24,7 +24,10 @@ pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     }
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct CreateTaskParams<'a> {
     pub pool: &'a Arc<PgPool>,
     pub task: &'a Task,

@@ -19,8 +19,8 @@ type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug)]
 pub struct WebhookService {
-    pub(crate) endpoints: RwLock<HashMap<WebhookEndpointId, WebhookEndpoint>>,
-    pub(crate) http_client: Client,
+    pub(super) endpoints: RwLock<HashMap<WebhookEndpointId, WebhookEndpoint>>,
+    pub(super) http_client: Client,
 }
 
 impl WebhookService {
@@ -155,7 +155,7 @@ impl WebhookService {
         Self::verify_signature_internal(&endpoint, payload, signature)
     }
 
-    pub(crate) fn verify_signature_internal(
+    pub(super) fn verify_signature_internal(
         endpoint: &WebhookEndpoint,
         payload: &Value,
         signature: &str,
@@ -169,7 +169,7 @@ impl WebhookService {
         Ok(Self::secure_compare(&expected_signature, signature))
     }
 
-    pub(crate) fn generate_signature(secret: &str, payload: &Value) -> IntegrationResult<String> {
+    pub(super) fn generate_signature(secret: &str, payload: &Value) -> IntegrationResult<String> {
         let payload_bytes = serde_json::to_vec(payload)?;
 
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes())

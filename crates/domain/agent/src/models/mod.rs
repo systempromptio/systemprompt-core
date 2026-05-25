@@ -13,7 +13,7 @@
 pub mod a2a;
 pub mod agent_info;
 pub mod context;
-pub(crate) mod database_rows;
+pub mod database_rows;
 pub mod external_integrations;
 pub mod runtime;
 pub mod web;

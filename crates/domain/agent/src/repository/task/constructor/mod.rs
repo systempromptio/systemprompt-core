@@ -1,6 +1,6 @@
 mod batch;
 mod batch_builders;
-pub(crate) mod batch_queries;
+pub(in crate::repository) mod batch_queries;
 mod converters;
 mod single;
 

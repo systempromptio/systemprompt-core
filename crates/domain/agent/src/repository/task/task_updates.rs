@@ -6,7 +6,10 @@ use crate::repository::context::message::{
 };
 use systemprompt_traits::RepositoryError;
 
-#[expect(missing_debug_implementations)]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct UpdateTaskAndSaveMessagesParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,

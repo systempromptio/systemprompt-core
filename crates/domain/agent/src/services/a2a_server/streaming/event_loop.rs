@@ -16,8 +16,9 @@ use crate::services::a2a_server::processing::message::{MessageProcessor, StreamE
 use super::event_loop_lifecycle::{
     EmitRunStartedParams, SendA2aStatusEventParams, emit_run_started, send_a2a_status_event,
 };
-use super::handlers::text::TextStreamState;
-use super::handlers::{HandleCompleteParams, HandleErrorParams, handle_complete, handle_error};
+use super::handlers::{
+    HandleCompleteParams, HandleErrorParams, TextStreamState, handle_complete, handle_error,
+};
 use super::webhook_client::WebhookContext;
 
 pub struct ProcessEventsParams {
