@@ -67,7 +67,7 @@ impl FilesConfig {
         })
     }
 
-    pub(crate) fn load_yaml_config(paths: &AppPaths) -> FilesResult<FilesConfigYaml> {
+    pub(super) fn load_yaml_config(paths: &AppPaths) -> FilesResult<FilesConfigYaml> {
         let config_path = paths.system().services().join("config/files.yaml");
 
         if !config_path.exists() {
