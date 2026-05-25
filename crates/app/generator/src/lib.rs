@@ -52,6 +52,6 @@ pub use sitemap::{
 };
 pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
 pub use systemprompt_templates::TemplateRegistry;
-pub use templates::load_web_config;
+pub use templates::{get_templates_path, load_web_config};
 
 pub use jobs::{ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets};

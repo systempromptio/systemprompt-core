@@ -23,7 +23,7 @@ struct SourceRenderJob<'a> {
     popular_ids: &'a [String],
 }
 
-pub(crate) async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
+pub(super) async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
     const SOURCE_CONCURRENCY: usize = 2;
 
     let sources: Vec<_> = ctx
