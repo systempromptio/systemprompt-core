@@ -3,7 +3,10 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[expect(clippy::struct_field_names)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "A2A wire schema names these fields message_id/task_id/context_id — public protocol vocabulary"
+)]
 pub struct Message {
     pub role: MessageRole,
     pub parts: Vec<Part>,

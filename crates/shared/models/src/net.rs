@@ -94,14 +94,15 @@ pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
             // RFC 4291 §2.5.5.2: an ::ffff:0:0/96 address embeds a real IPv4
             // address; treat it as that IPv4 address for SSRF purposes so a
             // hand-crafted v4-mapped URL cannot bypass the v4 block list.
-            if let Some(v4) = ip.to_ipv4_mapped() {
-                is_blocked_v4(v4)
-            } else {
-                let segments = ip.segments();
-                let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
-                let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
-                ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local
-            }
+            ip.to_ipv4_mapped().map_or_else(
+                || {
+                    let segments = ip.segments();
+                    let is_unique_local = (segments[0] & 0xfe00) == 0xfc00;
+                    let is_link_local = (segments[0] & 0xffc0) == 0xfe80;
+                    ip.is_loopback() || ip.is_unspecified() || is_unique_local || is_link_local
+                },
+                is_blocked_v4,
+            )
         },
     };
     if blocked {
