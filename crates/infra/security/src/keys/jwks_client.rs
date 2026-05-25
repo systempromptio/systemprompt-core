@@ -22,10 +22,11 @@ pub const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
 pub const MIN_CACHE_TTL: Duration = Duration::from_secs(30);
 pub const MAX_CACHE_TTL: Duration = Duration::from_secs(3600);
 pub const DEFAULT_CACHE_CAPACITY: usize = 32;
-/// Minimum interval between unknown-`kid`-triggered JWKS refetches for a
-/// single issuer. Caps the `DoS` amplification when an attacker spams tokens
-/// with random `kid` headers; legitimate rotations are still picked up
-/// after at most this delay (well under any sane rotation window).
+/// Minimum interval between unknown-`kid`-triggered JWKS refetches for a single issuer.
+///
+/// Caps the `DoS` amplification when an attacker spams tokens with random `kid`
+/// headers; legitimate rotations are still picked up after at most this delay
+/// (well under any sane rotation window).
 pub const DEFAULT_MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 const WELLKNOWN_JWKS_PATH: &str = "/.well-known/jwks.json";
 
