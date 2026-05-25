@@ -3,8 +3,9 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
+use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{
-    ContextId, GatewayConversationId, SessionId, TraceId, UserId, headers as sp_headers,
+    ContextId, GatewayConversationId, ModelId, SessionId, TraceId, UserId,
 };
 use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook};
 
@@ -14,7 +15,6 @@ use crate::services::gateway::protocol::inbound::InboundAdapter;
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 
-#[expect(clippy::struct_field_names)]
 #[derive(Default)]
 pub(super) struct RejectionPartial {
     pub user_id: Option<UserId>,
@@ -113,7 +113,7 @@ pub(super) async fn extract_request_context(
     let upstream_model = route
         .effective_upstream_model(&gateway_request.model).to_owned();
 
-    enforce_authz_for_route(
+    enforce_authz_pre_dispatch(
         &principal,
         route,
         &gateway_request.model,
@@ -134,13 +134,13 @@ pub(super) async fn extract_request_context(
 }
 
 fn require_session_id(headers: &HeaderMap) -> Result<SessionId, (StatusCode, String)> {
-    require_typed_header(headers, sp_headers::SESSION_ID, SessionId::new)
+    require_typed_header(headers, SESSION_ID, SessionId::new)
 }
 
 fn optional_gateway_conversation_id(
     headers: &HeaderMap,
 ) -> Result<Option<GatewayConversationId>, (StatusCode, String)> {
-    let Some(raw) = headers.get(sp_headers::GATEWAY_CONVERSATION_ID) else {
+    let Some(raw) = headers.get(GATEWAY_CONVERSATION_ID) else {
         return Ok(None);
     };
     let raw = raw.to_str().map_err(|e| {
@@ -148,7 +148,7 @@ fn optional_gateway_conversation_id(
             StatusCode::BAD_REQUEST,
             format!(
                 "invalid {} header: {e}",
-                sp_headers::GATEWAY_CONVERSATION_ID
+                GATEWAY_CONVERSATION_ID
             ),
         )
     })?;
@@ -163,7 +163,7 @@ fn optional_gateway_conversation_id(
                 StatusCode::BAD_REQUEST,
                 format!(
                     "invalid {} header: {e}",
-                    sp_headers::GATEWAY_CONVERSATION_ID
+                    GATEWAY_CONVERSATION_ID
                 ),
             )
         })
@@ -223,27 +223,15 @@ async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
-async fn enforce_authz_for_route(
+async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
     hook: &SharedAuthzHook,
 ) -> Result<(), (StatusCode, String)> {
-    let req = build_authz_request(principal, route, model);
-    match hook.evaluate(req).await {
-        AuthzDecision::Allow => Ok(()),
-        AuthzDecision::Deny { reason, policy } => Err((
-            StatusCode::FORBIDDEN,
-            format!("authz denied [{policy}]: {reason}"),
-        )),
-    }
-}
+    let model_entity = EntityRef::GatewayModel(ModelId::new(model));
+    evaluate_pass(principal, model_entity, model, hook).await?;
 
-fn build_authz_request(
-    principal: &AuthedPrincipal,
-    route: &systemprompt_models::profile::GatewayRoute,
-    model: &str,
-) -> AuthzRequest {
     let route_id = if route.id.as_str().trim().is_empty() {
         systemprompt_models::profile::synthesize_route_id(
             &route.model_pattern,
@@ -252,14 +240,31 @@ fn build_authz_request(
     } else {
         route.id.clone()
     };
-    AuthzRequest {
-        entity: EntityRef::GatewayRoute(route_id),
+    let route_entity = EntityRef::GatewayRoute(route_id);
+    evaluate_pass(principal, route_entity, model, hook).await
+}
+
+async fn evaluate_pass(
+    principal: &AuthedPrincipal,
+    entity: EntityRef,
+    model: &str,
+    hook: &SharedAuthzHook,
+) -> Result<(), (StatusCode, String)> {
+    let req = AuthzRequest {
+        entity,
         user_id: principal.user_id.clone(),
         roles: principal.roles.clone(),
         department: principal.department.clone(),
         trace_id: principal.trace_id.clone().unwrap_or_else(TraceId::generate),
         context: serde_json::json!({"model": model}),
         act_chain: principal.act_chain.clone(),
+    };
+    match hook.evaluate(req).await {
+        AuthzDecision::Allow => Ok(()),
+        AuthzDecision::Deny { reason, policy } => Err((
+            StatusCode::FORBIDDEN,
+            format!("authz denied [{policy}]: {reason}"),
+        )),
     }
 }
 
