@@ -5,7 +5,8 @@
 //! from "token never existed" and trigger family-wide revocation per
 //! RFC 6819 §5.2.2.3.
 
-use super::{OAuthRepository, hash_at_rest};
+use super::OAuthRepository;
+use super::at_rest::hash_at_rest;
 use crate::error::{OauthError, OauthResult};
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};

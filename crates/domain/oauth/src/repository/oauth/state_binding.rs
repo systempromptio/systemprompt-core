@@ -5,7 +5,8 @@
 //! single atomic UPDATE — re-use, expiry, and tamper attempts all surface as
 //! `None`.
 
-use super::{OAuthRepository, hash_at_rest};
+use super::OAuthRepository;
+use super::at_rest::hash_at_rest;
 use crate::error::OauthResult;
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_identifiers::ClientId;

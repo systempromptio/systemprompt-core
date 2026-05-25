@@ -2,7 +2,8 @@
 //! `refresh_token_id` are stored as HMAC-SHA-256 digests under the deployment
 //! pepper; raw values never touch the database.
 
-use super::{OAuthRepository, hash_at_rest};
+use super::OAuthRepository;
+use super::at_rest::hash_at_rest;
 use crate::error::{OauthError, OauthResult};
 use crate::models::PkceMethod;
 use base64::Engine;

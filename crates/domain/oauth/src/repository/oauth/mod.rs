@@ -15,8 +15,6 @@ pub use jti_revocation::JtiRevocationCache;
 pub use refresh_token::RefreshTokenParams;
 pub use state_binding::{StateBindingParams, StateBindingRow};
 
-pub(super) use at_rest::hash_at_rest;
-
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};
 use crate::error::{OauthError, OauthResult};
 use crate::models::OAuthClient;
