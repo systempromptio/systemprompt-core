@@ -11,7 +11,7 @@ pub struct ValidateArgs {
     pub verbose: bool,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> CommandResult<ExtensionValidationOutput> {

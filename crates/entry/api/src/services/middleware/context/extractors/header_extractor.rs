@@ -20,11 +20,11 @@ impl HeaderContextExtractor {
     ) -> Result<String, ContextExtractionError> {
         headers
             .get(name)
-            .ok_or_else(|| ContextExtractionError::MissingHeader(name.to_string()))?
+            .ok_or_else(|| ContextExtractionError::MissingHeader(name.to_owned()))?
             .to_str()
-            .map(ToString::to_string)
+            .map(str::to_owned)
             .map_err(|e| ContextExtractionError::InvalidHeaderValue {
-                header: name.to_string(),
+                header: name.to_owned(),
                 reason: e.to_string(),
             })
     }
@@ -33,7 +33,7 @@ impl HeaderContextExtractor {
         headers
             .get(name)
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string)
+            .map(str::to_owned)
     }
 }
 
@@ -57,7 +57,7 @@ impl ContextExtractor for HeaderContextExtractor {
 
         let context_id = ContextId::try_new(context_id_str).map_err(|e| {
             ContextExtractionError::InvalidHeaderValue {
-                header: "x-context-id".to_string(),
+                header: "x-context-id".to_owned(),
                 reason: e.to_string(),
             }
         })?;

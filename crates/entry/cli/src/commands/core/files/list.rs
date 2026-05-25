@@ -24,12 +24,12 @@ pub struct ListArgs {
     pub mime: Option<String>,
 }
 
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandResult<FileListOutput>> {
+pub(crate) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandResult<FileListOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,

@@ -9,7 +9,7 @@ use crate::services::registry::AgentRegistry;
 
 use super::initialization::create_jsonrpc_error_event;
 
-pub async fn load_agent_runtime(
+pub(super) async fn load_agent_runtime(
     agent_name: &str,
     task_id: &TaskId,
     task_repo: &TaskRepository,
@@ -60,7 +60,7 @@ pub async fn load_agent_runtime(
     }
 }
 
-pub async fn mark_task_failed_with_error(
+pub(super) async fn mark_task_failed_with_error(
     task_id: &TaskId,
     task_repo: &TaskRepository,
     error_message: &str,

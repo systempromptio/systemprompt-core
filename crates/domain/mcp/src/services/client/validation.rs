@@ -45,7 +45,7 @@ pub async fn validate_connection_by_url(
 
     match connection_result {
         Ok(Ok((server_info, validation_result))) => Ok(McpConnectionResult {
-            service_name: service_name.to_string(),
+            service_name: service_name.to_owned(),
             success: validation_result.success,
             error_message: validation_result.error_message,
             connection_time_ms: connection_time,
@@ -54,22 +54,22 @@ pub async fn validate_connection_by_url(
             validation_type: validation_result.validation_type,
         }),
         Ok(Err(e)) => Ok(McpConnectionResult {
-            service_name: service_name.to_string(),
+            service_name: service_name.to_owned(),
             success: false,
             error_message: Some(e.to_string()),
             connection_time_ms: connection_time,
             server_info: None,
             tools_count: 0,
-            validation_type: "connection_failed".to_string(),
+            validation_type: "connection_failed".to_owned(),
         }),
         Err(_) => Ok(McpConnectionResult {
-            service_name: service_name.to_string(),
+            service_name: service_name.to_owned(),
             success: false,
-            error_message: Some("Connection timeout".to_string()),
+            error_message: Some("Connection timeout".to_owned()),
             connection_time_ms: connection_time,
             server_info: None,
             tools_count: 0,
-            validation_type: "timeout".to_string(),
+            validation_type: "timeout".to_owned(),
         }),
     }
 }
@@ -82,26 +82,26 @@ fn validate_oauth_service(service_name: &str, host: &str, port: u16) -> McpConne
 
     match port_check {
         Ok(_) => McpConnectionResult {
-            service_name: service_name.to_string(),
+            service_name: service_name.to_owned(),
             success: true,
             error_message: None,
             connection_time_ms: connection_time,
             server_info: Some(McpProtocolInfo {
-                server_name: service_name.to_string(),
-                version: "unknown".to_string(),
-                protocol_version: "unknown".to_string(),
+                server_name: service_name.to_owned(),
+                version: "unknown".to_owned(),
+                protocol_version: "unknown".to_owned(),
             }),
             tools_count: 0,
-            validation_type: "auth_required".to_string(),
+            validation_type: "auth_required".to_owned(),
         },
         Err(e) => McpConnectionResult {
-            service_name: service_name.to_string(),
+            service_name: service_name.to_owned(),
             success: false,
             error_message: Some(format!("Port not responding: {e}")),
             connection_time_ms: connection_time,
             server_info: None,
             tools_count: 0,
-            validation_type: "port_unavailable".to_string(),
+            validation_type: "port_unavailable".to_owned(),
         },
     }
 }
@@ -124,18 +124,18 @@ async fn connect_and_validate(
 
     let peer_info = client.peer_info().ok_or_else(|| {
         crate::error::McpDomainError::Internal(
-            "Failed to get peer info from MCP client".to_string(),
+            "Failed to get peer info from MCP client".to_owned(),
         )
     })?;
 
     let server_info = McpProtocolInfo {
         server_name: if peer_info.server_info.name.is_empty() {
-            service_name.to_string()
+            service_name.to_owned()
         } else {
             peer_info.server_info.name.clone()
         },
         version: if peer_info.server_info.version.is_empty() {
-            "1.0.0".to_string()
+            "1.0.0".to_owned()
         } else {
             peer_info.server_info.version.clone()
         },
@@ -151,16 +151,16 @@ async fn connect_and_validate(
                     success: true,
                     error_message: None,
                     tools_count,
-                    validation_type: "mcp_validated".to_string(),
+                    validation_type: "mcp_validated".to_owned(),
                 }
             } else {
                 ValidationResult {
                     success: false,
                     error_message: Some(
-                        "No tools returned - service may require authentication".to_string(),
+                        "No tools returned - service may require authentication".to_owned(),
                     ),
                     tools_count: 0,
-                    validation_type: "no_tools".to_string(),
+                    validation_type: "no_tools".to_owned(),
                 }
             }
         },
@@ -168,7 +168,7 @@ async fn connect_and_validate(
             success: false,
             error_message: Some(format!("Tools request failed: {e}")),
             tools_count: 0,
-            validation_type: "tools_request_failed".to_string(),
+            validation_type: "tools_request_failed".to_owned(),
         },
     };
 
@@ -180,7 +180,7 @@ pub fn rewrite_url_for_internal_use(url: &str) -> String {
     use systemprompt_models::Config;
 
     let Ok(config) = Config::get() else {
-        return url.to_string();
+        return url.to_owned();
     };
     let external_url = &config.api_external_url;
     let internal_url = &config.api_server_url;
@@ -188,6 +188,6 @@ pub fn rewrite_url_for_internal_use(url: &str) -> String {
     if url.starts_with(external_url) {
         url.replace(external_url, internal_url)
     } else {
-        url.to_string()
+        url.to_owned()
     }
 }

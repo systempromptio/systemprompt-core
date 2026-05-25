@@ -176,7 +176,7 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
             tracing::trace!(address = %address, response_time_ms = %response_time, "Health check passed");
             Ok(HealthCheckResult {
                 healthy: true,
-                message: "TCP connection successful".to_string(),
+                message: "TCP connection successful".to_owned(),
                 response_time_ms: response_time,
             })
         },
@@ -192,7 +192,7 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
             tracing::debug!(address = %address, "Health check timeout");
             Ok(HealthCheckResult {
                 healthy: false,
-                message: "Connection timeout".to_string(),
+                message: "Connection timeout".to_owned(),
                 response_time_ms: 5000,
             })
         },

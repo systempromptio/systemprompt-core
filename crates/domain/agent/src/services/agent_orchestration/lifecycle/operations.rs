@@ -31,7 +31,7 @@ impl AgentLifecycle {
             match current_status {
                 AgentStatus::Running { .. } => {
                     return Err(OrchestrationError::AgentAlreadyRunning(
-                        agent_name.to_string(),
+                        agent_name.to_owned(),
                     ));
                 },
                 AgentStatus::Failed { .. } => {
@@ -130,7 +130,7 @@ impl AgentLifecycle {
 
         self.publish_event(AgentEvent::AgentRestartRequested {
             agent_id: AgentId::new(agent_name),
-            reason: "User requested restart".to_string(),
+            reason: "User requested restart".to_owned(),
         });
 
         let status = self.db_service.get_status(agent_name).await?;

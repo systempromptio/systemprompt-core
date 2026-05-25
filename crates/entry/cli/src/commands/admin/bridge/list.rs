@@ -25,13 +25,13 @@ pub struct ListArgs {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BridgeListOutput {
+pub(crate) struct BridgeListOutput {
     pub within_secs: u64,
     pub sessions: Vec<BridgeSessionSummary>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct BridgeSessionSummary {
+struct BridgeSessionSummary {
     pub session_id: SessionId,
     pub user_id: UserId,
     pub hostname: String,
@@ -42,7 +42,7 @@ pub struct BridgeSessionSummary {
     pub forwarded_total: i64,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<BridgeListOutput>> {

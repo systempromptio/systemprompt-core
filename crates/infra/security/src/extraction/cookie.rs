@@ -33,14 +33,14 @@ impl CookieExtractor {
             .get("cookie")
             .ok_or(CookieExtractionError::MissingCookie)?
             .to_str()
-            .map_err(|_| CookieExtractionError::InvalidCookieFormat)?;
+            .map_err(|_e| CookieExtractionError::InvalidCookieFormat)?;
 
         for cookie in cookie_header.split(';') {
             let cookie = cookie.trim();
             let cookie_prefix = format!("{}=", self.cookie_name);
             if let Some(value) = cookie.strip_prefix(&cookie_prefix) {
                 if !value.is_empty() {
-                    return Ok(value.to_string());
+                    return Ok(value.to_owned());
                 }
             }
         }

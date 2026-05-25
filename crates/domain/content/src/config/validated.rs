@@ -101,7 +101,7 @@ impl ContentConfigValidated {
 
     pub fn determine_source(&self, path: &str) -> String {
         if path == "/" {
-            return SOURCE_WEB.to_string();
+            return SOURCE_WEB.to_owned();
         }
 
         self.content_sources
@@ -113,7 +113,7 @@ impl ContentConfigValidated {
                         .then(|| name.clone())
                 })
             })
-            .unwrap_or_else(|| SOURCE_UNKNOWN.to_string())
+            .unwrap_or_else(|| SOURCE_UNKNOWN.to_owned())
     }
 
     pub fn resolve_slug(&self, path: &str) -> Option<String> {
@@ -131,7 +131,7 @@ fn extract_slug_from_pattern(path: &str, pattern: &str) -> Option<String> {
     let raw = path.strip_prefix(prefix)?.trim_end_matches('/');
     let raw = raw.split('?').next().unwrap_or(raw);
     let raw = raw.split('#').next().unwrap_or(raw);
-    (!raw.is_empty()).then(|| raw.to_string())
+    (!raw.is_empty()).then(|| raw.to_owned())
 }
 
 impl ContentRouting for ContentConfigValidated {
@@ -158,8 +158,8 @@ fn validate_categories(
         if cat.name.is_empty() {
             errors.push(ContentConfigError::Validation {
                 field: format!("categories.{id}.name"),
-                message: "Category name cannot be empty".to_string(),
-                suggestion: Some("Provide a non-empty name".to_string()),
+                message: "Category name cannot be empty".to_owned(),
+                suggestion: Some("Provide a non-empty name".to_owned()),
             });
             continue;
         }
@@ -200,8 +200,8 @@ fn validate_single_source(
     if source.path.is_empty() {
         errors.push(ContentConfigError::Validation {
             field: format!("{field_prefix}.path"),
-            message: "Source path is required".to_string(),
-            suggestion: Some("Add a path to the content directory".to_string()),
+            message: "Source path is required".to_owned(),
+            suggestion: Some("Add a path to the content directory".to_owned()),
         });
         return None;
     }
@@ -209,8 +209,8 @@ fn validate_single_source(
     if source.source_id.as_str().is_empty() {
         errors.push(ContentConfigError::Validation {
             field: format!("{field_prefix}.source_id"),
-            message: "source_id is required".to_string(),
-            suggestion: Some("Add a unique source_id".to_string()),
+            message: "source_id is required".to_owned(),
+            suggestion: Some("Add a unique source_id".to_owned()),
         });
         return None;
     }
@@ -218,8 +218,8 @@ fn validate_single_source(
     if source.category_id.as_str().is_empty() {
         errors.push(ContentConfigError::Validation {
             field: format!("{field_prefix}.category_id"),
-            message: "category_id is required".to_string(),
-            suggestion: Some("Add a category_id that references a defined category".to_string()),
+            message: "category_id is required".to_owned(),
+            suggestion: Some("Add a category_id that references a defined category".to_owned()),
         });
         return None;
     }
@@ -228,7 +228,7 @@ fn validate_single_source(
         errors.push(ContentConfigError::Validation {
             field: format!("{field_prefix}.category_id"),
             message: format!("Referenced category '{}' not found", source.category_id),
-            suggestion: Some("Add this category to the categories section".to_string()),
+            suggestion: Some("Add this category to the categories section".to_owned()),
         });
     }
 
@@ -241,8 +241,8 @@ fn validate_single_source(
     let Ok(canonical_path) = std::fs::canonicalize(&resolved_path) else {
         errors.push(ContentConfigError::Validation {
             field: format!("{field_prefix}.path"),
-            message: "Content source directory does not exist".to_string(),
-            suggestion: Some("Create the directory or fix the path".to_string()),
+            message: "Content source directory does not exist".to_owned(),
+            suggestion: Some("Create the directory or fix the path".to_owned()),
         });
         return None;
     };

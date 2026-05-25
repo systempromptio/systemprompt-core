@@ -61,7 +61,7 @@ impl<'a> MigrationService<'a> {
         SqlExecutor::execute_statements_parsed(self.db, sql)
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: "database".to_string(),
+                extension: "database".to_owned(),
                 message: format!("Failed to ensure migrations table exists: {e}"),
             })
     }
@@ -79,7 +79,7 @@ impl<'a> MigrationService<'a> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: extension_id.to_string(),
+                extension: extension_id.to_owned(),
                 message: format!("Failed to query applied migrations: {e}"),
             })?;
 
@@ -88,10 +88,10 @@ impl<'a> MigrationService<'a> {
             .iter()
             .filter_map(|row| {
                 Some(AppliedMigration {
-                    extension_id: row.get("extension_id")?.as_str()?.to_string(),
+                    extension_id: row.get("extension_id")?.as_str()?.to_owned(),
                     version: row.get("version")?.as_i64()? as u32,
-                    name: row.get("name")?.as_str()?.to_string(),
-                    checksum: row.get("checksum")?.as_str()?.to_string(),
+                    name: row.get("name")?.as_str()?.to_owned(),
+                    checksum: row.get("checksum")?.as_str()?.to_owned(),
                     applied_at: row
                         .get("applied_at")
                         .and_then(|v| v.as_str().map(String::from)),
@@ -185,7 +185,7 @@ impl<'a> MigrationService<'a> {
             return Ok(());
         }
         Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
+            extension: ext_id.to_owned(),
             message: format!(
                 "Migration {ver} ('{name}') has been edited since it was applied (stored checksum \
                  {stored_checksum}, current {current_checksum}). Refusing to proceed. Run \
@@ -218,7 +218,7 @@ impl<'a> MigrationService<'a> {
             SqlExecutor::execute_statements_parsed(self.db, migration.sql)
                 .await
                 .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_string(),
+                    extension: ext_id.to_owned(),
                     message: format!(
                         "Failed to execute migration {} ({}): {e}",
                         migration.version, migration.name
@@ -227,7 +227,7 @@ impl<'a> MigrationService<'a> {
         } else {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
                 LoaderError::MigrationFailed {
-                    extension: ext_id.to_string(),
+                    extension: ext_id.to_owned(),
                     message: format!(
                         "Failed to parse migration {} ({}): {e}",
                         migration.version, migration.name
@@ -258,7 +258,7 @@ impl<'a> MigrationService<'a> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!("Failed to record migration: {e}"),
             })?;
 

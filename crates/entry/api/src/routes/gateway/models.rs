@@ -50,7 +50,7 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
         .gateway
         .as_ref()
         .filter(|g| g.enabled)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_string()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
 
@@ -65,7 +65,7 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
                         .clone()
                         .unwrap_or_else(|| humanize_model_id(&m.id)),
                     id: m.id.clone(),
-                    created_at: "1970-01-01T00:00:00Z".to_string(),
+                    created_at: "1970-01-01T00:00:00Z".to_owned(),
                 },
             );
         }

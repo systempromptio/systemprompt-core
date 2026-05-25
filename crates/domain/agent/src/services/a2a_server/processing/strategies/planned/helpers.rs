@@ -2,7 +2,7 @@ use systemprompt_models::{AiMessage, AiRequest};
 
 use super::super::ExecutionContext;
 
-pub fn build_ai_request(context: &ExecutionContext, messages: Vec<AiMessage>) -> AiRequest {
+pub(super) fn build_ai_request(context: &ExecutionContext, messages: Vec<AiMessage>) -> AiRequest {
     let tool_config = context.request_ctx.tool_model_config();
 
     let provider = tool_config

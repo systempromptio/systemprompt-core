@@ -9,7 +9,7 @@ use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 
-pub fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
+pub(crate) fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
     let project_ctx = ProjectContext::discover();
     let profiles_dir = project_ctx.profiles_dir();
 

@@ -17,7 +17,7 @@ pub(super) fn build_request_body(request: &CanonicalRequest, upstream_model: &st
     }
 
     let mut obj = Map::new();
-    obj.insert("model".into(), Value::String(upstream_model.to_string()));
+    obj.insert("model".into(), Value::String(upstream_model.to_owned()));
     obj.insert("input".into(), Value::Array(input));
     obj.insert("max_output_tokens".into(), Value::from(request.max_tokens));
     if let Some(sys) = &request.system {

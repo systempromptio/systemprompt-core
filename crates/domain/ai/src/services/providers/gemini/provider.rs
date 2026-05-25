@@ -25,7 +25,7 @@ impl GeminiProvider {
         Ok(Self {
             client,
             api_key,
-            endpoint: defaults::ENDPOINT.to_string(),
+            endpoint: defaults::ENDPOINT.to_owned(),
             tool_mapper: Arc::new(Mutex::new(ToolNameMapper::new())),
             db_pool: None,
             google_search_enabled: false,

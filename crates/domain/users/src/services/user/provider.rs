@@ -99,7 +99,7 @@ impl RoleProvider for UserService {
         };
 
         let mut roles = user.roles;
-        let role_str = role.to_string();
+        let role_str = role.to_owned();
         if !roles.contains(&role_str) {
             roles.push(role_str);
         }

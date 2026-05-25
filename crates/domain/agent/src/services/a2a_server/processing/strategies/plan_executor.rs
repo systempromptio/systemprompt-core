@@ -219,7 +219,7 @@ pub fn format_results_for_response(state: &ExecutionState) -> String {
                     "{}. {} - SUCCESS\n   Result: {}",
                     i + 1,
                     r.tool_name,
-                    serde_json::to_string_pretty(&r.output).unwrap_or_else(|_| "{}".to_string())
+                    serde_json::to_string_pretty(&r.output).unwrap_or_else(|_| "{}".to_owned())
                 )
             } else {
                 format!(
@@ -252,9 +252,9 @@ pub fn convert_to_call_tool_results(state: &ExecutionState) -> Vec<CallToolResul
         .iter()
         .map(|r| {
             let text_content = if r.success {
-                serde_json::to_string(&r.output).unwrap_or_else(|_| "{}".to_string())
+                serde_json::to_string(&r.output).unwrap_or_else(|_| "{}".to_owned())
             } else {
-                r.error.clone().unwrap_or_else(|| "Error".to_string())
+                r.error.clone().unwrap_or_else(|| "Error".to_owned())
             };
 
             let mut result = if r.success {

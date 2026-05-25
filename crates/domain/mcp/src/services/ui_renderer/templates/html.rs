@@ -9,7 +9,7 @@ pub struct HtmlBuilder {
 impl HtmlBuilder {
     pub fn new(title: &str) -> Self {
         Self {
-            title: title.to_string(),
+            title: title.to_owned(),
             styles: Vec::new(),
             scripts: Vec::new(),
             body: String::new(),
@@ -17,17 +17,17 @@ impl HtmlBuilder {
     }
 
     pub fn add_style(mut self, css: &str) -> Self {
-        self.styles.push(css.to_string());
+        self.styles.push(css.to_owned());
         self
     }
 
     pub fn add_script(mut self, js: &str) -> Self {
-        self.scripts.push(js.to_string());
+        self.scripts.push(js.to_owned());
         self
     }
 
     pub fn body(mut self, html: &str) -> Self {
-        self.body = html.to_string();
+        self.body = html.to_owned();
         self
     }
 
@@ -75,7 +75,7 @@ pub fn html_escape(s: &str) -> String {
 }
 
 pub fn json_to_js_literal(value: &serde_json::Value) -> String {
-    serde_json::to_string(value).unwrap_or_else(|_| "null".to_string())
+    serde_json::to_string(value).unwrap_or_else(|_| "null".to_owned())
 }
 
 pub const fn base_styles() -> &'static str {

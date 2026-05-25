@@ -35,7 +35,7 @@ pub async fn handle(
     let credential = extract_credential(&headers).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_string(),
+            "Missing Authorization or x-api-key credential".to_owned(),
         )
     })?;
     let claims = jwt_extractor

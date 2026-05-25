@@ -11,7 +11,7 @@ pub struct LlmProvidersArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: &LlmProvidersArgs,
     _config: &CliConfig,
 ) -> CommandResult<LlmProvidersListOutput> {

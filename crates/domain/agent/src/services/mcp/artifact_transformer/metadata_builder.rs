@@ -45,7 +45,7 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
     )
     .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;
 
-    metadata = metadata.with_tool_name(tool_name.to_string());
+    metadata = metadata.with_tool_name(tool_name.to_owned());
 
     if !rendering_hints.is_null() {
         metadata = metadata.with_rendering_hints(rendering_hints);

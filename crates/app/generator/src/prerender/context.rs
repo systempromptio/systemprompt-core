@@ -14,7 +14,7 @@ use tokio::fs;
 use crate::error::{GeneratorResult, PublishError};
 use crate::templates::{get_templates_path, load_web_config};
 
-pub struct PrerenderContext {
+pub(crate) struct PrerenderContext {
     pub db_pool: DbPool,
     pub config: ContentConfigRaw,
     pub web_config: WebConfig,
@@ -38,7 +38,7 @@ impl std::fmt::Debug for PrerenderContext {
     }
 }
 
-pub async fn load_prerender_context(
+pub(crate) async fn load_prerender_context(
     db_pool: DbPool,
     paths: &AppPaths,
 ) -> GeneratorResult<PrerenderContext> {

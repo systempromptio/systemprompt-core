@@ -3,7 +3,7 @@ use tabled::settings::Style;
 use tabled::{Table, Tabled};
 
 #[derive(Debug, Tabled)]
-pub struct TaskInfoRow {
+struct TaskInfoRow {
     #[tabled(rename = "Task ID")]
     pub task: String,
     #[tabled(rename = "Agent")]
@@ -17,7 +17,7 @@ pub struct TaskInfoRow {
 }
 
 #[derive(Debug, Tabled)]
-pub struct StepRow {
+struct StepRow {
     #[tabled(rename = "#")]
     pub step_number: i32,
     #[tabled(rename = "Type")]
@@ -31,7 +31,7 @@ pub struct StepRow {
 }
 
 #[derive(Debug, Tabled)]
-pub struct AiRequestRow {
+struct AiRequestRow {
     #[tabled(rename = "Model")]
     pub model: String,
     #[tabled(rename = "Max")]
@@ -45,7 +45,7 @@ pub struct AiRequestRow {
 }
 
 #[derive(Debug, Tabled)]
-pub struct ToolCallRow {
+pub(crate) struct ToolCallRow {
     #[tabled(rename = "Tool")]
     pub tool_name: String,
     #[tabled(rename = "Server")]
@@ -57,7 +57,7 @@ pub struct ToolCallRow {
 }
 
 #[derive(Debug, Tabled)]
-pub struct ArtifactRow {
+pub(crate) struct ArtifactRow {
     #[tabled(rename = "ID")]
     pub artifact: String,
     #[tabled(rename = "Type")]
@@ -70,7 +70,7 @@ pub struct ArtifactRow {
     pub tool_name: String,
 }
 
-pub fn truncate(s: &str, max_len: usize) -> String {
+pub(crate) fn truncate(s: &str, max_len: usize) -> String {
     let s = s.replace('\n', " ").replace('\r', "");
     if s.len() > max_len {
         format!("{}...", &s[..max_len.saturating_sub(3)])
@@ -79,17 +79,17 @@ pub fn truncate(s: &str, max_len: usize) -> String {
     }
 }
 
-pub fn print_section(title: &str) {
+pub(crate) fn print_section(title: &str) {
     CliService::section(title);
 }
 
-pub fn print_content_block(content: &str) {
+pub(crate) fn print_content_block(content: &str) {
     for line in content.lines() {
         CliService::info(&format!("  {line}"));
     }
 }
 
-pub fn print_task_info(task_info: &TaskInfo) {
+pub(crate) fn print_task_info(task_info: &TaskInfo) {
     let rows = vec![TaskInfoRow {
         task: task_info.task_id.as_str()[..8].to_string(),
         agent_name: task_info
@@ -119,21 +119,21 @@ pub fn print_task_info(task_info: &TaskInfo) {
     }
 }
 
-pub fn print_user_input(input: Option<&String>) {
+pub(crate) fn print_user_input(input: Option<&String>) {
     if let Some(text) = input {
         print_section("USER INPUT");
         CliService::info(&format!("  {text}"));
     }
 }
 
-pub fn print_agent_response(response: Option<&String>) {
+pub(crate) fn print_agent_response(response: Option<&String>) {
     if let Some(text) = response {
         print_section("AGENT RESPONSE");
         print_content_block(text);
     }
 }
 
-pub fn print_execution_steps(steps: &[ExecutionStep]) {
+pub(crate) fn print_execution_steps(steps: &[ExecutionStep]) {
     if steps.is_empty() {
         return;
     }
@@ -169,7 +169,7 @@ pub fn print_execution_steps(steps: &[ExecutionStep]) {
     }
 }
 
-pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
+pub(crate) fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
     if requests.is_empty() {
         return vec![];
     }

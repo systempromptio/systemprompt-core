@@ -77,7 +77,7 @@ impl AgentLifecycle {
         self.log_startup_failure(agent_name, port).await;
         self.db_service.mark_error(agent_name).await?;
         Err(OrchestrationError::HealthCheckTimeout(
-            agent_name.to_string(),
+            agent_name.to_owned(),
         ))
     }
 

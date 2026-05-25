@@ -68,7 +68,7 @@ pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
     let parsed = url::Url::parse(url).map_err(|e| OutboundUrlError::Parse(e.to_string()))?;
     let host = parsed
         .host()
-        .ok_or_else(|| OutboundUrlError::Parse("missing host".to_string()))?;
+        .ok_or_else(|| OutboundUrlError::Parse("missing host".to_owned()))?;
 
     let is_loopback_host = match &host {
         url::Host::Domain(d) => d.eq_ignore_ascii_case("localhost"),
@@ -80,7 +80,7 @@ pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
         "https" => {},
         "http" if is_loopback_host => {},
         "http" => return Err(OutboundUrlError::NonLoopbackHttp),
-        scheme => return Err(OutboundUrlError::Scheme(scheme.to_string())),
+        scheme => return Err(OutboundUrlError::Scheme(scheme.to_owned())),
     }
 
     if is_loopback_host {
@@ -106,7 +106,7 @@ pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
     };
     if blocked {
         return Err(OutboundUrlError::BlockedHost(
-            parsed.host_str().unwrap_or_default().to_string(),
+            parsed.host_str().unwrap_or_default().to_owned(),
         ));
     }
     Ok(parsed)

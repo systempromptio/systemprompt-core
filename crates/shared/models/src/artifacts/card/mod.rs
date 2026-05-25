@@ -106,11 +106,11 @@ pub struct PresentationCardArtifact {
 }
 
 fn default_theme() -> String {
-    "gradient".to_string()
+    "gradient".to_owned()
 }
 
 fn default_card_artifact_type() -> String {
-    "presentation_card".to_string()
+    "presentation_card".to_owned()
 }
 
 impl PresentationCardArtifact {
@@ -118,7 +118,7 @@ impl PresentationCardArtifact {
 
     pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "presentation_card".to_string(),
+            artifact_type: "presentation_card".to_owned(),
             title: title.into(),
             subtitle: None,
             sections: Vec::new(),

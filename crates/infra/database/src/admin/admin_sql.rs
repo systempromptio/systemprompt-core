@@ -71,7 +71,7 @@ impl AdminSql {
             return Err(AdminSqlError::ForbiddenKeyword);
         }
 
-        Ok(Self(without_terminator.to_string()))
+        Ok(Self(without_terminator.to_owned()))
     }
 
     pub fn parse_unrestricted(raw: &str) -> Result<Self, AdminSqlError> {
@@ -86,7 +86,7 @@ impl AdminSql {
             return Err(AdminSqlError::MultipleStatements);
         }
 
-        Ok(Self(without_terminator.to_string()))
+        Ok(Self(without_terminator.to_owned()))
     }
 
     pub fn as_str(&self) -> &str {

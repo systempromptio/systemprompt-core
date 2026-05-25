@@ -54,14 +54,14 @@ impl AgentDatabaseService {
                     } else {
                         self.mark_failed(agent_name).await?;
                         Ok(AgentStatus::Failed {
-                            reason: "Process died unexpectedly".to_string(),
+                            reason: "Process died unexpectedly".to_owned(),
                             last_attempt: None,
                             retry_count: 0,
                         })
                     }
                 },
                 (_, "starting") => Ok(AgentStatus::Failed {
-                    reason: "Agent is starting".to_string(),
+                    reason: "Agent is starting".to_owned(),
                     last_attempt: None,
                     retry_count: 0,
                 }),
@@ -69,7 +69,7 @@ impl AgentDatabaseService {
                     let error_msg = self
                         .get_error_message(agent_name)
                         .await
-                        .unwrap_or_else(|_| "Unknown failure".to_string());
+                        .unwrap_or_else(|_| "Unknown failure".to_owned());
                     Ok(AgentStatus::Failed {
                         reason: error_msg,
                         last_attempt: None,
@@ -79,14 +79,14 @@ impl AgentDatabaseService {
                 _ => {
                     self.mark_failed(agent_name).await?;
                     Ok(AgentStatus::Failed {
-                        reason: "Invalid database state".to_string(),
+                        reason: "Invalid database state".to_owned(),
                         last_attempt: None,
                         retry_count: 0,
                     })
                 },
             },
             None => Ok(AgentStatus::Failed {
-                reason: "No service record found".to_string(),
+                reason: "No service record found".to_owned(),
                 last_attempt: None,
                 retry_count: 0,
             }),
@@ -118,7 +118,7 @@ impl AgentDatabaseService {
 
         match row {
             Some(r) => Ok(format!("Status: {}", r.status)),
-            None => Ok("No service record".to_string()),
+            None => Ok("No service record".to_owned()),
         }
     }
 

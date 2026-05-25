@@ -32,22 +32,22 @@ impl GatewayUpstreamRegistry {
         self.entries.keys().map(String::as_str).collect()
     }
 
-    fn build() -> Self {
+    pub(crate) fn build() -> Self {
         let mut entries: HashMap<String, Arc<dyn OutboundAdapter>> = HashMap::new();
 
         let anthropic: Arc<dyn OutboundAdapter> = Arc::new(AnthropicOutbound);
         let openai: Arc<dyn OutboundAdapter> = Arc::new(OpenAiChatOutbound);
         let responses: Arc<dyn OutboundAdapter> = Arc::new(OpenAiResponsesOutbound);
 
-        entries.insert("anthropic".to_string(), Arc::clone(&anthropic));
-        entries.insert("minimax".to_string(), Arc::clone(&anthropic));
-        entries.insert("openai".to_string(), Arc::clone(&openai));
-        entries.insert("moonshot".to_string(), Arc::clone(&openai));
-        entries.insert("qwen".to_string(), Arc::clone(&openai));
-        entries.insert("openai-responses".to_string(), Arc::clone(&responses));
+        entries.insert("anthropic".to_owned(), Arc::clone(&anthropic));
+        entries.insert("minimax".to_owned(), Arc::clone(&anthropic));
+        entries.insert("openai".to_owned(), Arc::clone(&openai));
+        entries.insert("moonshot".to_owned(), Arc::clone(&openai));
+        entries.insert("qwen".to_owned(), Arc::clone(&openai));
+        entries.insert("openai-responses".to_owned(), Arc::clone(&responses));
 
         for registration in inventory::iter::<OutboundAdapterRegistration> {
-            let tag = registration.tag.to_string();
+            let tag = registration.tag.to_owned();
             if entries.contains_key(&tag) {
                 tracing::warn!(
                     tag = %registration.tag,

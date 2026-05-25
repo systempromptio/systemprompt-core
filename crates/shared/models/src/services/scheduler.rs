@@ -65,8 +65,8 @@ pub struct SchedulerConfig {
 
 fn default_bootstrap_jobs() -> Vec<String> {
     vec![
-        "database_cleanup".to_string(),
-        "cleanup_inactive_sessions".to_string(),
+        "database_cleanup".to_owned(),
+        "cleanup_inactive_sessions".to_owned(),
     ]
 }
 

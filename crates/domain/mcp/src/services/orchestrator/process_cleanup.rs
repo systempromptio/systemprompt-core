@@ -6,7 +6,7 @@ use crate::services::database::state::get_binary_mtime_for_service;
 use crate::services::database::{DatabaseService, ServiceInfo};
 use crate::services::process::ProcessService;
 
-pub async fn detect_and_handle_orphaned_processes(
+pub(super) async fn detect_and_handle_orphaned_processes(
     servers: &[McpServerConfig],
     database: &DatabaseService,
 ) -> McpDomainResult<usize> {
@@ -57,7 +57,7 @@ async fn kill_orphaned_process(
     Ok(true)
 }
 
-pub async fn detect_and_handle_stale_binaries(
+pub(super) async fn detect_and_handle_stale_binaries(
     servers: &[McpServerConfig],
     database: &DatabaseService,
 ) -> McpDomainResult<usize> {

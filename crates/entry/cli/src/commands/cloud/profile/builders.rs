@@ -18,7 +18,7 @@ use systemprompt_models::{
 
 use super::templates::generate_display_name;
 
-pub struct LocalProfileBuilder {
+pub(crate) struct LocalProfileBuilder {
     name: String,
     tenant_id: Option<TenantId>,
     secrets_path: String,
@@ -26,7 +26,7 @@ pub struct LocalProfileBuilder {
 }
 
 impl LocalProfileBuilder {
-    pub fn new(
+    pub(crate) fn new(
         name: impl Into<String>,
         secrets_path: impl AsRef<Path>,
         services_path: impl AsRef<Path>,
@@ -39,12 +39,12 @@ impl LocalProfileBuilder {
         }
     }
 
-    pub fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
+    pub(crate) fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
         self.tenant_id = Some(tenant_id);
         self
     }
 
-    pub fn build(self) -> Profile {
+    pub(crate) fn build(self) -> Profile {
         let ctx = ProjectContext::discover();
         let root = ctx.root();
         let system_path = root.to_string_lossy().to_string();
@@ -132,7 +132,7 @@ impl LocalProfileBuilder {
     }
 }
 
-pub struct CloudProfileBuilder {
+pub(crate) struct CloudProfileBuilder {
     name: String,
     tenant_id: Option<TenantId>,
     external_url: Option<String>,
@@ -142,7 +142,7 @@ pub struct CloudProfileBuilder {
 }
 
 impl CloudProfileBuilder {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub(crate) fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             tenant_id: None,
@@ -153,32 +153,32 @@ impl CloudProfileBuilder {
         }
     }
 
-    pub fn with_trusted_issuer(mut self, issuer: TrustedIssuer) -> Self {
+    pub(crate) fn with_trusted_issuer(mut self, issuer: TrustedIssuer) -> Self {
         self.trusted_issuers.push(issuer);
         self
     }
 
-    pub fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
+    pub(crate) fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
         self.tenant_id = Some(tenant_id);
         self
     }
 
-    pub fn with_external_url(mut self, url: impl Into<String>) -> Self {
+    pub(crate) fn with_external_url(mut self, url: impl Into<String>) -> Self {
         self.external_url = Some(url.into());
         self
     }
 
-    pub const fn with_external_db_access(mut self, enabled: bool) -> Self {
+    pub(crate) const fn with_external_db_access(mut self, enabled: bool) -> Self {
         self.external_db_access = enabled;
         self
     }
 
-    pub fn with_secrets_path(mut self, path: impl Into<String>) -> Self {
+    pub(crate) fn with_secrets_path(mut self, path: impl Into<String>) -> Self {
         self.secrets_path = Some(path.into());
         self
     }
 
-    pub fn build(self) -> Profile {
+    pub(crate) fn build(self) -> Profile {
         let display_name = generate_display_name(&self.name);
         let external = self
             .external_url

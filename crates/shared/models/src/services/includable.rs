@@ -19,7 +19,7 @@ impl<'de> Deserialize<'de> for IncludableString {
         Ok(s.strip_prefix("!include ").map_or_else(
             || Self::Inline(s.clone()),
             |path| Self::Include {
-                path: path.trim().to_string(),
+                path: path.trim().to_owned(),
             },
         ))
     }

@@ -87,8 +87,7 @@ pub async fn handle_context_notification(
         .params
         .get("agentId")
         .and_then(|v| v.as_str())
-        .unwrap_or("unknown")
-        .to_string();
+        .unwrap_or("unknown").to_owned();
 
     match persist_notification(Arc::clone(db), &context_id, &agent_id, &notification).await {
         Ok(notification_id) => {

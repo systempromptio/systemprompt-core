@@ -33,31 +33,31 @@ impl ClientId {
     }
 
     pub fn web() -> Self {
-        Self("sp_web".to_string())
+        Self("sp_web".to_owned())
     }
 
     pub fn cli() -> Self {
-        Self("sp_cli".to_string())
+        Self("sp_cli".to_owned())
     }
 
     pub fn mobile_ios() -> Self {
-        Self("sp_mobile_ios".to_string())
+        Self("sp_mobile_ios".to_owned())
     }
 
     pub fn mobile_android() -> Self {
-        Self("sp_mobile_android".to_string())
+        Self("sp_mobile_android".to_owned())
     }
 
     pub fn desktop() -> Self {
-        Self("sp_desktop".to_string())
+        Self("sp_desktop".to_owned())
     }
 
     pub fn bridge() -> Self {
-        Self("sp_bridge".to_string())
+        Self("sp_bridge".to_owned())
     }
 
     pub fn sync() -> Self {
-        Self("sys_sync".to_string())
+        Self("sys_sync".to_owned())
     }
 
     pub fn system(service_name: &str) -> Self {

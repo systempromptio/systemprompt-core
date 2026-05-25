@@ -28,7 +28,7 @@ async fn forward_request(
     let client = reqwest::Client::new();
 
     let method = reqwest::Method::from_bytes(req.method().as_str().as_bytes())
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+        .map_err(|_e| StatusCode::BAD_REQUEST)?;
 
     let mut proxied = client.request(method, &full_url);
 
@@ -40,21 +40,21 @@ async fn forward_request(
 
     let body_bytes = axum::body::to_bytes(req.into_body(), usize::MAX)
         .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+        .map_err(|_e| StatusCode::BAD_REQUEST)?;
 
     if !body_bytes.is_empty() {
         proxied = proxied.body(body_bytes.to_vec());
     }
 
-    let response = proxied.send().await.map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let response = proxied.send().await.map_err(|_e| StatusCode::BAD_GATEWAY)?;
 
     let status_code = response.status().as_u16();
-    let status = StatusCode::from_u16(status_code).map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let status = StatusCode::from_u16(status_code).map_err(|_e| StatusCode::BAD_GATEWAY)?;
 
     let body = response
         .bytes()
         .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+        .map_err(|_e| StatusCode::BAD_GATEWAY)?;
 
     Ok((status, body))
 }

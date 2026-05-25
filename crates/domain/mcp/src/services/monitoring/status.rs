@@ -32,15 +32,15 @@ async fn get_service_status(config: &McpServerConfig) -> McpDomainResult<Service
     match perform_health_check(config).await {
         Ok(health_result) => {
             let state = match health_result.status {
-                HealthStatus::Healthy | HealthStatus::Degraded => RUNNING.to_string(),
-                HealthStatus::Unhealthy => STOPPED.to_string(),
-                HealthStatus::Unknown => ERROR.to_string(),
+                HealthStatus::Healthy | HealthStatus::Degraded => RUNNING.to_owned(),
+                HealthStatus::Unhealthy => STOPPED.to_owned(),
+                HealthStatus::Unknown => ERROR.to_owned(),
             };
 
             Ok(ServiceStatus {
                 state,
                 pid: None,
-                health: health_result.status.as_str().to_string(),
+                health: health_result.status.as_str().to_owned(),
                 uptime_seconds: None,
                 tools_count: health_result.details.tools_available,
                 latency_ms: Some(health_result.latency_ms),
@@ -50,9 +50,9 @@ async fn get_service_status(config: &McpServerConfig) -> McpDomainResult<Service
         Err(e) => {
             tracing::debug!(service = %config.name, error = %e, "Health check failed; reporting service unreachable");
             Ok(ServiceStatus {
-                state: STOPPED.to_string(),
+                state: STOPPED.to_owned(),
                 pid: None,
-                health: "unreachable".to_string(),
+                health: "unreachable".to_owned(),
                 uptime_seconds: None,
                 tools_count: 0,
                 latency_ms: None,

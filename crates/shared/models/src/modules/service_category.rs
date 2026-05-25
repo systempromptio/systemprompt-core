@@ -32,7 +32,7 @@ impl ServiceCategory {
 
     pub fn mount_path(&self, module_name: &str) -> String {
         if module_name.is_empty() {
-            self.base_path().to_string()
+            self.base_path().to_owned()
         } else {
             match self {
                 Self::Meta => {

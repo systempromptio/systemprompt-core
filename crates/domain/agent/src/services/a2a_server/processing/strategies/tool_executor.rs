@@ -23,7 +23,7 @@ impl ToolExecutorTrait for ContextToolExecutor {
     ) -> Result<Value> {
         let tool_call = ToolCall {
             ai_tool_call_id: AiToolCallId::new(format!("call_{}", tool_name)),
-            name: tool_name.to_string(),
+            name: tool_name.to_owned(),
             arguments,
         };
 
@@ -54,7 +54,7 @@ impl ToolExecutorTrait for ContextToolExecutor {
                         None
                     }
                 })
-                .unwrap_or_else(|| "Unknown error".to_string());
+                .unwrap_or_else(|| "Unknown error".to_owned());
             return Err(AgentServiceError::Internal(format!(
                 "Tool {tool_name} failed: {error_msg}"
             )));

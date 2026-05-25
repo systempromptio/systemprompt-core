@@ -157,7 +157,7 @@ impl FileValidator {
 
         if Self::BLOCKED_TYPES.contains(&normalized_mime.as_str()) {
             return Err(FileValidationError::TypeBlocked {
-                mime_type: mime_type.to_string(),
+                mime_type: mime_type.to_owned(),
             });
         }
 
@@ -165,7 +165,7 @@ impl FileValidator {
 
         if !self.is_category_allowed(&category) {
             return Err(FileValidationError::CategoryDisabled {
-                category: category.display_name().to_string(),
+                category: category.display_name().to_owned(),
             });
         }
 
@@ -190,7 +190,7 @@ impl FileValidator {
         }
 
         Err(FileValidationError::TypeNotAllowed {
-            mime_type: mime_type.to_string(),
+            mime_type: mime_type.to_owned(),
         })
     }
 
@@ -220,8 +220,7 @@ impl FileValidator {
         MIME_EXTENSION_TABLE
             .iter()
             .find(|(mimes, _)| mimes.contains(&lower.as_str()))
-            .map_or("bin", |(_, ext)| *ext)
-            .to_string()
+            .map_or("bin", |(_, ext)| *ext).to_owned()
     }
 }
 

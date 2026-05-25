@@ -9,7 +9,7 @@ use super::{AgentConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE};
 use crate::errors::ConfigValidationError;
 
 fn default_version() -> String {
-    "1.0.0".to_string()
+    "1.0.0".to_owned()
 }
 
 #[derive(Debug, Clone, Deserialize)]

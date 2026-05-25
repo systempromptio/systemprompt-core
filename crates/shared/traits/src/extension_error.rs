@@ -78,7 +78,7 @@ pub trait ExtensionError: std::error::Error + Send + Sync + 'static {
 
     fn to_api_error(&self) -> ApiError {
         ApiError {
-            code: self.code().to_string(),
+            code: self.code().to_owned(),
             message: self.user_message(),
             status: self.status(),
         }

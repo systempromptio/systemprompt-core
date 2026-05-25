@@ -35,7 +35,7 @@ fn build_role_message(role: &str, message: &AiMessage) -> AnthropicMessage {
     };
 
     AnthropicMessage {
-        role: role.to_string(),
+        role: role.to_owned(),
         content,
     }
 }

@@ -25,7 +25,7 @@ pub struct CreateArgs {
     pub if_not_exists: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: CreateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<UserCreatedOutput>> {

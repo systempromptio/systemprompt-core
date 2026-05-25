@@ -14,7 +14,7 @@ impl PayloadSource {
         // method name drives which typed field is read, so the shape is dynamic.
         let payload: Value = serde_json::from_slice(body_bytes).map_err(|e| {
             ContextExtractionError::InvalidHeaderValue {
-                header: "payload".to_string(),
+                header: "payload".to_owned(),
                 reason: format!("Invalid JSON: {e}"),
             }
         })?;
@@ -26,10 +26,10 @@ impl PayloadSource {
                 .get("params")
                 .and_then(|p| p.get("id"))
                 .and_then(|id| id.as_str())
-                .map(ToString::to_string)
+                .map(str::to_owned)
                 .ok_or_else(|| ContextExtractionError::InvalidHeaderValue {
-                    header: "params.id".to_string(),
-                    reason: "Task ID required for task methods".to_string(),
+                    header: "params.id".to_owned(),
+                    reason: "Task ID required for task methods".to_owned(),
                 })?;
 
             return Ok(ContextIdSource::FromTask {
@@ -42,7 +42,7 @@ impl PayloadSource {
             .and_then(|p| p.get("message"))
             .and_then(|m| m.get("contextId"))
             .and_then(|c| c.as_str())
-            .map(|s| ContextIdSource::Direct(s.to_string()))
+            .map(|s| ContextIdSource::Direct(s.to_owned()))
             .ok_or(ContextExtractionError::MissingContextId)
     }
 
@@ -54,7 +54,7 @@ impl PayloadSource {
         let body_bytes = axum::body::to_bytes(body, usize::MAX)
             .await
             .map_err(|e| ContextExtractionError::InvalidHeaderValue {
-                header: "body".to_string(),
+                header: "body".to_owned(),
                 reason: format!("Failed to read body: {e}"),
             })?
             .to_vec();

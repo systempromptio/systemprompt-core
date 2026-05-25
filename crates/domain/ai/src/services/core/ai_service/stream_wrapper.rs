@@ -9,7 +9,7 @@ use crate::services::core::request_storage::{RequestStorage, StoreParams};
 use crate::services::providers::ModelPricing;
 use systemprompt_models::ai::StreamChunk;
 
-pub struct StreamStorageParams {
+pub(super) struct StreamStorageParams {
     pub inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
     pub storage: RequestStorage,
     pub request: AiRequest,
@@ -20,7 +20,7 @@ pub struct StreamStorageParams {
     pub pricing: ModelPricing,
 }
 
-pub struct StreamStorageWrapper {
+pub(super) struct StreamStorageWrapper {
     inner: Pin<Box<dyn Stream<Item = crate::error::Result<StreamChunk>> + Send>>,
     storage: RequestStorage,
     request: AiRequest,
@@ -40,7 +40,7 @@ pub struct StreamStorageWrapper {
 }
 
 impl StreamStorageWrapper {
-    pub fn new(params: StreamStorageParams) -> Self {
+    pub(super) fn new(params: StreamStorageParams) -> Self {
         Self {
             inner: params.inner,
             storage: params.storage,

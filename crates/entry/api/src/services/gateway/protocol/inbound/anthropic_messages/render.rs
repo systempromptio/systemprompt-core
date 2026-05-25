@@ -76,7 +76,7 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     }
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {
         CanonicalEvent::MessageStart {
@@ -125,8 +125,7 @@ pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<
     let event_name = value
         .get("type")
         .and_then(Value::as_str)
-        .unwrap_or("message")
-        .to_string();
+        .unwrap_or("message").to_owned();
     Some(Bytes::from(format!(
         "event: {event_name}\ndata: {}\n\n",
         serde_json::to_string(&value).unwrap_or_else(|_| "{}".into())
@@ -182,7 +181,7 @@ fn render_thinking_block_start(signature: Option<&str>) -> Value {
     obj.insert("type".into(), Value::String("thinking".into()));
     obj.insert("thinking".into(), Value::String(String::new()));
     if let Some(sig) = signature {
-        obj.insert("signature".into(), Value::String(sig.to_string()));
+        obj.insert("signature".into(), Value::String(sig.to_owned()));
     }
     Value::Object(obj)
 }

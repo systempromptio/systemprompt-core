@@ -67,7 +67,7 @@ fn anthropic_event_to_canonical(value: &Value, msg_id: &str) -> Option<Canonical
         },
         "message_delta" => convert_message_delta(value, msg_id),
         "message_stop" => Some(CanonicalEvent::MessageStop {
-            id: msg_id.to_string(),
+            id: msg_id.to_owned(),
             stop_reason: None,
         }),
         "error" => {
@@ -75,8 +75,7 @@ fn anthropic_event_to_canonical(value: &Value, msg_id: &str) -> Option<Canonical
                 .get("error")
                 .and_then(|e| e.get("message"))
                 .and_then(Value::as_str)
-                .unwrap_or("upstream error")
-                .to_string();
+                .unwrap_or("upstream error").to_owned();
             Some(CanonicalEvent::Error(msg))
         },
         _ => None,
@@ -89,13 +88,11 @@ fn convert_message_start(value: &Value) -> Option<CanonicalEvent> {
         id: msg
             .get("id")
             .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string(),
+            .unwrap_or("").to_owned(),
         model: msg
             .get("model")
             .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string(),
+            .unwrap_or("").to_owned(),
         usage: usage_from_value(msg.get("usage")),
     })
 }
@@ -110,19 +107,17 @@ fn convert_content_block_start(value: &Value) -> Option<CanonicalEvent> {
             signature: block
                 .get("signature")
                 .and_then(Value::as_str)
-                .map(ToString::to_string),
+                .map(str::to_owned),
         },
         "tool_use" => ContentBlockKind::ToolUse {
             id: block
                 .get("id")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
             name: block
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
         },
         _ => return None,
     };
@@ -137,8 +132,7 @@ fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
         delta
             .get(field)
             .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string()
+            .unwrap_or("").to_owned()
     };
     match dtype {
         "text_delta" => Some(CanonicalEvent::TextDelta {
@@ -166,7 +160,7 @@ fn convert_message_delta(value: &Value, msg_id: &str) -> Option<CanonicalEvent> 
     let usage = value.get("usage").map(|u| usage_from_value(Some(u)));
     if stop_reason.is_some() {
         return Some(CanonicalEvent::MessageStop {
-            id: msg_id.to_string(),
+            id: msg_id.to_owned(),
             stop_reason,
         });
     }

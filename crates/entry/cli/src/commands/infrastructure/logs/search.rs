@@ -37,7 +37,7 @@ pub struct SearchArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolSearchResult {
+struct ToolSearchResult {
     pub timestamp: String,
     pub trace_id: TraceId,
     pub tool_name: String,
@@ -48,7 +48,7 @@ pub struct ToolSearchResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CombinedSearchOutput {
+pub(crate) struct CombinedSearchOutput {
     pub logs: Vec<LogEntryRow>,
     pub log_count: u64,
     pub tools: Vec<ToolSearchResult>,

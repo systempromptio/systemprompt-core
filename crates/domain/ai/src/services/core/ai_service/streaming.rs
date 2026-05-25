@@ -44,8 +44,8 @@ impl AiService {
             request: request.clone(),
             request_id,
             start,
-            provider: request.provider().to_string(),
-            model: request.model().to_string(),
+            provider: request.provider().to_owned(),
+            model: request.model().to_owned(),
             pricing,
         });
 
@@ -87,8 +87,8 @@ impl AiService {
             request: request.clone(),
             request_id,
             start,
-            provider: request.provider().to_string(),
-            model: request.model().to_string(),
+            provider: request.provider().to_owned(),
+            model: request.model().to_owned(),
             pricing,
         });
 
@@ -105,7 +105,7 @@ impl AiService {
             .find(|p| p.supports_google_search())
             .ok_or_else(|| {
                 crate::error::AiError::Internal(
-                    "No provider with Google Search support available".to_string(),
+                    "No provider with Google Search support available".to_owned(),
                 )
             })?;
         let model = params

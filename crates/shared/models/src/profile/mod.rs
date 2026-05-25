@@ -66,7 +66,7 @@ impl ExtensionsConfig {
     }
 }
 
-#[allow(clippy::expect_used)]
+#[expect(clippy::expect_used)]
 static ENV_VAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{(\w+)\}")
         .expect("ENV_VAR_REGEX is a valid regex - this is a compile-time constant")
@@ -191,10 +191,10 @@ impl Profile {
 
     pub fn mask_secret(value: &str, visible_chars: usize) -> String {
         if value.is_empty() {
-            return "(not set)".to_string();
+            return "(not set)".to_owned();
         }
         if value.len() <= visible_chars {
-            return "***".to_string();
+            return "***".to_owned();
         }
         format!("{}...", &value[..visible_chars])
     }
@@ -207,7 +207,7 @@ impl Profile {
                 return format!("{}***{}", prefix, suffix);
             }
         }
-        url.to_string()
+        url.to_owned()
     }
 
     pub fn is_masked_database_url(url: &str) -> bool {

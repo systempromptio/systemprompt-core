@@ -29,7 +29,7 @@ impl McpRegistry for RegistryService {
             name: config.name,
             host: config.host,
             port: config.port,
-            status: "unknown".to_string(),
+            status: "unknown".to_owned(),
         }))
     }
 

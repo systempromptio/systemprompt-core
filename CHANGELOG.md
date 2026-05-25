@@ -5,10 +5,31 @@
 ### Breaking
 
 - **`systemprompt_mcp::MCP_PROTOCOL_VERSION` constant removed.** Use `systemprompt_mcp::mcp_protocol_version() -> String` or `systemprompt_mcp::mcp_protocol_version_str() -> &'static str`. Both resolve to `rmcp::model::ProtocolVersion::LATEST` and track the linked `rmcp` release.
+- **`GatewayPolicySpec::allowed_models` and `GatewayPolicySpec::model_allowed` removed.** Model exposure is now owned by the profile's `GatewayCatalog` (see `GatewayConfig::is_model_exposed`). A request whose `model` is not declared in the catalog is rejected with `403` before route resolution — the old policy-allow-list path is gone. Deployments that still set `allowed_models:` in `services/ai/gateway-policies.yaml` MUST remove the field (the spec now uses `deny_unknown_fields`).
+
+### Added
+
+- **`GatewayConfig::is_model_exposed(&str) -> bool`** — single dispatch-time gate that consults the profile catalog. Replaces the per-policy `allowed_models` allow-list as the source of truth for "is this model exposed."
+- **`GatewayConfig::validate()`** — boot-time cross-check that fails loud on catalog/route drift. Verifies: every route's provider exists in `GatewayCatalog.providers`; every route's endpoint matches the catalog provider's endpoint; every catalog model id and alias is globally unique; every catalog model is reachable by at least one route pattern. New error variants: `RouteProviderNotInCatalog`, `RouteEndpointMismatch`, `DuplicateModelId`, `UnreachableModel`.
+- **`GatewayModel::aliases: Vec<String>`** — alternate model ids that resolve to the same catalog entry for exposure and `/profile` listing (e.g. `claude-opus-4-7[1m]` aliasing `claude-opus-4-7`).
+- **`EntityKind::GatewayModel`** in `systemprompt-security::authz` — paired with the existing `GatewayRoute` so per-model RBAC can be wired into the gateway dispatch path (consumer wiring is a follow-up). Migration `006_acl_gateway_model.sql` extends the `access_control_rules.entity_type` CHECK constraint to include the new variant.
+
+### Changed
+
+- **`GATEWAY_POLICIES_FILE` moved from `services/ai/gateway-policies.yaml` to `services/gateway/policies.yaml`.** The loader keeps a one-release back-compat fallback on the old path and emits a warn when it triggers. Deployments should move their policies file to the new location before 0.12.
 
 ### Fixed
 
 - **MCP protocol-version reporting unified on `rmcp::model::ProtocolVersion::LATEST`** (currently `2025-11-25`). `McpDeploymentProvider::protocol_version` and the `supported_protocols` field of the `systemprompt:mcp-tools` agent extension previously returned a hardcoded `2024-11-05`, while `McpServiceProvider::protocol_version` already used the SDK value.
+- **`define_id!` macro no longer emits `&str::to_string()` or unannotated `#[allow]` attributes.** The `From<&str>` impl, the `system`/`bootstrap`/`Default` constructors in `agent`, `session`, `trace`, `profile`, `user`, `client`, and `policy`, and the `db_value` conversions now use `.to_owned()`; the macro's internal `#[allow(clippy::expect_used)]` is replaced with `#[expect(..., reason = "...")]`. Eliminates ~2,700 warnings under the newly enabled `clippy::str_to_string`, `clippy::allow_attributes`, and `clippy::allow_attributes_without_reason` lints.
+
+### Changed
+
+- **Workspace lint surface tightened.** Added `clippy::map_err_ignore`, `clippy::str_to_string`, `clippy::undocumented_unsafe_blocks`, `clippy::self_named_module_files`, `clippy::allow_attributes`, `clippy::allow_attributes_without_reason`, `rust::unreachable_pub`, `rust::unused_lifetimes`, and `rust::single_use_lifetimes` at `warn`. The previously-disabled `cognitive-complexity-threshold` and `too-many-lines-threshold` in `clippy.toml` are re-engaged at `30` and `150` respectively (from `999999`). `rustfmt.toml` `edition` now matches the workspace at `"2024"`.
+- **Internal visibility narrowed across the workspace.** `unreachable_pub` reduced from 1,146 to 58 warnings: items only used within their crate are now `pub(crate)`. Cross-crate consumers (re-exports through `lib.rs`, the `systemprompt` facade) keep `pub`.
+- **`map_err(|_| ...)` callers renamed to `|_e| ...`** across 113 sites outside the identifiers crate, silencing `clippy::map_err_ignore` without changing behaviour. Where the discarded error genuinely belongs in the source chain, the next pass should switch to `map_err(|e| ...with_source(e))` instead of the silenced form.
+- **Three long functions split into smaller helpers** so every function fits under the 150-line threshold: `MessageProcessor::handle_message` (extracted `collect_stream_response`, `broadcast_agui_lifecycle`, `persist_or_mark_failed`); `StreamProcessor::process_message_stream` (extracted `run_stream_pipeline`); `handle_complete` (extracted `build_complete_task`, `broadcast_task_success`).
+- **Two new `just` recipes:** `just machete` (unused dependencies via `cargo-machete`) and `just hack` (feature-powerset build via `cargo-hack`).
 
 ## [0.11.1] - 2026-05-22
 

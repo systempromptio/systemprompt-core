@@ -17,7 +17,7 @@ pub fn rows_to_result(rows: Vec<sqlx::postgres::PgRow>, start: std::time::Instan
         columns = first_row
             .columns()
             .iter()
-            .map(|c| c.name().to_string())
+            .map(|c| c.name().to_owned())
             .collect();
     }
 
@@ -39,7 +39,7 @@ pub fn rows_to_result(rows: Vec<sqlx::postgres::PgRow>, start: std::time::Instan
 pub fn row_to_json(row: &sqlx::postgres::PgRow) -> HashMap<String, serde_json::Value> {
     row.columns()
         .iter()
-        .map(|col| (col.name().to_string(), column_to_json(row, col.ordinal())))
+        .map(|col| (col.name().to_owned(), column_to_json(row, col.ordinal())))
         .collect()
 }
 

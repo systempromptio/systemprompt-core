@@ -141,7 +141,7 @@ pub fn create_profile_for_tenant(
     Ok(CreatedProfile { name })
 }
 
-pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<StoredTenant> {
+pub(crate) fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<StoredTenant> {
     let tenant_id = args.tenant.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
             "Missing required flag: --tenant-id\nIn non-interactive mode, --tenant-id is \
@@ -173,12 +173,12 @@ pub fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Resul
     Ok(tenant.clone())
 }
 
-pub struct RefreshedCredentials {
+struct RefreshedCredentials {
     pub external_database_url: String,
     pub internal_database_url: String,
 }
 
-pub async fn refresh_tenant_credentials(
+async fn refresh_tenant_credentials(
     client: &CloudApiClient,
     tenant_id: &TenantId,
 ) -> Result<RefreshedCredentials> {
@@ -193,7 +193,7 @@ pub async fn refresh_tenant_credentials(
     })
 }
 
-pub async fn ensure_unmasked_credentials(
+pub(crate) async fn ensure_unmasked_credentials(
     tenant: StoredTenant,
     tenants_path: &std::path::Path,
 ) -> Result<StoredTenant> {

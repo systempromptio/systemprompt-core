@@ -13,7 +13,7 @@ use super::super::types::{
     RateLimitsOutput, TierEffectiveLimitsOutput, TierMultiplierRow, TierMultipliersOutput,
 };
 
-pub fn execute_show(config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_show(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 
@@ -50,7 +50,7 @@ pub fn execute_show(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 
@@ -118,7 +118,7 @@ pub fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn execute_docs(config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_docs(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 

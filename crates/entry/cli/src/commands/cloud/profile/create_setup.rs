@@ -105,7 +105,7 @@ async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
     let status = Command::new("docker")
         .args(["compose", "-f", compose_path_str, "up", "-d"])
         .status()
-        .map_err(|_| anyhow::anyhow!("Failed to execute docker compose. Is Docker running?"))?;
+        .map_err(|_e| anyhow::anyhow!("Failed to execute docker compose. Is Docker running?"))?;
 
     if !status.success() {
         CliService::warning("Failed to start PostgreSQL container. Is Docker running?");

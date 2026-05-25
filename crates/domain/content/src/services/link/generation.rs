@@ -6,12 +6,12 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId};
 
 mod utm_defaults {
-    pub const MEDIUM_SOCIAL: &str = "social";
-    pub const SOURCE_INTERNAL: &str = "internal";
-    pub const MEDIUM_CONTENT: &str = "content";
-    pub const SOURCE_BLOG: &str = "blog";
-    pub const MEDIUM_CTA: &str = "cta";
-    pub const POSITION_CTA: &str = "cta";
+    pub(super) const MEDIUM_SOCIAL: &str = "social";
+    pub(super) const SOURCE_INTERNAL: &str = "internal";
+    pub(super) const MEDIUM_CONTENT: &str = "content";
+    pub(super) const SOURCE_BLOG: &str = "blog";
+    pub(super) const MEDIUM_CTA: &str = "cta";
+    pub(super) const POSITION_CTA: &str = "cta";
 }
 
 #[derive(Debug)]
@@ -90,18 +90,18 @@ impl LinkGenerationService {
             CampaignId::new(format!("social_{}_{}", platform, Utc::now().timestamp()));
 
         let utm_params = UtmParams {
-            source: Some(platform.to_string()),
-            medium: Some(utm_defaults::MEDIUM_SOCIAL.to_string()),
-            campaign: Some(campaign_name.to_string()),
+            source: Some(platform.to_owned()),
+            medium: Some(utm_defaults::MEDIUM_SOCIAL.to_owned()),
+            campaign: Some(campaign_name.to_owned()),
             term: None,
             content: source_content_id.as_ref().map(ToString::to_string),
         };
 
         self.generate_link(GenerateLinkParams {
-            target_url: target_url.to_string(),
+            target_url: target_url.to_owned(),
             link_type: LinkType::Both,
             campaign_id: Some(campaign_id),
-            campaign_name: Some(campaign_name.to_string()),
+            campaign_name: Some(campaign_name.to_owned()),
             source_content_id,
             source_page: None,
             utm_params: Some(utm_params),
@@ -128,20 +128,20 @@ impl LinkGenerationService {
             CampaignId::new(format!("internal_navigation_{}", Utc::now().date_naive()));
 
         let utm_params = UtmParams {
-            source: Some(utm_defaults::SOURCE_INTERNAL.to_string()),
-            medium: Some(utm_defaults::MEDIUM_CONTENT.to_string()),
+            source: Some(utm_defaults::SOURCE_INTERNAL.to_owned()),
+            medium: Some(utm_defaults::MEDIUM_CONTENT.to_owned()),
             campaign: None,
             term: None,
             content: Some(params.source_content_id.to_string()),
         };
 
         self.generate_link(GenerateLinkParams {
-            target_url: params.target_url.to_string(),
+            target_url: params.target_url.to_owned(),
             link_type: LinkType::Utm,
             campaign_id: Some(campaign_id),
-            campaign_name: Some("Internal Content Navigation".to_string()),
+            campaign_name: Some("Internal Content Navigation".to_owned()),
             source_content_id: Some(params.source_content_id.clone()),
-            source_page: Some(params.source_page.to_string()),
+            source_page: Some(params.source_page.to_owned()),
             utm_params: Some(utm_params),
             link_text: params.link_text,
             link_position: params.link_position,
@@ -160,23 +160,23 @@ impl LinkGenerationService {
         let campaign_id = CampaignId::new(format!("external_cta_{}", Utc::now().timestamp()));
 
         let utm_params = UtmParams {
-            source: Some(utm_defaults::SOURCE_BLOG.to_string()),
-            medium: Some(utm_defaults::MEDIUM_CTA.to_string()),
-            campaign: Some(campaign_name.to_string()),
+            source: Some(utm_defaults::SOURCE_BLOG.to_owned()),
+            medium: Some(utm_defaults::MEDIUM_CTA.to_owned()),
+            campaign: Some(campaign_name.to_owned()),
             term: None,
             content: source_content_id.as_ref().map(ToString::to_string),
         };
 
         self.generate_link(GenerateLinkParams {
-            target_url: target_url.to_string(),
+            target_url: target_url.to_owned(),
             link_type: LinkType::Both,
             campaign_id: Some(campaign_id),
-            campaign_name: Some(campaign_name.to_string()),
+            campaign_name: Some(campaign_name.to_owned()),
             source_content_id,
             source_page: None,
             utm_params: Some(utm_params),
             link_text,
-            link_position: Some(utm_defaults::POSITION_CTA.to_string()),
+            link_position: Some(utm_defaults::POSITION_CTA.to_owned()),
             expires_at: None,
         })
         .await
@@ -189,12 +189,12 @@ impl LinkGenerationService {
         let campaign_id = CampaignId::new(format!("social_share_{}", Utc::now().date_naive()));
 
         self.generate_link(GenerateLinkParams {
-            target_url: params.target_url.to_string(),
+            target_url: params.target_url.to_owned(),
             link_type: LinkType::Redirect,
             campaign_id: Some(campaign_id),
-            campaign_name: Some("Social Share".to_string()),
+            campaign_name: Some("Social Share".to_owned()),
             source_content_id: Some(params.source_content_id.clone()),
-            source_page: Some(params.source_page.to_string()),
+            source_page: Some(params.source_page.to_owned()),
             utm_params: None,
             link_text: params.link_text,
             link_position: params.link_position,
@@ -236,7 +236,7 @@ impl LinkGenerationService {
     pub fn inject_utm_params(url: &str, utm_params: &UtmParams) -> String {
         let query_string = utm_params.to_query_string();
         if query_string.is_empty() {
-            url.to_string()
+            url.to_owned()
         } else {
             let separator = if url.contains('?') { "&" } else { "?" };
             format!("{url}{separator}{query_string}")

@@ -32,13 +32,13 @@ impl CimdMetadata {
     pub fn validate(&self) -> Result<()> {
         if !self.client_id.as_str().starts_with("https://") {
             return Err(OauthError::Validation(
-                "client_id must be HTTPS URL".to_string(),
+                "client_id must be HTTPS URL".to_owned(),
             ));
         }
 
         if self.redirect_uris.is_empty() {
             return Err(OauthError::Validation(
-                "redirect_uris cannot be empty".to_string(),
+                "redirect_uris cannot be empty".to_owned(),
             ));
         }
 

@@ -59,7 +59,7 @@ impl Server {
                 .map_err(|e| crate::error::AgentError::Server(e.to_string()))?
         } else {
             return Err(crate::error::AgentError::Validation(
-                "Agent name is required".to_string(),
+                "Agent name is required".to_owned(),
             ));
         };
 

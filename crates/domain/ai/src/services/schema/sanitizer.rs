@@ -37,13 +37,13 @@ impl SchemaSanitizer {
                 .collect();
             if non_null.len() < original_len {
                 if non_null.len() == 1 {
-                    obj.insert("type".to_string(), non_null.remove(0));
+                    obj.insert("type".to_owned(), non_null.remove(0));
                 } else if non_null.is_empty() {
                     obj.remove("type");
                 } else {
-                    obj.insert("type".to_string(), Value::Array(non_null));
+                    obj.insert("type".to_owned(), Value::Array(non_null));
                 }
-                obj.insert("nullable".to_string(), Value::Bool(true));
+                obj.insert("nullable".to_owned(), Value::Bool(true));
             }
         }
 
@@ -65,9 +65,9 @@ impl SchemaSanitizer {
                         }
                     }
                 } else {
-                    obj.insert("anyOf".to_string(), Value::Array(non_null));
+                    obj.insert("anyOf".to_owned(), Value::Array(non_null));
                 }
-                obj.insert("nullable".to_string(), Value::Bool(true));
+                obj.insert("nullable".to_owned(), Value::Bool(true));
             }
         }
     }
@@ -132,7 +132,7 @@ impl SchemaSanitizer {
     fn convert_const_to_enum(&self, obj: &mut Map<String, Value>) {
         if !self.capabilities.features.const_values {
             if let Some(const_val) = obj.remove("const") {
-                obj.insert("enum".to_string(), json!([const_val]));
+                obj.insert("enum".to_owned(), json!([const_val]));
             }
         }
     }

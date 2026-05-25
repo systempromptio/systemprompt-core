@@ -9,7 +9,7 @@ use systemprompt_runtime::AppContext;
 
 use super::A2aNotification;
 
-pub async fn persist_notification(
+pub(super) async fn persist_notification(
     db: systemprompt_database::DbPool,
     context: &str,
     agent: &str,
@@ -29,7 +29,7 @@ pub async fn persist_notification(
     Ok(id)
 }
 
-pub async fn process_notification(
+pub(super) async fn process_notification(
     app_context: AppContext,
     notification: &A2aNotification,
 ) -> Result<(), anyhow::Error> {
@@ -69,7 +69,7 @@ pub async fn process_notification(
     }
 }
 
-pub async fn broadcast_notification(
+pub(super) async fn broadcast_notification(
     context: &str,
     user_id: &UserId,
     notification: &A2aNotification,
@@ -79,7 +79,7 @@ pub async fn broadcast_notification(
     match notification.method.as_str() {
         "notifications/taskStatusUpdate" => {
             let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
-                name: "task_status_changed".to_string(),
+                name: "task_status_changed".to_owned(),
                 value: json!({
                     "contextId": context,
                     "taskId": notification.params.get("taskId"),
@@ -93,7 +93,7 @@ pub async fn broadcast_notification(
         },
         "notifications/artifactCreated" => {
             let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
-                name: "artifact".to_string(),
+                name: "artifact".to_owned(),
                 value: json!({
                     "artifact": notification.params.get("artifact"),
                     "taskId": notification.params.get("taskId"),
@@ -106,7 +106,7 @@ pub async fn broadcast_notification(
         },
         "notifications/messageAdded" => {
             let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
-                name: "message_added".to_string(),
+                name: "message_added".to_owned(),
                 value: json!({
                     "contextId": context,
                     "messageId": notification.params.get("messageId"),
@@ -123,7 +123,7 @@ pub async fn broadcast_notification(
     Ok(total_broadcasts)
 }
 
-pub async fn mark_notification_broadcasted(
+pub(super) async fn mark_notification_broadcasted(
     db: systemprompt_database::DbPool,
     notification_id: i32,
 ) -> Result<(), anyhow::Error> {

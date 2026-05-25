@@ -5,7 +5,7 @@ use systemprompt_traits::Job;
 use super::types::{JobInfo, JobListOutput};
 use crate::shared::{CommandResult, RenderingHints};
 
-pub fn execute() -> CommandResult<JobListOutput> {
+pub(crate) fn execute() -> CommandResult<JobListOutput> {
     let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
         tracing::error!(error = %e, "extension dependency cycle; using empty registry");
         ExtensionRegistry::new()

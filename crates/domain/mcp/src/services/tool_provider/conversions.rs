@@ -1,7 +1,7 @@
 use systemprompt_models::ai::tools::McpTool;
 use systemprompt_traits::{ToolCallResult, ToolContent, ToolDefinition};
 
-pub fn to_tool_definition(mcp_tool: &McpTool) -> ToolDefinition {
+pub(super) fn to_tool_definition(mcp_tool: &McpTool) -> ToolDefinition {
     ToolDefinition {
         name: mcp_tool.name.clone(),
         description: mcp_tool.description.clone(),
@@ -16,7 +16,7 @@ pub fn to_tool_definition(mcp_tool: &McpTool) -> ToolDefinition {
     }
 }
 
-pub fn to_tool_result(rmcp_result: &rmcp::model::CallToolResult) -> ToolCallResult {
+pub(super) fn to_tool_result(rmcp_result: &rmcp::model::CallToolResult) -> ToolCallResult {
     let content = rmcp_result
         .content
         .iter()

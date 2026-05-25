@@ -64,7 +64,7 @@ impl Job for DistributedLockProbeJob {
         "* * * * * *"
     }
 
-    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+    pub(crate) async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
         Ok(JobResult::success())
     }
 }
@@ -75,7 +75,7 @@ systemprompt_traits::submit_job!(&DistributedLockProbeJob);
 fn test_database_url() -> Result<String> {
     dotenvy::dotenv().ok();
     std::env::var("DATABASE_URL")
-        .map_err(|_| anyhow::anyhow!("DATABASE_URL must be set for this DB-backed test"))
+        .map_err(|_e| anyhow::anyhow!("DATABASE_URL must be set for this DB-backed test"))
 }
 
 /// Build a `DbPool` against the integration-test database.

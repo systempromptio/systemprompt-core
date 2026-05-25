@@ -58,8 +58,8 @@ impl SyncApiClient {
                 .connect_timeout(HTTP_CONNECT_TIMEOUT)
                 .timeout(HTTP_SYNC_DEPLOY_TIMEOUT)
                 .build()?,
-            api_url: api_url.to_string(),
-            token: token.to_string(),
+            api_url: api_url.to_owned(),
+            token: token.to_owned(),
             hostname: None,
             cached_sync_token: Arc::new(Mutex::new(None)),
             retry_config: RetryConfig::default(),
@@ -131,7 +131,7 @@ impl SyncApiClient {
 
         Err(SyncError::ApiError {
             status: 503,
-            message: "Max retry attempts exceeded".to_string(),
+            message: "Max retry attempts exceeded".to_owned(),
         })
     }
 
@@ -177,7 +177,7 @@ impl SyncApiClient {
 
         Err(SyncError::ApiError {
             status: 503,
-            message: "Max retry attempts exceeded".to_string(),
+            message: "Max retry attempts exceeded".to_owned(),
         })
     }
 
@@ -230,11 +230,11 @@ impl SyncApiClient {
         let info: DatabaseInfo = self.get(&url).await?;
         info.database_url.ok_or_else(|| SyncError::ApiError {
             status: 404,
-            message: "Database URL not available for tenant".to_string(),
+            message: "Database URL not available for tenant".to_owned(),
         })
     }
 
-    async fn get<T: DeserializeOwned>(&self, url: &str) -> SyncResult<T> {
+    pub(crate) async fn get<T: DeserializeOwned>(&self, url: &str) -> SyncResult<T> {
         let resp = self
             .client
             .get(url)
@@ -244,7 +244,7 @@ impl SyncApiClient {
         response::handle_json(resp).await
     }
 
-    async fn post<T: DeserializeOwned, B: Serialize + Sync>(
+    pub(crate) async fn post<T: DeserializeOwned, B: Serialize + Sync>(
         &self,
         url: &str,
         body: &B,

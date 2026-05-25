@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::shared::profile::generate_oauth_at_rest_pepper;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct SecretsData {
+pub(crate) struct SecretsData {
     pub oauth_at_rest_pepper: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -30,11 +30,11 @@ pub struct SecretsData {
 }
 
 impl SecretsData {
-    pub const fn has_ai_provider(&self) -> bool {
+    pub(crate) const fn has_ai_provider(&self) -> bool {
         self.gemini.is_some() || self.anthropic.is_some() || self.openai.is_some()
     }
 
-    pub fn summary(&self) -> String {
+    pub(crate) fn summary(&self) -> String {
         let mut keys = Vec::new();
         if self.gemini.is_some() {
             keys.push("Gemini");
@@ -57,7 +57,7 @@ impl SecretsData {
     }
 }
 
-pub fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<SecretsData> {
+pub(crate) fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<SecretsData> {
     if !config.is_json_output() {
         CliService::section("Secrets Setup");
     }
@@ -85,7 +85,7 @@ pub fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<S
     Ok(secrets)
 }
 
-pub fn collect_interactive(
+pub(crate) fn collect_interactive(
     args: &SetupArgs,
     env_name: &str,
     _config: &CliConfig,
@@ -207,7 +207,7 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
     Ok(())
 }
 
-pub fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
+pub(crate) fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
     if let Some(parent) = secrets_path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
@@ -231,7 +231,7 @@ pub fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
+pub(crate) fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
     systemprompt_dir
         .join("secrets")
         .join(format!("{}.secrets.json", env_name))

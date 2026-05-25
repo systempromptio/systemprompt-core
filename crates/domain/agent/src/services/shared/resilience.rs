@@ -44,8 +44,8 @@ where
     }
 
     Err(AgentServiceError::Configuration(
-        "RetryConfiguration".to_string(),
-        "Retry configuration resulted in no attempts".to_string(),
+        "RetryConfiguration".to_owned(),
+        "Retry configuration resulted in no attempts".to_owned(),
     ))
 }
 

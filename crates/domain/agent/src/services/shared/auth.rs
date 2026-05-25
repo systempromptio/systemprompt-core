@@ -17,17 +17,17 @@ impl JwtValidator {
         Self
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn validate_token(&self, token: &str) -> Result<JwtClaims> {
         let header = decode_header(token)
             .map_err(|e| AgentServiceError::Authentication(format!("invalid token: {e}")))?;
         if header.alg != Algorithm::RS256 {
             return Err(AgentServiceError::Authentication(
-                "JWT must be RS256-signed".to_string(),
+                "JWT must be RS256-signed".to_owned(),
             ));
         }
         let kid = header.kid.as_deref().ok_or_else(|| {
-            AgentServiceError::Authentication("JWT missing `kid` header".to_string())
+            AgentServiceError::Authentication("JWT missing `kid` header".to_owned())
         })?;
         let key = authority::decoding_key_for_kid(kid)
             .map_err(|e| AgentServiceError::Authentication(format!("key lookup: {e}")))?
@@ -42,7 +42,7 @@ impl JwtValidator {
 
 pub fn extract_bearer_token(authorization_header: &str) -> Result<&str> {
     authorization_header.strip_prefix("Bearer ").ok_or_else(|| {
-        AgentServiceError::Authentication("invalid authorization header format".to_string())
+        AgentServiceError::Authentication("invalid authorization header format".to_owned())
     })
 }
 

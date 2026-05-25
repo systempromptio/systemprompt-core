@@ -23,7 +23,7 @@ fn validate_slug(slug: &str) -> Result<(), ContentError> {
     let normalized = slug.trim_matches('/');
     if normalized.is_empty() {
         return Err(ContentError::Validation(
-            "slug cannot consist of only slashes".to_string(),
+            "slug cannot consist of only slashes".to_owned(),
         ));
     }
 
@@ -42,7 +42,7 @@ fn validate_slug(slug: &str) -> Result<(), ContentError> {
 pub fn validate_content_metadata(metadata: &ContentMetadata) -> Result<(), ContentError> {
     if metadata.title.trim().is_empty() {
         return Err(ContentError::Validation(
-            "title cannot be empty".to_string(),
+            "title cannot be empty".to_owned(),
         ));
     }
 
@@ -50,13 +50,13 @@ pub fn validate_content_metadata(metadata: &ContentMetadata) -> Result<(), Conte
 
     if metadata.author.trim().is_empty() {
         return Err(ContentError::Validation(
-            "author cannot be empty".to_string(),
+            "author cannot be empty".to_owned(),
         ));
     }
 
     if metadata.published_at.trim().is_empty() {
         return Err(ContentError::Validation(
-            "published_at cannot be empty".to_string(),
+            "published_at cannot be empty".to_owned(),
         ));
     }
 

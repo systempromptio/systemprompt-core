@@ -13,8 +13,8 @@ impl Profile {
         let db_type = require_env("DATABASE_TYPE")?;
 
         Ok(Self {
-            name: profile_name.to_string(),
-            display_name: display_name.to_string(),
+            name: profile_name.to_owned(),
+            display_name: display_name.to_owned(),
             target: ProfileType::Cloud,
             site: site_config_from_env()?,
             database: DatabaseConfig {
@@ -43,7 +43,7 @@ fn get_env(key: &str) -> Option<String> {
 }
 
 fn require_env(name: &'static str) -> ProfileResult<String> {
-    std::env::var(name).map_err(|_| ProfileError::MissingEnvVar { name })
+    std::env::var(name).map_err(|_e| ProfileError::MissingEnvVar { name })
 }
 
 fn site_config_from_env() -> ProfileResult<SiteConfig> {
@@ -69,7 +69,7 @@ fn server_config_from_env() -> ProfileResult<ServerConfig> {
         api_external_url: require_env("API_EXTERNAL_URL")?,
         use_https: get_env("USE_HTTPS").is_some_and(|v| v.to_lowercase() == "true"),
         cors_allowed_origins: get_env("CORS_ALLOWED_ORIGINS").map_or_else(Vec::new, |s| {
-            s.split(',').map(|s| s.trim().to_string()).collect()
+            s.split(',').map(|s| s.trim().to_owned()).collect()
         }),
         content_negotiation: ContentNegotiationConfig {
             enabled: get_env("CONTENT_NEGOTIATION_ENABLED")
@@ -184,7 +184,7 @@ fn rate_limits_from_env() -> RateLimitsConfig {
 
 fn runtime_config_from_env() -> ProfileResult<RuntimeConfig> {
     let environment = get_env("SYSTEMPROMPT_ENV")
-        .unwrap_or_else(|| "development".to_string())
+        .unwrap_or_else(|| "development".to_owned())
         .parse()
         .map_err(|e: String| ProfileError::InvalidEnvVar {
             name: "SYSTEMPROMPT_ENV",
@@ -192,7 +192,7 @@ fn runtime_config_from_env() -> ProfileResult<RuntimeConfig> {
         })?;
 
     let log_level = get_env("SYSTEMPROMPT_LOG_LEVEL")
-        .unwrap_or_else(|| "normal".to_string())
+        .unwrap_or_else(|| "normal".to_owned())
         .parse()
         .map_err(|e: String| ProfileError::InvalidEnvVar {
             name: "SYSTEMPROMPT_LOG_LEVEL",
@@ -200,7 +200,7 @@ fn runtime_config_from_env() -> ProfileResult<RuntimeConfig> {
         })?;
 
     let output_format = get_env("SYSTEMPROMPT_OUTPUT_FORMAT")
-        .unwrap_or_else(|| "text".to_string())
+        .unwrap_or_else(|| "text".to_owned())
         .parse()
         .map_err(|e: String| ProfileError::InvalidEnvVar {
             name: "SYSTEMPROMPT_OUTPUT_FORMAT",

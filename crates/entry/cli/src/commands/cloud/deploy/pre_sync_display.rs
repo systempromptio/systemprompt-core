@@ -4,7 +4,7 @@ use systemprompt_sync::{FileDiffStatus, SyncDiffResult, SyncOperationResult};
 
 use super::pre_sync::PreSyncResult;
 
-pub fn display_diff(diff: &SyncDiffResult) {
+pub(crate) fn display_diff(diff: &SyncDiffResult) {
     CliService::section("Cloud Sync Diff");
 
     if diff.added > 0 {
@@ -39,7 +39,7 @@ pub fn display_diff(diff: &SyncDiffResult) {
     }
 }
 
-pub fn display_destructive_warning() {
+pub(crate) fn display_destructive_warning() {
     CliService::warning("DESTRUCTIVE OPERATION");
     CliService::info("  Deploying replaces the running container.");
     CliService::info("  Runtime files (uploads, AI-generated images) not in your local build");
@@ -49,7 +49,7 @@ pub fn display_destructive_warning() {
     CliService::info("");
 }
 
-pub fn handle_sync_result(
+pub(crate) fn handle_sync_result(
     result: systemprompt_sync::SyncResult<SyncOperationResult>,
     dry_run: bool,
 ) -> Result<PreSyncResult> {

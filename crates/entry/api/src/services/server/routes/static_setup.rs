@@ -18,7 +18,7 @@ pub(super) fn build_static_router(
     events: Option<&StartupEventSender>,
 ) -> Router {
     let path = ctx.app_paths().system().content_config().to_path_buf();
-    #[allow(clippy::option_if_let_else)]
+    #[expect(clippy::option_if_let_else)]
     let content_matcher = if let Some(path_str) = path.to_str() {
         match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
@@ -27,7 +27,7 @@ pub(super) fn build_static_router(
                     if tx
                         .unbounded_send(StartupEvent::Warning {
                             message: format!("Failed to load content config: {e}"),
-                            context: Some("Static content matching will be disabled".to_string()),
+                            context: Some("Static content matching will be disabled".to_owned()),
                         })
                         .is_err()
                     {
@@ -41,7 +41,7 @@ pub(super) fn build_static_router(
         if let Some(tx) = events {
             if tx
                 .unbounded_send(StartupEvent::Warning {
-                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
+                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_owned(),
                     context: None,
                 })
                 .is_err()

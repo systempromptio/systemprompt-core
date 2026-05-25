@@ -10,7 +10,7 @@ use super::constants::defaults;
 use super::provider::GeminiProvider;
 use super::{converters, request_builders};
 
-pub struct SearchParams<'a> {
+pub(super) struct SearchParams<'a> {
     pub messages: &'a [AiMessage],
     pub sampling: Option<&'a SamplingParams>,
     pub max_output_tokens: u32,
@@ -18,7 +18,7 @@ pub struct SearchParams<'a> {
     pub urls: Option<Vec<String>>,
 }
 
-pub struct SearchParamsBuilder<'a> {
+pub(super) struct SearchParamsBuilder<'a> {
     messages: &'a [AiMessage],
     sampling: Option<&'a SamplingParams>,
     max_output_tokens: u32,
@@ -27,7 +27,7 @@ pub struct SearchParamsBuilder<'a> {
 }
 
 impl<'a> SearchParamsBuilder<'a> {
-    pub const fn new(messages: &'a [AiMessage], max_output_tokens: u32, model: &'a str) -> Self {
+    pub(super) const fn new(messages: &'a [AiMessage], max_output_tokens: u32, model: &'a str) -> Self {
         Self {
             messages,
             sampling: None,
@@ -37,17 +37,17 @@ impl<'a> SearchParamsBuilder<'a> {
         }
     }
 
-    pub const fn with_sampling(mut self, sampling: &'a SamplingParams) -> Self {
+    pub(super) const fn with_sampling(mut self, sampling: &'a SamplingParams) -> Self {
         self.sampling = Some(sampling);
         self
     }
 
-    pub fn with_urls(mut self, urls: Vec<String>) -> Self {
+    pub(super) fn with_urls(mut self, urls: Vec<String>) -> Self {
         self.urls = Some(urls);
         self
     }
 
-    pub fn build(self) -> SearchParams<'a> {
+    pub(super) fn build(self) -> SearchParams<'a> {
         SearchParams {
             messages: self.messages,
             sampling: self.sampling,
@@ -59,7 +59,7 @@ impl<'a> SearchParamsBuilder<'a> {
 }
 
 impl<'a> SearchParams<'a> {
-    pub const fn builder(
+    pub(super) const fn builder(
         messages: &'a [AiMessage],
         max_output_tokens: u32,
         model: &'a str,
@@ -68,7 +68,7 @@ impl<'a> SearchParams<'a> {
     }
 }
 
-pub async fn generate_with_google_search(
+pub(super) async fn generate_with_google_search(
     provider: &GeminiProvider,
     params: SearchParams<'_>,
 ) -> Result<SearchGroundedResponse> {
@@ -127,7 +127,7 @@ fn extract_grounded_response(
     let candidate = response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_string()))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_owned()))?;
 
     let content_text = candidate
         .content

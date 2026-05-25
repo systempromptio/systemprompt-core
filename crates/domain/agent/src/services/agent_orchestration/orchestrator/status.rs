@@ -28,7 +28,7 @@ impl AgentOrchestrator {
                 };
                 agent_info.push(AgentInfo {
                     id: AgentId::new(agent_id.clone()),
-                    name: "Unknown".to_string(),
+                    name: "Unknown".to_owned(),
                     status,
                     port,
                 });
@@ -47,7 +47,7 @@ impl AgentOrchestrator {
 
         let exists = self.db_service.agent_exists(agent_name).await?;
         if !exists {
-            report.add_issue("Agent not found in database".to_string());
+            report.add_issue("Agent not found in database".to_owned());
             return Ok(report);
         }
 

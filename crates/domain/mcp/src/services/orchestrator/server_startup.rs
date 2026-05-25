@@ -9,7 +9,7 @@ use crate::McpServerConfig;
 use crate::services::database::DatabaseService;
 use crate::services::lifecycle::LifecycleOrchestrator;
 
-pub struct StartPendingServersParams<'a> {
+pub(super) struct StartPendingServersParams<'a> {
     pub servers: &'a [McpServerConfig],
     pub running_names: &'a HashSet<String>,
     pub lifecycle: &'a LifecycleOrchestrator,
@@ -18,7 +18,7 @@ pub struct StartPendingServersParams<'a> {
     pub events: Option<&'a StartupEventSender>,
 }
 
-pub async fn start_pending_servers(
+pub(super) async fn start_pending_servers(
     params: StartPendingServersParams<'_>,
 ) -> McpDomainResult<usize> {
     let StartPendingServersParams {
@@ -140,7 +140,7 @@ async fn publish_start_failure(
             success: false,
             pid: None,
             port: Some(server.port),
-            error: Some(error_msg.to_string()),
+            error: Some(error_msg.to_owned()),
             duration_ms,
         })
         .await?;
@@ -148,7 +148,7 @@ async fn publish_start_failure(
     event_bus
         .publish(McpEvent::ServiceFailed {
             service_name: server.name.clone(),
-            error: error_msg.to_string(),
+            error: error_msg.to_owned(),
         })
         .await?;
 

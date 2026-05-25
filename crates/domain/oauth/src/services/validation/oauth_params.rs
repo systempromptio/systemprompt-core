@@ -32,7 +32,7 @@ impl CsrfToken {
 
         if !state.chars().all(|c| c.is_ascii_graphic()) {
             return Err(AuthError::InvalidRequest {
-                reason: "State must contain only printable ASCII characters".to_string(),
+                reason: "State must contain only printable ASCII characters".to_owned(),
             });
         }
 
@@ -62,11 +62,11 @@ pub fn required_param(value: Option<&str>, param_name: &str) -> Result<String, A
         .ok_or_else(|| AuthError::InvalidRequest {
             reason: format!("{param_name} parameter is required"),
         })
-        .map(ToString::to_string)
+        .map(str::to_owned)
 }
 
 pub fn optional_param(value: Option<&str>) -> Option<String> {
-    value.filter(|s| !s.is_empty()).map(ToString::to_string)
+    value.filter(|s| !s.is_empty()).map(str::to_owned)
 }
 
 pub fn scope_param(value: Option<&str>) -> Result<Vec<String>, AuthError> {
@@ -74,7 +74,7 @@ pub fn scope_param(value: Option<&str>) -> Result<Vec<String>, AuthError> {
 
     let scopes: Vec<String> = scope_str
         .split_whitespace()
-        .map(ToString::to_string)
+        .map(str::to_owned)
         .collect();
 
     if scopes.is_empty() {
@@ -88,7 +88,7 @@ pub fn get_audit_user(user_id: Option<&UserId>) -> Result<UserId, AuthError> {
     user_id
         .filter(|id| !id.as_str().is_empty())
         .ok_or_else(|| AuthError::InvalidRequest {
-            reason: "Authenticated user required for this operation".to_string(),
+            reason: "Authenticated user required for this operation".to_owned(),
         })
         .cloned()
 }

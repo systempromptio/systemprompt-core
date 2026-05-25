@@ -22,11 +22,11 @@ pub struct OAuthServerConfig {
 }
 
 fn default_auth_method() -> String {
-    "client_secret_basic".to_string()
+    "client_secret_basic".to_owned()
 }
 
 fn default_scope() -> String {
-    "openid".to_string()
+    "openid".to_owned()
 }
 
 const fn default_auth_code_expiry() -> i32 {

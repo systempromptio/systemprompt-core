@@ -81,7 +81,7 @@ impl UserRepository {
             )
         };
         let email = match (claims.email.as_deref(), claims.email_verified) {
-            (Some(addr), true) => addr.to_string(),
+            (Some(addr), true) => addr.to_owned(),
             (Some(addr), false) => {
                 tracing::warn!(
                     issuer,
@@ -138,7 +138,7 @@ impl UserRepository {
 
 fn normalised_roles(claim_roles: &[String]) -> Vec<String> {
     if claim_roles.is_empty() {
-        vec![UserRole::User.as_str().to_string()]
+        vec![UserRole::User.as_str().to_owned()]
     } else {
         claim_roles.to_vec()
     }

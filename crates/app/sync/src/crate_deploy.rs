@@ -91,8 +91,8 @@ impl CrateDeployService {
             })?;
 
         String::from_utf8(output.stdout)
-            .map(|sha| sha.trim().to_string())
-            .map_err(|_| SyncError::GitShaUnavailable)
+            .map(|sha| sha.trim().to_owned())
+            .map_err(|_e| SyncError::GitShaUnavailable)
     }
 
     fn build_release(project_root: &PathBuf) -> SyncResult<()> {

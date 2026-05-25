@@ -204,23 +204,23 @@ fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), Conten
 
     if parts.len() < 3 {
         return Err(ContentError::Parse(
-            "Invalid frontmatter format - missing '---' delimiters".to_string(),
+            "Invalid frontmatter format - missing '---' delimiters".to_owned(),
         ));
     }
 
     let metadata: ContentMetadata = serde_yaml::from_str(parts[1]).map_err(ContentError::Yaml)?;
 
-    Ok((metadata, parts[2].trim().to_string()))
+    Ok((metadata, parts[2].trim().to_owned()))
 }
 
 fn parse_date(date_str: &str) -> Result<DateTime<Utc>, ContentError> {
     chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
         .map_err(|e| ContentError::Parse(format!("Invalid date '{}': {}", date_str, e)))?
         .and_hms_opt(0, 0, 0)
-        .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_string()))?
+        .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?
         .and_local_timezone(Utc)
         .single()
-        .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_string()))
+        .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))
 }
 
 fn compute_version_hash(title: &str, body: &str, description: &str) -> String {

@@ -20,12 +20,12 @@ impl PathsConfig {
 
 fn resolve_path(base: &Path, path: &str) -> String {
     if path.is_empty() {
-        return path.to_string();
+        return path.to_owned();
     }
 
     let p = Path::new(path);
     if p.is_absolute() {
-        return path.to_string();
+        return path.to_owned();
     }
 
     let resolved = base.join(p);

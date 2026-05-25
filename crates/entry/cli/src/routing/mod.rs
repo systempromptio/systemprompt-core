@@ -1,4 +1,4 @@
-pub mod remote;
+pub(crate) mod remote;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
@@ -7,7 +7,7 @@ use systemprompt_identifiers::{ContextId, SessionToken};
 
 use crate::paths::ResolvedPaths;
 
-pub enum ExecutionTarget {
+pub(crate) enum ExecutionTarget {
     Local,
     Remote {
         hostname: String,
@@ -16,7 +16,7 @@ pub enum ExecutionTarget {
     },
 }
 
-pub fn determine_execution_target() -> Result<ExecutionTarget> {
+pub(crate) fn determine_execution_target() -> Result<ExecutionTarget> {
     let Ok(profile) = ProfileBootstrap::get() else {
         tracing::debug!("No profile loaded, routing to local execution");
         return Ok(ExecutionTarget::Local);

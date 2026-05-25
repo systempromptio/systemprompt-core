@@ -5,18 +5,18 @@ use systemprompt_logging::CliService;
 
 use super::common::PostgresConfig;
 
-pub fn is_docker_available() -> bool {
+pub(crate) fn is_docker_available() -> bool {
     Command::new("docker").arg("--version").output().is_ok()
 }
 
-pub fn is_compose_available() -> bool {
+pub(crate) fn is_compose_available() -> bool {
     Command::new("docker")
         .args(["compose", "version"])
         .output()
         .is_ok_and(|o| o.status.success())
 }
 
-pub fn is_container_running(container_name: &str) -> bool {
+pub(crate) fn is_container_running(container_name: &str) -> bool {
     Command::new("docker")
         .args([
             "ps",
@@ -29,7 +29,7 @@ pub fn is_container_running(container_name: &str) -> bool {
         .is_ok_and(|o| !String::from_utf8_lossy(&o.stdout).trim().is_empty())
 }
 
-pub fn create_compose_files_if_missing(
+pub(crate) fn create_compose_files_if_missing(
     compose_dir: &Path,
     container_name: &str,
     port: u16,
@@ -87,7 +87,7 @@ networks:
     Ok(())
 }
 
-pub fn start_compose(
+pub(crate) fn start_compose(
     config: &PostgresConfig,
     compose_dir: &Path,
     container_name: &str,
@@ -113,7 +113,7 @@ pub fn start_compose(
     Ok(())
 }
 
-pub fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) {
+pub(crate) fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) {
     CliService::info("Waiting for PostgreSQL to be ready...");
 
     for _ in 0..30 {

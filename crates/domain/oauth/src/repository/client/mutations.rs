@@ -17,7 +17,7 @@ impl ClientRepository {
 
         let default_grant_types: Vec<String> = crate::models::GrantType::default_grant_types()
             .iter()
-            .map(|s| (*s).to_string())
+            .map(|s| (*s).to_owned())
             .collect();
         let default_response_types = vec![crate::models::ResponseType::Code.to_string()];
 
@@ -82,7 +82,7 @@ impl ClientRepository {
             client_secret_hash: Some(params.client_secret_hash),
             client_name: params.client_name,
             name: None,
-            token_endpoint_auth_method: Some(auth_method.to_string()),
+            token_endpoint_auth_method: Some(auth_method.to_owned()),
             client_uri: params.client_uri,
             logo_uri: params.logo_uri,
             is_active: Some(true),

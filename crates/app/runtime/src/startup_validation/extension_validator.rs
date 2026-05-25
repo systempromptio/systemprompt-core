@@ -17,7 +17,7 @@ pub(super) fn validate_extensions(
     let extensions = match ExtensionRegistry::discover() {
         Ok(extensions) => extensions,
         Err(e) => {
-            let mut ext_report = ValidationReport::new("ext:registry".to_string());
+            let mut ext_report = ValidationReport::new("ext:registry".to_owned());
             ext_report.add_error(ValidationError::new(
                 "extension_discovery",
                 format!("Failed to discover extensions: {}", e),

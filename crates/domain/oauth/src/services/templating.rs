@@ -7,7 +7,7 @@ pub struct TemplateEngine;
 
 impl TemplateEngine {
     pub fn render(template: &str, context: HashMap<&str, &str>) -> String {
-        let mut result = template.to_string();
+        let mut result = template.to_owned();
 
         for (key, value) in context {
             let placeholder = format!("{{{key}}}");

@@ -50,7 +50,7 @@ impl BuildPaths {
                     }
                 }
                 Err(PathError::BinaryNotFound {
-                    name: name.to_string(),
+                    name: name.to_owned(),
                     searched,
                 })
             },

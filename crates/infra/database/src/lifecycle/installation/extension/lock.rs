@@ -29,7 +29,7 @@ impl BootstrapLockGuard {
             .acquire()
             .await
             .map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: "database".to_string(),
+                extension: "database".to_owned(),
                 message: format!("Failed to acquire bootstrap lock connection: {e}"),
             })?;
 
@@ -37,7 +37,7 @@ impl BootstrapLockGuard {
             .execute(conn.as_mut())
             .await
             .map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: "database".to_string(),
+                extension: "database".to_owned(),
                 message: format!("Failed to acquire bootstrap advisory lock: {e}"),
             })?;
 

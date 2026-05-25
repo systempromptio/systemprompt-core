@@ -6,7 +6,7 @@ use systemprompt_traits::{ToolContext, ToolProviderError};
 
 use crate::services::deployment::DeploymentService;
 
-pub fn create_request_context(
+pub(super) fn create_request_context(
     ctx: &ToolContext,
     server_config: &McpServerConfig,
 ) -> Result<RequestContext, ToolProviderError> {
@@ -67,7 +67,7 @@ pub fn create_request_context(
     Ok(request_ctx)
 }
 
-pub fn load_agent_servers(agent_name: &str) -> McpDomainResult<Vec<String>> {
+pub(super) fn load_agent_servers(agent_name: &str) -> McpDomainResult<Vec<String>> {
     let config = DeploymentService::load_config()?;
     let agent_name_type = AgentName::new(agent_name);
 

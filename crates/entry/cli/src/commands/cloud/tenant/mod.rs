@@ -1,6 +1,6 @@
 mod cancel;
 mod create;
-mod delete;
+pub(crate) mod delete;
 mod docker;
 mod edit;
 mod list;

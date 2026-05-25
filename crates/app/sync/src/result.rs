@@ -30,7 +30,7 @@ pub struct SyncOperationResult {
 impl SyncOperationResult {
     pub fn success(operation: &str, items_synced: usize) -> Self {
         Self {
-            operation: operation.to_string(),
+            operation: operation.to_owned(),
             success: true,
             items_synced,
             items_skipped: 0,
@@ -47,7 +47,7 @@ impl SyncOperationResult {
 
     pub fn dry_run(operation: &str, items_skipped: usize, details: serde_json::Value) -> Self {
         Self {
-            operation: operation.to_string(),
+            operation: operation.to_owned(),
             success: true,
             items_synced: 0,
             items_skipped,

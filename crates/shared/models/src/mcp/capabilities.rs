@@ -58,7 +58,7 @@ impl McpAppsUiConfig {
 }
 
 fn default_mime_types() -> Vec<String> {
-    vec![MCP_APP_MIME_TYPE.to_string()]
+    vec![MCP_APP_MIME_TYPE.to_owned()]
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -217,7 +217,7 @@ impl McpResourceUiMeta {
 
     pub fn to_meta_map(&self) -> serde_json::Map<String, serde_json::Value> {
         let mut meta = serde_json::Map::new();
-        meta.insert("ui".to_string(), self.to_json());
+        meta.insert("ui".to_owned(), self.to_json());
         meta
     }
 }

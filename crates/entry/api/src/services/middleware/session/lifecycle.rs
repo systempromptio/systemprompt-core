@@ -12,7 +12,7 @@ pub(super) async fn create_new_session(
     uri: &http::Uri,
     _method: &http::Method,
 ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
-    let client_id = ClientId::new("sp_web".to_string());
+    let client_id = ClientId::new("sp_web".to_owned());
 
     session_creation_service
         .create_anonymous_session(CreateAnonymousSessionInput {
@@ -66,7 +66,7 @@ pub(super) async fn refresh_session_for_user(
     let token = systemprompt_oauth::services::generation::generate_anonymous_jwt(
         user_id,
         &session_id,
-        &ClientId::new("sp_web".to_string()),
+        &ClientId::new("sp_web".to_owned()),
         &systemprompt_oauth::services::JwtSigningParams {
             issuer: &config.jwt_issuer,
         },

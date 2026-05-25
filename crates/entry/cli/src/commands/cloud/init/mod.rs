@@ -5,7 +5,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
 mod scaffolding;
-pub mod templates;
+pub(crate) mod templates;
 
 use super::dockerfile;
 use crate::cli_settings::CliConfig;
@@ -57,7 +57,7 @@ exec /app/bin/systemprompt {services_serve_cmd} --foreground
     )
 }
 
-pub fn execute(force: bool, _config: &CliConfig) -> Result<()> {
+pub(crate) fn execute(force: bool, _config: &CliConfig) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
     let ctx = ProjectContext::new(project_root.clone());
     let systemprompt_dir = ctx.systemprompt_dir();
@@ -122,7 +122,7 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn ensure_project_scaffolding(project_root: &Path) -> Result<()> {
+pub(crate) fn ensure_project_scaffolding(project_root: &Path) -> Result<()> {
     let services_dir = project_root.join("services");
     let web_dir = project_root.join("web");
 

@@ -79,7 +79,7 @@ pub fn load_managed_mcp_servers(
         out.push(ManagedMcpServer {
             name: mcp_name,
             url,
-            transport: Some("http".to_string()),
+            transport: Some("http".to_owned()),
             headers: None,
             oauth: Some(deployment.oauth.required),
             tool_policy: None,
@@ -144,7 +144,7 @@ fn build_plugin_entry(
     }))
 }
 
-fn collect_files(
+pub(crate) fn collect_files(
     root: &Path,
     dir: &Path,
     out: &mut BTreeMap<String, PluginFile>,

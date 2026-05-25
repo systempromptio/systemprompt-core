@@ -26,9 +26,9 @@ fn derive_return_to(client_state: &str) -> String {
         || raw.contains('\n')
         || raw.contains('\r')
     {
-        return "/".to_string();
+        return "/".to_owned();
     }
-    raw.to_string()
+    raw.to_owned()
 }
 
 fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHttpError {
@@ -63,14 +63,14 @@ pub async fn handle_authorize_get(
                 "CSRF token (state parameter) is required",
             ));
         },
-        Some(state_str) => CsrfToken::new(state_str).map_err(|_| {
+        Some(state_str) => CsrfToken::new(state_str).map_err(|_e| {
             OAuthHttpError::invalid_request("CSRF token (state parameter) is invalid")
         })?,
     };
 
     if params.response_type.is_empty() || params.client_id.as_str().is_empty() {
         let mut redirect_query = params.clone();
-        redirect_query.state = Some(csrf_token.as_str().to_string());
+        redirect_query.state = Some(csrf_token.as_str().to_owned());
         return Err(with_redirect_if_set(
             OAuthHttpError::invalid_request("Validation error: Missing required parameters"),
             &redirect_query,

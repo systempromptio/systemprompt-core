@@ -15,7 +15,7 @@ pub async fn validate_client_credentials(
     let client = repo
         .find_client_by_id(client_id)
         .await?
-        .ok_or_else(|| crate::error::OauthError::Internal("Client not found".to_string()))?;
+        .ok_or_else(|| crate::error::OauthError::Internal("Client not found".to_owned()))?;
 
     verify_client_authentication(
         client.token_endpoint_auth_method.as_str(),
@@ -38,26 +38,26 @@ pub fn verify_client_authentication(
         (Some(_hash), None) => {
             perform_timing_safe_dummy_verification();
             return Err(crate::error::OauthError::Internal(
-                "Client secret required".to_string(),
+                "Client secret required".to_owned(),
             ));
         },
         (None, Some(_secret)) => {
             perform_timing_safe_dummy_verification();
             return Err(crate::error::OauthError::Internal(
-                "Client has no secret hash configured".to_string(),
+                "Client has no secret hash configured".to_owned(),
             ));
         },
         (None, None) => {
             perform_timing_safe_dummy_verification();
             return Err(crate::error::OauthError::Internal(
-                "Client secret required".to_string(),
+                "Client secret required".to_owned(),
             ));
         },
     };
 
     if !verify_client_secret(secret_to_verify, hash_to_verify)? {
         return Err(crate::error::OauthError::Internal(
-            "Invalid client secret".to_string(),
+            "Invalid client secret".to_owned(),
         ));
     }
 

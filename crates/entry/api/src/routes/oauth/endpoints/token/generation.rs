@@ -74,7 +74,7 @@ pub async fn generate_tokens_by_user_id(
     Ok(GeneratedTokens {
         response: TokenResponse {
             access_token: jwt_and_refresh.access_token,
-            token_type: "Bearer".to_string(),
+            token_type: "Bearer".to_owned(),
             expires_in,
             refresh_token: Some(jwt_and_refresh.refresh_token_value),
             scope: Some(jwt_and_refresh.scope_string),
@@ -145,7 +145,7 @@ async fn create_jwt_and_refresh_token(
         access_token,
         refresh_token_value,
         scope_string,
-        refresh_token_id: refresh_token_id.as_str().to_string(),
+        refresh_token_id: refresh_token_id.as_str().to_owned(),
     })
 }
 

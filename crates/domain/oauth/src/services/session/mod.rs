@@ -214,7 +214,7 @@ impl SessionCreationService {
             let mut locks = self.fingerprint_locks.write().await;
             Arc::clone(
                 locks
-                    .entry(fingerprint.to_string())
+                    .entry(fingerprint.to_owned())
                     .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))),
             )
         };

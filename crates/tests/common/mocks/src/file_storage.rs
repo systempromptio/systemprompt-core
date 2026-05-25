@@ -103,7 +103,7 @@ impl FileStorage for MockFileStorage {
             .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
     }
 
-    async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
+    pub(crate) async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
         self.files.lock().await.remove(id.as_str());
         self.metadata.lock().await.remove(id.as_str());
         Ok(())
@@ -118,7 +118,7 @@ impl FileStorage for MockFileStorage {
             .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
     }
 
-    async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {
+    pub(crate) async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {
         Ok(self.files.lock().await.contains_key(id.as_str()))
     }
 }

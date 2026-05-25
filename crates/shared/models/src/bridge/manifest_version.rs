@@ -62,7 +62,7 @@ impl ManifestVersion {
         }
         let parsed = Parsed {
             timestamp,
-            suffix: suffix.to_string(),
+            suffix: suffix.to_owned(),
         };
         Ok(Self { raw, parsed })
     }

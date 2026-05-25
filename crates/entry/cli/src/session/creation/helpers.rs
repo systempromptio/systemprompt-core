@@ -163,7 +163,7 @@ pub(super) async fn resolve_local_user_email(
         .await
         .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
 
-    let creds = CredentialsBootstrap::require().map_err(|_| {
+    let creds = CredentialsBootstrap::require().map_err(|_e| {
         anyhow::anyhow!(
             "Cloud authentication required for new sessions.\n\nRun 'systemprompt cloud auth \
              login' to authenticate."

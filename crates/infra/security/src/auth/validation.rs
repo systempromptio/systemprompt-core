@@ -95,7 +95,7 @@ impl AuthValidationService {
         let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
         let key = authority::decoding_key_for_kid(kid)
             .map_err(|e| AuthError::KeyLookup(e.to_string()))?
-            .ok_or_else(|| AuthError::UnknownKid(kid.to_string()))?;
+            .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
 
         let mut validation = Validation::new(Algorithm::RS256);
         validation.leeway = JWT_LEEWAY_SECONDS;
@@ -162,7 +162,7 @@ impl AuthValidationService {
 
     fn create_anonymous_context(headers: &HeaderMap) -> RequestContext {
         RequestContext::new(
-            SessionId::new(ANONYMOUS_SESSION_ID.to_string()),
+            SessionId::new(ANONYMOUS_SESSION_ID.to_owned()),
             HeaderExtractor::extract_trace_id(headers),
             HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
             HeaderExtractor::extract_agent_name(headers),

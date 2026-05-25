@@ -21,7 +21,7 @@ pub use text::truncate_with_ellipsis;
 #[macro_export]
 macro_rules! define_pool_command {
     ($args_ty:ty => $ret_ty:ty, with_config) => {
-        pub async fn execute(
+        pub(crate) async fn execute(
             args: $args_ty,
             config: &$crate::CliConfig,
         ) -> ::anyhow::Result<$ret_ty> {
@@ -30,7 +30,7 @@ macro_rules! define_pool_command {
             execute_with_pool_inner(args, &pool, config).await
         }
 
-        pub async fn execute_with_pool(
+        pub(crate) async fn execute_with_pool(
             args: $args_ty,
             db_ctx: &::systemprompt_runtime::DatabaseContext,
             config: &$crate::CliConfig,
@@ -40,7 +40,7 @@ macro_rules! define_pool_command {
         }
     };
     ($args_ty:ty => $ret_ty:ty, no_config) => {
-        pub async fn execute(
+        pub(crate) async fn execute(
             args: $args_ty,
             _config: &$crate::CliConfig,
         ) -> ::anyhow::Result<$ret_ty> {
@@ -49,7 +49,7 @@ macro_rules! define_pool_command {
             execute_with_pool_inner(args, &pool).await
         }
 
-        pub async fn execute_with_pool(
+        pub(crate) async fn execute_with_pool(
             args: $args_ty,
             db_ctx: &::systemprompt_runtime::DatabaseContext,
             _config: &$crate::CliConfig,

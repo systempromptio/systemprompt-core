@@ -32,7 +32,7 @@ pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
     }
 
     let profile =
-        ProfileBootstrap::get().map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+        ProfileBootstrap::get().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
 
     let secrets_config = profile
         .secrets
@@ -63,7 +63,7 @@ pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
 
 fn resolve_and_load_file(path_str: &str) -> ConfigResult<Secrets> {
     let profile_path =
-        ProfileBootstrap::get_path().map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+        ProfileBootstrap::get_path().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
 
     let profile_dir = Path::new(profile_path)
         .parent()

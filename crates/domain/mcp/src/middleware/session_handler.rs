@@ -116,7 +116,7 @@ impl DatabaseSessionHandler {
         }
     }
 
-    async fn update_activity(&self, session_id: &SessionId) {
+    pub(crate) async fn update_activity(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
         if let Some(repo) = repo_guard.as_ref()
             && let Err(e) = repo

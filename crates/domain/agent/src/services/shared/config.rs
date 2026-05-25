@@ -27,14 +27,14 @@ impl ServiceConfiguration {
     pub fn validate(&self) -> Result<()> {
         if self.retry_attempts == 0 {
             return Err(AgentServiceError::Configuration(
-                "ServiceConfiguration".to_string(),
-                "retry_attempts must be at least 1".to_string(),
+                "ServiceConfiguration".to_owned(),
+                "retry_attempts must be at least 1".to_owned(),
             ));
         }
         if self.max_connections == 0 {
             return Err(AgentServiceError::Configuration(
-                "ServiceConfiguration".to_string(),
-                "max_connections must be at least 1".to_string(),
+                "ServiceConfiguration".to_owned(),
+                "max_connections must be at least 1".to_owned(),
             ));
         }
         Ok(())
@@ -81,7 +81,7 @@ impl RuntimeConfigurationBuilder {
             agent_id,
             name,
             port: 8080,
-            host: "localhost".to_string(),
+            host: "localhost".to_owned(),
             ssl_enabled: false,
             auth_required: false,
             system_prompt: None,
@@ -159,20 +159,20 @@ impl ConfigValidation for AgentServiceConfig {
     fn validate(&self) -> Result<()> {
         if self.agent_id.as_str().is_empty() {
             return Err(AgentServiceError::Validation(
-                "agent_id".to_string(),
-                "cannot be empty".to_string(),
+                "agent_id".to_owned(),
+                "cannot be empty".to_owned(),
             ));
         }
         if self.port == 0 {
             return Err(AgentServiceError::Validation(
-                "port".to_string(),
-                "must be greater than 0".to_string(),
+                "port".to_owned(),
+                "must be greater than 0".to_owned(),
             ));
         }
         if self.name.is_empty() {
             return Err(AgentServiceError::Validation(
-                "name".to_string(),
-                "cannot be empty".to_string(),
+                "name".to_owned(),
+                "cannot be empty".to_owned(),
             ));
         }
         Ok(())
@@ -183,10 +183,10 @@ impl Default for AgentServiceConfig {
     fn default() -> Self {
         Self {
             agent_id: AgentId::generate(),
-            name: "Default Agent".to_string(),
-            description: "Default agent instance".to_string(),
-            version: "0.1.0".to_string(),
-            endpoint: "http://localhost:8080".to_string(),
+            name: "Default Agent".to_owned(),
+            description: "Default agent instance".to_owned(),
+            version: "0.1.0".to_owned(),
+            endpoint: "http://localhost:8080".to_owned(),
             port: 8080,
             is_active: true,
         }

@@ -10,20 +10,20 @@ use systemprompt_logging::services::cli::BrandColors;
 
 use super::widgets::{CompletionMessage, ServiceTable, StartupBanner, render_warning};
 
-pub struct StartupRenderer {
+pub(crate) struct StartupRenderer {
     receiver: StartupEventReceiver,
     state: RenderState,
 }
 
 impl StartupRenderer {
-    pub fn new(receiver: StartupEventReceiver) -> Self {
+    pub(crate) fn new(receiver: StartupEventReceiver) -> Self {
         Self {
             receiver,
             state: RenderState::new(),
         }
     }
 
-    pub async fn run(mut self) {
+    pub(crate) async fn run(mut self) {
         StartupBanner::render(Some("Starting services..."));
 
         while let Some(event) = self.receiver.next().await {

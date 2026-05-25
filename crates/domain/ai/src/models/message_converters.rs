@@ -11,8 +11,7 @@ impl From<&AiMessage> for OpenAiMessage {
             MessageRole::System => "system",
             MessageRole::User => "user",
             MessageRole::Assistant => "assistant",
-        }
-        .to_string();
+        }.to_owned();
 
         let content = if message.parts.is_empty() {
             OpenAiMessageContent::Text(message.content.clone())
@@ -66,8 +65,7 @@ impl From<&AiMessage> for AnthropicMessage {
         let role = match message.role {
             MessageRole::System | MessageRole::Assistant => "assistant",
             MessageRole::User => "user",
-        }
-        .to_string();
+        }.to_owned();
 
         let content = if message.parts.is_empty() {
             AnthropicContent::Text(message.content.clone())
@@ -125,8 +123,7 @@ impl From<&AiMessage> for GeminiContent {
             role: match message.role {
                 MessageRole::System | MessageRole::User => "user",
                 MessageRole::Assistant => "model",
-            }
-            .to_string(),
+            }.to_owned(),
             parts: vec![GeminiPart::Text {
                 text: message.content.clone(),
             }],

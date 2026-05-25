@@ -30,13 +30,13 @@ pub struct BotsArgs {
     pub include_all: bool,
 }
 
-pub async fn execute(args: BotsArgs, _config: &CliConfig) -> Result<CommandResult<BotsOutput>> {
+pub(crate) async fn execute(args: BotsArgs, _config: &CliConfig) -> Result<CommandResult<BotsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: BotsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

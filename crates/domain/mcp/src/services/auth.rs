@@ -13,13 +13,13 @@ pub fn validate_jwt_token(
         .map_err(|e| McpDomainError::Internal(format!("JWT header decode failed: {e}")))?;
     if header.alg != Algorithm::RS256 {
         return Err(McpDomainError::Internal(
-            "JWT must be RS256-signed".to_string(),
+            "JWT must be RS256-signed".to_owned(),
         ));
     }
     let kid = header
         .kid
         .as_deref()
-        .ok_or_else(|| McpDomainError::Internal("JWT missing `kid` header".to_string()))?;
+        .ok_or_else(|| McpDomainError::Internal("JWT missing `kid` header".to_owned()))?;
     let key = authority::decoding_key_for_kid(kid)
         .map_err(|e| McpDomainError::Internal(format!("signing key lookup failed: {e}")))?
         .ok_or_else(|| McpDomainError::Internal(format!("unknown `kid` `{kid}`")))?;
@@ -35,7 +35,7 @@ pub fn validate_jwt_token(
     let now = Utc::now().timestamp();
 
     if token_data.claims.exp < now {
-        return Err(McpDomainError::Internal("Token has expired".to_string()));
+        return Err(McpDomainError::Internal("Token has expired".to_owned()));
     }
 
     Ok(token_data.claims)

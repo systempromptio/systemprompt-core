@@ -158,10 +158,10 @@ impl OAuthRepository {
         scopes: Option<&[String]>,
     ) -> OauthResult<OAuthClient> {
         let updated_name = match name {
-            Some(n) if !n.is_empty() => n.to_string(),
+            Some(n) if !n.is_empty() => n.to_owned(),
             _ => {
                 return Err(OauthError::Validation(
-                    "Client name is required for update".to_string(),
+                    "Client name is required for update".to_owned(),
                 ));
             },
         };
@@ -170,17 +170,17 @@ impl OAuthRepository {
             redirect_uris
                 .filter(|uris| !uris.is_empty())
                 .ok_or_else(|| {
-                    OauthError::Validation("At least one redirect URI required".to_string())
+                    OauthError::Validation("At least one redirect URI required".to_owned())
                 })?;
 
         let updated_scopes = scopes
             .filter(|s| !s.is_empty())
-            .ok_or_else(|| OauthError::Validation("At least one scope required".to_string()))?;
+            .ok_or_else(|| OauthError::Validation("At least one scope required".to_owned()))?;
 
         let client = self
             .find_client_by_id(client_id)
             .await?
-            .ok_or_else(|| OauthError::Validation("Client not found".to_string()))?;
+            .ok_or_else(|| OauthError::Validation("Client not found".to_owned()))?;
 
         let client_repo = &self.client_repo;
         let params = UpdateClientParams {
@@ -197,7 +197,7 @@ impl OAuthRepository {
         };
         let updated = client_repo.update(params).await?;
 
-        updated.ok_or_else(|| OauthError::Validation("Client not found".to_string()))
+        updated.ok_or_else(|| OauthError::Validation("Client not found".to_owned()))
     }
 
     pub async fn update_client_secret(
@@ -226,7 +226,7 @@ impl OAuthRepository {
         };
         let updated = client_repo.update(params).await?;
 
-        updated.ok_or_else(|| OauthError::Validation("Client not found".to_string()))
+        updated.ok_or_else(|| OauthError::Validation("Client not found".to_owned()))
     }
 
     pub async fn delete_client(&self, client_id: &ClientId) -> OauthResult<bool> {

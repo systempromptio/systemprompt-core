@@ -36,11 +36,11 @@ impl StructuredOutputProcessor {
         options: &StructuredOutputOptions,
     ) -> String {
         if !options.inject_json_prompt.unwrap_or(true) {
-            return original_prompt.to_string();
+            return original_prompt.to_owned();
         }
 
         match format {
-            ResponseFormat::Text => original_prompt.to_string(),
+            ResponseFormat::Text => original_prompt.to_owned(),
             ResponseFormat::JsonObject => {
                 format!(
                     "{original_prompt}\n\nIMPORTANT: You must respond with valid JSON only. Do \
@@ -50,7 +50,7 @@ impl StructuredOutputProcessor {
             },
             ResponseFormat::JsonSchema { schema, name, .. } => {
                 let schema_str =
-                    serde_json::to_string_pretty(schema).unwrap_or_else(|_| "{}".to_string());
+                    serde_json::to_string_pretty(schema).unwrap_or_else(|_| "{}".to_owned());
 
                 let schema_name = name.as_deref().unwrap_or("response");
 

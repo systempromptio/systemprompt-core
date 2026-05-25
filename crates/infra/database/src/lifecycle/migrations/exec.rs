@@ -37,7 +37,7 @@ pub(super) async fn execute_statements_transactional(
         .begin_transaction()
         .await
         .map_err(|e| LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
+            extension: ext_id.to_owned(),
             message: format!(
                 "Failed to begin transaction for migration {} ({}): {e}",
                 migration.version, migration.name
@@ -53,7 +53,7 @@ pub(super) async fn execute_statements_transactional(
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
             return Err(LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!(
                     "Migration {ver} ({name}) statement {n}/{total} failed: \
                      {e}{rollback_note}\nSQL:\n{statement}",
@@ -68,7 +68,7 @@ pub(super) async fn execute_statements_transactional(
     tx.commit()
         .await
         .map_err(|e| LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
+            extension: ext_id.to_owned(),
             message: format!(
                 "Failed to commit migration {} ({}): {e}",
                 migration.version, migration.name
@@ -86,7 +86,7 @@ pub(super) fn check_cross_extension_alters(
 ) -> Result<(), LoaderError> {
     let ext_id = extension.metadata().id;
     let altered = alter_table_targets(migration.sql).map_err(|e| LoaderError::MigrationFailed {
-        extension: ext_id.to_string(),
+        extension: ext_id.to_owned(),
         message: format!(
             "Failed to parse migration {} ({}) for cross-extension ALTER check: {e}",
             migration.version, migration.name
@@ -104,12 +104,12 @@ pub(super) fn check_cross_extension_alters(
         }
     }
     for t in extension.cross_extension_tables() {
-        allowed.insert(t.to_string());
+        allowed.insert(t.to_owned());
     }
     for table in &altered {
         if !allowed.contains(table.as_str()) {
             return Err(LoaderError::CrossExtensionAlterUndeclared {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 table: table.clone(),
             });
         }

@@ -12,7 +12,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::types::DbMigrateOutput;
 
-pub async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bool) -> Result<()> {
+pub(crate) async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bool) -> Result<()> {
     let sys_config = Config::get()?;
 
     if config.should_show_verbose() {
@@ -40,7 +40,7 @@ pub async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bool) -> 
     .await
 }
 
-pub async fn execute_migrate_standalone(
+pub(crate) async fn execute_migrate_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
     allow_checksum_drift: bool,

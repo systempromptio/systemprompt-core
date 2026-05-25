@@ -3,13 +3,13 @@ use tracing::field::{Field, Visit};
 use tracing_subscriber::registry::LookupSpan;
 
 mod field_names {
-    pub const MESSAGE: &str = "message";
-    pub const USER_ID: &str = "user_id";
-    pub const SESSION_ID: &str = "session_id";
-    pub const TASK_ID: &str = "task_id";
-    pub const TRACE_ID: &str = "trace_id";
-    pub const CONTEXT_ID: &str = "context_id";
-    pub const CLIENT_ID: &str = "client_id";
+    pub(super) const MESSAGE: &str = "message";
+    pub(super) const USER_ID: &str = "user_id";
+    pub(super) const SESSION_ID: &str = "session_id";
+    pub(super) const TASK_ID: &str = "task_id";
+    pub(super) const TRACE_ID: &str = "trace_id";
+    pub(super) const CONTEXT_ID: &str = "context_id";
+    pub(super) const CLIENT_ID: &str = "client_id";
 }
 
 const REDACTED_FIELD_NAMES: &[&str] = &[
@@ -37,7 +37,7 @@ fn is_redacted(field_name: &str) -> bool {
 }
 
 #[derive(Debug, Default)]
-pub struct FieldVisitor {
+pub(crate) struct FieldVisitor {
     pub message: String,
     pub fields: Option<serde_json::Value>,
 }
@@ -73,7 +73,7 @@ impl Visit for FieldVisitor {
                 } else {
                     serde_json::json!(format!("{value:?}"))
                 };
-                obj.insert(field.name().to_string(), rendered);
+                obj.insert(field.name().to_owned(), rendered);
             }
         }
     }
@@ -89,7 +89,7 @@ impl Visit for FieldVisitor {
                 } else {
                     serde_json::json!(value)
                 };
-                obj.insert(field.name().to_string(), rendered);
+                obj.insert(field.name().to_owned(), rendered);
             }
         }
     }
@@ -102,7 +102,7 @@ impl Visit for FieldVisitor {
             } else {
                 serde_json::json!(value)
             };
-            obj.insert(field.name().to_string(), rendered);
+            obj.insert(field.name().to_owned(), rendered);
         }
     }
 
@@ -114,7 +114,7 @@ impl Visit for FieldVisitor {
             } else {
                 serde_json::json!(value)
             };
-            obj.insert(field.name().to_string(), rendered);
+            obj.insert(field.name().to_owned(), rendered);
         }
     }
 
@@ -126,13 +126,13 @@ impl Visit for FieldVisitor {
             } else {
                 serde_json::json!(value)
             };
-            obj.insert(field.name().to_string(), rendered);
+            obj.insert(field.name().to_owned(), rendered);
         }
     }
 }
 
 #[derive(Debug, Default)]
-pub struct SpanContext {
+pub(crate) struct SpanContext {
     pub user: Option<String>,
     pub session: Option<String>,
     pub task: Option<String>,
@@ -142,7 +142,7 @@ pub struct SpanContext {
 }
 
 #[derive(Debug)]
-pub struct SpanVisitor<'a> {
+pub(crate) struct SpanVisitor<'a> {
     pub context: &'a mut SpanContext,
 }
 
@@ -153,7 +153,7 @@ impl Visit for SpanVisitor<'_> {
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
-        self.record_field(field.name(), value.to_string());
+        self.record_field(field.name(), value.to_owned());
     }
 }
 
@@ -178,7 +178,7 @@ impl SpanVisitor<'_> {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct SpanFields {
+pub(crate) struct SpanFields {
     pub user: Option<String>,
     pub session: Option<String>,
     pub task: Option<String>,
@@ -187,7 +187,7 @@ pub struct SpanFields {
     pub client: Option<String>,
 }
 
-pub fn extract_span_context<S>(span: tracing_subscriber::registry::SpanRef<'_, S>) -> SpanContext
+pub(crate) fn extract_span_context<S>(span: tracing_subscriber::registry::SpanRef<'_, S>) -> SpanContext
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {

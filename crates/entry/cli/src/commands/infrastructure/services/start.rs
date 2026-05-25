@@ -1,5 +1,5 @@
 use crate::cli_settings::CliConfig;
-use crate::presentation::StartupRenderer;
+pub(crate) use crate::presentation::StartupRenderer;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use std::time::Instant;
@@ -14,27 +14,27 @@ use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
 
-pub struct ServiceTarget {
+pub(crate) struct ServiceTarget {
     pub api: bool,
     pub agents: bool,
     pub mcp: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ServiceFlags {
+pub(crate) struct ServiceFlags {
     pub all: bool,
     pub targets: ServiceTargetFlags,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ServiceTargetFlags {
+pub(crate) struct ServiceTargetFlags {
     pub api: bool,
     pub agents: bool,
     pub mcp: bool,
 }
 
 impl ServiceTarget {
-    pub const fn all() -> Self {
+    pub(crate) const fn all() -> Self {
         Self {
             api: true,
             agents: true,
@@ -42,7 +42,7 @@ impl ServiceTarget {
         }
     }
 
-    pub const fn from_flags(flags: ServiceFlags) -> Self {
+    pub(crate) const fn from_flags(flags: ServiceFlags) -> Self {
         if flags.all || (!flags.targets.api && !flags.targets.agents && !flags.targets.mcp) {
             Self::all()
         } else {
@@ -55,12 +55,12 @@ impl ServiceTarget {
     }
 }
 
-pub struct StartupOptions {
+pub(crate) struct StartupOptions {
     pub skip_migrate: bool,
     pub kill_port_process: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     target: ServiceTarget,
     options: StartupOptions,
     config: &CliConfig,
@@ -164,7 +164,7 @@ async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
     Ok(agent.name)
 }
 
-pub async fn execute_individual_agent(
+pub(crate) async fn execute_individual_agent(
     ctx: &Arc<AppContext>,
     agent: &str,
     _config: &CliConfig,
@@ -194,7 +194,7 @@ pub async fn execute_individual_agent(
     Ok(())
 }
 
-pub async fn execute_individual_mcp(
+pub(crate) async fn execute_individual_mcp(
     ctx: &Arc<AppContext>,
     server_name: &str,
     _config: &CliConfig,

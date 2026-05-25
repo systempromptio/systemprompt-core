@@ -35,7 +35,7 @@ impl JsonParser {
         }
 
         Err(crate::error::AiError::Internal(
-            "No valid JSON found in response".to_string(),
+            "No valid JSON found in response".to_owned(),
         ))
     }
 
@@ -49,7 +49,7 @@ impl JsonParser {
                 .map(|m| m.as_str())
                 .ok_or_else(|| {
                     crate::error::AiError::Internal(
-                        "Pattern matched but no capture group found".to_string(),
+                        "Pattern matched but no capture group found".to_owned(),
                     )
                 })?;
 
@@ -100,7 +100,7 @@ impl JsonParser {
     }
 
     pub fn clean_json_string(content: &str) -> Result<String> {
-        let mut cleaned = content.trim().to_string();
+        let mut cleaned = content.trim().to_owned();
 
         let trailing_comma_re = Regex::new(r",\s*([}\]])")?;
         cleaned = trailing_comma_re.replace_all(&cleaned, "$1").to_string();

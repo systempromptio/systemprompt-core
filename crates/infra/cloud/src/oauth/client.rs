@@ -146,7 +146,7 @@ pub async fn run_oauth_flow(
 
     tokio::select! {
         result = rx => {
-            result.map_err(|_| CloudError::OAuthFlow { message: "Authentication cancelled".to_string() })?
+            result.map_err(|_e| CloudError::OAuthFlow { message: "Authentication cancelled".to_string() })?
         }
         _ = server => {
             Err(CloudError::OAuthFlow { message: "Server stopped unexpectedly".to_string() })

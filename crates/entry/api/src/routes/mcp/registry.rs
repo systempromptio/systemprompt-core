@@ -20,7 +20,7 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
-#[allow(clippy::unused_async)]
+#[expect(clippy::unused_async)]
 pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResponse {
     let server_configs = match ctx.mcp_registry().get_enabled_servers() {
         Ok(configs) => configs,
@@ -49,9 +49,9 @@ pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResp
                 .collect(),
             endpoint: ApiPaths::mcp_server_endpoint(&config.name),
             status: if config.enabled {
-                "enabled".to_string()
+                "enabled".to_owned()
             } else {
-                "disabled".to_string()
+                "disabled".to_owned()
             },
         })
         .collect();

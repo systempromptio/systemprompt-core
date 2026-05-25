@@ -1,6 +1,6 @@
 mod ai_provider;
 mod providers;
-pub mod upload;
+mod upload;
 
 pub use ai_provider::FilesAiPersistenceProvider;
 pub use upload::{

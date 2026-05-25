@@ -40,7 +40,7 @@ impl StartRegisterQuery {
     }
 }
 
-#[allow(unused_qualifications)]
+#[expect(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(username = %params.username, email = %params.email))]
 pub async fn start_register(
     Query(params): Query<StartRegisterQuery>,

@@ -17,7 +17,7 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
     tracing::info!(agent_name = %agent_name, "Fetching agent card");
 
     let base_url = Config::get().map_or_else(
-        |_| "http://localhost:3000".to_string(),
+        |_| "http://localhost:3000".to_owned(),
         |c| c.api_external_url.clone(),
     );
 

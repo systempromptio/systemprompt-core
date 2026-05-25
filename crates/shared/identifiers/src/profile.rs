@@ -36,7 +36,7 @@ impl ProfileName {
     }
 
     #[must_use]
-    #[allow(clippy::expect_used)]
+    #[expect(clippy::expect_used)]
     pub fn new(value: impl Into<String>) -> Self {
         // SAFETY: `new` is the infallible constructor reserved for inputs the caller
         // has already validated (compile-time literals, values that
@@ -52,7 +52,7 @@ impl ProfileName {
 
     #[must_use]
     pub fn default_profile() -> Self {
-        Self("default".to_string())
+        Self("default".to_owned())
     }
 }
 

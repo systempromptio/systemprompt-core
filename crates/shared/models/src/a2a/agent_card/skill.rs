@@ -72,5 +72,5 @@ pub struct AgentCardSignature {
 }
 
 fn default_protocol_version() -> String {
-    "1.0.0".to_string()
+    "1.0.0".to_owned()
 }

@@ -183,7 +183,7 @@ fn content_to_markdown_response(content: &Content) -> MarkdownResponse {
     let tags: Vec<String> = content
         .keywords
         .split(',')
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .collect();
 

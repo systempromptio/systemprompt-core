@@ -164,7 +164,7 @@ impl TieredRateLimiter {
             return true;
         }
         self.limiter_for_tier(tier)
-            .check_key(&key.to_string())
+            .check_key(&key.to_owned())
             .is_ok()
     }
 }
@@ -182,7 +182,7 @@ pub async fn tiered_rate_limit_middleware(
         || {
             let connect_info = request.extensions().get::<ConnectInfo<SocketAddr>>();
             let ip = resolve_client_ip(request.headers(), connect_info, limiter.trusted_proxies())
-                .map_or_else(|| "unknown".to_string(), |a| a.to_string());
+                .map_or_else(|| "unknown".to_owned(), |a| a.to_string());
             (RateLimitTier::Anon, ip)
         },
         |ctx| {

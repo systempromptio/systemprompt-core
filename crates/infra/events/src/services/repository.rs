@@ -13,7 +13,7 @@ use systemprompt_identifiers::{Actor, EventOutboxId, UserId};
 
 use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
-pub struct OutboxRow {
+pub(super) struct OutboxRow {
     pub channel: String,
     pub user_id: UserId,
     // JSON: the `payload` jsonb column is polymorphic by `channel`; the
@@ -22,16 +22,16 @@ pub struct OutboxRow {
 }
 
 #[derive(Debug, Clone)]
-pub struct EventOutboxRepository {
+pub(super) struct EventOutboxRepository {
     pool: PgPool,
 }
 
 impl EventOutboxRepository {
-    pub const fn new(pool: PgPool) -> Self {
+    pub(super) const fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 
-    pub async fn insert(
+    pub(super) async fn insert(
         &self,
         id: &EventOutboxId,
         channel: OutboxChannel,
@@ -54,14 +54,14 @@ impl EventOutboxRepository {
         .map(|_| ())
     }
 
-    pub async fn notify(&self, id: &EventOutboxId) -> Result<(), sqlx::Error> {
+    pub(super) async fn notify(&self, id: &EventOutboxId) -> Result<(), sqlx::Error> {
         sqlx::query!("SELECT pg_notify($1, $2)", OUTBOX_CHANNEL, id.as_str())
             .execute(&self.pool)
             .await
             .map(|_| ())
     }
 
-    pub async fn find(&self, id: &str) -> Result<Option<OutboxRow>, sqlx::Error> {
+    pub(super) async fn find(&self, id: &str) -> Result<Option<OutboxRow>, sqlx::Error> {
         sqlx::query_as!(
             OutboxRow,
             r#"SELECT channel, user_id as "user_id!: UserId", payload FROM event_outbox WHERE id = $1"#,
@@ -71,7 +71,7 @@ impl EventOutboxRepository {
         .await
     }
 
-    pub async fn prune(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<u64, sqlx::Error> {
+    pub(super) async fn prune(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<u64, sqlx::Error> {
         sqlx::query!("DELETE FROM event_outbox WHERE created_at < $1", cutoff)
             .execute(&self.pool)
             .await

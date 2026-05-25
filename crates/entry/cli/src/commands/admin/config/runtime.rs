@@ -42,7 +42,7 @@ pub fn execute(command: RuntimeCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-fn execute_show() -> Result<()> {
+pub(crate) fn execute_show() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = RuntimeConfigOutput {
@@ -58,7 +58,7 @@ fn execute_show() -> Result<()> {
     Ok(())
 }
 
-fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     if args.environment.is_none()
         && args.log_level.is_none()
         && args.output_format.is_none()
@@ -144,7 +144,7 @@ fn load_profile(path: &str) -> Result<Profile> {
     Ok(profile)
 }
 
-fn save_profile(profile: &Profile, path: &str) -> Result<()> {
+pub(crate) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
     let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
     fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())

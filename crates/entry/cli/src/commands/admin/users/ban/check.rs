@@ -13,12 +13,12 @@ pub struct CheckArgs {
     pub ip: String,
 }
 
-pub async fn execute(args: CheckArgs, config: &CliConfig) -> Result<CommandResult<BanCheckOutput>> {
+pub(crate) async fn execute(args: CheckArgs, config: &CliConfig) -> Result<CommandResult<BanCheckOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: CheckArgs,
     pool: &DbPool,
     _config: &CliConfig,

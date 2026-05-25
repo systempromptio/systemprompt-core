@@ -171,7 +171,7 @@ impl ExtensionLoader {
                     if binary_path.exists() {
                         None
                     } else {
-                        Some((binary.to_string(), ext.path.clone()))
+                        Some((binary.to_owned(), ext.path.clone()))
                     }
                 })
             })
@@ -200,7 +200,7 @@ impl ExtensionLoader {
                     .values()
                     .find(|d| d.binary == binary)
                     .is_some_and(|d| d.dev_only);
-                (!is_dev_only).then(|| binary.to_string())
+                (!is_dev_only).then(|| binary.to_owned())
             })
             .collect()
     }
@@ -210,7 +210,7 @@ impl ExtensionLoader {
         Self::discover(project_root)
             .into_iter()
             .filter_map(|ext| {
-                let name = ext.binary_name()?.to_string();
+                let name = ext.binary_name()?.to_owned();
                 Some((name, ext))
             })
             .collect()

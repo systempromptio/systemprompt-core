@@ -18,7 +18,7 @@ pub struct McpArgs {
     pub release: bool,
 }
 
-pub fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult<BuildOutput>> {
+pub(crate) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult<BuildOutput>> {
     let project_root = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let root = project_root.as_path();
 

@@ -192,7 +192,7 @@ async fn resolve_email() -> Result<String> {
         .await
         .context("Failed to initialize credentials")?;
 
-    let creds = CredentialsBootstrap::require().map_err(|_| {
+    let creds = CredentialsBootstrap::require().map_err(|_e| {
         anyhow::anyhow!(
             "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
         )

@@ -59,7 +59,7 @@ impl FromStr for JwtAudience {
             "internal" => Ok(Self::Internal),
             "bridge" => Ok(Self::Bridge),
             "hook" => Ok(Self::Hook),
-            _ => Ok(Self::Resource(s.to_string())),
+            _ => Ok(Self::Resource(s.to_owned())),
         }
     }
 }

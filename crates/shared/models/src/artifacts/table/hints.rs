@@ -75,7 +75,7 @@ impl ArtifactSchema for TableHints {
         let column_types: serde_json::Map<String, JsonValue> = self
             .columns
             .iter()
-            .map(|c| (c.name().to_string(), json!(c.column_type())))
+            .map(|c| (c.name().to_owned(), json!(c.column_type())))
             .collect();
         hints["column_types"] = json!(column_types);
 

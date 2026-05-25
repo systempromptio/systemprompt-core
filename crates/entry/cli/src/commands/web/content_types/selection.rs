@@ -3,7 +3,7 @@ use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_models::content_config::ContentConfigRaw;
 
-pub fn prompt_content_type_selection(config: &ContentConfigRaw, prompt: &str) -> Result<String> {
+pub(crate) fn prompt_content_type_selection(config: &ContentConfigRaw, prompt: &str) -> Result<String> {
     let mut names: Vec<&String> = config.content_sources.keys().collect();
     names.sort();
 

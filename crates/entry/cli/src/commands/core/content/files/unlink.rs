@@ -28,7 +28,7 @@ pub struct UnlinkArgs {
     pub dry_run: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: UnlinkArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentUnlinkOutput>> {
@@ -82,7 +82,7 @@ pub async fn execute(
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {
-    uuid::Uuid::parse_str(id).map_err(|_| {
+    uuid::Uuid::parse_str(id).map_err(|_e| {
         anyhow!(
             "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
              got '{}'",

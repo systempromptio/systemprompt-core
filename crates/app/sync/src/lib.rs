@@ -79,7 +79,7 @@ impl SyncService {
 
     pub async fn sync_database(&self) -> SyncResult<SyncOperationResult> {
         let local_db_url = self.config.local_database_url.as_ref().ok_or_else(|| {
-            SyncError::MissingConfig("local_database_url not configured".to_string())
+            SyncError::MissingConfig("local_database_url not configured".to_owned())
         })?;
 
         let cloud_db_url = self
@@ -132,7 +132,7 @@ fn database_failure_result(error: &SyncError) -> SyncOperationResult {
         _ => (SyncOpState::Failed, 0),
     };
     SyncOperationResult {
-        operation: "database".to_string(),
+        operation: "database".to_owned(),
         success: false,
         items_synced,
         items_skipped: 0,

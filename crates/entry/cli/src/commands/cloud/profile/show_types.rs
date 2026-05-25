@@ -5,7 +5,7 @@ use systemprompt_models::{
 };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FullConfig {
+pub(crate) struct FullConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub environment: Option<EnvironmentConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,7 +25,7 @@ pub struct FullConfig {
 }
 
 impl FullConfig {
-    pub const fn empty() -> Self {
+    pub(crate) const fn empty() -> Self {
         Self {
             environment: None,
             settings: None,
@@ -38,49 +38,49 @@ impl FullConfig {
         }
     }
 
-    pub fn with_environment(mut self, environment: EnvironmentConfig) -> Self {
+    pub(crate) fn with_environment(mut self, environment: EnvironmentConfig) -> Self {
         self.environment = Some(environment);
         self
     }
 
-    pub fn with_settings(mut self, settings: SettingsOutput) -> Self {
+    pub(crate) fn with_settings(mut self, settings: SettingsOutput) -> Self {
         self.settings = Some(settings);
         self
     }
 
-    pub fn with_agents(mut self, agents: HashMap<String, AgentConfig>) -> Self {
+    pub(crate) fn with_agents(mut self, agents: HashMap<String, AgentConfig>) -> Self {
         self.agents = Some(agents);
         self
     }
 
-    pub fn with_mcp_servers(mut self, mcp_servers: HashMap<String, Deployment>) -> Self {
+    pub(crate) fn with_mcp_servers(mut self, mcp_servers: HashMap<String, Deployment>) -> Self {
         self.mcp_servers = Some(mcp_servers);
         self
     }
 
-    pub fn with_skills(mut self, skills: SkillsConfig) -> Self {
+    pub(crate) fn with_skills(mut self, skills: SkillsConfig) -> Self {
         self.skills = Some(skills);
         self
     }
 
-    pub fn with_ai(mut self, ai: AiConfig) -> Self {
+    pub(crate) fn with_ai(mut self, ai: AiConfig) -> Self {
         self.ai = Some(ai);
         self
     }
 
-    pub fn with_web(mut self, web: Option<WebConfig>) -> Self {
+    pub(crate) fn with_web(mut self, web: Option<WebConfig>) -> Self {
         self.web = web;
         self
     }
 
-    pub fn with_content(mut self, content: ContentConfigRaw) -> Self {
+    pub(crate) fn with_content(mut self, content: ContentConfigRaw) -> Self {
         self.content = Some(content);
         self
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EnvironmentConfig {
+pub(crate) struct EnvironmentConfig {
     pub core: CoreEnvVars,
     pub systemprompt: SystempromptEnvVars,
     pub database: DatabaseEnvVars,
@@ -90,7 +90,7 @@ pub struct EnvironmentConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CoreEnvVars {
+pub(crate) struct CoreEnvVars {
     pub sitename: String,
     pub host: String,
     pub port: u16,
@@ -103,7 +103,7 @@ pub struct CoreEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SystempromptEnvVars {
+struct SystempromptEnvVars {
     pub env: String,
     pub verbosity: String,
     pub services_path: Option<String>,
@@ -112,13 +112,13 @@ pub struct SystempromptEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct DatabaseEnvVars {
+pub(crate) struct DatabaseEnvVars {
     pub database_type: String,
     pub database_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct JwtEnvVars {
+pub(crate) struct JwtEnvVars {
     pub issuer: String,
     pub secret: String,
     pub access_token_expiration: i64,
@@ -126,13 +126,13 @@ pub struct JwtEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct RateLimitEnvVars {
+struct RateLimitEnvVars {
     pub disabled: bool,
     pub burst_multiplier: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PathsEnvVars {
+struct PathsEnvVars {
     pub system_path: String,
     pub services: String,
     pub skills: String,
@@ -140,7 +140,7 @@ pub struct PathsEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SettingsOutput {
+pub(crate) struct SettingsOutput {
     pub agent_port_range: (u16, u16),
     pub mcp_port_range: (u16, u16),
     pub auto_start_enabled: bool,
@@ -148,7 +148,7 @@ pub struct SettingsOutput {
     pub schema_validation_mode: String,
 }
 
-pub fn build_env_config(
+pub(crate) fn build_env_config(
     config: &systemprompt_models::Config,
     paths: Option<&systemprompt_models::AppPaths>,
 ) -> EnvironmentConfig {

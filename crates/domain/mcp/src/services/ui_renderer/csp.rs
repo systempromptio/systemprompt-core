@@ -15,22 +15,22 @@ pub struct CspPolicy {
 impl CspPolicy {
     pub fn strict() -> Self {
         Self {
-            default_src: vec!["'self'".to_string()],
-            script_src: vec!["'self'".to_string(), "'unsafe-inline'".to_string()],
-            style_src: vec!["'self'".to_string(), "'unsafe-inline'".to_string()],
-            img_src: vec!["'self'".to_string(), "data:".to_string()],
-            connect_src: vec!["'self'".to_string()],
-            font_src: vec!["'self'".to_string()],
-            frame_src: vec!["'none'".to_string()],
-            base_uri: vec!["'self'".to_string()],
+            default_src: vec!["'self'".to_owned()],
+            script_src: vec!["'self'".to_owned(), "'unsafe-inline'".to_owned()],
+            style_src: vec!["'self'".to_owned(), "'unsafe-inline'".to_owned()],
+            img_src: vec!["'self'".to_owned(), "data:".to_owned()],
+            connect_src: vec!["'self'".to_owned()],
+            font_src: vec!["'self'".to_owned()],
+            frame_src: vec!["'none'".to_owned()],
+            base_uri: vec!["'self'".to_owned()],
         }
     }
 
     pub fn with_cdn(cdn_origins: &[&str]) -> Self {
         let mut policy = Self::strict();
         for origin in cdn_origins {
-            policy.script_src.push((*origin).to_string());
-            policy.style_src.push((*origin).to_string());
+            policy.script_src.push((*origin).to_owned());
+            policy.style_src.push((*origin).to_owned());
         }
         policy
     }
@@ -129,7 +129,7 @@ impl CspBuilder {
     }
 
     pub fn add_script_src(mut self, source: &str) -> Self {
-        self.policy.script_src.push(source.to_string());
+        self.policy.script_src.push(source.to_owned());
         self
     }
 
@@ -139,7 +139,7 @@ impl CspBuilder {
     }
 
     pub fn add_style_src(mut self, source: &str) -> Self {
-        self.policy.style_src.push(source.to_string());
+        self.policy.style_src.push(source.to_owned());
         self
     }
 
@@ -154,7 +154,7 @@ impl CspBuilder {
     }
 
     pub fn add_connect_src(mut self, source: &str) -> Self {
-        self.policy.connect_src.push(source.to_string());
+        self.policy.connect_src.push(source.to_owned());
         self
     }
 

@@ -52,7 +52,7 @@
 
 pub mod any;
 mod asset;
-#[allow(
+#[expect(
     clippy::panic,
     clippy::manual_assert,
     clippy::print_stdout,

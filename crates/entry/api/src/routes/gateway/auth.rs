@@ -191,7 +191,7 @@ pub async fn mtls(
 fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
     let auth = hdrs.get(headers::AUTHORIZATION)?.to_str().ok()?;
     auth.strip_prefix(BEARER_PREFIX)
-        .map(|s| s.trim().to_string())
+        .map(|s| s.trim().to_owned())
 }
 
 fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, (StatusCode, String)> {

@@ -46,14 +46,14 @@ impl ConfigWriter {
         services_dir: &Path,
     ) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
-            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_string()))?;
+            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_owned()))?;
 
         Self::write_agent_file(&agent_file, agent)
     }
 
     pub fn delete_agent(name: &str, services_dir: &Path) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
-            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_string()))?;
+            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_owned()))?;
 
         fs::remove_file(&agent_file).map_err(|e| ConfigWriteError::Io {
             path: agent_file.clone(),

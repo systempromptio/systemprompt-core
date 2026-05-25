@@ -51,12 +51,12 @@ impl AgentInfo {
         let endpoint = self.card.url().unwrap_or("");
         if endpoint.starts_with('/') {
             let base_url = Config::get().map_or_else(
-                |_| "http://localhost:3000".to_string(),
+                |_| "http://localhost:3000".to_owned(),
                 |c| c.api_external_url.clone(),
             );
             format!("{}{}", base_url, endpoint)
         } else {
-            endpoint.to_string()
+            endpoint.to_owned()
         }
     }
 

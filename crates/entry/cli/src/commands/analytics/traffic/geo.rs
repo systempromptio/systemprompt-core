@@ -33,13 +33,13 @@ pub struct GeoArgs {
     pub include_all: bool,
 }
 
-pub async fn execute(args: GeoArgs, _config: &CliConfig) -> Result<CommandResult<GeoOutput>> {
+pub(crate) async fn execute(args: GeoArgs, _config: &CliConfig) -> Result<CommandResult<GeoOutput>> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: GeoArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

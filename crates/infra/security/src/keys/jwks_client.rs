@@ -197,15 +197,15 @@ impl JwksClient {
             last_kid_miss_refetch_at: if kid_present { None } else { Some(now) },
         };
         if let Ok(mut guard) = self.cache.lock() {
-            guard.put(issuer.to_string(), cached);
+            guard.put(issuer.to_owned(), cached);
         }
 
         jwks.keys
             .into_iter()
             .find(|k| k.kid == kid)
             .ok_or_else(|| JwksClientError::KeyNotFound {
-                issuer: issuer.to_string(),
-                kid: kid.to_string(),
+                issuer: issuer.to_owned(),
+                kid: kid.to_owned(),
             })
     }
 
@@ -242,7 +242,7 @@ impl JwksClient {
 
     fn validate_uri(&self, raw: &str) -> Result<Url, JwksClientError> {
         let parsed = Url::parse(raw).map_err(|source| JwksClientError::InvalidIssuer {
-            issuer: raw.to_string(),
+            issuer: raw.to_owned(),
             source,
         })?;
         #[cfg(feature = "test-jwks-insecure-scheme")]
@@ -250,12 +250,11 @@ impl JwksClient {
         #[cfg(not(feature = "test-jwks-insecure-scheme"))]
         let allowed_scheme = parsed.scheme() == "https";
         if !allowed_scheme {
-            return Err(JwksClientError::InsecureScheme(raw.to_string()));
+            return Err(JwksClientError::InsecureScheme(raw.to_owned()));
         }
         let host = parsed
             .host_str()
-            .ok_or_else(|| JwksClientError::HostNotAllowed(raw.to_string()))?
-            .to_string();
+            .ok_or_else(|| JwksClientError::HostNotAllowed(raw.to_owned()))?.to_owned();
         if !self
             .allowed_hosts
             .iter()

@@ -28,8 +28,8 @@ impl OpenAiImageProvider {
         Self {
             client,
             api_key,
-            endpoint: "https://api.openai.com/v1".to_string(),
-            default_model: "gpt-image-1".to_string(),
+            endpoint: "https://api.openai.com/v1".to_owned(),
+            default_model: "gpt-image-1".to_owned(),
         }
     }
 
@@ -97,10 +97,10 @@ impl ImageProvider for OpenAiImageProvider {
 
     fn supported_models(&self) -> Vec<String> {
         vec![
-            "gpt-image-1".to_string(),
-            "gpt-image-1-mini".to_string(),
-            "dall-e-3".to_string(),
-            "dall-e-2".to_string(),
+            "gpt-image-1".to_owned(),
+            "gpt-image-1-mini".to_owned(),
+            "dall-e-3".to_owned(),
+            "dall-e-2".to_owned(),
         ]
     }
 
@@ -116,7 +116,7 @@ impl ImageProvider for OpenAiImageProvider {
 
         if request.prompt.len() > self.capabilities().max_prompt_length {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!(
                     "Prompt length {} exceeds maximum {}",
                     request.prompt.len(),
@@ -127,14 +127,14 @@ impl ImageProvider for OpenAiImageProvider {
 
         if !self.supports_resolution(&request.resolution) {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("Resolution {} not supported", request.resolution.as_str()),
             });
         }
 
         if !self.supports_aspect_ratio(&request.aspect_ratio) {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!(
                     "Aspect ratio {} not supported",
                     request.aspect_ratio.as_str()
@@ -149,18 +149,18 @@ impl ImageProvider for OpenAiImageProvider {
 
         if !self.supports_model(model) {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("Model {model} not supported"),
             });
         }
 
         let dalle_request = DalleRequest {
-            model: model.to_string(),
+            model: model.to_owned(),
             prompt: request.prompt.clone(),
-            size: Self::map_size(&request.aspect_ratio).to_string(),
-            quality: "standard".to_string(),
+            size: Self::map_size(&request.aspect_ratio).to_owned(),
+            quality: "standard".to_owned(),
             n: 1,
-            response_format: "b64_json".to_string(),
+            response_format: "b64_json".to_owned(),
         };
 
         let url = format!("{}/images/generations", self.endpoint);
@@ -174,7 +174,7 @@ impl ImageProvider for OpenAiImageProvider {
             .send()
             .await
             .map_err(|e| AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("HTTP request failed: {e}"),
             })?;
 
@@ -185,14 +185,14 @@ impl ImageProvider for OpenAiImageProvider {
                 .await
                 .unwrap_or_else(|e| format!("<error reading response: {}>", e));
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("API returned status {status}: {error_body}"),
             });
         }
 
         let dalle_response: DalleResponse =
             response.json().await.map_err(|e| AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("Failed to parse response: {e}"),
             })?;
 
@@ -201,17 +201,17 @@ impl ImageProvider for OpenAiImageProvider {
             .first()
             .and_then(|d| d.b64_json.clone())
             .ok_or_else(|| AiError::ProviderError {
-                provider: self.name().to_string(),
-                message: "No image data in response".to_string(),
+                provider: self.name().to_owned(),
+                message: "No image data in response".to_owned(),
             })?;
 
         let generation_time_ms = start.elapsed().as_millis() as u64;
 
         Ok(ImageGenerationResponse::new(NewImageGenerationResponse {
-            provider: self.name().to_string(),
-            model: model.to_string(),
+            provider: self.name().to_owned(),
+            model: model.to_owned(),
             image_data,
-            mime_type: "image/png".to_string(),
+            mime_type: "image/png".to_owned(),
             resolution: request.resolution,
             aspect_ratio: request.aspect_ratio,
             generation_time_ms,

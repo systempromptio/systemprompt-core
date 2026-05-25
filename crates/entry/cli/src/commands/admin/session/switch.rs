@@ -12,7 +12,7 @@ use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::{CommandResult, render_result};
 
-pub async fn execute(
+pub(crate) async fn execute(
     profile_name: &str,
     _config: &CliConfig,
 ) -> Result<CommandResult<SwitchOutput>> {

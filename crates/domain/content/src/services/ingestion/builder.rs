@@ -6,7 +6,7 @@ use crate::models::{Content, ContentLinkMetadata, ContentMetadata};
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-pub fn create_content_from_metadata(
+pub(super) fn create_content_from_metadata(
     metadata: &ContentMetadata,
     content_text: &str,
     source_id: SourceId,
@@ -23,10 +23,10 @@ pub fn create_content_from_metadata(
             ))
         })?
         .and_hms_opt(0, 0, 0)
-        .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_string()))?
+        .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?
         .and_local_timezone(chrono::Utc)
         .single()
-        .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_string()))?;
+        .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))?;
 
     let links_vec: Vec<ContentLinkMetadata> = metadata
         .links
@@ -48,7 +48,7 @@ pub fn create_content_from_metadata(
             .unwrap_or_else(|| LocaleCode::new("en")),
         title: metadata.title.clone(),
         description: metadata.description.clone(),
-        body: content_text.to_string(),
+        body: content_text.to_owned(),
         author: metadata.author.clone(),
         published_at,
         keywords: metadata.keywords.clone(),
@@ -63,7 +63,7 @@ pub fn create_content_from_metadata(
     })
 }
 
-pub fn compute_version_hash(content: &Content) -> String {
+pub(super) fn compute_version_hash(content: &Content) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.title.as_bytes());
     hasher.update(content.body.as_bytes());

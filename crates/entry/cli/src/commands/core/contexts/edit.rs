@@ -19,7 +19,7 @@ pub struct EditArgs {
     pub name: String,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: EditArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextUpdatedOutput>> {

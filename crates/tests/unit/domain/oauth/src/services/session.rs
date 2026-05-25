@@ -37,7 +37,7 @@ impl AnalyticsProvider for MockAnalyticsProvider {
         SessionAnalytics::default()
     }
 
-    async fn create_session(&self, _input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
+    pub(crate) async fn create_session(&self, _input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
         Ok(())
     }
 
@@ -63,7 +63,7 @@ impl AnalyticsProvider for MockAnalyticsProvider {
         Ok(None)
     }
 
-    async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
+    pub(crate) async fn revoke_session(&self, _session_id: &SessionId) -> AnalyticsResult<()> {
         Ok(())
     }
 
@@ -71,7 +71,7 @@ impl AnalyticsProvider for MockAnalyticsProvider {
         Ok(0)
     }
 
-    async fn migrate_user_sessions(
+    pub(crate) async fn migrate_user_sessions(
         &self,
         _from_user_id: &UserId,
         _to_user_id: &UserId,
@@ -88,7 +88,7 @@ struct MockUserProvider;
 
 #[async_trait]
 impl UserProvider for MockUserProvider {
-    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
+    pub(crate) async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
         Ok(None)
     }
 

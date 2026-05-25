@@ -159,7 +159,7 @@ impl ConversationService {
         let artifact_name = artifact
             .title
             .clone()
-            .unwrap_or_else(|| "unnamed".to_string());
+            .unwrap_or_else(|| "unnamed".to_owned());
 
         let mut content = format!(
             "[Artifact: {} (type: {})]\n",
@@ -174,7 +174,7 @@ impl ConversationService {
                 },
                 Part::Data(data_part) => {
                     let json_str = serde_json::to_string_pretty(&data_part.data)
-                        .unwrap_or_else(|_| "{}".to_string());
+                        .unwrap_or_else(|_| "{}".to_owned());
                     content.push_str(&json_str);
                     content.push('\n');
                 },

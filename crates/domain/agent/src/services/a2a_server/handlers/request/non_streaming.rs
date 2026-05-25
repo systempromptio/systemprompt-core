@@ -9,7 +9,7 @@ use systemprompt_models::RequestContext;
 
 use super::validation::validate_message_context;
 
-pub async fn handle_non_streaming_request(
+pub(super) async fn handle_non_streaming_request(
     request: A2aRequestParams,
     state: &AgentHandlerState,
     context: &RequestContext,

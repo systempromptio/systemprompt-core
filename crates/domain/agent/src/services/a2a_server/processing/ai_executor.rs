@@ -22,14 +22,12 @@ fn resolve_provider_config(
             .provider
             .as_deref()
             .or(agent_runtime.provider.as_deref())
-            .unwrap_or_else(|| ai_service.default_provider())
-            .to_string();
+            .unwrap_or_else(|| ai_service.default_provider()).to_owned();
         let model = config
             .model
             .as_deref()
             .or(agent_runtime.model.as_deref())
-            .unwrap_or_else(|| ai_service.default_model())
-            .to_string();
+            .unwrap_or_else(|| ai_service.default_model()).to_owned();
         let max_tokens = config
             .max_output_tokens
             .or(agent_runtime.max_output_tokens)
@@ -48,13 +46,11 @@ fn resolve_provider_config(
     let provider = agent_runtime
         .provider
         .as_deref()
-        .unwrap_or_else(|| ai_service.default_provider())
-        .to_string();
+        .unwrap_or_else(|| ai_service.default_provider()).to_owned();
     let model = agent_runtime
         .model
         .as_deref()
-        .unwrap_or_else(|| ai_service.default_model())
-        .to_string();
+        .unwrap_or_else(|| ai_service.default_model()).to_owned();
     let max_tokens = agent_runtime
         .max_output_tokens
         .unwrap_or_else(|| ai_service.default_max_output_tokens());
@@ -62,7 +58,7 @@ fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct SynthesizeToolResultsParams<'a> {
     pub ai_service: Arc<dyn AiProvider>,
     pub agent_runtime: &'a AgentRuntimeInfo,
@@ -103,7 +99,7 @@ pub async fn synthesize_tool_results_with_artifacts(
     let mut synthesis_messages = original_messages;
     synthesis_messages.push(AiMessage {
         role: MessageRole::Assistant,
-        content: initial_response.to_string(),
+        content: initial_response.to_owned(),
         parts: Vec::new(),
     });
     synthesis_messages.push(AiMessage {
@@ -246,7 +242,7 @@ Provide your brief, conversational response now. Remember: the artifact has the 
 
 fn build_artifact_references(artifacts: &[Artifact]) -> String {
     if artifacts.is_empty() {
-        return "No artifacts were created.".to_string();
+        return "No artifacts were created.".to_owned();
     }
 
     artifacts

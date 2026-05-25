@@ -40,7 +40,7 @@ impl ExtensionRegistry {
                 .exists()
                 .then(|| self.bin_path.clone())
                 .ok_or_else(|| ExtensionLoadError::BinaryNotFound {
-                    name: binary_name.to_string(),
+                    name: binary_name.to_owned(),
                     path: binary_path,
                 });
         }
@@ -48,7 +48,7 @@ impl ExtensionRegistry {
         self.discovered
             .get(binary_name)
             .map(|ext| ext.path.clone())
-            .ok_or_else(|| ExtensionLoadError::ManifestMissing(binary_name.to_string()))
+            .ok_or_else(|| ExtensionLoadError::ManifestMissing(binary_name.to_owned()))
     }
 
     #[must_use]

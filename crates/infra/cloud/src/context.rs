@@ -41,7 +41,7 @@ impl CloudContext {
         let cloud_paths = get_cloud_paths();
         let creds_path = cloud_paths.resolve(CloudPath::Credentials);
         let credentials = CloudCredentials::load_and_validate_from_path(&creds_path)
-            .map_err(|_| CloudError::NotAuthenticated)?;
+            .map_err(|_e| CloudError::NotAuthenticated)?;
 
         let api_client = CloudApiClient::new(&credentials.api_url, &credentials.api_token)
             .map_err(CloudError::Network)?;
@@ -81,7 +81,7 @@ impl CloudContext {
         }
 
         let store =
-            TenantStore::load_from_path(&tenants_path).map_err(|_| CloudError::TenantsNotSynced)?;
+            TenantStore::load_from_path(&tenants_path).map_err(|_e| CloudError::TenantsNotSynced)?;
 
         store.find_tenant(tenant_id.as_str()).map_or_else(
             || {

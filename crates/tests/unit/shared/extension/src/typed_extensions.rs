@@ -40,7 +40,7 @@ impl ConfigExtensionTyped for TestConfigExt {
         "myconfig"
     }
 
-    fn validate_config(&self, config: &serde_json::Value) -> Result<(), ConfigError> {
+    pub(crate) fn validate_config(&self, config: &serde_json::Value) -> Result<(), ConfigError> {
         if config.get("port").is_none() {
             return Err(ConfigError::InvalidValue {
                 key: "port".to_string(),

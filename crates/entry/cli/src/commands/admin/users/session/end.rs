@@ -32,7 +32,7 @@ pub struct EndArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: EndArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SessionEndOutput>> {

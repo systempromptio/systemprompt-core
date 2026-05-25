@@ -11,7 +11,7 @@ use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 
 use super::converters;
 
-pub fn build_execution_steps(
+pub(super) fn build_execution_steps(
     steps: Option<&Vec<&ExecutionStepBatchRow>>,
 ) -> Option<Vec<ExecutionStep>> {
     let steps = steps?;
@@ -57,7 +57,7 @@ pub fn build_execution_steps(
     }
 }
 
-pub fn build_messages(
+pub(super) fn build_messages(
     messages: Option<&Vec<&TaskMessage>>,
     parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
 ) -> Option<Vec<Message>> {
@@ -82,7 +82,7 @@ pub fn build_messages(
         if let Some(client_id) = &msg_row.client_message_id {
             if let Some(obj) = final_metadata.as_object_mut() {
                 obj.insert(
-                    "clientMessageId".to_string(),
+                    "clientMessageId".to_owned(),
                     serde_json::Value::String(client_id.clone()),
                 );
             }
@@ -123,7 +123,7 @@ fn build_message_parts(parts: Option<&Vec<&MessagePart>>) -> Vec<Part> {
         .collect()
 }
 
-pub fn build_artifacts(
+pub(super) fn build_artifacts(
     artifacts: Option<&Vec<&ArtifactRow>>,
     artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
 ) -> Option<Vec<Artifact>> {

@@ -37,7 +37,7 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult<McpCallOutput>> {
+pub(crate) async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult<McpCallOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let session_ctx = get_or_create_session(config).await?;
 

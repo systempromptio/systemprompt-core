@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ struct TraceRow {
     mcp_calls: Option<i64>,
 }
 
-pub async fn list_traces(
+pub(super) async fn list_traces(
     pool: &Arc<PgPool>,
     filter: &TraceListFilter,
 ) -> Result<Vec<TraceListItem>> {

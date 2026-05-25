@@ -22,14 +22,14 @@ impl AssetPaths for ProjectAssetPaths {
 }
 
 #[derive(Debug)]
-pub struct DeployConfig {
+pub(crate) struct DeployConfig {
     pub binary: PathBuf,
     pub dockerfile: PathBuf,
     project_root: PathBuf,
 }
 
 impl DeployConfig {
-    pub fn from_project(project: &ProjectRoot, profile_name: &str) -> Result<Self> {
+    pub(crate) fn from_project(project: &ProjectRoot, profile_name: &str) -> Result<Self> {
         let root = project.as_path();
         let binary = root
             .join(build::CARGO_TARGET)

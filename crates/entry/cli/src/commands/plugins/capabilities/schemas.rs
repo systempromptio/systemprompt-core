@@ -11,7 +11,7 @@ pub struct SchemasArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<SchemasListOutput> {
+pub(crate) fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<SchemasListOutput> {
     let registry = discover_registry();
 
     let schemas: Vec<SchemaWithExtension> = registry

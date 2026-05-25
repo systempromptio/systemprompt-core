@@ -1,4 +1,4 @@
-pub fn validate_json_serializable(value: &serde_json::Value) -> Result<(), String> {
+pub(super) fn validate_json_serializable(value: &serde_json::Value) -> Result<(), String> {
     const MAX_PAYLOAD_SIZE: usize = 1_000_000;
     const MAX_TEXT_FIELD_SIZE: usize = 100_000;
 
@@ -21,7 +21,7 @@ pub fn validate_json_serializable(value: &serde_json::Value) -> Result<(), Strin
     Ok(())
 }
 
-pub fn sanitize_payload(value: &serde_json::Value, max_text_size: usize) -> serde_json::Value {
+pub(super) fn sanitize_payload(value: &serde_json::Value, max_text_size: usize) -> serde_json::Value {
     match value {
         serde_json::Value::String(s) => {
             if s.len() > max_text_size {

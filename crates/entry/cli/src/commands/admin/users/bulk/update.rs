@@ -41,7 +41,7 @@ pub struct UpdateArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DryRunOutput {
+struct DryRunOutput {
     pub dry_run: bool,
     pub would_update: usize,
     pub new_status: String,
@@ -50,12 +50,12 @@ pub struct DryRunOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
-pub enum UpdateResult {
+pub(crate) enum UpdateResult {
     DryRun(DryRunOutput),
     Executed(BulkUpdateOutput),
 }
 
-pub async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandResult<UpdateResult>> {
+pub(crate) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandResult<UpdateResult>> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will update multiple users. Use --yes to confirm or --dry-run to preview."

@@ -6,7 +6,7 @@ use std::time::Duration;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, JsonRpcResponse};
 use systemprompt_loader::ConfigLoader;
 
-pub fn ensure_agent_exists(name: &str) -> Result<()> {
+pub(crate) fn ensure_agent_exists(name: &str) -> Result<()> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     if !services_config.agents.contains_key(name) {
         return Err(anyhow!("Agent '{}' not found", name));
@@ -14,7 +14,7 @@ pub fn ensure_agent_exists(name: &str) -> Result<()> {
     Ok(())
 }
 
-pub struct A2aCall<'a, T: Serialize> {
+pub(crate) struct A2aCall<'a, T: Serialize> {
     pub agent: &'a str,
     pub agent_url: &'a str,
     pub auth_token: &'a str,
@@ -22,7 +22,7 @@ pub struct A2aCall<'a, T: Serialize> {
     pub timeout: u64,
 }
 
-pub async fn send_a2a_request<Req, Res>(call: A2aCall<'_, Req>) -> Result<Res>
+pub(crate) async fn send_a2a_request<Req, Res>(call: A2aCall<'_, Req>) -> Result<Res>
 where
     Req: Serialize + Sync,
     Res: DeserializeOwned,

@@ -33,7 +33,7 @@ fn check_static_content(ctx: &AppContext) -> (bool, bool) {
     )
 }
 
-pub async fn handle_health_detail(
+pub(super) async fn handle_health_detail(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;

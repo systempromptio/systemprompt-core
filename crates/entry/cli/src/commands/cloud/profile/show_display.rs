@@ -6,7 +6,7 @@ use systemprompt_models::{
 
 use super::show_types::{EnvironmentConfig, FullConfig, SettingsOutput};
 
-pub fn print_formatted_config(config: &FullConfig) {
+pub(crate) fn print_formatted_config(config: &FullConfig) {
     if let Some(env) = &config.environment {
         print_environment_section(env);
     }

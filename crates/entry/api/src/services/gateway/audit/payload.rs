@@ -28,7 +28,7 @@ pub fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bool, i32
 pub fn truncate_for_tool_input(input: &str) -> String {
     const TOOL_INPUT_CAP: usize = 64 * 1024;
     if input.len() <= TOOL_INPUT_CAP {
-        input.to_string()
+        input.to_owned()
     } else {
         // Why: `&input[..TOOL_INPUT_CAP]` panics when the cap lands inside a
         // multi-byte UTF-8 codepoint. Walk back to the nearest char boundary

@@ -108,7 +108,7 @@ pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
 
     Ok(Some(ProcessInfo {
         pid,
-        command: command_line.to_string(),
+        command: command_line.to_owned(),
     }))
 }
 

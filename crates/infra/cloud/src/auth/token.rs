@@ -19,9 +19,9 @@ pub fn decode_expiry(token: &CloudAuthToken) -> CloudResult<i64> {
 
     let payload = BASE64_URL_SAFE_NO_PAD
         .decode(parts[1])
-        .map_err(|_| CloudError::JwtDecode)?;
+        .map_err(|_e| CloudError::JwtDecode)?;
 
-    let claims: JwtClaims = serde_json::from_slice(&payload).map_err(|_| CloudError::JwtDecode)?;
+    let claims: JwtClaims = serde_json::from_slice(&payload).map_err(|_e| CloudError::JwtDecode)?;
 
     Ok(claims.exp)
 }

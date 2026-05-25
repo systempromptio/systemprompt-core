@@ -46,7 +46,7 @@ pub struct EditArgs {
     pub description: Option<String>,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: &EditArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentTypeEditOutput>> {
@@ -157,7 +157,7 @@ fn apply_sitemap_flags(
     Ok(())
 }
 
-fn apply_set_value_changes(
+pub(crate) fn apply_set_value_changes(
     source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
     set_values: &[String],
     changes: &mut Vec<String>,
@@ -193,7 +193,7 @@ fn apply_set_key(
         "enabled" => {
             source.enabled = value
                 .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for enabled: '{}'", value))?;
+                .map_err(|_e| anyhow!("Invalid boolean value for enabled: '{}'", value))?;
             changes.push(format!("enabled: {}", value));
         },
         "sitemap.url_pattern" => {
@@ -203,7 +203,7 @@ fn apply_set_key(
         "sitemap.priority" => {
             let priority: f32 = value
                 .parse()
-                .map_err(|_| anyhow!("Invalid float value for priority: '{}'", value))?;
+                .map_err(|_e| anyhow!("Invalid float value for priority: '{}'", value))?;
             sitemap_mut(source)?.priority = priority;
             changes.push(format!("sitemap.priority: {}", value));
         },

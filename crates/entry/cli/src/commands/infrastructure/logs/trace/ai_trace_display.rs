@@ -12,7 +12,7 @@ use super::show::ShowArgs;
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceViewOutput};
 use crate::shared::CommandResult;
 
-pub async fn execute_ai_trace(
+pub(crate) async fn execute_ai_trace(
     service: &AiTraceService,
     task_id: &TaskId,
     args: &ShowArgs,
@@ -174,7 +174,7 @@ fn keep_event(event_type: &str, details: &str) -> bool {
     details.contains("iteration") && details.contains("starting")
 }
 
-pub fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEvent> {
+pub(crate) fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEvent> {
     if verbose {
         return log_events;
     }

@@ -23,7 +23,7 @@ impl AnthropicProvider {
         let thinking_config = thinking::build_thinking_config(params.model);
 
         let request = AnthropicRequest {
-            model: params.model.to_string(),
+            model: params.model.to_owned(),
             messages: anthropic_messages,
             max_tokens: params.max_output_tokens,
             temperature,

@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_traits::RepositoryError;
 
-pub async fn fetch_task_rows(
+pub(crate) async fn fetch_task_rows(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
 ) -> Result<Vec<TaskRow>, RepositoryError> {
@@ -38,7 +38,7 @@ pub async fn fetch_task_rows(
     .map_err(RepositoryError::database)
 }
 
-pub async fn fetch_messages(
+pub(crate) async fn fetch_messages(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
 ) -> Result<Vec<TaskMessage>, RepositoryError> {
@@ -67,7 +67,7 @@ pub async fn fetch_messages(
     .map_err(RepositoryError::database)
 }
 
-pub async fn fetch_message_parts(
+pub(crate) async fn fetch_message_parts(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
 ) -> Result<Vec<MessagePart>, RepositoryError> {
@@ -94,7 +94,7 @@ pub async fn fetch_message_parts(
     .map_err(RepositoryError::database)
 }
 
-pub async fn fetch_artifacts(
+pub(crate) async fn fetch_artifacts(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
 ) -> Result<Vec<ArtifactRow>, RepositoryError> {
@@ -123,7 +123,7 @@ pub async fn fetch_artifacts(
     .map_err(RepositoryError::database)
 }
 
-pub async fn fetch_artifact_parts(
+pub(crate) async fn fetch_artifact_parts(
     pool: &Arc<sqlx::PgPool>,
     artifact_ids: &[String],
 ) -> Result<Vec<ArtifactPartRow>, RepositoryError> {
@@ -154,7 +154,7 @@ pub async fn fetch_artifact_parts(
     .map_err(RepositoryError::database)
 }
 
-pub async fn fetch_execution_steps(
+pub(crate) async fn fetch_execution_steps(
     pool: &Arc<sqlx::PgPool>,
     task_ids: &[String],
 ) -> Result<Vec<ExecutionStepBatchRow>, RepositoryError> {

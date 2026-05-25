@@ -147,7 +147,7 @@ impl ContentRouting for ContentConfigRaw {
 
     fn determine_source(&self, path: &str) -> String {
         if path == "/" {
-            return "web".to_string();
+            return "web".to_owned();
         }
 
         self.content_sources
@@ -159,7 +159,7 @@ impl ContentRouting for ContentConfigRaw {
                         .then(|| name.clone())
                 })
             })
-            .unwrap_or_else(|| "unknown".to_string())
+            .unwrap_or_else(|| "unknown".to_owned())
     }
 
     fn resolve_slug(&self, path: &str) -> Option<String> {
@@ -177,7 +177,7 @@ fn extract_slug_from_pattern(path: &str, pattern: &str) -> Option<String> {
     let raw = path.strip_prefix(prefix)?.trim_end_matches('/');
     let raw = raw.split('?').next().unwrap_or(raw);
     let raw = raw.split('#').next().unwrap_or(raw);
-    (!raw.is_empty()).then(|| raw.to_string())
+    (!raw.is_empty()).then(|| raw.to_owned())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

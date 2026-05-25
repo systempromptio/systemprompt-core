@@ -55,16 +55,16 @@ pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {
         return Ok(None);
     }
 
-    let pid: u32 = parts[0].parse().map_err(|_| {
+    let pid: u32 = parts[0].parse().map_err(|_e| {
         crate::error::McpDomainError::Internal(format!("Invalid PID: {}", parts[0]))
     })?;
-    let parent_pid: u32 = parts[1].parse().map_err(|_| {
+    let parent_pid: u32 = parts[1].parse().map_err(|_e| {
         crate::error::McpDomainError::Internal(format!("Invalid PPID: {}", parts[1]))
     })?;
 
     if pid == 0 {
         return Err(crate::error::McpDomainError::Internal(
-            "PID cannot be 0".to_string(),
+            "PID cannot be 0".to_owned(),
         ));
     }
 

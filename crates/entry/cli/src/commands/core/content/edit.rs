@@ -39,12 +39,12 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<UpdateOutput>> {
+pub(crate) async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<UpdateOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: EditArgs,
     pool: &DbPool,
     config: &CliConfig,

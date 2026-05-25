@@ -65,7 +65,7 @@ impl GenerateTokenParams {
         Self {
             user_id,
             username: username.into(),
-            user_type: "user".to_string(),
+            user_type: "user".to_owned(),
             permissions: Vec::new(),
             audiences: Vec::new(),
             session_id,

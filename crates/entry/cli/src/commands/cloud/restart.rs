@@ -9,7 +9,7 @@ use super::types::RestartOutput;
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
 
-pub async fn execute(
+pub(crate) async fn execute(
     tenant: Option<String>,
     yes: bool,
     config: &CliConfig,

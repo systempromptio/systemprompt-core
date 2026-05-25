@@ -7,7 +7,7 @@ use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
 use super::queries;
 
-pub async fn create(
+pub(super) async fn create(
     pool: &Arc<PgPool>,
     params: &CreateContentParams,
 ) -> Result<Content, sqlx::Error> {
@@ -68,7 +68,7 @@ pub async fn create(
     .await
 }
 
-pub async fn update(
+pub(super) async fn update(
     pool: &Arc<PgPool>,
     params: &UpdateContentParams,
 ) -> Result<Content, sqlx::Error> {
@@ -78,16 +78,16 @@ pub async fn update(
     let current_ref = current.as_ref();
 
     let category_id_value: Option<String> = match &params.category_id {
-        CategoryIdUpdate::Set(cat) => Some(cat.as_str().to_string()),
+        CategoryIdUpdate::Set(cat) => Some(cat.as_str().to_owned()),
         CategoryIdUpdate::Clear => None,
         CategoryIdUpdate::Unchanged => {
-            current_ref.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_string()))
+            current_ref.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_owned()))
         },
     };
 
     let kind_value: String = params.kind.clone().unwrap_or_else(|| {
         current_ref.map_or_else(
-            || ContentKind::Article.as_str().to_string(),
+            || ContentKind::Article.as_str().to_owned(),
             |c| c.kind.clone(),
         )
     });
@@ -146,14 +146,14 @@ pub async fn update(
     .await
 }
 
-pub async fn delete(pool: &Arc<PgPool>, id: &ContentId) -> Result<(), sqlx::Error> {
+pub(super) async fn delete(pool: &Arc<PgPool>, id: &ContentId) -> Result<(), sqlx::Error> {
     sqlx::query!("DELETE FROM markdown_content WHERE id = $1", id.as_str())
         .execute(&**pool)
         .await?;
     Ok(())
 }
 
-pub async fn delete_by_source(
+pub(super) async fn delete_by_source(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
 ) -> Result<u64, sqlx::Error> {

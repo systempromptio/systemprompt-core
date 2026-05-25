@@ -38,7 +38,7 @@ pub fn execute(command: &SecurityCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-fn execute_show() -> Result<()> {
+pub(crate) fn execute_show() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = SecurityConfigOutput {
@@ -58,7 +58,7 @@ fn execute_show() -> Result<()> {
     Ok(())
 }
 
-fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.jwt_issuer.is_none() && args.access_expiry.is_none() && args.refresh_expiry.is_none() {
         bail!("Must specify at least one option: --jwt-issuer, --access-expiry, --refresh-expiry");
     }
@@ -128,7 +128,7 @@ fn load_profile(path: &str) -> Result<Profile> {
     Ok(profile)
 }
 
-fn save_profile(profile: &Profile, path: &str) -> Result<()> {
+pub(crate) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
     let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
     fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())

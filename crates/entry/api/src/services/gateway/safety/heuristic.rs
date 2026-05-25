@@ -60,7 +60,7 @@ fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
             out.push(Finding {
                 phase,
                 severity: Severity::Medium,
-                category: "jailbreak".to_string(),
+                category: "jailbreak".to_owned(),
                 excerpt: Some(excerpt),
                 scanner: "heuristic",
             });
@@ -71,7 +71,7 @@ fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
         out.push(Finding {
             phase,
             severity: Severity::Low,
-            category: "pii_email".to_string(),
+            category: "pii_email".to_owned(),
             excerpt: None,
             scanner: "heuristic",
         });
@@ -80,7 +80,7 @@ fn scan_text(phase: &'static str, text: &str, out: &mut Vec<Finding>) {
         out.push(Finding {
             phase,
             severity: Severity::High,
-            category: "pii_credit_card".to_string(),
+            category: "pii_credit_card".to_owned(),
             excerpt: None,
             scanner: "heuristic",
         });

@@ -14,7 +14,7 @@ use crate::services::gateway::protocol::inbound::InboundAdapter;
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names)]
 #[derive(Default)]
 pub(super) struct RejectionPartial {
     pub user_id: Option<UserId>,
@@ -51,12 +51,12 @@ pub(super) async fn extract_request_context(
         .gateway
         .as_ref()
         .filter(|g| g.enabled)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_string()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     let presented = extract_credential(request.headers()).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_string(),
+            "Missing Authorization or x-api-key credential".to_owned(),
         )
     })?;
 
@@ -79,7 +79,7 @@ pub(super) async fn extract_request_context(
         );
         return Err((
             StatusCode::UNAUTHORIZED,
-            "X-Session-ID does not match authenticated session".to_string(),
+            "X-Session-ID does not match authenticated session".to_owned(),
         ));
     }
 
@@ -92,8 +92,7 @@ pub(super) async fn extract_request_context(
             .ok_or_else(|| {
                 (
                     StatusCode::BAD_REQUEST,
-                    "request body has no messages; cannot derive gateway conversation id"
-                        .to_string(),
+                    "request body has no messages; cannot derive gateway conversation id".to_owned(),
                 )
             })?,
     };
@@ -112,8 +111,7 @@ pub(super) async fn extract_request_context(
     partial.provider = Some(route.provider.clone());
 
     let upstream_model = route
-        .effective_upstream_model(&gateway_request.model)
-        .to_string();
+        .effective_upstream_model(&gateway_request.model).to_owned();
 
     enforce_authz_for_route(
         &principal,
@@ -158,7 +156,7 @@ fn optional_gateway_conversation_id(
     if trimmed.is_empty() {
         return Ok(None);
     }
-    GatewayConversationId::try_new(trimmed.to_string())
+    GatewayConversationId::try_new(trimmed.to_owned())
         .map(Some)
         .map_err(|e| {
             (
@@ -195,7 +193,7 @@ fn require_typed_header<T>(
     if trimmed.is_empty() {
         return Err((StatusCode::BAD_REQUEST, format!("empty {name} header")));
     }
-    Ok(ctor(trimmed.to_string()))
+    Ok(ctor(trimmed.to_owned()))
 }
 
 async fn read_gateway_body(
@@ -277,6 +275,6 @@ pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }

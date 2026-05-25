@@ -18,7 +18,7 @@ use super::provider::OpenAiProvider;
 use super::response_builder::build_response;
 use super::{converters, reasoning};
 
-pub async fn generate(
+pub(super) async fn generate(
     provider: &OpenAiProvider,
     params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -41,7 +41,7 @@ pub async fn generate(
     let reasoning_config = reasoning::build_reasoning_config(params.model);
 
     let request = OpenAiRequest {
-        model: params.model.to_string(),
+        model: params.model.to_owned(),
         messages: openai_messages,
         temperature,
         top_p,
@@ -69,7 +69,7 @@ pub async fn generate(
     build_response(request_id, &openai_response, "openai", params.model, start)
 }
 
-pub async fn generate_with_tools(
+pub(super) async fn generate_with_tools(
     provider: &OpenAiProvider,
     params: ToolGenerationParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
@@ -94,7 +94,7 @@ pub async fn generate_with_tools(
     let reasoning_config = reasoning::build_reasoning_config(params.base.model);
 
     let request = OpenAiRequest {
-        model: params.base.model.to_string(),
+        model: params.base.model.to_owned(),
         messages: openai_messages,
         temperature,
         top_p,
@@ -123,7 +123,7 @@ pub async fn generate_with_tools(
     let choice = openai_response
         .choices
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_string()))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_owned()))?;
 
     let tool_calls = choice
         .message
@@ -161,7 +161,7 @@ pub async fn generate_with_tools(
     Ok((ai_response, tool_calls))
 }
 
-pub async fn generate_structured(
+pub(super) async fn generate_structured(
     provider: &OpenAiProvider,
     params: StructuredGenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -184,7 +184,7 @@ pub async fn generate_structured(
     let reasoning_config = reasoning::build_reasoning_config(params.base.model);
 
     let request = OpenAiRequest {
-        model: params.base.model.to_string(),
+        model: params.base.model.to_owned(),
         messages: openai_messages,
         temperature,
         top_p,
@@ -218,7 +218,7 @@ pub async fn generate_structured(
     )
 }
 
-pub async fn generate_with_schema(
+pub(super) async fn generate_with_schema(
     provider: &OpenAiProvider,
     params: SchemaGenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -236,7 +236,7 @@ pub async fn generate_with_schema(
     let reasoning_config = reasoning::build_reasoning_config(params.base.model);
 
     let request = OpenAiRequest {
-        model: params.base.model.to_string(),
+        model: params.base.model.to_owned(),
         messages: openai_messages,
         temperature,
         top_p,
@@ -246,7 +246,7 @@ pub async fn generate_with_schema(
         tools: None,
         response_format: Some(OpenAiResponseFormat::JsonSchema {
             json_schema: OpenAiJsonSchema {
-                name: "structured_output".to_string(),
+                name: "structured_output".to_owned(),
                 schema: params.response_schema,
                 strict: Some(true),
             },

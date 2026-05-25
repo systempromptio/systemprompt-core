@@ -77,7 +77,7 @@ const NOISE_FILTERS: &[&str] = &[
 ];
 
 fn build_filter(base: &str) -> EnvFilter {
-    let filter_str = std::iter::once(base.to_string())
+    let filter_str = std::iter::once(base.to_owned())
         .chain(NOISE_FILTERS.iter().map(ToString::to_string))
         .collect::<Vec<_>>()
         .join(",");

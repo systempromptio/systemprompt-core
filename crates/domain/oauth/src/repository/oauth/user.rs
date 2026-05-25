@@ -65,12 +65,12 @@ impl OAuthRepository {
 
         if permissions.is_empty() {
             return Err(OauthError::Validation(
-                "User has no valid permissions after parsing".to_string(),
+                "User has no valid permissions after parsing".to_owned(),
             ));
         }
 
         let user_uuid = Uuid::parse_str(&row.id)
-            .map_err(|_| OauthError::Validation(format!("Invalid user UUID: {}", row.id)))?;
+            .map_err(|_e| OauthError::Validation(format!("Invalid user UUID: {}", row.id)))?;
 
         Ok(
             systemprompt_models::auth::AuthenticatedUser::new_with_roles(

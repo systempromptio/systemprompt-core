@@ -14,7 +14,7 @@ struct MockConfig {
 }
 
 impl ConfigProvider for MockConfig {
-    fn get(&self, key: &str) -> Option<String> {
+    pub(crate) fn get(&self, key: &str) -> Option<String> {
         match key {
             "app_name" => Some(self.app_name.clone()),
             _ => None,

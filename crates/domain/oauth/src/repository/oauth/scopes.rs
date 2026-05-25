@@ -39,7 +39,7 @@ impl OAuthRepository {
     pub fn get_available_scopes() -> Vec<(String, Option<String>)> {
         VALID_SCOPES
             .iter()
-            .map(|(name, desc, _)| ((*name).to_string(), Some((*desc).to_string())))
+            .map(|(name, desc, _)| ((*name).to_owned(), Some((*desc).to_owned())))
             .collect()
     }
 
@@ -50,7 +50,7 @@ impl OAuthRepository {
     pub fn parse_scopes(scope_string: &str) -> Vec<String> {
         scope_string
             .split_whitespace()
-            .map(ToString::to_string)
+            .map(str::to_owned)
             .filter(|s| !s.is_empty())
             .collect()
     }
@@ -63,7 +63,7 @@ impl OAuthRepository {
         VALID_SCOPES
             .iter()
             .filter(|(_, _, is_default)| *is_default)
-            .map(|(name, _, _)| (*name).to_string())
+            .map(|(name, _, _)| (*name).to_owned())
             .collect()
     }
 }

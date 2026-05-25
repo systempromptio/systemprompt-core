@@ -32,7 +32,7 @@ pub struct LogsArgs {
     pub logs_dir: Option<String>,
 }
 
-pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<AgentLogsOutput>> {
+pub(crate) async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<AgentLogsOutput>> {
     let logs_path = match args.logs_dir.as_deref() {
         Some(dir) => PathBuf::from(dir),
         None => PathBuf::from(

@@ -6,7 +6,9 @@ use uuid::Uuid;
 use super::persistence::{broadcast_completion, persist_completed_task};
 use super::stream_processor::StreamProcessor;
 use super::{MessageProcessor, StreamEvent};
-use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{
+    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
+};
 use crate::services::a2a_server::processing::task_builder::build_completed_task;
 use crate::services::a2a_server::streaming::broadcast::{
     BroadcastTaskCreatedParams, broadcast_task_created,
@@ -16,7 +18,7 @@ use systemprompt_identifiers::{MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{AgUiEventBuilder, AgUiMessageRole, RequestContext, TaskMetadata};
 
 impl MessageProcessor {
-    pub async fn handle_message(
+    pub(crate) async fn handle_message(
         &self,
         message: Message,
         agent_name: &str,
@@ -58,7 +60,7 @@ impl MessageProcessor {
             },
         );
 
-        let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
+        let metadata = TaskMetadata::new_agent_message(agent_name.to_owned());
 
         let task = Task {
             id: task_id.clone(),
@@ -119,7 +121,7 @@ impl MessageProcessor {
             execution_step_repo: Arc::clone(&self.execution_step_repo),
         };
 
-        let mut chunk_rx = stream_processor
+        let chunk_rx = stream_processor
             .process_message_stream(super::ProcessMessageStreamParams {
                 a2a_message: &message,
                 agent_runtime: &agent_runtime,
@@ -129,40 +131,7 @@ impl MessageProcessor {
             })
             .await?;
 
-        let mut response_text = String::new();
-        let mut tool_artifacts = Vec::new();
-
-        while let Some(event) = chunk_rx.recv().await {
-            match event {
-                StreamEvent::Text(text) => {
-                    response_text.push_str(&text);
-                },
-                StreamEvent::Complete {
-                    full_text,
-                    artifacts,
-                } => {
-                    response_text = full_text;
-                    tool_artifacts = artifacts;
-                },
-                StreamEvent::Error(error) => {
-                    let error_event = AgUiEventBuilder::run_error(
-                        error.clone(),
-                        Some("EXECUTION_ERROR".to_string()),
-                    );
-                    if let Err(e) = broadcast_agui_event(
-                        context.user_id(),
-                        error_event,
-                        context.auth_token().as_str(),
-                    )
-                    .await
-                    {
-                        tracing::debug!(error = %e, "Failed to broadcast error event");
-                    }
-                    return Err(AgentServiceError::Internal(error.clone()));
-                },
-                _ => {},
-            }
-        }
+        let (response_text, tool_artifacts) = collect_stream_response(chunk_rx, context).await?;
 
         let task = build_completed_task(
             task_id,
@@ -203,73 +172,146 @@ impl MessageProcessor {
             );
         }
 
-        if let Err(e) = persist_completed_task(super::persistence::PersistCompletedTaskParams {
+        self.persist_or_mark_failed(&task, &message, &agent_message, context)
+            .await?;
+
+        broadcast_completion(&task, context).await;
+
+        broadcast_agui_lifecycle(BroadcastAguiLifecycleParams {
+            context,
+            context_id,
             task: &task,
-            user_message: &message,
             agent_message: &agent_message,
+            response_text: &response_text,
+        })
+        .await;
+
+        Ok(task)
+    }
+
+    async fn persist_or_mark_failed(
+        &self,
+        task: &Task,
+        user_message: &Message,
+        agent_message: &Message,
+        context: &RequestContext,
+    ) -> Result<()> {
+        let Err(e) = persist_completed_task(super::persistence::PersistCompletedTaskParams {
+            task,
+            user_message,
+            agent_message,
             context,
             task_repo: &self.task_repo,
             db_pool: &self.db_pool,
             artifacts_already_published: false,
         })
         .await
+        else {
+            return Ok(());
+        };
+
+        let error_msg = format!("Failed to persist completed task: {}", e);
+        tracing::error!(task_id = %task.id, error = %e, "Failed to persist completed task");
+
+        let failed_timestamp = chrono::Utc::now();
+        if let Err(update_err) = self
+            .task_repo
+            .update_task_failed_with_error(&task.id, &error_msg, &failed_timestamp)
+            .await
         {
-            let error_msg = format!("Failed to persist completed task: {}", e);
-            tracing::error!(task_id = %task.id, error = %e, "Failed to persist completed task");
+            tracing::error!(task_id = %task.id, error = %update_err, "Failed to update task to failed state");
+        }
 
-            let failed_timestamp = chrono::Utc::now();
-            if let Err(update_err) = self
-                .task_repo
-                .update_task_failed_with_error(&task.id, &error_msg, &failed_timestamp)
+        Err(e)
+    }
+}
+
+async fn collect_stream_response(
+    mut chunk_rx: tokio::sync::mpsc::Receiver<StreamEvent>,
+    context: &RequestContext,
+) -> Result<(String, Vec<Artifact>)> {
+    let mut response_text = String::new();
+    let mut tool_artifacts = Vec::new();
+
+    while let Some(event) = chunk_rx.recv().await {
+        match event {
+            StreamEvent::Text(text) => {
+                response_text.push_str(&text);
+            },
+            StreamEvent::Complete {
+                full_text,
+                artifacts,
+            } => {
+                response_text = full_text;
+                tool_artifacts = artifacts;
+            },
+            StreamEvent::Error(error) => {
+                let error_event = AgUiEventBuilder::run_error(
+                    error.clone(),
+                    Some("EXECUTION_ERROR".to_owned()),
+                );
+                if let Err(e) = broadcast_agui_event(
+                    context.user_id(),
+                    error_event,
+                    context.auth_token().as_str(),
+                )
                 .await
-            {
-                tracing::error!(task_id = %task.id, error = %update_err, "Failed to update task to failed state");
-            }
-
-            return Err(e);
+                {
+                    tracing::debug!(error = %e, "Failed to broadcast error event");
+                }
+                return Err(AgentServiceError::Internal(error.clone()));
+            },
+            _ => {},
         }
+    }
 
-        broadcast_completion(&task, context).await;
+    Ok((response_text, tool_artifacts))
+}
 
-        let user_id = context.user_id();
-        let auth_token = context.auth_token().as_str();
-        let task_id = task.id.clone();
-        let message_id = agent_message.message_id.clone();
+struct BroadcastAguiLifecycleParams<'a> {
+    context: &'a RequestContext,
+    context_id: &'a systemprompt_identifiers::ContextId,
+    task: &'a Task,
+    agent_message: &'a Message,
+    response_text: &'a str,
+}
 
-        let start_event = AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
-        if let Err(e) = broadcast_agui_event(user_id, start_event, auth_token).await {
-            tracing::debug!(error = %e, "Failed to broadcast run_started event");
-        }
+async fn broadcast_agui_lifecycle(params: BroadcastAguiLifecycleParams<'_>) {
+    let user_id = params.context.user_id();
+    let auth_token = params.context.auth_token().as_str();
+    let task_id = params.task.id.clone();
+    let message_id = params.agent_message.message_id.clone();
 
-        let msg_start = AgUiEventBuilder::text_message_start(
-            message_id.to_string(),
-            AgUiMessageRole::Assistant,
-        );
-        if let Err(e) = broadcast_agui_event(user_id, msg_start, auth_token).await {
-            tracing::debug!(error = %e, "Failed to broadcast text_message_start event");
-        }
+    let start_event =
+        AgUiEventBuilder::run_started(params.context_id.clone(), task_id.clone(), None);
+    if let Err(e) = broadcast_agui_event(user_id, start_event, auth_token).await {
+        tracing::debug!(error = %e, "Failed to broadcast run_started event");
+    }
 
-        let msg_content =
-            AgUiEventBuilder::text_message_content(message_id.to_string(), &response_text);
-        if let Err(e) = broadcast_agui_event(user_id, msg_content, auth_token).await {
-            tracing::debug!(error = %e, "Failed to broadcast text_message_content event");
-        }
+    let msg_start =
+        AgUiEventBuilder::text_message_start(message_id.to_string(), AgUiMessageRole::Assistant);
+    if let Err(e) = broadcast_agui_event(user_id, msg_start, auth_token).await {
+        tracing::debug!(error = %e, "Failed to broadcast text_message_start event");
+    }
 
-        let msg_end = AgUiEventBuilder::text_message_end(message_id.to_string());
-        if let Err(e) = broadcast_agui_event(user_id, msg_end, auth_token).await {
-            tracing::debug!(error = %e, "Failed to broadcast text_message_end event");
-        }
+    let msg_content =
+        AgUiEventBuilder::text_message_content(message_id.to_string(), params.response_text);
+    if let Err(e) = broadcast_agui_event(user_id, msg_content, auth_token).await {
+        tracing::debug!(error = %e, "Failed to broadcast text_message_content event");
+    }
 
-        let result = serde_json::json!({
-            "text": response_text,
-            "artifacts": task.artifacts,
-        });
-        let finish_event =
-            AgUiEventBuilder::run_finished(context_id.clone(), task_id, Some(result));
-        if let Err(e) = broadcast_agui_event(user_id, finish_event, auth_token).await {
-            tracing::debug!(error = %e, "Failed to broadcast run_finished event");
-        }
+    let msg_end = AgUiEventBuilder::text_message_end(message_id.to_string());
+    if let Err(e) = broadcast_agui_event(user_id, msg_end, auth_token).await {
+        tracing::debug!(error = %e, "Failed to broadcast text_message_end event");
+    }
 
-        Ok(task)
+    let result = serde_json::json!({
+        "text": params.response_text,
+        "artifacts": params.task.artifacts,
+    });
+    let finish_event =
+        AgUiEventBuilder::run_finished(params.context_id.clone(), task_id, Some(result));
+    if let Err(e) = broadcast_agui_event(user_id, finish_event, auth_token).await {
+        tracing::debug!(error = %e, "Failed to broadcast run_finished event");
     }
 }

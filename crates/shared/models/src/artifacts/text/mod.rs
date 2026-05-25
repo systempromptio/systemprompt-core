@@ -8,7 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
-    "text".to_string()
+    "text".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -29,7 +29,7 @@ impl TextArtifact {
 
     pub fn new(content: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "text".to_string(),
+            artifact_type: "text".to_owned(),
             content: content.into(),
             title: None,
             metadata: ExecutionMetadata::with_request(ctx),

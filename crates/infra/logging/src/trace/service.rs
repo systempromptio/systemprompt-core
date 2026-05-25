@@ -5,7 +5,7 @@ use systemprompt_identifiers::TaskId;
 
 use crate::models::{LogEntry, LoggingError};
 
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 
 use super::models::{
     AiRequestDetail, AiRequestListItem, AiRequestStats, AiRequestSummary, AuditLookupResult,

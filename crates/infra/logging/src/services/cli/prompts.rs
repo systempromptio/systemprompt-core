@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 

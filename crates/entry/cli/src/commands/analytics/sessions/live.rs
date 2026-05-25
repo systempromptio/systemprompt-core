@@ -31,7 +31,7 @@ pub struct LiveArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: LiveArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<LiveSessionsOutput>> {
@@ -40,7 +40,7 @@ pub async fn execute(
     execute_internal(args, &repo, config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: LiveArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,

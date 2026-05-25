@@ -114,7 +114,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
         }
         let stem = file_stem(&path);
         if let Some(base) = stem.strip_suffix(".down") {
-            downs.insert(base.to_string(), path);
+            downs.insert(base.to_owned(), path);
         } else {
             ups.push(path);
         }
@@ -148,8 +148,7 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
 fn file_stem(path: &Path) -> String {
     path.file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or_else(|| panic!("migration path {} has no usable file stem", path.display()))
-        .to_string()
+        .unwrap_or_else(|| panic!("migration path {} has no usable file stem", path.display())).to_owned()
 }
 
 fn parse_stem(stem: &str, path: &Path) -> (u32, String) {
@@ -165,7 +164,7 @@ fn parse_stem(stem: &str, path: &Path) -> (u32, String) {
             path.display()
         )
     });
-    (version, name.to_string())
+    (version, name.to_owned())
 }
 
 fn has_no_transaction_directive(path: &Path) -> bool {

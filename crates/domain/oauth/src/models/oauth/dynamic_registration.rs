@@ -53,7 +53,7 @@ impl DynamicRegistrationRequest {
         self.client_name
             .as_ref()
             .filter(|n| !n.is_empty())
-            .ok_or_else(|| "client_name is required for client registration".to_string())
+            .ok_or_else(|| "client_name is required for client registration".to_owned())
             .cloned()
     }
 
@@ -61,7 +61,7 @@ impl DynamicRegistrationRequest {
         self.redirect_uris
             .as_ref()
             .filter(|uris| !uris.is_empty())
-            .ok_or_else(|| "redirect_uris are required for client registration".to_string())
+            .ok_or_else(|| "redirect_uris are required for client registration".to_owned())
             .cloned()
     }
 
@@ -69,7 +69,7 @@ impl DynamicRegistrationRequest {
         self.grant_types
             .as_ref()
             .filter(|types| !types.is_empty())
-            .ok_or_else(|| "grant_types are required for client registration".to_string())
+            .ok_or_else(|| "grant_types are required for client registration".to_owned())
             .cloned()
     }
 
@@ -77,13 +77,13 @@ impl DynamicRegistrationRequest {
         self.response_types
             .as_ref()
             .filter(|types| !types.is_empty())
-            .ok_or_else(|| "response_types are required for client registration".to_string())
+            .ok_or_else(|| "response_types are required for client registration".to_owned())
             .cloned()
     }
 
     pub fn get_scopes(&self) -> Vec<String> {
         self.scope.as_ref().map_or_else(Vec::new, |s| {
-            s.split_whitespace().map(ToString::to_string).collect()
+            s.split_whitespace().map(str::to_owned).collect()
         })
     }
 
@@ -94,6 +94,6 @@ impl DynamicRegistrationRequest {
             .cloned()
             // RFC 7591 §2: server defaults this when client omits it; client_secret_basic is the
             // spec default.
-            .unwrap_or_else(|| "client_secret_basic".to_string())
+            .unwrap_or_else(|| "client_secret_basic".to_owned())
     }
 }

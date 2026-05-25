@@ -66,7 +66,7 @@ impl OAuthClient {
             scopes: relations.scopes,
             token_endpoint_auth_method: row
                 .token_endpoint_auth_method
-                .unwrap_or_else(|| "client_secret_post".to_string()),
+                .unwrap_or_else(|| "client_secret_post".to_owned()),
             client_uri: row.client_uri,
             logo_uri: row.logo_uri,
             contacts: relations.contacts,
@@ -80,32 +80,32 @@ impl OAuthClient {
     pub fn validate(&self) -> Result<()> {
         if self.client_id.as_str().is_empty() {
             return Err(crate::error::OauthError::Internal(
-                "client_id cannot be empty".to_string(),
+                "client_id cannot be empty".to_owned(),
             ));
         }
         if self.client_name.is_empty() {
             return Err(crate::error::OauthError::Internal(
-                "client_name cannot be empty".to_string(),
+                "client_name cannot be empty".to_owned(),
             ));
         }
         if self.redirect_uris.is_empty() {
             return Err(crate::error::OauthError::Internal(
-                "redirect_uris cannot be empty".to_string(),
+                "redirect_uris cannot be empty".to_owned(),
             ));
         }
         if self.grant_types.is_empty() {
             return Err(crate::error::OauthError::Internal(
-                "grant_types cannot be empty".to_string(),
+                "grant_types cannot be empty".to_owned(),
             ));
         }
         if self.response_types.is_empty() {
             return Err(crate::error::OauthError::Internal(
-                "response_types cannot be empty".to_string(),
+                "response_types cannot be empty".to_owned(),
             ));
         }
         if self.scopes.is_empty() {
             return Err(crate::error::OauthError::Internal(
-                "scopes cannot be empty".to_string(),
+                "scopes cannot be empty".to_owned(),
             ));
         }
         Ok(())

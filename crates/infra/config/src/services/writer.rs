@@ -10,13 +10,13 @@ use super::types::{DeployEnvironment, EnvironmentConfig};
 use crate::error::ConfigResult;
 
 #[derive(Debug)]
-pub struct ConfigWriter {
+pub(crate) struct ConfigWriter {
     project_root: PathBuf,
 }
 
 impl ConfigWriter {
     #[must_use]
-    pub const fn new(project_root: PathBuf) -> Self {
+    pub(crate) const fn new(project_root: PathBuf) -> Self {
         Self { project_root }
     }
 
@@ -28,7 +28,7 @@ impl ConfigWriter {
         self.project_root.join("web")
     }
 
-    pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
+    pub(crate) fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
         let mut lines: Vec<String> = config
             .variables
             .iter()
@@ -56,7 +56,7 @@ impl ConfigWriter {
         Ok(())
     }
 
-    pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
+    pub(crate) fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
         let web_dir = self.resolve_web_dir();
         let web_env_path = web_dir.join(format!(".env.{}", config.environment.as_str()));
 

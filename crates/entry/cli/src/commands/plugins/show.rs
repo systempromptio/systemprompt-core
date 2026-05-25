@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: &ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ExtensionDetailOutput>> {

@@ -13,7 +13,7 @@ fn validate_uuid_v4(s: &str) -> Result<(), IdValidationError> {
 // Why: UUID v5 namespace for deriving a stable `ContextId` from a
 // `GatewayConversationId`. Hardcoded so derivations match across processes
 // and rebuilds; rotating it would orphan every prior gateway audit row.
-pub const GATEWAY_CONVERSATION_NAMESPACE: uuid::Uuid =
+const GATEWAY_CONVERSATION_NAMESPACE: uuid::Uuid =
     uuid::Uuid::from_u128(0x993f_3f2c_f4d9_463b_853a_d3f0_3e19_0898);
 
 impl ContextId {

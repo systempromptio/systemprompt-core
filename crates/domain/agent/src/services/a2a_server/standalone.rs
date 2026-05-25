@@ -16,7 +16,7 @@ pub async fn run_standalone(
         Arc::clone(agent_state.db_pool()),
         agent_state,
         ai_service,
-        Some(agent_name.to_string()),
+        Some(agent_name.to_owned()),
         port,
     )
     .await

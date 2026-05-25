@@ -16,7 +16,7 @@ pub(super) fn build_request_body(request: &CanonicalRequest, upstream_model: &st
     }
 
     let mut obj = Map::new();
-    obj.insert("model".into(), Value::String(upstream_model.to_string()));
+    obj.insert("model".into(), Value::String(upstream_model.to_owned()));
     obj.insert("messages".into(), Value::Array(messages));
     obj.insert("max_tokens".into(), Value::from(request.max_tokens));
     if let Some(t) = request.temperature {

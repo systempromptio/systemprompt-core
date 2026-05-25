@@ -29,7 +29,7 @@ pub struct ValidateArgs {
     pub only: Option<ValidationCategory>,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {

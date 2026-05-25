@@ -10,7 +10,7 @@ use crate::services::a2a_server::processing::message::StreamEvent;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{AiMessage, AiProvider, RequestContext};
 
-pub fn build_artifacts_from_results(
+pub(super) fn build_artifacts_from_results(
     tool_results: &[systemprompt_models::CallToolResult],
     tool_calls: &[systemprompt_models::ToolCall],
     tools: &[systemprompt_models::McpTool],
@@ -46,7 +46,7 @@ pub fn build_artifacts_from_results(
     artifact_builder.build_artifacts()
 }
 
-pub struct SynthesizeFinalResponseParams<'a> {
+pub(super) struct SynthesizeFinalResponseParams<'a> {
     pub tool_calls: &'a [systemprompt_models::ToolCall],
     pub tool_results: &'a [systemprompt_models::CallToolResult],
     pub artifacts: &'a [Artifact],
@@ -59,7 +59,7 @@ pub struct SynthesizeFinalResponseParams<'a> {
     pub skill_service: Arc<SkillService>,
 }
 
-pub async fn synthesize_final_response(params: SynthesizeFinalResponseParams<'_>) -> String {
+pub(super) async fn synthesize_final_response(params: SynthesizeFinalResponseParams<'_>) -> String {
     use crate::services::a2a_server::processing::ai_executor::{
         SynthesizeToolResultsParams, synthesize_tool_results_with_artifacts,
     };
@@ -99,7 +99,7 @@ pub async fn synthesize_final_response(params: SynthesizeFinalResponseParams<'_>
         .await
         .unwrap_or_else(|()| {
             tracing::warn!("Synthesis failed, using initial response");
-            accumulated_text.to_string()
+            accumulated_text.to_owned()
         })
     } else {
         if tool_calls.is_empty() && !accumulated_text.is_empty() {
@@ -108,6 +108,6 @@ pub async fn synthesize_final_response(params: SynthesizeFinalResponseParams<'_>
                 "Synthesis skipped: Agent produced text without tool calls"
             );
         }
-        accumulated_text.to_string()
+        accumulated_text.to_owned()
     }
 }

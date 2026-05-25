@@ -38,7 +38,7 @@ impl DomainConfig for WebConfigValidator {
         self.config = provider.web_config().cloned();
         self.metadata = provider.web_metadata().cloned();
         self.config_path = config.get("web_config_path");
-        self.system_path = Some(config.system_path().to_string());
+        self.system_path = Some(config.system_path().to_owned());
         Ok(())
     }
 
@@ -142,7 +142,7 @@ impl WebConfigValidator {
     fn resolve_path(&self, path: &str) -> String {
         let p = Path::new(path);
         if p.is_absolute() {
-            return path.to_string();
+            return path.to_owned();
         }
 
         if let Some(ref system_path) = self.system_path {
@@ -154,7 +154,7 @@ impl WebConfigValidator {
             );
         }
 
-        path.to_string()
+        path.to_owned()
     }
 
     fn validate_branding(&self, report: &mut ValidationReport) {

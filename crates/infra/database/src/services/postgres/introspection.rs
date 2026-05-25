@@ -11,7 +11,7 @@ use sqlx::postgres::PgPool;
 use crate::error::DatabaseResult;
 use crate::models::{ColumnInfo, DatabaseInfo, TableInfo};
 
-pub async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseInfo> {
+pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseInfo> {
     let version_row = sqlx::query("SELECT version() as version")
         .fetch_one(pool)
         .await?;
@@ -65,7 +65,7 @@ pub async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseInfo> {
     }
 
     Ok(DatabaseInfo {
-        path: "PostgreSQL".to_string(),
+        path: "PostgreSQL".to_owned(),
         size: 0,
         version,
         tables,

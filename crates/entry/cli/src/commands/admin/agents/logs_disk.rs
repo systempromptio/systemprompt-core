@@ -11,7 +11,7 @@ use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 
-pub fn execute_disk_mode(
+pub(crate) fn execute_disk_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
@@ -50,7 +50,7 @@ pub fn execute_disk_mode(
     .with_title(format!("Agent Logs (Disk): {}", agent)))
 }
 
-pub fn execute_follow_mode(
+pub(crate) fn execute_follow_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,

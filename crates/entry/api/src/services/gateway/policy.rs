@@ -6,7 +6,7 @@ use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_database::DbPool;
 
 // The gateway-policy spec types are owned by `systemprompt-ai` so the
-// version-controlled `services/ai/gateway-policies.yaml` and the persisted
+// version-controlled `services/gateway/policies.yaml` and the persisted
 // `ai_gateway_policies.spec` column share one schema. Re-exported here so
 // existing `super::policy::{...}` call sites are unaffected.
 pub use systemprompt_ai::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
@@ -77,9 +77,6 @@ fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
             tracing::warn!(policy_id = %row.id, name = %row.name, "policy spec JSON malformed — skipped");
             continue;
         };
-        if spec.allowed_models.is_some() {
-            merged.allowed_models = spec.allowed_models;
-        }
         if spec.max_input_tokens_per_call.is_some() {
             merged.max_input_tokens_per_call = spec.max_input_tokens_per_call;
         }

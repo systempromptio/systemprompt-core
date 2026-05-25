@@ -3,7 +3,7 @@ use std::fs;
 use super::super::paths::WebPaths;
 use super::super::types::ValidationIssue;
 
-pub fn validate_assets(
+pub(crate) fn validate_assets(
     profile: &systemprompt_models::Profile,
     web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,

@@ -9,7 +9,7 @@ use crate::repository::McpSessionRepository;
 const STALE_SESSION_RETENTION_DAYS: i32 = 7;
 
 #[derive(Debug, Clone, Copy)]
-pub struct McpSessionCleanupJob;
+struct McpSessionCleanupJob;
 
 #[async_trait]
 impl Job for McpSessionCleanupJob {
@@ -30,7 +30,7 @@ impl Job for McpSessionCleanupJob {
 
         let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
             systemprompt_provider_contracts::ProviderError::Internal(
-                "DbPool not available in job context".to_string(),
+                "DbPool not available in job context".to_owned(),
             )
         })?);
 

@@ -10,7 +10,7 @@ use super::types::McpLogsOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
 
-pub async fn execute_db_mode(
+pub(crate) async fn execute_db_mode(
     args: &LogsArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<McpLogsOutput>> {

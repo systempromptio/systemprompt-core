@@ -25,7 +25,7 @@ impl A2aContextExtractor {
 
         let context_id = ContextId::try_new(context_id).map_err(|e| {
             ContextExtractionError::InvalidHeaderValue {
-                header: "x-context-id".to_string(),
+                header: "x-context-id".to_owned(),
                 reason: e.to_string(),
             }
         })?;
@@ -54,7 +54,7 @@ impl A2aContextExtractor {
             .get("authorization")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.strip_prefix("Bearer "))
-            .map(ToString::to_string)
+            .map(str::to_owned)
     }
 
     fn try_from_payload(
@@ -72,14 +72,14 @@ impl A2aContextExtractor {
             ContextIdSource::Direct(id) => {
                 let id = ContextId::try_new(id).map_err(|e| {
                     ContextExtractionError::InvalidHeaderValue {
-                        header: "contextId".to_string(),
+                        header: "contextId".to_owned(),
                         reason: e.to_string(),
                     }
                 })?;
                 (id, HeaderSource::extract_optional(headers, "x-task-id"))
             },
             ContextIdSource::FromTask { task_id } => {
-                (ContextId::generate(), Some(task_id.as_str().to_string()))
+                (ContextId::generate(), Some(task_id.as_str().to_owned()))
             },
         };
 

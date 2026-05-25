@@ -8,7 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
-    "copy_paste_text".to_string()
+    "copy_paste_text".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -31,7 +31,7 @@ impl CopyPasteTextArtifact {
 
     pub fn new(content: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "copy_paste_text".to_string(),
+            artifact_type: "copy_paste_text".to_owned(),
             content: content.into(),
             title: None,
             language: None,

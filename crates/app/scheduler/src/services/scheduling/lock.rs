@@ -79,7 +79,7 @@ pub(super) async fn try_acquire_job_lock(
         Ok(Some(JobLockGuard {
             conn: Some(conn),
             key,
-            job_name: job_name.to_string(),
+            job_name: job_name.to_owned(),
         }))
     } else {
         Ok(None)

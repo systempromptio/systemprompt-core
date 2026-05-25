@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ struct ToolRow {
     execution_time_ms: Option<i32>,
 }
 
-pub async fn search_logs(
+pub(super) async fn search_logs(
     pool: &Arc<PgPool>,
     pattern: &str,
     since: Option<DateTime<Utc>>,
@@ -74,7 +74,7 @@ pub async fn search_logs(
         .collect())
 }
 
-pub async fn search_tool_executions(
+pub(super) async fn search_tool_executions(
     pool: &Arc<PgPool>,
     pattern: &str,
     since: Option<DateTime<Utc>>,

@@ -7,15 +7,15 @@ use crate::models::providers::gemini::{
 use std::collections::HashMap;
 use systemprompt_models::services::ModelDefinition;
 
-pub fn map_resolution_to_gemini_size(resolution: &ImageResolution) -> String {
+pub(super) fn map_resolution_to_gemini_size(resolution: &ImageResolution) -> String {
     match resolution {
-        ImageResolution::OneK => "1K".to_string(),
-        ImageResolution::TwoK => "2K".to_string(),
-        ImageResolution::FourK => "4K".to_string(),
+        ImageResolution::OneK => "1K".to_owned(),
+        ImageResolution::TwoK => "2K".to_owned(),
+        ImageResolution::FourK => "4K".to_owned(),
     }
 }
 
-pub fn model_supports_image_size(
+pub(super) fn model_supports_image_size(
     model_definitions: &HashMap<String, ModelDefinition>,
     model: &str,
 ) -> bool {
@@ -24,7 +24,7 @@ pub fn model_supports_image_size(
         .is_some_and(|def| def.capabilities.image_resolution_config)
 }
 
-pub fn build_image_request(
+pub(super) fn build_image_request(
     request: &ImageGenerationRequest,
     model: &str,
     model_definitions: &HashMap<String, ModelDefinition>,
@@ -46,7 +46,7 @@ pub fn build_image_request(
     }
 
     let contents = vec![GeminiContent {
-        role: "user".to_string(),
+        role: "user".to_owned(),
         parts,
     }];
 
@@ -61,9 +61,9 @@ pub fn build_image_request(
         stop_sequences: None,
         response_mime_type: None,
         response_schema: None,
-        response_modalities: Some(vec!["IMAGE".to_string()]),
+        response_modalities: Some(vec!["IMAGE".to_owned()]),
         image_config: Some(GeminiImageConfig {
-            aspect_ratio: request.aspect_ratio.as_str().to_string(),
+            aspect_ratio: request.aspect_ratio.as_str().to_owned(),
             image_size,
         }),
         thinking_config: None,
@@ -89,24 +89,23 @@ pub fn build_image_request(
     }
 }
 
-pub fn extract_image_from_response(response: &GeminiResponse) -> Result<(String, String)> {
+pub(super) fn extract_image_from_response(response: &GeminiResponse) -> Result<(String, String)> {
     let candidate = response
         .candidates
         .first()
         .ok_or_else(|| AiError::EmptyProviderResponse {
-            provider: "gemini-image".to_string(),
+            provider: "gemini-image".to_owned(),
         })?;
 
     let content = candidate
         .content
         .as_ref()
         .ok_or_else(|| AiError::ProviderError {
-            provider: "gemini-image".to_string(),
+            provider: "gemini-image".to_owned(),
             message: "Image generation returned empty response - this may indicate the prompt was \
                       rejected by content safety filters, API quota exceeded, or a transient \
                       service error. Please inform the user that image generation failed and the \
-                      content was created without an image."
-                .to_string(),
+                      content was created without an image.".to_owned(),
         })?;
 
     for part in &content.parts {
@@ -116,7 +115,7 @@ pub fn extract_image_from_response(response: &GeminiResponse) -> Result<(String,
     }
 
     Err(AiError::ProviderError {
-        provider: "gemini-image".to_string(),
-        message: "No image data found in response".to_string(),
+        provider: "gemini-image".to_owned(),
+        message: "No image data found in response".to_owned(),
     })
 }

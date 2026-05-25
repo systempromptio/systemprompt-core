@@ -74,10 +74,10 @@ impl DatabaseCliDisplay for QueryResult {
                 .iter()
                 .map(|col| {
                     row.get(col).map_or_else(
-                        || "NULL".to_string(),
+                        || "NULL".to_owned(),
                         |v| match v {
                             serde_json::Value::String(s) => s.clone(),
-                            serde_json::Value::Null => "NULL".to_string(),
+                            serde_json::Value::Null => "NULL".to_owned(),
                             serde_json::Value::Bool(_)
                             | serde_json::Value::Number(_)
                             | serde_json::Value::Array(_)

@@ -11,14 +11,14 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams, UserApiKey};
 
-pub fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<AppContext> {
     Router::new()
         .route("/", post(issue_key).get(list_keys))
         .route("/{key_id}", delete(revoke_key))
 }
 
 #[derive(Debug, Deserialize)]
-pub struct IssueApiKeyRequest {
+pub(super) struct IssueApiKeyRequest {
     pub name: String,
     #[serde(default)]
     pub target_user_id: Option<String>,
@@ -27,7 +27,7 @@ pub struct IssueApiKeyRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct IssueApiKeyResponse {
+pub(super) struct IssueApiKeyResponse {
     pub id: String,
     pub name: String,
     pub key_prefix: String,
@@ -37,7 +37,7 @@ pub struct IssueApiKeyResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct ApiKeyView {
+pub(super) struct ApiKeyView {
     pub id: String,
     pub name: String,
     pub key_prefix: String,
@@ -50,7 +50,7 @@ pub struct ApiKeyView {
 impl From<UserApiKey> for ApiKeyView {
     fn from(k: UserApiKey) -> Self {
         Self {
-            id: k.id.as_str().to_string(),
+            id: k.id.as_str().to_owned(),
             name: k.name,
             key_prefix: k.key_prefix,
             created_at: k.created_at,
@@ -82,7 +82,7 @@ async fn issue_key(
     Ok((
         StatusCode::CREATED,
         Json(IssueApiKeyResponse {
-            id: issued.record.id.as_str().to_string(),
+            id: issued.record.id.as_str().to_owned(),
             name: issued.record.name,
             key_prefix: issued.record.key_prefix,
             secret: issued.secret,
@@ -130,7 +130,7 @@ async fn revoke_key(
 
 fn resolve_target_user(req_ctx: &RequestContext, override_user_id: Option<&str>) -> UserId {
     match override_user_id {
-        Some(value) if !value.is_empty() => UserId::new(value.to_string()),
+        Some(value) if !value.is_empty() => UserId::new(value.to_owned()),
         _ => req_ctx.user_id().clone(),
     }
 }

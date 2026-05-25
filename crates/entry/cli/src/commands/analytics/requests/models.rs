@@ -35,13 +35,13 @@ pub struct ModelsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: ModelsArgs, _config: &CliConfig) -> Result<CommandResult<ModelsOutput>> {
+pub(crate) async fn execute(args: ModelsArgs, _config: &CliConfig) -> Result<CommandResult<ModelsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ModelsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

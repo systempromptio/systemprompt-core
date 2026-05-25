@@ -52,25 +52,25 @@ fn parse_artifact_type(type_str: &str) -> ArtifactType {
         "image" => ArtifactType::Image,
         "video" => ArtifactType::Video,
         "audio" => ArtifactType::Audio,
-        custom => ArtifactType::Custom(custom.to_string()),
+        custom => ArtifactType::Custom(custom.to_owned()),
     }
 }
 
 fn extract_artifact_type_from_data(data: &JsonValue) -> Option<String> {
     if let Some(t) = data.get("x-artifact-type").and_then(|v| v.as_str()) {
-        return Some(t.to_string());
+        return Some(t.to_owned());
     }
 
     if let Some(artifact) = data.get("artifact")
         && let Some(t) = artifact.get("x-artifact-type").and_then(|v| v.as_str())
     {
-        return Some(t.to_string());
+        return Some(t.to_owned());
     }
     if let Some(artifact) = data.get("artifact")
         && let Some(card) = artifact.get("card")
         && let Some(t) = card.get("x-artifact-type").and_then(|v| v.as_str())
     {
-        return Some(t.to_string());
+        return Some(t.to_owned());
     }
 
     None
@@ -78,7 +78,7 @@ fn extract_artifact_type_from_data(data: &JsonValue) -> Option<String> {
 
 fn extract_artifact_type_from_schema(schema: &JsonValue) -> Option<String> {
     if let Some(t) = schema.get("x-artifact-type").and_then(|v| v.as_str()) {
-        return Some(t.to_string());
+        return Some(t.to_owned());
     }
 
     schema

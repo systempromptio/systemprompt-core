@@ -54,5 +54,5 @@ const fn default_true() -> bool {
 }
 
 fn default_schema_validation_mode() -> String {
-    "auto_migrate".to_string()
+    "auto_migrate".to_owned()
 }

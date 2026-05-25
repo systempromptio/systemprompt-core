@@ -4,7 +4,7 @@ use crate::models::LoggingError;
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, ModuleItemDisplay};
 use crate::services::cli::prompts::Prompts;
 use crate::services::cli::theme::{ItemStatus, MessageLevel, ModuleType, Theme};
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 
 fn stderr_writeln(args: std::fmt::Arguments<'_>) {
     let mut out = std::io::stderr();

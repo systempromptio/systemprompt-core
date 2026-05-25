@@ -5,7 +5,7 @@ use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_provider_contracts::FrontmatterContext;
 
-pub async fn call_frontmatter_processors(
+pub(super) async fn call_frontmatter_processors(
     db_pool: &DbPool,
     content_id_str: &str,
     slug: &str,
@@ -20,7 +20,7 @@ pub async fn call_frontmatter_processors(
     for ext in registry.extensions() {
         for processor in ext.frontmatter_processors() {
             let applies = processor.applies_to_sources();
-            if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
+            if !applies.is_empty() && !applies.contains(&source_name.to_owned()) {
                 continue;
             }
 

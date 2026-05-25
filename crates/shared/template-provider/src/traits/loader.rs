@@ -111,7 +111,7 @@ impl FileSystemLoader {
 impl TemplateLoader for FileSystemLoader {
     async fn load(&self, source: &TemplateSource) -> Result<String> {
         match source {
-            TemplateSource::Embedded(content) => Ok((*content).to_string()),
+            TemplateSource::Embedded(content) => Ok((*content).to_owned()),
             TemplateSource::File(path) => {
                 if Self::has_traversal_components(path) {
                     return Err(TemplateLoaderError::DirectoryTraversal(path.clone()));
@@ -225,7 +225,7 @@ pub struct EmbeddedLoader;
 impl TemplateLoader for EmbeddedLoader {
     async fn load(&self, source: &TemplateSource) -> Result<String> {
         match source {
-            TemplateSource::Embedded(content) => Ok((*content).to_string()),
+            TemplateSource::Embedded(content) => Ok((*content).to_owned()),
             _ => Err(TemplateLoaderError::EmbeddedOnly),
         }
     }

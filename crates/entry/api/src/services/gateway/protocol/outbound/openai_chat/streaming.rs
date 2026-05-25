@@ -58,7 +58,7 @@ fn drain_buffer(
                     state.text_block_open = false;
                 }
                 events.push(Ok(CanonicalEvent::MessageStop {
-                    id: state.message_id.as_str().to_string(),
+                    id: state.message_id.as_str().to_owned(),
                     stop_reason: Some(CanonicalStopReason::EndTurn),
                 }));
                 continue;
@@ -110,13 +110,11 @@ fn emit_message_start(
     let id = value
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("msg_openai")
-        .to_string();
+        .unwrap_or("msg_openai").to_owned();
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(&state.model)
-        .to_string();
+        .unwrap_or(&state.model).to_owned();
     state.message_id = MessageId::new(&id);
     events.push(Ok(CanonicalEvent::MessageStart {
         id,
@@ -150,7 +148,7 @@ fn process_text_delta(
     }
     events.push(Ok(CanonicalEvent::TextDelta {
         index: 0,
-        text: text.to_string(),
+        text: text.to_owned(),
     }));
 }
 
@@ -179,7 +177,7 @@ fn process_tool_calls(
             if !args.is_empty() {
                 events.push(Ok(CanonicalEvent::ToolUseDelta {
                     index: canonical_index,
-                    partial_json: args.to_string(),
+                    partial_json: args.to_owned(),
                 }));
             }
         }
@@ -197,14 +195,12 @@ fn open_new_tool_call(
     let id = tc
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let name = tc
         .get("function")
         .and_then(|f| f.get("name"))
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     events.push(Ok(CanonicalEvent::ContentBlockStart {
         index: idx,
         block: ContentBlockKind::ToolUse { id, name },
@@ -229,7 +225,7 @@ fn emit_message_stop(
         events.push(Ok(CanonicalEvent::ContentBlockStop { index: tc.index }));
     }
     events.push(Ok(CanonicalEvent::MessageStop {
-        id: state.message_id.as_str().to_string(),
+        id: state.message_id.as_str().to_owned(),
         stop_reason: Some(CanonicalStopReason::from_openai(finish)),
     }));
 }

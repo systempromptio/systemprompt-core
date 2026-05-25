@@ -62,13 +62,13 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_logging::ExecutionStepSummary,
 }
 
-pub async fn execute(args: ShowArgs) -> Result<CommandResult<TraceViewOutput>> {
+pub(crate) async fn execute(args: ShowArgs) -> Result<CommandResult<TraceViewOutput>> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
 ) -> Result<CommandResult<TraceViewOutput>> {

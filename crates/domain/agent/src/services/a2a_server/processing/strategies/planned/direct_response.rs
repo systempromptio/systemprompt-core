@@ -6,7 +6,7 @@ use super::super::{ExecutionContext, ExecutionResult};
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::processing::message::StreamEvent;
 
-pub async fn handle_direct_response(
+pub(super) async fn handle_direct_response(
     response_text: String,
     exec_ctx: &ExecutionContext,
     tracking: &ExecutionTrackingService,
@@ -17,7 +17,7 @@ pub async fn handle_direct_response(
         if let Ok(step) = tracking
             .complete_planning(
                 tracked,
-                Some("Direct response - no tools needed".to_string()),
+                Some("Direct response - no tools needed".to_owned()),
                 None,
             )
             .await

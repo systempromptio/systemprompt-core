@@ -114,7 +114,7 @@ pub fn created_table_names(sql: &str) -> Vec<String> {
         .stmts
         .iter()
         .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
-            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.name().to_string()),
+            Node::CreateStmt(create) => collect_create_stmt(create).map(|t| t.name().to_owned()),
             _ => None,
         })
         .collect()
@@ -134,7 +134,7 @@ pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintEr
                 column: 1,
                 severity: LintSeverity::Error,
                 message: format!("SQL parse failed: {e}"),
-                source: source.to_string(),
+                source: source.to_owned(),
             }]);
         },
     };
@@ -196,7 +196,7 @@ fn classify_pass(
                         column: col,
                         severity: LintSeverity::Warning,
                         message: "CREATE EXTENSION without IF NOT EXISTS".into(),
-                        source: source.to_string(),
+                        source: source.to_owned(),
                     });
                 }
             },
@@ -210,7 +210,7 @@ fn classify_pass(
                             "imperative SQL in declarative schema: {reason} — move to \
                              schema/migrations/NNN_<name>.sql"
                         ),
-                        source: source.to_string(),
+                        source: source.to_owned(),
                     });
                 }
             },

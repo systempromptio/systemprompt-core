@@ -74,7 +74,7 @@ fn get_api_suggestions(path: &str) -> Vec<String> {
     } else {
         vec![
             format!("{} - Start here for API discovery", ApiPaths::DISCOVERY),
-            "/ - Frontend application".to_string(),
+            "/ - Frontend application".to_owned(),
         ]
     }
 }

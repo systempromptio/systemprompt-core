@@ -154,14 +154,14 @@ impl WebAuthnService {
             let mut verified = self.verified_auths.lock().await;
             verified.remove(token).ok_or_else(|| {
                 crate::error::OauthError::Internal(
-                    "No verified authentication found for token".to_string(),
+                    "No verified authentication found for token".to_owned(),
                 )
             })?
         };
 
         if data.timestamp.elapsed() > Duration::from_secs(120) {
             return Err(crate::error::OauthError::Internal(
-                "Verified authentication token expired".to_string(),
+                "Verified authentication token expired".to_owned(),
             ));
         }
 

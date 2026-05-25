@@ -127,7 +127,7 @@ impl AgentOrchestrator {
                         .db_service
                         .get_agent_config(&agent_id)
                         .await
-                        .map_or_else(|_| "unknown".to_string(), |config| config.name);
+                        .map_or_else(|_| "unknown".to_owned(), |config| config.name);
 
                     match self.db_service.register_agent(&name, pid, port).await {
                         Ok(service_id) => {
@@ -189,7 +189,7 @@ impl AgentOrchestrator {
 
             for env_var in environ_str.split('\0') {
                 if env_var.starts_with("AGENT_ID=") || env_var.starts_with("AGENT_UUID=") {
-                    agent_id = env_var.split('=').nth(1).map(ToString::to_string);
+                    agent_id = env_var.split('=').nth(1).map(str::to_owned);
                 } else if env_var.starts_with("AGENT_PORT=") {
                     if let Some(port_str) = env_var.split('=').nth(1) {
                         port = port_str.parse::<u16>().ok();

@@ -7,13 +7,13 @@ use crate::shared::CommandResult;
 use super::helpers::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;
 
-pub struct QueryParams<'a> {
+pub(crate) struct QueryParams<'a> {
     pub sql: &'a str,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
 }
 
-pub async fn execute_query(
+pub(crate) async fn execute_query(
     executor: &QueryExecutor,
     params: &QueryParams<'_>,
     _config: &CliConfig,
@@ -55,7 +55,7 @@ pub async fn execute_query(
         .with_columns(columns))
 }
 
-pub async fn execute_write(
+pub(crate) async fn execute_write(
     executor: &QueryExecutor,
     sql: &str,
     _config: &CliConfig,

@@ -18,7 +18,7 @@ pub fn convert_tools(tools: Vec<McpTool>) -> Result<Vec<OpenAiTool>> {
             })?;
 
             Ok(OpenAiTool {
-                r#type: "function".to_string(),
+                r#type: "function".to_owned(),
                 function: OpenAiFunction {
                     name: tool.name,
                     description: tool.description,
@@ -40,7 +40,7 @@ pub fn convert_response_format(format: &ResponseFormat) -> Result<Option<OpenAiR
         } => {
             let schema_name = name.clone().ok_or_else(|| {
                 crate::error::AiError::Internal(
-                    "JSON schema response format requires a name".to_string(),
+                    "JSON schema response format requires a name".to_owned(),
                 )
             })?;
 

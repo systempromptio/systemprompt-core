@@ -132,17 +132,17 @@ pub async fn issue_bridge_access_with(
         .map_err(|e| OauthError::Session(e.to_string()))?;
 
     let mut hdrs = HashMap::new();
-    hdrs.insert(headers::USER_ID.to_string(), user_id.to_string());
-    hdrs.insert(headers::SESSION_ID.to_string(), session_id.to_string());
-    hdrs.insert(headers::TRACE_ID.to_string(), trace_id.to_string());
-    hdrs.insert(headers::CLIENT_ID.to_string(), client_id.to_string());
+    hdrs.insert(headers::USER_ID.to_owned(), user_id.to_string());
+    hdrs.insert(headers::SESSION_ID.to_owned(), session_id.to_string());
+    hdrs.insert(headers::TRACE_ID.to_owned(), trace_id.to_string());
+    hdrs.insert(headers::CLIENT_ID.to_owned(), client_id.to_string());
     hdrs.insert(
-        headers::POLICY_VERSION.to_string(),
+        headers::POLICY_VERSION.to_owned(),
         policy_version.to_string(),
     );
     hdrs.insert(
-        headers::CALL_SOURCE.to_string(),
-        session_source.as_str().to_string(),
+        headers::CALL_SOURCE.to_owned(),
+        session_source.as_str().to_owned(),
     );
 
     Ok(BridgeAuthResult {
@@ -221,7 +221,7 @@ pub async fn provision_bridge_oauth_client(
 
     let scopes: Vec<String> = BRIDGE_HOOK_CLIENT_SCOPES
         .iter()
-        .map(|s| (*s).to_string())
+        .map(|s| (*s).to_owned())
         .collect();
 
     let existing = repo.find_client_by_id(&client_id).await?;
@@ -234,10 +234,10 @@ pub async fn provision_bridge_oauth_client(
             client_secret_hash: secret_hash,
             client_name: format!("bridge hook client for {}", user_id.as_str()),
             redirect_uris: Vec::new(),
-            grant_types: Some(vec!["client_credentials".to_string()]),
+            grant_types: Some(vec!["client_credentials".to_owned()]),
             response_types: Some(Vec::new()),
             scopes: scopes.clone(),
-            token_endpoint_auth_method: Some("client_secret_post".to_string()),
+            token_endpoint_auth_method: Some("client_secret_post".to_owned()),
             client_uri: None,
             logo_uri: None,
             contacts: None,

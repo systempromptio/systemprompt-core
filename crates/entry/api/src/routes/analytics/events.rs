@@ -57,7 +57,7 @@ async fn resolve_content_id(
         .map(|c| c.id)
 }
 
-pub async fn record_event(
+pub(super) async fn record_event(
     State(state): State<AnalyticsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventInput>,
@@ -88,7 +88,7 @@ pub async fn record_event(
     Ok((StatusCode::CREATED, Json(created)))
 }
 
-pub async fn record_events_batch(
+pub(super) async fn record_events_batch(
     State(state): State<AnalyticsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventBatchInput>,
@@ -158,7 +158,7 @@ async fn fan_out_engagement(
 
     let engagement_input = CreateEngagementEventInput {
         page_url: input.page_url.clone(),
-        event_type: input.event_type.as_str().to_string(),
+        event_type: input.event_type.as_str().to_owned(),
         time_on_page_ms: time_on_page,
         max_scroll_depth: get_i32("max_scroll_depth").unwrap_or(0),
         click_count: get_i32("click_count").unwrap_or(0),

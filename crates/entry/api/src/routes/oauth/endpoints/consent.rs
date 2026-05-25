@@ -43,7 +43,7 @@ pub struct ConsentRequest {
     pub decision: String,
 }
 
-#[allow(clippy::unused_async)]
+#[expect(clippy::unused_async)]
 pub async fn handle_consent_post(Json(decision): Json<ConsentRequest>) -> impl IntoResponse {
     let response = process_consent_decision(&decision);
     (StatusCode::OK, Json(response)).into_response()
@@ -61,7 +61,7 @@ async fn get_consent_info(
     let requested_scopes: Vec<String> = match &params.scope {
         Some(scope_str) if !scope_str.is_empty() => scope_str
             .split_whitespace()
-            .map(std::string::ToString::to_string)
+            .map(str::to_owned)
             .collect(),
         _ => {
             return Err(OAuthHttpError::invalid_request(

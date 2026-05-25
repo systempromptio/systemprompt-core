@@ -7,7 +7,7 @@ pub fn validate_registration_token(headers: &HeaderMap) -> Result<String, OAuthH
         .get("authorization")
         .ok_or_else(|| OAuthHttpError::invalid_token("Missing authorization header"))?
         .to_str()
-        .map_err(|_| OAuthHttpError::invalid_token("Invalid authorization header format"))?;
+        .map_err(|_e| OAuthHttpError::invalid_token("Invalid authorization header format"))?;
 
     let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
         OAuthHttpError::invalid_token("Authorization header must use Bearer scheme")
@@ -19,5 +19,5 @@ pub fn validate_registration_token(headers: &HeaderMap) -> Result<String, OAuthH
         ));
     }
 
-    Ok(token.to_string())
+    Ok(token.to_owned())
 }

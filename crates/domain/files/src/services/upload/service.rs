@@ -150,7 +150,7 @@ impl FileUploadService {
         let context_str = context_id.as_str();
         if context_str.contains("..") || context_str.contains('\0') {
             return Err(FileUploadError::PathValidation(
-                "Invalid context_id: contains path traversal sequence".to_string(),
+                "Invalid context_id: contains path traversal sequence".to_owned(),
             ));
         }
 
@@ -158,7 +158,7 @@ impl FileUploadService {
             let user_str = uid.as_str();
             if user_str.contains("..") || user_str.contains('\0') {
                 return Err(FileUploadError::PathValidation(
-                    "Invalid user_id: contains path traversal sequence".to_string(),
+                    "Invalid user_id: contains path traversal sequence".to_owned(),
                 ));
             }
         }
@@ -171,7 +171,7 @@ impl FileUploadService {
             || filename.is_empty()
         {
             return Err(FileUploadError::PathValidation(
-                "Invalid filename: must be a single path component".to_string(),
+                "Invalid filename: must be a single path component".to_owned(),
             ));
         }
 
@@ -187,7 +187,7 @@ impl FileUploadService {
             },
             FilePersistenceMode::UserLibrary => {
                 let user_dir =
-                    user_id.map_or_else(|| "anonymous".to_string(), |u| u.as_str().to_string());
+                    user_id.map_or_else(|| "anonymous".to_owned(), |u| u.as_str().to_owned());
                 let rel = format!(
                     "users/{}/{}/{}",
                     user_dir,
@@ -207,7 +207,7 @@ impl FileUploadService {
                 Component::Normal(_) | Component::CurDir => {},
                 Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
                     return Err(FileUploadError::PathValidation(
-                        "Resolved path contains traversal or absolute component".to_string(),
+                        "Resolved path contains traversal or absolute component".to_owned(),
                     ));
                 },
             }
@@ -215,7 +215,7 @@ impl FileUploadService {
 
         if !full_path.starts_with(&base) {
             return Err(FileUploadError::PathValidation(
-                "Resolved path escapes upload directory".to_string(),
+                "Resolved path escapes upload directory".to_owned(),
             ));
         }
 

@@ -48,7 +48,7 @@ impl WebhookService {
                 let headers: HashMap<String, String> = response
                     .headers()
                     .iter()
-                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+                    .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_owned()))
                     .collect();
 
                 let body = response

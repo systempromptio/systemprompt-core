@@ -194,7 +194,7 @@ pub enum A2aParseError {
 impl A2aResponse {
     pub fn send_message(task: Task, id: RequestId) -> Self {
         Self::SendMessage(JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: "2.0".to_owned(),
             id,
             result: Some(task),
             error: None,
@@ -203,7 +203,7 @@ impl A2aResponse {
 
     pub fn get_task(task: Task, id: RequestId) -> Self {
         Self::GetTask(JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: "2.0".to_owned(),
             id,
             result: Some(task),
             error: None,
@@ -212,7 +212,7 @@ impl A2aResponse {
 
     pub fn cancel_task(task: Task, id: RequestId) -> Self {
         Self::CancelTask(JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
+            jsonrpc: "2.0".to_owned(),
             id,
             result: Some(task),
             error: None,

@@ -11,7 +11,7 @@ pub async fn remove_trailing_slash(request: Request, next: Next) -> Response {
         let new_path = path.trim_end_matches('/');
 
         let new_uri = uri.query().map_or_else(
-            || new_path.to_string(),
+            || new_path.to_owned(),
             |query| format!("{new_path}?{query}"),
         );
 

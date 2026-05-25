@@ -8,7 +8,7 @@ use systemprompt_logging::CliService;
 use super::common::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
 
-pub fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
+pub(crate) fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
     if let Some(ref env) = args.environment {
         return Ok(env.clone());
     }
@@ -28,7 +28,7 @@ pub fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<Stri
     Ok(input.trim().to_lowercase())
 }
 
-pub async fn setup_postgres(
+pub(crate) async fn setup_postgres(
     args: &SetupArgs,
     config: &CliConfig,
     env_name: &str,
@@ -39,7 +39,7 @@ pub async fn setup_postgres(
     postgres::setup_interactive(args, env_name, config).await
 }
 
-pub fn collect_secrets(
+pub(crate) fn collect_secrets(
     args: &SetupArgs,
     config: &CliConfig,
     env_name: &str,
@@ -50,7 +50,7 @@ pub fn collect_secrets(
     secrets::collect_interactive(args, env_name, config)
 }
 
-pub fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
+pub(crate) fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
     if args.migrate {
         return Ok(true);
     }
@@ -69,7 +69,7 @@ pub fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<boo
     Ok(run)
 }
 
-pub fn detect_project_root() -> Result<PathBuf> {
+pub(crate) fn detect_project_root() -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("Failed to get current directory")?;
 
     let indicators = ["Cargo.toml", "services", ".systemprompt", "core"];
@@ -97,7 +97,7 @@ pub fn detect_project_root() -> Result<PathBuf> {
     Ok(cwd)
 }
 
-pub fn print_summary(env_name: &str, profile_path: &Path) {
+pub(crate) fn print_summary(env_name: &str, profile_path: &Path) {
     CliService::section("Setup Complete!");
 
     CliService::info(&format!(

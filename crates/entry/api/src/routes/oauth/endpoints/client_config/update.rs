@@ -52,7 +52,7 @@ pub async fn update_client_configuration(
 
     let response = DynamicRegistrationResponse {
         client_id: client_id.clone(),
-        client_secret: "***REDACTED***".to_string(),
+        client_secret: "***REDACTED***".to_owned(),
         client_name,
         redirect_uris,
         grant_types: existing_client.grant_types,

@@ -7,7 +7,7 @@ use systemprompt_identifiers::{AgentId, AgentName};
 use systemprompt_models::bridge::manifest::AgentEntry;
 use systemprompt_models::services::{AgentConfig, ServicesConfig};
 
-pub fn load_agents(services: &ServicesConfig, api_external_url: &str) -> Vec<AgentEntry> {
+pub(super) fn load_agents(services: &ServicesConfig, api_external_url: &str) -> Vec<AgentEntry> {
     let base = api_external_url.trim_end_matches('/');
     let mut keys: Vec<&String> = services
         .agents

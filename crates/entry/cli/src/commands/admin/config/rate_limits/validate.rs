@@ -10,7 +10,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{CompareOutput, EndpointComparison, ValidateOutput};
 
-pub fn execute_validate(config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_validate(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 
@@ -112,7 +112,7 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn execute_compare(config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_compare(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
     let tiers = &limits.tier_multipliers;

@@ -8,7 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
-    "audio".to_string()
+    "audio".to_owned()
 }
 
 const fn default_true() -> bool {
@@ -46,7 +46,7 @@ impl AudioArtifact {
 
     pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "audio".to_string(),
+            artifact_type: "audio".to_owned(),
             src: src.into(),
             mime_type: None,
             title: None,

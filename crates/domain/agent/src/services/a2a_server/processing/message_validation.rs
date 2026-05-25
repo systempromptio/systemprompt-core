@@ -47,7 +47,7 @@ impl MessageValidationService {
 
         Ok(ValidatedMessageRequest {
             message: message.clone(),
-            agent_name: agent_name.to_string(),
+            agent_name: agent_name.to_owned(),
             context_id,
             task_id,
             agent_runtime,
@@ -60,7 +60,7 @@ impl MessageValidationService {
         let agent_config = registry
             .get_agent(agent_name)
             .await
-            .map_err(|_| AgentServiceError::Internal(format!("Agent not found: {}", agent_name)))?;
+            .map_err(|_e| AgentServiceError::Internal(format!("Agent not found: {}", agent_name)))?;
 
         Ok(agent_config.into())
     }
@@ -97,7 +97,7 @@ impl MessageValidationService {
 
         if !has_text_part {
             return Err(AgentServiceError::Internal(
-                "No text content found in message".to_string(),
+                "No text content found in message".to_owned(),
             ));
         }
 

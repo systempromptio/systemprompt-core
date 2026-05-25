@@ -36,9 +36,9 @@ pub use subject::peek_issuer;
 use claims::resolve_audience;
 use subject::validate_subject_token;
 
-pub const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
-pub const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
-pub const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
+pub(super) const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
+pub(super) const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
+pub(super) const JWT_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:jwt";
 
 #[derive(Debug, Default)]
 pub struct TokenExchangeRequest<'a> {
@@ -135,7 +135,7 @@ pub async fn handle_token_exchange(
         permissions: final_perms.clone(),
         audience: audience.clone(),
         expires_in_hours: Some(global.jwt_access_token_expiration / 3600),
-        resource: resource.map(str::to_string),
+        resource: resource.map(str::to_owned),
         plugin_id: None,
     };
     let signing = JwtSigningParams {
@@ -159,11 +159,11 @@ pub async fn handle_token_exchange(
 
     Ok(TokenResponse {
         access_token,
-        token_type: "Bearer".to_string(),
+        token_type: "Bearer".to_owned(),
         expires_in: global.jwt_access_token_expiration,
         refresh_token: None,
         scope: Some(scope_string),
-        issued_token_type: Some(ACCESS_TOKEN_TYPE.to_string()),
+        issued_token_type: Some(ACCESS_TOKEN_TYPE.to_owned()),
     })
 }
 

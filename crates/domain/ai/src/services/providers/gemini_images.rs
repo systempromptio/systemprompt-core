@@ -38,8 +38,8 @@ impl GeminiImageProvider {
         Self {
             client,
             api_key,
-            endpoint: "https://generativelanguage.googleapis.com/v1beta".to_string(),
-            default_model: "gemini-2.5-flash-image".to_string(),
+            endpoint: "https://generativelanguage.googleapis.com/v1beta".to_owned(),
+            default_model: "gemini-2.5-flash-image".to_owned(),
             model_definitions: HashMap::new(),
         }
     }
@@ -92,9 +92,9 @@ impl ImageProvider for GeminiImageProvider {
 
     fn supported_models(&self) -> Vec<String> {
         vec![
-            "gemini-3.1-flash-image-preview".to_string(),
-            "gemini-3-pro-image-preview".to_string(),
-            "gemini-2.5-flash-image".to_string(),
+            "gemini-3.1-flash-image-preview".to_owned(),
+            "gemini-3-pro-image-preview".to_owned(),
+            "gemini-2.5-flash-image".to_owned(),
         ]
     }
 
@@ -110,7 +110,7 @@ impl ImageProvider for GeminiImageProvider {
 
         if request.prompt.len() > self.capabilities().max_prompt_length {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!(
                     "Prompt length {} exceeds maximum {}",
                     request.prompt.len(),
@@ -121,14 +121,14 @@ impl ImageProvider for GeminiImageProvider {
 
         if !self.supports_resolution(&request.resolution) {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("Resolution {} not supported", request.resolution.as_str()),
             });
         }
 
         if !self.supports_aspect_ratio(&request.aspect_ratio) {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!(
                     "Aspect ratio {} not supported",
                     request.aspect_ratio.as_str()
@@ -143,7 +143,7 @@ impl ImageProvider for GeminiImageProvider {
 
         if !self.supports_model(model) {
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("Model {model} not supported"),
             });
         }
@@ -160,7 +160,7 @@ impl ImageProvider for GeminiImageProvider {
             .send()
             .await
             .map_err(|e| AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("HTTP request failed: {e}"),
             })?;
 
@@ -171,14 +171,14 @@ impl ImageProvider for GeminiImageProvider {
                 .await
                 .unwrap_or_else(|e| format!("<error reading response: {}>", e));
             return Err(AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("API returned status {status}: {error_body}"),
             });
         }
 
         let gemini_response: GeminiResponse =
             response.json().await.map_err(|e| AiError::ProviderError {
-                provider: self.name().to_string(),
+                provider: self.name().to_owned(),
                 message: format!("Failed to parse response: {e}"),
             })?;
 
@@ -187,8 +187,8 @@ impl ImageProvider for GeminiImageProvider {
         let generation_time_ms = start.elapsed().as_millis() as u64;
 
         Ok(ImageGenerationResponse::new(NewImageGenerationResponse {
-            provider: self.name().to_string(),
-            model: model.to_string(),
+            provider: self.name().to_owned(),
+            model: model.to_owned(),
             image_data,
             mime_type,
             resolution: request.resolution,

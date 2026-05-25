@@ -35,13 +35,13 @@ pub(super) async fn handle_authorization_code_grant(
                 message: format!("Failed to lookup authorization code: {e}"),
             })?
             .ok_or_else(|| TokenError::InvalidGrant {
-                reason: "Invalid or expired authorization code".to_string(),
+                reason: "Invalid or expired authorization code".to_owned(),
             })?
     };
 
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
-        .map_err(|_| TokenError::InvalidClientSecret)?;
+        .map_err(|_e| TokenError::InvalidClientSecret)?;
 
     let validation_result = validate_authorization_code(AuthCodeValidationParams {
         repo: &repo,
@@ -114,13 +114,13 @@ pub(super) async fn handle_refresh_token_grant(
                 message: format!("Failed to lookup refresh token: {e}"),
             })?
             .ok_or_else(|| TokenError::InvalidRefreshToken {
-                reason: "Invalid refresh token".to_string(),
+                reason: "Invalid refresh token".to_owned(),
             })?
     };
 
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
-        .map_err(|_| TokenError::InvalidClientSecret)?;
+        .map_err(|_e| TokenError::InvalidClientSecret)?;
 
     let consumed = repo
         .consume_refresh_token(&refresh_token, &client_id)
@@ -139,7 +139,7 @@ pub(super) async fn handle_refresh_token_grant(
         for requested in &requested_scopes {
             if !original_scopes.contains(requested) {
                 return Err(TokenError::InvalidRequest {
-                    field: "scope".to_string(),
+                    field: "scope".to_owned(),
                     message: format!("Requested scope '{requested}' not in original scope"),
                 });
             }
@@ -194,7 +194,7 @@ pub(super) async fn handle_token_exchange_grant(
     let client_id = ClientId::new(client_id_str);
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
-        .map_err(|_| TokenError::InvalidClientSecret)?;
+        .map_err(|_e| TokenError::InvalidClientSecret)?;
 
     let exchange = TokenExchangeRequest {
         subject_token,
@@ -232,7 +232,7 @@ pub(super) async fn handle_client_credentials_grant(
 
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
-        .map_err(|_| TokenError::InvalidClientSecret)?;
+        .map_err(|_e| TokenError::InvalidClientSecret)?;
 
     let options = ClientTokenOptions {
         scope: request.scope.as_deref(),

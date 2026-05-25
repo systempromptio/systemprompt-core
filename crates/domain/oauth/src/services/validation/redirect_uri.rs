@@ -10,13 +10,13 @@ pub fn validate_redirect_uri(
         .filter(|u| !u.is_empty())
         .ok_or(AuthError::InvalidRedirectUri)?;
 
-    if !registered_uris.contains(&uri.to_string()) && !matches_relative_uri(registered_uris, uri) {
+    if !registered_uris.contains(&uri.to_owned()) && !matches_relative_uri(registered_uris, uri) {
         return Err(AuthError::InvalidRequest {
             reason: format!("Redirect URI '{uri}' not registered for this client"),
         });
     }
 
-    Ok(uri.to_string())
+    Ok(uri.to_owned())
 }
 
 fn matches_relative_uri(registered_uris: &[String], requested_uri: &str) -> bool {

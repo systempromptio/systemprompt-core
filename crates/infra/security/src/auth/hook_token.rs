@@ -85,7 +85,7 @@ impl HookTokenValidator {
         let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
         let key = authority::decoding_key_for_kid(kid)
             .map_err(|e| AuthError::KeyLookup(e.to_string()))?
-            .ok_or_else(|| AuthError::UnknownKid(kid.to_string()))?;
+            .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
 
         let mut validation = Validation::new(Algorithm::RS256);
         validation.leeway = JWT_LEEWAY_SECONDS;
@@ -112,7 +112,7 @@ impl HookTokenValidator {
             && expected != plugin_id
         {
             return Err(AuthError::HookPluginIdMismatch {
-                expected: expected.to_string(),
+                expected: expected.to_owned(),
                 actual: plugin_id,
             });
         }

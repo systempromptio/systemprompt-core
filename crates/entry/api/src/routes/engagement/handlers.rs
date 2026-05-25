@@ -77,7 +77,7 @@ async fn resolve_content_id(
         .map(|c| c.id)
 }
 
-pub async fn record_engagement(
+pub(super) async fn record_engagement(
     State(state): State<EngagementState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
@@ -109,7 +109,7 @@ pub async fn record_engagement(
     Ok(StatusCode::CREATED)
 }
 
-pub async fn record_engagement_batch(
+pub(super) async fn record_engagement_batch(
     State(state): State<EngagementState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<EngagementBatchInput>,

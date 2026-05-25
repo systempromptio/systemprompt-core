@@ -29,7 +29,7 @@ impl CimdFetcher {
         let client_id_str = client_id.as_str();
         if !client_id_str.starts_with("https://") {
             return Err(crate::error::OauthError::Internal(
-                "CIMD client_id must be HTTPS URL".to_string(),
+                "CIMD client_id must be HTTPS URL".to_owned(),
             ));
         }
 

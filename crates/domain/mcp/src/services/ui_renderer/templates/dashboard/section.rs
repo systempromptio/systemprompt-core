@@ -26,8 +26,7 @@ impl DashboardSection {
         let title = value
             .get("title")
             .and_then(JsonValue::as_str)
-            .unwrap_or("Section")
-            .to_string();
+            .unwrap_or("Section").to_owned();
 
         let section_type =
             value
@@ -99,7 +98,7 @@ impl DashboardSection {
                         let label = m.get("label").or_else(|| m.get("name")).and_then(JsonValue::as_str)?;
                         let value = m.get("value").map(|v| {
                             v.as_f64().map_or_else(
-                                || v.to_string().trim_matches('"').to_string(),
+                                || v.to_string().trim_matches('"').to_owned(),
                                 |n| format!("{:.2}", n),
                             )
                         })?;
@@ -155,7 +154,7 @@ impl DashboardSection {
             .and_then(JsonValue::as_array);
 
         if columns.is_empty() {
-            return "<p>No table data</p>".to_string();
+            return "<p>No table data</p>".to_owned();
         }
 
         let header = columns.iter().fold(String::new(), |mut acc, c| {
@@ -255,7 +254,7 @@ impl DashboardSection {
                 arr.iter()
                     .filter_map(|item| {
                         let text = if let Some(s) = item.as_str() {
-                            s.to_string()
+                            s.to_owned()
                         } else {
                             item.get("text")
                                 .or_else(|| item.get("title"))

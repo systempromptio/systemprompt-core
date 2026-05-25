@@ -46,7 +46,7 @@ impl Default for RetentionConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            schedule: DEFAULT_RETENTION_SCHEDULE.to_string(),
+            schedule: DEFAULT_RETENTION_SCHEDULE.to_owned(),
             policies: vec![
                 RetentionPolicy::new("debug_logs", 1).with_level(LogLevel::Debug),
                 RetentionPolicy::new("info_logs", 7).with_level(LogLevel::Info),

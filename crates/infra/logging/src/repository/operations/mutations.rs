@@ -4,7 +4,7 @@ use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId};
 
 use crate::models::{LogEntry, LoggingError};
 
-pub async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingError> {
+pub(crate) async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -47,7 +47,7 @@ pub async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingEr
     Ok(())
 }
 
-pub async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<bool, LoggingError> {
+pub(crate) async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<bool, LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -76,7 +76,7 @@ pub async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<b
     Ok(result.rows_affected() > 0)
 }
 
-pub async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError> {
+pub(crate) async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError> {
     let id_str = id.as_str();
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id_str)
@@ -86,7 +86,7 @@ pub async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError>
     Ok(result.rows_affected() > 0)
 }
 
-pub async fn delete_logs_multiple(pool: &PgPool, ids: &[LogId]) -> Result<u64, LoggingError> {
+pub(crate) async fn delete_logs_multiple(pool: &PgPool, ids: &[LogId]) -> Result<u64, LoggingError> {
     if ids.is_empty() {
         return Ok(0);
     }
@@ -100,13 +100,13 @@ pub async fn delete_logs_multiple(pool: &PgPool, ids: &[LogId]) -> Result<u64, L
     Ok(result.rows_affected())
 }
 
-pub async fn clear_all_logs(pool: &PgPool) -> Result<u64, LoggingError> {
+pub(crate) async fn clear_all_logs(pool: &PgPool) -> Result<u64, LoggingError> {
     let result = sqlx::query!("DELETE FROM logs").execute(pool).await?;
 
     Ok(result.rows_affected())
 }
 
-pub async fn cleanup_logs_before(
+pub(crate) async fn cleanup_logs_before(
     pool: &PgPool,
     cutoff: DateTime<Utc>,
 ) -> Result<u64, LoggingError> {
@@ -117,7 +117,7 @@ pub async fn cleanup_logs_before(
     Ok(result.rows_affected())
 }
 
-pub async fn count_logs_before(pool: &PgPool, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
+pub(crate) async fn count_logs_before(pool: &PgPool, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
     let count = sqlx::query_scalar!(
         r#"SELECT COUNT(*) as "count!" FROM logs WHERE timestamp < $1"#,
         cutoff

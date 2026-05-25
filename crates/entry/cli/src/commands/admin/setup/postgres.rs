@@ -11,7 +11,7 @@ use super::common::{
 };
 use crate::CliConfig;
 
-pub async fn setup_non_interactive(
+pub(crate) async fn setup_non_interactive(
     args: &SetupArgs,
     env_name: &str,
     cli_config: &CliConfig,
@@ -70,7 +70,7 @@ pub async fn setup_non_interactive(
     Ok(config)
 }
 
-pub async fn setup_interactive(
+pub(crate) async fn setup_interactive(
     args: &SetupArgs,
     env_name: &str,
     _cli_config: &CliConfig,

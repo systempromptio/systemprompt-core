@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     entity_type TEXT NOT NULL
         CONSTRAINT access_control_rules_entity_type_check
-        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook')),
+        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','gateway_model','skill','hook')),
     entity_id TEXT NOT NULL,
     rule_type TEXT NOT NULL
         CONSTRAINT access_control_rules_rule_type_check

@@ -12,7 +12,7 @@ pub struct DemoteArgs {
     pub identifier: String,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: DemoteArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<RoleAssignOutput>> {

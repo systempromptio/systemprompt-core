@@ -79,7 +79,7 @@ impl SessionCreationService {
             user_id,
             is_new: false,
             jwt_token: token,
-            fingerprint_hash: fingerprint.to_string(),
+            fingerprint_hash: fingerprint.to_owned(),
         })
     }
 
@@ -96,7 +96,7 @@ impl SessionCreationService {
         .await;
 
         let existing_session = lookup_result
-            .map_err(|_| {
+            .map_err(|_e| {
                 tracing::debug!(fingerprint = %fingerprint, "Session lookup timed out");
             })
             .ok()?
@@ -130,7 +130,7 @@ impl SessionCreationService {
             user_id,
             is_new: false,
             jwt_token: token,
-            fingerprint_hash: fingerprint.to_string(),
+            fingerprint_hash: fingerprint.to_owned(),
         })
     }
 }

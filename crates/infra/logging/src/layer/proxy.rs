@@ -87,7 +87,7 @@ where
     }
 }
 
-pub fn record_span_fields<S>(
+pub(super) fn record_span_fields<S>(
     attrs: &tracing::span::Attributes<'_>,
     id: &tracing::span::Id,
     ctx: &Context<'_, S>,
@@ -115,7 +115,7 @@ pub fn record_span_fields<S>(
     extensions.insert(fields);
 }
 
-pub fn update_span_fields<S>(
+pub(super) fn update_span_fields<S>(
     id: &tracing::span::Id,
     values: &tracing::span::Record<'_>,
     ctx: &Context<'_, S>,
@@ -148,12 +148,12 @@ pub fn update_span_fields<S>(
     }
 }
 
-pub fn build_log_entry<S>(event: &Event<'_>, ctx: &Context<'_, S>) -> Option<LogEntry>
+pub(super) fn build_log_entry<S>(event: &Event<'_>, ctx: &Context<'_, S>) -> Option<LogEntry>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
     let level = *event.metadata().level();
-    let module = event.metadata().target().to_string();
+    let module = event.metadata().target().to_owned();
 
     let mut visitor = FieldVisitor::default();
     event.record(&mut visitor);

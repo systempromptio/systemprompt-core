@@ -81,7 +81,7 @@ impl DeploymentService {
             .mcp_servers
             .get(name)
             .and_then(|d| d.package.clone())
-            .or_else(|| Some(name.to_string()))
+            .or_else(|| Some(name.to_owned()))
             .ok_or_else(|| missing_deployment(name))
     }
 }

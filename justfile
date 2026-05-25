@@ -172,6 +172,14 @@ deny:
 audit:
     cargo audit
 
+# Detect unused workspace dependencies
+machete:
+    cargo machete
+
+# Build every feature powerset (catches facade-flag drift)
+hack:
+    cargo hack --workspace --feature-powerset --depth 2 check
+
 # Flag source files exceeding 300 lines (excludes target/ and tests/)
 file-size:
     @find crates -name '*.rs' -not -path '*/target/*' -not -path '*/tests/*' -exec wc -l {} + | awk '$1>300 && $2!="total"'

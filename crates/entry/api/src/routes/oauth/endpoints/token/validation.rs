@@ -9,8 +9,8 @@ pub fn extract_required_field<'a>(
     field_name: &str,
 ) -> TokenResult<&'a str> {
     field.ok_or_else(|| TokenError::InvalidRequest {
-        field: field_name.to_string(),
-        message: "is required".to_string(),
+        field: field_name.to_owned(),
+        message: "is required".to_owned(),
     })
 }
 

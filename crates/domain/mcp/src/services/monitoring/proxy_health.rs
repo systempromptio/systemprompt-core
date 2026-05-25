@@ -75,7 +75,7 @@ impl ProxyHealthCheck {
                     name: service.name.clone(),
                     port,
                     pid: service.pid,
-                    health: "healthy".to_string(),
+                    health: "healthy".to_owned(),
                 });
             } else {
                 self.service_repo

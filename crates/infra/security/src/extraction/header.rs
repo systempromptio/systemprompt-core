@@ -72,7 +72,7 @@ impl HeaderExtractor {
                     })
                     .ok()
             })
-            .map(ToString::to_string)
+            .map(str::to_owned)
     }
 }
 

@@ -153,7 +153,7 @@ impl JtiRevocationCache {
                     inserted_at: Instant::now(),
                 }
             };
-            guard.put(jti.to_string(), entry);
+            guard.put(jti.to_owned(), entry);
         }
     }
 }

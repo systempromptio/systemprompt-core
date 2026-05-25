@@ -123,15 +123,15 @@ impl Default for OAuthConfig {
 }
 
 pub(super) fn default_transport() -> String {
-    "JSONRPC".to_string()
+    "JSONRPC".to_owned()
 }
 
 pub(super) fn default_input_modes() -> Vec<String> {
-    vec!["text/plain".to_string()]
+    vec!["text/plain".to_owned()]
 }
 
 pub(super) fn default_output_modes() -> Vec<String> {
-    vec!["text/plain".to_string()]
+    vec!["text/plain".to_owned()]
 }
 
 pub(super) const fn default_true() -> bool {

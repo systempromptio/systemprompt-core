@@ -10,7 +10,7 @@ use crate::models::providers::gemini::{
 
 use super::provider::GeminiProvider;
 
-pub struct AiResponseParams<'a> {
+pub(super) struct AiResponseParams<'a> {
     pub request_id: Uuid,
     pub gemini_response: &'a GeminiResponse,
     pub model: &'a str,
@@ -18,7 +18,7 @@ pub struct AiResponseParams<'a> {
     pub content: String,
 }
 
-pub struct AiResponseParamsBuilder<'a> {
+pub(super) struct AiResponseParamsBuilder<'a> {
     request_id: Uuid,
     gemini_response: &'a GeminiResponse,
     model: &'a str,
@@ -27,7 +27,7 @@ pub struct AiResponseParamsBuilder<'a> {
 }
 
 impl<'a> AiResponseParamsBuilder<'a> {
-    pub const fn new(
+    pub(super) const fn new(
         request_id: Uuid,
         gemini_response: &'a GeminiResponse,
         model: &'a str,
@@ -43,7 +43,7 @@ impl<'a> AiResponseParamsBuilder<'a> {
         }
     }
 
-    pub fn build(self) -> AiResponseParams<'a> {
+    pub(super) fn build(self) -> AiResponseParams<'a> {
         AiResponseParams {
             request_id: self.request_id,
             gemini_response: self.gemini_response,
@@ -55,7 +55,7 @@ impl<'a> AiResponseParamsBuilder<'a> {
 }
 
 impl<'a> AiResponseParams<'a> {
-    pub const fn builder(
+    pub(super) const fn builder(
         request_id: Uuid,
         gemini_response: &'a GeminiResponse,
         model: &'a str,
@@ -66,7 +66,7 @@ impl<'a> AiResponseParams<'a> {
     }
 }
 
-pub fn build_generation_config(
+pub(super) fn build_generation_config(
     sampling: Option<&SamplingParams>,
     max_output_tokens: u32,
     response_format: Option<(String, serde_json::Value)>,
@@ -91,11 +91,11 @@ pub fn build_generation_config(
     }
 }
 
-pub fn build_url(endpoint: &str, model: &str, api_key: &str, method: &str) -> String {
+pub(super) fn build_url(endpoint: &str, model: &str, api_key: &str, method: &str) -> String {
     format!("{}/models/{}:{}?key={}", endpoint, model, method, api_key)
 }
 
-pub async fn send_request(
+pub(super) async fn send_request(
     provider: &GeminiProvider,
     request: &GeminiRequest,
     model: &str,
@@ -111,7 +111,7 @@ pub async fn send_request(
     Ok(response.text().await?)
 }
 
-pub fn parse_response<T: serde::de::DeserializeOwned>(response_text: &str) -> Result<T> {
+pub(super) fn parse_response<T: serde::de::DeserializeOwned>(response_text: &str) -> Result<T> {
     serde_json::from_str(response_text).map_err(|e| {
         crate::error::AiError::Internal(format!(
             "Failed to parse Gemini response: {}. Preview: {}",
@@ -121,7 +121,7 @@ pub fn parse_response<T: serde::de::DeserializeOwned>(response_text: &str) -> Re
     })
 }
 
-pub fn extract_token_usage(
+pub(super) fn extract_token_usage(
     usage: Option<GeminiUsageMetadata>,
 ) -> (Option<u32>, Option<u32>, Option<u32>) {
     usage.map_or((None, None, None), |u| {
@@ -129,7 +129,7 @@ pub fn extract_token_usage(
     })
 }
 
-pub fn build_ai_response(params: AiResponseParams<'_>) -> AiResponse {
+pub(super) fn build_ai_response(params: AiResponseParams<'_>) -> AiResponse {
     let candidate = params.gemini_response.candidates.first();
     let (tokens_used, input_tokens, output_tokens) =
         extract_token_usage(params.gemini_response.usage_metadata);
@@ -137,8 +137,8 @@ pub fn build_ai_response(params: AiResponseParams<'_>) -> AiResponse {
     AiResponse {
         request_id: params.request_id,
         content: params.content,
-        provider: "gemini".to_string(),
-        model: params.model.to_string(),
+        provider: "gemini".to_owned(),
+        model: params.model.to_owned(),
         finish_reason: candidate.and_then(|c| c.finish_reason.clone()),
         tokens_used,
         input_tokens,

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::ArtifactId;
 use systemprompt_traits::RepositoryError;
 
-pub async fn rows_to_artifacts_batch(
+pub(super) async fn rows_to_artifacts_batch(
     pool: &Arc<PgPool>,
     rows: Vec<ArtifactRow>,
 ) -> Result<Vec<Artifact>, RepositoryError> {
@@ -78,7 +78,7 @@ fn convert_artifact_part_row(
     }
 }
 
-pub fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> Artifact {
+pub(super) fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> Artifact {
     let context_id = row.context_id.clone();
     let (rendering_hints, mcp_schema, is_internal, execution_index) =
         extract_metadata_fields(row.metadata.as_ref());
@@ -96,7 +96,7 @@ pub fn row_to_artifact_with_parts(row: ArtifactRow, parts: Vec<Part>) -> Artifac
             task_id: row.task_id,
             rendering_hints,
             source: row.source,
-            mcp_execution_id: row.mcp_execution_id.map(|id| id.as_str().to_string()),
+            mcp_execution_id: row.mcp_execution_id.map(|id| id.as_str().to_owned()),
             mcp_schema,
             is_internal,
             fingerprint: row.fingerprint,

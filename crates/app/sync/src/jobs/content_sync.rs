@@ -64,7 +64,7 @@ impl Job for ContentSyncJob {
             .content_sources
             .into_iter()
             .filter(|(_, source)| source.enabled)
-            .filter(|(_, source)| !source.allowed_content_types.contains(&"skill".to_string()))
+            .filter(|(_, source)| !source.allowed_content_types.contains(&"skill".to_owned()))
             .collect();
 
         if sources.is_empty() {
@@ -163,7 +163,7 @@ fn get_bool_param(ctx: &JobContext, key: &str) -> bool {
         .is_some_and(|v| v == "true" || v == "1" || v == "yes")
 }
 
-fn load_content_config(paths: &AppPaths) -> SyncResult<ContentConfigRaw> {
+pub(crate) fn load_content_config(paths: &AppPaths) -> SyncResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     if !config_path.exists() {

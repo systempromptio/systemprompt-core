@@ -15,7 +15,7 @@ pub struct RemoveArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: RemoveArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<BanRemoveOutput>> {

@@ -54,12 +54,12 @@ pub async fn generate_with_web_search(
         .map_or((None, None, None), |s| (s.temperature, s.top_p, s.top_k));
 
     let web_search_tool = AnthropicServerTool::WebSearch {
-        name: "web_search".to_string(),
+        name: "web_search".to_owned(),
         max_uses: params.max_uses.or(Some(5)),
     };
 
     let request = AnthropicSearchRequest {
-        model: params.model.to_string(),
+        model: params.model.to_owned(),
         messages: anthropic_messages,
         max_tokens: params.max_output_tokens,
         temperature,
@@ -124,7 +124,7 @@ fn extract_search_response(
             },
             AnthropicSearchContentBlock::ServerToolUse { input, .. } => {
                 if let Some(query) = input.get("query").and_then(|q| q.as_str()) {
-                    web_search_queries.push(query.to_string());
+                    web_search_queries.push(query.to_owned());
                 }
             },
             AnthropicSearchContentBlock::WebSearchToolResult { content, .. } => {

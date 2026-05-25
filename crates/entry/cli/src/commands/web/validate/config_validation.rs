@@ -6,7 +6,7 @@ use systemprompt_models::content_config::ContentConfigRaw;
 use super::super::paths::WebPaths;
 use super::super::types::ValidationIssue;
 
-pub fn validate_config(
+pub(crate) fn validate_config(
     profile: &systemprompt_models::Profile,
     web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,

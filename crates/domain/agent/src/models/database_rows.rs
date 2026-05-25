@@ -56,7 +56,7 @@ impl From<UserContextWithStatsRow> for UserContextWithStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct TaskRow {
+pub(crate) struct TaskRow {
     pub task_id: TaskId,
     pub context_id: ContextId,
     pub status: String,
@@ -75,7 +75,7 @@ pub struct TaskRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct TaskMessage {
+pub(crate) struct TaskMessage {
     pub id: i32,
     pub task_id: TaskId,
     pub message_id: MessageId,
@@ -93,7 +93,7 @@ pub struct TaskMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct MessagePart {
+pub(crate) struct MessagePart {
     pub id: i32,
     pub message_id: MessageId,
     pub task_id: TaskId,
@@ -109,7 +109,7 @@ pub struct MessagePart {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct ArtifactRow {
+pub(crate) struct ArtifactRow {
     pub artifact_id: ArtifactId,
     pub task_id: TaskId,
     pub context_id: ContextId,
@@ -127,7 +127,7 @@ pub struct ArtifactRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct ArtifactPartRow {
+pub(crate) struct ArtifactPartRow {
     pub id: i32,
     pub artifact_id: ArtifactId,
     pub context_id: ContextId,
@@ -143,7 +143,7 @@ pub struct ArtifactPartRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct ExecutionStepBatchRow {
+pub(crate) struct ExecutionStepBatchRow {
     pub step_id: ExecutionStepId,
     pub task_id: TaskId,
     pub status: String,
@@ -155,7 +155,7 @@ pub struct ExecutionStepBatchRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct PushNotificationConfigRow {
+pub(crate) struct PushNotificationConfigRow {
     pub id: String,
     pub task_id: TaskId,
     pub url: String,

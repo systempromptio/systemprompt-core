@@ -48,13 +48,13 @@ impl ExtensionRegistry {
         let ids: Vec<String> = self
             .sorted_extensions
             .iter()
-            .map(|e| e.id().to_string())
+            .map(|e| e.id().to_owned())
             .collect();
         let id_set: HashSet<&str> = ids.iter().map(String::as_str).collect();
 
         let mut by_id: HashMap<String, Arc<dyn Extension>> = HashMap::new();
         for ext in self.sorted_extensions.drain(..) {
-            by_id.insert(ext.id().to_string(), ext);
+            by_id.insert(ext.id().to_owned(), ext);
         }
 
         for (owner, ext) in &by_id {
@@ -80,7 +80,7 @@ impl ExtensionRegistry {
     }
 
     pub fn register(&mut self, ext: Arc<dyn Extension>) -> Result<(), LoaderError> {
-        let id = ext.id().to_string();
+        let id = ext.id().to_owned();
         if self.extensions.contains_key(&id) {
             return Err(LoaderError::DuplicateExtension(id));
         }
@@ -135,13 +135,13 @@ fn topo_sort(
         if state == GRAY {
             let cycle_start = path.iter().position(|p| p == node).unwrap_or(0);
             let mut chain: Vec<String> = path[cycle_start..].to_vec();
-            chain.push(node.to_string());
+            chain.push(node.to_owned());
             return Err(LoaderError::DependencyCycle {
                 chain: chain.join(" -> "),
             });
         }
-        color.insert(node.to_string(), GRAY);
-        path.push(node.to_string());
+        color.insert(node.to_owned(), GRAY);
+        path.push(node.to_owned());
 
         if let Some(ext) = by_id.get(node) {
             let mut deps: Vec<&'static str> = ext
@@ -151,7 +151,7 @@ fn topo_sort(
                 .collect();
             deps.sort_by_key(|d| {
                 by_id.get(*d).map_or((u32::MAX, String::new()), |e| {
-                    (e.priority(), e.id().to_string())
+                    (e.priority(), e.id().to_owned())
                 })
             });
             for dep in deps {
@@ -160,15 +160,15 @@ fn topo_sort(
         }
 
         path.pop();
-        color.insert(node.to_string(), BLACK);
-        out.push(node.to_string());
+        color.insert(node.to_owned(), BLACK);
+        out.push(node.to_owned());
         Ok(())
     }
 
     let mut roots: Vec<&String> = ids.iter().collect();
     roots.sort_by_key(|id| {
         by_id.get(*id).map_or((u32::MAX, String::new()), |e| {
-            (e.priority(), e.id().to_string())
+            (e.priority(), e.id().to_owned())
         })
     });
 

@@ -68,12 +68,12 @@ impl<'a> SchemaValidator<'a> {
         service_path: &Path,
         schemas: &[SchemaDefinition],
     ) -> McpDomainResult<SchemaValidationReport> {
-        let mut report = SchemaValidationReport::new(service_name.to_string());
+        let mut report = SchemaValidationReport::new(service_name.to_owned());
 
         if self.mode == SchemaValidationMode::Skip {
             report
                 .warnings
-                .push("Schema validation skipped".to_string());
+                .push("Schema validation skipped".to_owned());
             return Ok(report);
         }
 
@@ -147,7 +147,7 @@ impl<'a> SchemaValidator<'a> {
             .filter_map(|row| {
                 row.get("name")
                     .and_then(|v| v.as_str())
-                    .map(ToString::to_string)
+                    .map(str::to_owned)
             })
             .collect();
 

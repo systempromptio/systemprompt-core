@@ -108,7 +108,7 @@ impl ToolResultFormatter {
         }
 
         if texts.is_empty() {
-            "Tool execution completed.".to_string()
+            "Tool execution completed.".to_owned()
         } else {
             texts.join("\n\n")
         }

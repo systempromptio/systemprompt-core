@@ -109,8 +109,8 @@ impl crate::repository::OAuthRepository {
         params: WebAuthnCredentialParams<'_>,
     ) -> Result<()> {
         let transports_json = serde_json::to_string(params.transports)?;
-        let counter_i32 = i32::try_from(params.counter).map_err(|_| {
-            crate::error::OauthError::Internal("Counter exceeds i32::MAX".to_string())
+        let counter_i32 = i32::try_from(params.counter).map_err(|_e| {
+            crate::error::OauthError::Internal("Counter exceeds i32::MAX".to_owned())
         })?;
         let now = Utc::now();
 
@@ -152,7 +152,7 @@ impl crate::repository::OAuthRepository {
         rows.into_iter()
             .map(|row| {
                 let transports: Vec<String> = serde_json::from_str(&row.transports)?;
-                let counter = u32::try_from(row.counter).map_err(|_| {
+                let counter = u32::try_from(row.counter).map_err(|_e| {
                     crate::error::OauthError::Internal(format!(
                         "Invalid counter value: {}",
                         row.counter
@@ -179,8 +179,8 @@ impl crate::repository::OAuthRepository {
         credential_id: &[u8],
         counter: u32,
     ) -> Result<()> {
-        let counter_i32 = i32::try_from(counter).map_err(|_| {
-            crate::error::OauthError::Internal("Counter exceeds i32::MAX".to_string())
+        let counter_i32 = i32::try_from(counter).map_err(|_e| {
+            crate::error::OauthError::Internal("Counter exceeds i32::MAX".to_owned())
         })?;
         let now = Utc::now();
 

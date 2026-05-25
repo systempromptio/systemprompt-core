@@ -74,8 +74,8 @@ impl DatabaseSyncService {
         Self {
             direction,
             dry_run,
-            local_database_url: local_database_url.to_string(),
-            cloud_database_url: cloud_database_url.to_string(),
+            local_database_url: local_database_url.to_owned(),
+            cloud_database_url: cloud_database_url.to_owned(),
         }
     }
 

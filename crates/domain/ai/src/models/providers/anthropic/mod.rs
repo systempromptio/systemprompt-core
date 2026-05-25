@@ -35,19 +35,19 @@ impl Default for AnthropicModels {
     fn default() -> Self {
         Self {
             opus: ModelConfig {
-                id: "claude-opus-4-6-20250610".to_string(),
+                id: "claude-opus-4-6-20250610".to_owned(),
                 max_tokens: 200_000,
                 supports_tools: true,
                 cost_per_1k_tokens: 0.025,
             },
             sonnet: ModelConfig {
-                id: "claude-sonnet-4-6-20250610".to_string(),
+                id: "claude-sonnet-4-6-20250610".to_owned(),
                 max_tokens: 200_000,
                 supports_tools: true,
                 cost_per_1k_tokens: 0.015,
             },
             haiku: ModelConfig {
-                id: "claude-haiku-4-5-20251101".to_string(),
+                id: "claude-haiku-4-5-20251101".to_owned(),
                 max_tokens: 200_000,
                 supports_tools: true,
                 cost_per_1k_tokens: 0.005,

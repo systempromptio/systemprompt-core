@@ -35,7 +35,7 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AgentShowOutput>> {
@@ -44,7 +44,7 @@ pub async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

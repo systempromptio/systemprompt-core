@@ -66,11 +66,11 @@ fn validate_cli_args(args: &[String]) -> Result<(), Box<ApiError>> {
     Ok(())
 }
 
-pub fn router() -> Router<AppContext> {
+pub(super) fn router() -> Router<AppContext> {
     Router::new().route("/", post(execute_cli))
 }
 
-#[allow(clippy::unused_async)]
+#[expect(clippy::unused_async)]
 async fn execute_cli(
     Extension(req_ctx): Extension<RequestContext>,
     Json(request): Json<CliExecuteRequest>,
@@ -96,7 +96,7 @@ async fn execute_cli(
         auth_token: if auth_token.is_empty() {
             None
         } else {
-            Some(auth_token.to_string())
+            Some(auth_token.to_owned())
         },
     };
 

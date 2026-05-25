@@ -39,7 +39,7 @@ impl UserCache {
         fresh
     }
 
-    fn put(&self, user_id: UserId, user: AuthUser) {
+    pub(crate) fn put(&self, user_id: UserId, user: AuthUser) {
         if let Ok(mut guard) = self.entries.lock() {
             guard.insert(user_id, (user, Instant::now()));
         }
@@ -125,7 +125,7 @@ pub(super) async fn validate_session_exists(
             "JWT validation failed: session missing or revoked"
         );
         return Err(ContextExtractionError::InvalidToken(
-            "Session missing or revoked".to_string(),
+            "Session missing or revoked".to_owned(),
         ));
     };
 
@@ -139,7 +139,7 @@ pub(super) async fn validate_session_exists(
                 "JWT validation failed: session user mismatch"
             );
             return Err(ContextExtractionError::InvalidToken(
-                "Session user mismatch".to_string(),
+                "Session user mismatch".to_owned(),
             ));
         }
     }

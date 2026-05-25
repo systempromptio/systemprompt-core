@@ -43,11 +43,11 @@ fn build_rejection_record(
     let provider = partial
         .provider
         .clone()
-        .unwrap_or_else(|| "unknown".to_string());
+        .unwrap_or_else(|| "unknown".to_owned());
     let model = partial
         .model
         .clone()
-        .unwrap_or_else(|| "unknown".to_string());
+        .unwrap_or_else(|| "unknown".to_owned());
 
     let mut builder = AiRequestRecord::builder(ai_request_id.clone(), user_id)
         .provider(provider)

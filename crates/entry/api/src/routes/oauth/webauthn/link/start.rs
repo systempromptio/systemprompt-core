@@ -18,13 +18,13 @@ pub struct StartLinkQuery {
 }
 
 #[derive(Debug, Serialize)]
-pub struct StartLinkUserInfo {
+pub(super) struct StartLinkUserInfo {
     pub id: UserId,
     pub email: String,
     pub name: String,
 }
 
-#[allow(unused_qualifications)]
+#[expect(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
 pub async fn start_link(
     Query(params): Query<StartLinkQuery>,

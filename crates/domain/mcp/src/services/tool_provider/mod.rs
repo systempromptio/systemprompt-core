@@ -82,7 +82,7 @@ impl McpToolProvider {
             server,
             ResilienceConfig::from(&self.resilience),
         ));
-        guards.insert(server.to_string(), Arc::clone(&guard));
+        guards.insert(server.to_owned(), Arc::clone(&guard));
         guard
     }
 }

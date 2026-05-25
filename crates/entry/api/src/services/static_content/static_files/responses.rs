@@ -36,8 +36,8 @@ pub(super) async fn not_found_response(
             return (
                 StatusCode::NOT_FOUND,
                 [
-                    (header::CONTENT_TYPE, "text/html".to_string()),
-                    (header::CACHE_CONTROL, CACHE_HTML.to_string()),
+                    (header::CONTENT_TYPE, "text/html".to_owned()),
+                    (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
                     (header::ETAG, etag),
                 ],
                 content,

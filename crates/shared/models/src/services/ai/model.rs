@@ -15,7 +15,7 @@ pub struct ToolModelSettings {
     pub max_output_tokens: Option<u32>,
 }
 
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ModelCapabilities {
     #[serde(default)]

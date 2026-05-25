@@ -2,7 +2,7 @@ pub mod types;
 
 mod client;
 mod create;
-mod delete;
+pub(crate) mod delete;
 mod edit;
 mod edit_apply;
 mod list;

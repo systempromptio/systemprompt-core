@@ -1,7 +1,7 @@
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use systemprompt_identifiers::UserId;
 
-pub async fn validate_message_context(
+pub(super) async fn validate_message_context(
     message: &crate::models::a2a::Message,
     user_id: Option<&UserId>,
     db_pool: &systemprompt_database::DbPool,
@@ -9,14 +9,13 @@ pub async fn validate_message_context(
     let context_id = &message.context_id;
 
     let user_id =
-        user_id.ok_or_else(|| "User authentication required for message processing".to_string())?;
+        user_id.ok_or_else(|| "User authentication required for message processing".to_owned())?;
 
     let user_id_str = user_id.as_str();
     if user_id_str == "missing-user-id" || user_id_str.is_empty() {
         return Err(
             "Authentication required: x-user-id header must be set by API proxy after JWT \
-             validation"
-                .to_string(),
+             validation".to_owned(),
         );
     }
 
@@ -30,7 +29,7 @@ pub async fn validate_message_context(
     Ok(())
 }
 
-pub async fn should_require_oauth(state: &AgentHandlerState) -> bool {
+pub(super) async fn should_require_oauth(state: &AgentHandlerState) -> bool {
     let config = state.config.read().await;
     config.oauth.required
 }

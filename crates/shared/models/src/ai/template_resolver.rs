@@ -32,7 +32,7 @@ impl TemplateResolver {
 
     fn resolve_template(template: &str, results: &[ToolCallResult]) -> Value {
         let Some(template_ref) = TemplateRef::parse(template) else {
-            return Value::String(template.to_string());
+            return Value::String(template.to_owned());
         };
 
         let Some(result) = results.get(template_ref.tool_index) else {

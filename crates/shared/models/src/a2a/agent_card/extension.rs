@@ -59,8 +59,8 @@ impl AgentExtension {
     #[must_use]
     pub fn mcp_tools_extension() -> Self {
         Self {
-            uri: "systemprompt:mcp-tools".to_string(),
-            description: Some("MCP tool execution capabilities".to_string()),
+            uri: "systemprompt:mcp-tools".to_owned(),
+            description: Some("MCP tool execution capabilities".to_owned()),
             required: Some(false),
             params: Some(serde_json::json!({
                 "supported_protocols": ["mcp-1.0"]
@@ -71,8 +71,8 @@ impl AgentExtension {
     #[must_use]
     pub fn mcp_tools_extension_with_servers(servers: &[serde_json::Value]) -> Self {
         Self {
-            uri: "systemprompt:mcp-tools".to_string(),
-            description: Some("MCP tool execution capabilities with server endpoints".to_string()),
+            uri: "systemprompt:mcp-tools".to_owned(),
+            description: Some("MCP tool execution capabilities with server endpoints".to_owned()),
             required: Some(false),
             params: Some(serde_json::json!({
                 "supported_protocols": ["mcp-1.0"],
@@ -84,8 +84,8 @@ impl AgentExtension {
     #[must_use]
     pub fn opencode_integration_extension() -> Self {
         Self {
-            uri: "systemprompt:opencode-integration".to_string(),
-            description: Some("OpenCode AI reasoning integration".to_string()),
+            uri: "systemprompt:opencode-integration".to_owned(),
+            description: Some("OpenCode AI reasoning integration".to_owned()),
             required: Some(false),
             params: Some(serde_json::json!({
                 "reasoning_model": "claude-3-5-sonnet",
@@ -97,9 +97,9 @@ impl AgentExtension {
     #[must_use]
     pub fn artifact_rendering_extension() -> Self {
         Self {
-            uri: ARTIFACT_RENDERING_URI.to_string(),
+            uri: ARTIFACT_RENDERING_URI.to_owned(),
             description: Some(
-                "MCP tool results rendered as typed artifacts with UI hints".to_string(),
+                "MCP tool results rendered as typed artifacts with UI hints".to_owned(),
             ),
             required: Some(false),
             params: Some(serde_json::json!({
@@ -112,8 +112,8 @@ impl AgentExtension {
     #[must_use]
     pub fn agent_identity(agent_name: &str) -> Self {
         Self {
-            uri: "systemprompt:agent-identity".to_string(),
-            description: Some("systemprompt.io platform agent name".to_string()),
+            uri: "systemprompt:agent-identity".to_owned(),
+            description: Some("systemprompt.io platform agent name".to_owned()),
             required: Some(true),
             params: Some(serde_json::json!({
                 "name": agent_name
@@ -124,8 +124,8 @@ impl AgentExtension {
     #[must_use]
     pub fn system_instructions(system_prompt: &str) -> Self {
         Self {
-            uri: "systemprompt:system-instructions".to_string(),
-            description: Some("Agent system prompt and behavioral guidelines".to_string()),
+            uri: "systemprompt:system-instructions".to_owned(),
+            description: Some("Agent system prompt and behavioral guidelines".to_owned()),
             required: Some(true),
             params: Some(serde_json::json!({
                 "systemPrompt": system_prompt,
@@ -159,8 +159,8 @@ impl AgentExtension {
         }
 
         Self {
-            uri: "systemprompt:service-status".to_string(),
-            description: Some("Runtime service status from orchestrator".to_string()),
+            uri: "systemprompt:service-status".to_owned(),
+            description: Some("Runtime service status from orchestrator".to_owned()),
             required: Some(true),
             params: Some(params),
         }

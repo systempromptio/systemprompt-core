@@ -17,7 +17,7 @@ use sha2::Sha256;
 
 type HmacSha256 = Hmac<Sha256>;
 
-#[allow(clippy::expect_used)]
+#[expect(clippy::expect_used)]
 pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> [u8; 32] {
     let mut mac = HmacSha256::new_from_slice(pepper).expect("HMAC accepts any key length");
     mac.update(value);

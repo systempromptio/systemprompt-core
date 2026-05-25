@@ -5,7 +5,7 @@
 
 use crate::error::{OauthError, OauthResult};
 
-pub fn hash_at_rest(value: &str) -> OauthResult<String> {
+pub(crate) fn hash_at_rest(value: &str) -> OauthResult<String> {
     let pepper = systemprompt_config::SecretsBootstrap::oauth_at_rest_pepper()
         .map_err(|e| OauthError::Internal(format!("oauth_at_rest_pepper unavailable: {e}")))?;
     Ok(systemprompt_security::hmac_sha256_hex(

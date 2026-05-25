@@ -17,7 +17,7 @@
 #[cfg(test)]
 mod asset_tests;
 #[cfg(test)]
-mod build;
+pub(crate) mod build;
 #[cfg(test)]
 mod build_tests;
 #[cfg(test)]
@@ -29,4 +29,4 @@ mod sitemap;
 #[cfg(test)]
 mod sitemap_tests;
 #[cfg(test)]
-mod templates;
+pub(crate) mod templates;

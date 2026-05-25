@@ -35,21 +35,21 @@ impl AgentRegistry {
     // The lookup methods below are `async` to match the `AgentRegistryProvider`
     // trait surface; their bodies are pure synchronous reads of an `Arc` snapshot.
 
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         self.config
             .agents
             .get(name)
             .cloned()
-            .ok_or_else(|| AgentError::NotFound(name.to_string()))
+            .ok_or_else(|| AgentError::NotFound(name.to_owned()))
     }
 
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         Ok(self.config.agents.values().cloned().collect())
     }
 
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         Ok(self
@@ -61,7 +61,7 @@ impl AgentRegistry {
             .collect())
     }
 
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         self.config
@@ -69,7 +69,7 @@ impl AgentRegistry {
             .values()
             .find(|a| a.default && a.enabled && !(a.dev_only && is_cloud))
             .cloned()
-            .ok_or_else(|| AgentError::NotFound("default agent not configured".to_string()))
+            .ok_or_else(|| AgentError::NotFound("default agent not configured".to_owned()))
     }
 
     pub async fn to_agent_card(

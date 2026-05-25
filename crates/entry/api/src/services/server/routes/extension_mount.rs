@@ -20,7 +20,7 @@ pub(super) fn mount_extension_routes(
 
     let profile = systemprompt_config::ProfileBootstrap::get().map_err(|e| {
         LoaderError::InitializationFailed {
-            extension: "profile".to_string(),
+            extension: "profile".to_owned(),
             message: e.to_string(),
         }
     })?;
@@ -35,7 +35,7 @@ pub(super) fn mount_extension_routes(
 
         ext.validate_config(&config_json)
             .map_err(|e| LoaderError::ConfigValidationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: e.to_string(),
             })?;
 
@@ -57,8 +57,8 @@ pub(super) fn mount_extension_routes(
         if let Some(tx) = events {
             if tx
                 .unbounded_send(StartupEvent::ExtensionRouteMounted {
-                    name: ext_name.to_string(),
-                    path: base_path.to_string(),
+                    name: ext_name.to_owned(),
+                    path: base_path.to_owned(),
                     auth_required: requires_auth,
                 })
                 .is_err()

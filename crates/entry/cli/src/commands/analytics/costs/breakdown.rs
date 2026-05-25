@@ -45,7 +45,7 @@ pub struct BreakdownArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: BreakdownArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<CostBreakdownOutput>> {
@@ -54,7 +54,7 @@ pub async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: BreakdownArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

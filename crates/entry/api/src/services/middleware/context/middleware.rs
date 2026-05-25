@@ -194,13 +194,13 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
 
         if let Some(context_id) = headers.get("x-context-id") {
             if let Ok(id) = context_id.to_str() {
-                req_ctx.execution.context_id = ContextId::new(id.to_string());
+                req_ctx.execution.context_id = ContextId::new(id.to_owned());
             }
         }
 
         if let Some(agent_name) = headers.get("x-agent-name") {
             if let Ok(name) = agent_name.to_str() {
-                req_ctx.execution.agent_name = AgentName::new(name.to_string());
+                req_ctx.execution.agent_name = AgentName::new(name.to_owned());
             }
         }
 
@@ -211,7 +211,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
 
     async fn handle_user_only(&self, mut request: Request, next: Next) -> Response {
         let trace_id = HeaderExtractor::extract_trace_id(request.headers());
-        let path = request.uri().path().to_string();
+        let path = request.uri().path().to_owned();
         let method = request.method().to_string();
 
         match self.extractor.extract_user_only(request.headers()).await {
@@ -226,7 +226,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
 
     async fn handle_user_with_context(&self, request: Request, next: Next) -> Response {
         let trace_id = HeaderExtractor::extract_trace_id(request.headers());
-        let path = request.uri().path().to_string();
+        let path = request.uri().path().to_owned();
         let method = request.method().to_string();
 
         match self.extractor.extract_from_request(request).await {
@@ -242,7 +242,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
 
     async fn handle_mcp_with_headers(&self, request: Request, next: Next) -> Response {
         let trace_id = HeaderExtractor::extract_trace_id(request.headers());
-        let path = request.uri().path().to_string();
+        let path = request.uri().path().to_owned();
         let method = request.method().to_string();
 
         match self.extractor.extract_from_headers(request.headers()).await {

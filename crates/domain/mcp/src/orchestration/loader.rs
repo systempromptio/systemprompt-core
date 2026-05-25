@@ -132,20 +132,20 @@ impl McpToolLoader {
             if let Some(deployment) = deployment_config.mcp_servers.get(server_name) {
                 let auth_value = if !deployment.oauth.required || deployment.oauth.scopes.is_empty()
                 {
-                    "anon".to_string()
+                    "anon".to_owned()
                 } else {
                     deployment
                         .oauth
                         .scopes
                         .first()
-                        .map_or_else(|| "user".to_string(), ToString::to_string)
+                        .map_or_else(|| "user".to_owned(), ToString::to_string)
                 };
 
                 let runtime_status = self
                     .service_manager
                     .get_mcp_service(server_name)
                     .await?
-                    .map_or_else(|| "not_started".to_string(), |s| s.status);
+                    .map_or_else(|| "not_started".to_owned(), |s| s.status);
 
                 let version = self
                     .registry
@@ -168,8 +168,8 @@ impl McpToolLoader {
                 servers_info.push(McpServerMetadata {
                     name: server_name.clone(),
                     endpoint: format!("{}/api/v1/mcp/{}/mcp", base_url, server_name),
-                    auth: "unknown".to_string(),
-                    status: "not_in_config".to_string(),
+                    auth: "unknown".to_owned(),
+                    status: "not_in_config".to_owned(),
                     version: None,
                     tools: None,
                 });

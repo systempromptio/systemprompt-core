@@ -17,7 +17,7 @@ pub struct FeaturedArgs {
     pub set: Option<String>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: FeaturedArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FeaturedImageOutput>> {

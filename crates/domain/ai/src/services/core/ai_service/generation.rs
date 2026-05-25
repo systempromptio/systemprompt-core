@@ -96,8 +96,8 @@ impl AiService {
                 let error_response = AiResponse::new(
                     request_id,
                     String::new(),
-                    request.provider().to_string(),
-                    model.to_string(),
+                    request.provider().to_owned(),
+                    model.to_owned(),
                 )
                 .with_latency(latency_ms);
                 self.audit(&StoreParams {

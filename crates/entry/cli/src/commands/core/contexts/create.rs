@@ -16,7 +16,7 @@ pub struct CreateArgs {
     pub name: Option<String>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextCreatedOutput>> {

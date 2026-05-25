@@ -11,7 +11,7 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::repository::task::TaskRepository;
 
-pub async fn load_event_data(
+pub(super) async fn load_event_data(
     app_context: &AppContext,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
@@ -95,7 +95,7 @@ async fn load_task_completed(
         .map_err(|e| anyhow::anyhow!("JSON validation failed: {}", e))?;
 
     Ok(AgUiWebhookData {
-        event_name: "task_completed".to_string(),
+        event_name: "task_completed".to_owned(),
         payload,
     })
 }
@@ -114,7 +114,7 @@ async fn load_artifact_created(
         .ok_or_else(|| anyhow::anyhow!("Artifact not found: {}", request.entity_id))?;
 
     Ok(AgUiWebhookData {
-        event_name: "artifact".to_string(),
+        event_name: "artifact".to_owned(),
         payload: json!({
             "artifact": artifact,
             "taskId": artifact.metadata.task_id,
@@ -135,7 +135,7 @@ async fn load_message_received(
 
     if exists {
         Ok(AgUiWebhookData {
-            event_name: "message_received".to_string(),
+            event_name: "message_received".to_owned(),
             payload: json!({
                 "messageId": request.entity_id,
             }),
@@ -159,7 +159,7 @@ async fn load_context_updated(
         .map_err(|e| anyhow::anyhow!("Failed to load context: {}", e))?;
 
     Ok(AgUiWebhookData {
-        event_name: "context_updated".to_string(),
+        event_name: "context_updated".to_owned(),
         payload: json!({
             "contextId": request.context_id,
             "context": context,
@@ -182,7 +182,7 @@ fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData, anyh
     };
 
     Ok(AgUiWebhookData {
-        event_name: event_name.to_string(),
+        event_name: event_name.to_owned(),
         payload: json!({
             "stepName": step.step_type().to_string(),
             "taskId": step.task_id,
@@ -220,7 +220,7 @@ fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow
     }
 
     Ok(AgUiWebhookData {
-        event_name: "run_started".to_string(),
+        event_name: "run_started".to_owned(),
         payload: json!({
             "task": payload.task,
             "threadId": request.context_id,

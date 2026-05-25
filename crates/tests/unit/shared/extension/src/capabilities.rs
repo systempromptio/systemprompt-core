@@ -12,7 +12,7 @@ struct TestConfig {
 }
 
 impl ConfigProvider for TestConfig {
-    fn get(&self, _key: &str) -> Option<String> {
+    pub(crate) fn get(&self, _key: &str) -> Option<String> {
         None
     }
 

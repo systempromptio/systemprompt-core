@@ -11,7 +11,7 @@ use super::streaming::handle_streaming_request;
 use crate::models::a2a::A2aRequestParams;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
-pub async fn parse_a2a_request(
+pub(super) async fn parse_a2a_request(
     jsonrpc_request: &crate::models::a2a::A2aJsonRpcRequest,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
 ) -> Result<A2aRequestParams, axum::response::Response> {
@@ -42,7 +42,7 @@ pub async fn parse_a2a_request(
                 let error_response = JsonRpcErrorBuilder::invalid_params()
                     .with_data(helpful_message)
                     .log_error(
-                        "Missing required contextId in SendStreamingMessage request".to_string(),
+                        "Missing required contextId in SendStreamingMessage request".to_owned(),
                     )
                     .build(request_id);
                 Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
@@ -67,7 +67,7 @@ pub async fn parse_a2a_request(
 /// the global stream-concurrency cap rejects a streaming request.
 const STREAM_RETRY_AFTER_SECONDS: u32 = 5;
 
-pub async fn handle_streaming_path(
+pub(super) async fn handle_streaming_path(
     a2a_request: A2aRequestParams,
     state: Arc<AgentHandlerState>,
     request_id: crate::models::a2a::jsonrpc::NumberOrString,
@@ -106,7 +106,7 @@ pub async fn handle_streaming_path(
         .into_response()
 }
 
-pub async fn handle_push_notification_requests(
+pub(super) async fn handle_push_notification_requests(
     a2a_request: &A2aRequestParams,
     state: &AgentHandlerState,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
@@ -161,7 +161,7 @@ pub async fn handle_push_notification_requests(
         let mut response_value = json_response.0;
         if let Some(obj) = response_value.as_object_mut() {
             obj.insert(
-                "id".to_string(),
+                "id".to_owned(),
                 match request_id {
                     crate::models::a2a::jsonrpc::NumberOrString::String(s) => {
                         serde_json::Value::String(s.clone())

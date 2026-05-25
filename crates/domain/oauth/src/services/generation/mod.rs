@@ -53,7 +53,7 @@ impl Default for JwtConfig {
 /// `act` is the outermost actor that requested this exchange (typically the
 /// authenticated client). Any pre-existing `act` chain inside the subject
 /// token is preserved by chaining it underneath the new outer actor.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn generate_jwt_with_act(
     user: &AuthenticatedUser,
     config: JwtConfig,
@@ -83,7 +83,7 @@ fn build_claims(
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
         })?
         .timestamp();
     let now = Utc::now().timestamp();
@@ -97,7 +97,7 @@ fn build_claims(
         iat: now,
         exp: expiration,
         nbf: Some(now),
-        iss: signing.issuer.to_string(),
+        iss: signing.issuer.to_owned(),
         aud: audience,
         jti,
         scope: config.permissions,
@@ -105,7 +105,7 @@ fn build_claims(
         email: user.email.clone(),
         user_type,
         roles: user.roles().to_vec(),
-        department: user.department().map(ToString::to_string),
+        department: user.department().map(str::to_owned),
         client_id: None,
         token_type: TokenType::Bearer,
         auth_time: now,
@@ -124,7 +124,7 @@ fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
     let kid = authority::active_kid()
         .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
     let mut header = Header::new(Algorithm::RS256);
-    header.kid = Some(kid.to_string());
+    header.kid = Some(kid.to_owned());
     let key = authority::encoding_key()
         .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
     let token = encode(&header, claims, key)?;
@@ -163,7 +163,7 @@ pub fn generate_anonymous_jwt_with_expiry(
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
         })?
         .timestamp();
 
@@ -174,14 +174,14 @@ pub fn generate_anonymous_jwt_with_expiry(
         iat: now,
         exp: expiration,
         nbf: Some(now),
-        iss: signing.issuer.to_string(),
+        iss: signing.issuer.to_owned(),
         aud: JwtAudience::standard(),
         jti: uuid::Uuid::new_v4().to_string(),
         scope: vec![Permission::Anonymous],
         username: user_id.to_string(),
         email: user_id.to_string(),
         user_type: UserType::Anon,
-        roles: vec!["anonymous".to_string()],
+        roles: vec!["anonymous".to_owned()],
         department: None,
         client_id: Some(client_id.clone()),
         token_type: TokenType::Bearer,
@@ -213,7 +213,7 @@ pub fn generate_admin_jwt(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn generate_admin_jwt_with_expiry(
     user_id: &UserId,
     session_id: &SessionId,
@@ -226,7 +226,7 @@ pub fn generate_admin_jwt_with_expiry(
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(expires_in_hours))
         .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_string())
+            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
         })?
         .timestamp();
 
@@ -237,14 +237,14 @@ pub fn generate_admin_jwt_with_expiry(
         iat: now,
         exp: expiration,
         nbf: Some(now),
-        iss: signing.issuer.to_string(),
+        iss: signing.issuer.to_owned(),
         aud: JwtAudience::standard(),
         jti: uuid::Uuid::new_v4().to_string(),
         scope: vec![Permission::Admin],
-        username: email.to_string(),
-        email: email.to_string(),
+        username: email.to_owned(),
+        email: email.to_owned(),
         user_type: UserType::Admin,
-        roles: vec!["admin".to_string(), "user".to_string()],
+        roles: vec!["admin".to_owned(), "user".to_owned()],
         department: None,
         client_id: Some(client_id.clone()),
         token_type: TokenType::Bearer,

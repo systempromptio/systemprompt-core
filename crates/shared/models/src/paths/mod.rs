@@ -5,7 +5,7 @@
 //! each tree plus shared directory/file-name constants.
 //! Resolution returns [`PathError`].
 
-mod build;
+pub(crate) mod build;
 pub mod constants;
 mod error;
 mod storage;

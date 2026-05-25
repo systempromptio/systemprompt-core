@@ -22,6 +22,6 @@ impl McpServiceProvider for McpServerRegistry {
     }
 
     fn validate_registry(&self) -> McpServiceResult<()> {
-        Self::validate(self).map_err(|_| McpServiceProviderError::RegistryUnavailable)
+        Self::validate(self).map_err(|_e| McpServiceProviderError::RegistryUnavailable)
     }
 }

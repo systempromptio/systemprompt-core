@@ -1,5 +1,5 @@
-mod delete;
-mod get;
+pub(crate) mod delete;
+pub(crate) mod get;
 mod update;
 pub mod validation;
 

@@ -125,7 +125,7 @@ impl Profile {
         );
 
         if self.server.port == 0 {
-            errors.push("Server port must be greater than 0".to_string());
+            errors.push("Server port must be greater than 0".to_owned());
         }
     }
 
@@ -137,23 +137,23 @@ impl Profile {
 
     pub(super) fn validate_security_settings(&self, errors: &mut Vec<String>) {
         if self.security.access_token_expiration <= 0 {
-            errors.push("Security access_token_expiration must be positive".to_string());
+            errors.push("Security access_token_expiration must be positive".to_owned());
         }
 
         if self.security.refresh_token_expiration <= 0 {
-            errors.push("Security refresh_token_expiration must be positive".to_string());
+            errors.push("Security refresh_token_expiration must be positive".to_owned());
         }
     }
 
     pub(super) fn validate_cors_origins(&self, errors: &mut Vec<String>) {
         for origin in &self.server.cors_allowed_origins {
             if origin.is_empty() {
-                errors.push("CORS origin cannot be empty".to_string());
+                errors.push("CORS origin cannot be empty".to_owned());
                 continue;
             }
 
             if origin == "*" {
-                errors.push("CORS origin '*' is not permitted; list explicit origins".to_string());
+                errors.push("CORS origin '*' is not permitted; list explicit origins".to_owned());
                 continue;
             }
 
@@ -175,7 +175,7 @@ impl Profile {
         }
 
         if self.rate_limits.burst_multiplier == 0 {
-            errors.push("rate_limits.burst_multiplier must be greater than 0".to_string());
+            errors.push("rate_limits.burst_multiplier must be greater than 0".to_owned());
         }
 
         Self::validate_rate_limit(

@@ -6,7 +6,7 @@
 
 pub fn truncate_with_ellipsis(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {
-        return text.to_string();
+        return text.to_owned();
     }
 
     let truncated_len = max_len.saturating_sub(3);

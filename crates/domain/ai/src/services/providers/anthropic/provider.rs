@@ -16,7 +16,7 @@ impl AnthropicProvider {
         Self {
             client: build_client(AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT),
             api_key,
-            endpoint: "https://api.anthropic.com/v1".to_string(),
+            endpoint: "https://api.anthropic.com/v1".to_owned(),
             web_search_enabled: false,
         }
     }

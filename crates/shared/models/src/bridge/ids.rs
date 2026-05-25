@@ -168,7 +168,7 @@ impl From<String> for ManifestSignature {
 
 impl From<&str> for ManifestSignature {
     fn from(s: &str) -> Self {
-        Self(s.to_string())
+        Self(s.to_owned())
     }
 }
 

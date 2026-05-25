@@ -8,7 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{SkillId, SourceId};
 
 fn default_artifact_type() -> String {
-    "list".to_string()
+    "list".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -97,7 +97,7 @@ impl ListArtifact {
 
     pub fn new(ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "list".to_string(),
+            artifact_type: "list".to_owned(),
             items: Vec::new(),
             count: 0,
             metadata: ExecutionMetadata::with_request(ctx),

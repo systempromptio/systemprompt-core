@@ -4,7 +4,7 @@ use crate::services::client::validate_connection_with_auth;
 use crate::services::database::DatabaseService;
 use crate::services::registry::RegistryService;
 
-pub async fn validate_service(
+pub(super) async fn validate_service(
     service_name: &str,
     database: &DatabaseService,
     registry: &RegistryService,
@@ -13,7 +13,7 @@ pub async fn validate_service(
     let server = servers
         .iter()
         .find(|s| s.name == service_name)
-        .ok_or_else(|| crate::error::McpDomainError::ServerNotFound(service_name.to_string()))?;
+        .ok_or_else(|| crate::error::McpDomainError::ServerNotFound(service_name.to_owned()))?;
 
     tracing::info!(
         service = %service_name,

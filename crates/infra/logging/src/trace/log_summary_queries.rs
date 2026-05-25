@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ struct TimeRangeRow {
     latest: Option<DateTime<Utc>>,
 }
 
-pub async fn count_logs_by_level(
+pub(super) async fn count_logs_by_level(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
 ) -> Result<Vec<LevelCount>> {
@@ -47,7 +47,7 @@ pub async fn count_logs_by_level(
         .collect())
 }
 
-pub async fn top_modules(
+pub(super) async fn top_modules(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
     limit: i64,
@@ -77,7 +77,7 @@ pub async fn top_modules(
         .collect())
 }
 
-pub async fn log_time_range(
+pub(super) async fn log_time_range(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
 ) -> Result<LogTimeRange> {
@@ -99,7 +99,7 @@ pub async fn log_time_range(
     })
 }
 
-pub async fn total_log_count(pool: &Arc<PgPool>) -> Result<i64> {
+pub(super) async fn total_log_count(pool: &Arc<PgPool>) -> Result<i64> {
     sqlx::query_scalar!(r#"SELECT COUNT(*) as "count!" FROM logs"#)
         .fetch_one(&**pool)
         .await

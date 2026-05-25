@@ -11,13 +11,12 @@ use super::super::super::canonical_response::{
 pub(super) fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalResponse {
     let id = value.get("id").and_then(Value::as_str).map_or_else(
         || format!("resp_{}", Uuid::new_v4().simple()),
-        ToString::to_string,
+        str::to_owned,
     );
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(fallback_model)
-        .to_string();
+        .unwrap_or(fallback_model).to_owned();
     let usage = value.get("usage").map_or(
         CanonicalUsage {
             input_tokens: 0,
@@ -73,7 +72,7 @@ fn extract_message_parts(item: &Value, content: &mut Vec<CanonicalContent>) {
         let ptype = p.get("type").and_then(Value::as_str).unwrap_or("");
         if matches!(ptype, "output_text" | "text") {
             if let Some(text) = p.get("text").and_then(Value::as_str) {
-                content.push(CanonicalContent::Text(text.to_string()));
+                content.push(CanonicalContent::Text(text.to_owned()));
             }
         }
     }
@@ -84,13 +83,11 @@ fn extract_function_call(item: &Value, content: &mut Vec<CanonicalContent>) {
         .get("call_id")
         .and_then(Value::as_str)
         .or_else(|| item.get("id").and_then(Value::as_str))
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let name = item
         .get("name")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let args = item
         .get("arguments")
         .and_then(Value::as_str)

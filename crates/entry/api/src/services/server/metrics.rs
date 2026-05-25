@@ -47,7 +47,7 @@ pub async fn track_metrics(req: Request, next: Next) -> Response {
     let path = req
         .extensions()
         .get::<MatchedPath>()
-        .map_or_else(|| req.uri().path().to_string(), |m| m.as_str().to_string());
+        .map_or_else(|| req.uri().path().to_owned(), |m| m.as_str().to_owned());
 
     let in_flight = metrics::gauge!(HTTP_REQUESTS_IN_FLIGHT);
     in_flight.increment(1.0);

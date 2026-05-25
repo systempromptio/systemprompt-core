@@ -18,7 +18,7 @@ impl TextRenderer {
 
         for part in &artifact.parts {
             if let Some(text) = part.as_text() {
-                text_parts.push(text.to_string());
+                text_parts.push(text.to_owned());
             }
         }
 

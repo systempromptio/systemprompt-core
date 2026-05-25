@@ -18,14 +18,14 @@ pub fn validate_jwt_token(
     if header.alg != Algorithm::RS256 {
         return Err(OauthError::TokenAlgMismatch {
             got: format!("{:?}", header.alg),
-            expected: "RS256".to_string(),
+            expected: "RS256".to_owned(),
         });
     }
     let kid = header.kid.as_deref().ok_or(OauthError::TokenMissingKid)?;
     let key = authority::decoding_key_for_kid(kid)
         .map_err(|e| OauthError::TokenInvalid(format!("signing key lookup failed: {e}")))?
         .ok_or_else(|| OauthError::TokenUnknownKid {
-            kid: kid.to_string(),
+            kid: kid.to_owned(),
         })?;
 
     let mut validation = Validation::new(Algorithm::RS256);
@@ -41,7 +41,7 @@ pub fn validate_jwt_token(
     let now = Utc::now().timestamp();
 
     if token_data.claims.exp < now {
-        return Err(OauthError::Expired("Token has expired".to_string()));
+        return Err(OauthError::Expired("Token has expired".to_owned()));
     }
 
     Ok(token_data.claims)

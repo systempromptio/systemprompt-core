@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub use super::image_metadata::ImageMetadata;
+pub(super) use super::image_metadata::ImageMetadata;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FileMetadata {

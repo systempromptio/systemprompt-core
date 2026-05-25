@@ -4,19 +4,19 @@ use crate::services::validation::validate_content_metadata;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-pub struct ParsedFrontmatter {
+pub(super) struct ParsedFrontmatter {
     pub metadata: ContentMetadata,
     pub raw_yaml: serde_yaml::Value,
     pub body: String,
 }
 
-pub struct ScanResult {
+pub(super) struct ScanResult {
     pub files: Vec<PathBuf>,
     pub errors: Vec<String>,
     pub warnings: Vec<String>,
 }
 
-pub fn scan_markdown_files(dir: &Path, recursive: bool) -> ScanResult {
+pub(super) fn scan_markdown_files(dir: &Path, recursive: bool) -> ScanResult {
     let mut files = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -56,8 +56,7 @@ pub fn scan_markdown_files(dir: &Path, recursive: bool) -> ScanResult {
     if files.is_empty() && has_subdirectories {
         warnings.push(
             "No markdown files found in root directory, but subdirectories exist. Consider using \
-             --recursive to scan nested directories."
-                .to_string(),
+             --recursive to scan nested directories.".to_owned(),
         );
     }
 
@@ -74,12 +73,12 @@ fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
     Ok(())
 }
 
-pub fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
+pub(super) fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
     let parts: Vec<&str> = markdown.splitn(3, "---").collect();
 
     if parts.len() < 3 {
         return Err(ContentError::Parse(
-            "Invalid frontmatter format".to_string(),
+            "Invalid frontmatter format".to_owned(),
         ));
     }
 
@@ -87,7 +86,7 @@ pub fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentErr
     let metadata: ContentMetadata = serde_yaml::from_value(raw_yaml.clone())?;
     validate_content_metadata(&metadata)?;
 
-    let body = parts[2].trim().to_string();
+    let body = parts[2].trim().to_owned();
 
     Ok(ParsedFrontmatter {
         metadata,

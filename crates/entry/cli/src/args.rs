@@ -5,7 +5,7 @@ use crate::commands::{admin, analytics, build, cloud, core, infrastructure, plug
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
 #[derive(Debug, clap::Args)]
-pub struct VerbosityOpts {
+struct VerbosityOpts {
     #[arg(
         long,
         short = 'v',
@@ -30,7 +30,7 @@ pub struct VerbosityOpts {
 }
 
 #[derive(Debug, clap::Args)]
-pub struct OutputOpts {
+struct OutputOpts {
     #[arg(long, global = true, hide = true, help = "JSON output")]
     pub json: bool,
 
@@ -45,7 +45,7 @@ pub struct OutputOpts {
 }
 
 #[derive(Debug, clap::Args)]
-pub struct DisplayOpts {
+pub(crate) struct DisplayOpts {
     #[arg(long, global = true, hide = true, help = "Disable colors")]
     pub no_color: bool,
 
@@ -54,7 +54,7 @@ pub struct DisplayOpts {
 }
 
 #[derive(Debug, clap::Args)]
-pub struct DatabaseOpts {
+pub(crate) struct DatabaseOpts {
     #[arg(
         long,
         global = true,
@@ -65,7 +65,7 @@ pub struct DatabaseOpts {
 }
 
 #[derive(Debug, clap::Args)]
-pub struct ProfileOpts {
+struct ProfileOpts {
     #[arg(
         long,
         global = true,
@@ -96,7 +96,7 @@ GLOBAL OPTIONS (apply to all commands):
       --non-interactive Non-interactive mode
       --database-url    Direct database URL (bypasses profile)
       --profile         Profile name to use (overrides active session)")]
-pub struct Cli {
+pub(crate) struct Cli {
     #[command(flatten)]
     pub verbosity: VerbosityOpts,
 
@@ -117,7 +117,7 @@ pub struct Cli {
 }
 
 #[derive(Subcommand)]
-pub enum Commands {
+pub(crate) enum Commands {
     #[command(
         subcommand,
         about = "Core operations: skills, content, files, contexts"
@@ -182,7 +182,7 @@ impl DescribeCommand for Commands {
     }
 }
 
-pub fn build_cli_config(cli: &Cli) -> CliConfig {
+pub(crate) fn build_cli_config(cli: &Cli) -> CliConfig {
     let mut cfg = CliConfig::new();
 
     if cli.verbosity.debug {
@@ -212,7 +212,7 @@ pub fn build_cli_config(cli: &Cli) -> CliConfig {
     cfg
 }
 
-pub fn reconstruct_args(cli: &Cli) -> Vec<String> {
+pub(crate) fn reconstruct_args(cli: &Cli) -> Vec<String> {
     let mut args = Vec::new();
 
     if cli.verbosity.debug {

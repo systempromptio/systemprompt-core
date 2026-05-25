@@ -2,7 +2,7 @@ use systemprompt_logging::CliService;
 
 use super::types::McpToolEntry;
 
-pub fn print_schema_view(tools: &[McpToolEntry]) {
+pub(crate) fn print_schema_view(tools: &[McpToolEntry]) {
     CliService::section("MCP Tool Schemas");
 
     for tool in tools {

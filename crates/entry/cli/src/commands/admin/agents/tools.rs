@@ -27,7 +27,7 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ToolsArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentToolsOutput>> {

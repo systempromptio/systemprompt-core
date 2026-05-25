@@ -16,8 +16,7 @@ pub fn convert_messages(messages: &[AiMessage]) -> Vec<GeminiContent> {
             },
             MessageRole::User => "user",
             MessageRole::Assistant => "model",
-        }
-        .to_string();
+        }.to_owned();
 
         let parts = convert_message_parts(message);
         contents.push(GeminiContent { role, parts });
@@ -27,7 +26,7 @@ pub fn convert_messages(messages: &[AiMessage]) -> Vec<GeminiContent> {
         contents.insert(
             0,
             GeminiContent {
-                role: "user".to_string(),
+                role: "user".to_owned(),
                 parts: vec![GeminiPart::Text {
                     text: system_content.join("\n"),
                 }],

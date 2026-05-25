@@ -73,11 +73,11 @@ pub fn oauth_to_security_config(
     };
 
     let mut schemes = HashMap::new();
-    schemes.insert("oauth2".to_string(), scheme);
+    schemes.insert("oauth2".to_owned(), scheme);
 
     let mut requirement = HashMap::new();
     requirement.insert(
-        "oauth2".to_string(),
+        "oauth2".to_owned(),
         oauth.scopes.iter().map(ToString::to_string).collect(),
     );
     let requirements = vec![requirement];
@@ -85,7 +85,7 @@ pub fn oauth_to_security_config(
     (Some(schemes), Some(requirements))
 }
 
-#[allow(clippy::implicit_hasher)]
+#[expect(clippy::implicit_hasher)]
 pub fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_external_url: &str) {
     if let Some(SecurityScheme::OAuth2 { flows, .. }) = schemes.get_mut("oauth2") {
         if let Some(auth_code) = flows.authorization_code.as_mut() {

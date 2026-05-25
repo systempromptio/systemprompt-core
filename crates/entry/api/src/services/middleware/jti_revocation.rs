@@ -40,7 +40,7 @@ pub async fn jti_revocation_middleware(
     let jti = request
         .extensions()
         .get::<RequestContext>()
-        .map(|ctx| ctx.jti().to_string())
+        .map(|ctx| ctx.jti().to_owned())
         .unwrap_or_default();
 
     if jti.is_empty() {

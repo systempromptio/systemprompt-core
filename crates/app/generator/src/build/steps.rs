@@ -9,7 +9,7 @@ use super::orchestrator::{BuildError, Result};
 
 const CSS_FILES: &[&str] = &["content.css", "syntax-highlight.css"];
 
-pub async fn organize_css(web_dir: &Path) -> Result<()> {
+pub(crate) async fn organize_css(web_dir: &Path) -> Result<()> {
     tracing::debug!("Organizing CSS files");
 
     let dist_dir = web_dir.join("dist");

@@ -29,11 +29,11 @@ impl User {
     }
 
     pub fn is_admin(&self) -> bool {
-        self.roles.contains(&UserRole::Admin.as_str().to_string())
+        self.roles.contains(&UserRole::Admin.as_str().to_owned())
     }
 
     pub fn has_role(&self, role: UserRole) -> bool {
-        self.roles.contains(&role.as_str().to_string())
+        self.roles.contains(&role.as_str().to_owned())
     }
 }
 

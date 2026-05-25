@@ -81,7 +81,7 @@ impl ProfileLoader {
                 .filter_map(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
                     name.strip_suffix(".secrets.profile.yaml")
-                        .map(ToString::to_string)
+                        .map(str::to_owned)
                 })
                 .collect(),
             Err(e) => {
