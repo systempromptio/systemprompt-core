@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.1] - 2026-05-25
+
+### Changed
+
+- **Internal lint and visibility cleanup.** Bridge sources adopt the workspace's tightened clippy baseline (`unreachable_pub`, `allow_attributes_without_reason`, `redundant_pub_crate`, `let_underscore_must_use`) — visibility narrowed from `pub` to `pub(crate)` where appropriate, MDM helpers cfg-gated to the OSes that consume them, best-effort `Result` discards justified with `tracing::warn!`. No user-visible behaviour change.
+
 ## [0.9.0] - 2026-05-22
 
 ### Fixed
