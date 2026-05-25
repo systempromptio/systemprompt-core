@@ -4,10 +4,10 @@
 //! collector, and [`crate::ConfigLoader`] are all reachable from a single
 //! re-export point in this crate.
 
+mod modules;
+
 use std::sync::Arc;
 use systemprompt_extension::{Extension, LoaderError, SchemaDefinition};
-
-use crate::modules;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ModuleLoader;
