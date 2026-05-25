@@ -4,7 +4,7 @@ use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId};
 
 use crate::models::{LogEntry, LoggingError};
 
-pub(crate) async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingError> {
+pub(in crate::repository) async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -47,7 +47,7 @@ pub(crate) async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), Lo
     Ok(())
 }
 
-pub(crate) async fn update_log(
+pub(in crate::repository) async fn update_log(
     pool: &PgPool,
     id: &LogId,
     entry: &LogEntry,
@@ -80,7 +80,7 @@ pub(crate) async fn update_log(
     Ok(result.rows_affected() > 0)
 }
 
-pub(crate) async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError> {
+pub(in crate::repository) async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError> {
     let id_str = id.as_str();
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id_str)
@@ -90,7 +90,7 @@ pub(crate) async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, Loggin
     Ok(result.rows_affected() > 0)
 }
 
-pub(crate) async fn delete_logs_multiple(
+pub(in crate::repository) async fn delete_logs_multiple(
     pool: &PgPool,
     ids: &[LogId],
 ) -> Result<u64, LoggingError> {
@@ -107,13 +107,13 @@ pub(crate) async fn delete_logs_multiple(
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn clear_all_logs(pool: &PgPool) -> Result<u64, LoggingError> {
+pub(in crate::repository) async fn clear_all_logs(pool: &PgPool) -> Result<u64, LoggingError> {
     let result = sqlx::query!("DELETE FROM logs").execute(pool).await?;
 
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn cleanup_logs_before(
+pub(in crate::repository) async fn cleanup_logs_before(
     pool: &PgPool,
     cutoff: DateTime<Utc>,
 ) -> Result<u64, LoggingError> {
@@ -124,7 +124,7 @@ pub(crate) async fn cleanup_logs_before(
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn count_logs_before(
+pub(in crate::repository) async fn count_logs_before(
     pool: &PgPool,
     cutoff: DateTime<Utc>,
 ) -> Result<u64, LoggingError> {
