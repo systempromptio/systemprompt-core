@@ -1,7 +1,7 @@
 //! YAML schema for the declarative gateway-policy baseline.
 //!
 //! A deployment commits a [`GatewayPolicyConfig`] at
-//! `services/ai/gateway-policies.yaml` declaring the gateway policies every
+//! `services/gateway/policies.yaml` declaring the gateway policies every
 //! instance should boot with. The bootstrap loader parses this struct, hands
 //! it to [`super::ingestion::GatewayPolicyIngestionService`], and the service
 //! projects it into `ai_gateway_policies`.
@@ -18,7 +18,7 @@ const fn default_enabled() -> bool {
     true
 }
 
-/// Top-level shape of `services/ai/gateway-policies.yaml`.
+/// Top-level shape of `services/gateway/policies.yaml`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicyConfig {

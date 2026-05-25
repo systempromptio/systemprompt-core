@@ -12,7 +12,11 @@
 - **`GatewayConfig::is_model_exposed(&str) -> bool`** — single dispatch-time gate that consults the profile catalog. Replaces the per-policy `allowed_models` allow-list as the source of truth for "is this model exposed."
 - **`GatewayConfig::validate()`** — boot-time cross-check that fails loud on catalog/route drift. Verifies: every route's provider exists in `GatewayCatalog.providers`; every route's endpoint matches the catalog provider's endpoint; every catalog model id and alias is globally unique; every catalog model is reachable by at least one route pattern. New error variants: `RouteProviderNotInCatalog`, `RouteEndpointMismatch`, `DuplicateModelId`, `UnreachableModel`.
 - **`GatewayModel::aliases: Vec<String>`** — alternate model ids that resolve to the same catalog entry for exposure and `/profile` listing (e.g. `claude-opus-4-7[1m]` aliasing `claude-opus-4-7`).
-- **`EntityKind::GatewayModel`** in `systemprompt-security::authz` — paired with the existing `GatewayRoute` so per-model RBAC can be wired into the gateway dispatch path (consumer wiring is a follow-up).
+- **`EntityKind::GatewayModel`** in `systemprompt-security::authz` — paired with the existing `GatewayRoute` so per-model RBAC can be wired into the gateway dispatch path (consumer wiring is a follow-up). Migration `006_acl_gateway_model.sql` extends the `access_control_rules.entity_type` CHECK constraint to include the new variant.
+
+### Changed
+
+- **`GATEWAY_POLICIES_FILE` moved from `services/ai/gateway-policies.yaml` to `services/gateway/policies.yaml`.** The loader keeps a one-release back-compat fallback on the old path and emits a warn when it triggers. Deployments should move their policies file to the new location before 0.12.
 
 ### Fixed
 

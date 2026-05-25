@@ -1,10 +1,11 @@
 //! Declarative, version-controlled gateway-policy bootstrap.
 //!
-//! Gateway policies (the inference-model allow-list and per-call governance
-//! ceilings) live in `ai_gateway_policies`. This module gives them the same
-//! config-driven bootstrap path that access-control rules already have: a
-//! committed `services/ai/gateway-policies.yaml` is ingested into the DB at
-//! every server boot via [`load_from_yaml`].
+//! Gateway policies (per-call ceilings, quota windows, safety config) live in
+//! `ai_gateway_policies`. This module gives them the same config-driven
+//! bootstrap path that access-control rules already have: a committed
+//! `services/gateway/policies.yaml` is ingested into the DB at every server
+//! boot via [`load_from_yaml`]. Model exposure is owned by the profile
+//! catalog, not by this spec.
 
 mod config;
 mod ingestion;
