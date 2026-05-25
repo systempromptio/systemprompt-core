@@ -45,7 +45,7 @@ pub struct IssuePluginTokenArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct IssuePluginTokenOutput {
+pub(super) struct IssuePluginTokenOutput {
     pub plugin_id: String,
     pub email: String,
     pub expires_in_days: u32,
@@ -53,7 +53,7 @@ pub(crate) struct IssuePluginTokenOutput {
     pub token: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: IssuePluginTokenArgs,
 ) -> Result<CommandResult<IssuePluginTokenOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;

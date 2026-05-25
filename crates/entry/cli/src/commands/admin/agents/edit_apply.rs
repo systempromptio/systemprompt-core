@@ -5,7 +5,7 @@ use systemprompt_logging::CliService;
 use super::edit::EditArgs;
 use super::shared::apply_set_value;
 
-pub(crate) fn apply_enabled_flags(
+pub(super) fn apply_enabled_flags(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -20,7 +20,7 @@ pub(crate) fn apply_enabled_flags(
     }
 }
 
-pub(crate) fn apply_runtime_fields(
+pub(super) fn apply_runtime_fields(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -54,7 +54,7 @@ pub(crate) fn apply_runtime_fields(
     Ok(())
 }
 
-pub(crate) fn apply_card_fields(
+pub(super) fn apply_card_fields(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -81,7 +81,7 @@ pub(crate) fn apply_card_fields(
     }
 }
 
-pub(crate) fn apply_capability_fields(
+pub(super) fn apply_capability_fields(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -106,7 +106,7 @@ pub(crate) fn apply_capability_fields(
     }
 }
 
-pub(crate) fn apply_metadata_fields(
+pub(super) fn apply_metadata_fields(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -135,7 +135,7 @@ pub(crate) fn apply_metadata_fields(
     Ok(())
 }
 
-pub(crate) fn apply_mcp_server_changes(
+pub(super) fn apply_mcp_server_changes(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     services_config: &systemprompt_models::ServicesConfig,
@@ -179,7 +179,7 @@ pub(crate) fn apply_mcp_server_changes(
     Ok(())
 }
 
-pub(crate) fn apply_skill_changes(
+pub(super) fn apply_skill_changes(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,
@@ -203,7 +203,7 @@ pub(crate) fn apply_skill_changes(
     }
 }
 
-pub(crate) fn apply_set_value_changes(
+pub(super) fn apply_set_value_changes(
     agent: &mut systemprompt_models::AgentConfig,
     args: &EditArgs,
     changes: &mut Vec<String>,

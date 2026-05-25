@@ -20,7 +20,7 @@ pub enum SessionCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(crate) async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         SessionCommands::List(args) => {
             let result = list::execute(args, config).await?;
@@ -40,7 +40,7 @@ pub(crate) async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<
     }
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     cmd: SessionCommands,
     pool: &DbPool,
     config: &CliConfig,

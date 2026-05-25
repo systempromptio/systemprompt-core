@@ -4,7 +4,7 @@ use systemprompt_logging::CliService;
 
 use super::common::PostgresConfig;
 
-pub(crate) async fn create_database_in_docker(
+pub(super) async fn create_database_in_docker(
     config: &PostgresConfig,
     container_name: &str,
 ) -> Result<()> {

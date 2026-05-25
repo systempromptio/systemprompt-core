@@ -58,7 +58,7 @@ pub struct MessageArgs {
     pub json: bool,
 }
 
-pub(crate) fn extract_text_from_parts(parts: &[Part]) -> String {
+pub(super) fn extract_text_from_parts(parts: &[Part]) -> String {
     parts
         .iter()
         .filter_map(|part| match part {
@@ -69,7 +69,7 @@ pub(crate) fn extract_text_from_parts(parts: &[Part]) -> String {
         .join("\n")
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: MessageArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<MessageOutput>> {

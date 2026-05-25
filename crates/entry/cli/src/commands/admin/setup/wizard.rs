@@ -13,7 +13,7 @@ use super::wizard_prompts::{
 use super::{SetupArgs, common, profile, secrets};
 use crate::CliConfig;
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: SetupArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<SetupOutput>> {

@@ -12,7 +12,7 @@ use crate::shared::CommandResult;
 
 use super::super::types::{ExportOutput, ImportOutput};
 
-pub(crate) fn execute_export(
+pub(super) fn execute_export(
     args: &ExportArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ExportOutput>> {
@@ -40,7 +40,7 @@ pub(crate) fn execute_export(
     Ok(CommandResult::text(output).with_title("Rate Limits Exported"))
 }
 
-pub(crate) fn execute_import(
+pub(super) fn execute_import(
     args: &ImportArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ImportOutput>> {

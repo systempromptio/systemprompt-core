@@ -13,7 +13,7 @@ use super::docker_compose::{
 };
 use super::docker_database::create_database_in_docker;
 
-pub(crate) async fn setup_docker_postgres_non_interactive(
+pub(super) async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
     env_name: &str,
 ) -> Result<PostgresConfig> {
@@ -43,7 +43,7 @@ pub(crate) async fn setup_docker_postgres_non_interactive(
     Ok(config.clone())
 }
 
-pub(crate) async fn setup_docker_postgres_interactive(
+pub(super) async fn setup_docker_postgres_interactive(
     args: &SetupArgs,
     env_name: &str,
 ) -> Result<PostgresConfig> {

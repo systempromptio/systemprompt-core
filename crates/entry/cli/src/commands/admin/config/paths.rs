@@ -25,7 +25,7 @@ pub fn execute(command: PathsCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-pub(crate) fn execute_show() -> Result<()> {
+pub(super) fn execute_show() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = PathsConfigOutput {
@@ -60,7 +60,7 @@ pub(crate) fn execute_show() -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn execute_validate(config: &CliConfig) -> Result<()> {
+pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let mut validations: Vec<PathValidation> = Vec::new();

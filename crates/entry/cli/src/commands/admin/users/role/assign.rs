@@ -16,7 +16,7 @@ pub struct AssignArgs {
     pub roles: Vec<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: AssignArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<RoleAssignOutput>> {

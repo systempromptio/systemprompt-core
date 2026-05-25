@@ -30,7 +30,7 @@ pub struct CreateArgs {
     pub agent: AgentArgs,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentCreateOutput>> {

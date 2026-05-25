@@ -5,7 +5,7 @@ use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 
-pub(crate) fn execute(_config: &CliConfig) -> CommandResult<SessionShowOutput> {
+pub(super) fn execute(_config: &CliConfig) -> CommandResult<SessionShowOutput> {
     let paths = ResolvedPaths::discover();
 
     let sessions = collect_sessions(&paths);

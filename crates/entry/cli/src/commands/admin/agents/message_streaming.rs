@@ -11,7 +11,7 @@ use super::message::extract_text_from_parts;
 use super::types::MessageOutput;
 use crate::shared::CommandResult;
 
-pub(crate) async fn execute_streaming(
+pub(super) async fn execute_streaming(
     agent: &str,
     agent_url: &str,
     auth_token: &str,
