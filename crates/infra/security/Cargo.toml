@@ -13,6 +13,12 @@ description = "Security infrastructure for systemprompt.io AI governance: JWT, O
 readme = "README.md"
 include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", ".sqlx/**/*"]
 
+[features]
+# Allow `http://` JWKS issuers. Test-only escape hatch so integration
+# tests can stand up `wiremock` (which is HTTP-only) without standing
+# up a TLS-terminating proxy. Must NEVER be enabled in production.
+test-jwks-insecure-scheme = []
+
 [lints]
 workspace = true
 

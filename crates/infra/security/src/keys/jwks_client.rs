@@ -221,7 +221,11 @@ impl JwksClient {
             issuer: raw.to_string(),
             source,
         })?;
-        if parsed.scheme() != "https" {
+        #[cfg(feature = "test-jwks-insecure-scheme")]
+        let allowed_scheme = parsed.scheme() == "https" || parsed.scheme() == "http";
+        #[cfg(not(feature = "test-jwks-insecure-scheme"))]
+        let allowed_scheme = parsed.scheme() == "https";
+        if !allowed_scheme {
             return Err(JwksClientError::InsecureScheme(raw.to_string()));
         }
         let host = parsed
