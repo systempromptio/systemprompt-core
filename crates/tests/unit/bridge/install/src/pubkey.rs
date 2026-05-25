@@ -34,6 +34,7 @@ fn pubkey_not_pinned_error_has_distinct_exit_code() {
     assert!(rendered.contains("--allow-tofu"));
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_includes_pubkey_when_provided() {
     let values = systemprompt_bridge::install::windows_policy_values(
@@ -50,6 +51,7 @@ fn windows_policy_values_includes_pubkey_when_provided() {
     assert_eq!(pubkey_entry.2, "BASE64-PUBKEY");
 }
 
+#[cfg(target_os = "windows")]
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
     let values =

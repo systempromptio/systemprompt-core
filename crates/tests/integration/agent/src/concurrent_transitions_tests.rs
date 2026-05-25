@@ -4,9 +4,11 @@ use systemprompt_models::a2a::TaskState;
 
 use crate::common::Fixture;
 
-/// N writers race to set conflicting terminal states. Exactly one must win,
-/// the rest must fail with a constraint-violation (CAS / state-machine), and
-/// the persisted final status must be one of the legal terminals.
+/// N writers race to set conflicting terminal states. Exactly one terminal
+/// must commit: writers targeting the winning terminal succeed (either via
+/// the real CAS write or via the same-state idempotent short-circuit), and
+/// writers targeting a different terminal must fail with a state-machine
+/// constraint-violation. The persisted final status must be a legal terminal.
 #[tokio::test]
 async fn concurrent_terminal_writes_have_a_single_winner() -> Result<()> {
     let fx = Arc::new(Fixture::new().await?);
@@ -31,32 +33,42 @@ async fn concurrent_terminal_writes_have_a_single_winner() -> Result<()> {
         let fx = Arc::clone(&fx);
         let task_id = task_id.clone();
         handles.push(tokio::spawn(async move {
-            fx.repo
+            let result = fx
+                .repo
                 .update_task_state(&task_id, target, &chrono::Utc::now())
-                .await
+                .await;
+            (target, result)
         }));
     }
 
-    let mut wins = 0_u32;
-    let mut losses = 0_u32;
+    let mut outcomes = Vec::with_capacity(8);
     for h in handles {
-        match h.await? {
-            Ok(()) => wins += 1,
-            Err(_) => losses += 1,
-        }
+        outcomes.push(h.await?);
     }
 
-    assert_eq!(wins, 1, "exactly one writer must win (got {wins})");
-    assert_eq!(losses, 7);
-
     let status = fx.current_status(&task_id).await?;
+    let final_state: TaskState = status.parse().expect("final state parses");
     assert!(
         matches!(
-            status.as_str(),
-            "TASK_STATE_COMPLETED" | "TASK_STATE_FAILED" | "TASK_STATE_CANCELED"
+            final_state,
+            TaskState::Completed | TaskState::Failed | TaskState::Canceled
         ),
         "final state must be a legal terminal, got {status}"
     );
+
+    for (target, result) in outcomes {
+        if target == final_state {
+            assert!(
+                result.is_ok(),
+                "writer targeting winning terminal {target:?} must succeed, got {result:?}",
+            );
+        } else {
+            assert!(
+                result.is_err(),
+                "writer targeting losing terminal {target:?} must fail, got {result:?}",
+            );
+        }
+    }
 
     fx.cleanup().await?;
     Ok(())

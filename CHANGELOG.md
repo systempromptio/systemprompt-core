@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.11.2] - 2026-05-25
 
 ### Breaking
 
@@ -8,17 +8,6 @@
 - **`AccessRule::default_included` field removed.** The flag now lives on `EntityRow` (new type in `authz::types`). `AccessRule`'s serde wire shape loses the field — every deserialisation site that constructed `AccessRule` literals must drop it; integration tests too.
 - **`AccessControlRepository` rewritten to a two-table API.** New: `get_entity(EntityKind, &str) -> AuthzResult<Option<EntityRow>>`, `upsert_entity(EntityKind, &str, default_included: bool, source: &str) -> AuthzResult<()>`, `list_entities(EntityKind) -> AuthzResult<Vec<EntityRow>>`. Removed: `get_default_included`, `set_default_included` — callers must transit through `get_entity` / `upsert_entity` (a `None` lookup now signals `UnknownEntity` to the resolver). `list_rules_for_entity` / `list_rules_bulk` no longer filter the sentinel rule_value — the sentinel scheme is gone.
 - **`AccessControlIngestionService` upserts entity rows alongside grants.** Each rule in the YAML config now produces an `access_control_entities` row (`source='ingestion:access_control_config'`, `default_included=false`) before the grant is inserted, so the FK on `access_control_rules` is satisfied. `delete_orphans` no longer needs to preserve the sentinel — it sweeps every `role`/`department` rule.
-
-### Added
-
-- **`systemprompt admin access-control lint` CLI subcommand.** Reads `access_control_entities` + `access_control_rules` and reports two failure modes: rules pointing at no catalog row (`UNKNOWN`) and catalog rows with `default_included=false` and zero grants (`UNREACHABLE`). Exits non-zero on findings so it can gate CI.
-- **`EntityRow` struct** in `authz::types` — `{ kind: EntityKind, id: String, default_included: bool, source: String }`. Round-trips through serde; re-exported from `authz`.
-- **Per-crate test for `EntityRow` serde + AccessRule regression** in `crates/tests/unit/infra/security/authz/src/entity_row.rs`.
-
-## [0.11.2] - 2026-05-25
-
-### Breaking
-
 - **`systemprompt_mcp::MCP_PROTOCOL_VERSION` constant removed.** Use `systemprompt_mcp::mcp_protocol_version() -> String` or `systemprompt_mcp::mcp_protocol_version_str() -> &'static str`. Both resolve to `rmcp::model::ProtocolVersion::LATEST` and track the linked `rmcp` release.
 - **`GatewayPolicySpec::allowed_models` and `GatewayPolicySpec::model_allowed` removed.** Model exposure is now owned by the profile's `GatewayCatalog` (see `GatewayConfig::is_model_exposed`). A request whose `model` is not declared in the catalog is rejected with `403` before route resolution — the old policy-allow-list path is gone. Deployments that still set `allowed_models:` in `services/ai/gateway-policies.yaml` MUST remove the field (the spec now uses `deny_unknown_fields`).
 - **`GatewayProvider`, `GatewayModel`, and `GatewayRoute` entity-id fields are now typed.** `GatewayProvider.name: ProviderId`, `GatewayProvider.api_key_secret: SecretName`, `GatewayModel.id: ModelId`, `GatewayModel.provider: ProviderId`, `GatewayModel.aliases: Vec<ModelId>`, `GatewayRoute.id: RouteId`, `GatewayRoute.provider: ProviderId`, `GatewayRoute.api_key_secret: SecretName`. `pub fn synthesize_route_id(...) -> RouteId` (was `-> String`). Call sites comparing or stringifying these fields must use `.as_str()`. YAML deserialization is unchanged — `define_id!` derives `Deserialize` transparently.
@@ -36,6 +25,9 @@
 
 ### Added
 
+- **`systemprompt admin access-control lint` CLI subcommand.** Reads `access_control_entities` + `access_control_rules` and reports two failure modes: rules pointing at no catalog row (`UNKNOWN`) and catalog rows with `default_included=false` and zero grants (`UNREACHABLE`). Exits non-zero on findings so it can gate CI.
+- **`EntityRow` struct** in `authz::types` — `{ kind: EntityKind, id: String, default_included: bool, source: String }`. Round-trips through serde; re-exported from `authz`.
+- **Per-crate test for `EntityRow` serde + AccessRule regression** in `crates/tests/unit/infra/security/authz/src/entity_row.rs`.
 - **`GatewayConfig::is_model_exposed(&str) -> bool`** — single dispatch-time gate that consults the profile catalog. Replaces the per-policy `allowed_models` allow-list as the source of truth for "is this model exposed."
 - **`GatewayConfig::validate()`** — boot-time cross-check that fails loud on catalog/route drift. Verifies: every route's provider exists in `GatewayCatalog.providers`; every route's endpoint matches the catalog provider's endpoint; every catalog model id and alias is globally unique; every catalog model is reachable by at least one route pattern. New error variants: `RouteProviderNotInCatalog`, `RouteEndpointMismatch`, `DuplicateModelId`, `UnreachableModel`.
 - **`GatewayModel::aliases: Vec<String>`** — alternate model ids that resolve to the same catalog entry for exposure and `/profile` listing (e.g. `claude-opus-4-7[1m]` aliasing `claude-opus-4-7`).

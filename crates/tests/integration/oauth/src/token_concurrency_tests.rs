@@ -138,9 +138,14 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     .expect("store code");
 
     let pool = db.pool_arc().expect("pool");
+    let now = Utc::now();
     let rows = sqlx::query!(
-        "UPDATE oauth_auth_codes SET expires_at = $1 WHERE client_id = $2 RETURNING code",
-        Utc::now() - chrono::Duration::seconds(60),
+        "UPDATE oauth_auth_codes
+         SET created_at = $1, expires_at = $2
+         WHERE client_id = $3
+         RETURNING code",
+        now - chrono::Duration::hours(1),
+        now - chrono::Duration::seconds(60),
         client_id.as_str(),
     )
     .fetch_all(pool.as_ref())
