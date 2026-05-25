@@ -30,7 +30,7 @@ impl DefaultSitemapProvider {
     }
 }
 
-pub(crate) async fn load_content_config(paths: &AppPaths) -> GeneratorResult<ContentConfigRaw> {
+pub(super) async fn load_content_config(paths: &AppPaths) -> GeneratorResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
