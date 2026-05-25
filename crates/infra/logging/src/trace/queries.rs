@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
+pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
