@@ -2,8 +2,8 @@
 
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
-use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use systemprompt_test_fixtures::fixture_actor;
+use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
 mod noop_provider_tests {
     use super::*;

@@ -6,8 +6,8 @@
 //!
 //! 1. exactly one caller succeeds,
 //! 2. all losing callers receive a deterministic error (no SQL leakage),
-//! 3. the side-effects (refresh-token family revocation, code consumption)
-//!    are applied exactly once.
+//! 3. the side-effects (refresh-token family revocation, code consumption) are
+//!    applied exactly once.
 
 use crate::{cleanup_test_user, create_test_user, setup_test_db};
 use base64::Engine;
@@ -74,8 +74,12 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(&db, &client_id, &systemprompt_test_fixtures::fixture_user_id())
-        .await;
+    create_test_client_with_owner(
+        &db,
+        &client_id,
+        &systemprompt_test_fixtures::fixture_user_id(),
+    )
+    .await;
 
     let repo = Arc::new(OAuthRepository::new(&db).expect("repo"));
     let code = test_code();
@@ -125,8 +129,12 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(&db, &client_id, &systemprompt_test_fixtures::fixture_user_id())
-        .await;
+    create_test_client_with_owner(
+        &db,
+        &client_id,
+        &systemprompt_test_fixtures::fixture_user_id(),
+    )
+    .await;
 
     let repo = OAuthRepository::new(&db).expect("repo");
     let code = test_code();
@@ -170,8 +178,12 @@ async fn test_refresh_token_replay_revokes_family() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(&db, &client_id, &systemprompt_test_fixtures::fixture_user_id())
-        .await;
+    create_test_client_with_owner(
+        &db,
+        &client_id,
+        &systemprompt_test_fixtures::fixture_user_id(),
+    )
+    .await;
 
     let repo = OAuthRepository::new(&db).expect("repo");
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
@@ -207,7 +219,10 @@ async fn test_refresh_token_replay_revokes_family() {
     let replay = repo.consume_refresh_token(&r1, &client_id).await;
     assert!(replay.is_err(), "replay of consumed r1 must fail");
     assert!(
-        replay.unwrap_err().to_string().contains("Invalid refresh token"),
+        replay
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid refresh token"),
         "replay must surface invalid-grant",
     );
 
@@ -228,8 +243,12 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(&db, &client_id, &systemprompt_test_fixtures::fixture_user_id())
-        .await;
+    create_test_client_with_owner(
+        &db,
+        &client_id,
+        &systemprompt_test_fixtures::fixture_user_id(),
+    )
+    .await;
 
     let repo = Arc::new(OAuthRepository::new(&db).expect("repo"));
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
@@ -290,8 +309,12 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     let db = setup_test_db().await;
     let client_id = test_client_id();
     let user_id = create_test_user(&db).await;
-    create_test_client_with_owner(&db, &client_id, &systemprompt_test_fixtures::fixture_user_id())
-        .await;
+    create_test_client_with_owner(
+        &db,
+        &client_id,
+        &systemprompt_test_fixtures::fixture_user_id(),
+    )
+    .await;
 
     let repo = Arc::new(OAuthRepository::new(&db).expect("repo"));
     let code = test_code();
@@ -456,7 +479,9 @@ async fn test_concurrent_client_registration_race() {
         .expect("read")
         .expect("present");
     assert!(
-        owners.iter().any(|o| o.as_str() == row.owner_user_id.as_str()),
+        owners
+            .iter()
+            .any(|o| o.as_str() == row.owner_user_id.as_str()),
         "owner must be one of the racing users",
     );
 

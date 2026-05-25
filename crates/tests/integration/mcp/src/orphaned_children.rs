@@ -15,9 +15,7 @@ use systemprompt_mcp::services::process::ProcessService;
 use crate::common::spawn_with_orphan_child;
 
 fn sigkill(pid: u32) {
-    let _ = Command::new("kill")
-        .args(["-9", &pid.to_string()])
-        .status();
+    let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
 }
 
 #[tokio::test]

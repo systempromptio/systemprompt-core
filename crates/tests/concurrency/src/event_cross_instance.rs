@@ -13,8 +13,8 @@ use std::sync::Arc;
 use systemprompt_events::{Broadcaster, GenericBroadcaster};
 use systemprompt_identifiers::ConnectionId;
 use systemprompt_models::A2AEvent;
-use tokio::sync::mpsc;
 use systemprompt_test_fixtures::fixture_user_id;
+use tokio::sync::mpsc;
 
 fn test_event() -> A2AEvent {
     use systemprompt_identifiers::{ContextId, TaskId};

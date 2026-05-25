@@ -8,7 +8,8 @@
 
 #![allow(
     dead_code,
-    reason = "Stage 1 lands these helpers without touching the three duplicate call sites (Stage 3/4)"
+    reason = "Stage 1 lands these helpers without touching the three duplicate call sites (Stage \
+              3/4)"
 )]
 
 use std::path::Path;

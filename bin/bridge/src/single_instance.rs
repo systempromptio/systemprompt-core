@@ -42,7 +42,10 @@ pub fn try_acquire_gui() -> SingletonResult {
 
 #[cfg(unix)]
 mod unix {
-    #![allow(unsafe_code, reason = "POSIX flock(2) FFI for single-instance lockfile")]
+    #![allow(
+        unsafe_code,
+        reason = "POSIX flock(2) FFI for single-instance lockfile"
+    )]
 
     use super::{SingletonGuard, SingletonResult};
     use std::fs::OpenOptions;
@@ -91,7 +94,10 @@ mod unix {
 
 #[cfg(windows)]
 mod windows {
-    #![allow(unsafe_code, reason = "Win32 named-mutex FFI for single-instance enforcement")]
+    #![allow(
+        unsafe_code,
+        reason = "Win32 named-mutex FFI for single-instance enforcement"
+    )]
 
     use super::{SingletonGuard, SingletonResult};
     use windows_sys::Win32::Foundation::{CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE};

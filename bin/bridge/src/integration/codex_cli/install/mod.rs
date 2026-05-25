@@ -78,7 +78,8 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
                 parent.display(),
                 std::env::current_exe()
                     .ok()
-                    .as_deref().map_or_else(|| "systemprompt".into(), |p| p.display().to_string()),
+                    .as_deref()
+                    .map_or_else(|| "systemprompt".into(), |p| p.display().to_string()),
             ),
         ))
     }

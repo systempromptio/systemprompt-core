@@ -4,7 +4,7 @@
 
 use systemprompt_cloud::tenants::TenantStore;
 
-use crate::support::{seeded_session_store, TenantFixture};
+use crate::support::{TenantFixture, seeded_session_store};
 
 #[tokio::test]
 async fn switching_active_key_changes_resolved_session() {

@@ -9,7 +9,7 @@ use systemprompt_cloud::cli_session::SessionStore;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 
-use crate::support::{build_session_for, TenantFixture};
+use crate::support::{TenantFixture, build_session_for};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_tenants_in_separate_stores_do_not_interfere() {

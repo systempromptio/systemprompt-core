@@ -9,7 +9,10 @@ use systemprompt_identifiers::{ContentId, FileId, UserId};
 
 async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
+    Database::new_postgres(&database_url)
+        .await
+        .ok()
+        .map(std::sync::Arc::new)
 }
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
@@ -81,7 +84,10 @@ async fn test_repository_find_by_path() {
 
     let file = repo.find_by_path(&path).await.expect("Find should succeed");
     let file = file.expect("file should be found by path");
-    assert_eq!(file.path, path, "returned file path should match query path");
+    assert_eq!(
+        file.path, path,
+        "returned file path should match query path"
+    );
     assert_eq!(
         file.id.to_string(),
         request.id.as_str(),
@@ -148,7 +154,10 @@ async fn test_repository_delete() {
         .await
         .expect("Delete should succeed");
 
-    let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Find should succeed");
     assert!(file.is_none(), "File should be deleted");
 }
 
@@ -161,8 +170,7 @@ async fn test_repository_list_ai_images() {
 
     let repo = FileRepository::new(&db).expect("Failed to create repository");
 
-    let request =
-        create_test_file_request(&uuid::Uuid::new_v4().to_string()).with_ai_content(true);
+    let request = create_test_file_request(&uuid::Uuid::new_v4().to_string()).with_ai_content(true);
 
     repo.insert(request.clone())
         .await

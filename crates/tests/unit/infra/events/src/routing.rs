@@ -4,11 +4,11 @@ use systemprompt_events::{
 };
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
-use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 use systemprompt_models::{
     A2AEvent, A2AEventBuilder, AgUiEvent, AgUiEventBuilder, AnalyticsEvent, AnalyticsEventBuilder,
     SystemEvent,
 };
+use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 

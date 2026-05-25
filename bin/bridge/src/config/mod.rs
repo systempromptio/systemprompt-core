@@ -156,4 +156,3 @@ pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
     _ = writeln!(next, "gateway_url = \"{url}\"");
     fs::write(&path, next)
 }
-

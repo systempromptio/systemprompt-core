@@ -47,12 +47,8 @@ fn hs256_token_yields_alg_mismatch() {
     match err {
         OauthError::TokenAlgMismatch { got, expected } => {
             assert_eq!(expected, "RS256");
-            assert!(
-                got.contains("HS256"),
-                "expected got=HS256, got got=`{got}`"
-            );
-        }
+            assert!(got.contains("HS256"), "expected got=HS256, got got=`{got}`");
+        },
         other => panic!("expected TokenAlgMismatch, got {other:?}"),
     }
 }
-

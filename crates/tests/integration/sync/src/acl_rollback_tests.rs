@@ -4,8 +4,8 @@
 
 use systemprompt_security::authz::types::{Access, EntityKind};
 use systemprompt_security::authz::{
-    AccessControlConfig, AccessControlIngestionService, AccessControlRepository,
-    DepartmentEntry, IngestOptions, RuleEntry,
+    AccessControlConfig, AccessControlIngestionService, AccessControlRepository, DepartmentEntry,
+    IngestOptions, RuleEntry,
 };
 
 use crate::support::{try_db, wipe_rules};

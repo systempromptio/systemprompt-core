@@ -6,8 +6,8 @@
 //! - Result type patterns
 
 use chrono::Utc;
-use systemprompt_users::{DemoteResult, PromoteResult, User};
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_users::{DemoteResult, PromoteResult, User};
 
 fn create_test_user(roles: Vec<String>) -> User {
     User {

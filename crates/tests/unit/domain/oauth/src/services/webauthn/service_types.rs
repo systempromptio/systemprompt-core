@@ -3,10 +3,10 @@
 
 use std::time::Instant;
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
-use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::webauthn::service::{
     LinkUserInfo, VerifiedAuthentication, create_link_states,
 };
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn test_verified_authentication_construction() {

@@ -11,11 +11,11 @@
 //!
 //! These tests pin that invariant by:
 //!
-//! 1. Round-tripping two distinct [`TenantSecrets`] payloads and asserting
-//!    no field collision.
+//! 1. Round-tripping two distinct [`TenantSecrets`] payloads and asserting no
+//!    field collision.
 //! 2. Confirming that two `StoredTenant` records keep their
-//!    `internal_database_url` and `app_id` distinct after a full
-//!    on-disk round-trip.
+//!    `internal_database_url` and `app_id` distinct after a full on-disk
+//!    round-trip.
 
 use systemprompt_cloud::tenants::TenantStore;
 use systemprompt_models::api::cloud::CloudTenantSecrets;
@@ -45,8 +45,14 @@ async fn tenant_secrets_payloads_are_independent_per_tenant() {
     assert_ne!(a.internal_database_url, b.internal_database_url);
     assert_ne!(a.anthropic_api_key, b.anthropic_api_key);
     assert_ne!(a.openai_api_key, b.openai_api_key);
-    assert!(!a_json.contains("beta"), "A's secrets must not carry B's tag");
-    assert!(!b_json.contains("alpha"), "B's secrets must not carry A's tag");
+    assert!(
+        !a_json.contains("beta"),
+        "A's secrets must not carry B's tag"
+    );
+    assert!(
+        !b_json.contains("alpha"),
+        "B's secrets must not carry A's tag"
+    );
 }
 
 #[tokio::test]

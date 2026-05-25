@@ -1,8 +1,8 @@
 //! Unit tests for UserActivity and UserWithSessions structs
 
 use chrono::Utc;
-use systemprompt_users::{UserActivity, UserWithSessions};
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_users::{UserActivity, UserWithSessions};
 
 #[test]
 fn user_activity_creation() {

@@ -1,7 +1,7 @@
 //! Verifies the HS256 -> RS256 cutover contract:
 //!
-//! 1. tokens minted by the local authority carry the active `kid` and
-//!    verify against the published JWKS;
+//! 1. tokens minted by the local authority carry the active `kid` and verify
+//!    against the published JWKS;
 //! 2. tokens signed with HS256 are rejected outright;
 //! 3. tokens whose `kid` doesn't match the local authority are rejected;
 //! 4. tokens signed by an unrelated RSA key are rejected (proxy for
@@ -16,8 +16,7 @@ use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
-use systemprompt_security::keys::RsaSigningKey;
-use systemprompt_security::keys::authority;
+use systemprompt_security::keys::{RsaSigningKey, authority};
 
 static INSTALL: Once = Once::new();
 

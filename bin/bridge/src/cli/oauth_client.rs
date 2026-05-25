@@ -3,8 +3,8 @@
 //! Operations on the bridge's per-tenant OAuth client used to mint plugin-
 //! scoped hook tokens:
 //!
-//! - `status` — print the locally-stashed credentials (`client_id`, scopes, token
-//!   endpoint). The plaintext secret is never echoed.
+//! - `status` — print the locally-stashed credentials (`client_id`, scopes,
+//!   token endpoint). The plaintext secret is never echoed.
 //! - `rotate` — call `/v1/auth/bridge/oauth-client` to obtain a fresh
 //!   `client_secret`, persist it, and overwrite the cached value. Used when the
 //!   local creds file is suspected lost or the tenant operator wants to

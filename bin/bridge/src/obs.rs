@@ -75,7 +75,8 @@ pub mod tracing_init {
         if let Err(e) = std::fs::create_dir_all(&dir) {
             #[expect(
                 clippy::print_stderr,
-                reason = "tracing subscriber not yet installed; stderr is the only diagnostic channel"
+                reason = "tracing subscriber not yet installed; stderr is the only diagnostic \
+                          channel"
             )]
             {
                 eprintln!(
@@ -96,7 +97,8 @@ pub mod tracing_init {
             Err(e) => {
                 #[expect(
                     clippy::print_stderr,
-                    reason = "tracing subscriber not yet installed; stderr is the only diagnostic channel"
+                    reason = "tracing subscriber not yet installed; stderr is the only diagnostic \
+                              channel"
                 )]
                 {
                     eprintln!("[systemprompt-bridge] rolling appender init failed: {e}");
@@ -180,7 +182,8 @@ pub mod tracing_init {
             }
             #[expect(
                 clippy::print_stderr,
-                reason = "panic hook last-resort dump: tracing may already be torn down at this point"
+                reason = "panic hook last-resort dump: tracing may already be torn down at this \
+                          point"
             )]
             {
                 eprintln!("{dump}");

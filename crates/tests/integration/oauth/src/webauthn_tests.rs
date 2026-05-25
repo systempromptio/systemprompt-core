@@ -2,8 +2,8 @@
 
 use crate::{cleanup_test_user, create_test_user, setup_test_db};
 use systemprompt_oauth::repository::{OAuthRepository, WebAuthnCredentialParams};
-use uuid::Uuid;
 use systemprompt_test_fixtures::unique_user_id;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn test_webauthn_credential_lifecycle() {

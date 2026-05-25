@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::UserCreationService;
-use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
 use systemprompt_test_fixtures::unique_user_id;
+use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
 
 struct MockUserProvider {
     users: Mutex<Vec<AuthUser>>,

@@ -3,7 +3,9 @@
     clippy::missing_panics_doc,
     clippy::module_name_repetitions,
     clippy::similar_names,
-    reason = "bridge crate-wide pedantic carve-outs: docs are tracked in CHANGELOG; module repetition is structural; similar names are platform-paired (e.g., macos_*/windows_*)"
+    reason = "bridge crate-wide pedantic carve-outs: docs are tracked in CHANGELOG; module \
+              repetition is structural; similar names are platform-paired (e.g., \
+              macos_*/windows_*)"
 )]
 
 pub mod activity;
@@ -124,4 +126,3 @@ fn purge_legacy_agents_state() {
         },
     }
 }
-

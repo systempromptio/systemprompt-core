@@ -10,7 +10,10 @@ use systemprompt_identifiers::{FileId, UserId};
 
 async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
+    Database::new_postgres(&database_url)
+        .await
+        .ok()
+        .map(std::sync::Arc::new)
 }
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
@@ -49,8 +52,16 @@ async fn test_file_repository_insert_success() {
     let result = repo.insert(request.clone()).await;
     assert!(result.is_ok(), "Should insert file successfully");
 
-    let file = repo.find_by_id(&request.id).await.expect("should query inserted file").expect("inserted file should exist");
-    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should match request");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("should query inserted file")
+        .expect("inserted file should exist");
+    assert_eq!(
+        file.id.to_string(),
+        request.id.as_str(),
+        "file id should match request"
+    );
     assert_eq!(file.mime_type, "image/png", "mime type should match");
     assert_eq!(file.size_bytes, Some(1024), "size should match");
     assert!(!file.ai_content, "ai_content should be false");
@@ -66,16 +77,22 @@ async fn test_file_repository_insert_with_user_id() {
     };
 
     let repo = FileRepository::new(&db).expect("Failed to create repository");
-    let request = create_test_file_request("with_user_id")
-        .with_user_id(UserId::new("user_test_123"));
+    let request =
+        create_test_file_request("with_user_id").with_user_id(UserId::new("user_test_123"));
 
     let result = repo.insert(request.clone()).await;
     assert!(result.is_ok(), "Should insert file with user_id");
 
-    let file = repo.find_by_id(&request.id).await.expect("Should find file");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Should find file");
     assert!(file.is_some(), "File should exist");
     let file = file.expect("File should be Some");
-    assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some("user_test_123"));
+    assert_eq!(
+        file.user_id.as_ref().map(|u| u.as_str()),
+        Some("user_test_123")
+    );
 
     let _ = repo.delete(&request.id).await;
 }
@@ -88,13 +105,15 @@ async fn test_file_repository_insert_with_ai_content() {
     };
 
     let repo = FileRepository::new(&db).expect("Failed to create repository");
-    let request = create_test_file_request("ai_content")
-        .with_ai_content(true);
+    let request = create_test_file_request("ai_content").with_ai_content(true);
 
     let result = repo.insert(request.clone()).await;
     assert!(result.is_ok(), "Should insert AI-generated file");
 
-    let file = repo.find_by_id(&request.id).await.expect("Should find file");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Should find file");
     file.as_ref().expect("file should be present");
     assert!(file.expect("Should have file").ai_content);
 
@@ -119,24 +138,39 @@ async fn test_file_repository_insert_upsert_on_conflict() {
         &unique_path,
         "/files/test/upsert.png",
         "image/png",
-    ).with_size(1024);
+    )
+    .with_size(1024);
 
-    repo.insert(request1).await.expect("First insert should succeed");
+    repo.insert(request1)
+        .await
+        .expect("First insert should succeed");
 
     let request2 = InsertFileRequest::new(
         file_id2.clone(),
         &unique_path,
         "/files/test/upsert_updated.png",
         "image/jpeg",
-    ).with_size(2048);
+    )
+    .with_size(2048);
 
     let result = repo.insert(request2).await;
     assert!(result.is_ok(), "Upsert should succeed");
 
-    let file = repo.find_by_path(&unique_path).await.expect("should query by path").expect("upserted file should exist");
+    let file = repo
+        .find_by_path(&unique_path)
+        .await
+        .expect("should query by path")
+        .expect("upserted file should exist");
     assert_eq!(file.path, unique_path, "path should match after upsert");
-    assert_eq!(file.mime_type, "image/jpeg", "mime type should be updated after upsert");
-    assert_eq!(file.size_bytes, Some(2048), "size should be updated after upsert");
+    assert_eq!(
+        file.mime_type, "image/jpeg",
+        "mime type should be updated after upsert"
+    );
+    assert_eq!(
+        file.size_bytes,
+        Some(2048),
+        "size should be updated after upsert"
+    );
 
     let _ = repo.delete(&file_id1).await;
     let _ = repo.delete(&file_id2).await;
@@ -152,14 +186,22 @@ async fn test_file_repository_find_by_id_exists() {
     let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("find_by_id");
 
-    repo.insert(request.clone()).await.expect("Insert should succeed");
+    repo.insert(request.clone())
+        .await
+        .expect("Insert should succeed");
 
-    let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Find should succeed");
     assert!(file.is_some(), "File should be found");
     let file = file.expect("File should be Some");
     assert_eq!(file.id.to_string(), request.id.as_str());
     assert_eq!(file.mime_type, "image/png", "mime type should match");
-    assert!(file.path.contains("find_by_id"), "path should contain test suffix");
+    assert!(
+        file.path.contains("find_by_id"),
+        "path should contain test suffix"
+    );
     assert!(file.deleted_at.is_none(), "file should not be soft-deleted");
 
     let _ = repo.delete(&request.id).await;
@@ -175,7 +217,10 @@ async fn test_file_repository_find_by_id_not_exists() {
     let repo = FileRepository::new(&db).expect("Failed to create repository");
     let fake_id = FileId::new(uuid::Uuid::new_v4().to_string());
 
-    let file = repo.find_by_id(&fake_id).await.expect("Query should succeed");
+    let file = repo
+        .find_by_id(&fake_id)
+        .await
+        .expect("Query should succeed");
     assert!(file.is_none(), "Non-existent file should return None");
 }
 
@@ -213,7 +258,10 @@ async fn test_file_repository_find_by_path_exists() {
 
     repo.insert(request).await.expect("Insert should succeed");
 
-    let file = repo.find_by_path(&unique_path).await.expect("Find should succeed");
+    let file = repo
+        .find_by_path(&unique_path)
+        .await
+        .expect("Find should succeed");
     assert!(file.is_some(), "File should be found by path");
     assert_eq!(file.expect("Should have file").path, unique_path);
 
@@ -229,7 +277,10 @@ async fn test_file_repository_find_by_path_not_exists() {
 
     let repo = FileRepository::new(&db).expect("Failed to create repository");
 
-    let file = repo.find_by_path("/nonexistent/path/file.png").await.expect("Query should succeed");
+    let file = repo
+        .find_by_path("/nonexistent/path/file.png")
+        .await
+        .expect("Query should succeed");
     assert!(file.is_none(), "Non-existent path should return None");
 }
 
@@ -251,16 +302,24 @@ async fn test_file_repository_list_by_user() {
             format!("/storage/test/user_list_{}.png", uuid::Uuid::new_v4()),
             format!("/files/test/user_list_{}.png", i),
             "image/png",
-        ).with_user_id(user_id.clone());
+        )
+        .with_user_id(user_id.clone());
 
         repo.insert(request).await.expect("Insert should succeed");
         file_ids.push(file_id);
     }
 
-    let files = repo.list_by_user(&user_id, 10, 0).await.expect("List should succeed");
+    let files = repo
+        .list_by_user(&user_id, 10, 0)
+        .await
+        .expect("List should succeed");
     assert_eq!(files.len(), 3, "Should return 3 files for user");
     for file in &files {
-        assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
+        assert_eq!(
+            file.user_id.as_ref().map(|u| u.as_str()),
+            Some(user_id.as_str()),
+            "all files should belong to the test user"
+        );
         assert_eq!(file.mime_type, "image/png", "mime type should match");
     }
 
@@ -287,25 +346,44 @@ async fn test_file_repository_list_by_user_with_pagination() {
             format!("/storage/test/user_page_{}.png", uuid::Uuid::new_v4()),
             format!("/files/test/user_page_{}.png", i),
             "image/png",
-        ).with_user_id(user_id.clone());
+        )
+        .with_user_id(user_id.clone());
 
         repo.insert(request).await.expect("Insert should succeed");
         file_ids.push(file_id);
     }
 
-    let page1 = repo.list_by_user(&user_id, 2, 0).await.expect("List should succeed");
+    let page1 = repo
+        .list_by_user(&user_id, 2, 0)
+        .await
+        .expect("List should succeed");
     assert_eq!(page1.len(), 2, "First page should have 2 files");
 
-    let page2 = repo.list_by_user(&user_id, 2, 2).await.expect("List should succeed");
+    let page2 = repo
+        .list_by_user(&user_id, 2, 2)
+        .await
+        .expect("List should succeed");
     assert_eq!(page2.len(), 2, "Second page should have 2 files");
 
-    let page3 = repo.list_by_user(&user_id, 2, 4).await.expect("List should succeed");
+    let page3 = repo
+        .list_by_user(&user_id, 2, 4)
+        .await
+        .expect("List should succeed");
     assert_eq!(page3.len(), 1, "Third page should have 1 file");
 
-    let all_ids: Vec<_> = page1.iter().chain(page2.iter()).chain(page3.iter()).map(|f| f.id).collect();
+    let all_ids: Vec<_> = page1
+        .iter()
+        .chain(page2.iter())
+        .chain(page3.iter())
+        .map(|f| f.id)
+        .collect();
     assert_eq!(all_ids.len(), 5, "all pages combined should have 5 files");
     let unique_ids: std::collections::HashSet<_> = all_ids.iter().collect();
-    assert_eq!(unique_ids.len(), 5, "all file ids across pages should be unique");
+    assert_eq!(
+        unique_ids.len(),
+        5,
+        "all file ids across pages should be unique"
+    );
 
     for id in file_ids {
         let _ = repo.delete(&id).await;
@@ -321,7 +399,10 @@ async fn test_file_repository_list_all() {
 
     let repo = FileRepository::new(&db).expect("Failed to create repository");
 
-    let files = repo.list_all(100, 0).await.expect("List all should succeed");
+    let files = repo
+        .list_all(100, 0)
+        .await
+        .expect("List all should succeed");
     assert!(files.len() <= 100, "Should respect limit");
 }
 
@@ -335,14 +416,24 @@ async fn test_file_repository_delete() {
     let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("delete");
 
-    repo.insert(request.clone()).await.expect("Insert should succeed");
+    repo.insert(request.clone())
+        .await
+        .expect("Insert should succeed");
 
-    let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Find should succeed");
     assert!(file.is_some(), "File should exist before delete");
 
-    repo.delete(&request.id).await.expect("Delete should succeed");
+    repo.delete(&request.id)
+        .await
+        .expect("Delete should succeed");
 
-    let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Find should succeed");
     assert!(file.is_none(), "Deleted file should not be returned");
 }
 
@@ -356,16 +447,30 @@ async fn test_file_repository_update_metadata() {
     let repo = FileRepository::new(&db).expect("Failed to create repository");
     let request = create_test_file_request("update_meta");
 
-    repo.insert(request.clone()).await.expect("Insert should succeed");
+    repo.insert(request.clone())
+        .await
+        .expect("Insert should succeed");
 
     let metadata = FileMetadata::default();
 
-    repo.update_metadata(&request.id, &metadata).await.expect("Update should succeed");
+    repo.update_metadata(&request.id, &metadata)
+        .await
+        .expect("Update should succeed");
 
-    let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
+    let file = repo
+        .find_by_id(&request.id)
+        .await
+        .expect("Find should succeed");
     let file = file.expect("File should exist after metadata update");
-    assert_eq!(file.id.to_string(), request.id.as_str(), "file id should be unchanged");
-    assert!(file.metadata.is_object(), "metadata should be a JSON object");
+    assert_eq!(
+        file.id.to_string(),
+        request.id.as_str(),
+        "file id should be unchanged"
+    );
+    assert!(
+        file.metadata.is_object(),
+        "metadata should be a JSON object"
+    );
 
     let _ = repo.delete(&request.id).await;
 }
@@ -401,12 +506,20 @@ async fn test_file_repository_insert_file() {
     let result = repo.insert_file(&file).await;
     assert!(result.is_ok(), "insert_file should succeed");
 
-    let fetched = repo.find_by_id(&FileId::new(file_id.to_string())).await.expect("should query inserted file").expect("inserted file should exist");
+    let fetched = repo
+        .find_by_id(&FileId::new(file_id.to_string()))
+        .await
+        .expect("should query inserted file")
+        .expect("inserted file should exist");
     assert_eq!(fetched.id, file_id, "file id should match");
     assert_eq!(fetched.mime_type, "image/png", "mime type should match");
     assert_eq!(fetched.size_bytes, Some(2048), "size should match");
     assert!(fetched.ai_content, "ai_content should be true");
-    assert_eq!(fetched.user_id.as_ref().map(|u| u.as_str()), Some("user_insert_file"), "user_id should match");
+    assert_eq!(
+        fetched.user_id.as_ref().map(|u| u.as_str()),
+        Some("user_insert_file"),
+        "user_id should match"
+    );
 
     let _ = repo.delete(&FileId::new(file_id.to_string())).await;
 }
@@ -426,17 +539,30 @@ async fn test_file_repository_list_ai_images() {
         format!("/storage/test/ai_image_{}.png", uuid::Uuid::new_v4()),
         "/files/test/ai_image.png",
         "image/png",
-    ).with_ai_content(true);
+    )
+    .with_ai_content(true);
 
     repo.insert(request).await.expect("Insert should succeed");
 
-    let files = repo.list_ai_images(10, 0).await.expect("List AI images should succeed");
-    assert!(!files.is_empty(), "should return at least the AI image we inserted");
+    let files = repo
+        .list_ai_images(10, 0)
+        .await
+        .expect("List AI images should succeed");
+    assert!(
+        !files.is_empty(),
+        "should return at least the AI image we inserted"
+    );
     assert!(files.len() <= 10, "should respect the limit parameter");
 
     for file in &files {
-        assert!(file.ai_content, "All returned files should have ai_content = true");
-        assert!(!file.mime_type.is_empty(), "returned files should have a mime type");
+        assert!(
+            file.ai_content,
+            "All returned files should have ai_content = true"
+        );
+        assert!(
+            !file.mime_type.is_empty(),
+            "returned files should have a mime type"
+        );
     }
 
     let _ = repo.delete(&file_id).await;
@@ -464,12 +590,25 @@ async fn test_file_repository_list_ai_images_by_user() {
 
     repo.insert(request).await.expect("Insert should succeed");
 
-    let files = repo.list_ai_images_by_user(&user_id, 10, 0).await.expect("List should succeed");
-    assert!(!files.is_empty(), "Should return at least one AI image for user");
+    let files = repo
+        .list_ai_images_by_user(&user_id, 10, 0)
+        .await
+        .expect("List should succeed");
+    assert!(
+        !files.is_empty(),
+        "Should return at least one AI image for user"
+    );
 
     for file in &files {
-        assert!(file.ai_content, "All returned files should have ai_content = true");
-        assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some(user_id.as_str()), "all files should belong to the test user");
+        assert!(
+            file.ai_content,
+            "All returned files should have ai_content = true"
+        );
+        assert_eq!(
+            file.user_id.as_ref().map(|u| u.as_str()),
+            Some(user_id.as_str()),
+            "all files should belong to the test user"
+        );
     }
 
     let _ = repo.delete(&file_id).await;
@@ -501,7 +640,10 @@ async fn test_file_repository_count_ai_images_by_user() {
         file_ids.push(file_id);
     }
 
-    let count = repo.count_ai_images_by_user(&user_id).await.expect("Count should succeed");
+    let count = repo
+        .count_ai_images_by_user(&user_id)
+        .await
+        .expect("Count should succeed");
     assert_eq!(count, 3, "Should count 3 AI images for user");
 
     for id in file_ids {

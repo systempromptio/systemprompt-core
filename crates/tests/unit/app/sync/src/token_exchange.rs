@@ -21,10 +21,7 @@ fn build_exchange_request(
             "urn:ietf:params:oauth:grant-type:token-exchange",
         ),
         ("subject_token", subject_token),
-        (
-            "subject_token_type",
-            "urn:ietf:params:oauth:token-type:jwt",
-        ),
+        ("subject_token_type", "urn:ietf:params:oauth:token-type:jwt"),
     ])
 }
 
@@ -34,10 +31,7 @@ async fn request_uses_rfc8693_grant_type_and_form_encoding() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/core/oauth/token"))
-        .and(header(
-            "content-type",
-            "application/x-www-form-urlencoded",
-        ))
+        .and(header("content-type", "application/x-www-form-urlencoded"))
         .and(body_string_contains(
             "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange",
         ))

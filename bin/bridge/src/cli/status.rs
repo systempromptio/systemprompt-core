@@ -50,7 +50,8 @@ pub(super) fn cmd_status() -> ExitCode {
 fn print_oauth_client_status(s: &setup::StatusReport) {
     let path_display = s
         .oauth_creds_path
-        .as_ref().map_or_else(|| "(unresolvable)".into(), |p| p.display().to_string());
+        .as_ref()
+        .map_or_else(|| "(unresolvable)".into(), |p| p.display().to_string());
     status_line("oauth client creds", path_display);
     status_indent("present", s.oauth_creds_present);
     if s.oauth_creds_present

@@ -36,8 +36,8 @@ pub struct Fixture {
 impl Fixture {
     pub async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
-        let url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for agent integration tests");
+        let url =
+            env::var("DATABASE_URL").expect("DATABASE_URL must be set for agent integration tests");
         let db = Database::new_postgres(&url).await?;
         let pool = db.pool_arc()?.as_ref().clone();
         let db = Arc::new(db);

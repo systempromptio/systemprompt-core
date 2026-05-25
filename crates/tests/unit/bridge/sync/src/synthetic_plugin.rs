@@ -5,8 +5,7 @@ use systemprompt_bridge::auth::plugin_oauth::{CachedHookToken, global_cache};
 use systemprompt_bridge::config::paths::SYNTHETIC_PLUGIN_NAME;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry,
-    ValidatedUrl,
+    AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{

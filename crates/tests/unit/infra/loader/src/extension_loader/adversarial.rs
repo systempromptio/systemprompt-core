@@ -7,16 +7,15 @@
 //!
 //! Background — what `ExtensionLoader` is and is not:
 //!
-//! - It is a discoverer for trusted same-operator subprocess
-//!   extensions (MCP servers, CLI extensions). It parses
-//!   `extensions/*/manifest.yaml`, resolves a binary name to a path
-//!   under `<project_root>/target/`, and reports what is missing.
-//! - It is **not** a signed-binary loader. The loader does not
-//!   verify the binary's bytes, has no concept of a signing key or
-//!   revocation list, has no `version` field on the manifest, and
-//!   does not sandbox the spawned subprocess. See finding
-//!   `F-T1d-001` in the due-diligence findings ledger for the gap
-//!   analysis vs. an Ed25519 / sandbox model.
+//! - It is a discoverer for trusted same-operator subprocess extensions (MCP
+//!   servers, CLI extensions). It parses `extensions/*/manifest.yaml`, resolves
+//!   a binary name to a path under `<project_root>/target/`, and reports what
+//!   is missing.
+//! - It is **not** a signed-binary loader. The loader does not verify the
+//!   binary's bytes, has no concept of a signing key or revocation list, has no
+//!   `version` field on the manifest, and does not sandbox the spawned
+//!   subprocess. See finding `F-T1d-001` in the due-diligence findings ledger
+//!   for the gap analysis vs. an Ed25519 / sandbox model.
 //!
 //! These tests therefore characterise the loader's real attack
 //! surface (parser robustness, path handling, collision behaviour,
@@ -151,7 +150,8 @@ fn adversarial_manifest_control_chars_in_name_do_not_panic() {
     let ext = temp.path().join("extensions").join("ctrl");
     write_manifest(
         &ext,
-        "extension:\n  type: mcp\n  name: \"weird\\x00name\\x01\"\n  binary: ctrl-bin\n  enabled: true\n",
+        "extension:\n  type: mcp\n  name: \"weird\\x00name\\x01\"\n  binary: ctrl-bin\n  enabled: \
+         true\n",
     );
 
     // The loader must not panic regardless of whether this parses.
@@ -217,9 +217,7 @@ fn adversarial_path_traversal_in_binary_field_is_not_sanitised() {
 
     let discovered = ExtensionLoader::discover(temp.path());
     assert_eq!(discovered.len(), 1);
-    let binary = discovered[0]
-        .binary_name()
-        .expect("binary field present");
+    let binary = discovered[0].binary_name().expect("binary field present");
     assert!(
         binary.contains(".."),
         "loader does not sanitise `..` in binary names; spawn site must canonicalise"

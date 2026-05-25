@@ -107,10 +107,7 @@ pub fn client_for(host: &str) -> JwksClient {
     JwksClient::new(vec![host])
 }
 
-pub fn client_for_with_min_refresh(
-    host: &str,
-    interval: std::time::Duration,
-) -> JwksClient {
+pub fn client_for_with_min_refresh(host: &str, interval: std::time::Duration) -> JwksClient {
     let host = strip_scheme_port(host);
     JwksClient::new(vec![host]).with_min_refresh_interval(interval)
 }

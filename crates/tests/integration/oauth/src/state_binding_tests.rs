@@ -25,7 +25,10 @@ async fn roundtrip_consumes_once() {
     .await
     .expect("store");
 
-    let first = repo.consume_state_binding(&token).await.expect("consume ok");
+    let first = repo
+        .consume_state_binding(&token)
+        .await
+        .expect("consume ok");
     assert!(first.is_some(), "first consume should succeed");
     assert_eq!(first.unwrap().return_to, "/dashboard");
 
@@ -33,7 +36,10 @@ async fn roundtrip_consumes_once() {
         .consume_state_binding(&token)
         .await
         .expect("second consume ok");
-    assert!(second.is_none(), "single-use: second consume must return None");
+    assert!(
+        second.is_none(),
+        "single-use: second consume must return None"
+    );
 }
 
 #[tokio::test]
@@ -53,7 +59,10 @@ async fn expired_row_rejected() {
     .await
     .expect("store");
 
-    let consumed = repo.consume_state_binding(&token).await.expect("consume ok");
+    let consumed = repo
+        .consume_state_binding(&token)
+        .await
+        .expect("consume ok");
     assert!(consumed.is_none(), "expired row must not consume");
 }
 

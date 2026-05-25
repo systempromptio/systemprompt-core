@@ -42,16 +42,14 @@ fn minimal_secrets() -> Secrets {
 
 #[test]
 fn to_subprocess_env_includes_required_fields() {
-    let env: HashMap<String, String> =
-        minimal_secrets().to_subprocess_env().into_iter().collect();
+    let env: HashMap<String, String> = minimal_secrets().to_subprocess_env().into_iter().collect();
     assert!(env.contains_key("OAUTH_AT_REST_PEPPER"));
     assert!(env.contains_key("DATABASE_URL"));
 }
 
 #[test]
 fn to_subprocess_env_omits_absent_optionals() {
-    let env: HashMap<String, String> =
-        minimal_secrets().to_subprocess_env().into_iter().collect();
+    let env: HashMap<String, String> = minimal_secrets().to_subprocess_env().into_iter().collect();
     for key in [
         "MANIFEST_SIGNING_SECRET_SEED",
         "DATABASE_WRITE_URL",

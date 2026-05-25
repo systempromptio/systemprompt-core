@@ -5,7 +5,11 @@ use systemprompt_security::keys::JwksClient;
 use crate::support::{JwksMock, TestKey};
 
 fn short_ttl_client(host: &str) -> JwksClient {
-    let host = url::Url::parse(host).unwrap().host_str().unwrap().to_string();
+    let host = url::Url::parse(host)
+        .unwrap()
+        .host_str()
+        .unwrap()
+        .to_string();
     JwksClient::new(vec![host])
         .with_cache_ttl(
             Duration::from_millis(1),
@@ -23,8 +27,14 @@ async fn known_kid_within_ttl_does_not_refetch() {
     let client = short_ttl_client(&mock.issuer());
 
     client.fetch(&mock.issuer(), &key.kid).await.expect("seed");
-    client.fetch(&mock.issuer(), &key.kid).await.expect("cached");
-    client.fetch(&mock.issuer(), &key.kid).await.expect("cached");
+    client
+        .fetch(&mock.issuer(), &key.kid)
+        .await
+        .expect("cached");
+    client
+        .fetch(&mock.issuer(), &key.kid)
+        .await
+        .expect("cached");
 
     assert_eq!(
         mock.responder.fetches(),

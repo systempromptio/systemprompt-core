@@ -1,7 +1,5 @@
 use bytes::Bytes;
-use systemprompt_api::services::gateway::audit::payload::{
-    slice_payload, truncate_for_tool_input,
-};
+use systemprompt_api::services::gateway::audit::payload::{slice_payload, truncate_for_tool_input};
 
 const PAYLOAD_CAP: usize = 256 * 1024;
 const TOOL_INPUT_CAP: usize = 64 * 1024;
@@ -14,7 +12,10 @@ fn slice_payload_at_cap_preserves_parsed_json() {
     assert!(body.len() <= PAYLOAD_CAP);
     let (json, excerpt, truncated, bytes) = slice_payload(&Bytes::from(body.clone()));
     assert!(!truncated, "payload at-or-below cap is not truncated");
-    assert!(excerpt.is_none(), "at-cap parses as JSON, no excerpt needed");
+    assert!(
+        excerpt.is_none(),
+        "at-cap parses as JSON, no excerpt needed"
+    );
     assert!(json.is_some(), "JSON within cap must be parsed");
     assert_eq!(bytes as usize, body.len());
 }
@@ -26,7 +27,10 @@ fn slice_payload_one_over_cap_truncates_and_records_size() {
     assert!(truncated, "one byte over the cap must be flagged truncated");
     assert!(json.is_none(), "over-cap payload is never returned as JSON");
     let excerpt = excerpt.expect("over-cap must record an excerpt");
-    assert!(excerpt.contains("<truncated"), "excerpt includes truncation marker");
+    assert!(
+        excerpt.contains("<truncated"),
+        "excerpt includes truncation marker"
+    );
     assert_eq!(
         bytes as usize,
         body.len(),

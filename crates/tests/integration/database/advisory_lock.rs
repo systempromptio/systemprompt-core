@@ -121,8 +121,8 @@ async fn stale_lock_holder_releases_on_connection_drop() {
     }
     assert!(
         recovered,
-        "the lock must be released when its holder connection dies, so a \
-         crashed replica does not leak the lock permanently"
+        "the lock must be released when its holder connection dies, so a crashed replica does not \
+         leak the lock permanently"
     );
     let released = release(&mut waiter, key).await;
     assert!(released);
@@ -169,8 +169,8 @@ async fn multi_replica_contention_serialises() {
     // would be 0 (deadlock) or > replica_count (impossible).
     assert!(
         (1..=replica_count).contains(&acquired_count),
-        "exactly {acquired_count} acquisitions is outside the legal range \
-         1..={replica_count} — the advisory lock primitive is misbehaving"
+        "exactly {acquired_count} acquisitions is outside the legal range 1..={replica_count} — \
+         the advisory lock primitive is misbehaving"
     );
 }
 
@@ -187,7 +187,10 @@ async fn same_connection_reentrant_acquire_requires_matching_releases() {
 
     let mut conn = pool.acquire().await.expect("acquire");
     assert!(try_acquire(&mut conn, key).await, "first acquire");
-    assert!(try_acquire(&mut conn, key).await, "second acquire (reentrant)");
+    assert!(
+        try_acquire(&mut conn, key).await,
+        "second acquire (reentrant)"
+    );
 
     let mut other = pool.acquire().await.expect("other conn");
     assert!(
@@ -229,11 +232,14 @@ async fn release_from_non_holder_is_falsy_not_fatal() {
         .expect("query did not raise");
     assert!(
         !released,
-        "non-holder release must report 'not held' rather than panic — the \
-         scheduler depends on this to survive misordered guard drops"
+        "non-holder release must report 'not held' rather than panic — the scheduler depends on \
+         this to survive misordered guard drops"
     );
 
-    assert!(release(&mut holder, key).await, "holder still releases cleanly");
+    assert!(
+        release(&mut holder, key).await,
+        "holder still releases cleanly"
+    );
 }
 
 /// Distinct job names hash to (overwhelmingly likely) distinct keys, so two
@@ -250,8 +256,8 @@ async fn distinct_job_names_use_independent_lock_keys() {
 
     assert_ne!(
         key_a, key_b,
-        "two unrelated job names must not share a lock key — collision would \
-         starve every job sharing the bucket"
+        "two unrelated job names must not share a lock key — collision would starve every job \
+         sharing the bucket"
     );
 
     let mut conn_a = pool.acquire().await.expect("conn a");

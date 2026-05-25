@@ -10,12 +10,15 @@
 
 use anyhow::Result;
 use systemprompt_database::Database;
-use systemprompt_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
 use systemprompt_identifiers::UserId;
+use systemprompt_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
 
 async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
+    Database::new_postgres(&database_url)
+        .await
+        .ok()
+        .map(std::sync::Arc::new)
 }
 
 #[tokio::test]
@@ -238,7 +241,11 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
 
     let users = repo.find_by_role(UserRole::User).await?;
     assert!(!users.is_empty());
-    assert!(users.iter().any(|u| u.id.to_string() == created.id.to_string()));
+    assert!(
+        users
+            .iter()
+            .any(|u| u.id.to_string() == created.id.to_string())
+    );
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -334,7 +341,9 @@ async fn update_status_changes_status() -> Result<()> {
     let unique_name = format!("updatestatus_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    let updated = repo.update_status(&created.id, UserStatus::Suspended).await?;
+    let updated = repo
+        .update_status(&created.id, UserStatus::Suspended)
+        .await?;
 
     assert_eq!(updated.status, Some("suspended".to_string()));
 
@@ -471,7 +480,10 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
     let result = repo.delete(&fake_id).await;
     let err = result.expect_err("deleting nonexistent user should return an error");
-    assert!(!err.to_string().is_empty(), "error message should not be empty");
+    assert!(
+        !err.to_string().is_empty(),
+        "error message should not be empty"
+    );
 
     Ok(())
 }
@@ -534,7 +546,8 @@ async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
     let unique_name = format!("inactiveauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    repo.update_status(&created.id, UserStatus::Suspended).await?;
+    repo.update_status(&created.id, UserStatus::Suspended)
+        .await?;
 
     let auth_user = repo.find_authenticated_user(&created.id).await?;
     assert!(auth_user.is_none());

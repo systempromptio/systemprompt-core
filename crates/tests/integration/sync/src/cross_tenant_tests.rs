@@ -3,8 +3,8 @@
 //! cross-org write) must be a terminal error — never retried, never
 //! silently downgraded, never fanned out to a sibling tenant.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use systemprompt_identifiers::TenantId;
@@ -36,8 +36,7 @@ async fn upload_url_encodes_caller_tenant_not_a_sibling() {
             .and(path("/api/v1/cloud/tenants/tenant-alpha/files"))
             .respond_with(move |_r: &wiremock::Request| {
                 c.fetch_add(1, Ordering::SeqCst);
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({ "files_uploaded": 1 }))
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({ "files_uploaded": 1 }))
             })
             .mount(&server)
             .await;

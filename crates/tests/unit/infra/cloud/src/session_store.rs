@@ -3,12 +3,10 @@ use std::path::PathBuf;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, LOCAL_SESSION_KEY, SessionIdentity, SessionKey, SessionStore,
 };
-use systemprompt_identifiers::{
-    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
-};
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
 use systemprompt_models::auth::UserType;
-use tempfile::TempDir;
 use systemprompt_test_fixtures::fixture_user_id;
+use tempfile::TempDir;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";

@@ -11,9 +11,8 @@ async fn insert_message(
     seq: i32,
 ) -> Result<u64, sqlx::Error> {
     sqlx::query(
-        "INSERT INTO task_messages \
-         (task_id, message_id, role, context_id, user_id, session_id, trace_id, sequence_number) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        "INSERT INTO task_messages (task_id, message_id, role, context_id, user_id, session_id, \
+         trace_id, sequence_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
     )
     .bind(task_id)
     .bind(message_id)

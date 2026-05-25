@@ -28,15 +28,15 @@ use systemprompt_analytics::AnalyticsService;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
+use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
 use systemprompt_models::{AppPaths, Config, RouteClassifier};
-use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_runtime::{AppContext, AppContextParts, ModuleApiRegistry};
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
 use systemprompt_security::authz::{DenyAllHook, NullAuditSink};
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_test_fixtures::{fixture_system_admin, fixture_user_id};
+use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 /// Job name used by both replicas in this test. Unique enough not to collide
 /// with the built-in jobs discovered via `inventory`.
@@ -176,10 +176,7 @@ fn test_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>
 fn probe_config(distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
-        jobs: vec![
-            JobConfig::new(TEST_JOB_NAME, fixture_user_id())
-                .with_schedule("* * * * * *"),
-        ],
+        jobs: vec![JobConfig::new(TEST_JOB_NAME, fixture_user_id()).with_schedule("* * * * * *")],
         bootstrap_jobs: vec![],
         distributed_lock,
     }
@@ -263,8 +260,8 @@ async fn distributed_lock_suppresses_duplicate_execution() -> Result<()> {
     );
     assert!(
         locked <= single_replica_ceiling,
-        "distributed lock failed to suppress duplicate execution: run_count={locked} exceeds \
-         the single-replica ceiling of {single_replica_ceiling}"
+        "distributed lock failed to suppress duplicate execution: run_count={locked} exceeds the \
+         single-replica ceiling of {single_replica_ceiling}"
     );
 
     let unlocked = run_two_replicas(false, window).await?;
@@ -276,8 +273,8 @@ async fn distributed_lock_suppresses_duplicate_execution() -> Result<()> {
 
     assert!(
         locked < unlocked,
-        "the lock must yield meaningfully fewer runs than the unlocked control: \
-         locked={locked}, unlocked={unlocked}"
+        "the lock must yield meaningfully fewer runs than the unlocked control: locked={locked}, \
+         unlocked={unlocked}"
     );
 
     Ok(())

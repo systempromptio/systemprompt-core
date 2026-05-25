@@ -5,8 +5,8 @@
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_security::authz::types::{Access, Decision, EntityKind, EntityRef};
 use systemprompt_security::authz::{
-    AccessControlConfig, AccessControlIngestionService, AccessControlRepository,
-    DepartmentEntry, IngestOptions, ResolveInput, RuleEntry, resolve,
+    AccessControlConfig, AccessControlIngestionService, AccessControlRepository, DepartmentEntry,
+    IngestOptions, ResolveInput, RuleEntry, resolve,
 };
 
 use crate::support::{try_db, wipe_rules};
@@ -220,7 +220,9 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
 }
 
 #[tokio::test]
-#[ignore = "ACL ingestion collapses same-(entity, rule_type, rule_value) entries via upsert; ordering at YAML level determines which row survives. Resolver-level deny-overrides is covered by deny_overrides_at_resolve_regardless_of_rule_order."]
+#[ignore = "ACL ingestion collapses same-(entity, rule_type, rule_value) entries via upsert; \
+            ordering at YAML level determines which row survives. Resolver-level deny-overrides is \
+            covered by deny_overrides_at_resolve_regardless_of_rule_order."]
 async fn yaml_rule_ordering_does_not_change_decision() {
     let Some(db) = try_db().await else {
         eprintln!("skipping: DATABASE_URL not set");

@@ -5,8 +5,7 @@
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use systemprompt_mcp::services::process::monitor;
-use systemprompt_mcp::services::process::utils;
+use systemprompt_mcp::services::process::{monitor, utils};
 
 #[test]
 fn spawning_a_nonexistent_binary_surfaces_an_io_error_not_a_panic() {

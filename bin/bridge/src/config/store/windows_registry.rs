@@ -1,5 +1,8 @@
 #![cfg(target_os = "windows")]
-#![allow(unsafe_code, reason = "Win32 registry FFI for HKLM/HKCU managed-policy values")]
+#![allow(
+    unsafe_code,
+    reason = "Win32 registry FFI for HKLM/HKCU managed-policy values"
+)]
 
 use std::collections::BTreeMap;
 

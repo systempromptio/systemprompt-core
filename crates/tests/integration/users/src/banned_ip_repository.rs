@@ -9,13 +9,14 @@
 
 use anyhow::Result;
 use systemprompt_database::Database;
-use systemprompt_users::{
-    BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository,
-};
+use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository};
 
 async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
+    Database::new_postgres(&database_url)
+        .await
+        .ok()
+        .map(std::sync::Arc::new)
 }
 
 async fn cleanup_test_ip(repo: &BannedIpRepository, ip: &str) {
@@ -84,7 +85,12 @@ async fn is_banned_returns_true_for_banned_ip() -> Result<()> {
     let test_ip = "192.168.100.1";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let params = BanIpParams::new(test_ip, "Test ban", BanDuration::Hours(1), "integration_test");
+    let params = BanIpParams::new(
+        test_ip,
+        "Test ban",
+        BanDuration::Hours(1),
+        "integration_test",
+    );
     repo.ban_ip(params).await?;
 
     let is_banned = repo.is_banned(test_ip).await?;
@@ -122,7 +128,10 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
     assert_eq!(ban.reason, "Test ban creation");
     assert_eq!(ban.ban_source.as_deref(), Some("integration_test"));
     assert!(!ban.is_permanent);
-    assert!(ban.expires_at.is_some(), "non-permanent ban should have an expiry");
+    assert!(
+        ban.expires_at.is_some(),
+        "non-permanent ban should have an expiry"
+    );
 
     cleanup_test_ip(&repo, test_ip).await;
 
@@ -143,8 +152,13 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
     let fingerprint = "test-fingerprint-123";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let params = BanIpParams::new(test_ip, "Test ban", BanDuration::Hours(2), "integration_test")
-        .with_source_fingerprint(fingerprint);
+    let params = BanIpParams::new(
+        test_ip,
+        "Test ban",
+        BanDuration::Hours(2),
+        "integration_test",
+    )
+    .with_source_fingerprint(fingerprint);
     repo.ban_ip(params).await?;
 
     let ban = repo.find_ban(test_ip).await?;
@@ -183,7 +197,10 @@ async fn ban_ip_permanent() -> Result<()> {
     assert_eq!(ban.ip_address, test_ip);
     assert_eq!(ban.reason, "Permanent ban test");
     assert!(ban.is_permanent);
-    assert!(ban.expires_at.is_none(), "permanent ban should have no expiry");
+    assert!(
+        ban.expires_at.is_none(),
+        "permanent ban should have no expiry"
+    );
 
     cleanup_test_ip(&repo, test_ip).await;
 
@@ -203,14 +220,23 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
     let test_ip = "192.168.100.5";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let params = BanIpParams::new(test_ip, "First ban", BanDuration::Hours(1), "integration_test");
+    let params = BanIpParams::new(
+        test_ip,
+        "First ban",
+        BanDuration::Hours(1),
+        "integration_test",
+    );
     repo.ban_ip(params).await?;
 
     let ban = repo.find_ban(test_ip).await?;
     let first_count = ban.map(|b| b.ban_count).unwrap_or(0);
 
-    let params =
-        BanIpParams::new(test_ip, "Second ban", BanDuration::Hours(1), "integration_test");
+    let params = BanIpParams::new(
+        test_ip,
+        "Second ban",
+        BanDuration::Hours(1),
+        "integration_test",
+    );
     repo.ban_ip(params).await?;
 
     let ban = repo.find_ban(test_ip).await?;
@@ -256,8 +282,13 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     assert_eq!(ban.source_fingerprint.as_deref(), Some("fp-123"));
     assert_eq!(ban.last_offense_path.as_deref(), Some("/api/v1/malicious"));
     assert_eq!(ban.last_user_agent.as_deref(), Some("TestBot/1.0"));
-    let session_ids = ban.associated_session_ids.expect("ban should have associated session ids");
-    assert!(!session_ids.is_empty(), "associated session ids should contain the session id");
+    let session_ids = ban
+        .associated_session_ids
+        .expect("ban should have associated session ids");
+    assert!(
+        !session_ids.is_empty(),
+        "associated session ids should contain the session id"
+    );
 
     cleanup_test_ip(&repo, test_ip).await;
 
@@ -277,7 +308,12 @@ async fn unban_ip_removes_ban() -> Result<()> {
     let test_ip = "192.168.100.7";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let params = BanIpParams::new(test_ip, "To be unbanned", BanDuration::Hours(1), "integration_test");
+    let params = BanIpParams::new(
+        test_ip,
+        "To be unbanned",
+        BanDuration::Hours(1),
+        "integration_test",
+    );
     repo.ban_ip(params).await?;
 
     assert!(repo.is_banned(test_ip).await?);
@@ -341,7 +377,12 @@ async fn list_active_bans_returns_active_bans() -> Result<()> {
     let test_ip = "192.168.100.8";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let params = BanIpParams::new(test_ip, "List test", BanDuration::Hours(1), "integration_test");
+    let params = BanIpParams::new(
+        test_ip,
+        "List test",
+        BanDuration::Hours(1),
+        "integration_test",
+    );
     repo.ban_ip(params).await?;
 
     let bans = repo.list_active_bans(100).await?;
@@ -372,7 +413,10 @@ async fn list_bans_by_source_filters_correctly() -> Result<()> {
 
     let bans = repo.list_bans_by_source(unique_source, 100).await?;
     assert!(!bans.is_empty());
-    assert!(bans.iter().all(|b| b.ban_source.as_deref() == Some(unique_source)));
+    assert!(
+        bans.iter()
+            .all(|b| b.ban_source.as_deref() == Some(unique_source))
+    );
 
     cleanup_test_ip(&repo, test_ip).await;
 
@@ -393,13 +437,21 @@ async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
     let unique_fp = "unique_test_fingerprint_xyz";
     cleanup_test_ip(&repo, test_ip).await;
 
-    let params = BanIpParams::new(test_ip, "FP test", BanDuration::Hours(1), "integration_test")
-        .with_source_fingerprint(unique_fp);
+    let params = BanIpParams::new(
+        test_ip,
+        "FP test",
+        BanDuration::Hours(1),
+        "integration_test",
+    )
+    .with_source_fingerprint(unique_fp);
     repo.ban_ip(params).await?;
 
     let bans = repo.list_bans_by_fingerprint(unique_fp).await?;
     assert!(!bans.is_empty());
-    assert!(bans.iter().all(|b| b.source_fingerprint.as_deref() == Some(unique_fp)));
+    assert!(
+        bans.iter()
+            .all(|b| b.source_fingerprint.as_deref() == Some(unique_fp))
+    );
 
     cleanup_test_ip(&repo, test_ip).await;
 

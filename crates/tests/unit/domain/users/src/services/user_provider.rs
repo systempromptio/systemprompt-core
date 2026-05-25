@@ -6,9 +6,9 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::AuthUser;
 use systemprompt_users::User;
-use systemprompt_test_fixtures::fixture_user_id;
 
 fn create_test_user() -> User {
     User {

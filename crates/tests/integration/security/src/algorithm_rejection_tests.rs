@@ -1,7 +1,7 @@
 use std::sync::Once;
 
-use http::HeaderMap;
 use chrono::{Duration, Utc};
+use http::HeaderMap;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use systemprompt_identifiers::{ClientId, SessionId};
 use systemprompt_models::auth::{
@@ -66,10 +66,7 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
     )
     .expect("encode hs256");
 
-    let svc = AuthValidationService::new(
-        "integration-issuer".to_string(),
-        vec![JwtAudience::Api],
-    );
+    let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
     let err = svc
         .validate_request(&auth_header(&token), AuthMode::Required)
         .expect_err("hs256 must be rejected");
@@ -83,17 +80,12 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
 async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
     ensure_authority();
     let key = RsaSigningKey::generate_bits(2048).expect("rsa");
-    let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(key.private_key())
-        .expect("der");
+    let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(key.private_key()).expect("der");
     let enc = EncodingKey::from_rsa_der(der.as_bytes());
     let header = Header::new(Algorithm::RS256);
-    let token =
-        encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
+    let token = encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
 
-    let svc = AuthValidationService::new(
-        "integration-issuer".to_string(),
-        vec![JwtAudience::Api],
-    );
+    let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
     let err = svc
         .validate_request(&auth_header(&token), AuthMode::Required)
         .expect_err("missing kid must be rejected");
@@ -107,18 +99,13 @@ async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
 async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
     ensure_authority();
     let foreign = RsaSigningKey::generate_bits(2048).expect("rsa");
-    let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(foreign.private_key())
-        .expect("der");
+    let der = rsa::pkcs1::EncodeRsaPrivateKey::to_pkcs1_der(foreign.private_key()).expect("der");
     let enc = EncodingKey::from_rsa_der(der.as_bytes());
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(foreign.kid().to_string());
-    let token =
-        encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
+    let token = encode(&header, &sample_claims("integration-issuer"), &enc).expect("rs256 encode");
 
-    let svc = AuthValidationService::new(
-        "integration-issuer".to_string(),
-        vec![JwtAudience::Api],
-    );
+    let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
     let err = svc
         .validate_request(&auth_header(&token), AuthMode::Required)
         .expect_err("foreign kid must be rejected");

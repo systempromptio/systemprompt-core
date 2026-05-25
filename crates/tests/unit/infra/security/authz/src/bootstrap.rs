@@ -79,7 +79,11 @@ async fn webhook_mode_with_blank_url_errors() {
 
 #[tokio::test]
 async fn webhook_mode_with_metadata_ip_url_errors() {
-    let cfg = governance_with(AuthzMode::Webhook, Some("http://169.254.169.254/authz"), None);
+    let cfg = governance_with(
+        AuthzMode::Webhook,
+        Some("http://169.254.169.254/authz"),
+        None,
+    );
     let err =
         build_authz_hook(Some(&cfg), None).expect_err("cloud-metadata url must fail bootstrap");
     assert!(matches!(
@@ -124,8 +128,8 @@ async fn unrestricted_without_acknowledgement_errors() {
 #[tokio::test]
 async fn unrestricted_with_wrong_acknowledgement_errors() {
     let cfg = governance_with(AuthzMode::Unrestricted, None, Some("yolo"));
-    let err = build_authz_hook(Some(&cfg), None)
-        .expect_err("wrong acknowledgement must fail bootstrap");
+    let err =
+        build_authz_hook(Some(&cfg), None).expect_err("wrong acknowledgement must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::MissingUnrestrictedAcknowledgement { .. })

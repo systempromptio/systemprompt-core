@@ -3,14 +3,12 @@
 use base64::prelude::*;
 use chrono::Utc;
 use std::path::PathBuf;
+use systemprompt_cloud::CloudCredentials;
 use systemprompt_cloud::cli_session::{
     CliSession, CliSessionBuilder, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
-use systemprompt_cloud::CloudCredentials;
-use systemprompt_identifiers::{
-    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
-};
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::fixture_user_id;
 use tempfile::TempDir;
@@ -62,7 +60,9 @@ impl TenantFixture {
                 external_db_access: false,
             }),
         ]);
-        store.save_to_path(&tenants_path).expect("save tenant store");
+        store
+            .save_to_path(&tenants_path)
+            .expect("save tenant store");
 
         Self {
             _temp: temp,
@@ -83,7 +83,12 @@ impl TenantFixture {
     }
 }
 
-pub fn build_session_for(profile: &str, key: &SessionKey, token: &str, context: &str) -> CliSession {
+pub fn build_session_for(
+    profile: &str,
+    key: &SessionKey,
+    token: &str,
+    context: &str,
+) -> CliSession {
     CliSessionBuilder::new(
         ProfileName::new(profile),
         SessionToken::new(token),

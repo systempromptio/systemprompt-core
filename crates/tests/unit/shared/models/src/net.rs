@@ -32,7 +32,10 @@ mod validate_outbound_url_tests {
             "https://172.20.0.1/h",
         ] {
             assert!(
-                matches!(validate_outbound_url(url), Err(OutboundUrlError::BlockedHost(_))),
+                matches!(
+                    validate_outbound_url(url),
+                    Err(OutboundUrlError::BlockedHost(_))
+                ),
                 "{url} should be blocked",
             );
         }
@@ -201,7 +204,10 @@ mod ssrf_adversarial_tests {
         for host in ["[fe80::1]", "[febf::ffff:ffff:ffff:ffff]"] {
             let url = format!("https://{host}/h");
             assert!(
-                matches!(validate_outbound_url(&url), Err(OutboundUrlError::BlockedHost(_))),
+                matches!(
+                    validate_outbound_url(&url),
+                    Err(OutboundUrlError::BlockedHost(_))
+                ),
                 "{url} should be blocked (fe80::/10)",
             );
         }
@@ -212,7 +218,10 @@ mod ssrf_adversarial_tests {
         for host in ["[fc00::1]", "[fd00::1]", "[fdff::ffff]"] {
             let url = format!("https://{host}/h");
             assert!(
-                matches!(validate_outbound_url(&url), Err(OutboundUrlError::BlockedHost(_))),
+                matches!(
+                    validate_outbound_url(&url),
+                    Err(OutboundUrlError::BlockedHost(_))
+                ),
                 "{url} should be blocked (fc00::/7)",
             );
         }
@@ -239,7 +248,10 @@ mod ssrf_adversarial_tests {
         for host in ["[::ffff:127.0.0.1]", "[::ffff:7f00:1]"] {
             let url = format!("https://{host}/h");
             assert!(
-                matches!(validate_outbound_url(&url), Err(OutboundUrlError::BlockedHost(_))),
+                matches!(
+                    validate_outbound_url(&url),
+                    Err(OutboundUrlError::BlockedHost(_))
+                ),
                 "{url} should be blocked (v4-mapped loopback)",
             );
         }
@@ -250,7 +262,10 @@ mod ssrf_adversarial_tests {
         for host in ["[::ffff:169.254.169.254]", "[::ffff:a9fe:a9fe]"] {
             let url = format!("https://{host}/h");
             assert!(
-                matches!(validate_outbound_url(&url), Err(OutboundUrlError::BlockedHost(_))),
+                matches!(
+                    validate_outbound_url(&url),
+                    Err(OutboundUrlError::BlockedHost(_))
+                ),
                 "{url} should be blocked (v4-mapped metadata)",
             );
         }
@@ -265,7 +280,10 @@ mod ssrf_adversarial_tests {
         ] {
             let url = format!("https://{host}/h");
             assert!(
-                matches!(validate_outbound_url(&url), Err(OutboundUrlError::BlockedHost(_))),
+                matches!(
+                    validate_outbound_url(&url),
+                    Err(OutboundUrlError::BlockedHost(_))
+                ),
                 "{url} should be blocked (v4-mapped RFC1918)",
             );
         }

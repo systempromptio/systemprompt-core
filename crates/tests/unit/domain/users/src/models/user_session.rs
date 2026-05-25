@@ -2,8 +2,8 @@
 
 use chrono::Utc;
 use systemprompt_identifiers::SessionId;
-use systemprompt_users::UserSession;
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_users::UserSession;
 
 #[test]
 fn user_session_creation() {

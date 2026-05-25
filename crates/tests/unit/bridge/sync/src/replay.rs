@@ -3,10 +3,10 @@ use std::fs;
 use systemprompt_bridge::gateway::manifest::{SignedManifest, canonical_payload};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
-use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_bridge::sync::{
     LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
+use systemprompt_test_fixtures::fixture_user_id;
 
 fn tempdir() -> std::path::PathBuf {
     let mut p = std::env::temp_dir();

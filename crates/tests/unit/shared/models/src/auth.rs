@@ -189,10 +189,7 @@ mod act_claim {
 
     #[test]
     fn serde_round_trip_preserves_chain() {
-        let chain = nested(
-            "outer",
-            Some(nested("middle", Some(nested("inner", None)))),
-        );
+        let chain = nested("outer", Some(nested("middle", Some(nested("inner", None)))));
         let json = serde_json::to_string(&chain).expect("serialize");
         let parsed: ActClaim = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(parsed, chain);
@@ -207,10 +204,7 @@ mod act_claim {
 
     #[test]
     fn flatten_three_level_chain_returns_outermost_first() {
-        let chain = nested(
-            "outer",
-            Some(nested("middle", Some(nested("inner", None)))),
-        );
+        let chain = nested("outer", Some(nested("middle", Some(nested("inner", None)))));
         let flat = chain.flatten_to_chain();
         assert_eq!(flat.len(), 3);
         assert_eq!(flat[0].user_id.as_str(), "outer");
@@ -238,9 +232,18 @@ mod user_type_from_permissions {
 
     #[test]
     fn precedence_is_privilege_descending() {
-        assert_eq!(UserType::from_permissions(&[Permission::User]), UserType::User);
-        assert_eq!(UserType::from_permissions(&[Permission::A2a]), UserType::A2a);
-        assert_eq!(UserType::from_permissions(&[Permission::Mcp]), UserType::Mcp);
+        assert_eq!(
+            UserType::from_permissions(&[Permission::User]),
+            UserType::User
+        );
+        assert_eq!(
+            UserType::from_permissions(&[Permission::A2a]),
+            UserType::A2a
+        );
+        assert_eq!(
+            UserType::from_permissions(&[Permission::Mcp]),
+            UserType::Mcp
+        );
         assert_eq!(
             UserType::from_permissions(&[Permission::Service]),
             UserType::Service

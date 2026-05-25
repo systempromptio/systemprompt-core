@@ -305,8 +305,7 @@ async fn insert_request_with_context(
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, task_id, provider, model, \
          cost_microdollars, tokens_used, status, created_at, updated_at, actor_kind, actor_id) \
-         VALUES ($1, $2, $3, $4, $5, 'test-provider', $6, $7, $8, 'completed', $9, $9, 'user', \
-         $3)",
+         VALUES ($1, $2, $3, $4, $5, 'test-provider', $6, $7, $8, 'completed', $9, $9, 'user', $3)",
     )
     .bind(&id)
     .bind(&id)

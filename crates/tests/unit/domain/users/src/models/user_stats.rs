@@ -2,8 +2,8 @@
 
 use chrono::Utc;
 use std::collections::HashMap;
-use systemprompt_users::{User, UserCountBreakdown, UserExport, UserStats};
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_users::{User, UserCountBreakdown, UserExport, UserStats};
 
 #[test]
 fn user_stats_creation() {

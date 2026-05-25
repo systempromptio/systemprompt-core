@@ -4,13 +4,13 @@
 //! peer 502s, retry, succeed" rather than "K of N files uploaded".
 //!
 //! Tests assert:
-//! - retryable 5xx / 429 are retried up to `max_attempts` with the same
-//!   tarball bytes (idempotent),
+//! - retryable 5xx / 429 are retried up to `max_attempts` with the same tarball
+//!   bytes (idempotent),
 //! - non-retryable 4xx aborts immediately (no exponential thrash),
-//! - the request body is byte-identical across retries (a resumed sync
-//!   must not corrupt the bundle), and
-//! - after the configured cap the client surfaces a 503 instead of
-//!   looping forever.
+//! - the request body is byte-identical across retries (a resumed sync must not
+//!   corrupt the bundle), and
+//! - after the configured cap the client surfaces a 503 instead of looping
+//!   forever.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -53,8 +53,9 @@ impl Respond for BodyCapture {
             if q.is_empty() { 200 } else { q.remove(0) }
         };
         match status {
-            200 => ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({ "files_uploaded": 7 })),
+            200 => {
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({ "files_uploaded": 7 }))
+            },
             other => ResponseTemplate::new(other).set_body_string(format!("status {other}")),
         }
     }

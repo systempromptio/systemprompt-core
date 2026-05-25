@@ -7,7 +7,9 @@ use systemprompt_models::mcp::McpToolResultMetadata;
 fn create_and_validate() {
     let mcp_execution_id = McpExecutionId::generate();
     let metadata = McpToolResultMetadata::new(mcp_execution_id.clone());
-    metadata.validate().expect("metadata.validate() should succeed");
+    metadata
+        .validate()
+        .expect("metadata.validate() should succeed");
     assert_eq!(metadata.mcp_execution_id, mcp_execution_id);
 }
 

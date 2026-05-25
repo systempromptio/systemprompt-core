@@ -2,9 +2,9 @@ use std::sync::Arc;
 use systemprompt_events::{Broadcaster, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::A2AEvent;
+use systemprompt_test_fixtures::unique_user_id;
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
-use systemprompt_test_fixtures::unique_user_id;
 
 fn test_user_id(n: usize) -> UserId {
     unique_user_id(&format!("user-{n}"))

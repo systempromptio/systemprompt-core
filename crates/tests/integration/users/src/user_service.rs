@@ -11,7 +11,10 @@ use systemprompt_users::{UserRole, UserService, UserStatus};
 
 async fn get_db() -> Option<std::sync::Arc<Database>> {
     let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url).await.ok().map(std::sync::Arc::new)
+    Database::new_postgres(&database_url)
+        .await
+        .ok()
+        .map(std::sync::Arc::new)
 }
 
 #[tokio::test]
@@ -34,7 +37,10 @@ async fn service_create_and_find_user() -> Result<()> {
     assert_eq!(created.name, unique_name);
     assert_eq!(created.email, unique_email);
 
-    assert!(!created.id.as_str().is_empty(), "created user should have a non-empty id");
+    assert!(
+        !created.id.as_str().is_empty(),
+        "created user should have a non-empty id"
+    );
 
     let found = service.find_by_id(&created.id).await?;
     let found = found.expect("find_by_id should return the created user");
@@ -69,7 +75,10 @@ async fn service_create_anonymous_user() -> Result<()> {
     let fingerprint = format!("svc_anon_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
 
-    assert!(!created.id.as_str().is_empty(), "anonymous user should have an id");
+    assert!(
+        !created.id.as_str().is_empty(),
+        "anonymous user should have an id"
+    );
     assert!(created.name.starts_with("anonymous_"));
     assert!(created.email.contains(&fingerprint));
     assert!(created.roles.contains(&"anonymous".to_string()));
@@ -110,10 +119,16 @@ async fn service_search_users() -> Result<()> {
     let unique_email = format!("svc_search_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcsearch_{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let results = service.search(&unique_name[0..10], 10).await?;
-    assert!(results.iter().any(|u| u.id.to_string() == created.id.to_string()));
+    assert!(
+        results
+            .iter()
+            .any(|u| u.id.to_string() == created.id.to_string())
+    );
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc()?.as_ref())
@@ -167,7 +182,9 @@ async fn service_update_email() -> Result<()> {
 
     let unique_email = format!("svc_upd_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcupdemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let new_email = format!("svc_new_{}@example.com", uuid::Uuid::new_v4());
     let updated = service.update_email(&created.id, &new_email).await?;
@@ -194,9 +211,13 @@ async fn service_update_status() -> Result<()> {
 
     let unique_email = format!("svc_upd_status_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcupdstatus_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
-    let updated = service.update_status(&created.id, UserStatus::Suspended).await?;
+    let updated = service
+        .update_status(&created.id, UserStatus::Suspended)
+        .await?;
     assert_eq!(updated.status, Some("suspended".to_string()));
     assert_eq!(updated.id.to_string(), created.id.to_string());
 
@@ -219,7 +240,9 @@ async fn service_assign_roles() -> Result<()> {
 
     let unique_email = format!("svc_roles_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcroles_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let roles = vec!["admin".to_string(), "user".to_string()];
     let updated = service.assign_roles(&created.id, &roles).await?;
@@ -246,7 +269,9 @@ async fn service_delete_user() -> Result<()> {
 
     let unique_email = format!("svc_delete_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcdelete_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     service.delete(&created.id).await?;
 
@@ -326,7 +351,9 @@ async fn service_get_authenticated_user() -> Result<()> {
 
     let unique_email = format!("svc_auth_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let auth = service.find_authenticated_user(&created.id).await?;
     let auth = auth.expect("get_authenticated_user should return the active user");
@@ -375,7 +402,9 @@ async fn service_list_sessions() -> Result<()> {
 
     let unique_email = format!("svc_sessions_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcsessions_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let sessions = service.list_sessions(&created.id).await?;
     assert!(sessions.is_empty());
@@ -399,7 +428,9 @@ async fn service_list_active_sessions() -> Result<()> {
 
     let unique_email = format!("svc_active_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcactive_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let sessions = service.list_active_sessions(&created.id).await?;
     assert!(sessions.is_empty());
@@ -423,7 +454,9 @@ async fn service_list_recent_sessions() -> Result<()> {
 
     let unique_email = format!("svc_recent_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcrecent_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let sessions = service.list_recent_sessions(&created.id, 5).await?;
     assert!(sessions.is_empty());
@@ -465,7 +498,9 @@ async fn service_get_with_sessions() -> Result<()> {
 
     let unique_email = format!("svc_with_sess_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcwithsess_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let user_with_sessions = service.find_with_sessions(&created.id).await?;
     let user_with_sessions = user_with_sessions.expect("get_with_sessions should return the user");
@@ -492,7 +527,9 @@ async fn service_get_activity() -> Result<()> {
 
     let unique_email = format!("svc_activity_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcactivity_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let activity = service.get_activity(&created.id).await?;
     assert_eq!(activity.user_id.to_string(), created.id.to_string());
@@ -546,9 +583,13 @@ async fn service_update_full_name() -> Result<()> {
 
     let unique_email = format!("svc_fullname_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcfullname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
-    let updated = service.update_full_name(&created.id, "New Full Name").await?;
+    let updated = service
+        .update_full_name(&created.id, "New Full Name")
+        .await?;
     assert_eq!(updated.full_name, Some("New Full Name".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
@@ -570,9 +611,13 @@ async fn service_update_display_name() -> Result<()> {
 
     let unique_email = format!("svc_dispname_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcdispname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
-    let updated = service.update_display_name(&created.id, "New Display").await?;
+    let updated = service
+        .update_display_name(&created.id, "New Display")
+        .await?;
     assert_eq!(updated.display_name, Some("New Display".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
@@ -594,7 +639,9 @@ async fn service_update_email_verified() -> Result<()> {
 
     let unique_email = format!("svc_verified_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcverified_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
     let updated = service.update_email_verified(&created.id, true).await?;
     assert_eq!(updated.email_verified, Some(true));
@@ -618,17 +665,26 @@ async fn service_bulk_update_status() -> Result<()> {
 
     let user1_email = format!("svc_bulk1_{}@example.com", uuid::Uuid::new_v4());
     let user1_name = format!("svcbulk1_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let user1 = service.create(&user1_name, &user1_email, None, None).await?;
+    let user1 = service
+        .create(&user1_name, &user1_email, None, None)
+        .await?;
 
     let user2_email = format!("svc_bulk2_{}@example.com", uuid::Uuid::new_v4());
     let user2_name = format!("svcbulk2_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let user2 = service.create(&user2_name, &user2_email, None, None).await?;
+    let user2 = service
+        .create(&user2_name, &user2_email, None, None)
+        .await?;
 
-    let updated_count = service.bulk_update_status(&[user1.id.clone(), user2.id.clone()], "suspended").await?;
+    let updated_count = service
+        .bulk_update_status(&[user1.id.clone(), user2.id.clone()], "suspended")
+        .await?;
     assert_eq!(updated_count, 2);
 
     let found1 = service.find_by_id(&user1.id).await?;
-    assert_eq!(found1.as_ref().map(|u| u.status.as_deref()), Some(Some("suspended")));
+    assert_eq!(
+        found1.as_ref().map(|u| u.status.as_deref()),
+        Some(Some("suspended"))
+    );
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user1.id.as_str())
         .execute(db.pool_arc()?.as_ref())
@@ -652,13 +708,19 @@ async fn service_bulk_delete() -> Result<()> {
 
     let user1_email = format!("svc_bulkdel1_{}@example.com", uuid::Uuid::new_v4());
     let user1_name = format!("svcbulkdel1_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let user1 = service.create(&user1_name, &user1_email, None, None).await?;
+    let user1 = service
+        .create(&user1_name, &user1_email, None, None)
+        .await?;
 
     let user2_email = format!("svc_bulkdel2_{}@example.com", uuid::Uuid::new_v4());
     let user2_name = format!("svcbulkdel2_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let user2 = service.create(&user2_name, &user2_email, None, None).await?;
+    let user2 = service
+        .create(&user2_name, &user2_email, None, None)
+        .await?;
 
-    let deleted_count = service.bulk_delete(&[user1.id.clone(), user2.id.clone()]).await?;
+    let deleted_count = service
+        .bulk_delete(&[user1.id.clone(), user2.id.clone()])
+        .await?;
     assert_eq!(deleted_count, 2);
 
     let found1 = service.find_by_id(&user1.id).await?;
@@ -682,9 +744,13 @@ async fn service_list_by_filter_with_status() -> Result<()> {
 
     let unique_email = format!("svc_filter_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcfilter_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
-    let users = service.list_by_filter(Some("active"), None, None, 100).await?;
+    let users = service
+        .list_by_filter(Some("active"), None, None, 100)
+        .await?;
     assert!(users.iter().all(|u| u.status.as_deref() == Some("active")));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
@@ -706,9 +772,13 @@ async fn service_list_by_filter_with_role() -> Result<()> {
 
     let unique_email = format!("svc_filterrole_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("svcfilterrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let created = service.create(&unique_name, &unique_email, None, None).await?;
+    let created = service
+        .create(&unique_name, &unique_email, None, None)
+        .await?;
 
-    let users = service.list_by_filter(None, Some("user"), None, 100).await?;
+    let users = service
+        .list_by_filter(None, Some("user"), None, 100)
+        .await?;
     assert!(users.iter().all(|u| u.roles.contains(&"user".to_string())));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
@@ -730,11 +800,15 @@ async fn service_merge_users() -> Result<()> {
 
     let source_email = format!("svc_merge_src_{}@example.com", uuid::Uuid::new_v4());
     let source_name = format!("svcmergesrc_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let source = service.create(&source_name, &source_email, None, None).await?;
+    let source = service
+        .create(&source_name, &source_email, None, None)
+        .await?;
 
     let target_email = format!("svc_merge_tgt_{}@example.com", uuid::Uuid::new_v4());
     let target_name = format!("svcmergetgt_{}", &uuid::Uuid::new_v4().to_string()[..8]);
-    let target = service.create(&target_name, &target_email, None, None).await?;
+    let target = service
+        .create(&target_name, &target_email, None, None)
+        .await?;
 
     service.merge_users(&source.id, &target.id).await?;
 

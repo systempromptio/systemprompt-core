@@ -807,4 +807,3 @@ plugins:
         "expected plugin binding validation error, got: {msg}"
     );
 }
-

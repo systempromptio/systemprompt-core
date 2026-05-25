@@ -6,8 +6,8 @@
 //! - Error conversions (From implementations)
 //! - Result type alias
 
-use systemprompt_users::UserError;
 use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
+use systemprompt_users::UserError;
 
 mod user_error_display_tests {
     use super::*;

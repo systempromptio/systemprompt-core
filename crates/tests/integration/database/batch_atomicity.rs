@@ -3,11 +3,11 @@
 //! 1. A multi-row INSERT that violates a unique constraint on row K+1 must
 //!    leave rows 0..K uncommitted (all-or-nothing batch semantics — the
 //!    Postgres default for a single multi-VALUES statement).
-//! 2. A transactional batch of independent INSERTs that errors mid-way
-//!    rolls back the entire transaction.
-//! 3. `INSERT ... ON CONFLICT DO UPDATE` under concurrent writers preserves
-//!    a documented merge rule (here: last-write-wins by value comparison)
-//!    and never loses an update of an unrelated column on the same row.
+//! 2. A transactional batch of independent INSERTs that errors mid-way rolls
+//!    back the entire transaction.
+//! 3. `INSERT ... ON CONFLICT DO UPDATE` under concurrent writers preserves a
+//!    documented merge rule (here: last-write-wins by value comparison) and
+//!    never loses an update of an unrelated column on the same row.
 //!
 //! These tests use ephemeral schemas (UUID-suffixed table names) so they
 //! are safe to run in parallel and against any reachable Postgres
@@ -69,8 +69,8 @@ async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
     .unwrap();
 
     let outcome = sqlx::query(&format!(
-        "INSERT INTO {table}(id, payload) VALUES \
-         ('row-1','a'), ('row-2','b'), ('row-1','dup'), ('row-3','c')"
+        "INSERT INTO {table}(id, payload) VALUES ('row-1','a'), ('row-2','b'), ('row-1','dup'), \
+         ('row-3','c')"
     ))
     .execute(&pool)
     .await;
@@ -82,9 +82,9 @@ async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
     assert_eq!(
         count(&pool, &table).await,
         0,
-        "no row from the failed multi-row INSERT may persist — Postgres \
-         rolls the whole statement back; if this fires the call site is \
-         relying on a different (non-existent) per-row commit semantic"
+        "no row from the failed multi-row INSERT may persist — Postgres rolls the whole statement \
+         back; if this fires the call site is relying on a different (non-existent) per-row \
+         commit semantic"
     );
 
     drop_table(&pool, &table).await;
@@ -122,16 +122,18 @@ async fn transactional_batch_rolls_back_on_mid_batch_failure() {
         .bind("dup")
         .execute(&mut *tx)
         .await;
-    assert!(conflict.is_err(), "duplicate id should fail mid-transaction");
+    assert!(
+        conflict.is_err(),
+        "duplicate id should fail mid-transaction"
+    );
 
     drop(tx);
 
     assert_eq!(
         count(&pool, &table).await,
         0,
-        "an aborted transaction must leave the table empty — partial commit \
-         of rows 1 and 2 would mean the batch helper is not actually \
-         transactional"
+        "an aborted transaction must leave the table empty — partial commit of rows 1 and 2 would \
+         mean the batch helper is not actually transactional"
     );
 
     drop_table(&pool, &table).await;
@@ -160,8 +162,8 @@ async fn upsert_do_nothing_preserves_existing_rows() {
     .await
     .unwrap();
     sqlx::query(&format!(
-        "INSERT INTO {table}(id, payload) VALUES ('row-1','clobber'), ('row-2','new') \
-         ON CONFLICT(id) DO NOTHING"
+        "INSERT INTO {table}(id, payload) VALUES ('row-1','clobber'), ('row-2','new') ON \
+         CONFLICT(id) DO NOTHING"
     ))
     .execute(&pool)
     .await
@@ -177,8 +179,8 @@ async fn upsert_do_nothing_preserves_existing_rows() {
         .unwrap();
     assert_eq!(
         row1, "original",
-        "DO NOTHING must preserve the pre-existing payload; 'clobber' would \
-         indicate the call site has been switched to DO UPDATE"
+        "DO NOTHING must preserve the pre-existing payload; 'clobber' would indicate the call \
+         site has been switched to DO UPDATE"
     );
     assert_eq!(row2, "new", "new row inserts as expected");
 
@@ -208,8 +210,8 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
         handles.push(tokio::spawn(async move {
             let payload = format!("writer-{i}");
             sqlx::query(&format!(
-                "INSERT INTO {table}(id, payload, version) VALUES ('contested', $1, $2) \
-                 ON CONFLICT(id) DO UPDATE SET payload = EXCLUDED.payload, version = EXCLUDED.version"
+                "INSERT INTO {table}(id, payload, version) VALUES ('contested', $1, $2) ON \
+                 CONFLICT(id) DO UPDATE SET payload = EXCLUDED.payload, version = EXCLUDED.version"
             ))
             .bind(&payload)
             .bind(i as i32)
@@ -222,16 +224,18 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
         handle.await.expect("writer joined");
     }
 
-    let rows = sqlx::query(&format!("SELECT payload, version FROM {table} WHERE id = 'contested'"))
-        .fetch_all(pool.as_ref())
-        .await
-        .unwrap();
+    let rows = sqlx::query(&format!(
+        "SELECT payload, version FROM {table} WHERE id = 'contested'"
+    ))
+    .fetch_all(pool.as_ref())
+    .await
+    .unwrap();
     assert_eq!(
         rows.len(),
         1,
-        "concurrent upserts must collapse to exactly one row, not duplicate \
-         the primary key — Postgres enforces this via the unique index, a \
-         missing index would surface as a count > 1 here"
+        "concurrent upserts must collapse to exactly one row, not duplicate the primary key — \
+         Postgres enforces this via the unique index, a missing index would surface as a count > \
+         1 here"
     );
     let payload: String = rows[0].try_get("payload").unwrap();
     let version: i32 = rows[0].try_get("version").unwrap();
@@ -241,9 +245,9 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
         .expect("payload parses");
     assert_eq!(
         parsed, version as usize,
-        "payload and version must come from the *same* writer — divergence \
-         would indicate a torn write where columns from two upserts were \
-         interleaved (Postgres prevents this; the test pins the contract)"
+        "payload and version must come from the *same* writer — divergence would indicate a torn \
+         write where columns from two upserts were interleaved (Postgres prevents this; the test \
+         pins the contract)"
     );
     assert!(
         (0..writer_count).contains(&(version as usize)),
@@ -279,17 +283,18 @@ async fn upsert_do_update_does_not_clobber_unrelated_columns() {
     .unwrap();
 
     sqlx::query(&format!(
-        "INSERT INTO {table}(id, payload, audit_note) VALUES ('row', 'v2', 'ignored') \
-         ON CONFLICT(id) DO UPDATE SET payload = EXCLUDED.payload"
+        "INSERT INTO {table}(id, payload, audit_note) VALUES ('row', 'v2', 'ignored') ON \
+         CONFLICT(id) DO UPDATE SET payload = EXCLUDED.payload"
     ))
     .execute(&pool)
     .await
     .unwrap();
 
-    let payload: String = sqlx::query_scalar(&format!("SELECT payload FROM {table} WHERE id='row'"))
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let payload: String =
+        sqlx::query_scalar(&format!("SELECT payload FROM {table} WHERE id='row'"))
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     let note: String =
         sqlx::query_scalar(&format!("SELECT audit_note FROM {table} WHERE id='row'"))
             .fetch_one(&pool)
@@ -298,8 +303,8 @@ async fn upsert_do_update_does_not_clobber_unrelated_columns() {
     assert_eq!(payload, "v2", "the SET column updates as instructed");
     assert_eq!(
         note, "kept",
-        "the unmentioned audit_note column must be preserved by DO UPDATE — \
-         a regression that broadened the SET list would lose this update"
+        "the unmentioned audit_note column must be preserved by DO UPDATE — a regression that \
+         broadened the SET list would lose this update"
     );
 
     drop_table(&pool, &table).await;

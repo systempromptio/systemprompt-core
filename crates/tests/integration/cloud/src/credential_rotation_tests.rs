@@ -2,10 +2,10 @@
 //! value with no silent fallback to the cached copy.
 
 use chrono::Duration;
-use systemprompt_cloud::cli_session::{CliSession, SessionStore};
 use systemprompt_cloud::CloudCredentials;
+use systemprompt_cloud::cli_session::{CliSession, SessionStore};
 
-use crate::support::{build_session_for, jwt_token, save_credentials, TenantFixture};
+use crate::support::{TenantFixture, build_session_for, jwt_token, save_credentials};
 
 #[tokio::test]
 async fn rotating_session_token_invalidates_previous_handle() {

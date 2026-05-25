@@ -52,13 +52,7 @@ impl Fixture {
     }
 
     async fn drop_all(&self) {
-        for base in [
-            "audit",
-            "session",
-            "api_key",
-            "fed_id",
-            "user",
-        ] {
+        for base in ["audit", "session", "api_key", "fed_id", "user"] {
             let stmt = format!("DROP TABLE IF EXISTS {} CASCADE", self.t(base));
             let _ = sqlx::query(&stmt).execute(&self.pool).await;
         }
@@ -190,7 +184,8 @@ async fn cascade_delete_user_transitively_removes_dependents() {
         "SET NULL must clear the FK column on dependent sessions, not delete them"
     );
     assert_eq!(
-        fx.count(&sessions, &format!("id = 's1_{}'", &fx.suffix)).await,
+        fx.count(&sessions, &format!("id = 's1_{}'", &fx.suffix))
+            .await,
         1,
         "SET NULL dependent row itself must survive the parent delete"
     );
@@ -307,8 +302,8 @@ async fn audit_trail_survives_user_cascade_delete() {
     assert_eq!(
         fx.count(&audit, &format!("user_id = '{user_id}'")).await,
         3,
-        "audit rows must remain after the referenced user is hard-deleted — \
-         compliance requires that historical authz decisions are immutable"
+        "audit rows must remain after the referenced user is hard-deleted — compliance requires \
+         that historical authz decisions are immutable"
     );
 
     fx.drop_all().await;
@@ -363,13 +358,11 @@ async fn no_orphaned_fk_references_after_cascade() {
         .unwrap();
     }
 
-    sqlx::query(&format!(
-        "DELETE FROM {users} WHERE id = $1"
-    ))
-    .bind(format!("u_alpha_{}", &fx.suffix))
-    .execute(&fx.pool)
-    .await
-    .unwrap();
+    sqlx::query(&format!("DELETE FROM {users} WHERE id = $1"))
+        .bind(format!("u_alpha_{}", &fx.suffix))
+        .execute(&fx.pool)
+        .await
+        .unwrap();
 
     let orphan_keys = fx
         .count(
@@ -378,17 +371,12 @@ async fn no_orphaned_fk_references_after_cascade() {
         )
         .await;
     let orphan_fed = fx
-        .count(
-            &fed,
-            &format!("user_id NOT IN (SELECT id FROM {users})"),
-        )
+        .count(&fed, &format!("user_id NOT IN (SELECT id FROM {users})"))
         .await;
     let orphan_sessions = fx
         .count(
             &sessions,
-            &format!(
-                "user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM {users})"
-            ),
+            &format!("user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM {users})"),
         )
         .await;
 

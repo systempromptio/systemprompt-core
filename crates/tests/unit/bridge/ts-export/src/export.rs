@@ -14,7 +14,8 @@ fn export_bindings() {
     assert!(
         std::env::var_os("TS_RS_EXPORT_DIR").is_some(),
         "TS_RS_EXPORT_DIR must be set so ts-rs writes paths relative to the crate root. Run: \
-         TS_RS_EXPORT_DIR=. cargo test -p systemprompt-bridge-ts-export-tests export_bindings -- --ignored"
+         TS_RS_EXPORT_DIR=. cargo test -p systemprompt-bridge-ts-export-tests export_bindings -- \
+         --ignored"
     );
     BridgeError::export_all().expect("export BridgeError");
     ErrorScope::export_all().expect("export ErrorScope");

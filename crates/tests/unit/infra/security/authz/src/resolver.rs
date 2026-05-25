@@ -152,9 +152,7 @@ fn role_allow_beats_department_deny() {
     assert_eq!(
         d,
         Decision::Allow {
-            matched_by: MatchedBy::RoleAllow {
-                role: "eng".into()
-            }
+            matched_by: MatchedBy::RoleAllow { role: "eng".into() }
         }
     );
 }

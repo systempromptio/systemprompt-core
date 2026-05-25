@@ -7,13 +7,13 @@ use http::HeaderMap;
 
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_oauth::services::session::AuthenticatedSessionInfo;
-use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::{
     generate_client_secret, hash_client_secret, verify_client_secret,
 };
 use systemprompt_oauth::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsResult, AnalyticsSession, AuthResult, AuthUser, CreateSessionInput,
     FingerprintProvider, SessionAnalytics, UserEvent, UserEventPublisher, UserProvider,

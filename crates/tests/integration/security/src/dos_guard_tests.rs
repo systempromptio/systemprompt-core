@@ -36,8 +36,7 @@ async fn rapid_unknown_kids_do_not_amplify_jwks_fetches() {
 async fn dos_guard_allows_refetch_after_window_elapses() {
     let key = TestKey::generate();
     let mock = JwksMock::start(vec![key.jwk()]).await;
-    let client =
-        client_for_with_min_refresh(&mock.issuer(), Duration::from_millis(150));
+    let client = client_for_with_min_refresh(&mock.issuer(), Duration::from_millis(150));
 
     client.fetch(&mock.issuer(), &key.kid).await.expect("seed");
 

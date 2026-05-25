@@ -96,7 +96,12 @@ async fn token_error_unsupported_grant_maps_to_unsupported_grant_type() {
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     let json = body_to_json(resp).await;
     assert_eq!(json["error"], "unsupported_grant_type");
-    assert!(json["error_description"].as_str().unwrap().contains("device_code"));
+    assert!(
+        json["error_description"]
+            .as_str()
+            .unwrap()
+            .contains("device_code")
+    );
 }
 
 #[tokio::test]
@@ -123,7 +128,12 @@ async fn token_error_expired_code_maps_to_invalid_grant() {
     let resp = OAuthHttpError::from(TokenError::ExpiredCode).into_response();
     let json = body_to_json(resp).await;
     assert_eq!(json["error"], "invalid_grant");
-    assert!(json["error_description"].as_str().unwrap().contains("expired"));
+    assert!(
+        json["error_description"]
+            .as_str()
+            .unwrap()
+            .contains("expired")
+    );
 }
 
 #[tokio::test]
@@ -146,7 +156,12 @@ async fn token_error_invalid_refresh_token_maps_to_invalid_grant() {
     .into_response();
     let json = body_to_json(resp).await;
     assert_eq!(json["error"], "invalid_grant");
-    assert!(json["error_description"].as_str().unwrap().contains("token revoked"));
+    assert!(
+        json["error_description"]
+            .as_str()
+            .unwrap()
+            .contains("token revoked")
+    );
 }
 
 #[tokio::test]
@@ -162,7 +177,12 @@ async fn token_error_invalid_client_secret_maps_to_invalid_client() {
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
     let json = body_to_json(resp).await;
     assert_eq!(json["error"], "invalid_client");
-    assert!(json["error_description"].as_str().unwrap().contains("client secret"));
+    assert!(
+        json["error_description"]
+            .as_str()
+            .unwrap()
+            .contains("client secret")
+    );
 }
 
 #[tokio::test]

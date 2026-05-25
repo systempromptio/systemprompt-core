@@ -4,7 +4,7 @@ use systemprompt_cloud::cli_session::{SessionKey, SessionStore};
 use systemprompt_identifiers::TenantId;
 
 use crate::support::{
-    build_session_a, build_session_b, build_session_for, seeded_session_store, TenantFixture,
+    TenantFixture, build_session_a, build_session_b, build_session_for, seeded_session_store,
 };
 
 #[tokio::test]
@@ -47,7 +47,10 @@ async fn local_session_does_not_satisfy_tenant_request() {
     let store = SessionStore::load(&fx.sessions_dir).expect("reload");
 
     let got = store.get_valid_session(&fx.key_a());
-    assert!(got.is_none(), "local-only session must not authorise tenant A");
+    assert!(
+        got.is_none(),
+        "local-only session must not authorise tenant A"
+    );
 }
 
 #[tokio::test]
@@ -82,7 +85,11 @@ async fn upsert_under_b_does_not_overwrite_a() {
     store.upsert_session(&fx.key_a(), build_session_a(&fx));
     store.upsert_session(&fx.key_b(), build_session_b(&fx));
 
-    let a_before = store.get_valid_session(&fx.key_a()).unwrap().session_token.clone();
+    let a_before = store
+        .get_valid_session(&fx.key_a())
+        .unwrap()
+        .session_token
+        .clone();
 
     // Upsert a *new* B session and re-check A.
     let new_b = build_session_for(
@@ -93,8 +100,20 @@ async fn upsert_under_b_does_not_overwrite_a() {
     );
     store.upsert_session(&fx.key_b(), new_b);
 
-    let a_after = store.get_valid_session(&fx.key_a()).unwrap().session_token.clone();
-    assert_eq!(a_before.as_str(), a_after.as_str(), "A token must survive B rotation");
-    let b_after = store.get_valid_session(&fx.key_b()).unwrap().session_token.clone();
+    let a_after = store
+        .get_valid_session(&fx.key_a())
+        .unwrap()
+        .session_token
+        .clone();
+    assert_eq!(
+        a_before.as_str(),
+        a_after.as_str(),
+        "A token must survive B rotation"
+    );
+    let b_after = store
+        .get_valid_session(&fx.key_b())
+        .unwrap()
+        .session_token
+        .clone();
     assert_eq!(b_after.as_str(), "token-b-rotated");
 }

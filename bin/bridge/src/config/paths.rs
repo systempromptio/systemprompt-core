@@ -23,7 +23,8 @@ pub enum Scope {
 #[cfg(target_os = "macos")]
 #[expect(
     clippy::unnecessary_wraps,
-    reason = "uniform Option<PathBuf> contract across OS-cfg variants; sibling org_plugins_user can legitimately return None"
+    reason = "uniform Option<PathBuf> contract across OS-cfg variants; sibling org_plugins_user \
+              can legitimately return None"
 )]
 pub fn org_plugins_system() -> Option<PathBuf> {
     Some(PathBuf::from(

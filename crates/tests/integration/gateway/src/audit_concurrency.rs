@@ -5,7 +5,7 @@ use futures::future::join_all;
 use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId};
 
-use crate::support::{minimal_request, setup_db, seed_user};
+use crate::support::{minimal_request, seed_user, setup_db};
 
 #[tokio::test]
 async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
@@ -69,12 +69,11 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
     );
 
     let pool = db.pool_arc().expect("read pool");
-    let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM ai_requests WHERE id = $1")
-            .bind(ai_request_id.as_str())
-            .fetch_one(pool.as_ref())
-            .await
-            .expect("count ai_requests");
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM ai_requests WHERE id = $1")
+        .bind(ai_request_id.as_str())
+        .fetch_one(pool.as_ref())
+        .await
+        .expect("count ai_requests");
     assert_eq!(
         count, 1,
         "primary-key contract: exactly one ai_requests row exists for the contended id"
@@ -82,13 +81,12 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
 
     // Ensure no orphaned payload rows: at most one payload row keyed by the
     // ai_request_id (the request payload upserted by the winning open()).
-    let payload_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM ai_request_payloads WHERE ai_request_id = $1",
-    )
-    .bind(ai_request_id.as_str())
-    .fetch_one(pool.as_ref())
-    .await
-    .expect("count payloads");
+    let payload_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM ai_request_payloads WHERE ai_request_id = $1")
+            .bind(ai_request_id.as_str())
+            .fetch_one(pool.as_ref())
+            .await
+            .expect("count payloads");
     assert!(
         payload_count <= 1,
         "payload upsert must collapse to one row, found {payload_count}"
@@ -124,13 +122,12 @@ async fn gateway_audit_open_persists_derived_context_id() {
         .expect("open");
 
     let pool = db.pool_arc().expect("read pool");
-    let (stored_context, stored_gateway): (Option<String>, Option<String>) = sqlx::query_as(
-        "SELECT context_id, gateway_conversation_id FROM ai_requests WHERE id = $1",
-    )
-    .bind(ai_request_id.as_str())
-    .fetch_one(pool.as_ref())
-    .await
-    .expect("fetch ai_request");
+    let (stored_context, stored_gateway): (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT context_id, gateway_conversation_id FROM ai_requests WHERE id = $1")
+            .bind(ai_request_id.as_str())
+            .fetch_one(pool.as_ref())
+            .await
+            .expect("fetch ai_request");
     assert_eq!(stored_context.as_deref(), Some(context_id.as_str()));
     assert_eq!(stored_gateway.as_deref(), Some(gw_conv.as_str()));
 

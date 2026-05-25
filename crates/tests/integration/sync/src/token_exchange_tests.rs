@@ -1,4 +1,5 @@
-//! End-to-end RFC 8693 token exchange via `SyncApiClient::with_direct_sync_origin`.
+//! End-to-end RFC 8693 token exchange via
+//! `SyncApiClient::with_direct_sync_origin`.
 //!
 //! The hardening fix introduced `with_direct_sync_origin` so a
 //! plain-HTTP `MockServer` can stand in for the deployment that issues
@@ -11,8 +12,8 @@
 //! the retried upload, and (e) chain the operator token as the
 //! `subject_token` (act_chain: operator → service → deploy scope).
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use systemprompt_identifiers::TenantId;
 use systemprompt_sync::SyncApiClient;
@@ -79,10 +80,7 @@ async fn token_exchange_uses_operator_token_as_subject_token() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/core/oauth/token"))
-        .and(header(
-            "content-type",
-            "application/x-www-form-urlencoded",
-        ))
+        .and(header("content-type", "application/x-www-form-urlencoded"))
         .and(body_string_contains(
             "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange",
         ))
@@ -191,8 +189,7 @@ async fn unauthorized_upload_triggers_single_token_refresh_then_retries() {
             } else {
                 q.remove(0)
             };
-            ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({ "access_token": tok }))
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({ "access_token": tok }))
         })
         .mount(&server)
         .await;
@@ -234,9 +231,7 @@ async fn token_exchange_failure_bubbles_up_to_caller() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/core/oauth/token"))
-        .respond_with(
-            ResponseTemplate::new(403).set_body_string("scope intersection empty"),
-        )
+        .respond_with(ResponseTemplate::new(403).set_body_string("scope intersection empty"))
         .mount(&server)
         .await;
 

@@ -97,8 +97,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
-    let oauth_creds_removed = crate::auth::plugin_oauth::creds_path()
-        .is_some_and(|p| p.exists());
+    let oauth_creds_removed = crate::auth::plugin_oauth::creds_path().is_some_and(|p| p.exists());
     if let Err(e) = crate::auth::plugin_oauth::delete_creds() {
         return Err(SetupError::Io(format!("clear oauth client creds: {e}")));
     }
@@ -123,9 +122,7 @@ pub fn status() -> Result<StatusReport, SetupError> {
     let config_present = paths.config_file.exists();
     let pat_present = paths.pat_file.exists();
     let oauth_creds_path = crate::auth::plugin_oauth::creds_path();
-    let oauth_creds_present = oauth_creds_path
-        .as_ref()
-        .is_some_and(|p| p.exists());
+    let oauth_creds_present = oauth_creds_path.as_ref().is_some_and(|p| p.exists());
     Ok(StatusReport {
         paths,
         config_present,

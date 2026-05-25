@@ -1,11 +1,11 @@
 //! Removing a tenant must clear its session and leave no orphans —
 //! neither in the `SessionStore` index nor in the persisted JSON.
 
+use systemprompt_cloud::StoredTenant;
 use systemprompt_cloud::cli_session::SessionStore;
 use systemprompt_cloud::tenants::TenantStore;
-use systemprompt_cloud::StoredTenant;
 
-use crate::support::{seeded_session_store, TenantFixture};
+use crate::support::{TenantFixture, seeded_session_store};
 
 #[tokio::test]
 async fn removing_session_for_b_does_not_touch_a() {
@@ -46,7 +46,10 @@ async fn tenant_deletion_persists_through_disk_round_trip() {
     assert!(reloaded.get_session(&fx.key_b()).is_some());
 
     let raw = std::fs::read_to_string(fx.sessions_dir.join("index.json")).expect("read");
-    assert!(!raw.contains("token-a-v1"), "removed token must not linger on disk");
+    assert!(
+        !raw.contains("token-a-v1"),
+        "removed token must not linger on disk"
+    );
     assert!(raw.contains("token-b-v1"), "remaining token must persist");
 }
 
@@ -56,8 +59,11 @@ async fn removing_tenant_record_from_tenant_store() {
     let mut store = TenantStore::load_from_path(&fx.tenants_path).expect("load");
     assert_eq!(store.len(), 2);
 
-    let new_tenants: Vec<StoredTenant> =
-        store.tenants.drain(..).filter(|t| t.id != "tenant-a").collect();
+    let new_tenants: Vec<StoredTenant> = store
+        .tenants
+        .drain(..)
+        .filter(|t| t.id != "tenant-a")
+        .collect();
     let new_store = TenantStore::new(new_tenants);
     new_store.save_to_path(&fx.tenants_path).expect("save");
 

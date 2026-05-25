@@ -38,9 +38,9 @@ impl SyncError {
             Self::NoCredential => ExitCode::from(5),
             Self::Network(_) => ExitCode::from(3),
             Self::SignatureFailed(_) => ExitCode::from(4),
-            Self::PathUnresolvable
-            | Self::PathMissing { .. }
-            | Self::ApplyFailed(_) => ExitCode::from(1),
+            Self::PathUnresolvable | Self::PathMissing { .. } | Self::ApplyFailed(_) => {
+                ExitCode::from(1)
+            },
             Self::ReplayedManifest { .. } => ExitCode::from(6),
             Self::ManifestSkew { .. } => ExitCode::from(7),
             Self::PubkeyNotPinned => ExitCode::from(8),

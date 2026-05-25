@@ -5,17 +5,14 @@
 
 use std::process::Command;
 use std::time::Duration;
-use systemprompt_mcp::services::process::ProcessService;
-use systemprompt_mcp::services::process::utils;
+use systemprompt_mcp::services::process::{ProcessService, utils};
 
 use crate::common::spawn_sleep;
 
 fn sigkill(pid: u32) {
     // Shell out rather than depending on `nix` here — the test only
     // needs the OS-level effect, not the typed API.
-    let _ = Command::new("kill")
-        .args(["-9", &pid.to_string()])
-        .status();
+    let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
 }
 
 #[tokio::test]

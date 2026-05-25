@@ -116,8 +116,6 @@ async fn errors_propagate() {
         }
     }
 
-    let result = Failing
-        .filter(&fixture_user_id(), sample_candidate())
-        .await;
+    let result = Failing.filter(&fixture_user_id(), sample_candidate()).await;
     assert!(matches!(result, Err(MarketplaceFilterError::Backend(_))));
 }

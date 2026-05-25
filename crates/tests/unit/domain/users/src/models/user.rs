@@ -1,8 +1,8 @@
 //! Unit tests for User struct helper methods
 
 use chrono::Utc;
-use systemprompt_users::{User, UserRole};
 use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_users::{User, UserRole};
 
 mod user_tests {
     use super::*;

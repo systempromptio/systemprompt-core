@@ -11,19 +11,18 @@ fn default_bootstrap_jobs_match_built_in_inventory_names() {
             "database_cleanup".to_string(),
             "cleanup_inactive_sessions".to_string(),
         ],
-        "bootstrap_jobs default must list the two jobs that previously \
-         relied on the removed Job::run_on_startup() trait method",
+        "bootstrap_jobs default must list the two jobs that previously relied on the removed \
+         Job::run_on_startup() trait method",
     );
 }
 
 #[test]
 fn every_default_bootstrap_job_is_inventory_registered() {
     let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
-    let registered: std::collections::HashSet<&'static str> =
-        inventory::iter::<&'static dyn Job>
-            .into_iter()
-            .map(|j| j.name())
-            .collect();
+    let registered: std::collections::HashSet<&'static str> = inventory::iter::<&'static dyn Job>
+        .into_iter()
+        .map(|j| j.name())
+        .collect();
 
     for name in &cfg.bootstrap_jobs {
         assert!(
@@ -43,8 +42,8 @@ fn every_default_bootstrap_job_has_a_matching_job_config() {
     for name in &cfg.bootstrap_jobs {
         assert!(
             configured.contains(name.as_str()),
-            "bootstrap job `{name}` has no JobConfig — SchedulerService::resolve_owners \
-             would have nothing to resolve and the job would be skipped",
+            "bootstrap job `{name}` has no JobConfig — SchedulerService::resolve_owners would \
+             have nothing to resolve and the job would be skipped",
         );
     }
 }

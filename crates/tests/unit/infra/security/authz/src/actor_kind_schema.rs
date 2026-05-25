@@ -42,8 +42,8 @@ fn schema_check_lists_every_actor_kind() {
         let token = format!("'{name}'");
         assert!(
             SCHEMA_SQL.contains(&token),
-            "governance_decisions.sql CHECK is missing ActorKind::{name} ({token}); the enum \
-             grew without a matching schema update — see 005_actor_kind_extend.sql"
+            "governance_decisions.sql CHECK is missing ActorKind::{name} ({token}); the enum grew \
+             without a matching schema update — see 005_actor_kind_extend.sql"
         );
     }
 }

@@ -2,12 +2,12 @@
 
 use systemprompt_identifiers::UserId;
 use systemprompt_models::AuthError;
-use systemprompt_oauth::{GrantType, ResponseType};
-use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_oauth::services::validation::{
     CsrfToken, ValidatedClientRegistration, get_audit_user, optional_param, required_param,
     scope_param,
 };
+use systemprompt_oauth::{GrantType, ResponseType};
+use systemprompt_test_fixtures::fixture_user_id;
 
 #[test]
 fn test_required_param_success() {

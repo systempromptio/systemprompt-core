@@ -70,10 +70,7 @@ async fn rename_replaces_old_rule_with_new_atomically() {
 
     let svc = AccessControlIngestionService::new(&db).expect("svc");
 
-    let initial = cfg(
-        entity_id,
-        vec![role_rule(entity_id, "engineer-old", true)],
-    );
+    let initial = cfg(entity_id, vec![role_rule(entity_id, "engineer-old", true)]);
     svc.ingest_config(
         &initial,
         IngestOptions {
@@ -84,10 +81,7 @@ async fn rename_replaces_old_rule_with_new_atomically() {
     .await
     .expect("seed");
 
-    let renamed = cfg(
-        entity_id,
-        vec![role_rule(entity_id, "engineer-new", true)],
-    );
+    let renamed = cfg(entity_id, vec![role_rule(entity_id, "engineer-new", true)]);
     svc.ingest_config(
         &renamed,
         IngestOptions {
@@ -117,7 +111,11 @@ async fn rename_replaces_old_rule_with_new_atomically() {
 }
 
 #[tokio::test]
-#[ignore = "AccessControlIngestionService::ingest_config(delete_orphans=true) issues an unscoped DELETE across role+department rules, so sibling tests in the same shared DB nuke this test's rules between commits. The single-tx atomicity it characterises holds at the SQL layer but cannot be observed under parallel cargo test against a shared database. Re-enable when ingestion DELETE is scoped to the YAML's entity set."]
+#[ignore = "AccessControlIngestionService::ingest_config(delete_orphans=true) issues an unscoped \
+            DELETE across role+department rules, so sibling tests in the same shared DB nuke this \
+            test's rules between commits. The single-tx atomicity it characterises holds at the \
+            SQL layer but cannot be observed under parallel cargo test against a shared database. \
+            Re-enable when ingestion DELETE is scoped to the YAML's entity set."]
 async fn concurrent_reader_during_replace_never_sees_empty_state() {
     let Some(db) = try_db().await else {
         eprintln!("skipping: DATABASE_URL not set");
@@ -200,7 +198,8 @@ async fn concurrent_reader_during_replace_never_sees_empty_state() {
     assert!(samples > 0, "reader sampled at least once");
     assert_eq!(
         empties, 0,
-        "concurrent reader observed {empties}/{samples} empty rule sets — DELETE+INSERT is leaking out of the transaction",
+        "concurrent reader observed {empties}/{samples} empty rule sets — DELETE+INSERT is \
+         leaking out of the transaction",
     );
 
     wipe_rules(&db, EntityKind::McpServer.as_str(), entity_id).await;
