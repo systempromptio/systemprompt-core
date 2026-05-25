@@ -112,7 +112,7 @@ async fn execute_with_pool_inner(
     Ok(result.with_skip_render())
 }
 
-pub(crate) fn render_text_output(output: &RequestListOutput, trace_hint: Option<&str>) {
+pub(super) fn render_text_output(output: &RequestListOutput, trace_hint: Option<&str>) {
     CliService::section("Recent AI Requests");
 
     for req in &output.requests {

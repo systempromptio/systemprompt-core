@@ -11,7 +11,7 @@ use crate::shared::{CommandResult, render_result};
 use super::admin_migrate::select_extensions;
 use super::types::{MigrateStatusOutput, MigrateStatusRow, MigrationDriftInfo};
 
-pub(crate) async fn execute_migrate_status(
+pub(super) async fn execute_migrate_status(
     ctx: &AppContext,
     extension: Option<&str>,
     json: bool,
@@ -22,7 +22,7 @@ pub(crate) async fn execute_migrate_status(
     run_migrate_status(db.as_ref(), registry, extension, json, config).await
 }
 
-pub(crate) async fn execute_migrate_status_standalone(
+pub(super) async fn execute_migrate_status_standalone(
     db_ctx: &DatabaseContext,
     extension: Option<&str>,
     json: bool,

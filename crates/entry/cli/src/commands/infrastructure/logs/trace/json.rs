@@ -4,7 +4,7 @@ use systemprompt_logging::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 
-pub(crate) fn print_json(
+pub(super) fn print_json(
     events: &[TraceEvent],
     trace_id: &str,
     ai_summary: &AiRequestSummary,

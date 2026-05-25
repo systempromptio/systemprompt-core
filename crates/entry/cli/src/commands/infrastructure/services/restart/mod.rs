@@ -16,7 +16,7 @@ pub use single::{execute_agent, execute_api, execute_mcp};
 
 const DEFAULT_API_PORT: u16 = 8080;
 
-pub(crate) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
+pub(super) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
     let jwt_provider = Arc::new(
         JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
@@ -27,24 +27,24 @@ pub(crate) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
     )))
 }
 
-pub(crate) fn get_api_port() -> u16 {
+pub(super) fn get_api_port() -> u16 {
     ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
-pub(crate) async fn resolve_name(agent_identifier: &str) -> Result<String> {
+pub(super) async fn resolve_name(agent_identifier: &str) -> Result<String> {
     let registry = AgentRegistry::new()?;
     let agent = registry.get_agent(agent_identifier).await?;
     Ok(agent.name)
 }
 
-pub(crate) async fn create_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
+pub(super) async fn create_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
     let agent_state = create_agent_state(ctx)?;
     AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
         .await
         .context("Failed to initialize agent orchestrator")
 }
 
-pub(crate) fn format_batch_message(
+pub(super) fn format_batch_message(
     service_label: &str,
     restarted: usize,
     failed: usize,

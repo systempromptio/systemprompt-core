@@ -24,7 +24,7 @@ pub struct HistoryArgs {
     pub status: Option<String>,
 }
 
-pub(crate) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput>> {
+pub(super) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
     let repo = JobRepository::new(ctx.db_pool())?;
 

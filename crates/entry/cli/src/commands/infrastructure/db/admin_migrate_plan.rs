@@ -11,7 +11,7 @@ use crate::shared::{CommandResult, render_result};
 use super::admin_migrate::select_extensions;
 use super::types::{MigratePlanOutput, PendingMigrationInfo};
 
-pub(crate) async fn execute_migrate_plan(
+pub(super) async fn execute_migrate_plan(
     ctx: &AppContext,
     extension: Option<&str>,
     json: bool,
@@ -22,7 +22,7 @@ pub(crate) async fn execute_migrate_plan(
     run_migrate_plan(db.as_ref(), registry, extension, json, config).await
 }
 
-pub(crate) async fn execute_migrate_plan_standalone(
+pub(super) async fn execute_migrate_plan_standalone(
     db_ctx: &DatabaseContext,
     extension: Option<&str>,
     json: bool,

@@ -33,7 +33,7 @@ pub struct RunArgs {
     pub params: Vec<String>,
 }
 
-pub(crate) async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOutput>> {
+pub(super) async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
     let registry = ExtensionRegistry::discover()?;
 

@@ -48,7 +48,7 @@ struct ToolSearchResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct CombinedSearchOutput {
+pub(super) struct CombinedSearchOutput {
     pub logs: Vec<LogEntryRow>,
     pub log_count: u64,
     pub tools: Vec<ToolSearchResult>,

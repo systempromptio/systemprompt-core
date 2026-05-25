@@ -12,7 +12,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::types::DbMigrateDownOutput;
 
-pub(crate) async fn execute_migrate_down(
+pub(super) async fn execute_migrate_down(
     config: &CliConfig,
     extension: &str,
     count: u32,
@@ -39,7 +39,7 @@ pub(crate) async fn execute_migrate_down(
     .await
 }
 
-pub(crate) async fn execute_migrate_down_standalone(
+pub(super) async fn execute_migrate_down_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
     extension: &str,

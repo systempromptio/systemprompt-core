@@ -3,7 +3,7 @@ use systemprompt_logging::CliService;
 use super::audit::{AuditOutput, AuditToolCall};
 use super::types::MessageRow;
 
-pub(crate) fn render_text_output(output: &AuditOutput, full: bool) {
+pub(super) fn render_text_output(output: &AuditOutput, full: bool) {
     CliService::section(&format!("AI Request Audit: {}", output.request_id));
     render_metadata(output);
     render_messages(&output.messages, full);

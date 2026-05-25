@@ -8,7 +8,7 @@ use crate::shared::{CommandResult, render_result};
 use super::helpers::format_bytes;
 use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo};
 
-pub(crate) async fn execute_indexes(
+pub(super) async fn execute_indexes(
     admin: &DatabaseAdminService,
     table_filter: Option<String>,
     config: &CliConfig,
@@ -86,7 +86,7 @@ pub(crate) async fn execute_indexes(
     Ok(())
 }
 
-pub(crate) async fn execute_size(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute_size(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
     let info = admin
         .get_database_info()
         .await

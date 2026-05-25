@@ -116,7 +116,7 @@ async fn execute_with_pool_inner(
     Ok(())
 }
 
-pub(crate) fn render_text_output(output: &RequestStatsOutput) {
+pub(super) fn render_text_output(output: &RequestStatsOutput) {
     use systemprompt_logging::CliService;
 
     CliService::section("AI Request Statistics");
