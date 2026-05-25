@@ -71,7 +71,7 @@ enum CacheProbe {
 struct CachedJwks {
     jwks: Jwks,
     expires_at: Instant,
-    last_fetched_at: Instant,
+    last_kid_miss_refetch_at: Option<Instant>,
 }
 
 pub struct JwksClient {
@@ -79,6 +79,9 @@ pub struct JwksClient {
     allowed_hosts: Vec<String>,
     cache: Mutex<LruCache<String, CachedJwks>>,
     min_refresh_interval: Duration,
+    min_cache_ttl: Duration,
+    max_cache_ttl: Duration,
+    default_cache_ttl: Duration,
 }
 
 impl std::fmt::Debug for JwksClient {
@@ -101,6 +104,9 @@ impl JwksClient {
             allowed_hosts,
             cache: Mutex::new(LruCache::new(cap)),
             min_refresh_interval: DEFAULT_MIN_REFRESH_INTERVAL,
+            min_cache_ttl: MIN_CACHE_TTL,
+            max_cache_ttl: MAX_CACHE_TTL,
+            default_cache_ttl: DEFAULT_CACHE_TTL,
         }
     }
 
@@ -115,6 +121,23 @@ impl JwksClient {
     #[must_use]
     pub const fn with_min_refresh_interval(mut self, interval: Duration) -> Self {
         self.min_refresh_interval = interval;
+        self
+    }
+
+    /// Override the cache TTL bounds and default. Production callers use
+    /// the [`MIN_CACHE_TTL`] / [`MAX_CACHE_TTL`] / [`DEFAULT_CACHE_TTL`]
+    /// values; tests use shorter values to exercise expiry behaviour
+    /// without sleeping.
+    #[must_use]
+    pub const fn with_cache_ttl(
+        mut self,
+        min: Duration,
+        max: Duration,
+        default: Duration,
+    ) -> Self {
+        self.min_cache_ttl = min;
+        self.max_cache_ttl = max;
+        self.default_cache_ttl = default;
         self
     }
 
@@ -168,10 +191,15 @@ impl JwksClient {
     ) -> Result<Jwk, JwksClientError> {
         let (jwks, ttl) = self.fetch_remote(url).await?;
         let now = Instant::now();
+        let kid_present = jwks.keys.iter().any(|k| k.kid == kid);
         let cached = CachedJwks {
             jwks: jwks.clone(),
             expires_at: now + ttl,
-            last_fetched_at: now,
+            // Only record the kid-miss refetch timestamp when the refetch
+            // failed to surface the requested kid. A successful rotation
+            // pickup resets the throttle so the next rotation isn't
+            // blocked by the previous one.
+            last_kid_miss_refetch_at: if kid_present { None } else { Some(now) },
         };
         if let Ok(mut guard) = self.cache.lock() {
             guard.put(issuer.to_string(), cached);
@@ -201,10 +229,11 @@ impl JwksClient {
         if let Some(jwk) = entry.jwks.keys.iter().find(|k| k.kid == kid).cloned() {
             return CacheProbe::Hit(jwk);
         }
-        if now.duration_since(entry.last_fetched_at) < self.min_refresh_interval {
-            CacheProbe::KidMissRecentlyFetched
-        } else {
-            CacheProbe::KidMissRefetchAllowed
+        match entry.last_kid_miss_refetch_at {
+            Some(last) if now.duration_since(last) < self.min_refresh_interval => {
+                CacheProbe::KidMissRecentlyFetched
+            }
+            _ => CacheProbe::KidMissRefetchAllowed,
         }
     }
 
@@ -266,7 +295,9 @@ impl JwksClient {
             .get(reqwest::header::CACHE_CONTROL)
             .and_then(|v| v.to_str().ok())
             .and_then(parse_max_age)
-            .map_or(DEFAULT_CACHE_TTL, clamp_ttl);
+            .map_or(self.default_cache_ttl, |raw| {
+                raw.clamp(self.min_cache_ttl, self.max_cache_ttl)
+            });
 
         let jwks = response
             .json::<Jwks>()
