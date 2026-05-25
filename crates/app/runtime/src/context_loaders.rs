@@ -114,7 +114,7 @@ pub(crate) fn load_content_config(config: &Config, app_paths: &AppPaths) -> Opti
         Ok(mut content_cfg) => {
             let base_url = config.api_external_url.trim_end_matches('/');
 
-            content_cfg.metadata.structured_data.organization.url = base_url.to_owned();
+            base_url.clone_into(&mut content_cfg.metadata.structured_data.organization.url);
 
             let logo = &content_cfg.metadata.structured_data.organization.logo;
             if logo.starts_with('/') {

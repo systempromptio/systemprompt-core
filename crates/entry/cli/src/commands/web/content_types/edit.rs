@@ -183,11 +183,11 @@ fn apply_set_key(
 ) -> Result<()> {
     match key {
         "description" => {
-            source.description = value.to_owned();
+            value.clone_into(&mut source.description);
             changes.push(format!("description: {}", value));
         },
         "path" => {
-            source.path = value.to_owned();
+            value.clone_into(&mut source.path);
             changes.push(format!("path: {}", value));
         },
         "enabled" => {
@@ -197,7 +197,7 @@ fn apply_set_key(
             changes.push(format!("enabled: {}", value));
         },
         "sitemap.url_pattern" => {
-            sitemap_mut(source)?.url_pattern = value.to_owned();
+            value.clone_into(&mut sitemap_mut(source)?.url_pattern);
             changes.push(format!("sitemap.url_pattern: {}", value));
         },
         "sitemap.priority" => {
@@ -208,7 +208,7 @@ fn apply_set_key(
             changes.push(format!("sitemap.priority: {}", value));
         },
         "sitemap.changefreq" => {
-            sitemap_mut(source)?.changefreq = value.to_owned();
+            value.clone_into(&mut sitemap_mut(source)?.changefreq);
             changes.push(format!("sitemap.changefreq: {}", value));
         },
         _ => {

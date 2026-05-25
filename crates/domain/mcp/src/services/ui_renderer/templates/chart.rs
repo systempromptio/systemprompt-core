@@ -23,7 +23,7 @@ impl ChartRenderer {
 
         if let Some(hints) = &artifact.metadata.rendering_hints {
             if let Some(chart_type) = hints.get("chart_type").and_then(JsonValue::as_str) {
-                config.chart_type = chart_type.to_owned();
+                chart_type.clone_into(&mut config.chart_type);
             }
             if let Some(title) = hints.get("title").and_then(JsonValue::as_str) {
                 config.title = Some(title.to_owned());
