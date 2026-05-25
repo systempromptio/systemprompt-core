@@ -12,7 +12,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{DiffEntry, DiffOutput};
 
-pub fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let current = &profile.rate_limits;
 

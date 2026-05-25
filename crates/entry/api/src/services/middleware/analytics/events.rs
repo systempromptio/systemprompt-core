@@ -17,7 +17,7 @@ pub struct AnalyticsEventParams {
     pub referer: Option<String>,
 }
 
-pub fn spawn_analytics_event_task(
+pub(super) fn spawn_analytics_event_task(
     analytics_repo: Arc<AnalyticsRepository>,
     route_classifier: Arc<RouteClassifier>,
     params: AnalyticsEventParams,
@@ -53,9 +53,9 @@ pub fn spawn_analytics_event_task(
             user_id: params.req_ctx.auth.actor.user_id.clone(),
             session_id: params.req_ctx.request.session_id.clone(),
             context_id: params.req_ctx.execution.context_id.clone(),
-            event_type: event_metadata.event_type.to_string(),
-            event_category: event_metadata.event_category.to_string(),
-            severity: severity.to_string(),
+            event_type: event_metadata.event_type.to_owned(),
+            event_category: event_metadata.event_category.to_owned(),
+            severity: severity.to_owned(),
             endpoint: Some(params.endpoint),
             error_code: if params.status_code >= 400 {
                 Some(i32::from(params.status_code))
@@ -83,13 +83,13 @@ fn sanitize_uri(uri: &http::Uri) -> String {
     let path = uri.path();
 
     uri.query().map_or_else(
-        || path.to_string(),
+        || path.to_owned(),
         |query| {
             let sanitized_params: Vec<String> = query
                 .split('&')
                 .map(|param| {
                     param.split_once('=').map_or_else(
-                        || param.to_string(),
+                        || param.to_owned(),
                         |(key, value)| {
                             let key_lower = key.to_lowercase();
                             if is_sensitive_key(&key_lower) {

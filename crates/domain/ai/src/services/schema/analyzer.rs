@@ -35,8 +35,8 @@ impl DiscriminatedUnion {
             }
 
             let const_value = field_value.get("const")?.as_str()?;
-            discriminator_values.push(const_value.to_string());
-            variants.insert(const_value.to_string(), then_clause.clone());
+            discriminator_values.push(const_value.to_owned());
+            variants.insert(const_value.to_owned(), then_clause.clone());
         }
 
         let base_properties = obj

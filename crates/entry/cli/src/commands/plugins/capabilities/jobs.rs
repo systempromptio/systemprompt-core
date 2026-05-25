@@ -14,7 +14,7 @@ pub struct JobsArgs {
     pub enabled: bool,
 }
 
-pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOutput> {
+pub(crate) fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOutput> {
     let registry = discover_registry();
 
     let jobs: Vec<JobWithExtension> = registry

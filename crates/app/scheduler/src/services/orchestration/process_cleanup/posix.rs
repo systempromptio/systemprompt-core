@@ -123,8 +123,7 @@ pub(super) fn get_process_by_port(port: u16) -> Option<ProcessInfo> {
     };
 
     let name = String::from_utf8_lossy(&comm_output.stdout)
-        .trim()
-        .to_string();
+        .trim().to_owned();
 
     Some(ProcessInfo { pid, name, port })
 }

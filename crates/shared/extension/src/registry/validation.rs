@@ -25,8 +25,8 @@ impl ExtensionRegistry {
             for dep_id in ext.dependencies() {
                 if !self.extensions.contains_key(dep_id) {
                     return Err(LoaderError::MissingDependency {
-                        extension: ext.id().to_string(),
-                        dependency: dep_id.to_string(),
+                        extension: ext.id().to_owned(),
+                        dependency: dep_id.to_owned(),
                     });
                 }
             }
@@ -42,16 +42,16 @@ impl ExtensionRegistry {
 
                 if !base_path.starts_with("/api/") {
                     return Err(LoaderError::InvalidBasePath {
-                        extension: ext.id().to_string(),
-                        path: base_path.to_string(),
+                        extension: ext.id().to_owned(),
+                        path: base_path.to_owned(),
                     });
                 }
 
                 for reserved in RESERVED_PATHS {
                     if base_path.starts_with(reserved) {
                         return Err(LoaderError::ReservedPathCollision {
-                            extension: ext.id().to_string(),
-                            path: base_path.to_string(),
+                            extension: ext.id().to_owned(),
+                            path: base_path.to_owned(),
                         });
                     }
                 }
@@ -103,7 +103,7 @@ fn detect_cycles(extensions: &HashMap<String, Arc<dyn Extension>>) -> Result<(),
             if let Err(cycle_path) = dfs(id.as_str(), extensions, &mut color, &mut path) {
                 let Some(&cycle_start) = cycle_path.last() else {
                     return Err(LoaderError::CircularDependency {
-                        chain: "unknown cycle".to_string(),
+                        chain: "unknown cycle".to_owned(),
                     });
                 };
                 let cycle_start_idx = cycle_path

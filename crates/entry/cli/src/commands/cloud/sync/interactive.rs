@@ -9,17 +9,17 @@ use systemprompt_models::Profile;
 use crate::cli_settings::CliConfig;
 
 #[derive(Debug, Clone, Copy)]
-pub enum SyncType {
+enum SyncType {
     Push,
     Pull,
 }
 
-pub struct ProfileSelection {
+struct ProfileSelection {
     pub name: String,
     pub profile: Profile,
 }
 
-pub async fn execute(_config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute(_config: &CliConfig) -> Result<()> {
     CliService::section("Sync Menu");
 
     let sync_type = select_sync_type()?;

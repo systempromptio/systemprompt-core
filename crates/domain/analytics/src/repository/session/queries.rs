@@ -11,7 +11,7 @@ use crate::models::AnalyticsSession;
 
 use super::types::{ActiveSessionLookup, SessionRecord};
 
-pub async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
+pub(crate) async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
     let id = session_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,
@@ -34,7 +34,7 @@ pub async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<
     .map_err(Into::into)
 }
 
-pub async fn find_by_fingerprint(
+pub(crate) async fn find_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     user_id: &UserId,
@@ -64,7 +64,7 @@ pub async fn find_by_fingerprint(
     .map_err(Into::into)
 }
 
-pub async fn list_active_by_user(pool: &PgPool, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
+pub(crate) async fn list_active_by_user(pool: &PgPool, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
     let uid = user_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,
@@ -88,7 +88,7 @@ pub async fn list_active_by_user(pool: &PgPool, user_id: &UserId) -> Result<Vec<
     .map_err(Into::into)
 }
 
-pub async fn find_recent_by_fingerprint(
+pub(crate) async fn find_recent_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     max_age_seconds: i64,
@@ -116,7 +116,7 @@ pub async fn find_recent_by_fingerprint(
     .map_err(Into::into)
 }
 
-pub async fn find_active_by_id(
+pub(crate) async fn find_active_by_id(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<ActiveSessionLookup>> {
@@ -135,7 +135,7 @@ pub async fn find_active_by_id(
     .map_err(Into::into)
 }
 
-pub async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
+pub(crate) async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     let id = session_id.as_str();
     let result = sqlx::query_scalar!(
         r#"SELECT 1 as "exists" FROM user_sessions WHERE session_id = $1 LIMIT 1"#,
@@ -146,7 +146,7 @@ pub async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     Ok(result.is_some())
 }
 
-pub async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result<i32> {
+pub(crate) async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result<i32> {
     let id = session_id.as_str();
 
     let result = sqlx::query_scalar!(
@@ -159,7 +159,7 @@ pub async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result
     Ok(result.unwrap_or(0))
 }
 
-pub async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
+pub(crate) async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     let count = sqlx::query_scalar!(
         r#"
         SELECT COUNT(*)::BIGINT as "count!"
@@ -173,7 +173,7 @@ pub async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     Ok(count)
 }
 
-pub async fn count_inactive(pool: &PgPool, inactive_hours: i32) -> Result<i64> {
+pub(crate) async fn count_inactive(pool: &PgPool, inactive_hours: i32) -> Result<i64> {
     let cutoff = Utc::now() - Duration::hours(i64::from(inactive_hours));
     let count = sqlx::query_scalar!(
         r#"

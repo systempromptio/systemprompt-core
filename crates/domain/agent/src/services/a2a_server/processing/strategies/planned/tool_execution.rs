@@ -15,7 +15,7 @@ use super::super::{ExecutionContext, ExecutionResult};
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::processing::message::StreamEvent;
 
-pub struct HandleToolCallsParams<'a> {
+pub(super) struct HandleToolCallsParams<'a> {
     pub reasoning: String,
     pub calls: Vec<PlannedToolCall>,
     pub context: &'a ExecutionContext,
@@ -26,7 +26,7 @@ pub struct HandleToolCallsParams<'a> {
     pub tools: Vec<McpTool>,
 }
 
-pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<ExecutionResult> {
+pub(super) async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<ExecutionResult> {
     let HandleToolCallsParams {
         reasoning,
         calls,

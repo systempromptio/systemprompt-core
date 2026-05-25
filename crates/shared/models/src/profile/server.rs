@@ -71,7 +71,7 @@ impl Default for ContentNegotiationConfig {
 }
 
 fn default_markdown_suffix() -> String {
-    ".md".to_string()
+    ".md".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -118,21 +118,21 @@ const fn default_enabled() -> bool {
 }
 
 fn default_hsts() -> String {
-    "max-age=63072000; includeSubDomains; preload".to_string()
+    "max-age=63072000; includeSubDomains; preload".to_owned()
 }
 
 fn default_frame_options() -> String {
-    "DENY".to_string()
+    "DENY".to_owned()
 }
 
 fn default_content_type_options() -> String {
-    "nosniff".to_string()
+    "nosniff".to_owned()
 }
 
 fn default_referrer_policy() -> String {
-    "strict-origin-when-cross-origin".to_string()
+    "strict-origin-when-cross-origin".to_owned()
 }
 
 fn default_permissions_policy() -> String {
-    "camera=(), microphone=(), geolocation=()".to_string()
+    "camera=(), microphone=(), geolocation=()".to_owned()
 }

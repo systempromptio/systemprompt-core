@@ -25,8 +25,8 @@ pub(super) fn build_response(
     AiResponse {
         request_id: ctx.request_id,
         content,
-        provider: "anthropic".to_string(),
-        model: ctx.model.to_string(),
+        provider: "anthropic".to_owned(),
+        model: ctx.model.to_owned(),
         finish_reason: response.stop_reason.clone(),
         tokens_used: Some(usage.input + usage.output),
         input_tokens: Some(usage.input),

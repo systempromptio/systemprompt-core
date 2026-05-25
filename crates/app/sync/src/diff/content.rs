@@ -145,7 +145,7 @@ fn parse_content_file(path: &Path, allowed_types: &[String]) -> SyncResult<Optio
     }
 
     let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
-    let body = parts[2].trim().to_string();
+    let body = parts[2].trim().to_owned();
 
     let kind = frontmatter
         .get("kind")
@@ -159,14 +159,12 @@ fn parse_content_file(path: &Path, allowed_types: &[String]) -> SyncResult<Optio
     let slug = frontmatter
         .get("slug")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| SyncError::invalid_input("Missing slug in frontmatter"))?
-        .to_string();
+        .ok_or_else(|| SyncError::invalid_input("Missing slug in frontmatter"))?.to_owned();
 
     let title = frontmatter
         .get("title")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| SyncError::invalid_input("Missing title in frontmatter"))?
-        .to_string();
+        .ok_or_else(|| SyncError::invalid_input("Missing title in frontmatter"))?.to_owned();
 
     Ok(Some(DiskContent { slug, title, body }))
 }

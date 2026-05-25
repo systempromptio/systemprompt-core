@@ -15,7 +15,7 @@ pub async fn validate_agent_token(
     let jwt_provider = state
         .jwt_provider
         .as_ref()
-        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_string()))?;
+        .ok_or_else(|| AgentServiceError::Internal("JWT provider not configured".to_owned()))?;
 
     let claims = jwt_provider
         .validate_token(token)
@@ -23,7 +23,7 @@ pub async fn validate_agent_token(
 
     if !claims.has_audience("a2a") {
         return Err(AgentServiceError::Internal(
-            "Token does not support A2A protocol".to_string(),
+            "Token does not support A2A protocol".to_owned(),
         ));
     }
 
@@ -56,7 +56,7 @@ async fn verify_user_exists_and_active(
             user_id = %claims.subject,
             "User ID from token not found in database"
         );
-        return Err(AgentServiceError::Internal("User not found".to_string()));
+        return Err(AgentServiceError::Internal("User not found".to_owned()));
     };
 
     if !user.is_active {
@@ -66,7 +66,7 @@ async fn verify_user_exists_and_active(
             "User has non-active status"
         );
         return Err(AgentServiceError::Internal(
-            "User account is not active".to_string(),
+            "User account is not active".to_owned(),
         ));
     }
 
@@ -100,7 +100,7 @@ fn verify_a2a_permissions(claims: &AgentJwtClaims, user: &AuthUser) -> Result<()
 
     if !token_has_admin_permission && !db_has_admin_permission {
         return Err(AgentServiceError::Internal(
-            "User lacks required A2A permissions".to_string(),
+            "User lacks required A2A permissions".to_owned(),
         ));
     }
 
@@ -122,7 +122,7 @@ pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
         .and_then(|auth_header| {
             auth_header
                 .strip_prefix("Bearer ")
-                .map(ToString::to_string)
+                .map(str::to_owned)
         })
 }
 

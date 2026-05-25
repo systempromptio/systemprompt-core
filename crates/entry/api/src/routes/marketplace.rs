@@ -42,7 +42,7 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
     }
 }
 
-#[allow(clippy::result_large_err)]
+#[expect(clippy::result_large_err)]
 fn load_services_config() -> Result<ServicesConfig, ApiError> {
     ConfigLoader::load()
         .map_err(|e| ApiError::internal_error(format!("Failed to load services config: {e}")))
@@ -59,7 +59,7 @@ fn resolve_default_id(services: &ServicesConfig) -> Option<String> {
                 .keys()
                 .any(|k| k.as_str() == DEFAULT_MARKETPLACE_FALLBACK)
             {
-                Some(DEFAULT_MARKETPLACE_FALLBACK.to_string())
+                Some(DEFAULT_MARKETPLACE_FALLBACK.to_owned())
             } else {
                 None
             }
@@ -231,7 +231,7 @@ async fn serve_plugin_file(
 
     let canonical_requested = requested
         .canonicalize()
-        .map_err(|_| ApiError::not_found(format!("File not found: {}", file_path)))?;
+        .map_err(|_e| ApiError::not_found(format!("File not found: {}", file_path)))?;
 
     if !canonical_requested.starts_with(&canonical_plugin_dir) {
         return Err(ApiError::forbidden("Path traversal not allowed"));

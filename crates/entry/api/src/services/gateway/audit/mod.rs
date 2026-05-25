@@ -40,7 +40,7 @@ pub struct GatewayRequestContext {
     pub wire_protocol: String,
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct GatewayAudit {
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
@@ -70,7 +70,7 @@ impl GatewayAudit {
             return;
         }
         if let Ok(mut slot) = self.served_model.lock() {
-            *slot = Some(model.to_string());
+            *slot = Some(model.to_owned());
         }
         if let Err(e) = self
             .requests

@@ -55,7 +55,7 @@ impl AuthzDecisionHook for DenyAllHook {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
         let decision = AuthzDecision::Deny {
             reason: "no authz hook configured".into(),
-            policy: AuthzSource::DenyAllDefault.policy().to_string(),
+            policy: AuthzSource::DenyAllDefault.policy().to_owned(),
         };
         self.sink
             .record(&req, &decision, AuthzSource::DenyAllDefault)
@@ -124,7 +124,7 @@ impl WebhookHook {
     async fn fault(&self, req: &AuthzRequest) -> AuthzDecision {
         let decision = AuthzDecision::Deny {
             reason: "authz hook unreachable".into(),
-            policy: AuthzSource::WebhookFault.policy().to_string(),
+            policy: AuthzSource::WebhookFault.policy().to_owned(),
         };
         self.sink
             .record(req, &decision, AuthzSource::WebhookFault)

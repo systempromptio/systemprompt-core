@@ -3,10 +3,10 @@ use systemprompt_models::mcp::{McpAppsUiConfig, McpExtensionId, ToolVisibility};
 
 pub fn mcp_apps_ui_extension() -> (String, serde_json::Map<String, serde_json::Value>) {
     let config = McpAppsUiConfig::new();
-    let key = McpExtensionId::McpAppsUi.as_str().to_string();
+    let key = McpExtensionId::McpAppsUi.as_str().to_owned();
     let mut value = serde_json::Map::new();
     value.insert(
-        "mimeTypes".to_string(),
+        "mimeTypes".to_owned(),
         serde_json::json!(config.mime_types),
     );
     (key, value)
@@ -38,7 +38,7 @@ pub fn tool_ui_meta(
 ) -> serde_json::Map<String, serde_json::Value> {
     let mut meta = serde_json::Map::new();
     meta.insert(
-        "ui".to_string(),
+        "ui".to_owned(),
         serde_json::json!({
             "resourceUri": format!("ui://{server_name}/artifact-viewer"),
             "visibility": visibility

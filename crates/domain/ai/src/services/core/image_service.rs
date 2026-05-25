@@ -73,7 +73,7 @@ impl ImageService {
     }
 
     pub fn register_provider(&mut self, provider: BoxedImageProvider) {
-        let name = provider.name().to_string();
+        let name = provider.name().to_owned();
         self.providers.insert(name, provider);
     }
 
@@ -113,7 +113,7 @@ impl ImageService {
             default.clone()
         } else {
             return Err(AiError::ConfigurationError(
-                "No model specified and no default provider configured".to_string(),
+                "No model specified and no default provider configured".to_owned(),
             ));
         };
 
@@ -122,7 +122,7 @@ impl ImageService {
                 .get(&provider_name)
                 .ok_or_else(|| AiError::ProviderError {
                     provider: provider_name.clone(),
-                    message: "Provider not found".to_string(),
+                    message: "Provider not found".to_owned(),
                 })?;
 
         if request.trace_id.is_none() {
@@ -220,7 +220,7 @@ impl ImageService {
         }
 
         Err(AiError::ProviderError {
-            provider: "unknown".to_string(),
+            provider: "unknown".to_owned(),
             message: format!("No provider found for model: {model}"),
         })
     }

@@ -10,7 +10,7 @@ pub trait McpOutputSchema: JsonSchema {
     fn artifact_type() -> &'static str;
 
     fn artifact_type_name(&self) -> String {
-        Self::artifact_type().to_string()
+        Self::artifact_type().to_owned()
     }
 
     fn artifact_title(&self) -> Option<String> {
@@ -33,8 +33,8 @@ pub trait McpOutputSchema: JsonSchema {
 
         if let Some(obj) = schema.as_object_mut() {
             obj.insert(
-                "x-artifact-type".to_string(),
-                JsonValue::String(Self::artifact_type().to_string()),
+                "x-artifact-type".to_owned(),
+                JsonValue::String(Self::artifact_type().to_owned()),
             );
         }
 

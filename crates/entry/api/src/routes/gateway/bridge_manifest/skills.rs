@@ -10,7 +10,7 @@ use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::services::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 
-pub fn load_skills(services_root: &Path) -> anyhow::Result<Vec<SkillEntry>> {
+pub(super) fn load_skills(services_root: &Path) -> anyhow::Result<Vec<SkillEntry>> {
     let skills_dir = services_root.join("skills");
     if !skills_dir.is_dir() {
         return Ok(Vec::new());
@@ -30,7 +30,7 @@ pub fn load_skills(services_root: &Path) -> anyhow::Result<Vec<SkillEntry>> {
         if !config_path.exists() {
             continue;
         }
-        entries.push((dir_name.to_string(), path));
+        entries.push((dir_name.to_owned(), path));
     }
     entries.sort_by(|a, b| a.0.cmp(&b.0));
 

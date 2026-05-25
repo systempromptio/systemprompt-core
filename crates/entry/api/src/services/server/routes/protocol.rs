@@ -136,7 +136,7 @@ pub(super) fn mount_mcp_and_stream(
         ApiPaths::STREAM_BASE,
         crate::routes::stream::stream_router(ctx)
             .map_err(|e| LoaderError::InitializationFailed {
-                extension: "stream".to_string(),
+                extension: "stream".to_owned(),
                 message: e.to_string(),
             })?
             .with_rate_limit(rate_config, rate_config.stream_per_second)
@@ -191,7 +191,7 @@ pub(super) fn mount_content_and_misc(
         ApiPaths::ANALYTICS_BASE,
         crate::routes::analytics::router(ctx)
             .map_err(|e| LoaderError::InitializationFailed {
-                extension: "analytics".to_string(),
+                extension: "analytics".to_owned(),
                 message: e.to_string(),
             })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
@@ -202,7 +202,7 @@ pub(super) fn mount_content_and_misc(
         ApiPaths::TRACK_ENGAGEMENT,
         crate::routes::engagement::router(ctx)
             .map_err(|e| LoaderError::InitializationFailed {
-                extension: "engagement".to_string(),
+                extension: "engagement".to_owned(),
                 message: e.to_string(),
             })?
             .with_rate_limit(rate_config, rate_config.content_per_second)

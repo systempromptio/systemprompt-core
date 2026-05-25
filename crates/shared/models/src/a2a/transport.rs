@@ -16,9 +16,9 @@ pub type TransportProtocol = ProtocolBinding;
 impl From<ProtocolBinding> for String {
     fn from(transport: ProtocolBinding) -> Self {
         match transport {
-            ProtocolBinding::JsonRpc => "JSONRPC".to_string(),
-            ProtocolBinding::Grpc => "GRPC".to_string(),
-            ProtocolBinding::HttpJson => "HTTP+JSON".to_string(),
+            ProtocolBinding::JsonRpc => "JSONRPC".to_owned(),
+            ProtocolBinding::Grpc => "GRPC".to_owned(),
+            ProtocolBinding::HttpJson => "HTTP+JSON".to_owned(),
         }
     }
 }

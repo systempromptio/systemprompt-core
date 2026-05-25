@@ -19,7 +19,7 @@ pub fn extract_bearer_token(
         .extensions
         .get::<http::request::Parts>()
         .ok_or_else(|| {
-            McpError::invalid_request("No HTTP parts in MCP context".to_string(), None)
+            McpError::invalid_request("No HTTP parts in MCP context".to_owned(), None)
         })?;
 
     let auth_header = parts
@@ -29,7 +29,7 @@ pub fn extract_bearer_token(
 
     if let Some(auth) = auth_header {
         if let Some(token) = auth.strip_prefix("Bearer ") {
-            return Ok(Some(token.to_string()));
+            return Ok(Some(token.to_owned()));
         }
     }
 

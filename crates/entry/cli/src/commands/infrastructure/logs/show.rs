@@ -20,7 +20,7 @@ pub struct ShowArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct LogShowOutput {
+struct LogShowOutput {
     pub id: LogId,
     pub trace_id: TraceId,
     pub timestamp: String,
@@ -40,7 +40,7 @@ pub struct LogShowOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TraceLogsOutput {
+struct TraceLogsOutput {
     pub trace_id: TraceId,
     pub total: u64,
     pub logs: Vec<LogShowOutput>,

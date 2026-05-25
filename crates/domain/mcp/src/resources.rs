@@ -21,10 +21,10 @@ pub fn build_artifact_viewer_resource(config: &ArtifactViewerConfig<'_>) -> List
     let resource = Resource {
         raw: RawResource {
             uri: format!("ui://{}/artifact-viewer", config.server_name),
-            name: "Artifact Viewer".to_string(),
-            title: Some(config.title.to_string()),
-            description: Some(config.description.to_string()),
-            mime_type: Some(MCP_APP_MIME_TYPE.to_string()),
+            name: "Artifact Viewer".to_owned(),
+            title: Some(config.title.to_owned()),
+            description: Some(config.description.to_owned()),
+            mime_type: Some(MCP_APP_MIME_TYPE.to_owned()),
             size: Some(u32::try_from(config.template.len()).unwrap_or(u32::MAX)),
             icons: config.icons.clone(),
             meta: None,
@@ -63,8 +63,8 @@ pub fn read_artifact_viewer_resource(
 
     let contents = ResourceContents::TextResourceContents {
         uri: uri.clone(),
-        mime_type: Some(MCP_APP_MIME_TYPE.to_string()),
-        text: template.to_string(),
+        mime_type: Some(MCP_APP_MIME_TYPE.to_owned()),
+        text: template.to_owned(),
         meta: Some(meta),
     };
 
@@ -76,9 +76,9 @@ pub fn default_server_icons() -> Vec<Icon> {
     vec![
         Icon::new(format!("{WEBSITE_URL}/files/images/favicon-32x32.png"))
             .with_mime_type("image/png")
-            .with_sizes(vec!["32x32".to_string()]),
+            .with_sizes(vec!["32x32".to_owned()]),
         Icon::new(format!("{WEBSITE_URL}/files/images/favicon-96x96.png"))
             .with_mime_type("image/png")
-            .with_sizes(vec!["96x96".to_string()]),
+            .with_sizes(vec!["96x96".to_owned()]),
     ]
 }

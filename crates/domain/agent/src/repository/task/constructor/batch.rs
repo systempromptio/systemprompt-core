@@ -10,7 +10,7 @@ use systemprompt_traits::RepositoryError;
 use super::batch_builders::{build_artifacts, build_execution_steps, build_messages};
 use super::{TaskConstructor, converters};
 
-pub async fn construct_tasks_batch(
+pub(super) async fn construct_tasks_batch(
     constructor: &TaskConstructor,
     task_ids: &[TaskId],
 ) -> Result<Vec<Task>, RepositoryError> {
@@ -68,7 +68,7 @@ where
     })
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 struct BuildTasksParams<'a> {
     task_rows: &'a [TaskRow],
     messages_by_task: &'a HashMap<TaskId, Vec<&'a TaskMessage>>,

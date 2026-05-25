@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -56,7 +56,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
     }
 }
 
-pub async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogEntry>> {
+pub(super) async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogEntry>> {
     let row = sqlx::query_as!(
         LogRow,
         r#"
@@ -79,7 +79,7 @@ pub async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogEn
     Ok(row.map(row_to_entry))
 }
 
-pub async fn find_log_by_partial_id(
+pub(super) async fn find_log_by_partial_id(
     pool: &Arc<PgPool>,
     id_prefix: &str,
 ) -> Result<Option<LogEntry>> {
@@ -109,7 +109,7 @@ pub async fn find_log_by_partial_id(
     Ok(row.map(row_to_entry))
 }
 
-pub async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<LogEntry>> {
+pub(super) async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<LogEntry>> {
     let rows = sqlx::query_as!(
         LogRow,
         r#"
@@ -161,7 +161,7 @@ pub async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result
     Ok(rows.into_iter().map(row_to_entry).collect())
 }
 
-pub async fn list_logs_filtered(
+pub(super) async fn list_logs_filtered(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
     level: Option<&str>,

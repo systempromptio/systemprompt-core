@@ -67,7 +67,7 @@ impl ListItem {
     fn from_json(value: &JsonValue) -> Option<Self> {
         if let Some(s) = value.as_str() {
             return Some(Self {
-                title: s.to_string(),
+                title: s.to_owned(),
                 description: None,
                 icon: None,
                 link: None,
@@ -78,8 +78,7 @@ impl ListItem {
             .get("title")
             .or_else(|| value.get("name"))
             .or_else(|| value.get("label"))
-            .and_then(JsonValue::as_str)?
-            .to_string();
+            .and_then(JsonValue::as_str)?.to_owned();
 
         Some(Self {
             title,

@@ -17,7 +17,7 @@ pub(super) fn validate_table_ownership(
                 if prev != p.extension_id {
                     return Err(LoaderError::DuplicateTableOwner {
                         table: table.clone(),
-                        extension_a: prev.to_string(),
+                        extension_a: prev.to_owned(),
                         extension_b: p.extension_id.clone(),
                     });
                 }
@@ -31,8 +31,8 @@ pub(super) fn validate_table_ownership(
             let owned_elsewhere = owners.get(table).is_some_and(|&owner| owner != ext_id);
             if !owned_elsewhere {
                 return Err(LoaderError::CrossExtensionTableNotOwned {
-                    extension: ext_id.to_string(),
-                    table: table.to_string(),
+                    extension: ext_id.to_owned(),
+                    table: table.to_owned(),
                 });
             }
         }
@@ -67,13 +67,13 @@ async fn validate_single_column(
         )
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_string(),
+            extension: extension_id.to_owned(),
             message: format!("Failed to validate column '{column}': {e}"),
         })?;
 
     if result.rows.is_empty() {
         return Err(LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_string(),
+            extension: extension_id.to_owned(),
             message: format!("Required column '{column}' not found in table '{schema}.{table}'"),
         });
     }

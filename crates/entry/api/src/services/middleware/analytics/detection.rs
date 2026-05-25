@@ -6,7 +6,7 @@ use systemprompt_analytics::{
 };
 use systemprompt_identifiers::SessionId;
 
-pub fn spawn_behavioral_detection_task(
+pub(super) fn spawn_behavioral_detection_task(
     session_repo: Arc<SessionRepository>,
     session_id: SessionId,
     fingerprint_hash: Option<String>,

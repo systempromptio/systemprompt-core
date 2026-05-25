@@ -11,7 +11,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct StatsArgs;
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: StatsArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<FileStatsOutput>> {
@@ -19,7 +19,7 @@ pub async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     _args: StatsArgs,
     pool: &DbPool,
     _config: &CliConfig,

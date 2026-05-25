@@ -19,7 +19,7 @@ impl ServiceStateService {
         let service = self.service_repo.get_service_by_name(name).await?;
         Ok(service.map(|s| McpServiceState {
             name: s.name,
-            host: "127.0.0.1".to_string(),
+            host: "127.0.0.1".to_owned(),
             port: s.port as u16,
             status: s.status,
         }))
@@ -31,7 +31,7 @@ impl ServiceStateService {
             .into_iter()
             .map(|s| McpServiceState {
                 name: s.name,
-                host: "127.0.0.1".to_string(),
+                host: "127.0.0.1".to_owned(),
                 port: s.port as u16,
                 status: s.status,
             })
@@ -45,7 +45,7 @@ impl ServiceStateService {
             .filter(|s| s.status == "running")
             .map(|s| McpServiceState {
                 name: s.name,
-                host: "127.0.0.1".to_string(),
+                host: "127.0.0.1".to_owned(),
                 port: s.port as u16,
                 status: s.status,
             })

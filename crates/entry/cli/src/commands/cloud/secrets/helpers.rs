@@ -5,9 +5,9 @@ use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 
-pub fn get_tenant_id() -> Result<TenantId> {
+pub(crate) fn get_tenant_id() -> Result<TenantId> {
     let profile =
-        ProfileBootstrap::get().map_err(|_| anyhow::anyhow!("Profile not initialized"))?;
+        ProfileBootstrap::get().map_err(|_e| anyhow::anyhow!("Profile not initialized"))?;
 
     let cloud = profile
         .cloud
@@ -21,11 +21,11 @@ pub fn get_tenant_id() -> Result<TenantId> {
         .ok_or_else(|| anyhow::anyhow!("No tenant_id in profile. Create a cloud tenant first."))
 }
 
-pub fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
+pub(crate) fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
     let tenant_id = get_tenant_id()?;
 
     let profile_path =
-        ProfileBootstrap::get_path().map_err(|_| anyhow::anyhow!("Profile path not available"))?;
+        ProfileBootstrap::get_path().map_err(|_e| anyhow::anyhow!("Profile path not available"))?;
 
     let profile_dir = std::path::Path::new(profile_path)
         .parent()
@@ -43,7 +43,7 @@ pub fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
     Ok((tenant_id, secrets_path))
 }
 
-pub fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
+pub(crate) fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
@@ -65,7 +65,7 @@ pub fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
     Ok(secrets)
 }
 
-pub fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
+pub(crate) fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
     use systemprompt_cloud::constants::env_vars;
 
     let has_internal = secrets.contains_key("internal_database_url");
@@ -118,7 +118,7 @@ fn is_standard_env_var(key: &str) -> bool {
     )
 }
 
-pub async fn sync_cloud_credentials(
+pub(crate) async fn sync_cloud_credentials(
     api_client: &CloudApiClient,
     tenant_id: &TenantId,
     creds: &CloudCredentials,

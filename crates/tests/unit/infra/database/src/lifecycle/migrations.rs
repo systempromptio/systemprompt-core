@@ -279,7 +279,7 @@ impl RecordingProvider {
 
 #[async_trait]
 impl DatabaseProvider for RecordingProvider {
-    async fn execute(
+    pub(crate) async fn execute(
         &self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],
@@ -343,7 +343,7 @@ impl DatabaseProvider for RecordingProvider {
         })
     }
 
-    async fn test_connection(&self) -> DatabaseResult<()> {
+    pub(crate) async fn test_connection(&self) -> DatabaseResult<()> {
         Ok(())
     }
 
@@ -373,7 +373,7 @@ struct RecordingTx {
 
 #[async_trait]
 impl DatabaseTransaction for RecordingTx {
-    async fn execute(
+    pub(crate) async fn execute(
         &mut self,
         _query: &dyn QuerySelector,
         _params: &[&dyn ToDbValue],

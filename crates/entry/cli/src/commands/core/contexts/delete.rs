@@ -19,7 +19,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextDeletedOutput>> {

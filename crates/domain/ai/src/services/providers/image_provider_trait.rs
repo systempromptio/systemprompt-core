@@ -55,8 +55,8 @@ pub trait ImageProvider: Send + Sync {
     ) -> Result<Vec<ImageGenerationResponse>> {
         if !self.capabilities().supports_batch {
             return Err(crate::error::AiError::ProviderError {
-                provider: self.name().to_string(),
-                message: "Batch generation not supported by this provider".to_string(),
+                provider: self.name().to_owned(),
+                message: "Batch generation not supported by this provider".to_owned(),
             });
         }
 

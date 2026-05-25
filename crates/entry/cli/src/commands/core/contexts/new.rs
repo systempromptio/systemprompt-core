@@ -18,7 +18,7 @@ pub struct NewArgs {
     pub name: Option<String>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: NewArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextSwitchedOutput>> {

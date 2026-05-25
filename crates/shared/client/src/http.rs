@@ -31,7 +31,7 @@ async fn send_checked(request: reqwest::RequestBuilder) -> ClientResult<Response
     }
 }
 
-pub async fn get<T: DeserializeOwned>(
+pub(crate) async fn get<T: DeserializeOwned>(
     client: &Client,
     url: &str,
     token: Option<&JwtToken>,
@@ -40,7 +40,7 @@ pub async fn get<T: DeserializeOwned>(
     Ok(response.json().await?)
 }
 
-pub async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
+pub(crate) async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
     client: &Client,
     url: &str,
     body: &B,
@@ -50,7 +50,7 @@ pub async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
     Ok(response.json().await?)
 }
 
-pub async fn put<B: serde::Serialize + Sync>(
+pub(crate) async fn put<B: serde::Serialize + Sync>(
     client: &Client,
     url: &str,
     body: &B,
@@ -60,7 +60,7 @@ pub async fn put<B: serde::Serialize + Sync>(
     Ok(())
 }
 
-pub async fn delete(client: &Client, url: &str, token: Option<&JwtToken>) -> ClientResult<()> {
+pub(crate) async fn delete(client: &Client, url: &str, token: Option<&JwtToken>) -> ClientResult<()> {
     send_checked(apply_auth(client.delete(url), token)).await?;
     Ok(())
 }

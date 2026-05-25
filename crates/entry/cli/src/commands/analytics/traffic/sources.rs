@@ -33,7 +33,7 @@ pub struct SourcesArgs {
     pub include_all: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: SourcesArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<TrafficSourcesOutput>> {
@@ -42,7 +42,7 @@ pub async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: SourcesArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

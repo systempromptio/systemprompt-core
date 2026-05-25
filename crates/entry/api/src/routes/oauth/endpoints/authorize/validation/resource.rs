@@ -1,6 +1,6 @@
 pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
     let url = reqwest::Url::parse(resource)
-        .map_err(|_| format!("Invalid resource URI: '{resource}' is not a valid absolute URI"))?;
+        .map_err(|_e| format!("Invalid resource URI: '{resource}' is not a valid absolute URI"))?;
 
     if url.scheme() != "https" && url.scheme() != "http" {
         return Err(format!(
@@ -10,13 +10,13 @@ pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
     }
 
     if url.fragment().is_some() {
-        return Err("Resource URI must not contain a fragment".to_string());
+        return Err("Resource URI must not contain a fragment".to_owned());
     }
 
     if let Some(host) = url.host_str() {
         if is_forbidden_host(host) {
             return Err(
-                "Resource URI must not target internal or private network addresses".to_string(),
+                "Resource URI must not target internal or private network addresses".to_owned(),
             );
         }
     }

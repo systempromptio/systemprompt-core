@@ -12,22 +12,22 @@ use systemprompt_models::RequestContext;
 use systemprompt_traits::InjectContextHeaders;
 use tokio::time::{Instant, Sleep};
 
-pub use super::errors::ProxyError;
+pub(super) use super::errors::ProxyError;
 
 #[derive(Debug, Clone, Copy)]
-pub struct HeaderInjector;
+pub(super) struct HeaderInjector;
 
 impl HeaderInjector {
-    pub fn inject_context(headers: &mut HeaderMap, req_ctx: &RequestContext) {
+    pub(super) fn inject_context(headers: &mut HeaderMap, req_ctx: &RequestContext) {
         req_ctx.inject_headers(headers);
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct UrlResolver;
+pub(super) struct UrlResolver;
 
 impl UrlResolver {
-    pub fn build_backend_url(protocol: &str, host: &str, port: i32, path: &str) -> String {
+    pub(super) fn build_backend_url(protocol: &str, host: &str, port: i32, path: &str) -> String {
         let clean_path = path.trim_start_matches('/');
 
         match protocol {
@@ -48,7 +48,7 @@ impl UrlResolver {
         }
     }
 
-    pub fn append_query_params(url: String, query: Option<&str>) -> String {
+    pub(super) fn append_query_params(url: String, query: Option<&str>) -> String {
         match query {
             Some(q) if !q.is_empty() => format!("{url}?{q}"),
             _ => url,
@@ -57,10 +57,10 @@ impl UrlResolver {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct RequestBuilder;
+pub(super) struct RequestBuilder;
 
 impl RequestBuilder {
-    pub async fn extract_body(body: Body) -> Result<Vec<u8>, axum::Error> {
+    pub(super) async fn extract_body(body: Body) -> Result<Vec<u8>, axum::Error> {
         const MAX_BODY_SIZE: usize = 100 * 1024 * 1024;
 
         to_bytes(body, MAX_BODY_SIZE)
@@ -68,12 +68,12 @@ impl RequestBuilder {
             .map(|bytes| bytes.to_vec())
     }
 
-    pub fn parse_method(method_str: &str) -> Result<Method, String> {
+    pub(super) fn parse_method(method_str: &str) -> Result<Method, String> {
         Method::from_str(method_str)
             .map_err(|e| format!("Invalid HTTP method '{}': {}", method_str, e))
     }
 
-    pub fn build_request(
+    pub(super) fn build_request(
         client: &reqwest::Client,
         method: Method,
         url: &str,
@@ -169,10 +169,10 @@ where
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ResponseHandler;
+pub(super) struct ResponseHandler;
 
 impl ResponseHandler {
-    pub fn build_response(response: reqwest::Response) -> Result<Response<Body>, String> {
+    pub(super) fn build_response(response: reqwest::Response) -> Result<Response<Body>, String> {
         let status_code = response.status().as_u16();
         let axum_status = StatusCode::from_u16(status_code)
             .map_err(|e| format!("Invalid status code {}: {}", status_code, e))?;

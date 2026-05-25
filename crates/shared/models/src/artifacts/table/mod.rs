@@ -46,7 +46,7 @@ pub struct TableArtifact {
 }
 
 fn default_artifact_type() -> String {
-    "table".to_string()
+    "table".to_owned()
 }
 
 impl TableArtifact {
@@ -54,7 +54,7 @@ impl TableArtifact {
 
     pub fn new(columns: Vec<Column>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "table".to_string(),
+            artifact_type: "table".to_owned(),
             columns,
             items: Vec::new(),
             hints: None,
@@ -99,7 +99,7 @@ impl TableArtifact {
         use crate::artifacts::traits::ArtifactSchema;
 
         let response = TableResponse {
-            artifact_type: "table".to_string(),
+            artifact_type: "table".to_owned(),
             columns: self.columns.clone(),
             items: self.items.clone(),
             count: self.items.len(),

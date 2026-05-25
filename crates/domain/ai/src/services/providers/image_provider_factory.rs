@@ -70,7 +70,7 @@ impl ImageProviderFactory {
 
         let provider = match config.default_image_model.as_str() {
             "" => provider,
-            model => provider.with_default_model(model.to_string()),
+            model => provider.with_default_model(model.to_owned()),
         };
 
         Arc::new(provider)
@@ -84,7 +84,7 @@ impl ImageProviderFactory {
 
         let provider = match config.default_image_model.as_str() {
             "" => base,
-            model => base.with_default_model(model.to_string()),
+            model => base.with_default_model(model.to_owned()),
         };
 
         Arc::new(provider)
@@ -108,7 +108,7 @@ impl ImageProviderFactory {
 
         if providers.is_empty() {
             return Err(crate::error::AiError::Internal(
-                "No image providers could be initialized".to_string(),
+                "No image providers could be initialized".to_owned(),
             ));
         }
 

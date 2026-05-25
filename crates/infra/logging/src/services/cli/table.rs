@@ -39,7 +39,7 @@ impl ServiceTableEntry {
 
 pub fn truncate_to_width(s: &str, width: usize) -> String {
     if s.chars().count() <= width {
-        return s.to_string();
+        return s.to_owned();
     }
     let truncate_to = width.saturating_sub(3);
     let truncated: String = s.chars().take(truncate_to).collect();
@@ -163,7 +163,7 @@ pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
     for service in services {
         let port_str = service
             .port
-            .map_or_else(|| "-".to_string(), |p| p.to_string());
+            .map_or_else(|| "-".to_owned(), |p| p.to_string());
 
         let status_display = format!("{} {}", service.status.symbol(), service.status.text());
         let colored_status = match service.status {

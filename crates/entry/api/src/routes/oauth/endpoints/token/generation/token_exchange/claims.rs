@@ -31,8 +31,8 @@ pub fn intersect_scopes(
     out.dedup();
     if out.is_empty() {
         return Err(anyhow!(TokenError::InvalidRequest {
-            field: "scope".to_string(),
-            message: "no overlap between subject, client, and owner permissions".to_string(),
+            field: "scope".to_owned(),
+            message: "no overlap between subject, client, and owner permissions".to_owned(),
         }));
     }
     Ok(out)
@@ -61,7 +61,7 @@ pub(super) fn resolve_audience(
 
 pub fn build_act_chain(client_id: &ClientId, issuer: &str, prior: Option<ActClaim>) -> ActClaim {
     ActClaim {
-        iss: issuer.to_string(),
+        iss: issuer.to_owned(),
         sub: client_id.to_string(),
         act: Box::new(prior),
     }

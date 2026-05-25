@@ -11,7 +11,7 @@ use super::types::{HookEntry, HookListOutput};
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub fn execute(_args: ListArgs, _config: &CliConfig) -> Result<CommandResult<HookListOutput>> {
+pub(crate) fn execute(_args: ListArgs, _config: &CliConfig) -> Result<CommandResult<HookListOutput>> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let hooks_path = std::path::PathBuf::from(profile.paths.hooks());
 

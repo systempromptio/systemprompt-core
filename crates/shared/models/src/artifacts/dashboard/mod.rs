@@ -18,7 +18,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
-    "dashboard".to_string()
+    "dashboard".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -43,7 +43,7 @@ impl DashboardArtifact {
 
     pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "dashboard".to_string(),
+            artifact_type: "dashboard".to_owned(),
             title: title.into(),
             description: None,
             sections: Vec::new(),

@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
@@ -38,7 +38,7 @@ struct LinkedMcpDbRow {
     execution_time_ms: Option<i32>,
 }
 
-pub async fn find_ai_request_for_audit(
+pub(super) async fn find_ai_request_for_audit(
     pool: &Arc<PgPool>,
     id: &str,
 ) -> Result<Option<AuditLookupResult>> {
@@ -141,7 +141,7 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
     }
 }
 
-pub async fn list_audit_messages(
+pub(super) async fn list_audit_messages(
     pool: &Arc<PgPool>,
     request_id: &str,
 ) -> Result<Vec<ConversationMessage>> {
@@ -166,7 +166,7 @@ pub async fn list_audit_messages(
         .collect())
 }
 
-pub async fn list_audit_tool_calls(
+pub(super) async fn list_audit_tool_calls(
     pool: &Arc<PgPool>,
     request_id: &str,
 ) -> Result<Vec<AuditToolCallRow>> {
@@ -192,7 +192,7 @@ pub async fn list_audit_tool_calls(
         .collect())
 }
 
-pub async fn list_linked_mcp_calls(
+pub(super) async fn list_linked_mcp_calls(
     pool: &Arc<PgPool>,
     request_id: &str,
 ) -> Result<Vec<LinkedMcpCall>> {

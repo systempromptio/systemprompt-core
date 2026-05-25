@@ -30,7 +30,7 @@ pub struct WellKnownResponse {
     pub claims_supported: Vec<String>,
 }
 
-#[allow(clippy::unused_async)]
+#[expect(clippy::unused_async)]
 pub async fn handle_well_known() -> impl IntoResponse {
     let global_config = match Config::get() {
         Ok(c) => c,
@@ -54,28 +54,28 @@ pub async fn handle_well_known() -> impl IntoResponse {
         registration_endpoint: Some(format!("{}/api/v1/core/oauth/register", config.issuer)),
         scopes_supported: config.supported_scopes,
         response_types_supported: config.supported_response_types,
-        response_modes_supported: vec!["query".to_string()],
+        response_modes_supported: vec!["query".to_owned()],
         grant_types_supported: config.supported_grant_types,
         token_endpoint_auth_methods_supported: vec![
-            "none".to_string(),
-            "client_secret_post".to_string(),
-            "client_secret_basic".to_string(),
+            "none".to_owned(),
+            "client_secret_post".to_owned(),
+            "client_secret_basic".to_owned(),
         ],
         code_challenge_methods_supported: config.supported_code_challenge_methods,
-        subject_types_supported: vec!["public".to_string()],
-        id_token_signing_alg_values_supported: vec!["RS256".to_string()],
+        subject_types_supported: vec!["public".to_owned()],
+        id_token_signing_alg_values_supported: vec!["RS256".to_owned()],
         claims_supported: vec![
-            "sub".to_string(),
-            "username".to_string(),
-            "email".to_string(),
-            "user_type".to_string(),
-            "roles".to_string(),
-            "permissions".to_string(),
-            "iat".to_string(),
-            "exp".to_string(),
-            "iss".to_string(),
-            "aud".to_string(),
-            "jti".to_string(),
+            "sub".to_owned(),
+            "username".to_owned(),
+            "email".to_owned(),
+            "user_type".to_owned(),
+            "roles".to_owned(),
+            "permissions".to_owned(),
+            "iat".to_owned(),
+            "exp".to_owned(),
+            "iss".to_owned(),
+            "aud".to_owned(),
+            "jti".to_owned(),
         ],
     };
 
@@ -91,7 +91,7 @@ pub struct OAuthProtectedResourceResponse {
     pub resource_documentation: Option<String>,
 }
 
-#[allow(clippy::unused_async)]
+#[expect(clippy::unused_async)]
 pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
     let global_config = match Config::get() {
         Ok(c) => c,
@@ -109,7 +109,7 @@ pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
         resource: config.issuer.clone(),
         authorization_servers: vec![config.issuer.clone()],
         scopes_supported: config.supported_scopes,
-        bearer_methods_supported: vec!["header".to_string(), "body".to_string()],
+        bearer_methods_supported: vec!["header".to_owned(), "body".to_owned()],
         resource_documentation: Some(config.issuer),
     };
 
@@ -151,7 +151,7 @@ pub async fn handle_oauth_protected_resource_with_path(
 
     let scopes = get_mcp_server_scopes(ctx.mcp_registry(), &service_name)
         .await
-        .unwrap_or_else(|| vec!["user".to_string()]);
+        .unwrap_or_else(|| vec!["user".to_owned()]);
     let resource_url = format!(
         "{}{}",
         base_url,
@@ -162,7 +162,7 @@ pub async fn handle_oauth_protected_resource_with_path(
         resource: resource_url,
         authorization_servers: vec![base_url.clone()],
         scopes_supported: scopes,
-        bearer_methods_supported: vec!["header".to_string()],
+        bearer_methods_supported: vec!["header".to_owned()],
         resource_documentation: Some(base_url),
     };
 

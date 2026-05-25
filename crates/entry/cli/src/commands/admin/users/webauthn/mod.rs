@@ -13,7 +13,7 @@ pub enum WebauthnCommands {
     GenerateSetupToken(generate_setup_token::Args),
 }
 
-pub async fn execute(cmd: WebauthnCommands, config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute(cmd: WebauthnCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         WebauthnCommands::GenerateSetupToken(args) => {
             let result = generate_setup_token::execute(args, config).await?;

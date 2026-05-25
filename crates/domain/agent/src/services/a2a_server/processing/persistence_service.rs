@@ -134,7 +134,7 @@ impl PersistenceService {
         context_id: systemprompt_identifiers::ContextId,
         agent_name: &str,
     ) -> Task {
-        let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
+        let metadata = TaskMetadata::new_agent_message(agent_name.to_owned());
 
         Task {
             id: task_id,

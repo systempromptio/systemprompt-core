@@ -67,7 +67,7 @@ impl AiService {
                     Some(pc.default_model.clone())
                 }
             })
-            .unwrap_or_else(|| provider.default_model().to_string());
+            .unwrap_or_else(|| provider.default_model().to_owned());
 
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
@@ -191,8 +191,8 @@ impl AiService {
         let error_response = AiResponse::new(
             request_id,
             String::new(),
-            request.provider().to_string(),
-            request.model().to_string(),
+            request.provider().to_owned(),
+            request.model().to_owned(),
         )
         .with_latency(latency_ms);
         self.audit(&StoreParams {

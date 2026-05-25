@@ -12,7 +12,7 @@ use systemprompt_models::bridge::manifest::HookEntry;
 use systemprompt_models::services::DiskHookConfig;
 use systemprompt_models::services::hooks::HOOK_CONFIG_FILENAME;
 
-pub fn load_hooks(services_root: &Path) -> anyhow::Result<Vec<HookEntry>> {
+pub(super) fn load_hooks(services_root: &Path) -> anyhow::Result<Vec<HookEntry>> {
     let hooks_dir = services_root.join("hooks");
     if !hooks_dir.is_dir() {
         return Ok(Vec::new());
@@ -32,7 +32,7 @@ pub fn load_hooks(services_root: &Path) -> anyhow::Result<Vec<HookEntry>> {
         if !config_path.exists() {
             continue;
         }
-        entries.push((dir_name.to_string(), config_path));
+        entries.push((dir_name.to_owned(), config_path));
     }
     entries.sort_by(|a, b| a.0.cmp(&b.0));
 

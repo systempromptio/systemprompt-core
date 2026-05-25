@@ -30,11 +30,11 @@ pub fn hash_token(token: &str) -> String {
 pub fn validate_token_format(token: &str) -> Result<()> {
     let Some(encoded) = token.strip_prefix(TOKEN_PREFIX) else {
         return Err(crate::error::OauthError::Internal(
-            "Invalid token format: missing prefix".to_string(),
+            "Invalid token format: missing prefix".to_owned(),
         ));
     };
-    URL_SAFE_NO_PAD.decode(encoded).map_err(|_| {
-        crate::error::OauthError::Internal("Invalid token format: invalid encoding".to_string())
+    URL_SAFE_NO_PAD.decode(encoded).map_err(|_e| {
+        crate::error::OauthError::Internal("Invalid token format: invalid encoding".to_owned())
     })?;
     Ok(())
 }

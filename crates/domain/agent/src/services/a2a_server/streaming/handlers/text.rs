@@ -3,25 +3,25 @@ use systemprompt_models::{AgUiEventBuilder, AgUiMessageRole};
 
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
-pub struct TextStreamState {
+pub(crate) struct TextStreamState {
     message_started: bool,
     webhook_context: Option<WebhookContext>,
 }
 
 impl TextStreamState {
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             message_started: false,
             webhook_context: None,
         }
     }
 
-    pub fn with_webhook_context(mut self, context: WebhookContext) -> Self {
+    pub(crate) fn with_webhook_context(mut self, context: WebhookContext) -> Self {
         self.webhook_context = Some(context);
         self
     }
 
-    pub async fn handle_text(&mut self, text: String, message_id: &MessageId) {
+    pub(crate) async fn handle_text(&mut self, text: String, message_id: &MessageId) {
         let Some(ref webhook_context) = self.webhook_context else {
             return;
         };
@@ -43,7 +43,7 @@ impl TextStreamState {
         }
     }
 
-    pub async fn finalize(&self, message_id: &MessageId) {
+    pub(crate) async fn finalize(&self, message_id: &MessageId) {
         if self.message_started {
             if let Some(ref webhook_context) = self.webhook_context {
                 let end_event = AgUiEventBuilder::text_message_end(message_id.as_str());

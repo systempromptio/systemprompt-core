@@ -32,10 +32,10 @@ impl UserCreationService {
             .await
             .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
         {
-            return Ok(existing_user.id.as_str().to_string());
+            return Ok(existing_user.id.as_str().to_owned());
         }
 
-        let roles = roles.unwrap_or_else(|| vec!["user".to_string()]);
+        let roles = roles.unwrap_or_else(|| vec!["user".to_owned()]);
 
         let user = self
             .user_provider
@@ -48,7 +48,7 @@ impl UserCreationService {
             .await
             .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?;
 
-        Ok(user.id.as_str().to_string())
+        Ok(user.id.as_str().to_owned())
     }
 
     pub async fn create_user_with_webauthn_registration(
@@ -64,7 +64,7 @@ impl UserCreationService {
             .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
             .is_some()
         {
-            return Err(crate::error::OauthError::EmailRegistered(email.to_string()));
+            return Err(crate::error::OauthError::EmailRegistered(email.to_owned()));
         }
 
         if self
@@ -75,7 +75,7 @@ impl UserCreationService {
             .is_some()
         {
             return Err(crate::error::OauthError::UsernameTaken(
-                username.to_string(),
+                username.to_owned(),
             ));
         }
 

@@ -4,7 +4,7 @@ use systemprompt_database::DbPool;
 use crate::McpServerConfig;
 use crate::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
 
-pub async fn validate_schemas(
+pub(super) async fn validate_schemas(
     servers: &[McpServerConfig],
     db_pool: &DbPool,
 ) -> McpDomainResult<()> {
@@ -34,12 +34,12 @@ fn report_schema_errors(report: &SchemaValidationReport) -> McpDomainResult<()> 
     )))
 }
 
-pub async fn validate_and_migrate_schemas(
+pub(super) async fn validate_and_migrate_schemas(
     servers: &[McpServerConfig],
     db_pool: &DbPool,
 ) -> McpDomainResult<SchemaValidationReport> {
     let validator = create_schema_validator(db_pool)?;
-    let mut combined_report = SchemaValidationReport::new("all".to_string());
+    let mut combined_report = SchemaValidationReport::new("all".to_owned());
 
     for server in servers.iter().filter(|s| !s.schemas.is_empty()) {
         validate_server_schemas(server, &validator, &mut combined_report).await;

@@ -54,7 +54,7 @@ async fn authenticate_api_key(
         }),
         None => Err((
             StatusCode::UNAUTHORIZED,
-            "Invalid or revoked API key".to_string(),
+            "Invalid or revoked API key".to_owned(),
         )),
     }
 }

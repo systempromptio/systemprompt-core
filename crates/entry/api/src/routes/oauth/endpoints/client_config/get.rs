@@ -12,7 +12,7 @@ fn extract_registration_token(headers: &HeaderMap) -> Result<String, OAuthHttpEr
         .get("authorization")
         .ok_or_else(|| OAuthHttpError::invalid_token("Missing authorization header"))?
         .to_str()
-        .map_err(|_| OAuthHttpError::invalid_token("Invalid authorization header format"))?;
+        .map_err(|_e| OAuthHttpError::invalid_token("Invalid authorization header format"))?;
 
     let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
         OAuthHttpError::invalid_token("Authorization header must use Bearer scheme")
@@ -24,7 +24,7 @@ fn extract_registration_token(headers: &HeaderMap) -> Result<String, OAuthHttpEr
         ));
     }
 
-    Ok(token.to_string())
+    Ok(token.to_owned())
 }
 
 pub async fn get_client_configuration(
@@ -47,7 +47,7 @@ pub async fn get_client_configuration(
 
     let response = DynamicRegistrationResponse {
         client_id: client.client_id.clone(),
-        client_secret: "***REDACTED***".to_string(),
+        client_secret: "***REDACTED***".to_owned(),
         client_name: client.client_name,
         redirect_uris: client.redirect_uris,
         grant_types: client.grant_types,

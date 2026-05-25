@@ -18,7 +18,7 @@ pub struct GenerateArgs {
     clippy::print_stdout,
     reason = "clap-derived args ergonomics; CLI subcommand prints human-readable result"
 )]
-pub fn execute(args: GenerateArgs) -> Result<()> {
+pub(crate) fn execute(args: GenerateArgs) -> Result<()> {
     if args.output.exists() && !args.force {
         anyhow::bail!(
             "Refusing to overwrite existing key at {} (pass --force to replace)",

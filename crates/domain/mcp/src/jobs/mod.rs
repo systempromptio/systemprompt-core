@@ -1,1 +1,1 @@
-pub mod mcp_session_cleanup;
+mod mcp_session_cleanup;

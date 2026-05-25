@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub preview: bool,
 }
 
-pub fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<SitemapShowOutput>> {
+pub(crate) fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<SitemapShowOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 

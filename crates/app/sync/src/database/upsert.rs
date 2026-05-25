@@ -95,7 +95,7 @@ pub(super) async fn upsert_context(
             .await?;
 
             if exists == Some(true) {
-                Some(sid.as_str().to_string())
+                Some(sid.as_str().to_owned())
             } else {
                 tracing::debug!(
                     session_id = %sid,

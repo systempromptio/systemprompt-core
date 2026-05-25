@@ -7,14 +7,14 @@ use tracing::error;
 
 use super::record_builder::{MessageData, ToolCallData};
 
-pub async fn store_request(
+pub(super) async fn store_request(
     repo: &AiRequestRepository,
     record: &AiRequestRecord,
 ) -> Result<AiRequestId, AiError> {
     repo.insert(record).await.map_err(AiError::from)
 }
 
-pub async fn store_messages(
+pub(super) async fn store_messages(
     repo: &AiRequestRepository,
     db_id: &AiRequestId,
     messages: Vec<MessageData>,
@@ -34,7 +34,7 @@ pub async fn store_messages(
     }
 }
 
-pub async fn store_tool_calls(
+pub(super) async fn store_tool_calls(
     repo: &AiRequestRepository,
     db_id: &AiRequestId,
     tool_calls: Vec<ToolCallData>,
@@ -60,7 +60,7 @@ pub async fn store_tool_calls(
     }
 }
 
-pub async fn update_session_usage(
+pub(super) async fn update_session_usage(
     session_provider: &dyn AiSessionProvider,
     user_id: &UserId,
     session_id: Option<&SessionId>,

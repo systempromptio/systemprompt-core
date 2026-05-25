@@ -35,10 +35,10 @@ impl TypedExtensionRegistry {
 
     pub(crate) fn add_boxed(&mut self, ext: Box<dyn AnyExtension>) {
         let idx = self.extensions.len();
-        self.by_id.insert(ext.id().to_string(), idx);
+        self.by_id.insert(ext.id().to_owned(), idx);
 
         if let Some(api) = ext.as_api() {
-            self.api_paths.push(api.base_path().to_string());
+            self.api_paths.push(api.base_path().to_owned());
         }
 
         self.extensions.push(ext);
@@ -47,16 +47,16 @@ impl TypedExtensionRegistry {
     pub fn validate_api_path(&self, extension_id: &str, path: &str) -> Result<(), LoaderError> {
         if !path.starts_with("/api/") && !path.starts_with("/.") {
             return Err(LoaderError::InvalidBasePath {
-                extension: extension_id.to_string(),
-                path: path.to_string(),
+                extension: extension_id.to_owned(),
+                path: path.to_owned(),
             });
         }
 
         for reserved in RESERVED_PATHS {
             if path.starts_with(reserved) {
                 return Err(LoaderError::ReservedPathCollision {
-                    extension: extension_id.to_string(),
-                    path: path.to_string(),
+                    extension: extension_id.to_owned(),
+                    path: path.to_owned(),
                 });
             }
         }
@@ -64,7 +64,7 @@ impl TypedExtensionRegistry {
         for existing in &self.api_paths {
             if path.starts_with(existing.as_str()) || existing.starts_with(path) {
                 return Err(LoaderError::ReservedPathCollision {
-                    extension: extension_id.to_string(),
+                    extension: extension_id.to_owned(),
                     path: format!("{} (conflicts with {})", path, existing),
                 });
             }

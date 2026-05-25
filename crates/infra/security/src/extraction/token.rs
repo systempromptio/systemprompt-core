@@ -37,8 +37,8 @@ impl TokenExtractor {
     pub fn new(fallback_chain: Vec<ExtractionMethod>) -> Self {
         Self {
             fallback_chain,
-            cookie_name: DEFAULT_COOKIE_NAME.to_string(),
-            mcp_header_name: DEFAULT_MCP_HEADER_NAME.to_string(),
+            cookie_name: DEFAULT_COOKIE_NAME.to_owned(),
+            mcp_header_name: DEFAULT_MCP_HEADER_NAME.to_owned(),
         }
     }
 
@@ -123,7 +123,7 @@ impl TokenExtractor {
             if let Some(token) = auth_header.strip_prefix(BEARER_PREFIX) {
                 let token = token.trim();
                 if !token.is_empty() {
-                    return Ok(token.to_string());
+                    return Ok(token.to_owned());
                 }
             }
         }
@@ -141,12 +141,12 @@ impl TokenExtractor {
 
         let auth_header = header_value
             .to_str()
-            .map_err(|_| TokenExtractionError::InvalidMcpProxyFormat)?;
+            .map_err(|_e| TokenExtractionError::InvalidMcpProxyFormat)?;
 
         auth_header
             .strip_prefix(BEARER_PREFIX)
             .ok_or(TokenExtractionError::InvalidMcpProxyFormat)
-            .map(ToString::to_string)
+            .map(str::to_owned)
     }
 
     pub fn extract_from_cookie(&self, headers: &HeaderMap) -> Result<String, TokenExtractionError> {

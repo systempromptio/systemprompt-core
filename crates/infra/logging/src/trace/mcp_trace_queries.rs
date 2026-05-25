@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
@@ -7,7 +7,7 @@ use systemprompt_identifiers::{AiRequestId, ArtifactId, ContextId, McpExecutionI
 
 use super::models::{AiRequestInfo, McpToolExecution, TaskArtifact, ToolLogEntry};
 
-pub async fn fetch_mcp_executions(
+pub(super) async fn fetch_mcp_executions(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
     context_id: &ContextId,
@@ -39,7 +39,7 @@ pub async fn fetch_mcp_executions(
         .collect())
 }
 
-pub async fn fetch_mcp_linked_ai_requests(
+pub(super) async fn fetch_mcp_linked_ai_requests(
     pool: &Arc<PgPool>,
     mcp_execution_id: &McpExecutionId,
 ) -> Result<Vec<AiRequestInfo>> {
@@ -68,7 +68,7 @@ pub async fn fetch_mcp_linked_ai_requests(
         .collect())
 }
 
-pub async fn fetch_tool_logs(
+pub(super) async fn fetch_tool_logs(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
     context_id: &ContextId,
@@ -102,7 +102,7 @@ pub async fn fetch_tool_logs(
         .collect())
 }
 
-pub async fn fetch_task_artifacts(
+pub(super) async fn fetch_task_artifacts(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
     context_id: &ContextId,

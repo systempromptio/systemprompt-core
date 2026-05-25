@@ -69,7 +69,7 @@ mod user_metrics_with_trends_tests {
 mod analytics_session_tests {
     use super::*;
 
-    fn create_session() -> AnalyticsSession {
+    pub(crate) fn create_session() -> AnalyticsSession {
         let now = Utc::now();
         AnalyticsSession {
             session_id: SessionId::new("sess_123".to_string()),

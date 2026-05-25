@@ -13,15 +13,15 @@ impl AuthenticationService {
     pub fn authenticate(headers: &HeaderMap) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-                .map_err(|_| StatusCode::UNAUTHORIZED)?;
+                .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let user_id = Uuid::parse_str(&claims.sub).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

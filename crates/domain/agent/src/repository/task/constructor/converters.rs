@@ -4,11 +4,11 @@ use crate::models::{MessagePart, TaskRow};
 use systemprompt_models::a2a::TaskMetadata;
 use systemprompt_traits::RepositoryError;
 
-pub fn construct_metadata(row: &TaskRow) -> TaskMetadata {
+pub(super) fn construct_metadata(row: &TaskRow) -> TaskMetadata {
     let metadata_json = row
         .metadata
         .as_ref()
-        .map_or_else(|| "{}".to_string(), ToString::to_string);
+        .map_or_else(|| "{}".to_owned(), ToString::to_string);
 
     let agent_name = row
         .agent_name
@@ -28,7 +28,7 @@ pub fn construct_metadata(row: &TaskRow) -> TaskMetadata {
     metadata
 }
 
-pub fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {
+pub(super) fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {
     match state_str {
         "TASK_STATE_SUBMITTED" | "submitted" => Ok(TaskState::Submitted),
         "TASK_STATE_WORKING" | "working" => Ok(TaskState::Working),
@@ -41,12 +41,12 @@ pub fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {
         "TASK_STATE_PENDING" => Ok(TaskState::Pending),
         "TASK_STATE_UNKNOWN" | "unknown" => Ok(TaskState::Unknown),
         _ => Err(TaskError::InvalidTaskState {
-            state: state_str.to_string(),
+            state: state_str.to_owned(),
         }),
     }
 }
 
-pub fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
+pub(super) fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
     match part_row.part_kind.as_str() {
         "text" => {
             let text = part_row.text_content.clone().unwrap_or_else(String::new);
@@ -69,7 +69,7 @@ pub fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
     }
 }
 
-pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, RepositoryError> {
+pub(super) fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, RepositoryError> {
     let mut parts = Vec::new();
     for part_row in part_rows {
         let part = match part_row.part_kind.as_str() {
@@ -79,14 +79,14 @@ pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, Rep
             },
             "data" => {
                 let data_value = part_row.data_content.as_ref().ok_or_else(|| {
-                    RepositoryError::InvalidData("Missing data_content for data part".to_string())
+                    RepositoryError::InvalidData("Missing data_content for data part".to_owned())
                 })?;
 
                 let data = data_value
                     .as_object()
                     .ok_or_else(|| {
                         RepositoryError::InvalidData(
-                            "data_content must be a JSON object".to_string(),
+                            "data_content must be a JSON object".to_owned(),
                         )
                     })?
                     .clone();

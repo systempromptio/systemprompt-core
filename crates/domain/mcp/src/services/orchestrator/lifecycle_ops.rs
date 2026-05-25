@@ -125,7 +125,7 @@ impl McpOrchestrator {
             self.event_bus()
                 .publish(McpEvent::ServiceRestartRequested {
                     service_name: server.name,
-                    reason: "Manual restart".to_string(),
+                    reason: "Manual restart".to_owned(),
                 })
                 .await?;
         }

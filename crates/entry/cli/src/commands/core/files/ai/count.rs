@@ -17,7 +17,7 @@ pub struct CountArgs {
     pub user: Option<String>,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: CountArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesCountOutput>> {

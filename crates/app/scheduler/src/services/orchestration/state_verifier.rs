@@ -168,24 +168,21 @@ impl ServiceStateVerifier {
                 .unwrap_or_else(|| {
                     tracing::warn!("Service record missing name field");
                     ""
-                })
-                .to_string();
+                }).to_owned();
             let service_type = row
                 .get("service_type")
                 .and_then(|v| v.as_str())
                 .unwrap_or_else(|| {
                     tracing::warn!(service_name = %name, "Service record missing service_type field");
                     "mcp"
-                })
-                .to_string();
+                }).to_owned();
             let status = row
                 .get("status")
                 .and_then(|v| v.as_str())
                 .unwrap_or_else(|| {
                     tracing::warn!(service_name = %name, "Service record missing status field");
                     "stopped"
-                })
-                .to_string();
+                }).to_owned();
             let pid = row.get("pid").and_then(serde_json::Value::as_i64);
             let port = row
                 .get("port")

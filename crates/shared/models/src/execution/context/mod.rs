@@ -275,17 +275,17 @@ impl RequestContext {
 
     pub fn validate_task_execution(&self) -> Result<(), String> {
         if self.execution.task_id.is_none() {
-            return Err("Missing task_id for task execution".to_string());
+            return Err("Missing task_id for task execution".to_owned());
         }
         Ok(())
     }
 
     pub fn validate_authenticated(&self) -> Result<(), String> {
         if self.auth.auth_token.as_str().is_empty() {
-            return Err("Missing authentication token".to_string());
+            return Err("Missing authentication token".to_owned());
         }
         if self.auth.actor.user_id.is_anonymous() {
-            return Err("User is not authenticated".to_string());
+            return Err("User is not authenticated".to_owned());
         }
         Ok(())
     }

@@ -14,7 +14,7 @@ const fn role_to_str(role: &MessageRole) -> &'static str {
     }
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct PersistMessageSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub message: &'a Message,
@@ -106,7 +106,7 @@ pub async fn persist_message_sqlx(
     Ok(())
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct PersistMessageWithTxParams<'a> {
     pub tx: &'a mut dyn systemprompt_database::DatabaseTransaction,
     pub message: &'a Message,

@@ -51,7 +51,7 @@ pub struct RequestMetadata {
 impl Default for RequestMetadata {
     fn default() -> Self {
         Self {
-            session_id: SessionId::new("unknown".to_string()),
+            session_id: SessionId::new("unknown".to_owned()),
             timestamp: Instant::now(),
             client_id: None,
             is_tracked: true,

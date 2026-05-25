@@ -50,7 +50,7 @@ impl FinishRegisterRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct FinishRegisterResponse {
+pub(super) struct FinishRegisterResponse {
     pub user_id: UserId,
     pub success: bool,
 }
@@ -108,7 +108,7 @@ pub async fn finish_register(
 async fn migrate_session_user(state: &OAuthState, session_id_str: &str, new_user_id: &UserId) {
     use systemprompt_identifiers::SessionId;
 
-    let session_id = SessionId::new(session_id_str.to_string());
+    let session_id = SessionId::new(session_id_str.to_owned());
     let analytics_provider = state.analytics_provider();
 
     match analytics_provider

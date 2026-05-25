@@ -28,7 +28,7 @@ pub struct ReconcileParams<'a> {
     pub events: Option<&'a StartupEventSender>,
 }
 
-pub async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<usize> {
+pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<usize> {
     let ReconcileParams {
         database,
         lifecycle,
@@ -74,7 +74,7 @@ fn notify_cleanup(events: Option<&StartupEventSender>, count: usize, reason: &st
     if let Some(tx) = events {
         if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
             name: format!("{} disabled service(s)", count),
-            reason: reason.to_string(),
+            reason: reason.to_owned(),
         }) {
             tracing::warn!(error = %e, "Failed to send cleanup notification");
         }
@@ -120,7 +120,7 @@ fn log_and_notify_cleanup(
     if let Some(tx) = events {
         if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
             name: format!("{} processes", count),
-            reason: reason.to_string(),
+            reason: reason.to_owned(),
         }) {
             tracing::warn!(error = %e, "Failed to send cleanup notification");
         }
@@ -154,8 +154,8 @@ async fn kill_single_server(
         if let Some(pid) = service_info.pid {
             if let Some(tx) = events {
                 if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
-                    name: server_name.to_string(),
-                    reason: "Restarting to ensure fresh state".to_string(),
+                    name: server_name.to_owned(),
+                    reason: "Restarting to ensure fresh state".to_owned(),
                 }) {
                     tracing::warn!(error = %e, "Failed to send cleanup notification");
                 }

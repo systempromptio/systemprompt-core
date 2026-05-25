@@ -8,7 +8,7 @@ use super::edit::EditArgs;
 
 const VALID_KINDS: &[&str] = &["article", "paper", "guide", "tutorial"];
 
-pub struct ContentEditState {
+pub(crate) struct ContentEditState {
     pub title: String,
     pub description: String,
     pub body: String,
@@ -19,7 +19,7 @@ pub struct ContentEditState {
     pub kind_value: Option<String>,
 }
 
-pub fn apply_visibility_flags(
+pub(crate) fn apply_visibility_flags(
     args: &EditArgs,
     state: &mut ContentEditState,
     changes: &mut Vec<String>,
@@ -34,7 +34,7 @@ pub fn apply_visibility_flags(
     }
 }
 
-pub fn apply_body_flags(
+pub(crate) fn apply_body_flags(
     args: &EditArgs,
     state: &mut ContentEditState,
     changes: &mut Vec<String>,
@@ -52,7 +52,7 @@ pub fn apply_body_flags(
     Ok(())
 }
 
-pub async fn apply_set_value_flags(
+pub(crate) async fn apply_set_value_flags(
     args: &EditArgs,
     state: &mut ContentEditState,
     changes: &mut Vec<String>,
@@ -163,7 +163,7 @@ fn apply_public_field(
     state: &mut ContentEditState,
     changes: &mut Vec<String>,
 ) -> Result<()> {
-    let p = value.parse::<bool>().map_err(|_| {
+    let p = value.parse::<bool>().map_err(|_e| {
         anyhow!(
             "Invalid boolean value for public: '{}'. Use true or false",
             value

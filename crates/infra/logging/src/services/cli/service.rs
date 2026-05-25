@@ -2,7 +2,7 @@ use std::io::Write;
 use std::time::Duration;
 
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 use systemprompt_traits::LogEventLevel;
@@ -133,7 +133,7 @@ impl CliService {
                 .template("{spinner:.cyan} {msg}")
                 .unwrap_or_else(|_| ProgressStyle::default_spinner()),
         );
-        pb.set_message(message.to_string());
+        pb.set_message(message.to_owned());
         pb.enable_steady_tick(Duration::from_millis(100));
         pb
     }

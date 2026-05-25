@@ -11,7 +11,7 @@ use super::show_types::{FullConfig, SettingsOutput, build_env_config};
 use crate::cli_settings::CliConfig;
 use crate::shared::{CommandResult, render_result, resolve_profile_path};
 
-pub fn execute(
+pub(crate) fn execute(
     name: Option<&str>,
     filter: ShowFilter,
     json_output: bool,
@@ -174,7 +174,7 @@ fn load_skills_config(paths: &AppPaths) -> Option<SkillsConfig> {
     }
 }
 
-fn load_content_config(paths: &AppPaths) -> Option<ContentConfigRaw> {
+pub(crate) fn load_content_config(paths: &AppPaths) -> Option<ContentConfigRaw> {
     let path = paths.system().content_config().to_path_buf();
     if !path.exists() {
         return None;

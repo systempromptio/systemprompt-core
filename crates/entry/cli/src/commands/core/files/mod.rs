@@ -1,7 +1,7 @@
 pub mod types;
 
 mod config;
-mod delete;
+pub(crate) mod delete;
 mod list;
 mod search;
 mod show;

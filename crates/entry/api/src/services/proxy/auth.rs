@@ -15,10 +15,10 @@ use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider};
 use super::backend::ProxyError;
 
 #[derive(Debug, Clone, Copy)]
-pub struct AuthValidator;
+pub(super) struct AuthValidator;
 
 impl AuthValidator {
-    pub fn validate_service_access(
+    pub(super) fn validate_service_access(
         headers: &HeaderMap,
         service_name: &str,
         req_context: Option<&RequestContext>,
@@ -27,7 +27,7 @@ impl AuthValidator {
 
         if let Err(status) = &result {
             let trace_id =
-                req_context.map_or_else(|| "unknown".to_string(), |rc| rc.trace_id().to_string());
+                req_context.map_or_else(|| "unknown".to_owned(), |rc| rc.trace_id().to_string());
             tracing::warn!(service = %service_name, status = %status, trace_id = %trace_id, "auth failed");
         }
 
@@ -36,10 +36,10 @@ impl AuthValidator {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct OAuthChallengeBuilder;
+pub(super) struct OAuthChallengeBuilder;
 
 impl OAuthChallengeBuilder {
-    pub fn build_challenge_response(
+    pub(super) fn build_challenge_response(
         service_name: &str,
         resource_path: &str,
         ctx: &AppContext,
@@ -88,10 +88,10 @@ impl OAuthChallengeBuilder {
     }
 }
 
-pub struct AccessValidator;
+pub(super) struct AccessValidator;
 
 impl AccessValidator {
-    pub async fn validate(
+    pub(super) async fn validate(
         headers: &HeaderMap,
         service_name: &str,
         service: &ServiceConfig,
@@ -134,7 +134,7 @@ async fn lookup_oauth_requirement(
     if service.module_name == "agent" {
         let registry =
             AgentRegistryProviderService::new().map_err(|e| ProxyError::ServiceNotRunning {
-                service: service_name.to_string(),
+                service: service_name.to_owned(),
                 status: format!("Failed to load agent registry: {e}"),
             })?;
         let info =
@@ -150,7 +150,7 @@ async fn lookup_oauth_requirement(
         registry
             .validate()
             .map_err(|e| ProxyError::ServiceNotRunning {
-                service: service_name.to_string(),
+                service: service_name.to_owned(),
                 status: format!("Failed to load MCP registry: {e}"),
             })?;
         let info = McpRegistryProvider::get_server(registry, service_name)
@@ -222,10 +222,10 @@ fn challenge_or_error(
     ) {
         Ok(challenge_response) => ProxyError::AuthChallenge(Box::new(challenge_response)),
         Err(status) if status == StatusCode::UNAUTHORIZED => ProxyError::AuthenticationRequired {
-            service: service_name.to_string(),
+            service: service_name.to_owned(),
         },
         Err(_) => ProxyError::Forbidden {
-            service: service_name.to_string(),
+            service: service_name.to_owned(),
         },
     }
 }

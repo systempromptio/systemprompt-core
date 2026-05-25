@@ -13,11 +13,11 @@ const fn default_true() -> bool {
 }
 
 fn default_version() -> String {
-    "1.0.0".to_string()
+    "1.0.0".to_owned()
 }
 
 fn default_matcher() -> String {
-    "*".to_string()
+    "*".to_owned()
 }
 
 fn default_hook_id() -> HookId {

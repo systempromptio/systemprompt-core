@@ -7,19 +7,19 @@ use comrak::nodes::{AstNode, NodeValue};
 use comrak::{Arena, Options, parse_document};
 
 #[derive(Debug)]
-pub struct TocEntry {
+struct TocEntry {
     pub level: u8,
     pub text: String,
     pub slug: String,
 }
 
 #[derive(Debug)]
-pub struct TocResult {
+pub(crate) struct TocResult {
     pub toc_html: String,
     pub content_html: String,
 }
 
-pub fn generate_toc(markdown: &str, rendered_html: &str) -> TocResult {
+pub(crate) fn generate_toc(markdown: &str, rendered_html: &str) -> TocResult {
     let entries = extract_headings(markdown);
 
     if entries.is_empty() {

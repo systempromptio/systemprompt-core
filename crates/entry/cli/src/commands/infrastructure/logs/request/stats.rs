@@ -19,7 +19,7 @@ pub struct StatsArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RequestStatsOutput {
+struct RequestStatsOutput {
     pub total_requests: i64,
     pub total_tokens: TokenStats,
     pub total_cost_dollars: f64,
@@ -29,14 +29,14 @@ pub struct RequestStatsOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub struct TokenStats {
+struct TokenStats {
     pub input: i64,
     pub output: i64,
     pub total: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderStats {
+struct ProviderStats {
     pub provider: String,
     pub request_count: i64,
     pub total_tokens: i64,
@@ -45,7 +45,7 @@ pub struct ProviderStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ModelStats {
+struct ModelStats {
     pub model: String,
     pub provider: String,
     pub request_count: i64,
@@ -116,7 +116,7 @@ async fn execute_with_pool_inner(
     Ok(())
 }
 
-fn render_text_output(output: &RequestStatsOutput) {
+pub(crate) fn render_text_output(output: &RequestStatsOutput) {
     use systemprompt_logging::CliService;
 
     CliService::section("AI Request Statistics");

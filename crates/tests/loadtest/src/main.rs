@@ -19,7 +19,7 @@ use reporters::OutputFormat;
     name = "systemprompt-loadtest",
     about = "Rust-native HTTP load testing"
 )]
-struct Cli {
+pub(crate) struct Cli {
     #[arg(long, default_value = "all")]
     scenario: String,
 

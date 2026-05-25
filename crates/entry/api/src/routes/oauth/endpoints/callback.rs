@@ -235,7 +235,7 @@ async fn load_authenticated_user(
         .collect();
 
     let user_uuid = uuid::Uuid::parse_str(user.id.as_str())
-        .map_err(|_| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
+        .map_err(|_e| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
 
     Ok(AuthenticatedUser::new_with_roles(
         user_uuid,

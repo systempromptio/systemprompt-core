@@ -21,7 +21,7 @@ impl ToolNameMapper {
         transformed: &TransformedTool,
         discriminator_field: Option<String>,
     ) {
-        let disc_field = discriminator_field.unwrap_or_else(|| "action".to_string());
+        let disc_field = discriminator_field.unwrap_or_else(|| "action".to_owned());
 
         self.forward_map.insert(
             transformed.name.clone(),
@@ -50,7 +50,7 @@ impl ToolNameMapper {
                 (original_name.clone(), params)
             },
             Some((original_name, None, _)) => (original_name.clone(), params),
-            None => (variant_name.to_string(), params),
+            None => (variant_name.to_owned(), params),
         }
     }
 

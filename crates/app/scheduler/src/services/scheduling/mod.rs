@@ -100,7 +100,7 @@ impl SchedulerService {
     /// Jobs absent from the inventory are skipped with a warning. Emits
     /// start/complete events through `events` when provided, and returns the
     /// number of jobs discovered in the inventory.
-    #[allow(clippy::collection_is_never_read)]
+    #[expect(clippy::collection_is_never_read)]
     pub async fn run_bootstrap_jobs(
         &self,
         events: Option<&StartupEventSender>,
@@ -124,7 +124,7 @@ impl SchedulerService {
     // Why: `running_jobs` is cloned into `JobDispatch` and read by
     // `execute_job` across an `.await`; clippy's intra-function analysis
     // cannot see that read and flags the param as write-only.
-    #[allow(clippy::collection_is_never_read)]
+    #[expect(clippy::collection_is_never_read)]
     async fn dispatch_bootstrap_job(
         &self,
         job_name: &str,
@@ -136,12 +136,12 @@ impl SchedulerService {
             warn!(job = %job_name, "Bootstrap job has no resolved owner; skipping");
             return;
         };
-        let actor = Actor::job(owner_id, job_name.to_string());
+        let actor = Actor::job(owner_id, job_name.to_owned());
 
-        events.bootstrap_job_started(job_name.to_string());
+        events.bootstrap_job_started(job_name.to_owned());
 
         dispatch::execute_job(dispatch::JobDispatch {
-            job_name: job_name.to_string(),
+            job_name: job_name.to_owned(),
             actor,
             db_pool: Arc::clone(&self.db_pool),
             repository: self.repository.clone(),
@@ -156,11 +156,11 @@ impl SchedulerService {
                 let succeeded = row.last_status.as_deref() == Some(JobStatus::Success.as_str());
                 (succeeded, row.last_error)
             },
-            Ok(None) => (false, Some("job row missing after dispatch".to_string())),
+            Ok(None) => (false, Some("job row missing after dispatch".to_owned())),
             Err(e) => (false, Some(e.to_string())),
         };
 
-        events.bootstrap_job_completed(job_name.to_string(), success, message);
+        events.bootstrap_job_completed(job_name.to_owned(), success, message);
     }
 
     async fn resolve_owners(
@@ -175,12 +175,12 @@ impl SchedulerService {
                 .await?
                 .ok_or_else(|| SchedulerError::UnresolvedJobOwner {
                     job_name: job.name.clone(),
-                    owner: job.owner.as_str().to_string(),
+                    owner: job.owner.as_str().to_owned(),
                 })?;
             if owner.status.as_deref() != Some(UserStatus::Active.as_str()) {
                 return Err(SchedulerError::UnresolvedJobOwner {
                     job_name: job.name.clone(),
-                    owner: job.owner.as_str().to_string(),
+                    owner: job.owner.as_str().to_owned(),
                 });
             }
             debug!(job_name = %job.name, owner = %owner.id, "resolved job owner");
@@ -221,7 +221,7 @@ impl SchedulerService {
         let Some(owner_id) = ctx.owners.get(&job_config.name).cloned() else {
             return Err(SchedulerError::UnresolvedJobOwner {
                 job_name: job_config.name.clone(),
-                owner: job_config.owner.as_str().to_string(),
+                owner: job_config.owner.as_str().to_owned(),
             });
         };
         let actor = Actor::job(owner_id, job_config.name.clone());
@@ -230,7 +230,7 @@ impl SchedulerService {
             .schedule
             .clone()
             .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| registered_job.schedule().to_string());
+            .unwrap_or_else(|| registered_job.schedule().to_owned());
 
         self.repository
             .upsert_job(&job_config.name, &schedule, job_config.enabled)
@@ -249,8 +249,8 @@ impl SchedulerService {
         running_jobs: &RunningJobs,
         actor: Actor,
     ) -> SchedulerResult<Job> {
-        let job_name_owned = job_name.to_string();
-        let schedule_owned = schedule.to_string();
+        let job_name_owned = job_name.to_owned();
+        let schedule_owned = schedule.to_owned();
         let db_pool = Arc::clone(&self.db_pool);
         let repository = self.repository.clone();
         let app_context = Arc::clone(&self.app_context);

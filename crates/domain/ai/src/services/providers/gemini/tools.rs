@@ -17,7 +17,7 @@ use super::request_builders::AiResponseParams;
 use super::tool_conversion::{build_thinking_config, convert_tools, extract_tool_response};
 use super::{converters, request_builders};
 
-pub async fn generate_with_tools(
+pub(super) async fn generate_with_tools(
     provider: &GeminiProvider,
     params: ToolRequestParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
@@ -142,7 +142,7 @@ async fn build_tool_response(
     Ok((response, tool_calls))
 }
 
-pub async fn generate_with_tool_results(
+pub(super) async fn generate_with_tool_results(
     provider: &GeminiProvider,
     params: ToolResultParams<'_>,
 ) -> Result<AiResponse> {
@@ -198,7 +198,7 @@ fn build_tool_result_contents(
 
     if !assistant_parts.is_empty() {
         contents.push(GeminiContent {
-            role: "model".to_string(),
+            role: "model".to_owned(),
             parts: assistant_parts,
         });
     }
@@ -216,7 +216,7 @@ fn build_tool_result_contents(
 
     if !user_parts.is_empty() {
         contents.push(GeminiContent {
-            role: "user".to_string(),
+            role: "user".to_owned(),
             parts: user_parts,
         });
     }
@@ -243,7 +243,7 @@ fn build_tool_result_request(
 
 fn extract_synthesis_content(gemini_response: &GeminiResponse) -> Result<String> {
     let candidate = gemini_response.candidates.first().ok_or_else(|| {
-        crate::error::AiError::Internal("No response from Gemini for tool synthesis".to_string())
+        crate::error::AiError::Internal("No response from Gemini for tool synthesis".to_owned())
     })?;
 
     let finish_reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");

@@ -53,7 +53,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
     }
 }
 
-pub async fn get_log(pool: &PgPool, id: &LogId) -> Result<Option<LogEntry>, LoggingError> {
+pub(crate) async fn get_log(pool: &PgPool, id: &LogId) -> Result<Option<LogEntry>, LoggingError> {
     let id_str = id.as_str();
 
     let row = sqlx::query_as!(
@@ -78,7 +78,7 @@ pub async fn get_log(pool: &PgPool, id: &LogId) -> Result<Option<LogEntry>, Logg
     Ok(row.map(row_to_entry))
 }
 
-pub async fn list_logs(pool: &PgPool, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
+pub(crate) async fn list_logs(pool: &PgPool, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
     let rows = sqlx::query_as!(
         LogRow,
         r#"
@@ -101,7 +101,7 @@ pub async fn list_logs(pool: &PgPool, limit: i64) -> Result<Vec<LogEntry>, Loggi
     Ok(rows.into_iter().map(row_to_entry).collect())
 }
 
-pub async fn list_logs_paginated(
+pub(crate) async fn list_logs_paginated(
     pool: &PgPool,
     filter: &LogFilter,
 ) -> Result<(Vec<LogEntry>, i64), LoggingError> {
@@ -142,8 +142,8 @@ pub async fn list_logs_paginated(
 
     let count = fetch_filtered_count(
         pool,
-        level_filter.map(ToString::to_string),
-        module_filter.map(ToString::to_string),
+        level_filter.map(str::to_owned),
+        module_filter.map(str::to_owned),
         message_pattern,
         since_filter,
     )
@@ -189,7 +189,7 @@ async fn fetch_filtered_count(
     .map_err(Into::into)
 }
 
-pub async fn list_logs_by_module_patterns(
+pub(crate) async fn list_logs_by_module_patterns(
     pool: &PgPool,
     patterns: &[String],
     limit: i64,

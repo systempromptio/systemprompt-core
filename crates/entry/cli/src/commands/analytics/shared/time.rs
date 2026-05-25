@@ -45,7 +45,7 @@ pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
 
     DateTime::parse_from_str(&format!("{}+00:00", s), "%Y-%m-%dT%H:%M:%S%:z")
         .map(|dt| Some(dt.with_timezone(&Utc)))
-        .map_err(|_| {
+        .map_err(|_e| {
             anyhow!(
                 "Invalid --since format: {}. Use '1h', '24h', '7d', '2026-01-13', or \
                  '2026-01-13T10:00:00'",
@@ -75,7 +75,7 @@ pub fn parse_until(until: Option<&String>) -> Result<Option<DateTime<Utc>>> {
 
     DateTime::parse_from_str(&format!("{}+00:00", s), "%Y-%m-%dT%H:%M:%S%:z")
         .map(|dt| Some(dt.with_timezone(&Utc)))
-        .map_err(|_| {
+        .map_err(|_e| {
             anyhow!(
                 "Invalid --until format: {}. Use '1h', '24h', '7d', '2026-01-13', or \
                  '2026-01-13T10:00:00'",

@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -8,12 +8,12 @@ use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 
 use super::models::{AiRequestSummary, TraceEvent};
 
-pub use super::step_queries::{
+pub(super) use super::step_queries::{
     fetch_execution_step_events, fetch_execution_step_summary, fetch_mcp_execution_events,
     fetch_mcp_execution_summary, fetch_task_id_for_trace,
 };
 
-pub async fn fetch_log_events(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<TraceEvent>> {
+pub(super) async fn fetch_log_events(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<TraceEvent>> {
     let rows = sqlx::query!(
         r#"
         SELECT
@@ -56,7 +56,7 @@ pub async fn fetch_log_events(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<
         .collect())
 }
 
-pub async fn fetch_ai_request_summary(
+pub(super) async fn fetch_ai_request_summary(
     pool: &Arc<PgPool>,
     trace_id: &str,
 ) -> Result<AiRequestSummary> {
@@ -87,7 +87,7 @@ pub async fn fetch_ai_request_summary(
     })
 }
 
-pub async fn fetch_ai_request_events(
+pub(super) async fn fetch_ai_request_events(
     pool: &Arc<PgPool>,
     trace_id: &str,
 ) -> Result<Vec<TraceEvent>> {
@@ -139,7 +139,7 @@ pub async fn fetch_ai_request_events(
             });
 
             TraceEvent {
-                event_type: "AI".to_string(),
+                event_type: "AI".to_owned(),
                 timestamp: row.timestamp,
                 details,
                 user_id: Some(UserId::new(row.user_id)),

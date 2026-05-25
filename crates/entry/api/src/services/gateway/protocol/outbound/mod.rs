@@ -20,7 +20,7 @@ pub struct OutboundCtx<'a> {
     pub upstream_model: &'a str,
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub enum OutboundOutcome {
     Buffered(CanonicalResponse),
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),

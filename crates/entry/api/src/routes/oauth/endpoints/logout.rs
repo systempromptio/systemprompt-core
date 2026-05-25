@@ -22,7 +22,7 @@ pub async fn handle_logout(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
-    let jti = req_ctx.jti().to_string();
+    let jti = req_ctx.jti().to_owned();
     if jti.is_empty() {
         return Err(OAuthHttpError::invalid_request("Missing bearer token"));
     }
@@ -32,7 +32,7 @@ pub async fn handle_logout(
         .ok_or_else(|| OAuthHttpError::invalid_request("Invalid token expiry"))?;
 
     let user_uuid = Uuid::parse_str(req_ctx.user_id().as_str())
-        .map_err(|_| OAuthHttpError::invalid_request("Invalid user id"))?;
+        .map_err(|_e| OAuthHttpError::invalid_request("Invalid user id"))?;
 
     revoke_jti(&repo, &jti, user_uuid, exp_dt).await?;
 

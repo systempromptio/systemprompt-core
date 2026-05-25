@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 
 use super::models::{ExecutionStepSummary, McpExecutionSummary, TraceEvent};
 
-pub async fn fetch_mcp_execution_summary(
+pub(super) async fn fetch_mcp_execution_summary(
     pool: &Arc<PgPool>,
     trace_id: &str,
 ) -> Result<McpExecutionSummary> {
@@ -31,7 +31,7 @@ pub async fn fetch_mcp_execution_summary(
     })
 }
 
-pub async fn fetch_mcp_execution_events(
+pub(super) async fn fetch_mcp_execution_events(
     pool: &Arc<PgPool>,
     trace_id: &str,
 ) -> Result<Vec<TraceEvent>> {
@@ -91,7 +91,7 @@ pub async fn fetch_mcp_execution_events(
             });
 
             TraceEvent {
-                event_type: "MCP".to_string(),
+                event_type: "MCP".to_owned(),
                 timestamp: row.timestamp,
                 details,
                 user_id: Some(UserId::new(row.user_id)),
@@ -111,7 +111,7 @@ pub async fn fetch_mcp_execution_events(
         .collect())
 }
 
-pub async fn fetch_task_id_for_trace(pool: &Arc<PgPool>, trace_id: &str) -> Result<Option<String>> {
+pub(super) async fn fetch_task_id_for_trace(pool: &Arc<PgPool>, trace_id: &str) -> Result<Option<String>> {
     let row = sqlx::query!(
         "SELECT task_id FROM agent_tasks WHERE trace_id = $1 LIMIT 1",
         trace_id
@@ -122,7 +122,7 @@ pub async fn fetch_task_id_for_trace(pool: &Arc<PgPool>, trace_id: &str) -> Resu
     Ok(row.map(|r| r.task_id))
 }
 
-pub async fn fetch_execution_step_summary(
+pub(super) async fn fetch_execution_step_summary(
     pool: &Arc<PgPool>,
     trace_id: &str,
 ) -> Result<ExecutionStepSummary> {
@@ -150,7 +150,7 @@ pub async fn fetch_execution_step_summary(
     })
 }
 
-pub async fn fetch_execution_step_events(
+pub(super) async fn fetch_execution_step_events(
     pool: &Arc<PgPool>,
     trace_id: &str,
 ) -> Result<Vec<TraceEvent>> {
@@ -210,7 +210,7 @@ pub async fn fetch_execution_step_events(
             });
 
             TraceEvent {
-                event_type: "STEP".to_string(),
+                event_type: "STEP".to_owned(),
                 timestamp: row.timestamp,
                 details,
                 user_id: row.user_id.map(UserId::new),

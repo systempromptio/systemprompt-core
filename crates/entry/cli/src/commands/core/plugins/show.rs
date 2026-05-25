@@ -13,7 +13,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<PluginDetailOutput>> {
+pub(crate) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<PluginDetailOutput>> {
     let plugins_path = get_plugins_path()?;
     let plugin_dir = plugins_path.join(&args.id);
 

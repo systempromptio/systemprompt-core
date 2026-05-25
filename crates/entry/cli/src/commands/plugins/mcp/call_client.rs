@@ -14,7 +14,7 @@ use tokio::time::timeout;
 use super::types::McpToolContent;
 use crate::session::CliSessionContext;
 
-pub struct ToolCallParams<'a> {
+pub(crate) struct ToolCallParams<'a> {
     pub server_name: &'a str,
     pub port: u16,
     pub tool_name: &'a str,
@@ -23,7 +23,7 @@ pub struct ToolCallParams<'a> {
     pub timeout_secs: u64,
 }
 
-pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
+pub(crate) async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
     let ToolCallParams {
         server_name,
         port,
@@ -69,7 +69,7 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
     Ok(result)
 }
 
-pub async fn list_available_tools(
+pub(crate) async fn list_available_tools(
     server_name: &str,
     port: u16,
     session_ctx: &CliSessionContext,
@@ -111,7 +111,7 @@ pub async fn list_available_tools(
     Ok(tool_names)
 }
 
-pub fn convert_content(raw: &RawContent) -> McpToolContent {
+pub(crate) fn convert_content(raw: &RawContent) -> McpToolContent {
     match raw {
         RawContent::Text(text) => McpToolContent {
             kind: "text".to_string(),

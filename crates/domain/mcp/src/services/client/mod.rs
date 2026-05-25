@@ -79,7 +79,7 @@ impl McpClient {
             let user_token = context.auth_token();
             if user_token.as_str().is_empty() {
                 return Err(crate::error::McpDomainError::AuthRequired(
-                    "User JWT required for authenticated MCP calls".to_string(),
+                    "User JWT required for authenticated MCP calls".to_owned(),
                 ));
             }
             let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
@@ -167,7 +167,7 @@ fn build_transport(
         let user_token = context.auth_token();
         if user_token.as_str().is_empty() {
             return Err(crate::error::McpDomainError::AuthRequired(
-                "User JWT required for authenticated MCP calls".to_string(),
+                "User JWT required for authenticated MCP calls".to_owned(),
             ));
         }
         let config = StreamableHttpClientTransportConfig::with_uri(url)
@@ -179,7 +179,7 @@ fn build_transport(
     }
 }
 
-async fn execute_tool_call(
+pub(crate) async fn execute_tool_call(
     transport: StreamableHttpClientTransport<HttpClientWithContext>,
     server: &str,
     name: &str,
@@ -198,14 +198,14 @@ async fn execute_tool_call(
         Ok(Err(e)) => return Err(e.into()),
         Err(_) => {
             return Err(crate::error::McpDomainError::Timeout {
-                server: server.to_string(),
+                server: server.to_owned(),
                 after_ms: u64::try_from(HTTP_STREAM_CONNECT_TIMEOUT.as_millis())
                     .unwrap_or(u64::MAX),
             });
         },
     };
 
-    let mut params = rmcp::model::CallToolRequestParams::new(name.to_string());
+    let mut params = rmcp::model::CallToolRequestParams::new(name.to_owned());
     if let Some(args) = arguments.and_then(|v| v.as_object().cloned()) {
         params = params.with_arguments(args);
     }
@@ -215,7 +215,7 @@ async fn execute_tool_call(
         .map_or_else(
             |_| {
                 Err(crate::error::McpDomainError::Timeout {
-                    server: server.to_string(),
+                    server: server.to_owned(),
                     after_ms: u64::try_from(MCP_TOOL_EXECUTION_TIMEOUT.as_millis())
                         .unwrap_or(u64::MAX),
                 })

@@ -21,7 +21,7 @@ fn get_api_port() -> u16 {
     ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     target: ServiceTarget,
     force: bool,
     config: &CliConfig,
@@ -159,7 +159,7 @@ async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
     Ok(agent.name)
 }
 
-pub async fn execute_individual_agent(
+pub(crate) async fn execute_individual_agent(
     ctx: &Arc<AppContext>,
     agent: &str,
     force: bool,
@@ -204,7 +204,7 @@ pub async fn execute_individual_agent(
     Ok(CommandResult::card(output).with_title("Stop Agent"))
 }
 
-pub async fn execute_individual_mcp(
+pub(crate) async fn execute_individual_mcp(
     ctx: &Arc<AppContext>,
     server_name: &str,
     _force: bool,

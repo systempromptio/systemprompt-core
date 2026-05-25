@@ -125,8 +125,8 @@ impl AiService {
         let final_response = AiResponse::new(
             request_id,
             final_content,
-            request.provider().to_string(),
-            model.to_string(),
+            request.provider().to_owned(),
+            model.to_owned(),
         )
         .with_latency(latency_ms)
         .with_tool_calls(tool_calls)

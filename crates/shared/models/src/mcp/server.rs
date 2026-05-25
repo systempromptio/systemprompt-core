@@ -107,7 +107,7 @@ impl McpAuthState {
     pub fn username(&self) -> String {
         match self {
             Self::Authenticated(user) => user.username.clone(),
-            Self::Anonymous => "anonymous".to_string(),
+            Self::Anonymous => "anonymous".to_owned(),
         }
     }
 }

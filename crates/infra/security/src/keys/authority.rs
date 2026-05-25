@@ -38,7 +38,7 @@ pub enum TokenAuthorityError {
 
 pub type TokenAuthorityResult<T> = Result<T, TokenAuthorityError>;
 
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names)]
 struct Authority {
     signing_key: RsaSigningKey,
     encoding_key: EncodingKey,
@@ -61,7 +61,7 @@ fn load() -> TokenAuthorityResult<Authority> {
     build(signing_key)
 }
 
-fn build(signing_key: RsaSigningKey) -> TokenAuthorityResult<Authority> {
+pub(crate) fn build(signing_key: RsaSigningKey) -> TokenAuthorityResult<Authority> {
     let der = signing_key
         .private_key()
         .to_pkcs1_der()

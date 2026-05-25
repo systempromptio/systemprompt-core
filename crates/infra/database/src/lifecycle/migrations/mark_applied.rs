@@ -32,7 +32,7 @@ impl MigrationService<'_> {
             .into_iter()
             .find(|m| m.version == version)
             .ok_or_else(|| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!(
                     "Migration version {version} is not defined for extension '{ext_id}'"
                 ),
@@ -43,7 +43,7 @@ impl MigrationService<'_> {
         let applied = self.get_applied_migrations(ext_id).await?;
         if applied.iter().any(|m| m.version == version) {
             return Err(LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!(
                     "Migration {version} ('{}') is already tracked as applied for extension \
                      '{ext_id}'; nothing to do",
@@ -63,12 +63,12 @@ impl MigrationService<'_> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!("Failed to record migration as applied: {e}"),
             })?;
 
         Ok(MarkAppliedOutcome {
-            extension_id: ext_id.to_string(),
+            extension_id: ext_id.to_owned(),
             version: migration.version,
             name: migration.name.clone(),
             checksum,

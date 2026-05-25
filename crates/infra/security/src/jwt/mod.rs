@@ -37,14 +37,14 @@ impl JwtService {
             iat: now.timestamp(),
             exp: expiry.timestamp(),
             nbf: Some(now.timestamp()),
-            iss: params.issuer.to_string(),
+            iss: params.issuer.to_owned(),
             aud: JwtAudience::standard(),
             jti: uuid::Uuid::new_v4().to_string(),
             scope: vec![Permission::Admin],
-            username: params.email.to_string(),
-            email: params.email.to_string(),
+            username: params.email.to_owned(),
+            email: params.email.to_owned(),
             user_type: UserType::Admin,
-            roles: vec!["admin".to_string(), "user".to_string()],
+            roles: vec!["admin".to_owned(), "user".to_owned()],
             department: None,
             client_id: params.client_id.cloned(),
             token_type: TokenType::Bearer,
@@ -57,7 +57,7 @@ impl JwtService {
 
         let kid = authority::active_kid().map_err(|e| JwtError::Signing(e.to_string()))?;
         let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(kid.to_string());
+        header.kid = Some(kid.to_owned());
         let key = authority::encoding_key().map_err(|e| JwtError::Signing(e.to_string()))?;
         let token = encode(&header, &claims, key).map_err(JwtError::from)?;
 

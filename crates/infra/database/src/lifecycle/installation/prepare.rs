@@ -28,7 +28,7 @@ pub(super) struct ColumnsToValidate {
 
 pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
-    let extension_id = ext.metadata().id.to_string();
+    let extension_id = ext.metadata().id.to_owned();
 
     let mut all_sql = Vec::new();
     let mut columns_to_validate: Vec<ColumnsToValidate> = Vec::new();
@@ -45,7 +45,7 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
 
         if !schema.required_columns.is_empty() {
             columns_to_validate.push(ColumnsToValidate {
-                schema: schema.schema_name().to_string(),
+                schema: schema.schema_name().to_owned(),
                 table: schema.table.clone(),
                 columns: schema.required_columns.clone(),
             });

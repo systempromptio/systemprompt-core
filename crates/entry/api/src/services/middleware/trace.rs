@@ -7,7 +7,7 @@ pub async fn inject_trace_header(request: Request, next: Next) -> Response {
     let trace_id = request
         .extensions()
         .get::<RequestContext>()
-        .map(|ctx| ctx.trace_id().as_str().to_string());
+        .map(|ctx| ctx.trace_id().as_str().to_owned());
 
     let mut response = next.run(request).await;
 

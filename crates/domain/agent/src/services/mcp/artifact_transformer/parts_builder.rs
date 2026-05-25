@@ -18,7 +18,7 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                         "text" => {
                             if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
                                 parts.push(Part::Text(TextPart {
-                                    text: text.to_string(),
+                                    text: text.to_owned(),
                                 }));
                             }
                         },
@@ -27,11 +27,11 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                                 let mime_type = item
                                     .get("mimeType")
                                     .and_then(|m| m.as_str())
-                                    .map(ToString::to_string);
+                                    .map(str::to_owned);
 
                                 parts.push(Part::File(FilePart {
                                     file: FileContent {
-                                        bytes: Some(data.to_string()),
+                                        bytes: Some(data.to_owned()),
                                         mime_type,
                                         name: None,
                                         url: None,
@@ -44,11 +44,11 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                                 let mime_type = item
                                     .get("mimeType")
                                     .and_then(|m| m.as_str())
-                                    .map(ToString::to_string);
+                                    .map(str::to_owned);
 
                                 parts.push(Part::File(FilePart {
                                     file: FileContent {
-                                        name: Some(uri.to_string()),
+                                        name: Some(uri.to_owned()),
                                         mime_type,
                                         bytes: None,
                                         url: None,
@@ -68,6 +68,6 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
 
     Err(ArtifactError::Transform(format!(
         "Artifact must be an object or contain a 'content' array. Received: {}",
-        serde_json::to_string_pretty(artifact).unwrap_or_else(|_| "invalid JSON".to_string())
+        serde_json::to_string_pretty(artifact).unwrap_or_else(|_| "invalid JSON".to_owned())
     )))
 }

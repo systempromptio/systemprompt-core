@@ -28,7 +28,7 @@ pub struct StreamArgs {
     pub clear: bool,
 }
 
-pub async fn execute(args: StreamArgs, config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute(args: StreamArgs, config: &CliConfig) -> Result<()> {
     if config.is_json_output() {
         return Err(anyhow!("JSON output is not supported in streaming mode"));
     }

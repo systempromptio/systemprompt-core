@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DeviceCertId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DeviceCertEnrolledOutput {
+pub(crate) struct DeviceCertEnrolledOutput {
     pub id: DeviceCertId,
     pub user_id: UserId,
     pub fingerprint: String,
@@ -13,7 +13,7 @@ pub struct DeviceCertEnrolledOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ExchangeCodeIssuedOutput {
+pub(crate) struct ExchangeCodeIssuedOutput {
     pub user_id: UserId,
     pub code: String,
     pub expires_at: DateTime<Utc>,
@@ -21,7 +21,7 @@ pub struct ExchangeCodeIssuedOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SigningKeyRotatedOutput {
+pub(crate) struct SigningKeyRotatedOutput {
     pub pubkey_b64: String,
     pub message: String,
 }

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::TenantId;
 
-pub const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
+pub(crate) const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
 pub const SHARED_ADMIN_USER: &str = "systemprompt_admin";
 pub const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
 pub const SHARED_PORT: u16 = 5432;
@@ -20,13 +20,13 @@ pub struct SharedContainerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TenantDatabaseMapping {
+pub(crate) struct TenantDatabaseMapping {
     pub tenant_id: TenantId,
     pub database_name: String,
 }
 
 impl SharedContainerConfig {
-    pub fn new(admin_password: String, port: u16) -> Self {
+    pub(crate) fn new(admin_password: String, port: u16) -> Self {
         Self {
             admin_password,
             port,
@@ -35,14 +35,14 @@ impl SharedContainerConfig {
         }
     }
 
-    pub fn add_tenant(&mut self, tenant: TenantId, database_name: String) {
+    pub(crate) fn add_tenant(&mut self, tenant: TenantId, database_name: String) {
         self.tenant_databases.push(TenantDatabaseMapping {
             tenant_id: tenant,
             database_name,
         });
     }
 
-    pub fn remove_tenant(&mut self, tenant: &str) -> Option<TenantDatabaseMapping> {
+    pub(crate) fn remove_tenant(&mut self, tenant: &str) -> Option<TenantDatabaseMapping> {
         self.tenant_databases
             .iter()
             .position(|t| t.tenant_id == tenant)
@@ -50,7 +50,7 @@ impl SharedContainerConfig {
     }
 }
 
-pub fn shared_config_path() -> PathBuf {
+pub(crate) fn shared_config_path() -> PathBuf {
     let ctx = ProjectContext::discover();
     ctx.docker_dir().join("shared_config.json")
 }

@@ -9,7 +9,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::{TaskConstructor, converters};
 
-pub async fn construct_task_from_task_id(
+pub(super) async fn construct_task_from_task_id(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Task, RepositoryError> {
@@ -213,7 +213,7 @@ fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
     if let Some(client_id) = &msg_row.client_message_id {
         if let Some(obj) = final_metadata.as_object_mut() {
             obj.insert(
-                "clientMessageId".to_string(),
+                "clientMessageId".to_owned(),
                 serde_json::Value::String(client_id.clone()),
             );
         }

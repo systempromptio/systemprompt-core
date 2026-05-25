@@ -92,7 +92,7 @@ impl AgentCardBuilder {
                 supported_interfaces: vec![AgentInterface {
                     url,
                     protocol_binding: ProtocolBinding::JsonRpc,
-                    protocol_version: "1.0.0".to_string(),
+                    protocol_version: "1.0.0".to_owned(),
                 }],
                 version,
                 icon_url: None,
@@ -101,8 +101,8 @@ impl AgentCardBuilder {
                 capabilities: AgentCapabilities::default(),
                 security_schemes: None,
                 security: None,
-                default_input_modes: vec!["text/plain".to_string()],
-                default_output_modes: vec!["text/plain".to_string()],
+                default_input_modes: vec!["text/plain".to_owned()],
+                default_output_modes: vec!["text/plain".to_owned()],
                 skills: Vec::new(),
                 supports_authenticated_extended_card: Some(false),
                 signatures: None,
@@ -169,18 +169,18 @@ impl AgentCardBuilder {
 
         let oauth2_scheme = SecurityScheme::OAuth2 {
             flows: Box::new(oauth2_flows),
-            description: Some("OAuth 2.0 authorization code flow for secure access".to_string()),
+            description: Some("OAuth 2.0 authorization code flow for secure access".to_owned()),
         };
 
         self.agent_card
             .security_schemes
             .get_or_insert_with(HashMap::new)
-            .insert("oauth2".to_string(), oauth2_scheme);
+            .insert("oauth2".to_owned(), oauth2_scheme);
 
         let mut authentication_requirement = HashMap::new();
         authentication_requirement.insert(
-            "oauth2".to_string(),
-            vec!["admin".to_string(), "user".to_string()],
+            "oauth2".to_owned(),
+            vec!["admin".to_owned(), "user".to_owned()],
         );
 
         self.agent_card

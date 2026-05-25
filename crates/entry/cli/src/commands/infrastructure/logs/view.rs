@@ -34,13 +34,13 @@ pub struct ViewArgs {
     pub since: Option<String>,
 }
 
-pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandResult<LogViewOutput>> {
+pub(crate) async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandResult<LogViewOutput>> {
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(ctx.db_pool())?;
     execute_inner(args, &service, config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ViewArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,

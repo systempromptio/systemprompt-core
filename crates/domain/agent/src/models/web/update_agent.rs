@@ -51,12 +51,12 @@ impl<'de> Deserialize<'de> for UpdateAgentRequest {
             security_schemes: raw.card.security_schemes,
             security: raw.card.security,
             default_input_modes: if raw.card.default_input_modes.is_empty() {
-                vec!["text/plain".to_string()]
+                vec!["text/plain".to_owned()]
             } else {
                 raw.card.default_input_modes
             },
             default_output_modes: if raw.card.default_output_modes.is_empty() {
-                vec!["text/plain".to_string()]
+                vec!["text/plain".to_owned()]
             } else {
                 raw.card.default_output_modes
             },
@@ -100,12 +100,12 @@ impl UpdateAgentRequest {
             security_schemes: raw.card.security_schemes,
             security: raw.card.security,
             default_input_modes: if raw.card.default_input_modes.is_empty() {
-                vec!["text/plain".to_string()]
+                vec!["text/plain".to_owned()]
             } else {
                 raw.card.default_input_modes
             },
             default_output_modes: if raw.card.default_output_modes.is_empty() {
-                vec!["text/plain".to_string()]
+                vec!["text/plain".to_owned()]
             } else {
                 raw.card.default_output_modes
             },
@@ -124,20 +124,20 @@ impl UpdateAgentRequest {
 
     pub async fn validate(&self) -> Result<(), String> {
         if self.card.name.trim().is_empty() {
-            return Err("Name is required".to_string());
+            return Err("Name is required".to_owned());
         }
 
         let card_url = self.card.url().unwrap_or("");
         if card_url.trim().is_empty() {
-            return Err("Endpoint is required".to_string());
+            return Err("Endpoint is required".to_owned());
         }
 
         if !card_url.starts_with("http://") && !card_url.starts_with("https://") {
-            return Err("Endpoint must be a valid HTTP or HTTPS URL".to_string());
+            return Err("Endpoint must be a valid HTTP or HTTPS URL".to_owned());
         }
 
         if !is_valid_version(&self.card.version) {
-            return Err("Version must be in semantic version format (e.g., 1.0.0)".to_string());
+            return Err("Version must be in semantic version format (e.g., 1.0.0)".to_owned());
         }
 
         if let Some(ref mcp_servers) = self.mcp_servers {
@@ -156,7 +156,7 @@ impl UpdateAgentRequest {
                         "Invalid MCP server(s): {}. Available servers: {}",
                         invalid_servers.join(", "),
                         if available_servers.is_empty() {
-                            "(none)".to_string()
+                            "(none)".to_owned()
                         } else {
                             available_servers.join(", ")
                         }

@@ -61,8 +61,8 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<Ag
     };
 
     Ok(AgentSkill {
-        id: skill_id_str.to_string(),
-        name: config.name.unwrap_or_else(|| skill_id_str.to_string()),
+        id: skill_id_str.to_owned(),
+        name: config.name.unwrap_or_else(|| skill_id_str.to_owned()),
         description: config
             .description
             .or(description)

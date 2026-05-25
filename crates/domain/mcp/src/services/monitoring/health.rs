@@ -147,7 +147,7 @@ pub async fn perform_health_check(config: &McpServerConfig) -> McpDomainResult<H
         )),
         Err(_) => Ok(HealthCheckResult::unhealthy(
             config,
-            "Health check timeout".to_string(),
+            "Health check timeout".to_owned(),
         )),
     }
 }

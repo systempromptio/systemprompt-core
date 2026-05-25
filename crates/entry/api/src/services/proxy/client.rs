@@ -3,7 +3,7 @@ use systemprompt_models::net::{
 };
 
 #[derive(Debug, Clone)]
-pub struct ClientPool {
+pub(super) struct ClientPool {
     client: reqwest::Client,
 }
 
@@ -14,7 +14,7 @@ impl Default for ClientPool {
 }
 
 impl ClientPool {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
                 .connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT)
@@ -28,7 +28,7 @@ impl ClientPool {
         }
     }
 
-    pub fn get_default_client(&self) -> reqwest::Client {
+    pub(super) fn get_default_client(&self) -> reqwest::Client {
         self.client.clone()
     }
 }

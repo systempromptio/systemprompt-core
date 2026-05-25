@@ -57,7 +57,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         .await
         .map_err(|()| {
             AgentServiceError::Internal(
-                "Standard execution failed - see stream errors for details".to_string(),
+                "Standard execution failed - see stream errors for details".to_owned(),
             )
         })?;
 

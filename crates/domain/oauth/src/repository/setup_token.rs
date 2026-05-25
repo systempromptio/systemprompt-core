@@ -46,7 +46,7 @@ impl std::str::FromStr for SetupTokenPurpose {
         match s {
             "credential_link" => Ok(Self::CredentialLink),
             "recovery" => Ok(Self::Recovery),
-            other => Err(SetupTokenPurposeParseError(other.to_string())),
+            other => Err(SetupTokenPurposeParseError(other.to_owned())),
         }
     }
 }

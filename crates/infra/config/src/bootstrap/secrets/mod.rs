@@ -98,7 +98,7 @@ impl SecretsBootstrap {
 
         SECRETS
             .set(secrets)
-            .map_err(|_| SecretsBootstrapError::AlreadyInitialized)?;
+            .map_err(|_e| SecretsBootstrapError::AlreadyInitialized)?;
 
         SECRETS
             .get()
@@ -183,13 +183,13 @@ impl SecretsBootstrap {
 
     fn resolved_secrets_file_path() -> ConfigResult<PathBuf> {
         let profile =
-            ProfileBootstrap::get().map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+            ProfileBootstrap::get().map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
         let secrets_config = profile
             .secrets
             .as_ref()
             .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
         let profile_path = ProfileBootstrap::get_path()
-            .map_err(|_| SecretsBootstrapError::ProfileNotInitialized)?;
+            .map_err(|_e| SecretsBootstrapError::ProfileNotInitialized)?;
         let profile_dir = Path::new(profile_path)
             .parent()
             .ok_or_else(|| ConfigError::other("Invalid profile path - no parent directory"))?;

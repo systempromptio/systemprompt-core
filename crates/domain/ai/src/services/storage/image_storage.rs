@@ -49,11 +49,11 @@ impl StorageConfig {
 
     pub fn validate(&self) -> Result<(), String> {
         if self.url_prefix.is_empty() {
-            return Err("url_prefix cannot be empty".to_string());
+            return Err("url_prefix cannot be empty".to_owned());
         }
 
         if self.max_file_size_bytes == 0 {
-            return Err("max_file_size_bytes must be greater than 0".to_string());
+            return Err("max_file_size_bytes must be greater than 0".to_owned());
         }
 
         Ok(())
@@ -204,8 +204,7 @@ impl ImageStorage {
             "image/webp" => "webp",
             "image/gif" => "gif",
             _ => "png",
-        }
-        .to_string()
+        }.to_owned()
     }
 
     fn cleanup_empty_directories(&self, dir: &Path) -> Result<(), std::io::Error> {

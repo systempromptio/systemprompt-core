@@ -76,8 +76,8 @@ impl AiRequestRecord {
             provider_request_id: None,
             trace_id: None,
             mcp_execution_id: None,
-            provider: "unknown".to_string(),
-            model: "unknown".to_string(),
+            provider: "unknown".to_owned(),
+            model: "unknown".to_owned(),
             max_tokens: None,
             tokens: TokenInfo::default(),
             cache: CacheInfo::default(),
@@ -85,7 +85,7 @@ impl AiRequestRecord {
             cost_microdollars: 0,
             latency_ms: 0,
             status: RequestStatus::Failed,
-            error_message: Some("Record construction failed".to_string()),
+            error_message: Some("Record construction failed".to_owned()),
         }
     }
 }

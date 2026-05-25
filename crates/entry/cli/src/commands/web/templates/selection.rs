@@ -4,7 +4,7 @@ use dialoguer::theme::ColorfulTheme;
 
 use super::super::types::TemplatesConfig;
 
-pub fn prompt_template_selection(config: &TemplatesConfig, prompt: &str) -> Result<String> {
+pub(crate) fn prompt_template_selection(config: &TemplatesConfig, prompt: &str) -> Result<String> {
     let mut names: Vec<&String> = config.templates.keys().collect();
     names.sort();
 

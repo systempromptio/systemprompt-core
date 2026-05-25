@@ -85,11 +85,11 @@ impl StepContent {
     #[must_use]
     pub fn title(&self) -> String {
         match self {
-            Self::Understanding => "Analyzing request...".to_string(),
-            Self::Planning { .. } => "Planning response...".to_string(),
+            Self::Understanding => "Analyzing request...".to_owned(),
+            Self::Planning { .. } => "Planning response...".to_owned(),
             Self::SkillUsage { skill_name, .. } => format!("Using {skill_name} skill..."),
             Self::ToolExecution { tool_name, .. } => format!("Running {tool_name}..."),
-            Self::Completion => "Complete".to_string(),
+            Self::Completion => "Complete".to_owned(),
         }
     }
 

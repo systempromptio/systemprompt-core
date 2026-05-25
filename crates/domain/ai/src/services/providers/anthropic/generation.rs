@@ -15,7 +15,7 @@ use super::request::{post_messages, sampling_tuple};
 use super::response::{ResponseContext, build_response};
 use super::{converters, thinking};
 
-pub async fn generate(
+pub(super) async fn generate(
     provider: &AnthropicProvider,
     params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -26,7 +26,7 @@ pub async fn generate(
     let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.sampling);
 
     let request = AnthropicRequest {
-        model: params.model.to_string(),
+        model: params.model.to_owned(),
         messages: anthropic_messages,
         max_tokens: params.max_output_tokens,
         temperature,
@@ -63,7 +63,7 @@ pub async fn generate(
     ))
 }
 
-pub async fn generate_with_tools(
+pub(super) async fn generate_with_tools(
     provider: &AnthropicProvider,
     params: ToolGenerationParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
@@ -75,7 +75,7 @@ pub async fn generate_with_tools(
     let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.base.sampling);
 
     let request = AnthropicRequest {
-        model: params.base.model.to_string(),
+        model: params.base.model.to_owned(),
         messages: anthropic_messages,
         max_tokens: params.base.max_output_tokens,
         temperature,
@@ -107,7 +107,7 @@ pub async fn generate_with_tools(
     Ok((ai_response, tool_calls))
 }
 
-pub async fn generate_with_schema(
+pub(super) async fn generate_with_schema(
     provider: &AnthropicProvider,
     params: SchemaGenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -118,13 +118,13 @@ pub async fn generate_with_schema(
     let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.base.sampling);
 
     let structured_tool = AnthropicTool {
-        name: "structured_output".to_string(),
-        description: Some("Return structured JSON output matching the schema".to_string()),
+        name: "structured_output".to_owned(),
+        description: Some("Return structured JSON output matching the schema".to_owned()),
         input_schema: params.response_schema,
     };
 
     let request = AnthropicRequest {
-        model: params.base.model.to_string(),
+        model: params.base.model.to_owned(),
         messages: anthropic_messages,
         max_tokens: params.base.max_output_tokens,
         temperature,
@@ -134,7 +134,7 @@ pub async fn generate_with_schema(
         system: system_prompt,
         tools: Some(vec![structured_tool]),
         tool_choice: Some(AnthropicToolChoice::Tool {
-            name: "structured_output".to_string(),
+            name: "structured_output".to_owned(),
         }),
         stream: None,
         thinking: thinking::build_thinking_config(params.base.model),

@@ -16,7 +16,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: CleanupArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SessionCleanupOutput>> {

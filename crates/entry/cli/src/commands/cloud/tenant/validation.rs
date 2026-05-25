@@ -6,7 +6,7 @@ use systemprompt_models::ServicesConfig;
 
 use crate::shared::project::ProjectRoot;
 
-pub struct BuildValidationResult {
+pub(crate) struct BuildValidationResult {
     pub required_secrets: Vec<String>,
 }
 
@@ -16,7 +16,7 @@ pub fn check_build_ready() -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-pub fn validate_build_ready() -> Result<BuildValidationResult> {
+pub(crate) fn validate_build_ready() -> Result<BuildValidationResult> {
     let project_root =
         ProjectRoot::discover().context("Must be in a systemprompt.io project directory")?;
     let root = project_root.as_path();
@@ -102,7 +102,7 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
     Ok(required_secrets)
 }
 
-pub fn warn_required_secrets(required_secrets: &[String]) {
+pub(crate) fn warn_required_secrets(required_secrets: &[String]) {
     if required_secrets.is_empty() {
         return;
     }

@@ -69,12 +69,11 @@ impl ProxyEngine {
         let full_url = UrlResolver::append_query_params(backend_url, query);
 
         let mut req_context = req_ctx.clone().ok_or_else(|| ProxyError::MissingContext {
-            message: "Request context required - proxy cannot operate without authentication"
-                .to_string(),
+            message: "Request context required - proxy cannot operate without authentication".to_owned(),
         })?;
 
         if service.module_name == "agent" || service.module_name == "mcp" {
-            req_context = req_context.with_agent_name(AgentName::new(service_name.to_string()));
+            req_context = req_context.with_agent_name(AgentName::new(service_name.to_owned()));
         }
 
         if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {
@@ -118,7 +117,7 @@ impl ProxyEngine {
             Err(e) => {
                 tracing::error!(service = %service_name, url = %full_url, error = %e, "Connection failed");
                 return Err(ProxyError::ConnectionFailed {
-                    service: service_name.to_string(),
+                    service: service_name.to_owned(),
                     url: full_url.clone(),
                     source: e,
                 });
@@ -143,7 +142,7 @@ impl ProxyEngine {
             Err(e) => {
                 tracing::error!(service = %service_name, error = %e, "Failed to build response");
                 Err(ProxyError::InvalidResponse {
-                    service: service_name.to_string(),
+                    service: service_name.to_owned(),
                     reason: format!("Failed to build response: {e}"),
                 })
             },

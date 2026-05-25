@@ -109,7 +109,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
     let creds = get_credentials()?;
 
     let profile = ProfileBootstrap::get()
-        .map_err(|_| anyhow!("Profile required for sync. Set SYSTEMPROMPT_PROFILE"))?;
+        .map_err(|_e| anyhow!("Profile required for sync. Set SYSTEMPROMPT_PROFILE"))?;
 
     let tenant_id = profile
         .cloud

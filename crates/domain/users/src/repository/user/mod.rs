@@ -1,7 +1,7 @@
 mod find;
 mod list;
 mod merge;
-pub mod operations;
+pub(super) mod operations;
 mod session;
 mod stats;
 

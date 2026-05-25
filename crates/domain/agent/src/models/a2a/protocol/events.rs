@@ -21,7 +21,7 @@ impl TaskStatusUpdateEvent {
         is_final: bool,
     ) -> Self {
         Self {
-            kind: "status-update".to_string(),
+            kind: "status-update".to_owned(),
             task_id: task_id.into(),
             context_id,
             status,
@@ -56,7 +56,7 @@ impl TaskArtifactUpdateEvent {
         is_final: bool,
     ) -> Self {
         Self {
-            kind: "artifact-update".to_string(),
+            kind: "artifact-update".to_owned(),
             task_id: task_id.into(),
             context_id,
             artifact,

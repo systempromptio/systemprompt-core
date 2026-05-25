@@ -45,19 +45,19 @@ pub async fn generate_with_web_search(
         .iter()
         .map(|msg| OpenAiResponsesInput {
             role: match msg.role {
-                MessageRole::User => "user".to_string(),
-                MessageRole::Assistant => "assistant".to_string(),
-                MessageRole::System => "system".to_string(),
+                MessageRole::User => "user".to_owned(),
+                MessageRole::Assistant => "assistant".to_owned(),
+                MessageRole::System => "system".to_owned(),
             },
             content: msg.content.clone(),
         })
         .collect();
 
     let request = OpenAiResponsesRequest {
-        model: params.model.to_string(),
+        model: params.model.to_owned(),
         input,
         tools: Some(vec![OpenAiResponsesTool::WebSearch {
-            search_context_size: Some("medium".to_string()),
+            search_context_size: Some("medium".to_owned()),
         }]),
         temperature: params.sampling.and_then(|s| s.temperature),
         max_output_tokens: Some(params.max_output_tokens),
@@ -141,7 +141,7 @@ fn extract_search_response(
         url_context_metadata: None,
         tokens_used: response.usage.as_ref().map(|u| u.total),
         latency_ms,
-        finish_reason: Some("stop".to_string()),
+        finish_reason: Some("stop".to_owned()),
         safety_ratings: None,
     }
 }

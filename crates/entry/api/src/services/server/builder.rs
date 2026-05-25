@@ -42,7 +42,7 @@ impl ApiServer {
         if let Some(ref tx) = self.events {
             if tx
                 .unbounded_send(StartupEvent::ServerBinding {
-                    address: addr.to_string(),
+                    address: addr.to_owned(),
                 })
                 .is_err()
             {

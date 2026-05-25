@@ -83,7 +83,7 @@ impl OAuthRepository {
     pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> OauthResult<()> {
         let expires_at_dt = chrono::DateTime::<Utc>::from_timestamp(params.expires_at, 0)
             .ok_or_else(|| {
-                OauthError::Validation("Invalid timestamp for expires_at".to_string())
+                OauthError::Validation("Invalid timestamp for expires_at".to_owned())
             })?;
         let now = Utc::now();
         let token_id_hash = hash_at_rest(params.token_id.as_str())?;
@@ -154,10 +154,10 @@ impl OAuthRepository {
         )
         .fetch_optional(self.pool_ref())
         .await?
-        .ok_or_else(|| OauthError::TokenInvalid("Invalid refresh token".to_string()))?;
+        .ok_or_else(|| OauthError::TokenInvalid("Invalid refresh token".to_owned()))?;
 
         if row.expires_at < now {
-            return Err(OauthError::Expired("Refresh token expired".to_string()));
+            return Err(OauthError::Expired("Refresh token expired".to_owned()));
         }
 
         Ok((UserId::new(row.user_id), row.scope))

@@ -24,7 +24,7 @@ pub struct EnrollCertArgs {
     pub label: String,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: EnrollCertArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<DeviceCertEnrolledOutput>> {

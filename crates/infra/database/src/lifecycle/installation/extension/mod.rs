@@ -125,7 +125,7 @@ async fn execute_statements_transactional(
         db.begin_transaction()
             .await
             .map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_string(),
+                extension: extension_id.to_owned(),
                 message: format!("Failed to begin transaction: {e}"),
             })?;
 
@@ -138,7 +138,7 @@ async fn execute_statements_transactional(
                 Err(rb) => format!(" (rollback also failed: {rb})"),
             };
             return Err(LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_string(),
+                extension: extension_id.to_owned(),
                 message: format!(
                     "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
                     n = idx + 1,
@@ -150,7 +150,7 @@ async fn execute_statements_transactional(
     tx.commit()
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_string(),
+            extension: extension_id.to_owned(),
             message: format!("Failed to commit transaction: {e}"),
         })?;
 

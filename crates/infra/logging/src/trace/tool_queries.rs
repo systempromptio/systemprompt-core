@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -17,7 +17,7 @@ struct DbRow {
     execution_time_ms: Option<i32>,
 }
 
-pub async fn list_tool_executions(
+pub(super) async fn list_tool_executions(
     pool: &Arc<PgPool>,
     filter: &ToolExecutionFilter,
 ) -> Result<Vec<ToolExecutionItem>> {

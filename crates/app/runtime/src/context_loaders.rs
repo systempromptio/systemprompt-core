@@ -21,7 +21,7 @@ use crate::error::{RuntimeError, RuntimeResult};
 use systemprompt_analytics::GeoIpReader;
 
 #[cfg(feature = "geolocation")]
-pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
+pub(crate) fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
     let Some(geoip_path) = &config.geoip_database_path else {
         if show_warnings {
             CliService::warning(
@@ -62,7 +62,7 @@ pub fn load_geoip_database(
     None
 }
 
-pub async fn resolve_system_admin(
+pub(crate) async fn resolve_system_admin(
     cfg: &SystemAdminConfig,
     users: &UserService,
 ) -> RuntimeResult<SystemAdmin> {
@@ -85,7 +85,7 @@ pub async fn resolve_system_admin(
     Ok(SystemAdmin::new(user.id, user.name))
 }
 
-pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
+pub(crate) fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
     let content_config_path = app_paths.system().content_config().to_path_buf();
 
     if !content_config_path.exists() {
@@ -114,7 +114,7 @@ pub fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<
         Ok(mut content_cfg) => {
             let base_url = config.api_external_url.trim_end_matches('/');
 
-            content_cfg.metadata.structured_data.organization.url = base_url.to_string();
+            content_cfg.metadata.structured_data.organization.url = base_url.to_owned();
 
             let logo = &content_cfg.metadata.structured_data.organization.logo;
             if logo.starts_with('/') {

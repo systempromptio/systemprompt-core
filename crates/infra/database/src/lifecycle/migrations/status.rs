@@ -80,7 +80,7 @@ impl MigrationService<'_> {
             .into_iter()
             .filter(|m| !applied_versions.contains(&m.version))
             .map(|m| PendingMigration {
-                extension_id: ext_id.to_string(),
+                extension_id: ext_id.to_owned(),
                 version: m.version,
                 name: m.name.clone(),
                 sql: m.sql,
@@ -115,17 +115,17 @@ impl MigrationService<'_> {
                 if let Some(&stored_checksum) = applied_checksums.get(&m.version) {
                     if stored_checksum != current_checksum {
                         drift.push(ChecksumDrift {
-                            extension_id: ext_id.to_string(),
+                            extension_id: ext_id.to_owned(),
                             version: m.version,
                             name: m.name.clone(),
-                            stored_checksum: stored_checksum.to_string(),
+                            stored_checksum: stored_checksum.to_owned(),
                             current_checksum,
                         });
                     }
                 }
             } else {
                 pending.push(PendingMigration {
-                    extension_id: ext_id.to_string(),
+                    extension_id: ext_id.to_owned(),
                     version: m.version,
                     name: m.name.clone(),
                     sql: m.sql,
@@ -136,7 +136,7 @@ impl MigrationService<'_> {
         }
 
         Ok(ExtensionMigrationStatus {
-            extension_id: ext_id.to_string(),
+            extension_id: ext_id.to_owned(),
             applied,
             pending,
             drift,
@@ -162,7 +162,7 @@ impl MigrationService<'_> {
             .collect();
 
         Ok(MigrationStatus {
-            extension_id: ext_id.to_string(),
+            extension_id: ext_id.to_owned(),
             total_defined: defined_migrations.len(),
             total_applied: applied.len(),
             pending_count: pending.len(),

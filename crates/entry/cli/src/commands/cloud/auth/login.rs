@@ -16,7 +16,7 @@ use crate::cloud::types::{
 use crate::cloud::{Environment, OAuthProvider};
 use crate::shared::CommandResult;
 
-pub async fn execute(
+pub(crate) async fn execute(
     environment: Environment,
     config: &CliConfig,
 ) -> Result<CommandResult<LoginOutput>> {

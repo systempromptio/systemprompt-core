@@ -74,10 +74,10 @@ impl RegistryResolver {
                 tools: deployment.tools.clone(),
                 model_config: deployment.model_config.clone(),
                 env_vars: deployment.env_vars.clone(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                host: "0.0.0.0".to_string(),
-                module_name: "mcp".to_string(),
-                protocol: "mcp".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_owned(),
+                host: "0.0.0.0".to_owned(),
+                module_name: "mcp".to_owned(),
+                protocol: "mcp".to_owned(),
                 remote_endpoint: deployment.endpoint.clone(),
             };
             enabled.push(config);
@@ -86,7 +86,7 @@ impl RegistryResolver {
         Ok(enabled)
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn validate_registry(&self) -> McpDomainResult<()> {
         DeploymentService::validate_config()?;
         Ok(())

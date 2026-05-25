@@ -69,7 +69,7 @@ fn get_default_logs_dir() -> PathBuf {
         .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
-pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<McpLogsOutput>> {
+pub(crate) async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<McpLogsOutput>> {
     let logs_path = args
         .logs_dir
         .as_ref()

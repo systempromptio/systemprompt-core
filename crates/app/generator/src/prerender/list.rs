@@ -14,7 +14,7 @@ use tokio::fs;
 use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::utils::{merge_json_data, render_components};
 
-pub struct RenderListParams<'a> {
+pub(crate) struct RenderListParams<'a> {
     pub items: &'a [serde_json::Value],
     pub config: &'a ContentConfigRaw,
     pub web_config: &'a WebConfig,
@@ -38,7 +38,7 @@ impl std::fmt::Debug for RenderListParams<'_> {
     }
 }
 
-pub async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<()> {
+pub(crate) async fn render_list_route(params: RenderListParams<'_>) -> GeneratorResult<()> {
     let RenderListParams {
         items,
         config,

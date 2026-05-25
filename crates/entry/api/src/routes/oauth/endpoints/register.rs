@@ -119,7 +119,7 @@ fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>,
     if let Some(scope_string) = &request.scope {
         let requested_scopes: Vec<String> = scope_string
             .split_whitespace()
-            .map(ToString::to_string)
+            .map(str::to_owned)
             .collect();
 
         if !requested_scopes.is_empty() {
@@ -133,7 +133,7 @@ fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>,
     let default_roles = OAuthRepository::get_default_roles();
 
     if default_roles.is_empty() {
-        Ok(vec!["user".to_string()])
+        Ok(vec!["user".to_owned()])
     } else {
         Ok(default_roles)
     }

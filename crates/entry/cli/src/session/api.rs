@@ -11,7 +11,7 @@ use uuid::Uuid;
 // the database and holds the JWT signing secret, so it mints session rows
 // (and the JWTs above) locally instead of round-tripping through the public
 // HTTP endpoint.
-pub async fn create_local_session_row(db_pool: &DbPool, user: &UserId) -> Result<SessionId> {
+pub(crate) async fn create_local_session_row(db_pool: &DbPool, user: &UserId) -> Result<SessionId> {
     let session_repo =
         SessionRepository::new(db_pool).context("Failed to construct session repository")?;
 

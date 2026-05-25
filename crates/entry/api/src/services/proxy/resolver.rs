@@ -6,16 +6,16 @@ use systemprompt_runtime::AppContext;
 
 use super::backend::ProxyError;
 
-pub struct ServiceResolver;
+pub(super) struct ServiceResolver;
 
 impl ServiceResolver {
-    pub async fn resolve(
+    pub(super) async fn resolve(
         service_name: &str,
         ctx: &AppContext,
     ) -> Result<ServiceConfig, ProxyError> {
         let service_repo =
             ServiceRepository::new(ctx.db_pool()).map_err(|e| ProxyError::DatabaseError {
-                service: service_name.to_string(),
+                service: service_name.to_owned(),
                 source: e,
             })?;
 
@@ -24,7 +24,7 @@ impl ServiceResolver {
             Err(e) => {
                 tracing::error!(service = %service_name, error = %e, "Database error when looking up service");
                 return Err(ProxyError::DatabaseError {
-                    service: service_name.to_string(),
+                    service: service_name.to_owned(),
                     source: e,
                 });
             },
@@ -33,7 +33,7 @@ impl ServiceResolver {
         let Some(service) = service else {
             tracing::warn!(service = %service_name, "Service not found");
             return Err(ProxyError::ServiceNotFound {
-                service: service_name.to_string(),
+                service: service_name.to_owned(),
             });
         };
 
@@ -49,7 +49,7 @@ impl ServiceResolver {
 
             tracing::warn!(service = %service_name, status = %service.status, "Service not running");
             return Err(ProxyError::ServiceNotRunning {
-                service: service_name.to_string(),
+                service: service_name.to_owned(),
                 status: service.status.clone(),
             });
         }
@@ -64,19 +64,19 @@ impl ServiceResolver {
             ctx.mcp_registry().clone(),
         )
         .map_err(|e| ProxyError::ServiceNotRunning {
-            service: service_name.to_string(),
+            service: service_name.to_owned(),
             status: format!("Failed to create orchestrator: {e}"),
         })?;
 
         match orchestrator
-            .start_services(Some(service_name.to_string()))
+            .start_services(Some(service_name.to_owned()))
             .await
         {
             Ok(()) => {},
             Err(e) => {
                 tracing::error!(service = %service_name, error = %e, "Failed to restart service");
                 return Err(ProxyError::ServiceNotRunning {
-                    service: service_name.to_string(),
+                    service: service_name.to_owned(),
                     status: format!("Restart failed: {e}"),
                 });
             },

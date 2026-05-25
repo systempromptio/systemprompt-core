@@ -28,7 +28,7 @@ use crate::services::middleware::JwtContextExtractor;
 
 async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Next) -> Response {
     let method = req.method().clone();
-    let path = req.uri().path().to_string();
+    let path = req.uri().path().to_owned();
     let started = Instant::now();
     let resp = next.run(req).await;
     let status = resp.status().as_u16();

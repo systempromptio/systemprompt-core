@@ -45,7 +45,7 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
+pub(crate) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {

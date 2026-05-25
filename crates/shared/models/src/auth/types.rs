@@ -156,7 +156,7 @@ impl std::str::FromStr for PkceMethod {
         match s {
             "S256" => Ok(Self::S256),
             "plain" => Err(AuthError::WeakPkceMethod {
-                method: s.to_string(),
+                method: s.to_owned(),
             }),
             _ => Err(AuthError::InvalidRequest {
                 reason: format!("Unknown PKCE method: {s}"),

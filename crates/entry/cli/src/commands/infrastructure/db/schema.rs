@@ -23,7 +23,7 @@ struct TableRow {
     size: String,
 }
 
-pub async fn execute_tables(
+pub(crate) async fn execute_tables(
     admin: &DatabaseAdminService,
     filter: Option<String>,
     config: &CliConfig,
@@ -82,7 +82,7 @@ pub async fn execute_tables(
     Ok(())
 }
 
-pub async fn execute_describe(
+pub(crate) async fn execute_describe(
     admin: &DatabaseAdminService,
     table_name: &str,
     config: &CliConfig,
@@ -162,7 +162,7 @@ pub async fn execute_describe(
     Ok(())
 }
 
-pub async fn execute_info(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute_info(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
     let info = admin
         .get_database_info()
         .await
@@ -192,7 +192,7 @@ pub async fn execute_info(admin: &DatabaseAdminService, config: &CliConfig) -> R
     Ok(())
 }
 
-pub async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
     let info = admin
         .get_database_info()
         .await
@@ -265,7 +265,7 @@ pub async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) 
     Ok(())
 }
 
-pub async fn execute_count(
+pub(crate) async fn execute_count(
     admin: &DatabaseAdminService,
     table_name: &str,
     config: &CliConfig,

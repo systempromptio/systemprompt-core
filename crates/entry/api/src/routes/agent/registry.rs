@@ -43,8 +43,8 @@ pub async fn handle_agent_registry(
                             Some(agent_config.port),
                             service.pid.map(|p| p as u32),
                         )),
-                        Ok(None) => Some(("NotStarted".to_string(), Some(agent_config.port), None)),
-                        Err(_) => Some(("Unknown".to_string(), Some(agent_config.port), None)),
+                        Ok(None) => Some(("NotStarted".to_owned(), Some(agent_config.port), None)),
+                        Err(_) => Some(("Unknown".to_owned(), Some(agent_config.port), None)),
                     };
 
                 let mcp_extensions = create_mcp_extensions_from_config(
@@ -117,8 +117,8 @@ pub fn create_mcp_extensions_from_config(
         .map(|name| McpServerMetadata {
             name: name.clone(),
             endpoint: format!("{}/api/v1/mcp/{}/mcp", base_url, name),
-            auth: "unknown".to_string(),
-            status: "unknown".to_string(),
+            auth: "unknown".to_owned(),
+            status: "unknown".to_owned(),
             version: None,
             tools: None,
         })
@@ -127,8 +127,8 @@ pub fn create_mcp_extensions_from_config(
     let mcp_protocol_version = systemprompt_mcp::mcp_protocol_version();
 
     vec![AgentExtension {
-        uri: "systemprompt:mcp-tools".to_string(),
-        description: Some("MCP tool execution capabilities with server endpoints".to_string()),
+        uri: "systemprompt:mcp-tools".to_owned(),
+        description: Some("MCP tool execution capabilities with server endpoints".to_owned()),
         required: Some(true),
         params: Some(serde_json::json!({
             "supported_protocols": [mcp_protocol_version],

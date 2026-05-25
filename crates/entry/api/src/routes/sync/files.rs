@@ -39,7 +39,7 @@ fn get_services_path(ctx: &AppContext) -> Result<PathBuf, String> {
     Err("Services path not configured".into())
 }
 
-fn collect_files(services_path: &Path, directories: &[&str]) -> Result<FileManifest, String> {
+pub(crate) fn collect_files(services_path: &Path, directories: &[&str]) -> Result<FileManifest, String> {
     let mut files = Vec::new();
 
     for dir in directories {
@@ -96,7 +96,7 @@ fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> Result<()
     Ok(())
 }
 
-fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, String> {
+pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, String> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut tar = Builder::new(&mut encoder);
@@ -113,7 +113,7 @@ fn create_tarball(base: &Path, manifest: &FileManifest) -> Result<Vec<u8>, Strin
         .map_err(|e| format!("Failed to finish gzip: {}", e))
 }
 
-fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
+pub(crate) fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut count = 0;
@@ -189,7 +189,7 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
     Ok(count)
 }
 
-fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
+pub(crate) fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut files = Vec::new();
@@ -222,8 +222,8 @@ fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     })
 }
 
-#[allow(clippy::unused_async)]
-pub async fn manifest(
+#[expect(clippy::unused_async)]
+pub(super) async fn manifest(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
 ) -> ApiResult<Json<FileManifest>> {
@@ -235,8 +235,8 @@ pub async fn manifest(
     Ok(Json(manifest))
 }
 
-#[allow(clippy::unused_async)]
-pub async fn download(
+#[expect(clippy::unused_async)]
+pub(super) async fn download(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
 ) -> Result<Response, ApiError> {
@@ -263,8 +263,8 @@ pub async fn download(
         .map_err(|e| ApiError::internal_error(e.to_string()))
 }
 
-#[allow(clippy::unused_async)]
-pub async fn upload(
+#[expect(clippy::unused_async)]
+pub(super) async fn upload(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
     body: axum::body::Bytes,

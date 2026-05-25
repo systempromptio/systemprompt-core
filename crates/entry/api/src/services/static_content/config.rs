@@ -51,5 +51,5 @@ fn extract_slug(path: &str, pattern: &str) -> Option<String> {
     }
 
     let slug = path.trim_start_matches(prefix).trim_end_matches('/');
-    (!slug.is_empty()).then(|| slug.to_string())
+    (!slug.is_empty()).then(|| slug.to_owned())
 }

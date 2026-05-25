@@ -26,7 +26,7 @@ impl SystempromptClient {
         let client = Client::builder().timeout(HTTP_DEFAULT_TIMEOUT).build()?;
 
         Ok(Self {
-            base_url: base_url.trim_end_matches('/').to_string(),
+            base_url: base_url.trim_end_matches('/').to_owned(),
             token: None,
             client,
         })
@@ -38,7 +38,7 @@ impl SystempromptClient {
             .build()?;
 
         Ok(Self {
-            base_url: base_url.trim_end_matches('/').to_string(),
+            base_url: base_url.trim_end_matches('/').to_owned(),
             token: None,
             client,
         })
@@ -264,7 +264,7 @@ impl SystempromptClient {
 
     fn auth_header(&self) -> ClientResult<String> {
         self.token.as_ref().map_or_else(
-            || Err(ClientError::AuthError("No token configured".to_string())),
+            || Err(ClientError::AuthError("No token configured".to_owned())),
             |token| Ok(format!("Bearer {}", token.as_str())),
         )
     }

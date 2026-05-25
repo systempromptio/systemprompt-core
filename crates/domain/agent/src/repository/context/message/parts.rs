@@ -95,7 +95,7 @@ pub async fn get_message_parts(
     Ok(parts)
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct PersistPartSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub part: &'a Part,
@@ -105,7 +105,7 @@ pub struct PersistPartSqlxParams<'a> {
     pub upload_ctx: Option<&'a FileUploadContext<'a>>,
 }
 
-pub async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), RepositoryError> {
+pub(super) async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), RepositoryError> {
     let PersistPartSqlxParams {
         tx,
         part,
@@ -224,7 +224,7 @@ async fn try_upload_file(
     }
 }
 
-pub async fn persist_part_with_tx(
+pub(super) async fn persist_part_with_tx(
     tx: &mut dyn systemprompt_database::DatabaseTransaction,
     part: &Part,
     message_id: &MessageId,

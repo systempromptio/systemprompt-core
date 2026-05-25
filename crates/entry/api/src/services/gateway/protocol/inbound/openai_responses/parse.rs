@@ -13,8 +13,7 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .ok_or(InboundParseError::MissingField("model"))?
-        .to_string();
+        .ok_or(InboundParseError::MissingField("model"))?.to_owned();
 
     let max_tokens = value
         .get("max_output_tokens")
@@ -24,7 +23,7 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
         .get("instructions")
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
-        .map(ToString::to_string);
+        .map(str::to_owned);
     let messages = value
         .get("input")
         .map(parse_input)
@@ -41,7 +40,7 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
             Value::String(s) => Some(vec![s.clone()]),
             Value::Array(arr) => Some(
                 arr.iter()
-                    .filter_map(|x| x.as_str().map(ToString::to_string))
+                    .filter_map(|x| x.as_str().map(str::to_owned))
                     .collect(),
             ),
             _ => None,
@@ -113,7 +112,7 @@ fn parse_input(value: &Value) -> Result<Vec<CanonicalMessage>, InboundParseError
             other => {
                 return Err(InboundParseError::Unsupported {
                     field: "input[].type",
-                    detail: other.to_string(),
+                    detail: other.to_owned(),
                 });
             },
         }
@@ -126,13 +125,11 @@ fn parse_function_call(item: &Value) -> CanonicalMessage {
         .get("call_id")
         .and_then(Value::as_str)
         .or_else(|| item.get("id").and_then(Value::as_str))
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let name = item
         .get("name")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let arguments = item
         .get("arguments")
         .and_then(Value::as_str)
@@ -148,13 +145,11 @@ fn parse_function_call_output(item: &Value) -> CanonicalMessage {
     let tool_use_id = item
         .get("call_id")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let output_text = item
         .get("output")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     CanonicalMessage {
         role: Role::Tool,
         content: vec![CanonicalContent::ToolResult {
@@ -196,7 +191,7 @@ fn parse_message_item(value: &Value) -> Result<CanonicalMessage, InboundParseErr
         other => {
             return Err(InboundParseError::Unsupported {
                 field: "input[].role",
-                detail: other.to_string(),
+                detail: other.to_owned(),
             });
         },
     };
@@ -222,12 +217,11 @@ fn parse_content_part(value: &Value) -> Option<CanonicalContent> {
             value
                 .get("text")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
         )),
         "input_image" => {
             let url = value.get("image_url").and_then(Value::as_str)?;
-            Some(CanonicalContent::Image(ImageSource::Url(url.to_string())))
+            Some(CanonicalContent::Image(ImageSource::Url(url.to_owned())))
         },
         _ => None,
     }
@@ -245,13 +239,13 @@ fn parse_tool(value: &Value) -> Option<CanonicalTool> {
     let description = value
         .get("description")
         .and_then(Value::as_str)
-        .map(ToString::to_string);
+        .map(str::to_owned);
     let parameters = value
         .get("parameters")
         .cloned()
         .unwrap_or(Value::Object(Map::new()));
     Some(CanonicalTool {
-        name: name.to_string(),
+        name: name.to_owned(),
         description,
         input_schema: parameters,
     })
@@ -271,7 +265,7 @@ fn parse_tool_choice(value: &Value) -> Option<CanonicalToolChoice> {
         return value
             .get("name")
             .and_then(Value::as_str)
-            .map(|n| CanonicalToolChoice::Tool(n.to_string()));
+            .map(|n| CanonicalToolChoice::Tool(n.to_owned()));
     }
     None
 }

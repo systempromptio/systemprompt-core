@@ -12,7 +12,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::profile::{DiscoveredProfile, discover_profiles};
 
 #[derive(Debug)]
-pub struct DeployableProfile {
+struct DeployableProfile {
     pub name: String,
     pub path: PathBuf,
     pub profile: Profile,
@@ -20,7 +20,7 @@ pub struct DeployableProfile {
     pub hostname: Option<String>,
 }
 
-pub fn discover_deployable_profiles(tenant_store: &TenantStore) -> Result<Vec<DeployableProfile>> {
+fn discover_deployable_profiles(tenant_store: &TenantStore) -> Result<Vec<DeployableProfile>> {
     let profiles = discover_profiles()?;
 
     let deployable = profiles
@@ -52,7 +52,7 @@ fn to_deployable_profile(
     })
 }
 
-pub fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usize> {
+fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usize> {
     let options: Vec<String> = profiles
         .iter()
         .map(|p| {
@@ -70,7 +70,7 @@ pub fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usiz
         .context("Failed to select profile")
 }
 
-pub fn resolve_profile(
+pub(crate) fn resolve_profile(
     profile_name: Option<&str>,
     config: &CliConfig,
 ) -> Result<(Profile, PathBuf)> {

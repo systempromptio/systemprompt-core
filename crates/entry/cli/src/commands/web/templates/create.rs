@@ -26,7 +26,7 @@ pub struct CreateArgs {
     pub content: Option<String>,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<TemplateCreateOutput>> {

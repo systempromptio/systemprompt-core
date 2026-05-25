@@ -24,7 +24,7 @@ pub async fn validate_authorize_request(
     if let Some(redirect_uri) = &params.redirect_uri {
         use systemprompt_oauth::services::validation::validate_redirect_uri;
 
-        validate_redirect_uri(&client.redirect_uris, Some(redirect_uri)).map_err(|_| {
+        validate_redirect_uri(&client.redirect_uris, Some(redirect_uri)).map_err(|_e| {
             anyhow::anyhow!(
                 "redirect_uri '{}' not registered for client '{}'",
                 redirect_uri,
@@ -39,7 +39,7 @@ pub async fn validate_authorize_request(
     };
 
     let scope = if let Some(scope_param) = params.scope.as_deref() {
-        scope_param.to_string()
+        scope_param.to_owned()
     } else if let Some(ref rs) = resource_scopes {
         rs.clone()
     } else if client.scopes.is_empty() {
@@ -79,7 +79,7 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
 
     if let Some(max_age) = params.max_age {
         if max_age < 0 {
-            return Err("max_age must be a non-negative integer".to_string());
+            return Err("max_age must be a non-negative integer".to_owned());
         }
     }
 
@@ -92,7 +92,7 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
 
 fn validate_pkce(params: &AuthorizeQuery) -> Result<(), String> {
     let Some(code_challenge) = &params.code_challenge else {
-        return Err("code_challenge is required. PKCE with S256 method must be used.".to_string());
+        return Err("code_challenge is required. PKCE with S256 method must be used.".to_owned());
     };
 
     if code_challenge.len() < systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH {
@@ -113,20 +113,20 @@ fn validate_pkce(params: &AuthorizeQuery) -> Result<(), String> {
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
 
     if !is_valid_base64url {
-        return Err("code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_string());
+        return Err("code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_owned());
     }
 
     if entropy::is_low_entropy_challenge(code_challenge) {
-        return Err("code_challenge appears to have insufficient entropy for security".to_string());
+        return Err("code_challenge appears to have insufficient entropy for security".to_owned());
     }
 
     let method = params.code_challenge_method.as_deref().ok_or_else(|| {
-        "code_challenge_method is required when code_challenge is provided".to_string()
+        "code_challenge_method is required when code_challenge is provided".to_owned()
     })?;
 
     match method {
         "S256" => Ok(()),
-        "plain" => Err("PKCE method 'plain' is not allowed. Use 'S256' for security.".to_string()),
+        "plain" => Err("PKCE method 'plain' is not allowed. Use 'S256' for security.".to_owned()),
         _ => Err(format!(
             "Unsupported code_challenge_method '{method}'. Only 'S256' is allowed."
         )),

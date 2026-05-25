@@ -173,7 +173,7 @@ impl TemplateValidator {
         let make_error = |error: ValidationErrorKind| PlanValidationError {
             tool_index,
             argument: Self::find_argument_for_template(&call.arguments, template),
-            template: template.to_string(),
+            template: template.to_owned(),
             error,
         };
 
@@ -222,7 +222,7 @@ impl TemplateValidator {
             None
         } else {
             Some(ValidationErrorKind::FieldNotFound {
-                tool_name: tool_name.to_string(),
+                tool_name: tool_name.to_owned(),
                 field: first_field.clone(),
                 available_fields,
             })

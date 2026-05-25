@@ -20,7 +20,7 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ListArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<SessionListOutput>> {
@@ -28,7 +28,7 @@ pub async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,

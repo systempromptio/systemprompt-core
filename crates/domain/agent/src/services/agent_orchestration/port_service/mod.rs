@@ -109,7 +109,7 @@ impl PortService {
                         })
                         .ok()
                         .flatten()
-                        .map_or_else(|| "unknown".to_string(), |i| i.command);
+                        .map_or_else(|| "unknown".to_owned(), |i| i.command);
 
                     return Err(OrchestrationError::ProcessSpawnFailed(format!(
                         "Port {} is in use by non-agent process (PID {}): {}\nPlease stop the \
@@ -185,7 +185,7 @@ impl PortService {
                         })
                         .ok()
                         .flatten()
-                        .map_or_else(|| "unknown".to_string(), |i| i.command);
+                        .map_or_else(|| "unknown".to_owned(), |i| i.command);
                     format!("  • Port {} - PID {} ({})", port, pid, info)
                 })
                 .collect();

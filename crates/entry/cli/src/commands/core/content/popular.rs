@@ -13,14 +13,14 @@ fn parse_duration(s: &str) -> Result<i64> {
     if s.ends_with('d') {
         s[..s.len() - 1]
             .parse::<i64>()
-            .map_err(|_| anyhow!("Invalid duration format: {}", s))
+            .map_err(|_e| anyhow!("Invalid duration format: {}", s))
     } else if s.ends_with('w') {
         s[..s.len() - 1]
             .parse::<i64>()
             .map(|w| w * 7)
-            .map_err(|_| anyhow!("Invalid duration format: {}", s))
+            .map_err(|_e| anyhow!("Invalid duration format: {}", s))
     } else {
-        s.parse::<i64>().map_err(|_| {
+        s.parse::<i64>().map_err(|_e| {
             anyhow!(
                 "Invalid duration format: {}. Use '7d', '30d', '1w', etc.",
                 s
@@ -58,7 +58,7 @@ pub async fn execute_with_pool(
 
     let source = SourceId::new(args.source.clone());
     let days_i64 = parse_duration(&args.since)?;
-    let days = i32::try_from(days_i64).map_err(|_| anyhow!("Duration too large"))?;
+    let days = i32::try_from(days_i64).map_err(|_e| anyhow!("Duration too large"))?;
 
     let content_ids = repo
         .get_popular_content_ids(&source, days, args.limit)

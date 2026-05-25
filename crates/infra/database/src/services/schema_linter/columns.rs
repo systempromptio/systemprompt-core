@@ -81,7 +81,7 @@ pub(super) fn check_index_columns(
                      same schema or move the index to a migration",
                     column_name, table.name, idx.idxname
                 ),
-                source: loc.source.to_string(),
+                source: loc.source.to_owned(),
             });
         }
     }
@@ -214,7 +214,7 @@ fn check_view_targets(
                     "unknown column `{}` on table `{}` (view `{}`)",
                     column_name, table.name, view_name
                 ),
-                source: loc.source.to_string(),
+                source: loc.source.to_owned(),
             });
         }
     }

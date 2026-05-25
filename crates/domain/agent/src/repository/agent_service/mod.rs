@@ -67,7 +67,7 @@ impl AgentServiceRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(name.to_string())
+        Ok(name.to_owned())
     }
 
     pub async fn register_agent_starting(
@@ -95,7 +95,7 @@ impl AgentServiceRepository {
         .await
         .map_err(RepositoryError::database)?;
 
-        Ok(name.to_string())
+        Ok(name.to_owned())
     }
 
     pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {

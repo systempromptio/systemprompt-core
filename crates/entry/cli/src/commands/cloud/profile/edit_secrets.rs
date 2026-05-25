@@ -6,7 +6,7 @@ use systemprompt_cloud::ProfilePath;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
-pub fn edit_api_keys(profile_dir: &Path) -> Result<()> {
+pub(crate) fn edit_api_keys(profile_dir: &Path) -> Result<()> {
     CliService::section("API Keys (secrets.json)");
 
     let secrets_path = ProfilePath::Secrets.resolve(profile_dir);

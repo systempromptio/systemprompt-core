@@ -2,7 +2,7 @@ mod ban;
 mod bulk;
 mod count;
 mod create;
-mod delete;
+pub(crate) mod delete;
 mod export;
 mod list;
 mod merge;

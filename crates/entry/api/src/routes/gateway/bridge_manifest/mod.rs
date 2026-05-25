@@ -54,7 +54,7 @@ struct CanonicalView<'a> {
 }
 
 fn default_enabled_hosts() -> Vec<String> {
-    KNOWN_HOSTS.iter().map(|s| (*s).to_string()).collect()
+    KNOWN_HOSTS.iter().map(|s| (*s).to_owned()).collect()
 }
 
 pub async fn manifest(
@@ -200,7 +200,7 @@ async fn authenticate(
     let credential = extract_credential(headers).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_string(),
+            "Missing Authorization or x-api-key credential".to_owned(),
         )
     })?;
     jwt_extractor
@@ -222,10 +222,10 @@ fn build_version() -> Result<(ManifestVersion, String, String), (StatusCode, Str
     let now = Utc::now();
     let issued_at = now.to_rfc3339();
     let not_before = (now - Duration::seconds(60)).to_rfc3339();
-    let ts_millis = u64::try_from(now.timestamp_millis()).map_err(|_| {
+    let ts_millis = u64::try_from(now.timestamp_millis()).map_err(|_e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
-            "manifest version: timestamp overflow".to_string(),
+            "manifest version: timestamp overflow".to_owned(),
         )
     })?;
     let raw = format!("{}-{:016x}", now.format("%Y-%m-%dT%H:%M:%SZ"), ts_millis);

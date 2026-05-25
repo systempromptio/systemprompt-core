@@ -57,7 +57,7 @@ impl<'a> Splitter<'a> {
         if self.has_content {
             let stmt = self.sql[self.start..end].trim();
             if !stmt.is_empty() {
-                self.statements.push(stmt.to_string());
+                self.statements.push(stmt.to_owned());
             }
         }
         self.has_content = false;
@@ -266,7 +266,7 @@ impl SqlExecutor {
             .first()
             .and_then(|row| row.get("exists"))
             .and_then(serde_json::Value::as_bool)
-            .ok_or_else(|| RepositoryError::Internal("Failed to check table existence".to_string()))
+            .ok_or_else(|| RepositoryError::Internal("Failed to check table existence".to_owned()))
     }
 
     pub async fn column_exists(
@@ -287,7 +287,7 @@ impl SqlExecutor {
             .and_then(|row| row.get("exists"))
             .and_then(serde_json::Value::as_bool)
             .ok_or_else(|| {
-                RepositoryError::Internal("Failed to check column existence".to_string())
+                RepositoryError::Internal("Failed to check column existence".to_owned())
             })
     }
 }

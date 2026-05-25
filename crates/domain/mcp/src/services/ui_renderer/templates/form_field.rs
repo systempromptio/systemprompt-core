@@ -22,20 +22,18 @@ pub(super) struct FormOption {
 
 impl FormField {
     pub(super) fn from_json(value: &JsonValue) -> Option<Self> {
-        let name = value.get("name").and_then(JsonValue::as_str)?.to_string();
+        let name = value.get("name").and_then(JsonValue::as_str)?.to_owned();
 
         Some(Self {
             name: name.clone(),
             label: value
                 .get("label")
                 .and_then(JsonValue::as_str)
-                .unwrap_or(&name)
-                .to_string(),
+                .unwrap_or(&name).to_owned(),
             field_type: value
                 .get("type")
                 .and_then(JsonValue::as_str)
-                .unwrap_or("text")
-                .to_string(),
+                .unwrap_or("text").to_owned(),
             required: value
                 .get("required")
                 .and_then(JsonValue::as_bool)
@@ -51,12 +49,11 @@ impl FormField {
                 .map_or_else(Vec::new, |arr| {
                     arr.iter()
                         .filter_map(|o| {
-                            let value = o.get("value").and_then(JsonValue::as_str)?.to_string();
+                            let value = o.get("value").and_then(JsonValue::as_str)?.to_owned();
                             let label = o
                                 .get("label")
                                 .and_then(JsonValue::as_str)
-                                .unwrap_or(&value)
-                                .to_string();
+                                .unwrap_or(&value).to_owned();
                             Some(FormOption { value, label })
                         })
                         .collect()

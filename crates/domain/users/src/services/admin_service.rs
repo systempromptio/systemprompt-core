@@ -31,8 +31,8 @@ impl UserAdminService {
 
     pub async fn promote_to_admin(&self, user_identifier: &str) -> Result<PromoteResult> {
         let user = self.find_user(user_identifier).await?;
-        let admin_role = UserRole::Admin.as_str().to_string();
-        let user_role = UserRole::User.as_str().to_string();
+        let admin_role = UserRole::Admin.as_str().to_owned();
+        let user_role = UserRole::User.as_str().to_owned();
 
         match user {
             Some(u) => {
@@ -60,13 +60,13 @@ impl UserAdminService {
     pub async fn demote_from_admin(&self, user_identifier: &str) -> Result<DemoteResult> {
         let user = self.find_user(user_identifier).await?;
         let admin_role = UserRole::Admin.as_str();
-        let user_role = UserRole::User.as_str().to_string();
+        let user_role = UserRole::User.as_str().to_owned();
 
         match user {
             Some(u) => {
                 let current_roles = u.roles.clone();
 
-                if !current_roles.contains(&admin_role.to_string()) {
+                if !current_roles.contains(&admin_role.to_owned()) {
                     return Ok(DemoteResult::NotAdmin(u));
                 }
 

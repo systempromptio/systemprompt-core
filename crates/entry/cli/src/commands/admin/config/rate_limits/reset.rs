@@ -15,7 +15,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{ResetChange, ResetOutput};
 
-pub fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
     let limits = &mut profile.rate_limits;

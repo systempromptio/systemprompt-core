@@ -11,13 +11,11 @@ pub(super) fn parse_response(value: &Value, fallback_model: &str) -> CanonicalRe
     let id = value
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(fallback_model)
-        .to_string();
+        .unwrap_or(fallback_model).to_owned();
     let stop_reason = value
         .get("stop_reason")
         .and_then(Value::as_str)
@@ -58,31 +56,27 @@ fn parse_content_block(value: &Value) -> Option<CanonicalContent> {
             value
                 .get("text")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
         )),
         "thinking" => Some(CanonicalContent::Thinking {
             text: value
                 .get("thinking")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
             signature: value
                 .get("signature")
                 .and_then(Value::as_str)
-                .map(ToString::to_string),
+                .map(str::to_owned),
         }),
         "tool_use" => Some(CanonicalContent::ToolUse {
             id: value
                 .get("id")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
             name: value
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
             input: value.get("input").cloned().unwrap_or(Value::Null),
         }),
         "image" => parse_image_block(value),
@@ -98,19 +92,16 @@ fn parse_image_block(value: &Value) -> Option<CanonicalContent> {
             media_type: src
                 .get("media_type")
                 .and_then(Value::as_str)
-                .unwrap_or("image/png")
-                .to_string(),
+                .unwrap_or("image/png").to_owned(),
             data: src
                 .get("data")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
         })),
         "url" => Some(CanonicalContent::Image(ImageSource::Url(
             src.get("url")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+                .unwrap_or("").to_owned(),
         ))),
         _ => None,
     }

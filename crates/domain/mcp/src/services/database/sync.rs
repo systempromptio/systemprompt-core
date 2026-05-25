@@ -96,11 +96,11 @@ pub async fn reconcile_running_processes(
 
             if !is_service_healthy(port, pid).await {
                 let reason = if pid.is_none() {
-                    "no PID recorded".to_string()
+                    "no PID recorded".to_owned()
                 } else if !is_port_listening(port).await {
                     format!("port {port} not responding")
                 } else {
-                    "process not alive".to_string()
+                    "process not alive".to_owned()
                 };
                 discrepancies.push(format!("{} ({})", service.name, reason));
             }

@@ -87,7 +87,7 @@ impl BannedIpRepository {
     pub async fn ban_ip_with_metadata(&self, params: BanIpWithMetadataParams<'_>) -> Result<()> {
         let expires_at = params.duration.to_expiry();
         let is_permanent = matches!(params.duration, BanDuration::Permanent);
-        let session_ids: Option<Vec<String>> = params.session_id.map(|s| vec![s.to_string()]);
+        let session_ids: Option<Vec<String>> = params.session_id.map(|s| vec![s.to_owned()]);
 
         sqlx::query!(
             r#"

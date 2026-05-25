@@ -15,12 +15,12 @@ pub struct ConfigArgs {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
-pub enum ConfigResult {
+pub(crate) enum ConfigResult {
     Single(ExtensionConfigOutput),
     List(ExtensionConfigListOutput),
 }
 
-pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandResult<ConfigResult>> {
+pub(crate) fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandResult<ConfigResult>> {
     let registry = ExtensionRegistry::discover()?;
 
     if let Some(id) = &args.id {

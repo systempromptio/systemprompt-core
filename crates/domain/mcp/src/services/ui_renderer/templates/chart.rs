@@ -23,16 +23,16 @@ impl ChartRenderer {
 
         if let Some(hints) = &artifact.metadata.rendering_hints {
             if let Some(chart_type) = hints.get("chart_type").and_then(JsonValue::as_str) {
-                config.chart_type = chart_type.to_string();
+                config.chart_type = chart_type.to_owned();
             }
             if let Some(title) = hints.get("title").and_then(JsonValue::as_str) {
-                config.title = Some(title.to_string());
+                config.title = Some(title.to_owned());
             }
             if let Some(x_label) = hints.get("x_axis_label").and_then(JsonValue::as_str) {
-                config.x_axis_label = Some(x_label.to_string());
+                config.x_axis_label = Some(x_label.to_owned());
             }
             if let Some(y_label) = hints.get("y_axis_label").and_then(JsonValue::as_str) {
-                config.y_axis_label = Some(y_label.to_string());
+                config.y_axis_label = Some(y_label.to_owned());
             }
         }
 
@@ -90,7 +90,7 @@ impl ChartConfig {
                 let mut dataset = ds.clone();
                 if is_area {
                     if let Some(obj) = dataset.as_object_mut() {
-                        obj.insert("fill".to_string(), JsonValue::Bool(true));
+                        obj.insert("fill".to_owned(), JsonValue::Bool(true));
                     }
                 }
                 dataset

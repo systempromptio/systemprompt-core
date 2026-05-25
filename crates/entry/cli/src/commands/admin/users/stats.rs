@@ -7,12 +7,12 @@ use super::types::UserStatsOutput;
 use crate::CliConfig;
 use crate::shared::CommandResult;
 
-pub async fn execute(config: &CliConfig) -> Result<CommandResult<UserStatsOutput>> {
+pub(crate) async fn execute(config: &CliConfig) -> Result<CommandResult<UserStatsOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandResult<UserStatsOutput>> {

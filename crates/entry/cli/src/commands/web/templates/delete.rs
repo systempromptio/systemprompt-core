@@ -23,7 +23,7 @@ pub struct DeleteArgs {
     pub delete_file: bool,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<TemplateDeleteOutput>> {

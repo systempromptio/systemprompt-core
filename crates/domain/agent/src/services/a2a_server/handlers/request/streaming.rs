@@ -10,7 +10,7 @@ use crate::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream,
 };
 
-pub async fn handle_streaming_request(
+pub(super) async fn handle_streaming_request(
     request: crate::models::a2a::A2aRequestParams,
     state: Arc<AgentHandlerState>,
     request_id: NumberOrString,

@@ -80,12 +80,12 @@ impl McpToolExecutor {
         })?;
 
         let execution_request = ToolExecutionRequest {
-            tool_name: handler.tool_name().to_string(),
+            tool_name: handler.tool_name().to_owned(),
             server_name: self.server_name.clone(),
             input: input_value,
             started_at,
             context: ctx.clone(),
-            request_method: Some("mcp".to_string()),
+            request_method: Some("mcp".to_owned()),
             request_source: Some(self.server_name.clone()),
             ai_tool_call_id: None,
         };
@@ -141,9 +141,9 @@ impl McpToolExecutor {
                 .and_then(|r| r.structured_content.clone()),
             output_schema: None,
             status: if response.is_ok() {
-                ExecutionStatus::Success.as_str().to_string()
+                ExecutionStatus::Success.as_str().to_owned()
             } else {
-                ExecutionStatus::Failed.as_str().to_string()
+                ExecutionStatus::Failed.as_str().to_owned()
             },
             error_message: response.as_ref().err().map(|e| e.message.to_string()),
             started_at,

@@ -43,18 +43,18 @@ impl ProfileBootstrap {
         }
 
         let path_str =
-            std::env::var("SYSTEMPROMPT_PROFILE").map_err(|_| ProfileBootstrapError::PathNotSet)?;
+            std::env::var("SYSTEMPROMPT_PROFILE").map_err(|_e| ProfileBootstrapError::PathNotSet)?;
         let path = std::path::PathBuf::from(path_str);
 
         let profile = Self::load_from_path_and_validate(&path)?;
 
         PROFILE_PATH
             .set(path.to_string_lossy().to_string())
-            .map_err(|_| ProfileBootstrapError::AlreadyInitialized)?;
+            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
 
         PROFILE
             .set(profile)
-            .map_err(|_| ProfileBootstrapError::AlreadyInitialized)?;
+            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
 
         PROFILE
             .get()
@@ -93,11 +93,11 @@ impl ProfileBootstrap {
 
         PROFILE_PATH
             .set(path.to_string_lossy().to_string())
-            .map_err(|_| ProfileBootstrapError::AlreadyInitialized)?;
+            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
 
         PROFILE
             .set(profile)
-            .map_err(|_| ProfileBootstrapError::AlreadyInitialized)?;
+            .map_err(|_e| ProfileBootstrapError::AlreadyInitialized)?;
 
         PROFILE
             .get()

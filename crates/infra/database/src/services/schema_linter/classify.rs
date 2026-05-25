@@ -19,7 +19,7 @@ pub(super) fn warn_create_table_missing_if_not_exists(
         column: loc.col,
         severity: LintSeverity::Warning,
         message: "CREATE TABLE without IF NOT EXISTS — add IF NOT EXISTS for idempotency".into(),
-        source: loc.source.to_string(),
+        source: loc.source.to_owned(),
     })
 }
 

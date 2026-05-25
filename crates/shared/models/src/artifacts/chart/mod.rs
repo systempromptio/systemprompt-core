@@ -8,7 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
-    "chart".to_string()
+    "chart".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -61,13 +61,13 @@ impl ChartArtifact {
 
     pub fn new(title: impl Into<String>, chart_type: ChartType, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "chart".to_string(),
+            artifact_type: "chart".to_owned(),
             labels: Vec::new(),
             datasets: Vec::new(),
             chart_type,
             title: title.into(),
-            x_axis_label: "X".to_string(),
-            y_axis_label: "Y".to_string(),
+            x_axis_label: "X".to_owned(),
+            y_axis_label: "Y".to_owned(),
             x_axis_type: AxisType::Category,
             y_axis_type: AxisType::Linear,
             metadata: ExecutionMetadata::with_request(ctx),

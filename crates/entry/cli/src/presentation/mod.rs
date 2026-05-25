@@ -2,4 +2,4 @@ mod renderer;
 mod state;
 mod widgets;
 
-pub use renderer::StartupRenderer;
+pub(crate) use renderer::StartupRenderer;

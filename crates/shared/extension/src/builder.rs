@@ -88,7 +88,7 @@ impl<R: TypeList> ExtensionBuilder<R> {
 
         for ext in sorted {
             if registry.has(ext.id()) {
-                return Err(LoaderError::DuplicateExtension(ext.id().to_string()));
+                return Err(LoaderError::DuplicateExtension(ext.id().to_owned()));
             }
 
             if let Some(api) = ext.as_api() {

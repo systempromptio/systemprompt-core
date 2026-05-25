@@ -46,8 +46,8 @@ impl SessionGenerator {
             aud: JwtAudience::standard(),
             jti: uuid::Uuid::new_v4().to_string(),
             scope: params.permissions.clone(),
-            username: params.email.to_string(),
-            email: params.email.to_string(),
+            username: params.email.to_owned(),
+            email: params.email.to_owned(),
             user_type: params.user_type,
             roles: params.roles.clone(),
             department: params.department.clone(),
@@ -62,7 +62,7 @@ impl SessionGenerator {
 
         let kid = authority::active_kid().map_err(|e| JwtError::Signing(e.to_string()))?;
         let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(kid.to_string());
+        header.kid = Some(kid.to_owned());
         let key = authority::encoding_key().map_err(|e| JwtError::Signing(e.to_string()))?;
         let token = encode(&header, &claims, key).map_err(JwtError::from)?;
 

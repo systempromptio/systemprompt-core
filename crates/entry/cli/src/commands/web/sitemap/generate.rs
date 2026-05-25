@@ -25,7 +25,7 @@ pub struct GenerateArgs {
     pub include_dynamic: bool,
 }
 
-pub fn execute(
+pub(crate) fn execute(
     args: &GenerateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SitemapGenerateOutput>> {

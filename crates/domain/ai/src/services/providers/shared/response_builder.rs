@@ -36,8 +36,8 @@ pub fn build_response(params: BuildResponseParams<'_>) -> AiResponse {
     AiResponse {
         request_id,
         content,
-        provider: provider.to_string(),
-        model: model.to_string(),
+        provider: provider.to_owned(),
+        model: model.to_owned(),
         finish_reason,
         tokens_used: usage.tokens_used,
         input_tokens: usage.input_tokens,

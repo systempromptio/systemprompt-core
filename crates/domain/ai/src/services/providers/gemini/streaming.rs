@@ -10,7 +10,7 @@ use systemprompt_models::ai::StreamChunk;
 use super::provider::GeminiProvider;
 use super::{converters, request_builders};
 
-pub async fn generate_stream(
+pub(super) async fn generate_stream(
     provider: &GeminiProvider,
     params: GenerationParams<'_>,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {

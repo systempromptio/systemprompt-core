@@ -92,7 +92,7 @@ impl AgentArgs {
     }
 }
 
-pub fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Result<()> {
+pub(crate) fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Result<()> {
     match key {
         "card.displayName" | "card.display_name" => {
             agent.card.display_name = value.to_string();
@@ -109,17 +109,17 @@ pub fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Resul
         "is_primary" => {
             agent.is_primary = value
                 .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for is_primary: '{}'", value))?;
+                .map_err(|_e| anyhow!("Invalid boolean value for is_primary: '{}'", value))?;
         },
         "default" => {
             agent.default = value
                 .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for default: '{}'", value))?;
+                .map_err(|_e| anyhow!("Invalid boolean value for default: '{}'", value))?;
         },
         "dev_only" => {
             agent.dev_only = value
                 .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for dev_only: '{}'", value))?;
+                .map_err(|_e| anyhow!("Invalid boolean value for dev_only: '{}'", value))?;
         },
         _ => {
             return Err(anyhow!(

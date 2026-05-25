@@ -84,7 +84,7 @@ pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
     let user_id = request_context.user_id().clone();
     let user_id_str = user_id.to_string();
     let conn_id = systemprompt_identifiers::ConnectionId::generate();
-    let conn_id_str = conn_id.as_str().to_string();
+    let conn_id_str = conn_id.as_str().to_owned();
 
     tracing::info!(user_id = %user_id_str, conn_id = %conn_id_str, stream = %stream_name, "SSE stream opened");
 

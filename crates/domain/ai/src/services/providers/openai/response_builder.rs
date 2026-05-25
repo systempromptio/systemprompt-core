@@ -15,7 +15,7 @@ pub fn build_response(
     let choice = openai_response
         .choices
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_string()))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_owned()))?;
 
     let content = choice
         .message
@@ -45,8 +45,8 @@ pub fn build_response(
     Ok(AiResponse {
         request_id,
         content,
-        provider: provider_name.to_string(),
-        model: model.to_string(),
+        provider: provider_name.to_owned(),
+        model: model.to_owned(),
         finish_reason: choice.finish_reason.clone(),
         tokens_used,
         input_tokens,

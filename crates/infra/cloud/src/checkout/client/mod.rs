@@ -110,7 +110,7 @@ pub async fn run_checkout_callback_flow(
 
     tokio::select! {
         result = rx => {
-            result.map_err(|_| CloudError::CheckoutFlow { message: "Checkout cancelled".to_string() })?
+            result.map_err(|_e| CloudError::CheckoutFlow { message: "Checkout cancelled".to_string() })?
         }
         _ = server => {
             Err(CloudError::CheckoutFlow { message: "Server stopped unexpectedly".to_string() })

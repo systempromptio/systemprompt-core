@@ -36,7 +36,7 @@ pub fn parse_tool_response(
 ) -> Result<ParsedToolResponse, ArtifactError> {
     if structured_content.is_null() {
         return Err(RowParseError::MissingField {
-            field: "structured_content (received null)".to_string(),
+            field: "structured_content (received null)".to_owned(),
         }
         .into());
     }
@@ -44,7 +44,7 @@ pub fn parse_tool_response(
     if let Some(obj) = structured_content.as_object() {
         if obj.is_empty() {
             return Err(RowParseError::MissingField {
-                field: "structured_content (received empty object {})".to_string(),
+                field: "structured_content (received empty object {})".to_owned(),
             }
             .into());
         }
@@ -64,17 +64,17 @@ pub fn parse_tool_response(
 
 pub fn artifact_type_to_string(artifact_type: &ArtifactType) -> String {
     match artifact_type {
-        ArtifactType::Text => "text".to_string(),
-        ArtifactType::Table => "table".to_string(),
-        ArtifactType::Chart => "chart".to_string(),
-        ArtifactType::Form => "form".to_string(),
-        ArtifactType::Dashboard => "dashboard".to_string(),
-        ArtifactType::PresentationCard => "presentation_card".to_string(),
-        ArtifactType::List => "list".to_string(),
-        ArtifactType::CopyPasteText => "copy_paste_text".to_string(),
-        ArtifactType::Image => "image".to_string(),
-        ArtifactType::Video => "video".to_string(),
-        ArtifactType::Audio => "audio".to_string(),
+        ArtifactType::Text => "text".to_owned(),
+        ArtifactType::Table => "table".to_owned(),
+        ArtifactType::Chart => "chart".to_owned(),
+        ArtifactType::Form => "form".to_owned(),
+        ArtifactType::Dashboard => "dashboard".to_owned(),
+        ArtifactType::PresentationCard => "presentation_card".to_owned(),
+        ArtifactType::List => "list".to_owned(),
+        ArtifactType::CopyPasteText => "copy_paste_text".to_owned(),
+        ArtifactType::Image => "image".to_owned(),
+        ArtifactType::Video => "video".to_owned(),
+        ArtifactType::Audio => "audio".to_owned(),
         ArtifactType::Custom(name) => name.clone(),
     }
 }
@@ -83,7 +83,7 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
-    #[allow(clippy::collection_is_never_read)]
+    #[expect(clippy::collection_is_never_read)]
     let args_str = tool_arguments
         .and_then(|args| {
             serde_json::to_string(args)
@@ -145,7 +145,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
 
     Ok(Artifact {
         id: parsed.artifact_id,
-        title: Some(tool_name.to_string()),
+        title: Some(tool_name.to_owned()),
         description: None,
         parts,
         metadata,
@@ -191,7 +191,7 @@ impl McpToA2aTransformer {
                 .structured_content
                 .as_ref()
                 .ok_or_else(|| RowParseError::MissingField {
-                    field: "structured_content".to_string(),
+                    field: "structured_content".to_owned(),
                 })?;
 
         let parsed = parse_tool_response(structured_content)?;

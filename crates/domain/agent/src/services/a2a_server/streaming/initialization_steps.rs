@@ -21,7 +21,7 @@ use crate::services::a2a_server::handlers::AgentHandlerState;
 use super::initialization::create_jsonrpc_error_event;
 use super::types::PersistTaskInput;
 
-pub async fn validate_context(
+pub(super) async fn validate_context(
     context_id: &ContextId,
     user_id: &UserId,
     state: &Arc<AgentHandlerState>,
@@ -73,7 +73,7 @@ pub async fn validate_context(
     Ok(())
 }
 
-pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRepository, ()> {
+pub(super) async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRepository, ()> {
     let PersistTaskInput {
         task_id,
         context_id,
@@ -97,7 +97,7 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
             tracing::trace!("Failed to send error event, channel closed");
         }
     })?;
-    let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
+    let metadata = TaskMetadata::new_agent_message(agent_name.to_owned());
 
     let task = Task {
         id: task_id.clone(),
@@ -150,7 +150,7 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
     Ok(task_repo)
 }
 
-pub async fn save_push_notification_config(
+pub(super) async fn save_push_notification_config(
     task_id: &TaskId,
     callback_config: Option<&PushNotificationConfig>,
     state: &Arc<AgentHandlerState>,

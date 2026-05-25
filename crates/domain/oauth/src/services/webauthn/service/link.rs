@@ -51,17 +51,17 @@ impl WebAuthnService {
             TokenValidationResult::Valid(record) => record,
             TokenValidationResult::Expired => {
                 return Err(crate::error::OauthError::Internal(
-                    "Setup token has expired".to_string(),
+                    "Setup token has expired".to_owned(),
                 ));
             },
             TokenValidationResult::AlreadyUsed => {
                 return Err(crate::error::OauthError::Internal(
-                    "Setup token has already been used".to_string(),
+                    "Setup token has already been used".to_owned(),
                 ));
             },
             TokenValidationResult::NotFound => {
                 return Err(crate::error::OauthError::Internal(
-                    "Invalid setup token".to_string(),
+                    "Invalid setup token".to_owned(),
                 ));
             },
         };
@@ -134,7 +134,7 @@ impl WebAuthnService {
 
         let TokenValidationResult::Valid(token_record) = validation else {
             return Err(crate::error::OauthError::Internal(
-                "Invalid or expired setup token".to_string(),
+                "Invalid or expired setup token".to_owned(),
             ));
         };
 
@@ -142,20 +142,20 @@ impl WebAuthnService {
             let mut states = link_states.lock().await;
             states.remove(challenge_id).ok_or_else(|| {
                 crate::error::OauthError::Internal(
-                    "Registration session not found or expired".to_string(),
+                    "Registration session not found or expired".to_owned(),
                 )
             })?
         };
 
         if state.token_id != token_record.id {
             return Err(crate::error::OauthError::Internal(
-                "Token mismatch".to_string(),
+                "Token mismatch".to_owned(),
             ));
         }
 
         if state.timestamp.elapsed() > Duration::from_secs(CHALLENGE_EXPIRY_SECONDS) {
             return Err(crate::error::OauthError::Internal(
-                "Registration session expired".to_string(),
+                "Registration session expired".to_owned(),
             ));
         }
 

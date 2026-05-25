@@ -134,7 +134,7 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
                     level,
                     MODULE,
                     if span.name.is_empty() {
-                        "<unnamed-span>".to_string()
+                        "<unnamed-span>".to_owned()
                     } else {
                         span.name.clone()
                     },
@@ -181,7 +181,7 @@ async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
                 let level = severity_to_level(record.severity_number);
                 let message = if body_text.is_empty() {
                     if record.severity_text.is_empty() {
-                        "<otel-log>".to_string()
+                        "<otel-log>".to_owned()
                     } else {
                         record.severity_text.clone()
                     }

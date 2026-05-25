@@ -5,13 +5,13 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::RequestContext;
 
-pub struct MessageData {
+pub(super) struct MessageData {
     pub role: String,
     pub content: String,
     pub sequence: i32,
 }
 
-pub struct ToolCallData {
+pub(super) struct ToolCallData {
     pub ai_tool_call_id: String,
     pub tool_name: String,
     pub tool_input: String,
@@ -19,7 +19,7 @@ pub struct ToolCallData {
 }
 
 #[derive(Debug)]
-pub struct BuildRecordParams<'a> {
+pub(super) struct BuildRecordParams<'a> {
     pub request: &'a AiRequest,
     pub response: &'a AiResponse,
     pub context: &'a RequestContext,
@@ -28,7 +28,7 @@ pub struct BuildRecordParams<'a> {
     pub cost_microdollars: i64,
 }
 
-pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
+pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     let user_id = UserId::new(params.context.user_id().as_str());
 
     let mut builder = AiRequestRecordBuilder::new(
@@ -106,7 +106,7 @@ pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
     })
 }
 
-pub fn extract_messages(
+pub(super) fn extract_messages(
     request: &AiRequest,
     response: &AiResponse,
     status: RequestStatus,
@@ -118,7 +118,7 @@ pub fn extract_messages(
         let role = message_role_to_str(message.role);
 
         messages.push(MessageData {
-            role: role.to_string(),
+            role: role.to_owned(),
             content: message.content.clone(),
             sequence,
         });
@@ -127,7 +127,7 @@ pub fn extract_messages(
 
     if status == RequestStatus::Completed && !response.content.is_empty() {
         messages.push(MessageData {
-            role: message_role_to_str(MessageRole::Assistant).to_string(),
+            role: message_role_to_str(MessageRole::Assistant).to_owned(),
             content: response.content.clone(),
             sequence,
         });
@@ -144,7 +144,7 @@ const fn message_role_to_str(role: MessageRole) -> &'static str {
     }
 }
 
-pub fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
+pub(super) fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
     response
         .tool_calls
         .iter()
@@ -153,7 +153,7 @@ pub fn extract_tool_calls(response: &AiResponse) -> Vec<ToolCallData> {
             ai_tool_call_id: tool_call.ai_tool_call_id.to_string(),
             tool_name: tool_call.name.clone(),
             tool_input: serde_json::to_string(&tool_call.arguments)
-                .unwrap_or_else(|_| "{}".to_string()),
+                .unwrap_or_else(|_| "{}".to_owned()),
             sequence: i as i32,
         })
         .collect()

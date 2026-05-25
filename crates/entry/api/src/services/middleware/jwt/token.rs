@@ -39,18 +39,18 @@ impl JwtExtractor {
     fn decoding_key_for(token: &str) -> Result<&'static jsonwebtoken::DecodingKey, String> {
         let header = decode_header(token).map_err(|e| format!("invalid header: {e}"))?;
         if header.alg != Algorithm::RS256 {
-            return Err("JWT must be RS256-signed".to_string());
+            return Err("JWT must be RS256-signed".to_owned());
         }
         let kid = header
             .kid
             .as_deref()
-            .ok_or_else(|| "JWT missing `kid` header".to_string())?;
+            .ok_or_else(|| "JWT missing `kid` header".to_owned())?;
         authority::decoding_key_for_kid(kid)
             .map_err(|e| format!("key lookup: {e}"))?
             .ok_or_else(|| format!("unknown `kid` `{kid}`"))
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn validate_token(&self, token: &str) -> Result<(), String> {
         let key = Self::decoding_key_for(token)?;
         match decode::<JwtClaims>(token, key, &Self::build_validation()) {
@@ -58,19 +58,19 @@ impl JwtExtractor {
             Err(err) => {
                 let reason = err.to_string();
                 if reason.contains("InvalidSignature") || reason.contains("invalid signature") {
-                    Err("Invalid signature".to_string())
+                    Err("Invalid signature".to_owned())
                 } else if reason.contains("ExpiredSignature") || reason.contains("token expired") {
-                    Err("Token expired".to_string())
+                    Err("Token expired".to_owned())
                 } else if reason.contains("MissingRequiredClaim") || reason.contains("missing") {
-                    Err("Missing required claim".to_string())
+                    Err("Missing required claim".to_owned())
                 } else {
-                    Err("Invalid token".to_string())
+                    Err("Invalid token".to_owned())
                 }
             },
         }
     }
 
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     pub fn extract_user_context(&self, token: &str) -> Result<JwtUserContext> {
         let key = Self::decoding_key_for(token).map_err(|e| anyhow!(e))?;
         let token_data = decode::<JwtClaims>(token, key, &Self::build_validation())?;

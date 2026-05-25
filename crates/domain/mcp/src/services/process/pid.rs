@@ -210,7 +210,7 @@ pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
         return None;
     }
 
-    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     if name.is_empty() { None } else { Some(name) }
 }
 

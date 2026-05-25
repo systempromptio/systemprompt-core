@@ -19,7 +19,7 @@ pub struct MergeArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: MergeArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<UserMergeOutput>> {

@@ -81,7 +81,7 @@ pub async fn generate_client_tokens(
         permissions: permissions.clone(),
         audience,
         expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
-        plugin_id: options.plugin_id.map(str::to_string),
+        plugin_id: options.plugin_id.map(str::to_owned),
         ..Default::default()
     };
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
@@ -115,7 +115,7 @@ pub async fn generate_client_tokens(
 
     Ok(TokenResponse {
         access_token: jwt_token,
-        token_type: "Bearer".to_string(),
+        token_type: "Bearer".to_owned(),
         expires_in,
         refresh_token: None,
         scope: Some(

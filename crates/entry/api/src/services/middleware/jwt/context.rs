@@ -54,7 +54,7 @@ impl JwtContextExtractor {
         let token = self
             .token_extractor
             .extract(headers)
-            .map_err(|_| ContextExtractionError::MissingAuthHeader)?;
+            .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
         self.jwt_extractor
             .extract_user_context(&token)
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
@@ -92,8 +92,8 @@ impl JwtContextExtractor {
 
         if has_context_headers && !has_auth {
             return Err(ContextExtractionError::ForbiddenHeader {
-                header: "X-User-ID/X-Session-ID".to_string(),
-                reason: "Context headers require valid JWT for authentication".to_string(),
+                header: "X-User-ID/X-Session-ID".to_owned(),
+                reason: "Context headers require valid JWT for authentication".to_owned(),
             });
         }
 
@@ -105,7 +105,7 @@ impl JwtContextExtractor {
             .and_then(|h| h.to_str().ok())
             .map_or_else(
                 || jwt_context.session_id.clone(),
-                |s| SessionId::new(s.to_string()),
+                |s| SessionId::new(s.to_owned()),
             );
 
         let user_id = headers
@@ -113,7 +113,7 @@ impl JwtContextExtractor {
             .and_then(|h| h.to_str().ok())
             .map_or_else(
                 || jwt_context.user_id.clone(),
-                |s| UserId::new(s.to_string()),
+                |s| UserId::new(s.to_owned()),
             );
 
         let context_id = headers
@@ -172,10 +172,9 @@ impl JwtContextExtractor {
 
         if headers.get("x-context-id").is_some() && !has_auth {
             return Err(ContextExtractionError::ForbiddenHeader {
-                header: "X-Context-ID".to_string(),
+                header: "X-Context-ID".to_owned(),
                 reason: "Context ID must be in request body (A2A spec). Use contextId field in \
-                         message."
-                    .to_string(),
+                         message.".to_owned(),
             });
         }
 
@@ -189,7 +188,7 @@ impl JwtContextExtractor {
         let (context_id, task_id_from_payload) = match context_source {
             ContextIdSource::Direct(id) => (
                 ContextId::try_new(id).map_err(|e| ContextExtractionError::InvalidHeaderValue {
-                    header: "contextId".to_string(),
+                    header: "contextId".to_owned(),
                     reason: e.to_string(),
                 })?,
                 None,

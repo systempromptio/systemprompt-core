@@ -29,7 +29,7 @@ pub struct A2ABroadcastRequest {
 }
 
 #[derive(Debug)]
-pub struct AgUiWebhookData {
+pub(super) struct AgUiWebhookData {
     pub event_name: String,
     pub payload: serde_json::Value,
 }

@@ -98,7 +98,7 @@ impl ClientRepository {
     ) -> Result<()> {
         let default_grant_types: Vec<String> = GrantType::default_grant_types()
             .iter()
-            .map(|s| (*s).to_string())
+            .map(|s| (*s).to_owned())
             .collect();
         let grant_types_list = grant_types.unwrap_or(&default_grant_types);
         if grant_types_list.is_empty() {

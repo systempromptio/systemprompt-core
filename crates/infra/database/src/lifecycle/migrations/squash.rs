@@ -32,9 +32,8 @@ fn collect_squash_range<'m>(
 ) -> Result<Vec<&'m Migration>, LoaderError> {
     if through == 0 {
         return Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
-            message: "--through must be >= 1; version 0 is reserved for the squash baseline"
-                .to_string(),
+            extension: ext_id.to_owned(),
+            message: "--through must be >= 1; version 0 is reserved for the squash baseline".to_owned(),
         });
     }
 
@@ -45,7 +44,7 @@ fn collect_squash_range<'m>(
 
     if to_squash.is_empty() {
         return Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
+            extension: ext_id.to_owned(),
             message: format!(
                 "No migrations in range 1..={through} are defined for extension '{ext_id}'"
             ),
@@ -56,7 +55,7 @@ fn collect_squash_range<'m>(
     covered.sort_unstable();
     if covered != (1..=through).collect::<Vec<u32>>() {
         return Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
+            extension: ext_id.to_owned(),
             message: format!(
                 "Migrations 1..={through} are not contiguous for extension '{ext_id}': have \
                  {covered:?}"
@@ -105,7 +104,7 @@ impl MigrationService<'_> {
         self.verify_range_applied(ext_id, through).await?;
 
         let plan = SquashPlan {
-            extension_id: ext_id.to_string(),
+            extension_id: ext_id.to_owned(),
             through,
             baseline_name: baseline_name.clone(),
             baseline_sql,
@@ -139,7 +138,7 @@ impl MigrationService<'_> {
             return Ok(());
         }
         Err(LoaderError::MigrationFailed {
-            extension: ext_id.to_string(),
+            extension: ext_id.to_owned(),
             message: format!(
                 "Refusing to squash through {through}: extension '{ext_id}' has not applied \
                  migrations {not_applied:?}. Squashing would retire them behind the baseline \
@@ -166,7 +165,7 @@ impl MigrationService<'_> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!("Failed to record baseline migration row: {e}"),
             })?;
 
@@ -178,7 +177,7 @@ impl MigrationService<'_> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!("Failed to retire squashed migration rows: {e}"),
             })?;
 

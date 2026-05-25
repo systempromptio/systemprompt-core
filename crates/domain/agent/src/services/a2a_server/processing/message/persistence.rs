@@ -9,7 +9,7 @@ use crate::services::a2a_server::streaming::{
     broadcast_artifact_created, broadcast_task_completed,
 };
 
-pub struct PersistCompletedTaskParams<'a> {
+pub(super) struct PersistCompletedTaskParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
@@ -19,7 +19,7 @@ pub struct PersistCompletedTaskParams<'a> {
     pub artifacts_already_published: bool,
 }
 
-pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> Result<Task> {
+pub(super) async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> Result<Task> {
     let PersistCompletedTaskParams {
         task,
         user_message,
@@ -92,6 +92,6 @@ pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> R
     Ok(updated_task)
 }
 
-pub async fn broadcast_completion(task: &Task, context: &RequestContext) {
+pub(super) async fn broadcast_completion(task: &Task, context: &RequestContext) {
     broadcast_task_completed(task, context.user_id(), context.auth_token().as_str()).await;
 }

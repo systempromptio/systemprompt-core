@@ -72,7 +72,7 @@ impl AuthResult {
     pub fn expect_authenticated(self, msg: &str) -> Result<AuthenticatedRequestContext, McpError> {
         match self {
             Self::Authenticated(auth_ctx) => Ok(auth_ctx),
-            Self::Anonymous(_) => Err(McpError::invalid_request(msg.to_string(), None)),
+            Self::Anonymous(_) => Err(McpError::invalid_request(msg.to_owned(), None)),
         }
     }
 }
@@ -170,7 +170,7 @@ async fn enforce_authz_for_server(
     let user_id = UserId::new(claims.sub.clone());
     let req = AuthzRequest {
         entity_type: EntityKind::McpServer,
-        entity_id: server_name.to_string(),
+        entity_id: server_name.to_owned(),
         user_id,
         roles: claims.roles.clone(),
         department: claims.department.clone().unwrap_or_else(String::new),

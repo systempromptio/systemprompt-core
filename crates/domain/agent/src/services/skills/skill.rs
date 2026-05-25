@@ -116,12 +116,12 @@ impl SkillService {
         Ok(loaded.instructions)
     }
 
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     pub async fn list_skill_ids(&self) -> Result<Vec<String>> {
         list_enabled_skill_ids(self.skills_root.as_ref())
     }
 
-    #[allow(clippy::unused_async)]
+    #[expect(clippy::unused_async)]
     pub async fn load_skill_metadata(&self, skill_id: &SkillId) -> Result<SkillMetadata> {
         let loaded = load_disk_skill(self.skills_root.as_ref(), skill_id)?;
         tracing::info!(skill_id = %loaded.skill_id, "Loaded skill metadata from disk");
@@ -182,7 +182,7 @@ fn load_disk_skill(skills_root: &Path, skill_id: &SkillId) -> Result<LoadedDiskS
     };
 
     let name = if config.name.is_empty() {
-        id_str.to_string()
+        id_str.to_owned()
     } else {
         config.name
     };
@@ -240,9 +240,9 @@ fn list_enabled_skill_ids(skills_root: &Path) -> Result<Vec<String>> {
             ))
         })?;
         let id = if config.id.as_str().is_empty() {
-            dir_name.to_string()
+            dir_name.to_owned()
         } else {
-            config.id.as_str().to_string()
+            config.id.as_str().to_owned()
         };
         ids.push(id);
     }

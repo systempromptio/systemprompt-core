@@ -19,7 +19,7 @@ pub struct RunArgs {
     pub port: u16,
 }
 
-pub async fn execute(args: RunArgs) -> Result<()> {
+pub(crate) async fn execute(args: RunArgs) -> Result<()> {
     let ctx = AppContext::new()
         .await
         .context("Failed to bootstrap AppContext for agent subprocess")?;

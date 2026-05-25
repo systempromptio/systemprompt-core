@@ -117,11 +117,11 @@ impl WebhookService {
             .or_else(|| request.headers.get("x-event-type"))
             .or_else(|| request.headers.get("x-github-event"))
             .cloned()
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_else(|| "unknown".to_owned());
 
         if !endpoint.events.is_empty()
             && !endpoint.events.contains(&event_type)
-            && !endpoint.events.contains(&"*".to_string())
+            && !endpoint.events.contains(&"*".to_owned())
         {
             return Ok(WebhookResponse {
                 status: 200,
@@ -161,7 +161,7 @@ impl WebhookService {
         signature: &str,
     ) -> IntegrationResult<bool> {
         let secret = endpoint.secret.as_ref().ok_or_else(|| {
-            IntegrationError::Webhook("No secret configured for endpoint".to_string())
+            IntegrationError::Webhook("No secret configured for endpoint".to_owned())
         })?;
 
         let expected_signature = Self::generate_signature(secret, payload)?;

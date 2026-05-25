@@ -153,7 +153,7 @@ impl AiError {
         let retry_after = parse_retry_after(response.headers());
         let body = response.text().await.unwrap_or_default();
         Self::HttpStatus {
-            provider: provider.to_string(),
+            provider: provider.to_owned(),
             status,
             retry_after,
             body,

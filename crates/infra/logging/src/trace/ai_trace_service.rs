@@ -9,7 +9,7 @@ use super::models::{
 };
 use crate::models::LoggingError;
 
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 
 #[derive(Debug, Clone)]
 pub struct AiTraceService {
@@ -26,7 +26,7 @@ impl AiTraceService {
             .await?
             .map(TaskId::new)
             .ok_or_else(|| LoggingError::TaskNotFound {
-                partial_id: partial_id.to_string(),
+                partial_id: partial_id.to_owned(),
             })
     }
 

@@ -16,7 +16,7 @@ const DATACENTER_IP_PREFIXES: &[&str] = &[
     "119.29.", "129.28.", "162.14.", "119.3.", "122.112.",
 ];
 
-const CHROME_MIN_VERSION: i32 = 120;
+pub(crate) const CHROME_MIN_VERSION: i32 = 120;
 
 #[derive(Clone, Debug)]
 pub struct BotMarker {
@@ -50,8 +50,7 @@ pub async fn detect_bots_early(
                 })
                 .ok()
         })
-        .unwrap_or("")
-        .to_string();
+        .unwrap_or("").to_owned();
 
     let ip_address = resolve_client_ip(
         req.headers(),
@@ -59,7 +58,7 @@ pub async fn detect_bots_early(
         &trusted_proxies,
     )
     .map(|a| a.to_string());
-    let uri_path = req.uri().path().to_string();
+    let uri_path = req.uri().path().to_owned();
 
     let marker = if is_known_bot(&user_agent) {
         BotMarker {

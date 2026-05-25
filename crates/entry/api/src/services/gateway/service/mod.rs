@@ -142,7 +142,7 @@ impl GatewayService {
 
         run_request_safety_scan(db, &ai_request_id, &request).await;
 
-        let upstream_model = route.effective_upstream_model(&request.model).to_string();
+        let upstream_model = route.effective_upstream_model(&request.model).to_owned();
         let outbound_ctx = OutboundCtx {
             route,
             api_key: upstream_api_key,

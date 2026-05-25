@@ -58,8 +58,8 @@ impl McpConnectionResult {
     pub fn status_description(&self) -> String {
         match self.validation_type.as_str() {
             "mcp_validated" => format!("MCP validated with {} tools", self.tools_count),
-            "auth_required" => "Port responding, OAuth authentication required".to_string(),
-            "no_tools" => "Connected but no tools returned (likely requires auth)".to_string(),
+            "auth_required" => "Port responding, OAuth authentication required".to_owned(),
+            "no_tools" => "Connected but no tools returned (likely requires auth)".to_owned(),
             "tools_request_failed" => {
                 let error = self
                     .error_message
@@ -76,9 +76,9 @@ impl McpConnectionResult {
                     .unwrap_or("[no error message]");
                 format!("Connection failed: {error}")
             },
-            "port_unavailable" => "Port not responding".to_string(),
-            "timeout" => "Connection timeout".to_string(),
-            _ => "Unknown validation result".to_string(),
+            "port_unavailable" => "Port not responding".to_owned(),
+            "timeout" => "Connection timeout".to_owned(),
+            _ => "Unknown validation result".to_owned(),
         }
     }
 }

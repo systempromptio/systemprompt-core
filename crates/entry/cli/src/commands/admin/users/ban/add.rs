@@ -23,7 +23,7 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub async fn execute(args: AddArgs, _config: &CliConfig) -> Result<CommandResult<BanAddOutput>> {
+pub(crate) async fn execute(args: AddArgs, _config: &CliConfig) -> Result<CommandResult<BanAddOutput>> {
     let ctx = AppContext::new().await?;
     let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
 
@@ -61,13 +61,13 @@ fn parse_duration(duration_str: Option<&str>) -> Result<BanDuration> {
         let hours: i64 = s
             .trim_end_matches('h')
             .parse()
-            .map_err(|_| anyhow!("Invalid hours format"))?;
+            .map_err(|_e| anyhow!("Invalid hours format"))?;
         Ok(BanDuration::Hours(hours))
     } else if s.ends_with('d') {
         let days: i64 = s
             .trim_end_matches('d')
             .parse()
-            .map_err(|_| anyhow!("Invalid days format"))?;
+            .map_err(|_e| anyhow!("Invalid days format"))?;
         Ok(BanDuration::Days(days))
     } else {
         Err(anyhow!(

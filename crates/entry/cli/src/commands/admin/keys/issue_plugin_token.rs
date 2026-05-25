@@ -45,7 +45,7 @@ pub struct IssuePluginTokenArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IssuePluginTokenOutput {
+pub(crate) struct IssuePluginTokenOutput {
     pub plugin_id: String,
     pub email: String,
     pub expires_in_days: u32,
@@ -53,7 +53,7 @@ pub struct IssuePluginTokenOutput {
     pub token: String,
 }
 
-pub async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<IssuePluginTokenOutput>> {
+pub(crate) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<IssuePluginTokenOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
 
@@ -135,7 +135,7 @@ async fn resolve_email() -> Result<String> {
     CredentialsBootstrap::try_init()
         .await
         .context("Failed to initialize credentials")?;
-    let creds = CredentialsBootstrap::require().map_err(|_| {
+    let creds = CredentialsBootstrap::require().map_err(|_e| {
         anyhow::anyhow!(
             "No --email provided and no credentials available. Pass --email or run `systemprompt \
              cloud auth login` first."

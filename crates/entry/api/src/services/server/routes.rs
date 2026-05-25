@@ -17,7 +17,7 @@ use crate::services::middleware::{
 };
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
 
-pub fn configure_routes(
+pub(super) fn configure_routes(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<Router, LoaderError> {
@@ -25,7 +25,7 @@ pub fn configure_routes(
 
     let metrics_handle =
         super::metrics::install_recorder().map_err(|e| LoaderError::InitializationFailed {
-            extension: "prometheus_metrics".to_string(),
+            extension: "prometheus_metrics".to_owned(),
             message: e.to_string(),
         })?;
 
@@ -79,7 +79,7 @@ pub fn configure_routes(
 
     let banned_ip_repo = Arc::new(BannedIpRepository::new(ctx.db_pool()).map_err(|e| {
         LoaderError::InitializationFailed {
-            extension: "ip_ban_middleware".to_string(),
+            extension: "ip_ban_middleware".to_owned(),
             message: e.to_string(),
         }
     })?);
@@ -103,7 +103,7 @@ pub fn configure_routes(
 fn build_jti_revocation_state(ctx: &AppContext) -> Result<JtiRevocationState, LoaderError> {
     let repo =
         OAuthRepository::new(ctx.db_pool()).map_err(|e| LoaderError::InitializationFailed {
-            extension: "jti_revocation".to_string(),
+            extension: "jti_revocation".to_owned(),
             message: e.to_string(),
         })?;
     Ok(JtiRevocationState {
@@ -116,14 +116,14 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
     let analytics = ctx
         .analytics_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: "jwt".to_string(),
-            message: "AnalyticsProvider is required for JWT session enforcement".to_string(),
+            extension: "jwt".to_owned(),
+            message: "AnalyticsProvider is required for JWT session enforcement".to_owned(),
         })?;
     let user_provider = ctx
         .user_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: "jwt".to_string(),
-            message: "UserProvider is required for JWT validation".to_string(),
+            extension: "jwt".to_owned(),
+            message: "UserProvider is required for JWT validation".to_owned(),
         })?;
     Ok(JwtContextExtractor::new(analytics, user_provider))
 }

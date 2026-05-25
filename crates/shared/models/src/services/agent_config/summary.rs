@@ -25,7 +25,7 @@ impl AgentSummary {
     pub fn from_config(name: &str, config: &AgentConfig) -> Self {
         Self {
             agent_id: AgentId::new(name),
-            name: name.to_string(),
+            name: name.to_owned(),
             display_name: config.card.display_name.clone(),
             port: config.port,
             enabled: config.enabled,

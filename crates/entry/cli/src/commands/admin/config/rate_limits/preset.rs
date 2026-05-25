@@ -17,7 +17,7 @@ use super::super::types::{
     ResetChange, TierMultipliersOutput,
 };
 
-pub fn execute_preset(command: PresetCommands, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_preset(command: PresetCommands, config: &CliConfig) -> Result<()> {
     match command {
         PresetCommands::List => {
             execute_preset_list(config);

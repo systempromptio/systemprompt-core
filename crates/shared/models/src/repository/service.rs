@@ -26,20 +26,17 @@ impl ServiceRecord {
         let name = row
             .get("name")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("name"))?
-            .to_string();
+            .ok_or(RowParseError::Missing("name"))?.to_owned();
 
         let module_name = row
             .get("module_name")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("module_name"))?
-            .to_string();
+            .ok_or(RowParseError::Missing("module_name"))?.to_owned();
 
         let status = row
             .get("status")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("status"))?
-            .to_string();
+            .ok_or(RowParseError::Missing("status"))?.to_owned();
 
         let pid = row
             .get("pid")
@@ -50,7 +47,7 @@ impl ServiceRecord {
             .get("port")
             .and_then(serde_json::Value::as_i64)
             .ok_or(RowParseError::Missing("port"))
-            .and_then(|i| i32::try_from(i).map_err(|_| RowParseError::OutOfRange("port")))?;
+            .and_then(|i| i32::try_from(i).map_err(|_e| RowParseError::OutOfRange("port")))?;
 
         Ok(Self {
             name,

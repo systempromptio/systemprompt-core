@@ -6,7 +6,7 @@ use crate::repository::context::message::{
 };
 use systemprompt_traits::RepositoryError;
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct UpdateTaskAndSaveMessagesParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,

@@ -12,7 +12,7 @@ use super::provider::GeminiProvider;
 use super::request_builders::AiResponseParams;
 use super::{converters, request_builders};
 
-pub fn build_client() -> Result<Client> {
+pub(super) fn build_client() -> Result<Client> {
     Client::builder()
         .timeout(systemprompt_models::net::AI_PROVIDER_REQUEST_TIMEOUT)
         .connect_timeout(timeout::CONNECT_TIMEOUT)
@@ -22,7 +22,7 @@ pub fn build_client() -> Result<Client> {
         })
 }
 
-pub async fn generate(
+pub(super) async fn generate(
     provider: &GeminiProvider,
     params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -57,7 +57,7 @@ pub async fn generate(
     ))
 }
 
-pub async fn generate_with_schema(
+pub(super) async fn generate_with_schema(
     provider: &GeminiProvider,
     params: SchemaGenerationParams<'_>,
 ) -> Result<AiResponse> {
@@ -68,7 +68,7 @@ pub async fn generate_with_schema(
     let generation_config = request_builders::build_generation_config(
         params.base.sampling,
         params.base.max_output_tokens,
-        Some(("application/json".to_string(), params.response_schema)),
+        Some(("application/json".to_owned(), params.response_schema)),
         None,
     );
 
@@ -103,7 +103,7 @@ fn extract_content(gemini_response: &GeminiResponse) -> Result<String> {
     let candidate = gemini_response
         .candidates
         .first()
-        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_string()))?;
+        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_owned()))?;
 
     candidate.content.as_ref().map_or_else(
         || {

@@ -12,7 +12,7 @@ impl TemplateRegistry {
         self.handlebars
             .render(template_name, data)
             .map_err(|e| TemplateError::RenderError {
-                name: template_name.to_string(),
+                name: template_name.to_owned(),
                 message: e.to_string(),
             })
     }
@@ -25,7 +25,7 @@ impl TemplateRegistry {
         self.handlebars
             .render(partial_name, data)
             .map_err(|e| TemplateError::RenderError {
-                name: partial_name.to_string(),
+                name: partial_name.to_owned(),
                 message: e.to_string(),
             })
     }
@@ -47,7 +47,7 @@ impl TemplateRegistry {
 
     #[must_use]
     pub fn find_template_for_content_type(&self, content_type: &str) -> Option<&str> {
-        let content_type_owned = content_type.to_string();
+        let content_type_owned = content_type.to_owned();
         self.resolved_templates
             .iter()
             .find(|(_, def)| def.content_types.contains(&content_type_owned))
@@ -56,7 +56,7 @@ impl TemplateRegistry {
 
     #[must_use]
     pub fn extenders_for(&self, content_type: &str) -> Vec<&DynTemplateDataExtender> {
-        let content_type_owned = content_type.to_string();
+        let content_type_owned = content_type.to_owned();
         self.extenders
             .iter()
             .filter(|e| {
@@ -68,7 +68,7 @@ impl TemplateRegistry {
 
     #[must_use]
     pub fn components_for(&self, content_type: &str) -> Vec<&DynComponentRenderer> {
-        let content_type_owned = content_type.to_string();
+        let content_type_owned = content_type.to_owned();
         self.components
             .iter()
             .filter(|c| {
@@ -80,7 +80,7 @@ impl TemplateRegistry {
 
     #[must_use]
     pub fn page_providers_for(&self, page_type: &str) -> Vec<&DynPageDataProvider> {
-        let page_type_owned = page_type.to_string();
+        let page_type_owned = page_type.to_owned();
         self.page_providers
             .iter()
             .filter(|p| {

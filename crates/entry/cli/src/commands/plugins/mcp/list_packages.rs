@@ -14,7 +14,7 @@ pub struct ListPackagesArgs {
     pub raw: bool,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ListPackagesArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<McpPackagesOutput>> {

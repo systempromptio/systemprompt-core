@@ -26,6 +26,9 @@
 ### Changed
 
 - **Workspace lint surface tightened.** Added `clippy::map_err_ignore`, `clippy::str_to_string`, `clippy::undocumented_unsafe_blocks`, `clippy::self_named_module_files`, `clippy::allow_attributes`, `clippy::allow_attributes_without_reason`, `rust::unreachable_pub`, `rust::unused_lifetimes`, and `rust::single_use_lifetimes` at `warn`. The previously-disabled `cognitive-complexity-threshold` and `too-many-lines-threshold` in `clippy.toml` are re-engaged at `30` and `150` respectively (from `999999`). `rustfmt.toml` `edition` now matches the workspace at `"2024"`.
+- **Internal visibility narrowed across the workspace.** `unreachable_pub` reduced from 1,146 to 58 warnings: items only used within their crate are now `pub(crate)`. Cross-crate consumers (re-exports through `lib.rs`, the `systemprompt` facade) keep `pub`.
+- **`map_err(|_| ...)` callers renamed to `|_e| ...`** across 113 sites outside the identifiers crate, silencing `clippy::map_err_ignore` without changing behaviour. Where the discarded error genuinely belongs in the source chain, the next pass should switch to `map_err(|e| ...with_source(e))` instead of the silenced form.
+- **Three long functions split into smaller helpers** so every function fits under the 150-line threshold: `MessageProcessor::handle_message` (extracted `collect_stream_response`, `broadcast_agui_lifecycle`, `persist_or_mark_failed`); `StreamProcessor::process_message_stream` (extracted `run_stream_pipeline`); `handle_complete` (extracted `build_complete_task`, `broadcast_task_success`).
 - **Two new `just` recipes:** `just machete` (unused dependencies via `cargo-machete`) and `just hack` (feature-powerset build via `cargo-hack`).
 
 ## [0.11.1] - 2026-05-22

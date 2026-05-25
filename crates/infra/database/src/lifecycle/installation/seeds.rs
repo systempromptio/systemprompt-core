@@ -9,7 +9,7 @@ use crate::services::DatabaseProvider;
 use systemprompt_extension::{Extension, LoaderError, Seed};
 use tracing::{debug, info};
 
-pub async fn apply_seeds(
+pub(super) async fn apply_seeds(
     extension: &dyn Extension,
     db: &dyn DatabaseProvider,
 ) -> Result<(), LoaderError> {
@@ -44,8 +44,8 @@ async fn apply_one(
         .begin_transaction()
         .await
         .map_err(|e| LoaderError::SeedFailed {
-            extension: ext_id.to_string(),
-            seed: seed.id.to_string(),
+            extension: ext_id.to_owned(),
+            seed: seed.id.to_owned(),
             message: format!("begin transaction: {e}"),
         })?;
 
@@ -55,15 +55,15 @@ async fn apply_one(
             Err(rb) => format!(" (rollback also failed: {rb})"),
         };
         return Err(LoaderError::SeedFailed {
-            extension: ext_id.to_string(),
-            seed: seed.id.to_string(),
+            extension: ext_id.to_owned(),
+            seed: seed.id.to_owned(),
             message: format!("execute: {e}{rollback}"),
         });
     }
 
     tx.commit().await.map_err(|e| LoaderError::SeedFailed {
-        extension: ext_id.to_string(),
-        seed: seed.id.to_string(),
+        extension: ext_id.to_owned(),
+        seed: seed.id.to_owned(),
         message: format!("commit: {e}"),
     })?;
 
@@ -72,8 +72,8 @@ async fn apply_one(
 
 fn lint_seed(ext_id: &str, seed: &Seed) -> Result<(), LoaderError> {
     let parsed = pg_query::parse(seed.sql).map_err(|e| LoaderError::SeedFailed {
-        extension: ext_id.to_string(),
-        seed: seed.id.to_string(),
+        extension: ext_id.to_owned(),
+        seed: seed.id.to_owned(),
         message: format!("parse: {e}"),
     })?;
 
@@ -84,16 +84,16 @@ fn lint_seed(ext_id: &str, seed: &Seed) -> Result<(), LoaderError> {
         let kind = classify(node);
         if !is_allowed(kind) {
             return Err(LoaderError::InvalidSeedStatement {
-                extension: ext_id.to_string(),
-                seed: seed.id.to_string(),
-                statement: kind.to_string(),
+                extension: ext_id.to_owned(),
+                seed: seed.id.to_owned(),
+                statement: kind.to_owned(),
             });
         }
         if let pg_query::NodeEnum::InsertStmt(insert) = node {
             if insert.on_conflict_clause.is_none() {
                 return Err(LoaderError::SeedInsertNotIdempotent {
-                    extension: ext_id.to_string(),
-                    seed: seed.id.to_string(),
+                    extension: ext_id.to_owned(),
+                    seed: seed.id.to_owned(),
                 });
             }
         }

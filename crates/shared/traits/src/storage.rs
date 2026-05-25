@@ -53,7 +53,7 @@ impl From<String> for StoredFileId {
 
 impl From<&str> for StoredFileId {
     fn from(s: &str) -> Self {
-        Self(s.to_string())
+        Self(s.to_owned())
     }
 }
 

@@ -37,7 +37,7 @@ impl MigrationService<'_> {
                 )
                 .await
                 .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_string(),
+                    extension: ext_id.to_owned(),
                     message: format!(
                         "Failed to drop drifted migration record {} ('{}'): {e}",
                         drift.version, drift.name

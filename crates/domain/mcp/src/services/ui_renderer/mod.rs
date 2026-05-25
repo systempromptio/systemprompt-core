@@ -106,7 +106,7 @@ impl UiMetadata {
 
     pub fn to_tool_meta(&self) -> serde_json::Map<String, serde_json::Value> {
         let mut meta = serde_json::Map::new();
-        meta.insert("ui".to_string(), self.to_json());
+        meta.insert("ui".to_owned(), self.to_json());
         meta
     }
 

@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-pub async fn get_by_id(pool: &Arc<PgPool>, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
+pub(super) async fn get_by_id(pool: &Arc<PgPool>, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"
@@ -24,7 +24,7 @@ pub async fn get_by_id(pool: &Arc<PgPool>, id: &ContentId) -> Result<Option<Cont
     .await
 }
 
-pub async fn get_by_slug(
+pub(super) async fn get_by_slug(
     pool: &Arc<PgPool>,
     slug: &str,
     locale: &LocaleCode,
@@ -50,7 +50,7 @@ pub async fn get_by_slug(
     .await
 }
 
-pub async fn get_by_source_and_slug(
+pub(super) async fn get_by_source_and_slug(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
     slug: &str,
@@ -78,7 +78,7 @@ pub async fn get_by_source_and_slug(
     .await
 }
 
-pub async fn list(
+pub(super) async fn list(
     pool: &Arc<PgPool>,
     limit: i64,
     offset: i64,
@@ -105,7 +105,7 @@ pub async fn list(
     .await
 }
 
-pub async fn list_by_source(
+pub(super) async fn list_by_source(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
     locale: &LocaleCode,
@@ -132,7 +132,7 @@ pub async fn list_by_source(
     .await
 }
 
-pub async fn list_by_source_limited(
+pub(super) async fn list_by_source_limited(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
     locale: &LocaleCode,
@@ -162,7 +162,7 @@ pub async fn list_by_source_limited(
     .await
 }
 
-pub async fn list_all(
+pub(super) async fn list_all(
     pool: &Arc<PgPool>,
     limit: i64,
     offset: i64,
@@ -189,7 +189,7 @@ pub async fn list_all(
     .await
 }
 
-pub async fn category_exists(
+pub(super) async fn category_exists(
     pool: &Arc<PgPool>,
     category_id: &CategoryId,
 ) -> Result<bool, sqlx::Error> {
@@ -202,7 +202,7 @@ pub async fn category_exists(
     Ok(result)
 }
 
-pub async fn get_popular_content_ids(
+pub(super) async fn get_popular_content_ids(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
     days: i32,
@@ -236,7 +236,7 @@ pub async fn get_popular_content_ids(
     Ok(rows.into_iter().map(ContentId::new).collect())
 }
 
-pub async fn find_sources_by_slug(
+pub(super) async fn find_sources_by_slug(
     pool: &Arc<PgPool>,
     slug: &str,
     locale: &LocaleCode,
@@ -256,7 +256,7 @@ pub async fn find_sources_by_slug(
     Ok(rows.into_iter().map(SourceId::new).collect())
 }
 
-pub async fn list_slugs_with_locales_by_source(
+pub(super) async fn list_slugs_with_locales_by_source(
     pool: &Arc<PgPool>,
     source_id: &SourceId,
 ) -> Result<Vec<(String, LocaleCode)>, sqlx::Error> {

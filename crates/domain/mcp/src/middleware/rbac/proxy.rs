@@ -19,7 +19,7 @@ pub(super) fn try_proxy_verified_auth(
         .extensions
         .get::<http::request::Parts>()
         .ok_or_else(|| {
-            McpError::invalid_request("No HTTP parts in MCP context".to_string(), None)
+            McpError::invalid_request("No HTTP parts in MCP context".to_owned(), None)
         })?;
 
     let proxy_verified = parts
@@ -38,7 +38,7 @@ pub(super) fn try_proxy_verified_auth(
         .and_then(|v| v.to_str().ok())
         .ok_or_else(|| {
             McpError::invalid_request(
-                "Proxy-verified request missing x-user-id header".to_string(),
+                "Proxy-verified request missing x-user-id header".to_owned(),
                 None,
             )
         })?;
@@ -50,7 +50,7 @@ pub(super) fn try_proxy_verified_auth(
         .and_then(|s| systemprompt_models::auth::parse_permissions(s).ok())
         .ok_or_else(|| {
             McpError::invalid_request(
-                "Proxy-verified request missing x-user-permissions header".to_string(),
+                "Proxy-verified request missing x-user-permissions header".to_owned(),
                 None,
             )
         })?;
@@ -70,15 +70,14 @@ pub(super) fn try_proxy_verified_auth(
         .and_then(|s| s.strip_prefix("Bearer "))
         .ok_or_else(|| {
             McpError::invalid_request(
-                "Proxy-verified request missing Authorization Bearer token".to_string(),
+                "Proxy-verified request missing Authorization Bearer token".to_owned(),
                 None,
             )
-        })?
-        .to_string();
+        })?.to_owned();
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_actor(Actor::user(UserId::new(user_id_str.to_string())));
+        .with_actor(Actor::user(UserId::new(user_id_str.to_owned())));
 
     tracing::info!(
         server = %server_name,

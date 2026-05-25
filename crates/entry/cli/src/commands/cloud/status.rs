@@ -7,7 +7,7 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, ProfileInfo, TenantStatusInfo};
 use crate::shared::CommandResult;
 
-pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutput>> {
+pub(crate) async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutput>> {
     let (profile_info, tenant_id_from_profile) = load_profile_info();
     let (credentials_info, tenant_statuses) =
         load_credentials_and_tenants(config, tenant_id_from_profile.as_deref()).await?;

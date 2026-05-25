@@ -113,7 +113,7 @@ impl ImageGenerationInfo {
     }
 
     pub fn with_request_id(mut self, request_id: &AiRequestId) -> Self {
-        self.request_id = Some(request_id.as_str().to_string());
+        self.request_id = Some(request_id.as_str().to_owned());
         self
     }
 }

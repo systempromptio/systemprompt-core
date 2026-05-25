@@ -129,13 +129,11 @@ fn handle_created(
     let id = response
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("resp_unknown")
-        .to_string();
+        .unwrap_or("resp_unknown").to_owned();
     let model = response
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(&state.model)
-        .to_string();
+        .unwrap_or(&state.model).to_owned();
     state.model.clone_from(&model);
     state.response_id.clone_from(&id);
     state.started = true;
@@ -165,13 +163,11 @@ fn handle_item_added(
                 .get("call_id")
                 .and_then(Value::as_str)
                 .or_else(|| item.get("id").and_then(Value::as_str))
-                .unwrap_or("")
-                .to_string();
+                .unwrap_or("").to_owned();
             let name = item
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
+                .unwrap_or("").to_owned();
             (SlotKind::Function, ContentBlockKind::ToolUse { id, name })
         },
         "reasoning" => (
@@ -219,15 +215,15 @@ fn emit_delta(
     let event = match shape {
         DeltaShape::Text => CanonicalEvent::TextDelta {
             index: idx,
-            text: delta.to_string(),
+            text: delta.to_owned(),
         },
         DeltaShape::ToolUse => CanonicalEvent::ToolUseDelta {
             index: idx,
-            partial_json: delta.to_string(),
+            partial_json: delta.to_owned(),
         },
         DeltaShape::Thinking => CanonicalEvent::ThinkingDelta {
             index: idx,
-            text: delta.to_string(),
+            text: delta.to_owned(),
         },
     };
     events.push(Ok(event));
@@ -259,7 +255,7 @@ fn handle_completed(
         .get("id")
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
-        .map_or_else(|| state.response_id.clone(), ToString::to_string);
+        .map_or_else(|| state.response_id.clone(), str::to_owned);
     if let Some(usage) = response.get("usage") {
         let pull = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0) as u32;
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsage {
@@ -273,12 +269,11 @@ fn handle_completed(
     }));
 }
 
-fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, String>>) {
+pub(crate) fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent, String>>) {
     let msg = value
         .get("error")
         .and_then(|e| e.get("message"))
         .and_then(Value::as_str)
-        .unwrap_or("upstream error")
-        .to_string();
+        .unwrap_or("upstream error").to_owned();
     events.push(Ok(CanonicalEvent::Error(msg)));
 }

@@ -9,7 +9,7 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::WhoamiOutput;
 use crate::shared::CommandResult;
 
-pub async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOutput>> {
+pub(crate) async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOutput>> {
     let cloud_paths = get_cloud_paths();
 
     if !cloud_paths.exists(CloudPath::Credentials) {

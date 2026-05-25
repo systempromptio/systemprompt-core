@@ -35,7 +35,7 @@ pub struct TaskArgs {
     pub timeout: u64,
 }
 
-pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<Task>> {
+pub(crate) async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<Task>> {
     let session_ctx = get_or_create_session(config).await?;
 
     let agent = resolve_required(args.agent, "agent", config, || {

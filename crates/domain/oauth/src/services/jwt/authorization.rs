@@ -26,7 +26,7 @@ impl AuthorizationService {
             return Err(StatusCode::UNAUTHORIZED);
         };
         let config =
-            systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let Ok(claims) =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -56,16 +56,16 @@ impl AuthorizationService {
     ) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-                .map_err(|_| StatusCode::UNAUTHORIZED)?;
+                .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let required_aud =
-            JwtAudience::from_str(required_audience).map_err(|_| StatusCode::BAD_REQUEST)?;
+            JwtAudience::from_str(required_audience).map_err(|_e| StatusCode::BAD_REQUEST)?;
 
         if !audience::validate_required_audience(&claims.aud, &required_aud) {
             return Err(StatusCode::FORBIDDEN);
@@ -80,13 +80,13 @@ impl AuthorizationService {
     ) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+            .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
-                .map_err(|_| StatusCode::UNAUTHORIZED)?;
+                .map_err(|_e| StatusCode::UNAUTHORIZED)?;
 
         let allowed_auds: Vec<JwtAudience> = allowed_audiences
             .iter()
@@ -110,7 +110,7 @@ impl AuthorizationService {
     fn create_authenticated_user_from_claims(
         claims: JwtClaims,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let user_id = Uuid::parse_str(&claims.sub).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

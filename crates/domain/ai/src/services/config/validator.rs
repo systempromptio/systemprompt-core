@@ -110,13 +110,13 @@ impl ConfigValidator {
         let resilience = &config.mcp.resilience;
         if resilience.connect_timeout_ms == 0 {
             return Err(crate::error::AiError::Internal(
-                "MCP connect timeout must be greater than 0".to_string(),
+                "MCP connect timeout must be greater than 0".to_owned(),
             ));
         }
 
         if resilience.request_timeout_ms == 0 {
             return Err(crate::error::AiError::Internal(
-                "MCP execution timeout must be greater than 0".to_string(),
+                "MCP execution timeout must be greater than 0".to_owned(),
             ));
         }
 

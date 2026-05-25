@@ -34,7 +34,7 @@ impl Bulkhead {
     pub fn try_acquire(&self) -> Result<OwnedSemaphorePermit, Full> {
         Arc::clone(&self.semaphore)
             .try_acquire_owned()
-            .map_err(|_| {
+            .map_err(|_e| {
                 tracing::warn!(
                     key = %self.key,
                     limit = self.limit,

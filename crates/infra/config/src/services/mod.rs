@@ -9,7 +9,7 @@
 //!   parsing.
 
 mod report;
-pub mod schema_validation;
+mod schema_validation;
 mod service;
 mod types;
 mod validator;

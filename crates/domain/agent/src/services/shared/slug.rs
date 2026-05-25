@@ -18,7 +18,7 @@ pub fn generate_slug(name: &str) -> String {
         .collect::<String>();
 
     let cleaned = collapse_consecutive_hyphens(&slug);
-    cleaned.trim_matches('-').to_string()
+    cleaned.trim_matches('-').to_owned()
 }
 
 fn collapse_consecutive_hyphens(s: &str) -> String {

@@ -93,18 +93,18 @@ impl ContextPropagation for RequestContext {
             .get(headers::SESSION_ID)
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| {
-                ContextPropagationError::MissingHeader(headers::SESSION_ID.to_string())
+                ContextPropagationError::MissingHeader(headers::SESSION_ID.to_owned())
             })?;
 
         let trace_id = hdrs
             .get(headers::TRACE_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::TRACE_ID.to_string()))?;
+            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::TRACE_ID.to_owned()))?;
 
         let user_id = hdrs
             .get(headers::USER_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::USER_ID.to_string()))?;
+            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::USER_ID.to_owned()))?;
 
         let context_id = hdrs
             .get(headers::CONTEXT_ID)
@@ -117,18 +117,18 @@ impl ContextPropagation for RequestContext {
             .get(headers::AGENT_NAME)
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| {
-                ContextPropagationError::MissingHeader(headers::AGENT_NAME.to_string())
+                ContextPropagationError::MissingHeader(headers::AGENT_NAME.to_owned())
             })?;
 
         let task_id = hdrs
             .get(headers::TASK_ID)
             .and_then(|v| v.to_str().ok())
-            .map(|s| TaskId::new(s.to_string()));
+            .map(|s| TaskId::new(s.to_owned()));
 
         let ai_tool_call_id = hdrs
             .get(headers::AI_TOOL_CALL_ID)
             .and_then(|v| v.to_str().ok())
-            .map(|s| AiToolCallId::new(s.to_string()));
+            .map(|s| AiToolCallId::new(s.to_owned()));
 
         let call_source = hdrs
             .get(headers::CALL_SOURCE)
@@ -138,21 +138,21 @@ impl ContextPropagation for RequestContext {
         let client_id = hdrs
             .get(headers::CLIENT_ID)
             .and_then(|v| v.to_str().ok())
-            .map(|s| ClientId::new(s.to_string()));
+            .map(|s| ClientId::new(s.to_owned()));
 
         let auth_token = hdrs
             .get(headers::AUTHORIZATION)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.strip_prefix("Bearer "))
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let mut ctx = Self::new(
-            SessionId::new(session_id.to_string()),
-            TraceId::new(trace_id.to_string()),
+            SessionId::new(session_id.to_owned()),
+            TraceId::new(trace_id.to_owned()),
             context_id,
-            AgentName::new(agent_name.to_string()),
+            AgentName::new(agent_name.to_owned()),
         )
-        .with_actor(Actor::user(UserId::new(user_id.to_string())));
+        .with_actor(Actor::user(UserId::new(user_id.to_owned())));
 
         if let Some(tid) = task_id {
             ctx = ctx.with_task_id(tid);
@@ -187,7 +187,7 @@ impl ContextPropagation for RequestContext {
             {
                 let user_id_uuid = user_id.parse::<uuid::Uuid>().map_err(|e| {
                     ContextPropagationError::InvalidHeader {
-                        name: headers::USER_ID.to_string(),
+                        name: headers::USER_ID.to_owned(),
                         message: format!("invalid UUID: {e}"),
                     }
                 })?;

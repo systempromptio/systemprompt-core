@@ -13,7 +13,7 @@ pub enum FilePersistenceMode {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct AllowedFileTypes {
     pub images: bool,
     pub documents: bool,
@@ -73,7 +73,7 @@ pub struct FilesConfigYaml {
 }
 
 fn default_url_prefix() -> String {
-    DEFAULT_URL_PREFIX.to_string()
+    DEFAULT_URL_PREFIX.to_owned()
 }
 
 impl Default for FilesConfigYaml {

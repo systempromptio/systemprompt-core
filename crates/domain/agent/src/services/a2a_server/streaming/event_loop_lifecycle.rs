@@ -56,7 +56,7 @@ pub(super) fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
     }
 }
 
-#[allow(missing_debug_implementations)]
+#[expect(missing_debug_implementations)]
 pub struct EmitRunStartedParams<'a> {
     pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,
@@ -130,7 +130,7 @@ pub async fn handle_stream_creation_error(
 
     let error_event = AgUiEventBuilder::run_error(
         format!("Failed to process message: {error}"),
-        Some("STREAM_CREATION_ERROR".to_string()),
+        Some("STREAM_CREATION_ERROR".to_owned()),
     );
     if let Err(e) = webhook_context.broadcast_agui(error_event).await {
         tracing::error!(error = %e, "Failed to broadcast RUN_ERROR");

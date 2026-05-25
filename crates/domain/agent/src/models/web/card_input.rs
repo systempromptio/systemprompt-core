@@ -27,6 +27,6 @@ pub struct AgentCardInput {
     pub security: Option<Vec<HashMap<String, Vec<String>>>>,
 }
 
-pub fn default_protocol_version() -> String {
-    crate::A2A_PROTOCOL_VERSION.to_string()
+pub(super) fn default_protocol_version() -> String {
+    crate::A2A_PROTOCOL_VERSION.to_owned()
 }

@@ -130,13 +130,13 @@ impl ResilienceGuard {
         let permit = self
             .bulkhead
             .try_acquire()
-            .map_err(|_| ResilienceError::BulkheadFull {
+            .map_err(|_e| ResilienceError::BulkheadFull {
                 key: self.key.clone(),
                 limit: self.bulkhead.limit(),
             })?;
         self.breaker
             .acquire()
-            .map_err(|_| ResilienceError::CircuitOpen {
+            .map_err(|_e| ResilienceError::CircuitOpen {
                 key: self.key.clone(),
             })?;
         Ok(permit)

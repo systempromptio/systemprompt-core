@@ -20,7 +20,7 @@ pub struct RssChannel {
     pub items: Vec<RssItem>,
 }
 
-pub fn escape_xml(s: &str) -> String {
+fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
@@ -28,7 +28,7 @@ pub fn escape_xml(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-pub fn format_rfc2822(dt: &DateTime<Utc>) -> String {
+fn format_rfc2822(dt: &DateTime<Utc>) -> String {
     dt.format("%a, %d %b %Y %H:%M:%S +0000").to_string()
 }
 

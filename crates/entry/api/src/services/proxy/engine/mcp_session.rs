@@ -139,12 +139,12 @@ pub(super) async fn handle_mcp_response(args: McpResponseCtx<'_>) {
     {
         if let Some(user) = authenticated_user {
             cache.write().await.insert(
-                session_id.to_string(),
+                session_id.to_owned(),
                 ProxySessionIdentity {
                     user: user.id.to_string(),
                     user_type: req_context.user_type().to_string(),
                     permissions: user.permissions.clone(),
-                    auth_token: req_context.auth_token().as_str().to_string(),
+                    auth_token: req_context.auth_token().as_str().to_owned(),
                 },
             );
             tracing::info!(

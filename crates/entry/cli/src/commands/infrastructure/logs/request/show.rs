@@ -105,7 +105,7 @@ async fn execute_with_pool_inner(
     Ok(result.with_skip_render())
 }
 
-async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<MessageRow> {
+pub(crate) async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<MessageRow> {
     let service = AiTraceService::new(Arc::clone(pool));
     service
         .get_conversation_messages(request_id)
@@ -127,7 +127,7 @@ async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<Messa
         )
 }
 
-fn render_text_output(output: &RequestShowOutput, full: bool) {
+pub(crate) fn render_text_output(output: &RequestShowOutput, full: bool) {
     CliService::section(&format!("AI Request: {}", output.request_id));
     CliService::key_value("Provider", &output.provider);
     CliService::key_value("Model", &output.model);

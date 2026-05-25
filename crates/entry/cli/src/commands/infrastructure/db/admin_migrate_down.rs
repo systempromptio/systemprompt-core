@@ -12,7 +12,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::types::DbMigrateDownOutput;
 
-pub async fn execute_migrate_down(config: &CliConfig, extension: &str, count: u32) -> Result<()> {
+pub(crate) async fn execute_migrate_down(config: &CliConfig, extension: &str, count: u32) -> Result<()> {
     let sys_config = Config::get()?;
 
     let database = Arc::new(
@@ -35,7 +35,7 @@ pub async fn execute_migrate_down(config: &CliConfig, extension: &str, count: u3
     .await
 }
 
-pub async fn execute_migrate_down_standalone(
+pub(crate) async fn execute_migrate_down_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
     extension: &str,

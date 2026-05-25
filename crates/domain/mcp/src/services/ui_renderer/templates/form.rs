@@ -117,7 +117,7 @@ impl UiRenderer for FormRenderer {
              {submit_tool};\n{app}",
             bridge = mcp_app_bridge_script(),
             fields_json = json_to_js_literal(&serde_json::json!(fields_json)),
-            submit_tool = submit_tool.map_or_else(|| "null".to_string(), |t| format!("\"{t}\"")),
+            submit_tool = submit_tool.map_or_else(|| "null".to_owned(), |t| format!("\"{t}\"")),
             app = include_str!("assets/js/form.js"),
         );
 

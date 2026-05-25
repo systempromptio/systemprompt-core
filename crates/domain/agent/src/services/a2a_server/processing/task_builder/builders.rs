@@ -29,7 +29,7 @@ pub fn build_canceled_task(task_id: TaskId, context_id: ContextId) -> Task {
     TaskBuilder::new(context_id)
         .with_task_id(task_id)
         .with_state(TaskState::Canceled)
-        .with_response_text("Task was canceled.".to_string())
+        .with_response_text("Task was canceled.".to_owned())
         .build()
 }
 
@@ -38,7 +38,7 @@ pub fn build_mock_task(task_id: TaskId) -> Task {
     TaskBuilder::new(mock_context_id)
         .with_task_id(task_id)
         .with_state(TaskState::Completed)
-        .with_response_text("Task completed successfully.".to_string())
+        .with_response_text("Task completed successfully.".to_owned())
         .build()
 }
 
@@ -58,7 +58,7 @@ pub fn build_submitted_task(
         },
         history: Some(vec![user_message]),
         artifacts: None,
-        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_string())),
+        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_owned())),
         created_at: Some(chrono::Utc::now()),
         last_modified: Some(chrono::Utc::now()),
     }
@@ -124,9 +124,9 @@ pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
             Some(artifacts)
         },
         metadata: Some(
-            TaskMetadata::new_agent_message(agent_names::SYSTEM.to_string())
-                .with_extension("total_iterations".to_string(), json!(total_iterations))
-                .with_extension("total_tools_called".to_string(), json!(tool_calls.len())),
+            TaskMetadata::new_agent_message(agent_names::SYSTEM.to_owned())
+                .with_extension("total_iterations".to_owned(), json!(total_iterations))
+                .with_extension("total_tools_called".to_owned(), json!(tool_calls.len())),
         ),
         created_at: Some(chrono::Utc::now()),
         last_modified: Some(chrono::Utc::now()),
@@ -221,7 +221,7 @@ fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
     history.push(Message {
         role: MessageRole::Agent,
         parts: vec![Part::Text(TextPart {
-            text: final_response.to_string(),
+            text: final_response.to_owned(),
         })],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
@@ -261,11 +261,11 @@ fn build_artifacts(
                 .ok()?;
 
             let mut data_map = serde_json::Map::new();
-            data_map.insert("call_id".to_string(), json!(call_id));
-            data_map.insert("tool_name".to_string(), json!(tool_name));
-            data_map.insert("output".to_string(), content_to_json(&result.content));
+            data_map.insert("call_id".to_owned(), json!(call_id));
+            data_map.insert("tool_name".to_owned(), json!(tool_name));
+            data_map.insert("output".to_owned(), content_to_json(&result.content));
             data_map.insert(
-                "status".to_string(),
+                "status".to_owned(),
                 json!(if is_error { "error" } else { "success" }),
             );
 
@@ -276,11 +276,11 @@ fn build_artifacts(
                 parts: vec![Part::Data(DataPart { data: data_map })],
                 extensions: vec![],
                 metadata: ArtifactMetadata::new(
-                    "tool_execution".to_string(),
+                    "tool_execution".to_owned(),
                     ctx_id.clone(),
                     task_id.clone(),
                 )
-                .with_mcp_execution_id(call_id.to_string())
+                .with_mcp_execution_id(call_id.to_owned())
                 .with_tool_name(tool_name.clone())
                 .with_execution_index(idx),
             })

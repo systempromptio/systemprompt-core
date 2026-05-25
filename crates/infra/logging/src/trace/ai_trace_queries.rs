@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use sqlx::PgPool;
 use std::sync::Arc;
 
@@ -7,11 +7,11 @@ use systemprompt_identifiers::{AiRequestId, ContextId, ExecutionStepId, TaskId};
 
 use super::models::{AiRequestInfo, ConversationMessage, ExecutionStep, TaskInfo};
 
-pub use super::mcp_trace_queries::{
+pub(super) use super::mcp_trace_queries::{
     fetch_mcp_executions, fetch_mcp_linked_ai_requests, fetch_task_artifacts, fetch_tool_logs,
 };
 
-pub async fn resolve_task_id(pool: &Arc<PgPool>, partial_id: &str) -> Result<Option<String>> {
+pub(super) async fn resolve_task_id(pool: &Arc<PgPool>, partial_id: &str) -> Result<Option<String>> {
     let pattern = format!("{}%", partial_id);
     let row = sqlx::query!(
         "SELECT task_id FROM agent_tasks WHERE task_id LIKE $1 ORDER BY created_at DESC LIMIT 1",
@@ -23,7 +23,7 @@ pub async fn resolve_task_id(pool: &Arc<PgPool>, partial_id: &str) -> Result<Opt
     Ok(row.map(|r| r.task_id))
 }
 
-pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<TaskInfo> {
+pub(super) async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<TaskInfo> {
     let row = sqlx::query!(
         r#"SELECT task_id, context_id, agent_name, status, created_at, started_at, completed_at,
                   execution_time_ms, error_message
@@ -51,7 +51,7 @@ pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Tas
     })
 }
 
-pub async fn fetch_user_input(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Option<String>> {
+pub(super) async fn fetch_user_input(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Option<String>> {
     let row = sqlx::query!(
         r#"SELECT mp.text_content
            FROM task_messages tm
@@ -66,7 +66,7 @@ pub async fn fetch_user_input(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Op
     Ok(row.and_then(|r| r.text_content))
 }
 
-pub async fn fetch_agent_response(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Option<String>> {
+pub(super) async fn fetch_agent_response(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Option<String>> {
     let row = sqlx::query!(
         r#"SELECT mp.text_content
            FROM task_messages tm
@@ -81,7 +81,7 @@ pub async fn fetch_agent_response(pool: &Arc<PgPool>, task_id: &TaskId) -> Resul
     Ok(row.and_then(|r| r.text_content))
 }
 
-pub async fn fetch_execution_steps(
+pub(super) async fn fetch_execution_steps(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
 ) -> Result<Vec<ExecutionStep>> {
@@ -114,7 +114,7 @@ pub async fn fetch_execution_steps(
         .collect())
 }
 
-pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Vec<AiRequestInfo>> {
+pub(super) async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<Vec<AiRequestInfo>> {
     let rows = sqlx::query!(
         r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_microdollars, latency_ms
            FROM ai_requests
@@ -140,7 +140,7 @@ pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &TaskId) -> Result<V
         .collect())
 }
 
-pub async fn fetch_system_prompt(pool: &Arc<PgPool>, request_id: &str) -> Result<Option<String>> {
+pub(super) async fn fetch_system_prompt(pool: &Arc<PgPool>, request_id: &str) -> Result<Option<String>> {
     let row = sqlx::query!(
         r#"SELECT content
            FROM ai_request_messages
@@ -154,7 +154,7 @@ pub async fn fetch_system_prompt(pool: &Arc<PgPool>, request_id: &str) -> Result
     Ok(row.map(|r| r.content))
 }
 
-pub async fn fetch_conversation_messages(
+pub(super) async fn fetch_conversation_messages(
     pool: &Arc<PgPool>,
     request_id: &str,
 ) -> Result<Vec<ConversationMessage>> {
@@ -178,7 +178,7 @@ pub async fn fetch_conversation_messages(
         .collect())
 }
 
-pub async fn fetch_ai_request_message_previews(
+pub(super) async fn fetch_ai_request_message_previews(
     pool: &Arc<PgPool>,
     request_id: &str,
 ) -> Result<Vec<ConversationMessage>> {

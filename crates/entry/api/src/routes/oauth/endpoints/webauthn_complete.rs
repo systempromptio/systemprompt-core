@@ -48,7 +48,7 @@ async fn verify_completion(
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
         .await
-        .map_err(|_| OAuthHttpError::access_denied("Invalid or expired authentication token"))?;
+        .map_err(|_e| OAuthHttpError::access_denied("Invalid or expired authentication token"))?;
 
     if params.user_id != verified_user_id {
         return Err(OAuthHttpError::access_denied(
@@ -70,7 +70,7 @@ async fn verify_completion(
     Ok((verified_user_id, redirect_uri))
 }
 
-#[allow(unused_qualifications)]
+#[expect(unused_qualifications)]
 pub async fn handle_webauthn_complete(
     headers: HeaderMap,
     Query(params): Query<WebAuthnCompleteQuery>,
@@ -112,7 +112,7 @@ async fn store_authorization_code(
         || {
             let default_roles = OAuthRepository::get_default_roles();
             if default_roles.is_empty() {
-                "user".to_string()
+                "user".to_owned()
             } else {
                 default_roles.join(" ")
             }
@@ -175,9 +175,9 @@ fn create_successful_response(
         Redirect::to(&target).into_response()
     } else {
         let response_data = WebAuthnCompleteResponse {
-            authorization_code: authorization_code.to_string(),
-            state: state.unwrap_or("").to_string(),
-            redirect_uri: redirect_uri.to_string(),
+            authorization_code: authorization_code.to_owned(),
+            state: state.unwrap_or("").to_owned(),
+            redirect_uri: redirect_uri.to_owned(),
             client_id: params
                 .client_id
                 .clone()

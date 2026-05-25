@@ -25,7 +25,7 @@ struct ValidationError {
     expected_file: String,
 }
 
-pub async fn validate_build(web_dir: &Path) -> Result<()> {
+pub(crate) async fn validate_build(web_dir: &Path) -> Result<()> {
     let dist_dir = web_dir.join("dist");
     validate_required_paths(&dist_dir)?;
     validate_sitemap_if_exists(&dist_dir).await
@@ -58,7 +58,7 @@ async fn validate_sitemap_if_exists(dist_dir: &Path) -> Result<()> {
     validate_sitemap(dist_dir, &sitemap_path).await
 }
 
-async fn validate_sitemap(dist_dir: &Path, sitemap_path: &Path) -> Result<()> {
+pub(crate) async fn validate_sitemap(dist_dir: &Path, sitemap_path: &Path) -> Result<()> {
     tracing::debug!("Validating sitemap.xml");
 
     let sitemap_xml = fs::read_to_string(sitemap_path)

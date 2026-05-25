@@ -14,7 +14,7 @@ use systemprompt::prelude::DbPool;
 async fn main() {
     tracing_subscriber::fmt::init();
     let url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://localhost/systemprompt".to_string());
+        .unwrap_or_else(|_| "postgres://localhost/systemprompt".to_owned());
 
     match Database::new_postgres(&url).await {
         Ok(db) => {

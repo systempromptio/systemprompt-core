@@ -6,7 +6,7 @@ use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
 
-pub async fn reconcile_agents(
+pub(crate) async fn reconcile_agents(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
@@ -184,7 +184,7 @@ async fn enforce_clean_agent_state(
                         "On wrong port {port} (expected {desired_port}), killing and restarting"
                     )
                 };
-                events.agent_cleanup(agent.to_string(), reason);
+                events.agent_cleanup(agent.to_owned(), reason);
                 if let Err(e) = process::terminate_gracefully(pid, 5).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to terminate agent process gracefully");
                 }
@@ -193,7 +193,7 @@ async fn enforce_clean_agent_state(
                 }
             },
             AgentStatus::Failed { .. } => {
-                events.agent_cleanup(agent.to_string(), "Previously failed, restarting");
+                events.agent_cleanup(agent.to_owned(), "Previously failed, restarting");
             },
         }
     }

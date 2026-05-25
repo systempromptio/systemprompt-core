@@ -26,7 +26,7 @@ impl WebAuthnService {
                 .and_then(|cred| cred.get("transports"))
                 .and_then(|t| t.as_array())
                 .map_or_else(
-                    || vec!["internal".to_string()],
+                    || vec!["internal".to_owned()],
                     |arr| {
                         arr.iter()
                             .filter_map(|v| v.as_str().map(str::to_lowercase))

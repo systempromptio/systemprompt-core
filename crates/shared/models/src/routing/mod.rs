@@ -114,7 +114,7 @@ impl RouteClassifier {
             }
         } else if !Self::is_static_asset_path(path) && !path.starts_with(ApiPaths::API_BASE) {
             return RouteType::HtmlContent {
-                source: "unknown".to_string(),
+                source: "unknown".to_owned(),
             };
         }
 
@@ -179,7 +179,7 @@ impl RouteClassifier {
         ) || path == "/favicon.ico"
     }
 
-    fn determine_asset_type(path: &str) -> AssetType {
+    pub(crate) fn determine_asset_type(path: &str) -> AssetType {
         match Path::new(path).extension().and_then(|e| e.to_str()) {
             Some("js") => AssetType::JavaScript,
             Some("css") => AssetType::Stylesheet,

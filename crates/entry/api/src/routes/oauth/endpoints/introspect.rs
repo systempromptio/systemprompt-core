@@ -92,9 +92,9 @@ fn introspect_token(
             scope: Some(systemprompt_models::auth::permissions_to_string(
                 &claims.scope,
             )),
-            client_id: claims.client_id.as_ref().map(|c| c.as_str().to_string()),
+            client_id: claims.client_id.as_ref().map(|c| c.as_str().to_owned()),
             username: Some(claims.username),
-            token_type: Some("Bearer".to_string()),
+            token_type: Some("Bearer".to_owned()),
             exp: Some(claims.exp),
             iat: Some(claims.iat),
             sub: Some(claims.sub),

@@ -21,7 +21,7 @@ pub struct FinishLinkRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct FinishLinkResponse {
+pub(super) struct FinishLinkResponse {
     pub success: bool,
     pub user_id: UserId,
     pub message: String,
@@ -54,7 +54,7 @@ pub async fn finish_link(
         Json(FinishLinkResponse {
             success: true,
             user_id,
-            message: "Passkey registered successfully".to_string(),
+            message: "Passkey registered successfully".to_owned(),
         }),
     )
         .into_response())

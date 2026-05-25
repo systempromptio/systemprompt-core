@@ -11,7 +11,7 @@ use crate::commands::cloud::tenant::get_credentials;
 use crate::commands::cloud::types::SecretsOutput;
 use crate::shared::CommandResult;
 
-pub async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
+pub(crate) async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
     if !config.is_json_output() {
         CliService::section("Sync Secrets");
     }
@@ -68,7 +68,7 @@ pub async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOut
     Ok(CommandResult::list(output).with_title("Sync Secrets"))
 }
 
-pub async fn set_secrets(
+pub(crate) async fn set_secrets(
     key_values: Vec<String>,
     config: &CliConfig,
 ) -> Result<CommandResult<SecretsOutput>> {
@@ -143,7 +143,7 @@ pub async fn set_secrets(
     Ok(CommandResult::list(output).with_title("Set Secrets"))
 }
 
-pub async fn unset_secrets(
+pub(crate) async fn unset_secrets(
     keys: Vec<String>,
     config: &CliConfig,
 ) -> Result<CommandResult<SecretsOutput>> {
@@ -212,7 +212,7 @@ pub async fn unset_secrets(
     Ok(CommandResult::list(output).with_title("Remove Secrets"))
 }
 
-pub async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
+pub(crate) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
     if !config.is_json_output() {
         CliService::section("Cleanup System-Managed Secrets");
     }

@@ -78,7 +78,7 @@ pub(super) async fn create_new_session(
         .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
 
     let creds = CredentialsBootstrap::require()
-        .map_err(|_| {
+        .map_err(|_e| {
             anyhow::anyhow!(
                 "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
                  authenticate."

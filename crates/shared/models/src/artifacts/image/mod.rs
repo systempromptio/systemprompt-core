@@ -8,7 +8,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
-    "image".to_string()
+    "image".to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -35,7 +35,7 @@ impl ImageArtifact {
 
     pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
-            artifact_type: "image".to_string(),
+            artifact_type: "image".to_owned(),
             src: src.into(),
             alt: None,
             caption: None,

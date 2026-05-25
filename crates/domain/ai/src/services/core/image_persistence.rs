@@ -9,12 +9,12 @@ use systemprompt_traits::{
 };
 use uuid::Uuid;
 
-pub struct FileLocation<'a> {
+pub(super) struct FileLocation<'a> {
     pub path: &'a str,
     pub public_url: &'a str,
 }
 
-pub async fn persist_image_generation(
+pub(super) async fn persist_image_generation(
     ai_request_repo: &AiRequestRepository,
     file_provider: &dyn AiFilePersistenceProvider,
     request: &ImageGenerationRequest,
@@ -99,8 +99,8 @@ async fn persist_file_record(
 
     let params = InsertAiFileParams {
         id,
-        path: file_path.to_string(),
-        public_url: public_url.to_string(),
+        path: file_path.to_owned(),
+        public_url: public_url.to_owned(),
         mime_type: response.mime_type.clone(),
         size_bytes: response.file_size_bytes.map(|s| s as i64),
         metadata,
@@ -116,7 +116,7 @@ async fn persist_file_record(
         .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
-pub async fn get_generated_image(
+pub(super) async fn get_generated_image(
     file_provider: &dyn AiFilePersistenceProvider,
     uuid: &str,
 ) -> Result<Option<AiGeneratedFile>> {
@@ -126,7 +126,7 @@ pub async fn get_generated_image(
         .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
-pub async fn list_user_images(
+pub(super) async fn list_user_images(
     file_provider: &dyn AiFilePersistenceProvider,
     user_id: &UserId,
     limit: Option<i64>,
@@ -140,7 +140,7 @@ pub async fn list_user_images(
         .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
-pub async fn delete_image(
+pub(super) async fn delete_image(
     file_provider: &dyn AiFilePersistenceProvider,
     storage: &crate::services::storage::ImageStorage,
     uuid: &str,

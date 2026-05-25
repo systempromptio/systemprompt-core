@@ -1,7 +1,7 @@
 use systemprompt_events::PostgresEventBridge;
 use systemprompt_runtime::AppContext;
 
-pub fn start_event_bridge(ctx: &AppContext) {
+pub(crate) fn start_event_bridge(ctx: &AppContext) {
     let Some(pool) = ctx.db_pool().get_postgres_pool() else {
         tracing::info!("No Postgres pool; cross-replica event relay disabled");
         return;

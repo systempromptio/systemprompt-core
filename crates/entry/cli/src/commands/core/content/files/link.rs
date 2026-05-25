@@ -44,7 +44,7 @@ pub struct LinkArgs {
     pub order: i32,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: LinkArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ContentLinkOutput>> {

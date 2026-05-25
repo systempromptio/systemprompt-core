@@ -26,8 +26,8 @@ pub(super) fn not_modified_response(
     (
         StatusCode::NOT_MODIFIED,
         [
-            (header::ETAG, etag.to_string()),
-            (header::CACHE_CONTROL, cache_control.to_string()),
+            (header::ETAG, etag.to_owned()),
+            (header::CACHE_CONTROL, cache_control.to_owned()),
         ],
     )
         .into_response()
@@ -43,7 +43,7 @@ fn serve_file_response(
         StatusCode::OK,
         [
             (header::CONTENT_TYPE, content_type),
-            (header::CACHE_CONTROL, cache_control.to_string()),
+            (header::CACHE_CONTROL, cache_control.to_owned()),
             (header::ETAG, etag),
         ],
         content,
@@ -63,7 +63,7 @@ pub(super) async fn serve_cached_file(
             if etag_matches(headers, &etag) {
                 return not_modified_response(&etag, cache_control);
             }
-            serve_file_response(content, content_type.to_string(), cache_control, etag)
+            serve_file_response(content, content_type.to_owned(), cache_control, etag)
         },
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error reading file").into_response(),
     }

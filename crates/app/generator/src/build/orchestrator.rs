@@ -9,7 +9,7 @@ use thiserror::Error;
 use super::steps::organize_css;
 use super::validation::validate_build;
 
-pub type Result<T> = std::result::Result<T, BuildError>;
+pub(crate) type Result<T> = std::result::Result<T, BuildError>;
 
 #[derive(Error, Debug)]
 pub enum BuildError {

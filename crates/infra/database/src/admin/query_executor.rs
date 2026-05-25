@@ -53,7 +53,7 @@ impl QueryExecutor {
         self.execute(sql, usize::MAX).await
     }
 
-    async fn execute(
+    pub(crate) async fn execute(
         &self,
         sql: AdminSql,
         row_limit: usize,
@@ -67,7 +67,7 @@ impl QueryExecutor {
             first_row
                 .columns()
                 .iter()
-                .map(|c| c.name().to_string())
+                .map(|c| c.name().to_owned())
                 .collect()
         });
 
@@ -78,7 +78,7 @@ impl QueryExecutor {
         for row in capped_rows {
             let mut row_map = HashMap::new();
             for (i, column) in row.columns().iter().enumerate() {
-                row_map.insert(column.name().to_string(), extract_value(row, i));
+                row_map.insert(column.name().to_owned(), extract_value(row, i));
             }
             result_rows.push(row_map);
         }

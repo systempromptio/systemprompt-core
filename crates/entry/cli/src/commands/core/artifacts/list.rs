@@ -27,7 +27,7 @@ pub struct ListArgs {
 }
 
 #[derive(Tabled)]
-struct ArtifactRow {
+pub(crate) struct ArtifactRow {
     #[tabled(rename = "ID")]
     id: String,
     #[tabled(rename = "Name")]
@@ -40,7 +40,7 @@ struct ArtifactRow {
     created_at: String,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ListArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ArtifactListOutput>> {
@@ -49,7 +49,7 @@ pub async fn execute(
     execute_with_pool(args, &session_ctx.session.user_id, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ListArgs,
     user_id: &systemprompt_identifiers::UserId,
     pool: &DbPool,

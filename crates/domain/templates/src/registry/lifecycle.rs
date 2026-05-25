@@ -59,7 +59,7 @@ impl TemplateRegistry {
                         continue;
                     }
                     self.template_sources
-                        .insert(template.name.clone(), provider_id.to_string());
+                        .insert(template.name.clone(), provider_id.to_owned());
                     self.resolved_templates
                         .insert(template.name.clone(), template);
                 },
@@ -90,7 +90,7 @@ impl TemplateRegistry {
             };
 
             let content = match &partial.source {
-                PartialSource::Embedded(s) => (*s).to_string(),
+                PartialSource::Embedded(s) => (*s).to_owned(),
                 PartialSource::File(path) => match self.load_partial_file(path).await {
                     Ok(c) => c,
                     Err(e) => {

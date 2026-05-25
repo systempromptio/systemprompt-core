@@ -49,7 +49,7 @@ impl CredentialsBootstrap {
             }
             CREDENTIALS
                 .set(creds)
-                .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
+                .map_err(|_e| CredentialsBootstrapError::AlreadyInitialized)?;
             return Ok(CREDENTIALS
                 .get()
                 .ok_or(CredentialsBootstrapError::NotInitialized)?
@@ -72,7 +72,7 @@ impl CredentialsBootstrap {
 
         CREDENTIALS
             .set(Some(creds))
-            .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
+            .map_err(|_e| CredentialsBootstrapError::AlreadyInitialized)?;
         Ok(CREDENTIALS
             .get()
             .ok_or(CredentialsBootstrapError::NotInitialized)?

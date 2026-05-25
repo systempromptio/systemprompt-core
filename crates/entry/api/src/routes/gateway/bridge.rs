@@ -38,7 +38,7 @@ pub async fn set_enabled_host(
     let credential = extract_credential(&headers).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_string(),
+            "Missing Authorization or x-api-key credential".to_owned(),
         )
     })?;
     let claims = jwt_extractor
@@ -94,7 +94,7 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         .gateway
         .as_ref()
         .filter(|g| g.enabled)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_string()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     let base = profile.server.api_external_url.trim_end_matches('/');
     let prefix = gateway.inference_path_prefix.trim_end_matches('/');

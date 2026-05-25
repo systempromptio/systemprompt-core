@@ -20,8 +20,8 @@ pub trait TokenValidator: Send + Sync {
 pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, AuthError> {
     systemprompt_security::TokenExtractor::standard()
         .extract(headers)
-        .map_err(|_| AuthError::AuthenticationFailed {
-            message: "Authorization header missing or invalid".to_string(),
+        .map_err(|_e| AuthError::AuthenticationFailed {
+            message: "Authorization header missing or invalid".to_owned(),
         })
 }
 
@@ -29,23 +29,23 @@ pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthErr
     headers
         .get("cookie")
         .ok_or_else(|| AuthError::AuthenticationFailed {
-            message: "Cookie header missing".to_string(),
+            message: "Cookie header missing".to_owned(),
         })?
         .to_str()
-        .map_err(|_| AuthError::InvalidTokenFormat)?
+        .map_err(|_e| AuthError::InvalidTokenFormat)?
         .split(';')
         .find_map(|cookie| {
             let cookie = cookie.trim();
             if cookie.starts_with("access_token=") {
                 cookie
                     .strip_prefix("access_token=")
-                    .map(ToString::to_string)
+                    .map(str::to_owned)
             } else {
                 None
             }
         })
         .ok_or_else(|| AuthError::AuthenticationFailed {
-            message: "Access token not found in cookies".to_string(),
+            message: "Access token not found in cookies".to_owned(),
         })
 }
 
@@ -56,7 +56,7 @@ impl AuthService {
     pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, http::StatusCode> {
         systemprompt_security::TokenExtractor::standard()
             .extract(headers)
-            .map_err(|_| http::StatusCode::UNAUTHORIZED)
+            .map_err(|_e| http::StatusCode::UNAUTHORIZED)
     }
 
     pub fn authenticate(headers: &http::HeaderMap) -> Result<AuthenticatedUser, http::StatusCode> {

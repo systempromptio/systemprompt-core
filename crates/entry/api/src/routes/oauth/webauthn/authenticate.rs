@@ -26,7 +26,7 @@ pub struct StartAuthResponse {
     pub challenge_id: ChallengeId,
 }
 
-#[allow(unused_qualifications)]
+#[expect(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(email = %params.email))]
 pub async fn start_auth(
     Query(params): Query<StartAuthQuery>,
@@ -47,7 +47,7 @@ pub async fn start_auth(
             if matches!(http.code(), crate::routes::oauth::OAuthErrorCode::NotFound) {
                 http
             } else {
-                OAuthHttpError::authentication_failed(http.description().to_string())
+                OAuthHttpError::authentication_failed(http.description().to_owned())
             }
         })?;
 

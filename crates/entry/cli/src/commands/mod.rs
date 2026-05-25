@@ -5,5 +5,5 @@ pub mod cloud;
 pub mod core;
 pub mod infrastructure;
 pub mod plugins;
-pub mod shared;
+mod shared;
 pub mod web;

@@ -15,11 +15,11 @@ use super::{INCLUDE_DIRS, collect_dir};
 use crate::error::{SyncError, SyncResult};
 use crate::files::{FileDiffStatus, SyncDiffEntry, SyncDiffResult};
 
-pub fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
+pub(crate) fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
     extract_tarball_filtered(data, target, |_| true)
 }
 
-pub fn extract_tarball_selective(
+pub(crate) fn extract_tarball_selective(
     data: &[u8],
     target: &Path,
     paths_to_sync: &[String],
@@ -103,7 +103,7 @@ where
     Ok(count)
 }
 
-pub fn compare_tarball_with_local(data: &[u8], services_path: &Path) -> SyncResult<SyncDiffResult> {
+pub(crate) fn compare_tarball_with_local(data: &[u8], services_path: &Path) -> SyncResult<SyncDiffResult> {
     let temp_dir = tempfile::tempdir()?;
     extract_tarball(data, temp_dir.path())?;
 

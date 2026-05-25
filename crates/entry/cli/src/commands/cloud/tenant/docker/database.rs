@@ -16,7 +16,7 @@ fn sanitize_database_name(name: &str) -> String {
         .collect()
 }
 
-pub fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str) -> Result<()> {
+pub(crate) fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str) -> Result<()> {
     let database_url = format!(
         "postgres://{}:{}@localhost:{}/postgres",
         SHARED_ADMIN_USER, admin_password, port
@@ -79,7 +79,7 @@ pub fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str
     Ok(())
 }
 
-pub fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) -> Result<()> {
+pub(crate) fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) -> Result<()> {
     let database_url = format!(
         "postgres://{}:{}@localhost:{}/postgres",
         SHARED_ADMIN_USER, admin_password, port
@@ -135,7 +135,7 @@ pub fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) 
     Ok(())
 }
 
-pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
+pub(crate) fn ensure_admin_role(admin_password: &str) -> Result<()> {
     let role_check_query = format!(
         "SELECT 1 FROM pg_roles WHERE rolname = '{}'",
         SHARED_ADMIN_USER

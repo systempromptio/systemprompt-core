@@ -90,7 +90,7 @@ impl CliService {
         let session_str = session_id.as_str();
         let truncated_session = session_str
             .get(..12)
-            .map_or_else(|| session_str.to_string(), |s| format!("{}...", s));
+            .map_or_else(|| session_str.to_owned(), |s| format!("{}...", s));
 
         let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));
 

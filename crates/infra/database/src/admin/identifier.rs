@@ -40,7 +40,7 @@ impl SafeIdentifier {
                 return Err(IdentifierError::InvalidChar(c));
             }
         }
-        Ok(Self(raw.to_string()))
+        Ok(Self(raw.to_owned()))
     }
 
     pub fn as_str(&self) -> &str {

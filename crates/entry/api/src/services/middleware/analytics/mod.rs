@@ -68,13 +68,13 @@ impl AnalyticsMiddleware {
             .headers()
             .get("user-agent")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let referer = request
             .headers()
             .get("referer")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let start_time = std::time::Instant::now();
         let response = next.run(request).await;
@@ -114,7 +114,7 @@ impl AnalyticsMiddleware {
         let referer = params.referer;
         let is_scanner = params.is_scanner;
         let endpoint = format!("{} {}", method, uri.path());
-        let path = uri.path().to_string();
+        let path = uri.path().to_owned();
 
         if is_scanner {
             self.spawn_mark_scanner_task(req_ctx.request.session_id.clone());

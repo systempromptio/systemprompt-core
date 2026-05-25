@@ -2,7 +2,7 @@ use crate::models::ai::{AiRequest, AiResponse};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-pub fn log_request_start(request_id: Uuid, request: &AiRequest, provider_name: &str, model: &str) {
+pub(super) fn log_request_start(request_id: Uuid, request: &AiRequest, provider_name: &str, model: &str) {
     info!(
         request_id = %request_id,
         provider = provider_name,
@@ -14,7 +14,7 @@ pub fn log_request_start(request_id: Uuid, request: &AiRequest, provider_name: &
     );
 }
 
-pub fn log_request_success(response: &AiResponse) {
+pub(super) fn log_request_success(response: &AiResponse) {
     info!(
         request_id = %response.request_id,
         chars = response.content.len(),
@@ -24,7 +24,7 @@ pub fn log_request_success(response: &AiResponse) {
     );
 }
 
-pub fn log_request_error(
+pub(super) fn log_request_error(
     request_id: Uuid,
     provider_name: &str,
     latency_ms: u64,
@@ -39,7 +39,7 @@ pub fn log_request_error(
     );
 }
 
-pub fn log_tooled_request_start(
+pub(super) fn log_tooled_request_start(
     request_id: Uuid,
     request: &AiRequest,
     provider_name: &str,
@@ -59,7 +59,7 @@ pub fn log_tooled_request_start(
     );
 }
 
-pub fn log_ai_response(response: &AiResponse, tool_call_count: usize) {
+pub(super) fn log_ai_response(response: &AiResponse, tool_call_count: usize) {
     info!(
         request_id = %response.request_id,
         chars = response.content.len(),
@@ -79,7 +79,7 @@ pub fn log_ai_response(response: &AiResponse, tool_call_count: usize) {
     );
 }
 
-pub fn log_tooled_response(response: &AiResponse) {
+pub(super) fn log_tooled_response(response: &AiResponse) {
     info!(
         request_id = %response.request_id,
         chars = response.content.len(),

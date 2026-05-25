@@ -13,7 +13,7 @@ use crate::filter::MarketplaceFilter;
 /// example if the pool is not Postgres) — failures are surfaced as
 /// [`MarketplaceFilterError`] and the runtime logs them and falls back
 /// to [`crate::AllowAllFilter`].
-pub type MarketplaceFilterFactory =
+type MarketplaceFilterFactory =
     fn(&DbPool) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
 
 /// Inventory submission slot for [`MarketplaceFilter`] implementations.

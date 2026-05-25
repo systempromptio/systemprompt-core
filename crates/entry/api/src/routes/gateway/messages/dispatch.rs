@@ -41,14 +41,14 @@ pub(super) async fn dispatch_to_provider(
         model: upstream_model,
         max_tokens: Some(max_tokens),
         is_streaming,
-        wire_protocol: inbound.wire_name().to_string(),
+        wire_protocol: inbound.wire_name().to_owned(),
     };
 
     let gateway_config = rc
         .profile
         .gateway
         .as_ref()
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_string()))?;
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     match GatewayService::dispatch(
         gateway_config,

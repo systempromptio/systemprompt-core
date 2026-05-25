@@ -75,7 +75,7 @@ pub fn execute(command: &ServerCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-fn execute_show(_config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_show(_config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = ServerConfigOutput {
@@ -93,7 +93,7 @@ fn execute_show(_config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.host.is_none()
         && args.port.is_none()
         && args.use_https.is_none()
@@ -290,7 +290,7 @@ fn load_profile(path: &str) -> Result<Profile> {
     Ok(profile)
 }
 
-fn save_profile(profile: &Profile, path: &str) -> Result<()> {
+pub(crate) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
     let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
     fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())

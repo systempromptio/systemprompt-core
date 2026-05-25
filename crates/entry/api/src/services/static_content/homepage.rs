@@ -25,7 +25,7 @@ pub async fn serve_homepage(
                             StatusCode::NOT_MODIFIED,
                             [
                                 (header::ETAG, etag),
-                                (header::CACHE_CONTROL, CACHE_HTML.to_string()),
+                                (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
                             ],
                         )
                             .into_response();
@@ -35,8 +35,8 @@ pub async fn serve_homepage(
                 return (
                     StatusCode::OK,
                     [
-                        (header::CONTENT_TYPE, "text/html; charset=utf-8".to_string()),
-                        (header::CACHE_CONTROL, CACHE_HTML.to_string()),
+                        (header::CONTENT_TYPE, "text/html; charset=utf-8".to_owned()),
+                        (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
                         (header::ETAG, etag),
                     ],
                     content,
@@ -53,8 +53,8 @@ pub async fn serve_homepage(
 
     (
         StatusCode::NOT_FOUND,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_string())],
-        "Homepage not found - index.html missing from web distribution".to_string(),
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8".to_owned())],
+        "Homepage not found - index.html missing from web distribution".to_owned(),
     )
         .into_response()
 }

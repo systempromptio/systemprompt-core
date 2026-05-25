@@ -28,7 +28,7 @@ pub(super) fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bo
 pub(super) fn truncate_for_tool_input(input: &str) -> String {
     const TOOL_INPUT_CAP: usize = 64 * 1024;
     if input.len() <= TOOL_INPUT_CAP {
-        input.to_string()
+        input.to_owned()
     } else {
         let head = &input[..TOOL_INPUT_CAP];
         format!(

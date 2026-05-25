@@ -184,7 +184,7 @@ async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
     }
 
     let profile = ProfileBootstrap::get()
-        .map_err(|_| {
+        .map_err(|_e| {
             anyhow::anyhow!(
                 "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
                  profile.yaml path, or use --profile <name>."
@@ -192,7 +192,7 @@ async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
         })?
         .clone();
 
-    let profile_path_str = ProfileBootstrap::get_path().map_err(|_| {
+    let profile_path_str = ProfileBootstrap::get_path().map_err(|_e| {
         anyhow::anyhow!(
             "Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable or use \
              --profile <name>."

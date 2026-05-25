@@ -40,7 +40,7 @@ impl ResponseMeta {
     pub fn new() -> Self {
         Self {
             timestamp: Utc::now(),
-            version: "1.0.0".to_string(),
+            version: "1.0.0".to_owned(),
             pagination: None,
         }
     }

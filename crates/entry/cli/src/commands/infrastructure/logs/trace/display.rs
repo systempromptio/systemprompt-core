@@ -5,7 +5,7 @@ use tabled::settings::Style;
 use tabled::{Table, Tabled};
 
 #[derive(Debug, Tabled)]
-pub struct TraceRow {
+struct TraceRow {
     #[tabled(rename = "Time")]
     pub time: String,
     #[tabled(rename = "Delta")]
@@ -18,7 +18,7 @@ pub struct TraceRow {
     pub latency: String,
 }
 
-pub fn truncate_string(s: &str, max_len: usize) -> String {
+fn truncate_string(s: &str, max_len: usize) -> String {
     if s.len() > max_len {
         format!("{}...", &s[..max_len - 3])
     } else {
@@ -26,7 +26,7 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
     }
 }
 
-pub fn format_metadata_value(key: &str, value: &Value) -> String {
+fn format_metadata_value(key: &str, value: &Value) -> String {
     match key {
         "cost_microdollars" => value.as_i64().map_or_else(
             || format!("{}", value).trim_matches('"').to_string(),
@@ -47,7 +47,7 @@ pub fn format_metadata_value(key: &str, value: &Value) -> String {
     }
 }
 
-pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> String {
+fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> String {
     if let Some(meta) = metadata {
         if let Ok(parsed) = serde_json::from_str::<Value>(meta) {
             match event_type {
@@ -69,7 +69,7 @@ pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -
     "-".to_string()
 }
 
-pub fn print_event(event: &TraceEvent, verbose: bool, prev_timestamp: Option<DateTime<Utc>>) {
+pub(crate) fn print_event(event: &TraceEvent, verbose: bool, prev_timestamp: Option<DateTime<Utc>>) {
     let timestamp = event.timestamp.format("%H:%M:%S%.3f").to_string();
 
     let delta = prev_timestamp.map_or_else(
@@ -151,7 +151,7 @@ fn print_event_metadata(event: &TraceEvent) {
     }
 }
 
-pub fn print_table(events: &[TraceEvent]) {
+pub(crate) fn print_table(events: &[TraceEvent]) {
     let mut prev_timestamp: Option<DateTime<Utc>> = None;
     let rows: Vec<TraceRow> = events
         .iter()

@@ -1,5 +1,5 @@
 use crate::models::LoggingError;
-type Result<T> = std::result::Result<T, LoggingError>;
+pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -60,7 +60,7 @@ struct DetailRow {
     error_message: Option<String>,
 }
 
-pub async fn list_ai_requests(
+pub(super) async fn list_ai_requests(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
     model: Option<&str>,
@@ -113,7 +113,7 @@ pub async fn list_ai_requests(
         .collect())
 }
 
-pub async fn get_ai_request_stats(
+pub(super) async fn get_ai_request_stats(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
 ) -> Result<AiRequestStats> {
@@ -204,7 +204,7 @@ pub async fn get_ai_request_stats(
     })
 }
 
-pub async fn find_ai_request_detail(
+pub(super) async fn find_ai_request_detail(
     pool: &Arc<PgPool>,
     id: &str,
 ) -> Result<Option<AiRequestDetail>> {

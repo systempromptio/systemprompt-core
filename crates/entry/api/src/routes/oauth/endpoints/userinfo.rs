@@ -21,7 +21,7 @@ pub struct UserinfoResponse {
     pub roles: Option<Vec<String>>,
 }
 
-#[allow(clippy::unused_async)]
+#[expect(clippy::unused_async)]
 pub async fn handle_userinfo(
     State(_state): State<OAuthState>,
     headers: HeaderMap,
@@ -30,7 +30,7 @@ pub async fn handle_userinfo(
         OAuthHttpError::invalid_request("Missing or invalid Authorization header")
     })?;
 
-    let userinfo = get_userinfo(&token).map_err(|_| {
+    let userinfo = get_userinfo(&token).map_err(|_e| {
         OAuthHttpError::invalid_token(
             "The access token provided is expired, revoked, malformed, or invalid",
         )
@@ -48,7 +48,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
         })
         .ok()?;
 
-    auth_str.strip_prefix("Bearer ").map(ToString::to_string)
+    auth_str.strip_prefix("Bearer ").map(str::to_owned)
 }
 
 fn get_userinfo(token: &str) -> anyhow::Result<UserinfoResponse> {

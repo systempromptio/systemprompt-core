@@ -26,7 +26,7 @@ impl ImageRenderer {
                         .unwrap_or("image/png");
                     data.src = format!("data:{};base64,{}", mime, bytes);
                 } else if let Some(uri) = file.get("uri").and_then(|v| v.as_str()) {
-                    data.src = uri.to_string();
+                    data.src = uri.to_owned();
                 }
             }
 
@@ -36,13 +36,13 @@ impl ImageRenderer {
                     .or_else(|| part_data.get("url"))
                     .and_then(|v| v.as_str())
                 {
-                    data.src = src.to_string();
+                    data.src = src.to_owned();
                 }
                 if let Some(alt) = part_data.get("alt").and_then(|v| v.as_str()) {
-                    data.alt = Some(alt.to_string());
+                    data.alt = Some(alt.to_owned());
                 }
                 if let Some(caption) = part_data.get("caption").and_then(|v| v.as_str()) {
-                    data.caption = Some(caption.to_string());
+                    data.caption = Some(caption.to_owned());
                 }
                 if let Some(width) = part_data.get("width").and_then(JsonValue::as_u64) {
                     data.width = Some(width as u32);
@@ -55,10 +55,10 @@ impl ImageRenderer {
 
         if let Some(hints) = &artifact.metadata.rendering_hints {
             if let Some(alt) = hints.get("alt").and_then(|v| v.as_str()) {
-                data.alt = Some(alt.to_string());
+                data.alt = Some(alt.to_owned());
             }
             if let Some(caption) = hints.get("caption").and_then(|v| v.as_str()) {
-                data.caption = Some(caption.to_string());
+                data.caption = Some(caption.to_owned());
             }
         }
 
@@ -152,8 +152,8 @@ impl UiRenderer for ImageRenderer {
 
     fn csp_policy(&self) -> CspPolicy {
         let mut policy = CspPolicy::strict();
-        policy.img_src.push("https:".to_string());
-        policy.img_src.push("blob:".to_string());
+        policy.img_src.push("https:".to_owned());
+        policy.img_src.push("blob:".to_owned());
         policy
     }
 }

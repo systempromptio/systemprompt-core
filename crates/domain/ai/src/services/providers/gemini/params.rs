@@ -147,7 +147,7 @@ pub(super) struct ToolConfigParams<'a> {
 }
 
 impl<'a> ToolConfigParams<'a> {
-    pub fn new(base: &ToolRequestParams<'a>) -> Self {
+    pub(super) fn new(base: &ToolRequestParams<'a>) -> Self {
         Self {
             messages: base.messages,
             tools: base.tools.to_vec(),

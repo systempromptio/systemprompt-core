@@ -7,7 +7,7 @@ pub mod tokens {
 pub fn build_thinking_config(model: &str) -> Option<AnthropicThinking> {
     if supports_extended_thinking(model) {
         Some(AnthropicThinking {
-            thinking_type: "enabled".to_string(),
+            thinking_type: "enabled".to_owned(),
             budget_tokens: tokens::THINKING_BUDGET,
         })
     } else {

@@ -121,8 +121,8 @@ pub async fn ensure_task_exists(
 
     let metadata = TaskMetadata::new_mcp_execution(
         agent_name.clone(),
-        tool_name.to_string(),
-        mcp_server_name.to_string(),
+        tool_name.to_owned(),
+        mcp_server_name.to_owned(),
     );
 
     let task = Task {

@@ -59,13 +59,13 @@ impl SchemaLoader {
 
         if !sql_upper.starts_with("CREATE TABLE") && !sql_upper.starts_with("--") {
             return Err(McpDomainError::SchemaValidation(
-                "Schema must start with CREATE TABLE statement".to_string(),
+                "Schema must start with CREATE TABLE statement".to_owned(),
             ));
         }
 
         if !sql_upper.contains("CREATE TABLE") {
             return Err(McpDomainError::SchemaValidation(
-                "Schema must contain at least one CREATE TABLE statement".to_string(),
+                "Schema must contain at least one CREATE TABLE statement".to_owned(),
             ));
         }
 
@@ -78,7 +78,7 @@ impl SchemaLoader {
 
         if table_names.is_empty() {
             return Err(McpDomainError::SchemaValidation(
-                "No CREATE TABLE statements found in schema".to_string(),
+                "No CREATE TABLE statements found in schema".to_owned(),
             ));
         }
 
@@ -119,8 +119,7 @@ impl SchemaLoader {
             .map(|name| {
                 name.trim_matches('(')
                     .trim_matches('"')
-                    .trim_matches('`')
-                    .to_string()
+                    .trim_matches('`').to_owned()
             })
     }
 }

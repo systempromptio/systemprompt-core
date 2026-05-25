@@ -23,7 +23,7 @@ use super::initialization_steps::{
 };
 use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
 
-pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberOrString) -> Event {
+pub(super) fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberOrString) -> Event {
     let error_event = json!({
         "jsonrpc": "2.0",
         "error": { "code": code, "message": message },
@@ -32,7 +32,7 @@ pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberO
     Event::default().data(error_event.to_string())
 }
 
-pub fn detect_mcp_server_and_update_context(
+pub(super) fn detect_mcp_server_and_update_context(
     agent_name: &str,
     context: &mut RequestContext,
     state: &Arc<AgentHandlerState>,
@@ -70,18 +70,18 @@ pub fn detect_mcp_server_and_update_context(
             "Agent mismatch, using service name"
         );
 
-        context.execution.agent_name = AgentName::new(agent_name.to_string());
+        context.execution.agent_name = AgentName::new(agent_name.to_owned());
     }
 }
 
-pub fn resolve_task_id(message: &Message) -> TaskId {
+pub(super) fn resolve_task_id(message: &Message) -> TaskId {
     message
         .task_id
         .clone()
         .unwrap_or_else(|| TaskId::new(Uuid::new_v4().to_string()))
 }
 
-pub async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<StreamSetupResult, ()> {
+pub(super) async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,
         agent_name,

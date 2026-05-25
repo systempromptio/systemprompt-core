@@ -32,7 +32,7 @@ pub struct ToolUiConfig {
 }
 
 fn default_resource_uri_template() -> String {
-    "ui://systemprompt/{artifact_id}".to_string()
+    "ui://systemprompt/{artifact_id}".to_owned()
 }
 
 fn default_visibility_enum() -> Vec<ToolVisibility> {
@@ -139,5 +139,5 @@ const fn default_base_port() -> u16 {
 }
 
 fn default_working_dir() -> String {
-    "/app".to_string()
+    "/app".to_owned()
 }

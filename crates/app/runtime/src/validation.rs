@@ -28,13 +28,13 @@ pub fn validate_database_path(db_path: &str) -> RuntimeResult<()> {
 
     if !path.exists() {
         return Err(RuntimeError::DatabaseNotFound {
-            path: db_path.to_string(),
+            path: db_path.to_owned(),
         });
     }
 
     if !path.is_file() {
         return Err(RuntimeError::DatabaseNotFile {
-            path: db_path.to_string(),
+            path: db_path.to_owned(),
         });
     }
 

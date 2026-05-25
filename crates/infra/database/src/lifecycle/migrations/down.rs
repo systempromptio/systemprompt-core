@@ -28,7 +28,7 @@ impl MigrationService<'_> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!("Failed to query applied migrations for revert: {e}"),
             })?;
 
@@ -66,7 +66,7 @@ impl MigrationService<'_> {
             .iter()
             .find(|m| m.version == version)
             .ok_or_else(|| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!(
                     "Cannot revert migration {version}: not declared in Extension::migrations()"
                 ),
@@ -75,7 +75,7 @@ impl MigrationService<'_> {
         let down_sql = migration
             .down
             .ok_or_else(|| LoaderError::MigrationNotReversible {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 version,
             })?;
 
@@ -88,7 +88,7 @@ impl MigrationService<'_> {
 
         let statements = SqlExecutor::parse_sql_statements(down_sql).map_err(|e| {
             LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!(
                     "Failed to parse down migration {} ({}): {e}",
                     migration.version, migration.name
@@ -108,7 +108,7 @@ impl MigrationService<'_> {
             )
             .await
             .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_string(),
+                extension: ext_id.to_owned(),
                 message: format!("Failed to delete migration record {version}: {e}"),
             })?;
 

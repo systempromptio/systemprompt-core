@@ -8,7 +8,7 @@ use crate::services::database::DatabaseService;
 use crate::services::lifecycle::LifecycleOrchestrator;
 use crate::services::registry::RegistryService;
 
-pub async fn run_daemon(
+pub(super) async fn run_daemon(
     event_bus: &Arc<EventBus>,
     lifecycle: &LifecycleOrchestrator,
     database: &DatabaseService,

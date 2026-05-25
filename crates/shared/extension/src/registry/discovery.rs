@@ -11,7 +11,7 @@ impl ExtensionRegistry {
 
         for ext in inventory::iter::<ExtensionRegistration> {
             let ext_arc = (ext.factory)();
-            let ext_id = ext_arc.id().to_string();
+            let ext_id = ext_arc.id().to_owned();
             let ext_name = ext_arc.name();
             debug!(
                 id = %ext_id,
@@ -30,7 +30,7 @@ impl ExtensionRegistry {
                 "Including injected extensions in discovery"
             );
             for ext in injected {
-                let ext_id = ext.id().to_string();
+                let ext_id = ext.id().to_owned();
                 if registry.extensions.contains_key(&ext_id) {
                     debug!(
                         id = %ext_id,

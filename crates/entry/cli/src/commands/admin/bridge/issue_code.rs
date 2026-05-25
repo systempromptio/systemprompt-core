@@ -14,7 +14,7 @@ pub struct IssueCodeArgs {
     pub user_id: UserId,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: IssueCodeArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ExchangeCodeIssuedOutput>> {

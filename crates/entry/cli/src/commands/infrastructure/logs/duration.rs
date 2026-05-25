@@ -7,21 +7,21 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
     if let Some(days) = s.strip_suffix('d') {
         let num: i64 = days
             .parse()
-            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
+            .map_err(|_e| anyhow!("Invalid duration: {}", s))?;
         return Ok(Duration::days(num));
     }
 
     if let Some(hours) = s.strip_suffix('h') {
         let num: i64 = hours
             .parse()
-            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
+            .map_err(|_e| anyhow!("Invalid duration: {}", s))?;
         return Ok(Duration::hours(num));
     }
 
     if let Some(mins) = s.strip_suffix('m') {
         let num: i64 = mins
             .parse()
-            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
+            .map_err(|_e| anyhow!("Invalid duration: {}", s))?;
         return Ok(Duration::minutes(num));
     }
 

@@ -90,7 +90,7 @@ impl PathsConfig {
 pub fn resolve_path(base: &Path, path: &str) -> String {
     let p = Path::new(path);
     if p.is_absolute() {
-        path.to_string()
+        path.to_owned()
     } else {
         let resolved = base.join(p);
         resolved.canonicalize().map_or_else(

@@ -34,7 +34,7 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     args: ExportArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<UserExportOutput>> {
@@ -42,7 +42,7 @@ pub async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(
+pub(crate) async fn execute_with_pool(
     args: ExportArgs,
     pool: &DbPool,
     _config: &CliConfig,

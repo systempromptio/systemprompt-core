@@ -49,13 +49,12 @@ impl ToolExecution {
             .get("sequence")
             .and_then(serde_json::Value::as_i64)
             .ok_or(RowParseError::Missing("sequence"))
-            .and_then(|i| i32::try_from(i).map_err(|_| RowParseError::OutOfRange("sequence")))?;
+            .and_then(|i| i32::try_from(i).map_err(|_e| RowParseError::OutOfRange("sequence")))?;
 
         let tool_name = row
             .get("tool_name")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("tool_name"))?
-            .to_string();
+            .ok_or(RowParseError::Missing("tool_name"))?.to_owned();
 
         let service_id = row
             .get("service_id")
@@ -88,8 +87,7 @@ impl ToolExecution {
         let status = row
             .get("status")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("status"))?
-            .to_string();
+            .ok_or(RowParseError::Missing("status"))?.to_owned();
 
         let execution_time_ms = row
             .get("execution_time_ms")

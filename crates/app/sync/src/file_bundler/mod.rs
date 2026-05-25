@@ -20,13 +20,13 @@ use zip::write::SimpleFileOptions;
 use crate::error::{SyncError, SyncResult};
 use crate::files::{FileBundle, FileEntry, FileManifest};
 
-pub use extract::{compare_tarball_with_local, extract_tarball, extract_tarball_selective};
+pub(crate) use extract::{compare_tarball_with_local, extract_tarball, extract_tarball_selective};
 
-pub const INCLUDE_DIRS: [&str; 8] = [
+pub(crate) const INCLUDE_DIRS: [&str; 8] = [
     "agents", "skills", "content", "web", "config", "profiles", "plugins", "hooks",
 ];
 
-pub fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
+pub(crate) fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     let mut files = vec![];
 
     for dir in INCLUDE_DIRS {
@@ -52,7 +52,7 @@ pub fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     })
 }
 
-pub fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncResult<()> {
+fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncResult<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -74,7 +74,7 @@ pub fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncR
     Ok(())
 }
 
-pub fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
+pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut tar = Builder::new(&mut encoder);
@@ -87,7 +87,7 @@ pub fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8
     Ok(encoder.finish()?)
 }
 
-pub fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
+pub(crate) fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut files = vec![];
@@ -108,7 +108,7 @@ pub fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     })
 }
 
-pub fn add_dir_to_zip<W: Write + std::io::Seek>(
+pub(crate) fn add_dir_to_zip<W: Write + std::io::Seek>(
     zip: &mut ZipWriter<W>,
     dir: &Path,
     base: &Path,

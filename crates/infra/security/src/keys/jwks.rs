@@ -28,9 +28,9 @@ impl Jwk {
         let n = URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
         let e = URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
         Self {
-            kty: "RSA".to_string(),
-            alg: "RS256".to_string(),
-            use_: "sig".to_string(),
+            kty: "RSA".to_owned(),
+            alg: "RS256".to_owned(),
+            use_: "sig".to_owned(),
             kid,
             n,
             e,

@@ -102,7 +102,7 @@ fn format_published_date(item: &Value) -> String {
 
 fn render_image_html(image: Option<&str>, alt: &str) -> String {
     image.filter(|s| !s.is_empty()).map_or_else(
-        || PLACEHOLDER_IMAGE_SVG.to_string(),
+        || PLACEHOLDER_IMAGE_SVG.to_owned(),
         |img| {
             format!(
                 r#"<div class="card-image">

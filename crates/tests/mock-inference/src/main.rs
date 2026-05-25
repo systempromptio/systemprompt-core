@@ -39,7 +39,7 @@ pub enum Mode {
     name = "mock-inference",
     about = "Mock inference endpoint for load testing"
 )]
-struct Cli {
+pub(crate) struct Cli {
     #[arg(long, default_value_t = 9100)]
     port: u16,
 

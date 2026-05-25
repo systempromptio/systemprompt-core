@@ -10,7 +10,7 @@ use axum::Router;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use systemprompt_models::modules::ServiceCategory;
+use systemprompt_models::modules::ServiceCategory;
 
 use crate::AppContext;
 
@@ -70,7 +70,7 @@ impl ModuleApiRegistry {
                 router_fn: registration.router_fn,
                 auth_required: registration.auth_required,
             };
-            registry.insert(registration.module_name.to_string(), api_impl);
+            registry.insert(registration.module_name.to_owned(), api_impl);
         }
 
         Self { registry }

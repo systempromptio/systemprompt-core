@@ -175,9 +175,9 @@ async fn find_and_execute_job(
         Err(payload) => {
             let msg = payload
                 .downcast_ref::<&'static str>()
-                .map(|s| (*s).to_string())
+                .map(|s| (*s).to_owned())
                 .or_else(|| payload.downcast_ref::<String>().cloned())
-                .unwrap_or_else(|| "<non-string panic payload>".to_string());
+                .unwrap_or_else(|| "<non-string panic payload>".to_owned());
             error!(job_name = %job_name, panic = %msg, "Job panicked");
             Err(SchedulerError::panic(msg))
         },

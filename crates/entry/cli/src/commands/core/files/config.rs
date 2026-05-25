@@ -9,7 +9,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ConfigArgs;
 
-pub fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandResult<FileConfigOutput>> {
+pub(crate) fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandResult<FileConfigOutput>> {
     let files_config = FilesConfig::get()?;
     let upload_config = files_config.upload();
 

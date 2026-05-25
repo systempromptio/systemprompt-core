@@ -29,7 +29,7 @@ struct BuildConfigPaths {
 pub fn init_config() -> ConfigResult<()> {
     let profile = ProfileBootstrap::get()?;
     let config = build_from_profile(profile)?;
-    Config::install(config).map_err(|_| ConfigError::AlreadyInitialized)?;
+    Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
     Ok(())
 }
 
@@ -78,7 +78,7 @@ pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
 
 pub fn init_config_from_profile(profile: &Profile) -> ConfigResult<()> {
     let config = build_from_profile(profile)?;
-    Config::install(config).map_err(|_| ConfigError::AlreadyInitialized)?;
+    Config::install(config).map_err(|_e| ConfigError::AlreadyInitialized)?;
     Ok(())
 }
 
