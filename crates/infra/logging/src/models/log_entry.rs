@@ -11,7 +11,10 @@ use crate::attribution::{LogAttributionUnset, platform_owner_id};
 // Why allow `struct_field_names`: the `_id` suffix is load-bearing here —
 // it pairs each field with its typed identifier and matches the LogEntry
 // field names so the constructor reads `entry.user_id = actor.user_id`.
-#[expect(clippy::struct_field_names)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "the `_id` suffix is load-bearing — it pairs each field with its typed identifier and matches the LogEntry field names so the constructor reads `entry.user_id = actor.user_id`"
+)]
 #[derive(Debug, Clone)]
 pub struct LogActor {
     pub user_id: UserId,
