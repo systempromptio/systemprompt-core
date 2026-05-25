@@ -184,3 +184,52 @@ fn unknown_cannot_transition() {
         );
     }
 }
+
+fn expected_transition(from: TaskState, to: TaskState) -> bool {
+    use TaskState::{
+        AuthRequired, Canceled, Completed, Failed, InputRequired, Pending, Rejected, Submitted,
+        Unknown, Working,
+    };
+    match from {
+        Pending => matches!(to, Submitted),
+        Submitted => matches!(
+            to,
+            Working | Completed | Failed | Canceled | Rejected | AuthRequired
+        ),
+        Working => matches!(to, Completed | Failed | Canceled | InputRequired),
+        InputRequired => matches!(to, Working | Completed | Failed | Canceled),
+        AuthRequired => matches!(to, Working | Failed | Canceled),
+        Completed | Failed | Canceled | Rejected | Unknown => false,
+    }
+}
+
+#[test]
+fn full_transition_matrix_matches_documentation() {
+    for from in all_states() {
+        for to in all_states() {
+            let actual = from.can_transition_to(&to);
+            let expected = expected_transition(from, to);
+            assert_eq!(
+                actual, expected,
+                "transition {:?} -> {:?}: expected {expected}, got {actual}",
+                from, to
+            );
+        }
+    }
+}
+
+proptest! {
+    #[test]
+    fn transition_engine_matches_matrix(
+        from in arb_task_state(),
+        to in arb_task_state(),
+    ) {
+        let actual = from.can_transition_to(&to);
+        let expected = expected_transition(from, to);
+        prop_assert_eq!(actual, expected);
+
+        if from.is_terminal() {
+            prop_assert!(!actual, "terminal {:?} permitted transition to {:?}", from, to);
+        }
+    }
+}
