@@ -15,6 +15,7 @@ members = [
     "integration/events",
     "integration/extension",
     "integration/files",
+    "integration/gateway",
     "integration/oauth",
     "integration/scheduler",
     "integration/users",

@@ -4,7 +4,7 @@ use serde_json::Value;
 const PAYLOAD_CAP_BYTES: usize = 256 * 1024;
 const EXCERPT_BYTES: usize = 8 * 1024;
 
-pub(super) fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bool, i32) {
+pub fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bool, i32) {
     let len = bytes.len();
     let len_i32 = len.min(i32::MAX as usize) as i32;
     if len <= PAYLOAD_CAP_BYTES {
@@ -25,15 +25,19 @@ pub(super) fn slice_payload(bytes: &Bytes) -> (Option<Value>, Option<String>, bo
     }
 }
 
-pub(super) fn truncate_for_tool_input(input: &str) -> String {
+pub fn truncate_for_tool_input(input: &str) -> String {
     const TOOL_INPUT_CAP: usize = 64 * 1024;
     if input.len() <= TOOL_INPUT_CAP {
         input.to_string()
     } else {
-        let head = &input[..TOOL_INPUT_CAP];
-        format!(
-            "{head}...<truncated {} bytes>",
-            input.len() - TOOL_INPUT_CAP
-        )
+        // Why: `&input[..TOOL_INPUT_CAP]` panics when the cap lands inside a
+        // multi-byte UTF-8 codepoint. Walk back to the nearest char boundary
+        // before slicing so non-ASCII tool inputs cannot crash audit logging.
+        let mut cut = TOOL_INPUT_CAP;
+        while cut > 0 && !input.is_char_boundary(cut) {
+            cut -= 1;
+        }
+        let head = &input[..cut];
+        format!("{head}...<truncated {} bytes>", input.len() - cut)
     }
 }
