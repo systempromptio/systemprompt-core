@@ -225,7 +225,6 @@ pub(super) fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     })
 }
 
-#[expect(clippy::unused_async)]
 pub(super) async fn manifest(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,

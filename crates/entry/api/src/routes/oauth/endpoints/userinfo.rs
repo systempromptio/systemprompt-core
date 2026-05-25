@@ -21,7 +21,6 @@ pub struct UserinfoResponse {
     pub roles: Option<Vec<String>>,
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_userinfo(
     State(_state): State<OAuthState>,
     headers: HeaderMap,

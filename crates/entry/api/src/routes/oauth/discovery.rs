@@ -30,7 +30,6 @@ pub struct WellKnownResponse {
     pub claims_supported: Vec<String>,
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_well_known() -> impl IntoResponse {
     let global_config = match Config::get() {
         Ok(c) => c,

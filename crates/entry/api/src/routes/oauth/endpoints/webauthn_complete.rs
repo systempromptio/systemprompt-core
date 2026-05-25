@@ -70,7 +70,6 @@ async fn verify_completion(
     Ok((verified_user_id, redirect_uri))
 }
 
-#[expect(unused_qualifications)]
 pub async fn handle_webauthn_complete(
     headers: HeaderMap,
     Query(params): Query<WebAuthnCompleteQuery>,

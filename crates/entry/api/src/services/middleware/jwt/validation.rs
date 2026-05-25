@@ -39,7 +39,7 @@ impl UserCache {
         fresh
     }
 
-    pub(crate) fn put(&self, user_id: UserId, user: AuthUser) {
+    pub(super) fn put(&self, user_id: UserId, user: AuthUser) {
         if let Ok(mut guard) = self.entries.lock() {
             guard.insert(user_id, (user, Instant::now()));
         }

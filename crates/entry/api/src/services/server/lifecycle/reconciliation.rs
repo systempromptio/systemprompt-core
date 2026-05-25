@@ -12,7 +12,7 @@ struct ReconcileSuccessParams<'a> {
     events: Option<&'a StartupEventSender>,
 }
 
-pub(crate) async fn reconcile_system_services(
+pub(in crate::services::server) async fn reconcile_system_services(
     ctx: &AppContext,
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,
     events: Option<&StartupEventSender>,
@@ -82,7 +82,6 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
 // Why: `events` is consumed by `OptionalStartupEventExt` trait methods
 // (`events.error(...)`); clippy's `collection_is_never_read` heuristic does
 // not recognise those calls as reads of the `Option`.
-#[expect(clippy::collection_is_never_read)]
 async fn handle_missing_servers(
     required_servers: &[systemprompt_mcp::McpServerConfig],
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,

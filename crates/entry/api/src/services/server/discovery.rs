@@ -10,7 +10,6 @@ use super::health::handle_health;
 use super::health_detail::handle_health_detail;
 use super::metrics::handle_metrics;
 
-#[expect(clippy::unused_async)]
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
