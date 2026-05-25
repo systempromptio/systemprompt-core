@@ -127,8 +127,8 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
     let user_rule_id = systemprompt_identifiers::RuleId::generate();
     sqlx::query!(
         r#"INSERT INTO access_control_rules
-           (id, entity_type, entity_id, rule_type, rule_value, access, default_included, justification)
-           VALUES ($1, 'mcp_server', $2, 'user', 'banned-user', 'deny', false, NULL)"#,
+           (id, entity_type, entity_id, rule_type, rule_value, access, justification)
+           VALUES ($1, 'mcp_server', $2, 'user', 'banned-user', 'deny', NULL)"#,
         user_rule_id.as_str(),
         entity_id,
     )
