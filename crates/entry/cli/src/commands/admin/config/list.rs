@@ -32,7 +32,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandResult<ConfigListO
                     Err(e) => (false, Some(e.to_string())),
                 }
             } else {
-                (false, Some("File not found".to_string()))
+                (false, Some("File not found".to_owned()))
             };
 
             if valid {

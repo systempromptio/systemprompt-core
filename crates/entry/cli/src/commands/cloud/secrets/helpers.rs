@@ -58,7 +58,7 @@ pub(in crate::commands::cloud) fn load_secrets_json(
         for (key, value) in obj {
             if let Some(s) = value.as_str() {
                 if !s.is_empty() {
-                    secrets.insert(key.clone(), s.to_string());
+                    secrets.insert(key.clone(), s.to_owned());
                 }
             }
         }
@@ -93,7 +93,7 @@ pub(in crate::commands::cloud) fn map_secrets_to_env_vars(
         .collect();
 
     if !custom_keys.is_empty() {
-        result.insert(env_vars::CUSTOM_SECRETS.to_string(), custom_keys.join(","));
+        result.insert(env_vars::CUSTOM_SECRETS.to_owned(), custom_keys.join(","));
     }
 
     result
@@ -101,10 +101,10 @@ pub(in crate::commands::cloud) fn map_secrets_to_env_vars(
 
 fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
     match key {
-        "gemini" => Some("GEMINI_API_KEY".to_string()),
-        "anthropic" => Some("ANTHROPIC_API_KEY".to_string()),
-        "openai" => Some("OPENAI_API_KEY".to_string()),
-        "internal_database_url" => Some("DATABASE_URL".to_string()),
+        "gemini" => Some("GEMINI_API_KEY".to_owned()),
+        "anthropic" => Some("ANTHROPIC_API_KEY".to_owned()),
+        "openai" => Some("OPENAI_API_KEY".to_owned()),
+        "internal_database_url" => Some("DATABASE_URL".to_owned()),
         "database_url" if has_internal_db_url => None,
         _ => Some(key.to_uppercase()),
     }
@@ -129,17 +129,14 @@ pub(in crate::commands::cloud) async fn sync_cloud_credentials(
 ) -> Result<Vec<String>> {
     let mut secrets = HashMap::new();
 
-    secrets.insert(
-        "SYSTEMPROMPT_API_TOKEN".to_string(),
-        creds.api_token.clone(),
-    );
+    secrets.insert("SYSTEMPROMPT_API_TOKEN".to_owned(), creds.api_token.clone());
 
     secrets.insert(
-        "SYSTEMPROMPT_USER_EMAIL".to_string(),
+        "SYSTEMPROMPT_USER_EMAIL".to_owned(),
         creds.user_email.clone(),
     );
 
-    secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
+    secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_owned(), "true".to_owned());
 
     api_client
         .set_secrets(tenant_id, secrets)

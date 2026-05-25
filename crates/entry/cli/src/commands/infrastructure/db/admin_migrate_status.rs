@@ -90,7 +90,7 @@ async fn collect_status(
                 extension_id: status.extension_id.clone(),
                 version: a.version,
                 name: a.name.clone(),
-                status: label.to_string(),
+                status: label.to_owned(),
                 applied_at: a.applied_at.clone(),
             });
         }
@@ -99,7 +99,7 @@ async fn collect_status(
                 extension_id: status.extension_id.clone(),
                 version: p.version,
                 name: p.name.clone(),
-                status: "pending".to_string(),
+                status: "pending".to_owned(),
                 applied_at: None,
             });
         }

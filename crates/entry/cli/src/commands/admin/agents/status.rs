@@ -78,10 +78,10 @@ pub(super) async fn execute(
     Ok(CommandResult::table(output)
         .with_title("Agent Status")
         .with_columns(vec![
-            "name".to_string(),
-            "enabled".to_string(),
-            "is_running".to_string(),
-            "pid".to_string(),
-            "port".to_string(),
+            "name".to_owned(),
+            "enabled".to_owned(),
+            "is_running".to_owned(),
+            "pid".to_owned(),
+            "port".to_owned(),
         ]))
 }

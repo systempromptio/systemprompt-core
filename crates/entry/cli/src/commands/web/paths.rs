@@ -35,20 +35,20 @@ impl WebPaths {
                     Some(paths) => (
                         paths
                             .templates
-                            .unwrap_or_else(|| DEFAULT_TEMPLATES_PATH.to_string()),
+                            .unwrap_or_else(|| DEFAULT_TEMPLATES_PATH.to_owned()),
                         paths
                             .assets
-                            .unwrap_or_else(|| DEFAULT_ASSETS_PATH.to_string()),
+                            .unwrap_or_else(|| DEFAULT_ASSETS_PATH.to_owned()),
                     ),
                     None => (
-                        DEFAULT_TEMPLATES_PATH.to_string(),
-                        DEFAULT_ASSETS_PATH.to_string(),
+                        DEFAULT_TEMPLATES_PATH.to_owned(),
+                        DEFAULT_ASSETS_PATH.to_owned(),
                     ),
                 }
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (
-                DEFAULT_TEMPLATES_PATH.to_string(),
-                DEFAULT_ASSETS_PATH.to_string(),
+                DEFAULT_TEMPLATES_PATH.to_owned(),
+                DEFAULT_ASSETS_PATH.to_owned(),
             ),
             Err(e) => {
                 return Err(e)

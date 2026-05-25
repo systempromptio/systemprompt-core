@@ -45,10 +45,10 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
         return Ok(CommandResult::table(output)
             .with_title("Tenants")
             .with_columns(vec![
-                "id".to_string(),
-                "name".to_string(),
-                "tenant_type".to_string(),
-                "has_database".to_string(),
+                "id".to_owned(),
+                "name".to_owned(),
+                "tenant_type".to_owned(),
+                "has_database".to_owned(),
             ]));
     }
 
@@ -69,7 +69,7 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
                     };
                     format!("{} ({}) [{}]", t.name, type_str, db_status)
                 })
-                .chain(std::iter::once("Back".to_string()))
+                .chain(std::iter::once("Back".to_owned()))
                 .collect();
 
             loop {
@@ -111,10 +111,10 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
     Ok(CommandResult::table(output)
         .with_title("Tenants")
         .with_columns(vec![
-            "id".to_string(),
-            "name".to_string(),
-            "tenant_type".to_string(),
-            "has_database".to_string(),
+            "id".to_owned(),
+            "name".to_owned(),
+            "tenant_type".to_owned(),
+            "has_database".to_owned(),
         ]))
 }
 

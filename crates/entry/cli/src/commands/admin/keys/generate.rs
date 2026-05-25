@@ -13,7 +13,7 @@ pub struct GenerateArgs {
     force: bool,
 }
 
-#[allow(
+#[expect(
     clippy::needless_pass_by_value,
     clippy::print_stdout,
     reason = "clap-derived args ergonomics; CLI subcommand prints human-readable result"

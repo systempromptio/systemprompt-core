@@ -38,32 +38,32 @@ pub(super) fn build(
     let is_prod = matches!(runtime_env, Environment::Production);
 
     let profile = Profile {
-        name: env_name.to_string(),
+        name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,
         site: SiteConfig {
-            name: "systemprompt.io".to_string(),
+            name: "systemprompt.io".to_owned(),
             github_link: None,
         },
         database: ProfileDatabaseConfig {
-            db_type: "postgres".to_string(),
+            db_type: "postgres".to_owned(),
             external_db_access: false,
         },
         server: ServerConfig {
             host: if is_prod {
-                "0.0.0.0".to_string()
+                "0.0.0.0".to_owned()
             } else {
-                "127.0.0.1".to_string()
+                "127.0.0.1".to_owned()
             },
             port: 8080,
-            api_server_url: "http://localhost:8080".to_string(),
-            api_internal_url: "http://localhost:8080".to_string(),
-            api_external_url: "http://localhost:8080".to_string(),
+            api_server_url: "http://localhost:8080".to_owned(),
+            api_internal_url: "http://localhost:8080".to_owned(),
+            api_external_url: "http://localhost:8080".to_owned(),
             use_https: is_prod,
             cors_allowed_origins: vec![
-                "http://localhost:8080".to_string(),
-                "http://localhost:5173".to_string(),
-                "http://127.0.0.1:8080".to_string(),
+                "http://localhost:8080".to_owned(),
+                "http://localhost:5173".to_owned(),
+                "http://127.0.0.1:8080".to_owned(),
             ],
             content_negotiation: ContentNegotiationConfig::default(),
             security_headers: SecurityHeadersConfig::default(),
@@ -121,7 +121,7 @@ pub(super) fn build(
             validation: CloudValidationMode::Skip,
         }),
         secrets: Some(SecretsConfig {
-            secrets_path: secrets_path.to_string(),
+            secrets_path: secrets_path.to_owned(),
             validation: SecretsValidationMode::Warn,
             source: SecretsSource::File,
         }),
@@ -129,7 +129,7 @@ pub(super) fn build(
         gateway: None,
         governance: None,
         system_admin: SystemAdminConfig {
-            username: "admin".to_string(),
+            username: "admin".to_owned(),
         },
     };
 

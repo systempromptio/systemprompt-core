@@ -81,12 +81,12 @@ async fn run_install(
     let installed_extensions: Vec<String> = registry
         .schema_extensions()
         .iter()
-        .map(|ext| ext.id().to_string())
+        .map(|ext| ext.id().to_owned())
         .collect();
 
     let output = DbMigrateOutput {
         modules_installed: installed_extensions,
-        message: "Database migration completed successfully".to_string(),
+        message: "Database migration completed successfully".to_owned(),
     };
 
     if config.is_json_output() {

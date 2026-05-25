@@ -171,7 +171,7 @@ pub(super) fn collect_endpoint_changes(
     for (name, current_val, default_val) in endpoints {
         if current_val != default_val {
             changes.push(ResetChange {
-                field: name.to_string(),
+                field: name.to_owned(),
                 old_value: current_val.to_string(),
                 new_value: default_val.to_string(),
             });
@@ -200,7 +200,7 @@ pub(super) fn collect_tier_changes(
     for (name, current_val, default_val) in tiers {
         if (current_val - default_val).abs() > f64::EPSILON {
             changes.push(ResetChange {
-                field: name.to_string(),
+                field: name.to_owned(),
                 old_value: format!("{:.1}", current_val),
                 new_value: format!("{:.1}", default_val),
             });

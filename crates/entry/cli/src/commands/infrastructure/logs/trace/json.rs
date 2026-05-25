@@ -15,34 +15,34 @@ pub(super) fn print_json(
         .iter()
         .map(|e| {
             let mut obj = serde_json::Map::new();
-            obj.insert("type".to_string(), Value::String(e.event_type.clone()));
+            obj.insert("type".to_owned(), Value::String(e.event_type.clone()));
             obj.insert(
-                "timestamp".to_string(),
+                "timestamp".to_owned(),
                 Value::String(e.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string()),
             );
-            obj.insert("details".to_string(), Value::String(e.details.clone()));
+            obj.insert("details".to_owned(), Value::String(e.details.clone()));
 
             if let Some(ref user_id) = e.user_id {
-                obj.insert("user_id".to_string(), Value::String(user_id.to_string()));
+                obj.insert("user_id".to_owned(), Value::String(user_id.to_string()));
             }
             if let Some(ref session_id) = e.session_id {
                 obj.insert(
-                    "session_id".to_string(),
+                    "session_id".to_owned(),
                     Value::String(session_id.to_string()),
                 );
             }
             if let Some(ref task_id) = e.task_id {
-                obj.insert("task_id".to_string(), Value::String(task_id.to_string()));
+                obj.insert("task_id".to_owned(), Value::String(task_id.to_string()));
             }
             if let Some(ref context_id) = e.context_id {
                 obj.insert(
-                    "context_id".to_string(),
+                    "context_id".to_owned(),
                     Value::String(context_id.to_string()),
                 );
             }
             if let Some(ref metadata) = e.metadata {
                 if let Ok(parsed) = serde_json::from_str::<Value>(metadata) {
-                    obj.insert("metadata".to_string(), parsed);
+                    obj.insert("metadata".to_owned(), parsed);
                 }
             }
 

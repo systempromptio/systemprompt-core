@@ -54,10 +54,10 @@ pub(super) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("User Search Results")
         .with_columns(vec![
-            "id".to_string(),
-            "name".to_string(),
-            "email".to_string(),
-            "status".to_string(),
-            "roles".to_string(),
+            "id".to_owned(),
+            "name".to_owned(),
+            "email".to_owned(),
+            "status".to_owned(),
+            "roles".to_owned(),
         ]))
 }

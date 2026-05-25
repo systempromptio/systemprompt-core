@@ -57,7 +57,7 @@ pub async fn execute_all_agents(
     let message = super::format_batch_message("agents", restarted, failed, quiet);
 
     let output = RestartOutput {
-        service_type: "agents".to_string(),
+        service_type: "agents".to_owned(),
         service_name: None,
         restarted_count: restarted,
         failed_count: failed,
@@ -120,7 +120,7 @@ pub async fn execute_all_mcp(
     let message = super::format_batch_message("MCP servers", restarted, failed, quiet);
 
     let output = RestartOutput {
-        service_type: "mcp".to_string(),
+        service_type: "mcp".to_owned(),
         service_name: None,
         restarted_count: restarted,
         failed_count: failed,
@@ -160,7 +160,7 @@ pub async fn execute_failed(
             msg
         }
     } else {
-        let msg = "No failed services found".to_string();
+        let msg = "No failed services found".to_owned();
         if !quiet {
             CliService::info(&msg);
         }
@@ -168,7 +168,7 @@ pub async fn execute_failed(
     };
 
     let output = RestartOutput {
-        service_type: "failed".to_string(),
+        service_type: "failed".to_owned(),
         service_name: None,
         restarted_count,
         failed_count,

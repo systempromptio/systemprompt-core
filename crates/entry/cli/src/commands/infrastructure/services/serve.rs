@@ -179,7 +179,7 @@ fn register_modules(events: Option<&StartupEventSender>) {
         let modules: Vec<_> = api_registrations
             .iter()
             .map(|r| ModuleInfo {
-                name: r.module_name.to_string(),
+                name: r.module_name.to_owned(),
                 category: format!("{:?}", r.category),
             })
             .collect();

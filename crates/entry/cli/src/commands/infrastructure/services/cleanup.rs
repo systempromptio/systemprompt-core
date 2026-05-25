@@ -70,7 +70,7 @@ pub(super) async fn execute(
 }
 
 fn no_services_result(quiet: bool, dry_run: bool) -> CommandResult<CleanupOutput> {
-    let message = "No running services found".to_string();
+    let message = "No running services found".to_owned();
     if !quiet {
         CliService::info(&message);
     }
@@ -181,7 +181,7 @@ fn format_cleanup_message(cleaned: usize, quiet: bool) -> String {
         }
         msg
     } else {
-        let msg = "No running services found".to_string();
+        let msg = "No running services found".to_owned();
         if !quiet {
             CliService::info(&msg);
         }

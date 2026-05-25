@@ -49,7 +49,7 @@ pub(super) async fn try_use_existing_session(
     }
 
     let output = LoginOutput {
-        status: "existing".to_string(),
+        status: "existing".to_owned(),
         user_id,
         email: user_email,
         session_id,
@@ -106,7 +106,7 @@ pub(super) async fn fetch_admin_user(
         .context("Failed to create user")?;
 
     let user = user_service
-        .assign_roles(&user.id, &["admin".to_string()])
+        .assign_roles(&user.id, &["admin".to_owned()])
         .await
         .context("Failed to assign admin role")?;
 

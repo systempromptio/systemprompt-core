@@ -56,7 +56,7 @@ pub(super) async fn execute(
             }
             let output = RestartOutput {
                 tenant_name: tenant_name.clone(),
-                status: "cancelled".to_string(),
+                status: "cancelled".to_owned(),
             };
             return Ok(CommandResult::text(output).with_title("Restart Tenant"));
         }

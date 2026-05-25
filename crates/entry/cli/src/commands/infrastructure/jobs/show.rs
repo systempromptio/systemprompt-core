@@ -34,9 +34,9 @@ pub(super) async fn execute(args: ShowArgs) -> Result<CommandResult<JobShowOutpu
     let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;
 
     let output = JobShowOutput {
-        name: job.name().to_string(),
-        description: job.description().to_string(),
-        schedule: job.schedule().to_string(),
+        name: job.name().to_owned(),
+        description: job.description().to_owned(),
+        schedule: job.schedule().to_owned(),
         schedule_human: parse_cron_human(job.schedule()),
         enabled: db_job.as_ref().map_or_else(|| job.enabled(), |j| j.enabled),
         last_run: db_job.as_ref().and_then(|j| j.last_run),

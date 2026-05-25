@@ -96,7 +96,7 @@ fn extract_template_variables(content: &str) -> Vec<String> {
 
     for cap in re.captures_iter(content) {
         if let Some(matched) = cap.get(1) {
-            variables.insert(matched.as_str().to_string());
+            variables.insert(matched.as_str().to_owned());
         }
     }
 

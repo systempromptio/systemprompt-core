@@ -15,7 +15,7 @@ pub(super) struct ServiceStatusOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct ServiceStatusRow {
+pub(super) struct ServiceStatusRow {
     pub name: String,
     pub service_type: String,
     pub status: String,
@@ -29,7 +29,7 @@ struct ServiceStatusRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct StatusSummary {
+pub(super) struct StatusSummary {
     pub total: usize,
     pub running: usize,
     pub stopped: usize,
@@ -40,10 +40,10 @@ impl From<&VerifiedServiceState> for ServiceStatusRow {
         Self {
             name: state.name.clone(),
             service_type: state.service_type.to_string(),
-            status: state.status_display().to_string(),
+            status: state.status_display().to_owned(),
             pid: state.pid,
             port: state.port,
-            action: state.action_display().to_string(),
+            action: state.action_display().to_owned(),
             error: state.error.clone(),
             health: None,
         }
@@ -66,9 +66,9 @@ fn execute_command(
             let mut row = ServiceStatusRow::from(state);
             if include_health {
                 row.health = Some(if state.is_healthy() {
-                    "OK".to_string()
+                    "OK".to_owned()
                 } else {
-                    "DEGRADED".to_string()
+                    "DEGRADED".to_owned()
                 });
             }
             row
@@ -88,11 +88,11 @@ fn execute_command(
         .with_title("Service Status")
         .with_hints(RenderingHints {
             columns: Some(vec![
-                "name".to_string(),
-                "service_type".to_string(),
-                "status".to_string(),
-                "pid".to_string(),
-                "action".to_string(),
+                "name".to_owned(),
+                "service_type".to_owned(),
+                "status".to_owned(),
+                "pid".to_owned(),
+                "action".to_owned(),
             ]),
             ..Default::default()
         })
@@ -145,7 +145,7 @@ fn render_table_output(states: &[VerifiedServiceState], include_health: bool) {
     for service in &result.data.services {
         let pid_str = service
             .pid
-            .map_or_else(|| "-".to_string(), |p| p.to_string());
+            .map_or_else(|| "-".to_owned(), |p| p.to_string());
         CliService::key_value(
             &service.name,
             &format!(

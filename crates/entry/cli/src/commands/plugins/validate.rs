@@ -22,7 +22,7 @@ pub(super) fn execute(
     if let Err(e) = registry.validate_dependencies() {
         errors.push(ValidationError {
             extension_id: None,
-            error_type: "dependency".to_string(),
+            error_type: "dependency".to_owned(),
             message: e.to_string(),
         });
     }
@@ -35,8 +35,8 @@ pub(super) fn execute(
         for dep in ext.dependencies() {
             if !registry.has(dep) {
                 errors.push(ValidationError {
-                    extension_id: Some(ext.id().to_string()),
-                    error_type: "missing_dependency".to_string(),
+                    extension_id: Some(ext.id().to_owned()),
+                    error_type: "missing_dependency".to_owned(),
                     message: format!("Missing dependency: {}", dep),
                 });
             }
@@ -46,9 +46,9 @@ pub(super) fn execute(
             if let Some(schema) = ext.config_schema() {
                 if schema.is_null() {
                     warnings.push(ValidationWarning {
-                        extension_id: Some(ext.id().to_string()),
-                        warning_type: "config".to_string(),
-                        message: "Config prefix defined but schema is null".to_string(),
+                        extension_id: Some(ext.id().to_owned()),
+                        warning_type: "config".to_owned(),
+                        message: "Config prefix defined but schema is null".to_owned(),
                     });
                 }
             }
@@ -57,11 +57,11 @@ pub(super) fn execute(
 
     for ext in registry.asset_extensions() {
         warnings.push(ValidationWarning {
-            extension_id: Some(ext.id().to_string()),
-            warning_type: "asset_validation_skipped".to_string(),
+            extension_id: Some(ext.id().to_owned()),
+            warning_type: "asset_validation_skipped".to_owned(),
             message: "Asset validation requires full profile initialization. Use 'systemprompt \
                       infra db validate'."
-                .to_string(),
+                .to_owned(),
         });
     }
 

@@ -7,7 +7,7 @@ settings:
   validation_strict: false
   schema_validation_mode: "warn"
 "#
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn agent_config(project_name: &str) -> String {
@@ -56,7 +56,7 @@ prompt:
   system: |
     You are an administrative assistant with access to system tools.
 "#
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn admin_mcp_config() -> String {
@@ -72,7 +72,7 @@ oauth:
   required: true
   scopes: ["admin"]
 "#
-    .to_string()
+    .to_owned()
 }
 
 pub(in crate::commands::cloud) fn ai_config(default_provider: &str) -> String {
@@ -111,7 +111,7 @@ pub(super) fn content_config() -> String {
 
 content_sources: {}
 "#
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn web_config(project_name: &str) -> String {
@@ -137,7 +137,7 @@ pub(super) fn scheduler_config() -> String {
 enabled: false
 jobs: []
 "
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn page_template() -> String {
@@ -151,7 +151,7 @@ pub(super) fn page_template() -> String {
 </body>
 </html>
 "
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn blog_post_template() -> String {
@@ -169,7 +169,7 @@ pub(super) fn blog_post_template() -> String {
 </body>
 </html>
 "
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn blog_list_template() -> String {
@@ -188,7 +188,7 @@ pub(super) fn blog_list_template() -> String {
 </body>
 </html>
 "#
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn page_list_template() -> String {
@@ -207,7 +207,7 @@ pub(super) fn page_list_template() -> String {
 </body>
 </html>
 "#
-    .to_string()
+    .to_owned()
 }
 
 pub(super) fn welcome_blog_post(project_name: &str) -> String {

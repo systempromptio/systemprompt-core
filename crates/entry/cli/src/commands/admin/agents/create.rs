@@ -93,12 +93,12 @@ pub(super) fn execute(
         default: args.agent.default,
         tags: Vec::new(),
         card: AgentCardConfig {
-            protocol_version: systemprompt_agent::A2A_PROTOCOL_VERSION.to_string(),
+            protocol_version: systemprompt_agent::A2A_PROTOCOL_VERSION.to_owned(),
             name: Some(name.clone()),
             display_name,
             description,
-            version: args.agent.version.unwrap_or_else(|| "1.0.0".to_string()),
-            preferred_transport: "JSONRPC".to_string(),
+            version: args.agent.version.unwrap_or_else(|| "1.0.0".to_owned()),
+            preferred_transport: "JSONRPC".to_owned(),
             icon_url: args.agent.icon_url,
             documentation_url: args.agent.documentation_url,
             provider: None,
@@ -107,8 +107,8 @@ pub(super) fn execute(
                 push_notifications: args.agent.push_notifications.unwrap_or(false),
                 state_transition_history: args.agent.state_transition_history.unwrap_or(true),
             },
-            default_input_modes: vec!["text/plain".to_string()],
-            default_output_modes: vec!["text/plain".to_string()],
+            default_input_modes: vec!["text/plain".to_owned()],
+            default_output_modes: vec!["text/plain".to_owned()],
             security_schemes: None,
             security: None,
             skills: vec![],
@@ -121,12 +121,12 @@ pub(super) fn execute(
             provider: Some(
                 args.agent
                     .provider
-                    .unwrap_or_else(|| "anthropic".to_string()),
+                    .unwrap_or_else(|| "anthropic".to_owned()),
             ),
             model: Some(
                 args.agent
                     .model
-                    .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
+                    .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_owned()),
             ),
             ..Default::default()
         },
@@ -230,7 +230,7 @@ fn prompt_port() -> Result<u16> {
 fn prompt_display_name(default: &str) -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Display name")
-        .default(default.to_string())
+        .default(default.to_owned())
         .interact_text()
         .context("Failed to get display name")
 }

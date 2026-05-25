@@ -25,8 +25,6 @@
 //!
 //! All features are off by default.
 
-#![allow(clippy::incompatible_msrv)]
-
 pub(crate) mod assets;
 pub(crate) mod build;
 pub(crate) mod content;

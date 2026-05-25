@@ -106,7 +106,7 @@ async fn execute_with_pool_inner(
 
         let output = LogExportOutput {
             exported_count,
-            format: format_str.to_string(),
+            format: format_str.to_owned(),
             file_path: Some(path.display().to_string()),
         };
 
@@ -117,7 +117,7 @@ async fn execute_with_pool_inner(
 
         let output = LogExportOutput {
             exported_count,
-            format: format_str.to_string(),
+            format: format_str.to_owned(),
             file_path: None,
         };
 

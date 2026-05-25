@@ -18,31 +18,31 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     let mut warnings: Vec<String> = Vec::new();
 
     if limits.oauth_public_per_second == 0 {
-        errors.push("oauth_public_per_second is 0".to_string());
+        errors.push("oauth_public_per_second is 0".to_owned());
     }
     if limits.oauth_auth_per_second == 0 {
-        errors.push("oauth_auth_per_second is 0".to_string());
+        errors.push("oauth_auth_per_second is 0".to_owned());
     }
     if limits.contexts_per_second == 0 {
-        errors.push("contexts_per_second is 0".to_string());
+        errors.push("contexts_per_second is 0".to_owned());
     }
     if limits.tasks_per_second == 0 {
-        errors.push("tasks_per_second is 0".to_string());
+        errors.push("tasks_per_second is 0".to_owned());
     }
     if limits.artifacts_per_second == 0 {
-        errors.push("artifacts_per_second is 0".to_string());
+        errors.push("artifacts_per_second is 0".to_owned());
     }
     if limits.agents_per_second == 0 {
-        errors.push("agents_per_second is 0".to_string());
+        errors.push("agents_per_second is 0".to_owned());
     }
     if limits.mcp_per_second == 0 {
-        errors.push("mcp_per_second is 0".to_string());
+        errors.push("mcp_per_second is 0".to_owned());
     }
     if limits.stream_per_second == 0 {
-        errors.push("stream_per_second is 0".to_string());
+        errors.push("stream_per_second is 0".to_owned());
     }
     if limits.content_per_second == 0 {
-        errors.push("content_per_second is 0".to_string());
+        errors.push("content_per_second is 0".to_owned());
     }
 
     let tiers = &limits.tier_multipliers;
@@ -60,26 +60,26 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     }
 
     if tiers.admin <= 0.0 {
-        errors.push("admin multiplier must be positive".to_string());
+        errors.push("admin multiplier must be positive".to_owned());
     }
     if tiers.user <= 0.0 {
-        errors.push("user multiplier must be positive".to_string());
+        errors.push("user multiplier must be positive".to_owned());
     }
     if tiers.anon <= 0.0 {
-        errors.push("anon multiplier must be positive".to_string());
+        errors.push("anon multiplier must be positive".to_owned());
     }
     if tiers.a2a <= 0.0 {
-        errors.push("a2a multiplier must be positive".to_string());
+        errors.push("a2a multiplier must be positive".to_owned());
     }
     if tiers.mcp <= 0.0 {
-        errors.push("mcp multiplier must be positive".to_string());
+        errors.push("mcp multiplier must be positive".to_owned());
     }
     if tiers.service <= 0.0 {
-        errors.push("service multiplier must be positive".to_string());
+        errors.push("service multiplier must be positive".to_owned());
     }
 
     if limits.burst_multiplier == 0 {
-        errors.push("burst_multiplier is 0".to_string());
+        errors.push("burst_multiplier is 0".to_owned());
     }
     if limits.burst_multiplier > 10 {
         warnings.push(format!(
@@ -89,7 +89,7 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     }
 
     if limits.disabled {
-        warnings.push("Rate limiting is currently DISABLED".to_string());
+        warnings.push("Rate limiting is currently DISABLED".to_owned());
     }
 
     let valid = errors.is_empty();
@@ -144,7 +144,7 @@ pub(super) fn execute_compare(config: &CliConfig) -> Result<()> {
 
 fn create_comparison(name: &str, base: u64, tiers: &TierMultipliers) -> EndpointComparison {
     EndpointComparison {
-        endpoint: name.to_string(),
+        endpoint: name.to_owned(),
         admin: apply_multiplier(base, tiers.admin),
         user: apply_multiplier(base, tiers.user),
         a2a: apply_multiplier(base, tiers.a2a),

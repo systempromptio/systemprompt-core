@@ -22,8 +22,8 @@ pub(super) fn execute(
         .iter()
         .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
-            let ext_id = ext.id().to_string();
-            let ext_name = ext.name().to_string();
+            let ext_id = ext.id().to_owned();
+            let ext_name = ext.name().to_owned();
 
             ext.template_providers()
                 .iter()
@@ -51,8 +51,8 @@ pub(super) fn execute(
     CommandResult::table(output)
         .with_title("Templates Across Extensions")
         .with_columns(vec![
-            "extension_id".to_string(),
-            "template_name".to_string(),
-            "description".to_string(),
+            "extension_id".to_owned(),
+            "template_name".to_owned(),
+            "description".to_owned(),
         ])
 }

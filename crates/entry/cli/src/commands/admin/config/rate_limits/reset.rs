@@ -53,7 +53,7 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
             }
         }
     } else {
-        reset_type = "all".to_string();
+        reset_type = "all".to_owned();
         collect_endpoint_changes(limits, &defaults, &mut changes);
         collect_tier_changes(
             &limits.tier_multipliers,
@@ -63,14 +63,14 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
 
         if limits.burst_multiplier != defaults.burst_multiplier {
             changes.push(ResetChange {
-                field: "burst_multiplier".to_string(),
+                field: "burst_multiplier".to_owned(),
                 old_value: limits.burst_multiplier.to_string(),
                 new_value: defaults.burst_multiplier.to_string(),
             });
         }
         if limits.disabled != defaults.disabled {
             changes.push(ResetChange {
-                field: "disabled".to_string(),
+                field: "disabled".to_owned(),
                 old_value: limits.disabled.to_string(),
                 new_value: defaults.disabled.to_string(),
             });
@@ -84,7 +84,7 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
     let message = if args.dry_run {
         format!("Dry run: {} change(s) would be made", changes.len())
     } else if changes.is_empty() {
-        "No changes needed - already at defaults".to_string()
+        "No changes needed - already at defaults".to_owned()
     } else {
         if config.is_interactive() && !args.yes {
             CliService::warning(&format!(

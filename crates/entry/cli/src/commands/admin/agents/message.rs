@@ -109,8 +109,8 @@ pub(super) async fn execute(
     };
 
     let request = Request {
-        jsonrpc: JSON_RPC_VERSION_2_0.to_string(),
-        method: method.to_string(),
+        jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
+        method: method.to_owned(),
         params: MessageSendParams {
             message: Message {
                 role: MessageRole::User,

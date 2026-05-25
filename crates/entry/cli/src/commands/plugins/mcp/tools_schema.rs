@@ -55,7 +55,7 @@ fn print_schema_properties(schema: &serde_json::Value, indent: &str) {
                 .get("enum")
                 .and_then(|e| e.as_array())
                 .map_or_else(
-                    || prop_type.to_string(),
+                    || prop_type.to_owned(),
                     |values| {
                         let vals: Vec<String> = values
                             .iter()

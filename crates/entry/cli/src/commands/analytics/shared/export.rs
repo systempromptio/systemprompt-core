@@ -96,7 +96,7 @@ fn escape_csv_field(s: &str) -> String {
     if s.contains(',') || s.contains('"') || s.contains('\n') {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
-        s.to_string()
+        s.to_owned()
     }
 }
 

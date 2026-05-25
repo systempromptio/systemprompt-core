@@ -1,4 +1,7 @@
-#![allow(clippy::doc_markdown)]
+#![expect(
+    clippy::doc_markdown,
+    reason = "README contains brand names and acronyms that doc_markdown would over-flag"
+)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 //! # Feature flags

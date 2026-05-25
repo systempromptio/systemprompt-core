@@ -55,7 +55,7 @@ impl CloudUser {
             .split('@')
             .next()
             .unwrap_or(&self.email)
-            .to_string()
+            .to_owned()
     }
 }
 

@@ -11,7 +11,7 @@ fn process_profile_entry(ctx: &ProjectContext, path: PathBuf) -> ProfileEntryRes
     }
 
     let name = match path.file_name().and_then(|n| n.to_str()) {
-        Some(n) => n.to_string(),
+        Some(n) => n.to_owned(),
         None => return ProfileEntryResult::Skip(ProfileSkipReason::InvalidDirectoryName { path }),
     };
 
@@ -62,7 +62,7 @@ fn load_database_url_from_secrets(
         .and_then(|v| v.as_str())
         .map(String::from)
         .ok_or_else(|| ProfileSkipReason::MissingDatabaseUrl {
-            profile: profile_name.to_string(),
+            profile: profile_name.to_owned(),
         })
 }
 

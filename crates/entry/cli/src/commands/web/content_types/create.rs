@@ -97,7 +97,7 @@ pub(super) fn execute(
             url_pattern,
             priority: args.priority,
             changefreq: args.changefreq.clone(),
-            fetch_from: "database".to_string(),
+            fetch_from: "database".to_owned(),
             parent_route: None,
         })
     } else if config.is_interactive() {
@@ -112,7 +112,7 @@ pub(super) fn execute(
         category_id: CategoryId::new(&category_id),
         enabled: args.enabled,
         description,
-        allowed_content_types: vec!["article".to_string()],
+        allowed_content_types: vec!["article".to_owned()],
         indexing: Some(IndexingConfig {
             clear_before: false,
             recursive: true,
@@ -170,7 +170,7 @@ fn prompt_path(name: &str) -> Result<String> {
 fn prompt_source_id(name: &str) -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Source ID")
-        .default(name.to_string())
+        .default(name.to_owned())
         .interact_text()
         .context("Failed to get source ID")
 }
@@ -182,7 +182,7 @@ fn prompt_category_id(content_config: &ContentConfigRaw) -> Result<String> {
     if categories.is_empty() {
         return Input::with_theme(&ColorfulTheme::default())
             .with_prompt("Category ID")
-            .default("blog".to_string())
+            .default("blog".to_owned())
             .interact_text()
             .context("Failed to get category ID");
     }
@@ -235,7 +235,7 @@ fn prompt_sitemap_config() -> Result<Option<SitemapConfig>> {
 
     let changefreq: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Change frequency")
-        .default("weekly".to_string())
+        .default("weekly".to_owned())
         .interact_text()
         .context("Failed to get change frequency")?;
 
@@ -244,7 +244,7 @@ fn prompt_sitemap_config() -> Result<Option<SitemapConfig>> {
         url_pattern,
         priority,
         changefreq,
-        fetch_from: "database".to_string(),
+        fetch_from: "database".to_owned(),
         parent_route: None,
     }))
 }

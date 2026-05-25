@@ -12,11 +12,11 @@ pub(super) fn apply_enabled_flags(
 ) {
     if args.enable {
         agent.enabled = true;
-        changes.push("enabled: true".to_string());
+        changes.push("enabled: true".to_owned());
     }
     if args.disable {
         agent.enabled = false;
-        changes.push("enabled: false".to_string());
+        changes.push("enabled: false".to_owned());
     }
 }
 
@@ -41,15 +41,15 @@ pub(super) fn apply_runtime_fields(
     }
     if args.agent.dev_only {
         agent.dev_only = true;
-        changes.push("dev_only: true".to_string());
+        changes.push("dev_only: true".to_owned());
     }
     if args.agent.is_primary {
         agent.is_primary = true;
-        changes.push("is_primary: true".to_string());
+        changes.push("is_primary: true".to_owned());
     }
     if args.agent.default {
         agent.default = true;
-        changes.push("default: true".to_string());
+        changes.push("default: true".to_owned());
     }
     Ok(())
 }

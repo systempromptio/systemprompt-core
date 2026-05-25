@@ -17,7 +17,7 @@ pub(super) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
     let current = &profile.rate_limits;
 
     let (compare_with, source) = if args.defaults {
-        (RateLimitsConfig::default(), "defaults".to_string())
+        (RateLimitsConfig::default(), "defaults".to_owned())
     } else if let Some(file_path) = &args.file {
         let content = fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read file: {}", file_path))?;
@@ -184,7 +184,7 @@ fn add_diff_if_different<T: std::fmt::Display + PartialEq>(
 ) {
     if current != compare {
         diffs.push(DiffEntry {
-            field: field.to_string(),
+            field: field.to_owned(),
             current: current.to_string(),
             other: compare.to_string(),
         });
@@ -194,7 +194,7 @@ fn add_diff_if_different<T: std::fmt::Display + PartialEq>(
 fn add_diff_if_different_f64(diffs: &mut Vec<DiffEntry>, field: &str, current: f64, compare: f64) {
     if (current - compare).abs() > f64::EPSILON {
         diffs.push(DiffEntry {
-            field: field.to_string(),
+            field: field.to_owned(),
             current: format!("{:.1}", current),
             other: format!("{:.1}", compare),
         });

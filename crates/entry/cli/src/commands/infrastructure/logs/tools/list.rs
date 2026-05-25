@@ -60,7 +60,7 @@ async fn execute_with_pool_inner(
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
             trace_id: r.trace_id,
             tool_name: r.tool_name,
-            server: r.server_name.unwrap_or_else(|| "unknown".to_string()),
+            server: r.server_name.unwrap_or_else(|| "unknown".to_owned()),
             status: r.status,
             duration_ms: r.execution_time_ms.map(i64::from),
         })
@@ -75,12 +75,12 @@ async fn execute_with_pool_inner(
         let result = CommandResult::table(output)
             .with_title("MCP Tool Executions")
             .with_columns(vec![
-                "timestamp".to_string(),
-                "trace_id".to_string(),
-                "tool_name".to_string(),
-                "server".to_string(),
-                "status".to_string(),
-                "duration_ms".to_string(),
+                "timestamp".to_owned(),
+                "trace_id".to_owned(),
+                "tool_name".to_owned(),
+                "server".to_owned(),
+                "status".to_owned(),
+                "duration_ms".to_owned(),
             ]);
         render_result(&result);
     } else {

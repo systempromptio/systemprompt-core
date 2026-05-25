@@ -14,7 +14,7 @@ pub(super) fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Resu
     }
 
     if !config.is_interactive() {
-        return Ok("dev".to_string());
+        return Ok("dev".to_owned());
     }
 
     CliService::info("Enter environment name (e.g., 'dev', 'staging', 'prod')");
@@ -22,7 +22,7 @@ pub(super) fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Resu
 
     let input: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Environment name")
-        .default("dev".to_string())
+        .default("dev".to_owned())
         .interact_text()?;
 
     Ok(input.trim().to_lowercase())

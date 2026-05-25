@@ -55,7 +55,7 @@ pub async fn execute(
                     configured,
                 ));
             }
-            n.to_string()
+            n.to_owned()
         },
         _ => configured.clone(),
     };
@@ -80,7 +80,7 @@ pub async fn execute(
     );
     let user_service = UserService::new(&database)?;
 
-    let admin_role = UserRole::Admin.as_str().to_string();
+    let admin_role = UserRole::Admin.as_str().to_owned();
 
     let (user, created) = if let Some(existing) = user_service.find_by_name(&name).await? {
         (existing, false)

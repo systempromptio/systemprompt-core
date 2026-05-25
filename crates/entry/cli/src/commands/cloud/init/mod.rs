@@ -67,7 +67,7 @@ pub(super) fn execute(force: bool, _config: &CliConfig) -> Result<()> {
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("systemprompt")
-        .to_string();
+        .to_owned();
 
     CliService::section("Initialize Project");
     CliService::key_value("Project", &project_name);
@@ -134,7 +134,7 @@ pub(super) fn ensure_project_scaffolding(project_root: &Path) -> Result<()> {
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("systemprompt")
-        .to_string();
+        .to_owned();
 
     if !services_dir.exists() {
         CliService::info("Scaffolding services/ directory...");

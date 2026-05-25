@@ -38,10 +38,10 @@ pub(super) fn execute(
         return Ok(CommandResult::table(AssetListOutput { assets: vec![] })
             .with_title("Assets")
             .with_columns(vec![
-                "path".to_string(),
-                "asset_type".to_string(),
-                "size_bytes".to_string(),
-                "modified".to_string(),
+                "path".to_owned(),
+                "asset_type".to_owned(),
+                "size_bytes".to_owned(),
+                "modified".to_owned(),
             ]));
     }
 
@@ -73,7 +73,7 @@ pub(super) fn execute(
         let metadata = path.metadata().context("Failed to get file metadata")?;
         let size_bytes = metadata.len();
         let modified = metadata.modified().ok().map_or_else(
-            || "unknown".to_string(),
+            || "unknown".to_owned(),
             |t| {
                 let datetime: DateTime<Utc> = t.into();
                 datetime.format("%Y-%m-%dT%H:%M:%SZ").to_string()
@@ -95,10 +95,10 @@ pub(super) fn execute(
     Ok(CommandResult::table(output)
         .with_title("Assets")
         .with_columns(vec![
-            "path".to_string(),
-            "asset_type".to_string(),
-            "size_bytes".to_string(),
-            "modified".to_string(),
+            "path".to_owned(),
+            "asset_type".to_owned(),
+            "size_bytes".to_owned(),
+            "modified".to_owned(),
         ]))
 }
 

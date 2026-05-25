@@ -74,7 +74,7 @@ fn resolve_profile_input(input: &str) -> Result<PathBuf, ProfileResolutionError>
         return resolve_profile_from_path(input);
     }
     resolve_profile_by_name(input)?
-        .ok_or_else(|| ProfileResolutionError::ProfileNotFound(input.to_string()))
+        .ok_or_else(|| ProfileResolutionError::ProfileNotFound(input.to_owned()))
 }
 
 pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResolutionError> {
@@ -89,9 +89,7 @@ pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResol
         return Ok(profile_yaml);
     }
 
-    Err(ProfileResolutionError::ProfileNotFound(
-        path_str.to_string(),
-    ))
+    Err(ProfileResolutionError::ProfileNotFound(path_str.to_owned()))
 }
 
 fn expand_path(path_str: &str) -> PathBuf {
@@ -198,12 +196,12 @@ fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfi
 
 pub fn generate_display_name(name: &str) -> String {
     match name.to_lowercase().as_str() {
-        "dev" | "development" => "Development".to_string(),
-        "prod" | "production" => "Production".to_string(),
-        "staging" | "stage" => "Staging".to_string(),
-        "test" | "testing" => "Test".to_string(),
-        "local" => "Local Development".to_string(),
-        "cloud" => "Cloud".to_string(),
+        "dev" | "development" => "Development".to_owned(),
+        "prod" | "production" => "Production".to_owned(),
+        "staging" | "stage" => "Staging".to_owned(),
+        "test" | "testing" => "Test".to_owned(),
+        "local" => "Local Development".to_owned(),
+        "cloud" => "Cloud".to_owned(),
         _ => capitalize_first(name),
     }
 }

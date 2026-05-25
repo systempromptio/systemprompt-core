@@ -50,11 +50,11 @@ pub(super) async fn execute_db_mode(
         .filter(|line| !line.contains("[profile:"))
         .collect();
 
-    let agent_label = args.agent.clone().unwrap_or_else(|| "all".to_string());
+    let agent_label = args.agent.clone().unwrap_or_else(|| "all".to_owned());
 
     Ok(CommandResult::text(AgentLogsOutput {
         agent: Some(agent_label.clone()),
-        source: "database".to_string(),
+        source: "database".to_owned(),
         logs,
         log_files: vec![],
     })
@@ -64,8 +64,8 @@ pub(super) async fn execute_db_mode(
 fn build_agent_patterns(agent: &str) -> Vec<String> {
     vec![
         format!("%{}%", agent),
-        "%agent%".to_string(),
-        "%a2a%".to_string(),
+        "%agent%".to_owned(),
+        "%a2a%".to_owned(),
     ]
 }
 
@@ -78,9 +78,9 @@ fn build_all_agent_patterns() -> Result<Vec<String>> {
         .flat_map(|name| vec![format!("%{}%", name)])
         .collect();
 
-    patterns.push("%agent%".to_string());
-    patterns.push("%a2a%".to_string());
-    patterns.push("%orchestration%".to_string());
+    patterns.push("%agent%".to_owned());
+    patterns.push("%a2a%".to_owned());
+    patterns.push("%orchestration%".to_owned());
 
     Ok(patterns)
 }

@@ -30,7 +30,7 @@ pub(super) async fn execute(
         let count = repo.count_inactive(args.hours).await?;
 
         let output = SessionCleanupOutput {
-            job_name: "session_cleanup".to_string(),
+            job_name: "session_cleanup".to_owned(),
             sessions_cleaned: 0,
             hours_threshold: args.hours,
             message: format!(
@@ -48,7 +48,7 @@ pub(super) async fn execute(
         .await?;
 
     let output = SessionCleanupOutput {
-        job_name: "session_cleanup".to_string(),
+        job_name: "session_cleanup".to_owned(),
         sessions_cleaned: closed_count as i64,
         hours_threshold: args.hours,
         message: format!("Cleaned up {} inactive session(s)", closed_count),

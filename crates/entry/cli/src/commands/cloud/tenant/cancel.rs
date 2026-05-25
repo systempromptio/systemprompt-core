@@ -87,7 +87,7 @@ pub async fn cancel_subscription(
         let output = CancelSubscriptionOutput {
             tenant: tenant.id.clone(),
             tenant_name: tenant.name.clone(),
-            message: "Cancellation aborted. Tenant name did not match.".to_string(),
+            message: "Cancellation aborted. Tenant name did not match.".to_owned(),
         };
         return Ok(CommandResult::text(output)
             .with_title("Cancel Subscription")
@@ -116,7 +116,7 @@ pub async fn cancel_subscription(
         tenant_name: tenant.name.clone(),
         message: "Subscription cancelled. Your tenant will be suspended and all data will be \
                   destroyed."
-            .to_string(),
+            .to_owned(),
     };
 
     Ok(CommandResult::text(output)

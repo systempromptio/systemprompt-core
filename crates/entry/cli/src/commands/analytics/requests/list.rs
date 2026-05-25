@@ -126,15 +126,15 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "created_at".to_string(),
-            "status".to_string(),
-            "user_id".to_string(),
-            "provider".to_string(),
-            "model".to_string(),
-            "input_tokens".to_string(),
-            "output_tokens".to_string(),
-            "latency_ms".to_string(),
-            "error_message".to_string(),
+            "created_at".to_owned(),
+            "status".to_owned(),
+            "user_id".to_owned(),
+            "provider".to_owned(),
+            "model".to_owned(),
+            "input_tokens".to_owned(),
+            "output_tokens".to_owned(),
+            "latency_ms".to_owned(),
+            "error_message".to_owned(),
         ]),
         ..Default::default()
     };

@@ -110,7 +110,7 @@ async fn execute_internal(
     let top_errors: Vec<ErrorItem> = top_errors_rows
         .into_iter()
         .map(|row| ErrorItem {
-            error_message: row.error_msg.unwrap_or_else(|| "Unknown".to_string()),
+            error_message: row.error_msg.unwrap_or_else(|| "Unknown".to_owned()),
             count: row.error_count,
         })
         .collect();
@@ -119,7 +119,7 @@ async fn execute_internal(
     let usage_by_agent: Vec<AgentUsageItem> = usage_by_agent_rows
         .into_iter()
         .map(|row| AgentUsageItem {
-            agent_name: row.agent_name.unwrap_or_else(|| "Direct Call".to_string()),
+            agent_name: row.agent_name.unwrap_or_else(|| "Direct Call".to_owned()),
             count: row.usage_count,
             percentage: if agent_total > 0 {
                 (row.usage_count as f64 / agent_total as f64) * 100.0

@@ -238,11 +238,11 @@ fn build_trace_output(
     let cost_dollars = f64::from(summaries.ai.total_cost_microdollars as i32) / 1_000_000.0;
 
     let status = if summaries.step.failed > 0 {
-        "failed".to_string()
+        "failed".to_owned()
     } else if summaries.step.pending > 0 {
-        "in_progress".to_string()
+        "in_progress".to_owned()
     } else {
-        "completed".to_string()
+        "completed".to_owned()
     };
 
     TraceViewOutput {
@@ -266,7 +266,7 @@ fn build_trace_output(
             failed: summaries.step.failed,
             pending: summaries.step.pending,
         },
-        task: task_id.map(|t| t.as_str().to_string()),
+        task: task_id.map(|t| t.as_str().to_owned()),
         duration_ms,
         status,
     }

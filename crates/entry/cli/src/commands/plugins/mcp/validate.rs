@@ -92,7 +92,7 @@ pub(super) async fn execute(
     };
 
     let title = if args.all {
-        "MCP Batch Validation Results".to_string()
+        "MCP Batch Validation Results".to_owned()
     } else {
         format!(
             "MCP Validation: {}",
@@ -113,10 +113,10 @@ async fn validate_single_service(
 ) -> McpValidateOutput {
     let Some(server) = services_config.mcp_servers.get(service_name) else {
         return McpValidateOutput {
-            server: service_name.to_string(),
+            server: service_name.to_owned(),
             valid: false,
-            health_status: "not_found".to_string(),
-            validation_type: "config_error".to_string(),
+            health_status: "not_found".to_owned(),
+            validation_type: "config_error".to_owned(),
             tools_count: 0,
             latency_ms: 0,
             server_info: None,
@@ -132,10 +132,10 @@ async fn validate_single_service(
         Ok(info) => info,
         Err(e) => {
             return McpValidateOutput {
-                server: service_name.to_string(),
+                server: service_name.to_owned(),
                 valid: false,
-                health_status: "unknown".to_string(),
-                validation_type: "database_error".to_string(),
+                health_status: "unknown".to_owned(),
+                validation_type: "database_error".to_owned(),
                 tools_count: 0,
                 latency_ms: 0,
                 server_info: None,
@@ -151,14 +151,14 @@ async fn validate_single_service(
 
     if !is_running {
         return McpValidateOutput {
-            server: service_name.to_string(),
+            server: service_name.to_owned(),
             valid: false,
-            health_status: "stopped".to_string(),
-            validation_type: "not_running".to_string(),
+            health_status: "stopped".to_owned(),
+            validation_type: "not_running".to_owned(),
             tools_count: 0,
             latency_ms: 0,
             server_info: None,
-            issues: vec!["Service is not currently running".to_string()],
+            issues: vec!["Service is not currently running".to_owned()],
             message: format!("MCP server '{}' is not running", service_name),
         };
     }
@@ -175,10 +175,10 @@ async fn validate_single_service(
             Ok(Ok(result)) => result,
             Ok(Err(e)) => {
                 return McpValidateOutput {
-                    server: service_name.to_string(),
+                    server: service_name.to_owned(),
                     valid: false,
-                    health_status: "unhealthy".to_string(),
-                    validation_type: "connection_error".to_string(),
+                    health_status: "unhealthy".to_owned(),
+                    validation_type: "connection_error".to_owned(),
                     tools_count: 0,
                     latency_ms: 0,
                     server_info: None,
@@ -189,10 +189,10 @@ async fn validate_single_service(
             Err(e) => {
                 tracing::debug!(server = %service_name, error = %e, "MCP validation timed out");
                 return McpValidateOutput {
-                    server: service_name.to_string(),
+                    server: service_name.to_owned(),
                     valid: false,
-                    health_status: "unhealthy".to_string(),
-                    validation_type: "timeout".to_string(),
+                    health_status: "unhealthy".to_owned(),
+                    validation_type: "timeout".to_owned(),
                     tools_count: 0,
                     latency_ms: timeout_secs as u32 * 1000,
                     server_info: None,
@@ -205,7 +205,7 @@ async fn validate_single_service(
             },
         };
 
-    let health_status = validation_result.health_status().to_string();
+    let health_status = validation_result.health_status().to_owned();
     let message = validation_result.status_description();
 
     let server_info = validation_result.server_info.map(|info| McpServerInfo {
@@ -221,7 +221,7 @@ async fn validate_single_service(
         .map_or_else(Vec::new, |e| vec![e.clone()]);
 
     McpValidateOutput {
-        server: service_name.to_string(),
+        server: service_name.to_owned(),
         valid: validation_result.success,
         health_status,
         validation_type: validation_result.validation_type,

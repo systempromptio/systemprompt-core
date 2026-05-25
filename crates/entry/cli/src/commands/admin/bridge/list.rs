@@ -31,7 +31,7 @@ pub(super) struct BridgeListOutput {
 }
 
 #[derive(Debug, Serialize)]
-struct BridgeSessionSummary {
+pub(super) struct BridgeSessionSummary {
     pub session_id: SessionId,
     pub user_id: UserId,
     pub hostname: String,

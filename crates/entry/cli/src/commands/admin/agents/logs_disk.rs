@@ -27,7 +27,7 @@ pub(super) fn execute_disk_mode(
         let log_files = list_agent_log_files(logs_path)?;
         return Ok(CommandResult::list(AgentLogsOutput {
             agent: None,
-            source: "disk".to_string(),
+            source: "disk".to_owned(),
             logs: vec![],
             log_files,
         })
@@ -43,7 +43,7 @@ pub(super) fn execute_disk_mode(
 
     Ok(CommandResult::text(AgentLogsOutput {
         agent: Some(agent.clone()),
-        source: "disk".to_string(),
+        source: "disk".to_owned(),
         logs,
         log_files: vec![],
     })
@@ -80,7 +80,7 @@ pub(super) fn execute_follow_mode(
 
     Ok(CommandResult::text(AgentLogsOutput {
         agent: Some(agent),
-        source: "disk".to_string(),
+        source: "disk".to_owned(),
         logs: vec![],
         log_files: vec![],
     })
@@ -167,7 +167,7 @@ fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
                 .unwrap_or(f)
                 .strip_suffix(".log")
                 .unwrap_or(f)
-                .to_string()
+                .to_owned()
         })
         .collect();
 

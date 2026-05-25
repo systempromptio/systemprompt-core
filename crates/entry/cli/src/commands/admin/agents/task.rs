@@ -57,8 +57,8 @@ pub(super) async fn execute(args: TaskArgs, config: &CliConfig) -> Result<Comman
         .unwrap_or_else(|| session_ctx.session_token().as_str());
 
     let request = Request {
-        jsonrpc: JSON_RPC_VERSION_2_0.to_string(),
-        method: methods::GET_TASK.to_string(),
+        jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
+        method: methods::GET_TASK.to_owned(),
         params: TaskQueryParams {
             id: TaskId::new(task_id.clone()),
             history_length: args.history_length,

@@ -38,14 +38,14 @@ pub(super) fn execute_dry_run(
     }
 
     let output = SetupOutput {
-        environment: env_name.to_string(),
+        environment: env_name.to_owned(),
         profile_path: profile_path.to_string_lossy().to_string(),
         database: DatabaseSetupInfo {
             host: args.db_host.clone(),
             port: args.db_port,
             name: args.effective_db_name(env_name),
             user: args.effective_db_user(env_name),
-            connection_status: connection_status.to_string(),
+            connection_status: connection_status.to_owned(),
             docker: args.docker,
         },
         secrets_configured: SecretsConfiguredInfo {
@@ -55,7 +55,7 @@ pub(super) fn execute_dry_run(
             github: args.github_token.is_some(),
         },
         migrations_run: false,
-        message: "Dry run completed - no changes made".to_string(),
+        message: "Dry run completed - no changes made".to_owned(),
     };
 
     let result = CommandResult::text(output).with_title("Setup Dry Run");

@@ -30,9 +30,9 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
         return Ok(CommandResult::table(output)
             .with_title("Profiles")
             .with_columns(vec![
-                "name".to_string(),
-                "has_secrets".to_string(),
-                "is_active".to_string(),
+                "name".to_owned(),
+                "has_secrets".to_owned(),
+                "is_active".to_owned(),
             ]));
     }
 
@@ -61,7 +61,7 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
 
                 let has_secrets = ProfilePath::Secrets.resolve(&path).exists();
 
-                profiles.push((name.to_string(), has_secrets, path.clone()));
+                profiles.push((name.to_owned(), has_secrets, path.clone()));
             }
         }
     }
@@ -82,9 +82,9 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
         return Ok(CommandResult::table(output)
             .with_title("Profiles")
             .with_columns(vec![
-                "name".to_string(),
-                "has_secrets".to_string(),
-                "is_active".to_string(),
+                "name".to_owned(),
+                "has_secrets".to_owned(),
+                "is_active".to_owned(),
             ]));
     }
 
@@ -115,7 +115,7 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
                     let secrets_marker = if *has_secrets { "✓" } else { "✗" };
                     format!("{}{} [secrets: {}]", name, current_marker, secrets_marker)
                 })
-                .chain(std::iter::once("Back".to_string()))
+                .chain(std::iter::once("Back".to_owned()))
                 .collect();
 
             loop {
@@ -151,8 +151,8 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
     Ok(CommandResult::table(output)
         .with_title("Profiles")
         .with_columns(vec![
-            "name".to_string(),
-            "has_secrets".to_string(),
-            "is_active".to_string(),
+            "name".to_owned(),
+            "has_secrets".to_owned(),
+            "is_active".to_owned(),
         ]))
 }

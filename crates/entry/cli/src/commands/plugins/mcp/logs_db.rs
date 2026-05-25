@@ -59,14 +59,14 @@ pub(super) async fn execute_db_mode(
         })
         .collect();
 
-    let service_label = args.server.clone().unwrap_or_else(|| "all".to_string());
+    let service_label = args.server.clone().unwrap_or_else(|| "all".to_owned());
     let level_label = args.level.map_or_else(String::new, |l| {
         format!(" [{}+]", format!("{:?}", l).to_uppercase())
     });
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service_label.clone()),
-        source: "database".to_string(),
+        source: "database".to_owned(),
         logs,
         log_files: vec![],
     })
@@ -86,8 +86,8 @@ fn build_all_mcp_patterns() -> Result<Vec<String>> {
         .flat_map(|name| vec![format!("%{}%", name)])
         .collect();
 
-    patterns.push("%rmcp%".to_string());
-    patterns.push("%mcp%".to_string());
+    patterns.push("%rmcp%".to_owned());
+    patterns.push("%mcp%".to_owned());
 
     Ok(patterns)
 }

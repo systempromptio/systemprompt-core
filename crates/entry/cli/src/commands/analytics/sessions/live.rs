@@ -73,11 +73,11 @@ async fn execute_internal(
 
         let hints = RenderingHints {
             columns: Some(vec![
-                "session_id".to_string(),
-                "user_type".to_string(),
-                "started_at".to_string(),
-                "duration_seconds".to_string(),
-                "request_count".to_string(),
+                "session_id".to_owned(),
+                "user_type".to_owned(),
+                "started_at".to_owned(),
+                "duration_seconds".to_owned(),
+                "request_count".to_owned(),
             ]),
             ..Default::default()
         };
@@ -117,7 +117,7 @@ async fn fetch_live_sessions(
 
             ActiveSessionRow {
                 session: row.session_id.to_string(),
-                user_type: row.user_type.unwrap_or_else(|| "unknown".to_string()),
+                user_type: row.user_type.unwrap_or_else(|| "unknown".to_owned()),
                 started_at: row.started_at.format("%H:%M:%S").to_string(),
                 duration_seconds: row.duration_seconds.map_or(current_duration, i64::from),
                 request_count: i64::from(row.request_count.unwrap_or(0)),
@@ -136,11 +136,11 @@ async fn fetch_live_sessions(
 fn render_output(output: &LiveSessionsOutput, config: &CliConfig) {
     let hints = RenderingHints {
         columns: Some(vec![
-            "session_id".to_string(),
-            "user_type".to_string(),
-            "started_at".to_string(),
-            "duration_seconds".to_string(),
-            "request_count".to_string(),
+            "session_id".to_owned(),
+            "user_type".to_owned(),
+            "started_at".to_owned(),
+            "duration_seconds".to_owned(),
+            "request_count".to_owned(),
         ]),
         ..Default::default()
     };

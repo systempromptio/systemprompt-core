@@ -73,7 +73,7 @@ async fn execute_internal(
                 0.0
             };
             GeoRow {
-                country: row.country.unwrap_or_else(|| "Unknown".to_string()),
+                country: row.country.unwrap_or_else(|| "Unknown".to_owned()),
                 session_count: row.count,
                 percentage,
             }
@@ -95,9 +95,9 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "country".to_string(),
-            "session_count".to_string(),
-            "percentage".to_string(),
+            "country".to_owned(),
+            "session_count".to_owned(),
+            "percentage".to_owned(),
         ]),
         ..Default::default()
     };

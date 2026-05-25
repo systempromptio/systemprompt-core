@@ -113,9 +113,9 @@ pub(super) async fn execute_streaming(
     };
 
     let output = MessageOutput {
-        agent: agent.to_string(),
+        agent: agent.to_owned(),
         task,
-        message_sent: message_text.to_string(),
+        message_sent: message_text.to_owned(),
         response,
     };
 

@@ -38,7 +38,7 @@ pub struct DeleteArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct DryRunOutput {
+pub(super) struct DryRunOutput {
     pub dry_run: bool,
     pub would_delete: usize,
     pub message: String,
@@ -82,7 +82,7 @@ pub(super) async fn execute(
     if users.is_empty() {
         let output = BulkDeleteOutput {
             deleted: 0,
-            message: "No users match the specified filters".to_string(),
+            message: "No users match the specified filters".to_owned(),
         };
         return Ok(CommandResult::text(DeleteResult::Executed(output)).with_title("Bulk Delete"));
     }

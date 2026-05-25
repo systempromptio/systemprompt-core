@@ -1,5 +1,3 @@
-#![allow(clippy::single_match_else)]
-
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;
@@ -71,9 +69,9 @@ pub(super) async fn execute(
 
     let output = SwitchOutput {
         previous_profile,
-        new_profile: profile_name.to_string(),
+        new_profile: profile_name.to_owned(),
         session_key: session_key.as_storage_key(),
-        tenant: new_tenant_id.as_ref().map(|t| t.as_str().to_string()),
+        tenant: new_tenant_id.as_ref().map(|t| t.as_str().to_owned()),
         message: format!("Switched to profile '{}'", profile_name),
     };
 

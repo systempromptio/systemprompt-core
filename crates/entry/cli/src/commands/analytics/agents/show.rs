@@ -115,7 +115,7 @@ async fn execute_internal(
     let top_errors: Vec<ErrorBreakdownItem> = top_errors_rows
         .into_iter()
         .map(|row| ErrorBreakdownItem {
-            error_type: row.error_type.unwrap_or_else(|| "Unknown".to_string()),
+            error_type: row.error_type.unwrap_or_else(|| "Unknown".to_owned()),
             count: row.error_count,
         })
         .collect();

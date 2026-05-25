@@ -62,10 +62,10 @@ pub(super) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Banned IPs")
         .with_columns(vec![
-            "ip_address".to_string(),
-            "reason".to_string(),
-            "banned_at".to_string(),
-            "expires_at".to_string(),
-            "is_permanent".to_string(),
+            "ip_address".to_owned(),
+            "reason".to_owned(),
+            "banned_at".to_owned(),
+            "expires_at".to_owned(),
+            "is_permanent".to_owned(),
         ]))
 }

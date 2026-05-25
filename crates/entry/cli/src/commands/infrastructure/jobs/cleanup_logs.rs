@@ -24,7 +24,7 @@ pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCle
     if args.dry_run {
         let count = repo.count_old_logs(args.days).await?;
         let output = LogCleanupOutput {
-            job_name: "log_cleanup".to_string(),
+            job_name: "log_cleanup".to_owned(),
             entries_deleted: 0,
             days_threshold: args.days,
             message: format!(
@@ -37,7 +37,7 @@ pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCle
 
     let deleted_count = repo.delete_old_logs(args.days).await? as i64;
     let output = LogCleanupOutput {
-        job_name: "log_cleanup".to_string(),
+        job_name: "log_cleanup".to_owned(),
         entries_deleted: deleted_count,
         days_threshold: args.days,
         message: format!(

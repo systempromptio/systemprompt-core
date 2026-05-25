@@ -23,9 +23,9 @@ pub(super) fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<
                 .iter()
                 .map(|schema| SchemaWithExtension {
                     extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
-                    extension_name: ext.name().to_string(),
+                    extension_name: ext.name().to_owned(),
                     table: schema.table.clone(),
-                    source: "inline".to_string(),
+                    source: "inline".to_owned(),
                 })
                 .collect::<Vec<_>>()
         })
@@ -38,8 +38,8 @@ pub(super) fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<
     CommandResult::table(output)
         .with_title("Schemas Across Extensions")
         .with_columns(vec![
-            "extension_id".to_string(),
-            "table".to_string(),
-            "source".to_string(),
+            "extension_id".to_owned(),
+            "table".to_owned(),
+            "source".to_owned(),
         ])
 }

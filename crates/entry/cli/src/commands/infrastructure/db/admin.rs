@@ -12,11 +12,11 @@ use super::types::{DbAssignAdminOutput, DbStatusOutput};
 
 pub(super) use super::admin_migrate::{execute_migrate, execute_migrate_standalone};
 pub(super) use super::admin_migrate_down::{execute_migrate_down, execute_migrate_down_standalone};
-pub use super::admin_migrate_mark_applied::{
+pub(super) use super::admin_migrate_mark_applied::{
     MarkAppliedArgs, execute_migrate_mark_applied, execute_migrate_mark_applied_standalone,
 };
 pub(super) use super::admin_migrate_plan::{execute_migrate_plan, execute_migrate_plan_standalone};
-pub use super::admin_migrate_repair::{
+pub(super) use super::admin_migrate_repair::{
     RepairArgs, execute_migrate_repair, execute_migrate_repair_standalone,
 };
 pub(super) use super::admin_migrate_status::{
@@ -87,7 +87,7 @@ pub(super) async fn execute_status(admin: &DatabaseAdminService, config: &CliCon
         .context("Failed to connect to database")?;
 
     let output = DbStatusOutput {
-        status: "connected".to_string(),
+        status: "connected".to_owned(),
         version: info.version.clone(),
         tables: info.tables.len(),
         size: format_bytes(info.size as i64),

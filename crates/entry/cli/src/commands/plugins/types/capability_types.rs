@@ -81,7 +81,7 @@ impl CapabilitySummary {
         }
 
         if parts.is_empty() {
-            "none".to_string()
+            "none".to_owned()
         } else {
             parts.join(", ")
         }

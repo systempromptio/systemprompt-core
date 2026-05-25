@@ -189,6 +189,6 @@ fn yaml_scalar(s: &str) -> String {
         let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
         format!("\"{escaped}\"")
     } else {
-        s.to_string()
+        s.to_owned()
     }
 }

@@ -80,7 +80,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.runtime.environment.to_string();
         profile.runtime.environment = env;
         changes.push(RuntimeSetOutput {
-            field: "environment".to_string(),
+            field: "environment".to_owned(),
             old_value: old,
             new_value: env.to_string(),
             message: format!("Updated environment to {}", env),
@@ -92,7 +92,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.runtime.log_level.to_string();
         profile.runtime.log_level = level;
         changes.push(RuntimeSetOutput {
-            field: "log_level".to_string(),
+            field: "log_level".to_owned(),
             old_value: old,
             new_value: level.to_string(),
             message: format!("Updated log_level to {}", level),
@@ -105,7 +105,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.runtime.output_format.to_string();
         profile.runtime.output_format = format;
         changes.push(RuntimeSetOutput {
-            field: "output_format".to_string(),
+            field: "output_format".to_owned(),
             old_value: old,
             new_value: format.to_string(),
             message: format!("Updated output_format to {}", format),
@@ -116,7 +116,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.runtime.no_color;
         profile.runtime.no_color = no_color;
         changes.push(RuntimeSetOutput {
-            field: "no_color".to_string(),
+            field: "no_color".to_owned(),
             old_value: old.to_string(),
             new_value: no_color.to_string(),
             message: format!("Updated no_color to {}", no_color),

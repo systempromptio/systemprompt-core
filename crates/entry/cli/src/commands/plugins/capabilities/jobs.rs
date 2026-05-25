@@ -31,9 +31,9 @@ pub(super) fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<Job
 
                     Some(JobWithExtension {
                         extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
-                        extension_name: ext.name().to_string(),
-                        job_name: job.name().to_string(),
-                        schedule: job.schedule().to_string(),
+                        extension_name: ext.name().to_owned(),
+                        job_name: job.name().to_owned(),
+                        schedule: job.schedule().to_owned(),
                         enabled: job.enabled(),
                     })
                 })
@@ -48,9 +48,9 @@ pub(super) fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<Job
     CommandResult::table(output)
         .with_title("Jobs Across Extensions")
         .with_columns(vec![
-            "extension_id".to_string(),
-            "job_name".to_string(),
-            "schedule".to_string(),
-            "enabled".to_string(),
+            "extension_id".to_owned(),
+            "job_name".to_owned(),
+            "schedule".to_owned(),
+            "enabled".to_owned(),
         ])
 }

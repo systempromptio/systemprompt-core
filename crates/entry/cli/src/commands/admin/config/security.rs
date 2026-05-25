@@ -72,7 +72,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.security.issuer.clone();
         profile.security.issuer.clone_from(issuer);
         changes.push(SecuritySetOutput {
-            field: "jwt_issuer".to_string(),
+            field: "jwt_issuer".to_owned(),
             old_value: old,
             new_value: issuer.clone(),
             message: format!("Updated JWT issuer to {}", issuer),
@@ -86,7 +86,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.security.access_token_expiration;
         profile.security.access_token_expiration = expiry;
         changes.push(SecuritySetOutput {
-            field: "access_token_expiration".to_string(),
+            field: "access_token_expiration".to_owned(),
             old_value: old.to_string(),
             new_value: expiry.to_string(),
             message: format!("Updated access token expiry to {} seconds", expiry),
@@ -100,7 +100,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.security.refresh_token_expiration;
         profile.security.refresh_token_expiration = expiry;
         changes.push(SecuritySetOutput {
-            field: "refresh_token_expiration".to_string(),
+            field: "refresh_token_expiration".to_owned(),
             old_value: old.to_string(),
             new_value: expiry.to_string(),
             message: format!("Updated refresh token expiry to {} seconds", expiry),

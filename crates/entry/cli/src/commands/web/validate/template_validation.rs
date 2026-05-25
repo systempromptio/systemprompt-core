@@ -17,20 +17,20 @@ pub(super) fn validate_templates(
 
     if !templates_yaml_path.exists() {
         warnings.push(ValidationIssue {
-            source: "templates".to_string(),
+            source: "templates".to_owned(),
             message: format!(
                 "templates.yaml not found at {}",
                 templates_yaml_path.display()
             ),
-            suggestion: Some("Create a templates.yaml file".to_string()),
+            suggestion: Some("Create a templates.yaml file".to_owned()),
         });
         return;
     }
 
     let Ok(content) = fs::read_to_string(&templates_yaml_path) else {
         errors.push(ValidationIssue {
-            source: "templates".to_string(),
-            message: "Failed to read templates.yaml".to_string(),
+            source: "templates".to_owned(),
+            message: "Failed to read templates.yaml".to_owned(),
             suggestion: None,
         });
         return;
@@ -38,9 +38,9 @@ pub(super) fn validate_templates(
 
     let Ok(templates_config) = serde_yaml::from_str::<TemplatesConfig>(&content) else {
         errors.push(ValidationIssue {
-            source: "templates".to_string(),
-            message: "Failed to parse templates.yaml".to_string(),
-            suggestion: Some("Check YAML syntax".to_string()),
+            source: "templates".to_owned(),
+            message: "Failed to parse templates.yaml".to_owned(),
+            suggestion: Some("Check YAML syntax".to_owned()),
         });
         return;
     };
@@ -49,7 +49,7 @@ pub(super) fn validate_templates(
         let html_path = templates_dir.join(format!("{}.html", name));
         if !html_path.exists() {
             errors.push(ValidationIssue {
-                source: "templates".to_string(),
+                source: "templates".to_owned(),
                 message: format!("Missing HTML file for template '{}'", name),
                 suggestion: Some(format!("Create {}", html_path.display())),
             });
@@ -70,12 +70,12 @@ pub(super) fn validate_templates(
         for ct in &entry.content_types {
             if !content_type_names.contains(ct) {
                 warnings.push(ValidationIssue {
-                    source: "templates".to_string(),
+                    source: "templates".to_owned(),
                     message: format!(
                         "Template '{}' references unknown content type '{}'",
                         template_name, ct
                     ),
-                    suggestion: Some("Add the content type to content config".to_string()),
+                    suggestion: Some("Add the content type to content config".to_owned()),
                 });
             }
         }
@@ -90,9 +90,9 @@ pub(super) fn validate_templates(
     for name in content_type_names {
         if !template_content_types.contains(name) {
             warnings.push(ValidationIssue {
-                source: "templates".to_string(),
+                source: "templates".to_owned(),
                 message: format!("Content type '{}' has no associated template", name),
-                suggestion: Some("Link a template to this content type".to_string()),
+                suggestion: Some("Link a template to this content type".to_owned()),
             });
         }
     }

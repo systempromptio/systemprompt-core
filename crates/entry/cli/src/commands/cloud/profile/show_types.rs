@@ -112,7 +112,7 @@ pub(in crate::commands::cloud) struct CoreEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct SystempromptEnvVars {
+pub(in crate::commands::cloud) struct SystempromptEnvVars {
     pub env: String,
     pub verbosity: String,
     pub services_path: Option<String>,
@@ -135,13 +135,13 @@ pub(in crate::commands::cloud) struct JwtEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct RateLimitEnvVars {
+pub(in crate::commands::cloud) struct RateLimitEnvVars {
     pub disabled: bool,
     pub burst_multiplier: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct PathsEnvVars {
+pub(in crate::commands::cloud) struct PathsEnvVars {
     pub system_path: String,
     pub services: String,
     pub skills: String,
@@ -173,10 +173,7 @@ pub(in crate::commands::cloud) fn build_env_config(
             api_external_url: config.api_external_url.clone(),
             use_https: config.use_https,
             github_link: config.github_link.clone(),
-            github_token: config
-                .github_token
-                .clone()
-                .map(|_| "[REDACTED]".to_string()),
+            github_token: config.github_token.clone().map(|_| "[REDACTED]".to_owned()),
             cors_allowed_origins: config.cors_allowed_origins.clone(),
         },
         systemprompt: SystempromptEnvVars {
@@ -192,7 +189,7 @@ pub(in crate::commands::cloud) fn build_env_config(
         },
         jwt: JwtEnvVars {
             issuer: config.jwt_issuer.clone(),
-            secret: "[REDACTED]".to_string(),
+            secret: "[REDACTED]".to_owned(),
             access_token_expiration: config.jwt_access_token_expiration,
             refresh_token_expiration: config.jwt_refresh_token_expiration,
         },
@@ -214,10 +211,10 @@ pub(in crate::commands::cloud) fn build_env_config(
 
 fn redact_database_url(url: &str) -> String {
     let Some(at_pos) = url.find('@') else {
-        return url.to_string();
+        return url.to_owned();
     };
     let Some(proto_end) = url.find("://") else {
-        return url.to_string();
+        return url.to_owned();
     };
     format!("{}[REDACTED]{}", &url[..proto_end + 3], &url[at_pos..])
 }

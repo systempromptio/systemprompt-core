@@ -57,7 +57,7 @@ pub(super) async fn execute(
         false
     };
 
-    let message = "All requested services stopped".to_string();
+    let message = "All requested services stopped".to_owned();
     if !config.is_json_output() {
         CliService::success(&message);
     }
@@ -195,8 +195,8 @@ pub(super) async fn execute_individual_agent(
     }
 
     let output = StopIndividualOutput {
-        service_type: "agent".to_string(),
-        service_name: agent.to_string(),
+        service_type: "agent".to_owned(),
+        service_name: agent.to_owned(),
         stopped: true,
         message,
     };
@@ -221,7 +221,7 @@ pub(super) async fn execute_individual_mcp(
     )
     .context("Failed to initialize MCP manager")?;
 
-    manager.stop_services(Some(server_name.to_string())).await?;
+    manager.stop_services(Some(server_name.to_owned())).await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);
     if !config.is_json_output() {
@@ -229,8 +229,8 @@ pub(super) async fn execute_individual_mcp(
     }
 
     let output = StopIndividualOutput {
-        service_type: "mcp".to_string(),
-        service_name: server_name.to_string(),
+        service_type: "mcp".to_owned(),
+        service_name: server_name.to_owned(),
         stopped: true,
         message,
     };

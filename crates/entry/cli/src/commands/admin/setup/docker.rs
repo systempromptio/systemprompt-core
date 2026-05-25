@@ -85,7 +85,7 @@ pub(super) async fn setup_docker_postgres_interactive(
         .interact_text()?;
 
     let config = PostgresConfig {
-        host: "localhost".to_string(),
+        host: "localhost".to_owned(),
         port,
         user,
         password,

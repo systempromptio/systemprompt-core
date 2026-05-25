@@ -56,7 +56,7 @@ pub(super) fn execute(
     }
 
     let content_types: Vec<String> = if let Some(ct) = args.content_types {
-        ct.split(',').map(|s| s.trim().to_string()).collect()
+        ct.split(',').map(|s| s.trim().to_owned()).collect()
     } else if config.is_interactive() {
         prompt_content_types()?
     } else {
@@ -154,5 +154,5 @@ fn prompt_content_types() -> Result<Vec<String>> {
         .interact_text()
         .context("Failed to get content types")?;
 
-    Ok(input.split(',').map(|s| s.trim().to_string()).collect())
+    Ok(input.split(',').map(|s| s.trim().to_owned()).collect())
 }

@@ -43,7 +43,7 @@ pub(super) fn execute(
         fs::read_to_string(&metadata_path)
             .ok()
             .and_then(|content| extract_base_url(&content))
-            .unwrap_or_else(|| "https://example.com".to_string())
+            .unwrap_or_else(|| "https://example.com".to_owned())
     });
 
     let web_path = profile.paths.web_path_resolved();
@@ -138,7 +138,7 @@ fn extract_base_url(metadata_content: &str) -> Option<String> {
         if line.starts_with("baseUrl:") {
             let url = line.trim_start_matches("baseUrl:").trim();
             let url = url.trim_matches('"').trim_matches('\'');
-            return Some(url.to_string());
+            return Some(url.to_owned());
         }
     }
     None

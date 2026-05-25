@@ -208,9 +208,7 @@ pub(super) async fn execute_individual_mcp(
     )
     .context("Failed to initialize MCP manager")?;
 
-    manager
-        .start_services(Some(server_name.to_string()))
-        .await?;
+    manager.start_services(Some(server_name.to_owned())).await?;
 
     CliService::success(&format!("MCP server {} started successfully", server_name));
 

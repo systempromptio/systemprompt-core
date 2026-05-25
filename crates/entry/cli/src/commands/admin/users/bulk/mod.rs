@@ -1,4 +1,4 @@
-pub(crate) mod delete;
+mod delete;
 mod update;
 
 use crate::cli_settings::CliConfig;

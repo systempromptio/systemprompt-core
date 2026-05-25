@@ -64,7 +64,7 @@ pub(super) async fn execute(
 
     if servers_to_query.is_empty() {
         let message = args.server.as_ref().map_or_else(
-            || "No MCP servers are currently running".to_string(),
+            || "No MCP servers are currently running".to_owned(),
             |name| format!("MCP server '{}' is not running", name),
         );
         return Err(anyhow!(message));
@@ -126,10 +126,10 @@ pub(super) async fn execute(
     };
 
     let columns = vec![
-        "name".to_string(),
-        "server".to_string(),
-        "description".to_string(),
-        "parameters_count".to_string(),
+        "name".to_owned(),
+        "server".to_owned(),
+        "description".to_owned(),
+        "parameters_count".to_owned(),
     ];
 
     Ok(CommandResult::table(output)

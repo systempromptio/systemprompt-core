@@ -27,7 +27,7 @@ fn extract_mcp_binary_names_from_dockerfile(dockerfile_content: &str) -> Vec<Str
             let after_copy = trimmed.strip_prefix("COPY target/release/")?;
             let binary_name = after_copy.split_whitespace().next()?;
             if binary_name.starts_with("systemprompt-") && binary_name != "systemprompt-*" {
-                Some(binary_name.to_string())
+                Some(binary_name.to_owned())
             } else {
                 None
             }

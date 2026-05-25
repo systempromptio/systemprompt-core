@@ -86,10 +86,10 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "context_id".to_string(),
-            "name".to_string(),
-            "task_count".to_string(),
-            "message_count".to_string(),
+            "context_id".to_owned(),
+            "name".to_owned(),
+            "task_count".to_owned(),
+            "message_count".to_owned(),
         ]),
         ..Default::default()
     };

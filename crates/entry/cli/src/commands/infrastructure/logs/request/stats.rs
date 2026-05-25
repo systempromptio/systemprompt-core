@@ -19,7 +19,7 @@ pub struct StatsArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct RequestStatsOutput {
+pub(super) struct RequestStatsOutput {
     pub total_requests: i64,
     pub total_tokens: TokenStats,
     pub total_cost_dollars: f64,
@@ -29,14 +29,14 @@ struct RequestStatsOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-struct TokenStats {
+pub(super) struct TokenStats {
     pub input: i64,
     pub output: i64,
     pub total: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct ProviderStats {
+pub(super) struct ProviderStats {
     pub provider: String,
     pub request_count: i64,
     pub total_tokens: i64,
@@ -45,7 +45,7 @@ struct ProviderStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-struct ModelStats {
+pub(super) struct ModelStats {
     pub model: String,
     pub provider: String,
     pub request_count: i64,
