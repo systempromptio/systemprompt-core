@@ -241,10 +241,10 @@ fn mint_req_id() -> String {
 }
 
 fn sha256_8(s: &str) -> String {
+    use sha2::{Digest, Sha256};
     if s.is_empty() {
         return "<empty>".to_string();
     }
-    use sha2::{Digest, Sha256};
     let d = Sha256::digest(s.as_bytes());
     format!("{:08x}", u32::from_be_bytes([d[0], d[1], d[2], d[3]]))
 }

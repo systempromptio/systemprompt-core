@@ -15,7 +15,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
-pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
         && !parent.exists()
@@ -57,7 +57,7 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     }
 }
 
-pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
+pub(crate) fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if !src.exists() {
         return Ok(());
     }
@@ -100,7 +100,7 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn read_optional(path: &Path) -> io::Result<Option<String>> {
+pub(crate) fn read_optional(path: &Path) -> io::Result<Option<String>> {
     match fs::read_to_string(path) {
         Ok(s) => Ok(Some(s)),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),

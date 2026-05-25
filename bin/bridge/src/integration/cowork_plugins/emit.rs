@@ -64,6 +64,10 @@ impl CoworkTarget {
     }
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "EmitReport is a structured status report; each flag tracks a distinct sync sub-step"
+)]
 #[derive(Debug, Default, Clone)]
 pub struct EmitReport {
     pub target: Option<PathBuf>,

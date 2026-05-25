@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub struct ClaudeCodePluginSync;
+pub(crate) struct ClaudeCodePluginSync;
 
 #[async_trait]
 impl HostSync for ClaudeCodePluginSync {
@@ -23,9 +23,8 @@ impl HostSync for ClaudeCodePluginSync {
     }
 
     fn clear(&self) -> Result<(), super::ApplyError> {
-        let location = match paths::org_plugins_effective() {
-            Some(loc) => loc,
-            None => return Ok(()),
+        let Some(location) = paths::org_plugins_effective() else {
+            return Ok(());
         };
         let root = location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
         if root.exists() {

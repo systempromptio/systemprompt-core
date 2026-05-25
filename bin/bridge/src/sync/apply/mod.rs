@@ -1,8 +1,8 @@
 mod error;
 mod hooks;
-pub(crate) mod hooks_schema;
+mod hooks_schema;
 mod plugin;
-pub(crate) mod synthetic_plugin;
+pub(super) mod synthetic_plugin;
 
 pub use error::{ApplyError, TomlError};
 pub use synthetic_plugin::write_synthetic_plugin;
@@ -17,9 +17,9 @@ use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
 use url::{Host, Url};
 
-pub use plugin::PluginApplyOutcome as ApplyReport;
+pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
 
-pub async fn apply_manifest(
+pub(crate) async fn apply_manifest(
     client: &GatewayClient,
     bearer: &str,
     manifest: &SignedManifest,

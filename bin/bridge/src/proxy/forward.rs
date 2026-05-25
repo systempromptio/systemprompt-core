@@ -172,13 +172,15 @@ enum RouteResolution {
 fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolution {
     if let Some(name) = parse_mcp_path(uri.path()) {
         let registry = mcp_registry::snapshot();
-        return match registry.get(name) {
-            Some(entry) => RouteResolution::Mcp(Route {
-                url: entry.url.as_str().to_string(),
-                extra_headers: entry.headers.clone(),
-            }),
-            None => RouteResolution::UnknownMcp(name.to_string()),
-        };
+        return registry.get(name).map_or_else(
+            || RouteResolution::UnknownMcp(name.to_string()),
+            |entry| {
+                RouteResolution::Mcp(Route {
+                    url: entry.url.as_str().to_string(),
+                    extra_headers: entry.headers.clone(),
+                })
+            },
+        );
     }
     RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
 }
@@ -215,10 +217,7 @@ fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
     if path != "/otel" && !path.starts_with("/otel/") {
         return None;
     }
-    Some(match suffix {
-        Some(q) => format!("/v1{path}?{q}"),
-        None => format!("/v1{path}"),
-    })
+    Some(suffix.map_or_else(|| format!("/v1{path}"), |q| format!("/v1{path}?{q}")))
 }
 
 fn not_found_response(body: &str) -> ForwardResult<Response<ProxyBody>> {

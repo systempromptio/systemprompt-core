@@ -7,7 +7,7 @@ use crate::schedule::Os;
 
 const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("../templates/mdm_macos_snippet.tmpl");
 
-pub const fn os_label(os: Os) -> &'static str {
+pub(crate) const fn os_label(os: Os) -> &'static str {
     match os {
         Os::Mac => "macOS",
         Os::Windows => "Windows",
@@ -15,7 +15,8 @@ pub const fn os_label(os: Os) -> &'static str {
     }
 }
 
-pub fn refresh_managed_mcp_servers() -> Result<String, String> {
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         return windows::refresh_managed_mcp_servers();
@@ -39,7 +40,7 @@ fn write_empty_managed_mcp_servers() -> Result<String, String> {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub struct ClaudeDesktopMdmSync;
+pub(crate) struct ClaudeDesktopMdmSync;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[async_trait::async_trait]
@@ -86,7 +87,7 @@ impl crate::sync::host_sync::HostSync for ClaudeDesktopMdmSync {
     }
 }
 
-pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
+pub(crate) fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {
     match os {
         #[cfg(target_os = "windows")]
         Os::Windows => windows::apply(gateway, pubkey),
@@ -105,8 +106,9 @@ pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<Stri
     }
 }
 
+#[cfg(target_os = "windows")]
 #[must_use]
-pub fn windows_policy_values(
+pub(crate) fn windows_policy_values(
     _gateway: &str,
     pubkey: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
@@ -145,8 +147,9 @@ pub fn windows_policy_values(
 // `oauth: {}` (empty object) MUST be emitted — it signals "needs OAuth,
 // do well-known discovery" to Cowork. The bridge does NOT inject a bearer
 // token here; Cowork performs the MCP-spec OAuth dance itself.
+#[cfg(target_os = "windows")]
 #[must_use]
-pub fn managed_mcp_servers_json() -> Option<String> {
+pub(crate) fn managed_mcp_servers_json() -> Option<String> {
     let registry = crate::mcp_registry::snapshot();
     if registry.is_empty() {
         return Some("[]".to_string());
@@ -168,7 +171,11 @@ pub fn managed_mcp_servers_json() -> Option<String> {
     serde_json::to_string(&entries).ok()
 }
 
-pub fn snippet(os: Os, gateway_url: Option<&str>) -> String {
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{gateway} is a template placeholder consumed by str::replace, not a fmt arg"
+)]
+pub(crate) fn snippet(os: Os, gateway_url: Option<&str>) -> String {
     let gateway = gateway_url.unwrap_or("https://gateway.systemprompt.io");
     match os {
         Os::Mac => MDM_MACOS_SNIPPET_TMPL.replace("{gateway}", gateway),

@@ -22,7 +22,7 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostApp>> = LazyLock::new(|| {
     DESKTOP_HOSTS
         .iter()
         .copied()
-        .chain(std::iter::once(&CODEX_CLI_HOST as &'static dyn HostApp))
+        .chain(std::iter::once::<&'static dyn HostApp>(&CODEX_CLI_HOST))
         .chain(STUB_HOSTS.iter().copied())
         .collect()
 });

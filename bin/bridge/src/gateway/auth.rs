@@ -143,7 +143,7 @@ impl GatewayClient {
             .map_err(|e| GatewayError::HookTokenDecode(Box::new(e)))
     }
 
-    pub(super) async fn post_json<T: serde::Serialize>(
+    pub(super) async fn post_json<T: serde::Serialize + Sync>(
         &self,
         path: &str,
         body: &T,

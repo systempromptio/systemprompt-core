@@ -12,8 +12,7 @@ use crate::auth::ChainError;
 use crate::{auth, config, proxy};
 
 pub(super) fn cmd_credential_helper(args: &[String]) -> ExitCode {
-    let host = parse_host(args);
-    let host = if let Some(h) = host { h } else {
+    let Some(host) = parse_host(args) else {
         eprintln!("{}", error_json("missing required --host <id>"));
         return ExitCode::from(64);
     };

@@ -9,7 +9,7 @@ pub(super) fn safe_plugin_id(id: &str) -> bool {
         && !id.starts_with('.')
 }
 
-pub fn safe_id_segment(s: &str) -> bool {
+pub(crate) fn safe_id_segment(s: &str) -> bool {
     !s.is_empty()
         && !s.contains("..")
         && !s.contains('/')

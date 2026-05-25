@@ -33,7 +33,7 @@ pub(super) fn cmd_oauth_client(args: &[String]) -> ExitCode {
 }
 
 fn cmd_status() -> ExitCode {
-    let path = if let Some(p) = plugin_oauth::creds_path() { p } else {
+    let Some(path) = plugin_oauth::creds_path() else {
         diag("oauth-client status: cache directory unresolvable");
         return ExitCode::from(1);
     };

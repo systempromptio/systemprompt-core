@@ -16,19 +16,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HooksFile {
+pub(crate) struct HooksFile {
     pub hooks: BTreeMap<String, Vec<HookMatcher>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HookMatcher {
+pub(crate) struct HookMatcher {
     pub matcher: String,
     pub hooks: Vec<HookEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
-pub enum HookEntry {
+pub(crate) enum HookEntry {
     Http {
         url: String,
         headers: BTreeMap<String, String>,

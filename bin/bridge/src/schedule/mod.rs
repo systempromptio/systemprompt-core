@@ -71,14 +71,26 @@ const LAUNCHD_PLIST_TMPL: &str = include_str!("templates/launchd.plist.tmpl");
 const TASK_SCHEDULER_XML_TMPL: &str = include_str!("templates/task-scheduler.xml.tmpl");
 const SYSTEMD_UNIT_TMPL: &str = include_str!("templates/systemd.unit.tmpl");
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{binary} is a template placeholder consumed by str::replace, not a fmt arg"
+)]
 fn launchd_plist(binary: &Path) -> String {
     LAUNCHD_PLIST_TMPL.replace("{binary}", &binary.display().to_string())
 }
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{binary} is a template placeholder consumed by str::replace, not a fmt arg"
+)]
 fn task_scheduler_xml(binary: &Path) -> String {
     TASK_SCHEDULER_XML_TMPL.replace("{binary}", &binary.display().to_string())
 }
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{binary} is a template placeholder consumed by str::replace, not a fmt arg"
+)]
 fn systemd_user_unit(binary: &Path) -> String {
     SYSTEMD_UNIT_TMPL.replace("{binary}", &binary.display().to_string())
 }

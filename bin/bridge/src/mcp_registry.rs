@@ -16,12 +16,12 @@ use systemprompt_identifiers::ValidatedUrl;
 use crate::gateway::manifest::ManagedMcpServer;
 
 #[derive(Clone, Debug)]
-pub struct McpUpstream {
+pub(crate) struct McpUpstream {
     pub url: ValidatedUrl,
     pub headers: BTreeMap<String, String>,
 }
 
-pub type McpRegistry = HashMap<String, McpUpstream>;
+pub(crate) type McpRegistry = HashMap<String, McpUpstream>;
 
 static REGISTRY: OnceLock<ArcSwap<McpRegistry>> = OnceLock::new();
 
@@ -29,7 +29,7 @@ fn slot() -> &'static ArcSwap<McpRegistry> {
     REGISTRY.get_or_init(|| ArcSwap::from_pointee(HashMap::new()))
 }
 
-pub fn publish(servers: &[ManagedMcpServer]) {
+pub(crate) fn publish(servers: &[ManagedMcpServer]) {
     let mut next: McpRegistry = HashMap::with_capacity(servers.len());
     for s in servers {
         next.insert(
@@ -49,14 +49,14 @@ pub fn publish(servers: &[ManagedMcpServer]) {
 }
 
 #[must_use]
-pub fn snapshot() -> Arc<McpRegistry> {
+pub(crate) fn snapshot() -> Arc<McpRegistry> {
     slot().load_full()
 }
 
 // Must be stable + deterministic so the synthetic plugin writer and the proxy
 // router agree on the key for `/mcp/<slug>` routing.
 #[must_use]
-pub fn normalize_key(name: &str) -> String {
+pub(crate) fn normalize_key(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
     let mut prev_dash = true;
     for c in name.chars() {

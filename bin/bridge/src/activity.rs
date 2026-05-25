@@ -182,9 +182,8 @@ pub fn install_persistent_writer() {
         },
     };
     activity_log().add_emit_hook(Box::new(move |entry| {
-        let line = match serde_json::to_string(entry) {
-            Ok(s) => s,
-            Err(_) => return,
+        let Ok(line) = serde_json::to_string(entry) else {
+            return;
         };
         writer.write(&line);
     }));

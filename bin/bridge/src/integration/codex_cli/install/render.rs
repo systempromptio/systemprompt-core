@@ -33,6 +33,10 @@ pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String>
     toml::to_string(&value).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
+#[expect(
+    clippy::literal_string_with_formatting_args,
+    reason = "{profile_uuid}/{payload_uuid}/{config_toml_base64} are template placeholders consumed by str::replace"
+)]
 pub(super) fn mobileconfig(toml_text: &str, payload_uuid: &str, profile_uuid: &str) -> String {
     let encoded = BASE64.encode(toml_text.as_bytes());
     MOBILECONFIG_TMPL

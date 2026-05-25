@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-pub struct PluginApplyOutcome {
+pub(crate) struct PluginApplyOutcome {
     pub installed: Vec<String>,
     pub updated: Vec<String>,
     pub removed: Vec<String>,

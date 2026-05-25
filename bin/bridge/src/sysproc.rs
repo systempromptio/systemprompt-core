@@ -7,13 +7,13 @@
 //! filter on.
 
 #[derive(Debug, Clone)]
-pub struct ProcInfo {
+pub(crate) struct ProcInfo {
     pub name: String,
     pub path: Option<String>,
 }
 
 #[must_use]
-pub fn list_processes() -> Vec<ProcInfo> {
+pub(crate) fn list_processes() -> Vec<ProcInfo> {
     #[cfg(target_os = "windows")]
     {
         windows::list()
@@ -150,16 +150,14 @@ mod linux {
     use std::fs;
 
     pub(super) fn list() -> Vec<ProcInfo> {
-        let entries = match fs::read_dir("/proc") {
-            Ok(e) => e,
-            Err(_) => return Vec::new(),
+        let Ok(entries) = fs::read_dir("/proc") else {
+            return Vec::new();
         };
         let mut out = Vec::new();
         for entry in entries.flatten() {
             let file_name = entry.file_name();
-            let name_str = match file_name.to_str() {
-                Some(s) => s,
-                None => continue,
+            let Some(name_str) = file_name.to_str() else {
+                continue;
             };
             if name_str.parse::<u32>().is_err() {
                 continue;

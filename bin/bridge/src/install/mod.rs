@@ -22,7 +22,6 @@ use crate::schedule::Os;
 pub use mdm::macos::{
     build_mobileconfig as build_macos_mobileconfig, build_prefs_plist as build_macos_prefs_plist,
 };
-pub use mdm::{refresh_managed_mcp_servers, windows_policy_values};
 use std::fs;
 use std::path::PathBuf;
 use systemprompt_identifiers::ValidatedUrl;

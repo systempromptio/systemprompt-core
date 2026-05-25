@@ -75,13 +75,15 @@ pub fn for_profile() -> std::io::Result<LoopbackSecret> {
     }
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    match load(&path)? {
-        Some(s) => Ok(s),
-        None => Err(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "loopback secret unavailable; proxy has not been started",
-        )),
-    }
+    load(&path)?.map_or_else(
+        || {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "loopback secret unavailable; proxy has not been started",
+            ))
+        },
+        Ok,
+    )
 }
 
 #[must_use]

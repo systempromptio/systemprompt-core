@@ -81,20 +81,17 @@ pub(super) fn list_codex_processes() -> Vec<String> {
                 if name_lower == "codex.exe" {
                     return Some(name_lower);
                 }
-                None
-            } else {
-                if path_lower.ends_with("/codex")
-                    || path_lower.contains("/codex.app/")
-                    || name_lower == "codex"
-                {
-                    return Some(if path_lower.is_empty() {
-                        name_lower
-                    } else {
-                        path_lower
-                    });
-                }
-                None
+            } else if path_lower.ends_with("/codex")
+                || path_lower.contains("/codex.app/")
+                || name_lower == "codex"
+            {
+                return Some(if path_lower.is_empty() {
+                    name_lower
+                } else {
+                    path_lower
+                });
             }
+            None
         })
         .collect();
     hits.sort();
@@ -107,9 +104,8 @@ pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::
     let mut cur = target;
     for segment in &segments[..segments.len() - 1] {
         let key = segment.trim_matches('"');
-        let table = match cur {
-            toml::Value::Table(t) => t,
-            _ => return false,
+        let toml::Value::Table(table) = cur else {
+            return false;
         };
         let entry = table
             .entry(key.to_string())
