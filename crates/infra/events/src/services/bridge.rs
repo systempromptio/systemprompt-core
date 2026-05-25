@@ -113,7 +113,7 @@ impl PostgresEventBridge {
         Self::fan_in(channel, &row.user_id, row.payload).await;
     }
 
-    pub(crate) async fn fan_in(
+    pub(super) async fn fan_in(
         channel: OutboxChannel,
         user_id: &UserId,
         // JSON: outbox payload is polymorphic by channel; decoded into the
