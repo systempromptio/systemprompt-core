@@ -1,0 +1,29 @@
+[package]
+name = "systemprompt-gateway-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for the gateway audit + ContextId derivation surface"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-api = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-config = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+bytes = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
