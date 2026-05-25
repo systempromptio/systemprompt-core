@@ -20,7 +20,10 @@ pub struct OutboundCtx<'a> {
     pub upstream_model: &'a str,
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(
+    missing_debug_implementations,
+    reason = "variants hold streaming bodies that intentionally do not implement Debug"
+)]
 pub enum OutboundOutcome {
     Buffered(CanonicalResponse),
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),

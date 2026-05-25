@@ -178,7 +178,7 @@ pub async fn handle_mcp_authorization_server(
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
-pub(crate) async fn get_mcp_server_scopes(
+pub(in crate::routes) async fn get_mcp_server_scopes(
     registry: &dyn McpRegistryProvider,
     service_name: &str,
 ) -> Option<Vec<String>> {
@@ -200,7 +200,7 @@ pub(crate) async fn get_mcp_server_scopes(
     }
 }
 
-pub(crate) async fn get_mcp_server_scopes_from_resource(
+pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
     registry: &dyn McpRegistryProvider,
     resource_uri: &str,
 ) -> Option<Vec<String>> {

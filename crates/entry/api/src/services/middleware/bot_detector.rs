@@ -16,7 +16,7 @@ const DATACENTER_IP_PREFIXES: &[&str] = &[
     "119.29.", "129.28.", "162.14.", "119.3.", "122.112.",
 ];
 
-pub(crate) const CHROME_MIN_VERSION: i32 = 120;
+pub(super) const CHROME_MIN_VERSION: i32 = 120;
 
 #[derive(Clone, Debug)]
 pub struct BotMarker {

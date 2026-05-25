@@ -74,7 +74,6 @@ pub async fn handle_root_discovery(
     Json(SingleResponse::new(data))
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_core_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
@@ -107,7 +106,6 @@ pub async fn handle_core_discovery(
     Json(SingleResponse::new(data))
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_agents_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
@@ -131,7 +129,6 @@ pub async fn handle_agents_discovery(
     Json(SingleResponse::new(data))
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_mcp_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {

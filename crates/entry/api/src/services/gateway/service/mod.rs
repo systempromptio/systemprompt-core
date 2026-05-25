@@ -1,6 +1,9 @@
 //! Gateway dispatch entry point: route resolution, policy and quota checks,
 //! upstream send, and response finalization.
-#![allow(clippy::clone_on_ref_ptr)]
+#![expect(
+    clippy::clone_on_ref_ptr,
+    reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"
+)]
 
 mod finalize;
 

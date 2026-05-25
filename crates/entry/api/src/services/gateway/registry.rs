@@ -32,7 +32,7 @@ impl GatewayUpstreamRegistry {
         self.entries.keys().map(String::as_str).collect()
     }
 
-    pub(crate) fn build() -> Self {
+    pub(super) fn build() -> Self {
         let mut entries: HashMap<String, Arc<dyn OutboundAdapter>> = HashMap::new();
 
         let anthropic: Arc<dyn OutboundAdapter> = Arc::new(AnthropicOutbound);

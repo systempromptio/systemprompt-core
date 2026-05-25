@@ -1,5 +1,3 @@
-#![allow(unused_qualifications)]
-
 use axum::extract::{Extension, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
