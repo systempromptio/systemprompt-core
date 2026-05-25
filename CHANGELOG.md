@@ -18,6 +18,12 @@
 - **`systemprompt_security::policy` module** — shared types for the tool-use governance plane: `AgentScope { User { user_id } | System }`, `McpToolInput` (the documented inline-`serde_json::Value` boundary for schema-less MCP arguments), `PolicyContext<'a>`, `SecretLocation { kind, path }`, `RateLimitWindow { name, seconds, limit }`, `GovernancePolicy` trait, and `GovernanceChain` (first-deny-wins composer; allow-fallthrough is `MatchedBy::DefaultIncluded`).
 - **`DenyReason` tool-use variants**: `SecretLeak`, `ScopeViolation`, `ToolBlocked`, `RateLimitExceeded`, `HookUnavailable`. Lets the template's secret-scan / scope / blocklist / rate-limit chain emit the same `Decision` shape the user→entity resolver does.
 
+### Internal
+
+- **`bin/bridge` clippy posture matches the main workspace.** `bin/bridge/Cargo.toml` adopts the workspace `[lints.clippy]` / `[lints.rust]` baseline (deny `clippy::all` + `suspicious`, warn pedantic/nursery/cargo/perf, `unreachable_pub`, `missing_debug_implementations`, `allow_attributes_without_reason`, …). The bridge now builds clean under `cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --no-deps -- -D warnings`.
+- **`clippy::redundant_pub_crate = "allow"` at the workspace level.** It conflicts with `unreachable_pub` for the repo's deliberately-narrowed `pub(crate)` module hierarchy, and the visibility-cleanup work has already chosen the narrower form.
+- **Bridge inline tests extracted.** `#[cfg(test)] mod tests` blocks under `bin/bridge/src/{config/mod.rs, lib.rs}` move to dedicated test crates `crates/tests/unit/bridge/{config, ts-export}/`.
+
 ## [0.11.2] - 2026-05-25
 
 ### Breaking
