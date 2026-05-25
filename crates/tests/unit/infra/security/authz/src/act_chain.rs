@@ -2,7 +2,7 @@
 
 use systemprompt_identifiers::{RouteId, TraceId, UserId};
 use systemprompt_identifiers::{Actor, ActorKind};
-use systemprompt_security::authz::{AuthzRequest, EntityRef};
+use systemprompt_security::authz::{AuthzContext, AuthzRequest, EntityRef};
 
 fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
@@ -11,7 +11,7 @@ fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
         roles: vec!["eng".to_owned()],
         department: "platform".to_owned(),
         trace_id: TraceId::new("trace-1"),
-        context: serde_json::Value::Null,
+        context: AuthzContext::None,
         act_chain: chain,
     }
 }

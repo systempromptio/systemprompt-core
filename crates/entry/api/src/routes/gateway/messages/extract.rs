@@ -7,7 +7,9 @@ use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{
     ContextId, GatewayConversationId, ModelId, SessionId, TraceId, UserId,
 };
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook};
+use systemprompt_security::authz::{
+    AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
+};
 
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
@@ -229,9 +231,6 @@ async fn enforce_authz_pre_dispatch(
     model: &str,
     hook: &SharedAuthzHook,
 ) -> Result<(), (StatusCode, String)> {
-    let model_entity = EntityRef::GatewayModel(ModelId::new(model));
-    evaluate_pass(principal, model_entity, model, hook).await?;
-
     let route_id = if route.id.as_str().trim().is_empty() {
         systemprompt_models::profile::synthesize_route_id(
             &route.model_pattern,
@@ -240,23 +239,15 @@ async fn enforce_authz_pre_dispatch(
     } else {
         route.id.clone()
     };
-    let route_entity = EntityRef::GatewayRoute(route_id);
-    evaluate_pass(principal, route_entity, model, hook).await
-}
-
-async fn evaluate_pass(
-    principal: &AuthedPrincipal,
-    entity: EntityRef,
-    model: &str,
-    hook: &SharedAuthzHook,
-) -> Result<(), (StatusCode, String)> {
     let req = AuthzRequest {
-        entity,
+        entity: EntityRef::GatewayRoute(route_id),
         user_id: principal.user_id.clone(),
         roles: principal.roles.clone(),
         department: principal.department.clone(),
         trace_id: principal.trace_id.clone().unwrap_or_else(TraceId::generate),
-        context: serde_json::json!({"model": model}),
+        context: AuthzContext::GatewayInvocation {
+            model: ModelId::new(model),
+        },
         act_chain: principal.act_chain.clone(),
     };
     match hook.evaluate(req).await {

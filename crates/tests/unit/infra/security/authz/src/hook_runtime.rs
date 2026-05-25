@@ -3,7 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_identifiers::{McpServerId, RouteId, TraceId};
 use systemprompt_security::authz::{
-    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityRef,
+    AllowAllHook, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason,
+    EntityRef,
 };
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -14,7 +15,9 @@ struct LocalDenyAllHook;
 impl AuthzDecisionHook for LocalDenyAllHook {
     async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
         AuthzDecision::Deny {
-            reason: "test".into(),
+            reason: DenyReason::HookUnavailable {
+                policy: "deny_all_test".into(),
+            },
             policy: "deny_all_test".into(),
         }
     }
@@ -27,7 +30,7 @@ fn fixture_request(entity: EntityRef) -> AuthzRequest {
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-test"),
-        context: serde_json::Value::Null,
+        context: AuthzContext::None,
         act_chain: Vec::new(),
     }
 }

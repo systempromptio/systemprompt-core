@@ -21,7 +21,7 @@ use async_trait::async_trait;
 
 use super::audit::{AuthzAuditSink, AuthzSource, NullAuditSink};
 use super::error::AuthzResult;
-use super::types::{AuthzDecision, AuthzRequest};
+use super::types::{AuthzDecision, AuthzRequest, DenyReason};
 
 /// `#[async_trait]`: this trait is consumed as `Arc<dyn AuthzDecisionHook>`
 /// (see `authz::runtime`), so it must be `dyn`-compatible — native
@@ -53,9 +53,12 @@ impl DenyAllHook {
 #[async_trait]
 impl AuthzDecisionHook for DenyAllHook {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
+        let policy = AuthzSource::DenyAllDefault.policy().to_owned();
         let decision = AuthzDecision::Deny {
-            reason: "no authz hook configured".into(),
-            policy: AuthzSource::DenyAllDefault.policy().to_owned(),
+            reason: DenyReason::HookUnavailable {
+                policy: policy.clone(),
+            },
+            policy,
         };
         self.sink
             .record(&req, &decision, AuthzSource::DenyAllDefault)
@@ -122,9 +125,12 @@ impl WebhookHook {
     }
 
     async fn fault(&self, req: &AuthzRequest) -> AuthzDecision {
+        let policy = AuthzSource::WebhookFault.policy().to_owned();
         let decision = AuthzDecision::Deny {
-            reason: "authz hook unreachable".into(),
-            policy: AuthzSource::WebhookFault.policy().to_owned(),
+            reason: DenyReason::HookUnavailable {
+                policy: policy.clone(),
+            },
+            policy,
         };
         self.sink
             .record(req, &decision, AuthzSource::WebhookFault)

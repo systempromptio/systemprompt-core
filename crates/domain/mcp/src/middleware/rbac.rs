@@ -9,7 +9,9 @@ use systemprompt_identifiers::{Actor, McpServerId, TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook};
+use systemprompt_security::authz::{
+    AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
+};
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -174,7 +176,7 @@ async fn enforce_authz_for_server(
         roles: claims.roles.clone(),
         department: claims.department.clone().unwrap_or_else(String::new),
         trace_id: TraceId::generate(),
-        context: serde_json::Value::Null,
+        context: AuthzContext::None,
         act_chain,
     };
     match hook.evaluate(req).await {

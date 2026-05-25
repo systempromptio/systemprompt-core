@@ -27,9 +27,9 @@ pub use extension::AuthzExtension;
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, WebhookHook};
 pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
-pub use resolver::resolve;
+pub use resolver::{ResolveInput, resolve};
 pub use runtime::{SharedAuthzHook, build_authz_hook};
 pub use types::{
-    Access, AccessRule, AuthzDecision, AuthzRequest, Decision, DecisionTag, EntityKind, EntityRef,
-    RuleType,
+    Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
+    DenyReason, EntityKind, EntityRef, MatchedBy, RuleType,
 };

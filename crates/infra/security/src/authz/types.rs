@@ -8,16 +8,19 @@
 //!    [`AuthzRequest`] / [`AuthzDecision`] are the webhook wire format sent to
 //!    and parsed back from extension hook handlers.
 
+use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    Actor, AgentId, HookId, MarketplaceId, McpServerId, ModelId, PluginId, RouteId, RuleId,
-    SkillId, TraceId, UserId,
+    Actor, AgentId, HookId, MarketplaceId, McpServerId, McpToolName, ModelId, PluginId, PolicyId,
+    RouteId, RuleId, SecretPatternId, SkillId, TraceId, UserId,
 };
+use thiserror::Error;
 
 use super::error::AuthzError;
+use crate::policy::types::{RateLimitWindow, SecretLocation};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
@@ -84,7 +87,6 @@ impl FromStr for Access {
 #[serde(rename_all = "snake_case")]
 pub enum EntityKind {
     GatewayRoute,
-    GatewayModel,
     McpServer,
     Plugin,
     Agent,
@@ -97,7 +99,6 @@ impl EntityKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::GatewayRoute => "gateway_route",
-            Self::GatewayModel => "gateway_model",
             Self::McpServer => "mcp_server",
             Self::Plugin => "plugin",
             Self::Agent => "agent",
@@ -114,7 +115,6 @@ impl FromStr for EntityKind {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gateway_route" => Ok(Self::GatewayRoute),
-            "gateway_model" => Ok(Self::GatewayModel),
             "mcp_server" => Ok(Self::McpServer),
             "plugin" => Ok(Self::Plugin),
             "agent" => Ok(Self::Agent),
@@ -145,22 +145,109 @@ pub struct AccessRule {
     pub justification: Option<String>,
 }
 
+/// Why an [`AuthzRequest`] was allowed. Carries enough structure for the
+/// audit row to attribute the decision without re-deriving it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "decision", rename_all = "lowercase")]
-pub enum Decision {
-    Allow,
-    Deny {
-        reason: String,
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MatchedBy {
+    UserAllow,
+    RoleAllow {
+        role: String,
+    },
+    DepartmentAllow {
+        department: String,
+    },
+    /// No matching rule, but the entity's `default_included` flag was set.
+    DefaultIncluded,
+    /// Allowed by a named tool-use governance policy (secret scan, etc).
+    PolicyAllow {
+        policy_id: PolicyId,
+        detail: Cow<'static, str>,
+    },
+}
+
+/// Structured deny rationale.
+///
+/// Variants cover both the user→entity resolver
+/// (`UserDeny`, `RoleDeny`, `DepartmentDeny`, `NotAssigned`, `UnknownEntity`),
+/// the hook plane (`HookUnavailable`), and the tool-use governance chain
+/// (`SecretLeak`, `ScopeViolation`, `ToolBlocked`, `RateLimitExceeded`). The
+/// human-readable `#[error]` strings double as the `reason` column in the
+/// `governance_decisions` audit row.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DenyReason {
+    #[error("user {user_id} explicitly denied for {entity}")]
+    UserDeny {
+        entity: EntityRef,
+        user_id: UserId,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         justification: Option<String>,
     },
+    #[error("role {role} denied for {entity}")]
+    RoleDeny {
+        entity: EntityRef,
+        role: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        justification: Option<String>,
+    },
+    #[error("department {department} denied for {entity}")]
+    DepartmentDeny {
+        entity: EntityRef,
+        department: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        justification: Option<String>,
+    },
+    #[error(
+        "{entity}: not assigned to user {user_id} with roles {roles:?} (no allow rule; \
+         default_included = false). Add an allow rule in services/access-control/roles.yaml."
+    )]
+    NotAssigned {
+        entity: EntityRef,
+        user_id: UserId,
+        roles: Vec<String>,
+    },
+    #[error(
+        "{entity}: unknown to access control. Add an entity row via the publish pipeline or \
+         roles.yaml."
+    )]
+    UnknownEntity { entity: EntityRef },
+    #[error("authz hook unavailable for policy {policy}")]
+    HookUnavailable { policy: String },
+    #[error("secret pattern {pattern_id} detected at {location:?}")]
+    SecretLeak {
+        pattern_id: SecretPatternId,
+        location: SecretLocation,
+    },
+    #[error("tool {tool} missing required scope {missing_scope}")]
+    ScopeViolation {
+        tool: McpToolName,
+        missing_scope: String,
+    },
+    #[error("tool {tool} blocked by list {list_id}")]
+    ToolBlocked {
+        tool: McpToolName,
+        list_id: String,
+    },
+    #[error("rate limit {window:?} exceeded; retry after {retry_after_ms}ms")]
+    RateLimitExceeded {
+        window: RateLimitWindow,
+        retry_after_ms: u64,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "decision", rename_all = "lowercase")]
+pub enum Decision {
+    Allow { matched_by: MatchedBy },
+    Deny { reason: DenyReason },
 }
 
 impl Decision {
     #[must_use]
     pub const fn tag(&self) -> DecisionTag {
         match self {
-            Self::Allow => DecisionTag::Allow,
+            Self::Allow { .. } => DecisionTag::Allow,
             Self::Deny { .. } => DecisionTag::Deny,
         }
     }
@@ -211,7 +298,6 @@ impl From<&AuthzDecision> for DecisionTag {
 #[serde(tag = "kind", content = "id", rename_all = "snake_case")]
 pub enum EntityRef {
     GatewayRoute(RouteId),
-    GatewayModel(ModelId),
     McpServer(McpServerId),
     Plugin(PluginId),
     Agent(AgentId),
@@ -225,7 +311,6 @@ impl EntityRef {
     pub const fn kind(&self) -> EntityKind {
         match self {
             Self::GatewayRoute(_) => EntityKind::GatewayRoute,
-            Self::GatewayModel(_) => EntityKind::GatewayModel,
             Self::McpServer(_) => EntityKind::McpServer,
             Self::Plugin(_) => EntityKind::Plugin,
             Self::Agent(_) => EntityKind::Agent,
@@ -239,7 +324,6 @@ impl EntityRef {
     pub fn id_str(&self) -> &str {
         match self {
             Self::GatewayRoute(id) => id.as_str(),
-            Self::GatewayModel(id) => id.as_str(),
             Self::McpServer(id) => id.as_str(),
             Self::Plugin(id) => id.as_str(),
             Self::Agent(id) => id.as_str(),
@@ -248,6 +332,29 @@ impl EntityRef {
             Self::Hook(id) => id.as_str(),
         }
     }
+}
+
+impl fmt::Display for EntityRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.kind().as_str(), self.id_str())
+    }
+}
+
+/// Typed per-request context forwarded to the authz hook. The variant is
+/// the type of enforcement site that fired; downstream policy handlers
+/// pattern-match instead of poking at `serde_json::Value`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AuthzContext {
+    /// Gateway `/v1/messages` invocation — carries the model literal the
+    /// client requested (the route in `entity` already encodes routing
+    /// policy, but the literal is needed for audit and downstream rules).
+    GatewayInvocation { model: ModelId },
+    /// MCP tool call about to be dispatched.
+    McpToolCall { tool: McpToolName },
+    /// No context (RBAC server-attach checks, etc).
+    #[default]
+    None,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,9 +367,7 @@ pub struct AuthzRequest {
     pub department: String,
     pub trace_id: TraceId,
     #[serde(default)]
-    // JSON: extension hook contract — context is forwarded verbatim to webhook
-    // handlers and is intentionally schema-free at this boundary.
-    pub context: serde_json::Value,
+    pub context: AuthzContext,
     /// RFC 8693 delegation lineage forwarded from
     /// `RequestContext.auth.act_chain`. Empty when no token-exchange chain
     /// is present.
@@ -274,5 +379,5 @@ pub struct AuthzRequest {
 #[serde(tag = "decision", rename_all = "lowercase")]
 pub enum AuthzDecision {
     Allow,
-    Deny { reason: String, policy: String },
+    Deny { reason: DenyReason, policy: String },
 }

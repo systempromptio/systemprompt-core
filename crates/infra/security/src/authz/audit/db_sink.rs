@@ -29,7 +29,7 @@ impl AuthzAuditSink for DbAuditSink {
         let decision_tag = DecisionTag::from(decision);
         let reason_str = match decision {
             AuthzDecision::Allow => String::new(),
-            AuthzDecision::Deny { reason, .. } => reason.clone(),
+            AuthzDecision::Deny { reason, .. } => reason.to_string(),
         };
         let entity_type = req.entity.kind().as_str();
         let entity_id = req.entity.id_str();

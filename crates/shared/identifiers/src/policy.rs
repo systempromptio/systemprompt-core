@@ -1,6 +1,8 @@
 //! Policy version identifier.
 
 crate::define_id!(PolicyVersion);
+crate::define_id!(PolicyId);
+crate::define_id!(SecretPatternId, non_empty);
 
 impl PolicyVersion {
     pub fn unversioned() -> Self {

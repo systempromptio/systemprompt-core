@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- **Authz `Decision::Allow` is now a struct variant carrying `matched_by: MatchedBy`.** Callers pattern-matching on `Decision::Allow` (unit) must switch to `Decision::Allow { .. }`; constructors must supply a `MatchedBy` (one of `UserAllow`, `RoleAllow { role }`, `DepartmentAllow { department }`, `DefaultIncluded`, `PolicyAllow { policy_id, detail }`).
+- **`Decision::Deny.reason` is now typed `DenyReason`** (was `String`), and `Decision::Deny.justification` is gone — justification is folded into the per-variant `justification: Option<String>` field on `DenyReason::{UserDeny, RoleDeny, DepartmentDeny}`. `AuthzDecision::Deny.reason` is also `DenyReason`. The `#[error]` strings on each variant double as the audit row `reason` column (use `.to_string()`).
+- **`AuthzRequest.context` is now typed `AuthzContext`** (was `serde_json::Value`). Variants: `GatewayInvocation { model: ModelId }`, `McpToolCall { tool: McpToolName }`, `None`. Missing/null on the wire deserializes to `None`.
+- **`resolver::resolve` signature is now `resolve(input: ResolveInput<'_>) -> Decision`.** `ResolveInput` bundles `{ entity: &EntityRef, rules, user_id, user_roles, department, default_included: Option<bool> }`. `default_included: None` signals "no entity row" → `DenyReason::UnknownEntity`; `Some(false)` → `DenyReason::NotAssigned`.
+- **`EntityRef::GatewayModel` and `EntityKind::GatewayModel` removed.** Gateway authz is now single-pass on `EntityRef::GatewayRoute`; the requested model literal travels via `AuthzContext::GatewayInvocation { model }`. The earlier two-pass model+route evaluation is gone.
+- **`Decision`-bearing audit code paths must call `.to_string()` on `DenyReason`** to populate the SQL `reason` column — `DenyReason: thiserror::Error + Serialize`, but the column is plain TEXT.
+
+### Added
+
+- **`McpToolName` typed id** in `systemprompt_identifiers::mcp`. Non-empty `define_id!` wrapper for MCP protocol tool names.
+- **`PolicyId` and `SecretPatternId` typed ids** in `systemprompt_identifiers::policy`. `PolicyId` is the canonical key for governance policies; `SecretPatternId` names secret-scanner patterns.
+- **`systemprompt_security::policy` module** — shared types for the tool-use governance plane: `AgentScope { User { user_id } | System }`, `McpToolInput` (the documented inline-`serde_json::Value` boundary for schema-less MCP arguments), `PolicyContext<'a>`, `SecretLocation { kind, path }`, `RateLimitWindow { name, seconds, limit }`, `GovernancePolicy` trait, and `GovernanceChain` (first-deny-wins composer; allow-fallthrough is `MatchedBy::DefaultIncluded`).
+- **`DenyReason` tool-use variants**: `SecretLeak`, `ScopeViolation`, `ToolBlocked`, `RateLimitExceeded`, `HookUnavailable`. Lets the template's secret-scan / scope / blocklist / rate-limit chain emit the same `Decision` shape the user→entity resolver does.
+
 ## [0.11.2] - 2026-05-25
 
 ### Breaking

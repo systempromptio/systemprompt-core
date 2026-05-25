@@ -9,7 +9,8 @@ use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 use systemprompt_security::authz::{
-    AuthzBootstrapError, AuthzDecision, AuthzError, AuthzRequest, EntityRef, build_authz_hook,
+    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, DenyReason,
+    EntityRef, build_authz_hook,
 };
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -20,7 +21,7 @@ fn fixture() -> AuthzRequest {
         roles: vec!["eng".into()],
         department: "platform".into(),
         trace_id: TraceId::new("trace-1"),
-        context: serde_json::Value::Null,
+        context: AuthzContext::None,
         act_chain: Vec::new(),
     }
 }
@@ -150,8 +151,11 @@ async fn webhook_mode_with_url_yields_webhook_hook() {
     let decision = hook.evaluate(fixture()).await;
     match &decision {
         AuthzDecision::Deny { reason, policy } => {
-            assert_eq!(reason, "authz hook unreachable");
             assert_eq!(policy, "authz_hook_fault");
+            assert!(matches!(
+                reason,
+                DenyReason::HookUnavailable { policy: ref p } if p == "authz_hook_fault"
+            ));
         },
         AuthzDecision::Allow => panic!("unreachable webhook must deny, got Allow"),
     }
