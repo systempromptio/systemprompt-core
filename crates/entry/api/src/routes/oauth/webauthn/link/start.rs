@@ -24,7 +24,6 @@ pub(super) struct StartLinkUserInfo {
     pub name: String,
 }
 
-#[expect(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
 pub async fn start_link(
     Query(params): Query<StartLinkQuery>,

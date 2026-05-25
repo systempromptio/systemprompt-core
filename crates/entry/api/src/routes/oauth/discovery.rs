@@ -30,7 +30,6 @@ pub struct WellKnownResponse {
     pub claims_supported: Vec<String>,
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_well_known() -> impl IntoResponse {
     let global_config = match Config::get() {
         Ok(c) => c,
@@ -91,7 +90,6 @@ pub struct OAuthProtectedResourceResponse {
     pub resource_documentation: Option<String>,
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
     let global_config = match Config::get() {
         Ok(c) => c,

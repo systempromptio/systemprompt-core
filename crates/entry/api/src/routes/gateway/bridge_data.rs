@@ -144,7 +144,7 @@ fn build_plugin_entry(
     }))
 }
 
-pub(crate) fn collect_files(
+pub(super) fn collect_files(
     root: &Path,
     dir: &Path,
     out: &mut BTreeMap<String, PluginFile>,

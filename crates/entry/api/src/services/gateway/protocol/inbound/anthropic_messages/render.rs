@@ -76,7 +76,11 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     }
 }
 
-#[expect(clippy::unnecessary_wraps)]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "Option wrap kept so future event variants that omit a frame can return None without \
+              changing the signature"
+)]
 pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {
         CanonicalEvent::MessageStart {

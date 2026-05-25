@@ -14,7 +14,6 @@ use crate::services::gateway::protocol::inbound::InboundAdapter;
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 
-#[expect(clippy::struct_field_names)]
 #[derive(Default)]
 pub(super) struct RejectionPartial {
     pub user_id: Option<UserId>,

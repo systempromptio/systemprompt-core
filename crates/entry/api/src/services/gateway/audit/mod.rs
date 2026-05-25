@@ -40,7 +40,10 @@ pub struct GatewayRequestContext {
     pub wire_protocol: String,
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(
+    missing_debug_implementations,
+    reason = "service type holds repository clients that intentionally do not implement Debug"
+)]
 pub struct GatewayAudit {
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,

@@ -50,7 +50,11 @@ impl JwtExtractor {
             .ok_or_else(|| format!("unknown `kid` `{kid}`"))
     }
 
-    #[expect(clippy::unused_self)]
+    #[expect(
+        clippy::unused_self,
+        reason = "method is on JwtMiddleware so future caching or context can be added without \
+                  changing the API"
+    )]
     pub fn validate_token(&self, token: &str) -> Result<(), String> {
         let key = Self::decoding_key_for(token)?;
         match decode::<JwtClaims>(token, key, &Self::build_validation()) {
@@ -70,7 +74,11 @@ impl JwtExtractor {
         }
     }
 
-    #[expect(clippy::unused_self)]
+    #[expect(
+        clippy::unused_self,
+        reason = "method is on JwtMiddleware so future caching or context can be added without \
+                  changing the API"
+    )]
     pub fn extract_user_context(&self, token: &str) -> Result<JwtUserContext> {
         let key = Self::decoding_key_for(token).map_err(|e| anyhow!(e))?;
         let token_data = decode::<JwtClaims>(token, key, &Self::build_validation())?;

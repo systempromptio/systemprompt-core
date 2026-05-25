@@ -1,5 +1,3 @@
-#![allow(unused_qualifications)]
-
 use axum::Json;
 use axum::extract::Query;
 use axum::http::StatusCode;
@@ -43,7 +41,6 @@ pub struct ConsentRequest {
     pub decision: String,
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_consent_post(Json(decision): Json<ConsentRequest>) -> impl IntoResponse {
     let response = process_consent_decision(&decision);
     (StatusCode::OK, Json(response)).into_response()

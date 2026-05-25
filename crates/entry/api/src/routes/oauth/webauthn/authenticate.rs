@@ -26,7 +26,6 @@ pub struct StartAuthResponse {
     pub challenge_id: ChallengeId,
 }
 
-#[expect(unused_qualifications)]
 #[instrument(skip(state, oauth_repo, params), fields(email = %params.email))]
 pub async fn start_auth(
     Query(params): Query<StartAuthQuery>,
