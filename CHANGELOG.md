@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.2] - 2026-05-25
+
+### Breaking
+
+- **`systemprompt_mcp::MCP_PROTOCOL_VERSION` constant removed.** Use `systemprompt_mcp::mcp_protocol_version() -> String` or `systemprompt_mcp::mcp_protocol_version_str() -> &'static str`. Both resolve to `rmcp::model::ProtocolVersion::LATEST` and track the linked `rmcp` release.
+
+### Fixed
+
+- **MCP protocol-version reporting unified on `rmcp::model::ProtocolVersion::LATEST`** (currently `2025-11-25`). `McpDeploymentProvider::protocol_version` and the `supported_protocols` field of the `systemprompt:mcp-tools` agent extension previously returned a hardcoded `2024-11-05`, while `McpServiceProvider::protocol_version` already used the SDK value.
+
 ## [0.11.1] - 2026-05-22
 
 Hardening pass on the 0.11.0 governance-audit path: the `governance_decisions.actor_kind` CHECK is re-aligned with `ActorKind`, the audit insert is typed at the Rust boundary so the next enum/constraint drift fails at `cargo check`, and a Prometheus counter surfaces write failures. The `web validate` and `web sitemap show` CLI commands also recover from two long-standing configuration-shape mismatches that produced false warnings and missed sitemap routes. CLI startup latency on cloud-touching commands is reduced by caching `/api/v1/auth/me` validation on disk, and the interactive session banner is now silent on local profiles at default verbosity. Several CLI ergonomics bugs uncovered by a 293-leaf command sweep are fixed: `plugins mcp call` surfaces the MCP server's real error and exits non-zero on failure, `admin agents task` no longer silently picks up a stale `SYSTEMPROMPT_TOKEN`, `core content show` disambiguates slug lookups, and `web validate` no longer fails the exit code on warnings.

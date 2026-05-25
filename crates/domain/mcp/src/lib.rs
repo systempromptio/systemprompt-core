@@ -52,8 +52,6 @@ pub use extension::McpExtension;
 pub use error::{McpDomainError, McpDomainResult};
 pub use rmcp::ErrorData as McpError;
 
-pub const MCP_PROTOCOL_VERSION: &str = "2024-11-05";
-
 pub type McpResult<T> = Result<T, McpError>;
 
 pub use capabilities::{
@@ -93,6 +91,11 @@ pub use systemprompt_models::mcp::{
 
 pub fn mcp_protocol_version() -> String {
     ProtocolVersion::LATEST.to_string()
+}
+
+pub fn mcp_protocol_version_str() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION.get_or_init(mcp_protocol_version).as_str()
 }
 
 pub mod registry {

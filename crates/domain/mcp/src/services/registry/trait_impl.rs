@@ -110,7 +110,7 @@ impl McpDeploymentProvider for McpDeploymentProviderImpl {
     }
 
     fn protocol_version(&self) -> &'static str {
-        crate::MCP_PROTOCOL_VERSION
+        crate::mcp_protocol_version_str()
     }
 }
 

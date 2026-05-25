@@ -3,12 +3,11 @@ use systemprompt_traits::{
 };
 
 use super::registry::McpServerRegistry;
-use crate::mcp_protocol_version;
+use crate::mcp_protocol_version_str;
 
 impl McpServiceProvider for McpServerRegistry {
     fn protocol_version(&self) -> &str {
-        static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-        VERSION.get_or_init(mcp_protocol_version)
+        mcp_protocol_version_str()
     }
 
     fn find_server(&self, name: &str) -> McpServiceResult<Option<McpServerMetadata>> {
