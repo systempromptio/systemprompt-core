@@ -8,7 +8,7 @@ use super::DeleteArgs;
 use crate::cli_settings::CliConfig;
 use crate::shared::{CommandResult, SuccessOutput};
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<SuccessOutput>> {

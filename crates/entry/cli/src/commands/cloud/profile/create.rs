@@ -20,7 +20,7 @@ use crate::cli_settings::CliConfig;
 
 pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
 
-pub(crate) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
     let name = &args.name;
     CliService::section(&format!("Create Profile: {}", name));
 

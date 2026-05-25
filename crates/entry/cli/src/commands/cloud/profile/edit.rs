@@ -13,7 +13,7 @@ use super::templates::save_profile;
 use crate::cli_settings::CliConfig;
 use crate::shared::resolve_profile_path;
 
-pub(crate) fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
     let profile_path = resolve_profile_path(args.name.as_deref(), None)?;
     let profile_dir = profile_path
         .parent()

@@ -30,7 +30,7 @@ pub fn get_credentials() -> Result<CloudCredentials> {
     }
 }
 
-pub(crate) fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
+pub(super) fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
     let options: Vec<String> = tenants
         .iter()
         .map(|t| {

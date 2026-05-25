@@ -10,7 +10,7 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::LogoutOutput;
 use crate::shared::CommandResult;
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: LogoutArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<LogoutOutput>> {

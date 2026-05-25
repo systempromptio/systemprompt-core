@@ -3,7 +3,7 @@ use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
 
-pub(crate) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
+pub(super) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
     let local_count = store
         .tenants
         .iter()
@@ -54,7 +54,7 @@ pub(crate) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
     }
 }
 
-pub(crate) fn get_tenants_by_type(
+pub(super) fn get_tenants_by_type(
     store: &TenantStore,
     tenant_type: TenantType,
 ) -> Vec<StoredTenant> {
@@ -66,7 +66,7 @@ pub(crate) fn get_tenants_by_type(
         .collect()
 }
 
-pub(crate) fn select_tenant(tenants: &[StoredTenant]) -> Result<StoredTenant> {
+pub(super) fn select_tenant(tenants: &[StoredTenant]) -> Result<StoredTenant> {
     if tenants.is_empty() {
         bail!("No eligible tenants found.");
     }

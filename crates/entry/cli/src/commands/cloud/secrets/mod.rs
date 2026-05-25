@@ -7,7 +7,7 @@ use clap::Subcommand;
 use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
 
-pub(crate) use helpers::{load_secrets_json, map_secrets_to_env_vars, sync_cloud_credentials};
+pub(super) use helpers::{load_secrets_json, map_secrets_to_env_vars, sync_cloud_credentials};
 
 #[derive(Debug, Subcommand)]
 pub enum SecretsCommands {
@@ -30,7 +30,7 @@ pub enum SecretsCommands {
     Cleanup,
 }
 
-pub(crate) async fn execute(cmd: SecretsCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: SecretsCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         SecretsCommands::Sync => {
             let result = commands::sync_secrets(config).await?;
