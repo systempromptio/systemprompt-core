@@ -12,7 +12,8 @@ use systemprompt_models::secrets::Secrets;
 
 use systemprompt_models::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
-use super::{SecretsBootstrapError, handle_load_error};
+use super::SecretsBootstrapError;
+use super::io::handle_load_error;
 use crate::bootstrap::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
