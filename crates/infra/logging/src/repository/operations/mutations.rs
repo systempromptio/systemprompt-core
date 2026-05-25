@@ -4,7 +4,10 @@ use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId};
 
 use crate::models::{LogEntry, LoggingError};
 
-pub(in crate::repository) async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingError> {
+pub(in crate::repository) async fn create_log(
+    pool: &PgPool,
+    entry: &LogEntry,
+) -> Result<(), LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -80,7 +83,10 @@ pub(in crate::repository) async fn update_log(
     Ok(result.rows_affected() > 0)
 }
 
-pub(in crate::repository) async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError> {
+pub(in crate::repository) async fn delete_log(
+    pool: &PgPool,
+    id: &LogId,
+) -> Result<bool, LoggingError> {
     let id_str = id.as_str();
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id_str)

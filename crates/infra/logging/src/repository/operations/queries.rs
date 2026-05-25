@@ -53,7 +53,10 @@ fn row_to_entry(r: LogRow) -> LogEntry {
     }
 }
 
-pub(in crate::repository) async fn get_log(pool: &PgPool, id: &LogId) -> Result<Option<LogEntry>, LoggingError> {
+pub(in crate::repository) async fn get_log(
+    pool: &PgPool,
+    id: &LogId,
+) -> Result<Option<LogEntry>, LoggingError> {
     let id_str = id.as_str();
 
     let row = sqlx::query_as!(
@@ -78,7 +81,10 @@ pub(in crate::repository) async fn get_log(pool: &PgPool, id: &LogId) -> Result<
     Ok(row.map(row_to_entry))
 }
 
-pub(in crate::repository) async fn list_logs(pool: &PgPool, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
+pub(in crate::repository) async fn list_logs(
+    pool: &PgPool,
+    limit: i64,
+) -> Result<Vec<LogEntry>, LoggingError> {
     let rows = sqlx::query_as!(
         LogRow,
         r#"
