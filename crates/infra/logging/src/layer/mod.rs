@@ -1,5 +1,5 @@
 mod proxy;
-pub(crate) mod visitor;
+mod visitor;
 
 use std::io::Write;
 use std::time::Duration;

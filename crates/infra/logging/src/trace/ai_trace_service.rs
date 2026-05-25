@@ -9,7 +9,7 @@ use super::models::{
 };
 use crate::models::LoggingError;
 
-pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
+pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 
 #[derive(Debug, Clone)]
 pub struct AiTraceService {
