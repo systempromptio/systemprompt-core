@@ -19,7 +19,7 @@ pub struct CoreArgs {
     pub offline: bool,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: CoreArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<CoreBuildOutput>> {
@@ -57,9 +57,9 @@ pub(crate) fn execute(
     }
 
     let output = CoreBuildOutput {
-        target: "workspace".to_string(),
-        mode: mode.to_string(),
-        status: "success".to_string(),
+        target: "workspace".to_owned(),
+        mode: mode.to_owned(),
+        status: "success".to_owned(),
         duration_secs: Some(duration),
     };
 

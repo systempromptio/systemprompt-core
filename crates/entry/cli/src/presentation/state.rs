@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use systemprompt_traits::{Phase, ServiceInfo, ServiceState, ServiceType};
 
 #[derive(Debug)]
-pub(crate) struct RenderState {
+pub(super) struct RenderState {
     pub current_phase: Option<Phase>,
     pub spinners: HashMap<String, ProgressBar>,
     pub services: Vec<ServiceInfo>,
@@ -14,7 +14,7 @@ pub(crate) struct RenderState {
 }
 
 impl RenderState {
-    pub(crate) fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             current_phase: None,
             spinners: HashMap::new(),
@@ -26,7 +26,7 @@ impl RenderState {
         }
     }
 
-    pub(crate) fn add_service(&mut self, info: ServiceInfo) {
+    pub(super) fn add_service(&mut self, info: ServiceInfo) {
         match info.service_type {
             ServiceType::Mcp => {
                 if matches!(info.state, ServiceState::Running) {
@@ -43,7 +43,7 @@ impl RenderState {
         self.services.push(info);
     }
 
-    pub(crate) fn finish_all_spinners(&mut self) {
+    pub(super) fn finish_all_spinners(&mut self) {
         for (_, spinner) in self.spinners.drain() {
             spinner.finish_and_clear();
         }
