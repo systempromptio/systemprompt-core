@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 use systemprompt_models::{ComponentFilter, ComponentSource, PluginConfig, strip_frontmatter};
 
-pub(crate) fn generate_skills(
+pub(super) fn generate_skills(
     plugin: &PluginConfig,
     skills_path: &Path,
     output_dir: &Path,

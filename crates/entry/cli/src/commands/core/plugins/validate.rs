@@ -13,7 +13,7 @@ pub struct ValidateArgs {
     pub id: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<PluginValidateAllOutput>> {

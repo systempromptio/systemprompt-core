@@ -28,7 +28,7 @@ pub struct UnlinkArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: UnlinkArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentUnlinkOutput>> {

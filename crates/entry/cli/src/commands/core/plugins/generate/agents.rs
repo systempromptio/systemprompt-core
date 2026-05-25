@@ -4,7 +4,7 @@ use systemprompt_models::{ComponentSource, PluginConfig};
 
 use super::DEFAULT_AGENT_TOOLS;
 
-pub(crate) fn generate_agents(
+pub(super) fn generate_agents(
     plugin: &PluginConfig,
     services_path: &Path,
     output_dir: &Path,

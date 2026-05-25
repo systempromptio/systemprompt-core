@@ -11,7 +11,7 @@ use super::types::{HookEntry, HookListOutput};
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(crate) fn execute(
+pub(super) fn execute(
     _args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<HookListOutput>> {

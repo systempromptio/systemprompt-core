@@ -16,7 +16,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<PluginListOutput>> {

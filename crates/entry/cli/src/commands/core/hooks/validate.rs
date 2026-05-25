@@ -13,7 +13,7 @@ const PLUGIN_ROOT_VAR: &str = "${CLAUDE_PLUGIN_ROOT}";
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs;
 
-pub(crate) fn execute(
+pub(super) fn execute(
     _args: ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<HookValidateOutput>> {

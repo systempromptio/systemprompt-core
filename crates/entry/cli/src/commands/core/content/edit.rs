@@ -39,7 +39,7 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: EditArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<UpdateOutput>> {
@@ -47,7 +47,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: EditArgs,
     pool: &DbPool,
     config: &CliConfig,

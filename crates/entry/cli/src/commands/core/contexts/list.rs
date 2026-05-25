@@ -30,7 +30,7 @@ struct ContextRow {
     active: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     _args: ListArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextListOutput>> {
@@ -39,7 +39,7 @@ pub(crate) async fn execute(
     execute_with_pool(&session_ctx.session, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,
     config: &CliConfig,

@@ -18,7 +18,7 @@ pub struct UseArgs {
     pub context: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: UseArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextSwitchedOutput>> {

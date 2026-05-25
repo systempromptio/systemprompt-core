@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub file: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {

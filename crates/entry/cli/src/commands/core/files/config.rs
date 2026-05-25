@@ -9,7 +9,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ConfigArgs;
 
-pub(crate) fn execute(
+pub(super) fn execute(
     _args: ConfigArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileConfigOutput>> {

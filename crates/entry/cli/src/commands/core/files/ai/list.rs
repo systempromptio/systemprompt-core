@@ -20,7 +20,7 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesListOutput>> {

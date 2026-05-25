@@ -26,7 +26,7 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ArtifactSummary>> {
@@ -35,7 +35,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     config: &CliConfig,
