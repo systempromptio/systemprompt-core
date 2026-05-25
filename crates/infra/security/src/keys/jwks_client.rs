@@ -22,6 +22,11 @@ pub const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
 pub const MIN_CACHE_TTL: Duration = Duration::from_secs(30);
 pub const MAX_CACHE_TTL: Duration = Duration::from_secs(3600);
 pub const DEFAULT_CACHE_CAPACITY: usize = 32;
+/// Minimum interval between unknown-`kid`-triggered JWKS refetches for a
+/// single issuer. Caps the DoS amplification when an attacker spams tokens
+/// with random `kid` headers; legitimate rotations are still picked up
+/// after at most this delay (well under any sane rotation window).
+pub const DEFAULT_MIN_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 const WELLKNOWN_JWKS_PATH: &str = "/.well-known/jwks.json";
 
 #[derive(Debug, thiserror::Error)]
@@ -54,16 +59,26 @@ pub enum JwksClientError {
     KeyNotFound { issuer: String, kid: String },
 }
 
+enum CacheProbe {
+    Hit(Jwk),
+    Miss,
+    Expired,
+    KidMissRefetchAllowed,
+    KidMissRecentlyFetched,
+}
+
 #[derive(Clone)]
 struct CachedJwks {
     jwks: Jwks,
     expires_at: Instant,
+    last_fetched_at: Instant,
 }
 
 pub struct JwksClient {
     http: Client,
     allowed_hosts: Vec<String>,
     cache: Mutex<LruCache<String, CachedJwks>>,
+    min_refresh_interval: Duration,
 }
 
 impl std::fmt::Debug for JwksClient {
@@ -85,6 +100,7 @@ impl JwksClient {
             http: Client::new(),
             allowed_hosts,
             cache: Mutex::new(LruCache::new(cap)),
+            min_refresh_interval: DEFAULT_MIN_REFRESH_INTERVAL,
         }
     }
 
@@ -93,29 +109,29 @@ impl JwksClient {
         self
     }
 
+    /// Override the per-issuer minimum interval between unknown-`kid`
+    /// refetches. Set to `Duration::ZERO` to disable the DoS guard (tests
+    /// only — production callers should keep the default).
+    #[must_use]
+    pub const fn with_min_refresh_interval(mut self, interval: Duration) -> Self {
+        self.min_refresh_interval = interval;
+        self
+    }
+
     pub async fn fetch(&self, issuer: &str, kid: &str) -> Result<Jwk, JwksClientError> {
-        if let Some(jwk) = self.lookup_cached(issuer, kid) {
-            return Ok(jwk);
+        match self.lookup(issuer, kid) {
+            CacheProbe::Hit(jwk) => return Ok(jwk),
+            CacheProbe::KidMissRecentlyFetched => {
+                return Err(JwksClientError::KeyNotFound {
+                    issuer: issuer.to_string(),
+                    kid: kid.to_string(),
+                });
+            }
+            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {}
         }
 
         let url = self.build_jwks_url(issuer)?;
-        let (jwks, ttl) = self.fetch_remote(&url).await?;
-
-        let cached = CachedJwks {
-            jwks: jwks.clone(),
-            expires_at: Instant::now() + ttl,
-        };
-        if let Ok(mut guard) = self.cache.lock() {
-            guard.put(issuer.to_string(), cached);
-        }
-
-        jwks.keys
-            .into_iter()
-            .find(|k| k.kid == kid)
-            .ok_or_else(|| JwksClientError::KeyNotFound {
-                issuer: issuer.to_string(),
-                kid: kid.to_string(),
-            })
+        self.fetch_and_resolve(issuer, &url, kid).await
     }
 
     /// Same as [`Self::fetch`], but takes an explicit JWKS URI (as configured
@@ -129,16 +145,33 @@ impl JwksClient {
         jwks_uri: &str,
         kid: &str,
     ) -> Result<Jwk, JwksClientError> {
-        if let Some(jwk) = self.lookup_cached(issuer, kid) {
-            return Ok(jwk);
+        match self.lookup(issuer, kid) {
+            CacheProbe::Hit(jwk) => return Ok(jwk),
+            CacheProbe::KidMissRecentlyFetched => {
+                return Err(JwksClientError::KeyNotFound {
+                    issuer: issuer.to_string(),
+                    kid: kid.to_string(),
+                });
+            }
+            CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {}
         }
 
         let url = self.validate_uri(jwks_uri)?;
-        let (jwks, ttl) = self.fetch_remote(&url).await?;
+        self.fetch_and_resolve(issuer, &url, kid).await
+    }
 
+    async fn fetch_and_resolve(
+        &self,
+        issuer: &str,
+        url: &Url,
+        kid: &str,
+    ) -> Result<Jwk, JwksClientError> {
+        let (jwks, ttl) = self.fetch_remote(url).await?;
+        let now = Instant::now();
         let cached = CachedJwks {
             jwks: jwks.clone(),
-            expires_at: Instant::now() + ttl,
+            expires_at: now + ttl,
+            last_fetched_at: now,
         };
         if let Ok(mut guard) = self.cache.lock() {
             guard.put(issuer.to_string(), cached);
@@ -153,16 +186,26 @@ impl JwksClient {
             })
     }
 
-    fn lookup_cached(&self, issuer: &str, kid: &str) -> Option<Jwk> {
-        let mut guard = self.cache.lock().ok()?;
-        let entry = guard.get(issuer)?;
-        if entry.expires_at <= Instant::now() {
+    fn lookup(&self, issuer: &str, kid: &str) -> CacheProbe {
+        let Ok(mut guard) = self.cache.lock() else {
+            return CacheProbe::Miss;
+        };
+        let Some(entry) = guard.get(issuer) else {
+            return CacheProbe::Miss;
+        };
+        let now = Instant::now();
+        if entry.expires_at <= now {
             guard.pop(issuer);
-            return None;
+            return CacheProbe::Expired;
         }
-        let found = entry.jwks.keys.iter().find(|k| k.kid == kid).cloned();
-        drop(guard);
-        found
+        if let Some(jwk) = entry.jwks.keys.iter().find(|k| k.kid == kid).cloned() {
+            return CacheProbe::Hit(jwk);
+        }
+        if now.duration_since(entry.last_fetched_at) < self.min_refresh_interval {
+            CacheProbe::KidMissRecentlyFetched
+        } else {
+            CacheProbe::KidMissRefetchAllowed
+        }
     }
 
     fn build_jwks_url(&self, issuer: &str) -> Result<Url, JwksClientError> {
