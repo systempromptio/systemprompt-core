@@ -1,4 +1,4 @@
-pub(crate) mod api;
+pub mod api;
 mod context;
 mod creation;
 mod resolution;

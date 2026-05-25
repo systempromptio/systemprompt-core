@@ -60,12 +60,12 @@ pub(super) async fn get_or_create_admin(
         tracing::info!(email = %email, context = %context_type, "Promoting existing user to admin");
 
         return user_service
-            .assign_roles(&user.id, &["admin".to_string()])
+            .assign_roles(&user.id, &["admin".to_owned()])
             .await
             .context("Failed to assign admin role to existing user");
     }
 
-    let name = email.split('@').next().unwrap_or("admin").to_string();
+    let name = email.split('@').next().unwrap_or("admin").to_owned();
 
     tracing::info!(email = %email, name = %name, context = %context_type, "Auto-provisioning user");
 
@@ -75,7 +75,7 @@ pub(super) async fn get_or_create_admin(
         .with_context(|| format!("Failed to create user in {} database", context_type))?;
 
     user_service
-        .assign_roles(&user.id, &["admin".to_string()])
+        .assign_roles(&user.id, &["admin".to_owned()])
         .await
         .context("Failed to assign admin role to new user")
 }
@@ -94,7 +94,7 @@ pub(super) fn generate_admin_token(
             duration: ChronoDuration::hours(24),
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
-            roles: vec!["admin".to_string()],
+            roles: vec!["admin".to_owned()],
             department: None,
             rate_limit_tier: RateLimitTier::Admin,
         })
@@ -152,11 +152,11 @@ pub(super) async fn resolve_local_user_email(
     session_email_hint: Option<&str>,
 ) -> Result<String> {
     if let Some(email) = session_email_hint {
-        return Ok(email.to_string());
+        return Ok(email.to_owned());
     }
 
     if profile.is_local_trial() {
-        return Ok("admin@localhost.dev".to_string());
+        return Ok("admin@localhost.dev".to_owned());
     }
 
     CredentialsBootstrap::try_init()

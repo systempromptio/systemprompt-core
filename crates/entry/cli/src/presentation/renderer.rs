@@ -10,20 +10,21 @@ use systemprompt_logging::services::cli::BrandColors;
 
 use super::widgets::{CompletionMessage, ServiceTable, StartupBanner, render_warning};
 
-pub(crate) struct StartupRenderer {
+#[derive(Debug)]
+pub struct StartupRenderer {
     receiver: StartupEventReceiver,
     state: RenderState,
 }
 
 impl StartupRenderer {
-    pub(crate) fn new(receiver: StartupEventReceiver) -> Self {
+    pub fn new(receiver: StartupEventReceiver) -> Self {
         Self {
             receiver,
             state: RenderState::new(),
         }
     }
 
-    pub(crate) async fn run(mut self) {
+    pub async fn run(mut self) {
         StartupBanner::render(Some("Starting services..."));
 
         while let Some(event) = self.receiver.next().await {
@@ -163,7 +164,7 @@ impl StartupRenderer {
             },
             StartupEvent::SchedulerInitializing => {
                 let spinner = Self::create_phase_spinner("Scheduler");
-                self.state.spinners.insert("scheduler".to_string(), spinner);
+                self.state.spinners.insert("scheduler".to_owned(), spinner);
             },
             StartupEvent::SchedulerReady { job_count } => {
                 if let Some(spinner) = self.state.spinners.remove("scheduler") {

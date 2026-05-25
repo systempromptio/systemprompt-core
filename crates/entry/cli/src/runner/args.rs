@@ -5,7 +5,7 @@ use crate::commands::{admin, analytics, build, cloud, core, infrastructure, plug
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
 #[derive(Debug, clap::Args)]
-struct VerbosityOpts {
+pub(super) struct VerbosityOpts {
     #[arg(
         long,
         short = 'v',
@@ -30,7 +30,7 @@ struct VerbosityOpts {
 }
 
 #[derive(Debug, clap::Args)]
-struct OutputOpts {
+pub(super) struct OutputOpts {
     #[arg(long, global = true, hide = true, help = "JSON output")]
     pub json: bool,
 
@@ -45,7 +45,7 @@ struct OutputOpts {
 }
 
 #[derive(Debug, clap::Args)]
-pub(crate) struct DisplayOpts {
+pub(super) struct DisplayOpts {
     #[arg(long, global = true, hide = true, help = "Disable colors")]
     pub no_color: bool,
 
@@ -54,7 +54,7 @@ pub(crate) struct DisplayOpts {
 }
 
 #[derive(Debug, clap::Args)]
-pub(crate) struct DatabaseOpts {
+pub(super) struct DatabaseOpts {
     #[arg(
         long,
         global = true,
@@ -65,7 +65,7 @@ pub(crate) struct DatabaseOpts {
 }
 
 #[derive(Debug, clap::Args)]
-struct ProfileOpts {
+pub(super) struct ProfileOpts {
     #[arg(
         long,
         global = true,
@@ -96,7 +96,7 @@ GLOBAL OPTIONS (apply to all commands):
       --non-interactive Non-interactive mode
       --database-url    Direct database URL (bypasses profile)
       --profile         Profile name to use (overrides active session)")]
-pub(crate) struct Cli {
+pub(super) struct Cli {
     #[command(flatten)]
     pub verbosity: VerbosityOpts,
 
@@ -117,7 +117,7 @@ pub(crate) struct Cli {
 }
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
+pub(super) enum Commands {
     #[command(
         subcommand,
         about = "Core operations: skills, content, files, contexts"
@@ -182,7 +182,7 @@ impl DescribeCommand for Commands {
     }
 }
 
-pub(crate) fn build_cli_config(cli: &Cli) -> CliConfig {
+pub(super) fn build_cli_config(cli: &Cli) -> CliConfig {
     let mut cfg = CliConfig::new();
 
     if cli.verbosity.debug {
@@ -212,33 +212,33 @@ pub(crate) fn build_cli_config(cli: &Cli) -> CliConfig {
     cfg
 }
 
-pub(crate) fn reconstruct_args(cli: &Cli) -> Vec<String> {
+pub(super) fn reconstruct_args(cli: &Cli) -> Vec<String> {
     let mut args = Vec::new();
 
     if cli.verbosity.debug {
-        args.push("--debug".to_string());
+        args.push("--debug".to_owned());
     } else if cli.verbosity.verbose {
-        args.push("--verbose".to_string());
+        args.push("--verbose".to_owned());
     } else if cli.verbosity.quiet {
-        args.push("--quiet".to_string());
+        args.push("--quiet".to_owned());
     }
 
     if cli.output.json {
-        args.push("--json".to_string());
+        args.push("--json".to_owned());
     } else if cli.output.yaml {
-        args.push("--yaml".to_string());
+        args.push("--yaml".to_owned());
     }
 
     if cli.display.no_color {
-        args.push("--no-color".to_string());
+        args.push("--no-color".to_owned());
     }
 
     if cli.display.non_interactive {
-        args.push("--non-interactive".to_string());
+        args.push("--non-interactive".to_owned());
     }
 
     if let Some(ref profile) = cli.profile_opts.profile {
-        args.push("--profile".to_string());
+        args.push("--profile".to_owned());
         args.push(profile.clone());
     }
 

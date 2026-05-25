@@ -5,22 +5,22 @@ use systemprompt_logging::services::cli::{
 };
 use systemprompt_traits::{ServiceInfo, ServiceState};
 
-pub(crate) struct StartupBanner;
+pub(super) struct StartupBanner;
 
 impl StartupBanner {
-    pub(crate) fn render(subtitle: Option<&str>) {
+    pub(super) fn render(subtitle: Option<&str>) {
         render_startup_banner(subtitle);
     }
 }
 
-pub(crate) fn render_warning(message: &str) {
+pub(super) fn render_warning(message: &str) {
     render_phase_warning(message, None);
 }
 
-pub(crate) struct ServiceTable;
+pub(super) struct ServiceTable;
 
 impl ServiceTable {
-    pub(crate) fn render(title: &str, services: &[ServiceInfo]) {
+    pub(super) fn render(title: &str, services: &[ServiceInfo]) {
         let entries: Vec<ServiceTableEntry> = services
             .iter()
             .map(|s| {
@@ -38,14 +38,14 @@ impl ServiceTable {
     }
 }
 
-pub(crate) struct CompletionMessage;
+pub(super) struct CompletionMessage;
 
 impl CompletionMessage {
-    pub(crate) fn render_success(duration: Duration, api_url: &str) {
+    pub(super) fn render_success(duration: Duration, api_url: &str) {
         render_startup_complete(duration, api_url);
     }
 
-    pub(crate) fn render_failure(duration: Duration, error: &str) {
+    pub(super) fn render_failure(duration: Duration, error: &str) {
         systemprompt_logging::CliService::info("");
         systemprompt_logging::CliService::info(&format!(
             "{} {} {}",

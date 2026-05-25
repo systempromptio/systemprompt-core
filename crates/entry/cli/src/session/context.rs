@@ -27,7 +27,7 @@ impl CliSessionContext {
             self.session.session_id.clone(),
             TraceId::generate(),
             self.session.context_id.clone(),
-            AgentName::new(agent_name.to_string()),
+            AgentName::new(agent_name.to_owned()),
         )
         .with_actor(systemprompt_identifiers::Actor::user(
             self.session.user_id.clone(),

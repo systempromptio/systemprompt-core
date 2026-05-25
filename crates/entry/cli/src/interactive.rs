@@ -135,12 +135,12 @@ pub fn prompt_input_with_default(
     config: &CliConfig,
 ) -> Result<String> {
     if !config.is_interactive() {
-        return Ok(default.to_string());
+        return Ok(default.to_owned());
     }
 
     let input = dialoguer::Input::<String>::with_theme(&ColorfulTheme::default())
         .with_prompt(prompt)
-        .default(default.to_string())
+        .default(default.to_owned())
         .interact_text()?;
 
     Ok(input)
