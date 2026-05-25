@@ -5,7 +5,7 @@ use tabled::settings::Style;
 
 use super::ai_display::{ArtifactRow, print_content_block, print_section, truncate};
 
-pub(crate) fn print_artifacts(artifacts: &[TaskArtifact]) {
+pub(super) fn print_artifacts(artifacts: &[TaskArtifact]) {
     if artifacts.is_empty() {
         return;
     }
@@ -23,10 +23,7 @@ pub(crate) fn print_artifacts(artifacts: &[TaskArtifact]) {
                     .as_ref()
                     .map_or_else(|| "-".to_owned(), |s| truncate(s, 30)),
                 source: artifact.source.clone().unwrap_or_else(|| "-".to_owned()),
-                tool_name: artifact
-                    .tool_name
-                    .clone()
-                    .unwrap_or_else(|| "-".to_owned()),
+                tool_name: artifact.tool_name.clone().unwrap_or_else(|| "-".to_owned()),
             });
         }
     }

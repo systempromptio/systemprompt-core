@@ -33,7 +33,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(crate) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
     let cutoff_duration = match (&args.older_than, args.keep_last_days) {
         (Some(duration_str), None) => parse_duration(duration_str)?,
         (None, Some(days)) => chrono::Duration::days(days),

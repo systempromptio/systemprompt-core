@@ -168,7 +168,8 @@ impl ServiceStateVerifier {
                 .unwrap_or_else(|| {
                     tracing::warn!("Service record missing name field");
                     ""
-                }).to_owned();
+                })
+                .to_owned();
             let service_type = row
                 .get("service_type")
                 .and_then(|v| v.as_str())
@@ -182,7 +183,8 @@ impl ServiceStateVerifier {
                 .unwrap_or_else(|| {
                     tracing::warn!(service_name = %name, "Service record missing status field");
                     "stopped"
-                }).to_owned();
+                })
+                .to_owned();
             let pid = row.get("pid").and_then(serde_json::Value::as_i64);
             let port = row
                 .get("port")

@@ -16,7 +16,7 @@ pub struct LogCleanupArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOutput>> {
+pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
     let write_pool = ctx.db_pool().write_pool_arc()?;
     let repo = CleanupRepository::new_with_write_pool((*write_pool).clone());

@@ -8,12 +8,12 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 
 use super::super::dockerfile::validate_profile_dockerfile;
-pub(crate) use super::super::secrets::sync_cloud_credentials;
+pub(super) use super::super::secrets::sync_cloud_credentials;
 use super::super::tenant::{find_services_config, get_credentials};
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
 
-pub(crate) async fn deploy_with_secrets(
+pub(in crate::commands::cloud) async fn deploy_with_secrets(
     client: &CloudApiClient,
     tenant_id: &TenantId,
     profile_name: &str,

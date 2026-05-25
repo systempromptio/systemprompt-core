@@ -41,7 +41,7 @@ pub struct ListArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct RequestListRowOutput {
+pub(super) struct RequestListRowOutput {
     pub id: AiRequestId,
     pub user_id: UserId,
     pub provider: String,
@@ -57,12 +57,12 @@ pub(crate) struct RequestListRowOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct RequestListOutput {
+pub(super) struct RequestListOutput {
     pub total: i64,
     pub requests: Vec<RequestListRowOutput>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<RequestListOutput>> {
@@ -71,7 +71,7 @@ pub(crate) async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

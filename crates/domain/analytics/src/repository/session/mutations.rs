@@ -5,7 +5,7 @@ use systemprompt_identifiers::{SessionId, UserId};
 
 use super::types::CreateSessionParams;
 
-pub(crate) async fn update_activity(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn update_activity(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -21,7 +21,7 @@ pub(crate) async fn update_activity(pool: &PgPool, session_id: &SessionId) -> Re
     Ok(())
 }
 
-pub(crate) async fn increment_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn increment_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -38,7 +38,7 @@ pub(crate) async fn increment_request_count(pool: &PgPool, session_id: &SessionI
     Ok(())
 }
 
-pub(crate) async fn increment_task_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn increment_task_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET task_count = task_count + 1, last_activity_at = \
@@ -50,7 +50,10 @@ pub(crate) async fn increment_task_count(pool: &PgPool, session_id: &SessionId) 
     Ok(())
 }
 
-pub(crate) async fn increment_ai_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn increment_ai_request_count(
+    pool: &PgPool,
+    session_id: &SessionId,
+) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET ai_request_count = ai_request_count + 1, last_activity_at = \
@@ -62,7 +65,7 @@ pub(crate) async fn increment_ai_request_count(pool: &PgPool, session_id: &Sessi
     Ok(())
 }
 
-pub(crate) async fn increment_message_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn increment_message_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET message_count = message_count + 1, last_activity_at = \
@@ -74,7 +77,7 @@ pub(crate) async fn increment_message_count(pool: &PgPool, session_id: &SessionI
     Ok(())
 }
 
-pub(crate) async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -90,7 +93,7 @@ pub(crate) async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result
     Ok(())
 }
 
-pub(crate) async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET is_scanner = true WHERE session_id = $1",
@@ -101,7 +104,7 @@ pub(crate) async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Re
     Ok(())
 }
 
-pub(crate) async fn revoke_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn revoke_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE session_id = $1 AND \
@@ -113,7 +116,7 @@ pub(crate) async fn revoke_session(pool: &PgPool, session_id: &SessionId) -> Res
     Ok(())
 }
 
-pub(crate) async fn revoke_all_for_user(pool: &PgPool, user_id: &UserId) -> Result<u64> {
+pub(super) async fn revoke_all_for_user(pool: &PgPool, user_id: &UserId) -> Result<u64> {
     let uid = user_id.as_str();
     let result = sqlx::query!(
         "UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND \
@@ -125,7 +128,7 @@ pub(crate) async fn revoke_all_for_user(pool: &PgPool, user_id: &UserId) -> Resu
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn mark_converted(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(super) async fn mark_converted(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET converted_at = CURRENT_TIMESTAMP WHERE session_id = $1 AND \
@@ -137,7 +140,7 @@ pub(crate) async fn mark_converted(pool: &PgPool, session_id: &SessionId) -> Res
     Ok(())
 }
 
-pub(crate) async fn cleanup_inactive(pool: &PgPool, inactive_hours: i32) -> Result<u64> {
+pub(super) async fn cleanup_inactive(pool: &PgPool, inactive_hours: i32) -> Result<u64> {
     let cutoff = Utc::now() - Duration::hours(i64::from(inactive_hours));
     let result = sqlx::query!(
         r#"
@@ -152,7 +155,7 @@ pub(crate) async fn cleanup_inactive(pool: &PgPool, inactive_hours: i32) -> Resu
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn migrate_user_sessions(
+pub(super) async fn migrate_user_sessions(
     pool: &PgPool,
     old_user_id: &UserId,
     new_user_id: &UserId,
@@ -169,7 +172,7 @@ pub(crate) async fn migrate_user_sessions(
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
+pub(super) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
     let session_id = params.session_id.as_str();
     let user_id = params.user_id.map(UserId::as_str);
     let session_source = params.session_source.as_str();
@@ -219,7 +222,7 @@ pub(crate) async fn create_session(pool: &PgPool, params: &CreateSessionParams<'
     Ok(())
 }
 
-pub(crate) async fn increment_ai_usage(
+pub(super) async fn increment_ai_usage(
     pool: &PgPool,
     session_id: &SessionId,
     tokens: i32,
@@ -244,7 +247,7 @@ pub(crate) async fn increment_ai_usage(
     Ok(())
 }
 
-pub(crate) async fn escalate_throttle(
+pub(super) async fn escalate_throttle(
     pool: &PgPool,
     session_id: &SessionId,
     new_level: i32,

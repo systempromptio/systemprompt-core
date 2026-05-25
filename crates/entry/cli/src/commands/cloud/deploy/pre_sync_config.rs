@@ -9,7 +9,7 @@ use crate::cli_settings::CliConfig;
 use crate::commands::cloud::tenant::get_credentials;
 use crate::shared::project::ProjectRoot;
 
-pub(crate) async fn build_sync_config(
+pub(super) async fn build_sync_config(
     tenant_id: &TenantId,
     dry_run: bool,
     _yes: bool,

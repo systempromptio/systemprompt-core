@@ -30,7 +30,7 @@ pub enum RoleCommands {
     Demote(demote::DemoteArgs),
 }
 
-pub(crate) async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         RoleCommands::Assign(args) => {
             let result = assign::execute(args, config).await?;
@@ -50,6 +50,10 @@ pub(crate) async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()>
     }
 }
 
-pub(crate) fn execute_with_pool(_cmd: RoleCommands, _pool: &DbPool, _config: &CliConfig) -> Result<()> {
+pub(super) fn execute_with_pool(
+    _cmd: RoleCommands,
+    _pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<()> {
     bail!("Role management operations require full profile context")
 }

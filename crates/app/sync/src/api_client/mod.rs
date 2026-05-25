@@ -20,15 +20,15 @@ use tokio::time::sleep;
 
 use crate::error::{SyncError, SyncResult};
 pub use retry::RetryConfig;
-pub use token::exchange_subject_token;
 use token::is_unauthorized;
+pub use token::{exchange_subject_token, exchange_subject_token_at};
 
 #[derive(Clone, Debug)]
 pub struct SyncApiClient {
     client: Client,
     api_url: String,
     token: String,
-    hostname: Option<String>,
+    direct_sync_origin: Option<String>,
     cached_sync_token: Arc<Mutex<Option<String>>>,
     retry_config: RetryConfig,
 }
@@ -60,25 +60,39 @@ impl SyncApiClient {
                 .build()?,
             api_url: api_url.to_owned(),
             token: token.to_owned(),
-            hostname: None,
+            direct_sync_origin: None,
             cached_sync_token: Arc::new(Mutex::new(None)),
             retry_config: RetryConfig::default(),
         })
     }
 
-    pub fn with_direct_sync(mut self, hostname: Option<String>) -> Self {
-        self.hostname = hostname;
+    pub fn with_direct_sync(self, hostname: Option<String>) -> Self {
+        let origin = hostname.map(|h| format!("https://{h}"));
+        self.with_direct_sync_origin(origin)
+    }
+
+    pub fn with_direct_sync_origin(mut self, origin: Option<String>) -> Self {
+        self.direct_sync_origin = origin;
         self
     }
 
+    pub const fn with_retry_config(mut self, retry_config: RetryConfig) -> Self {
+        self.retry_config = retry_config;
+        self
+    }
+
+    pub(crate) fn direct_sync_origin(&self) -> Option<&str> {
+        self.direct_sync_origin.as_deref()
+    }
+
     const fn is_direct_sync(&self) -> bool {
-        self.hostname.is_some()
+        self.direct_sync_origin.is_some()
     }
 
     fn files_url(&self, tenant_id: &systemprompt_identifiers::TenantId) -> String {
-        self.hostname.as_ref().map_or_else(
+        self.direct_sync_origin.as_ref().map_or_else(
             || format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
-            |hostname| format!("https://{hostname}/api/v1/sync/files"),
+            |origin| format!("{origin}/api/v1/sync/files"),
         )
     }
 

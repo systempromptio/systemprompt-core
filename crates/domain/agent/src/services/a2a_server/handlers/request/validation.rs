@@ -15,7 +15,8 @@ pub(super) async fn validate_message_context(
     if user_id_str == "missing-user-id" || user_id_str.is_empty() {
         return Err(
             "Authentication required: x-user-id header must be set by API proxy after JWT \
-             validation".to_owned(),
+             validation"
+                .to_owned(),
         );
     }
 

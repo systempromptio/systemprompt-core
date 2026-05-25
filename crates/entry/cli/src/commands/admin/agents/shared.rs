@@ -92,7 +92,7 @@ impl AgentArgs {
     }
 }
 
-pub(crate) fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Result<()> {
+pub(super) fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Result<()> {
     match key {
         "card.displayName" | "card.display_name" => {
             value.clone_into(&mut agent.card.display_name);

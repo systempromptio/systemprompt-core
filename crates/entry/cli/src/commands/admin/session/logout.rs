@@ -22,7 +22,10 @@ pub struct LogoutArgs {
     pub all: bool,
 }
 
-pub(crate) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandResult<LogoutOutput>> {
+pub(super) fn execute(
+    args: &LogoutArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<LogoutOutput>> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;

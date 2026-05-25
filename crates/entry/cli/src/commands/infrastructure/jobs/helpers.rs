@@ -1,4 +1,4 @@
-pub(crate) fn parse_cron_human(schedule: &str) -> String {
+pub(super) fn parse_cron_human(schedule: &str) -> String {
     let parts: Vec<&str> = schedule.split_whitespace().collect();
     if parts.len() != 6 {
         return schedule.to_owned();

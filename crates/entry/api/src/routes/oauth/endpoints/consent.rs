@@ -56,10 +56,9 @@ async fn get_consent_info(
         .ok_or_else(|| OAuthHttpError::invalid_client("Client not found"))?;
 
     let requested_scopes: Vec<String> = match &params.scope {
-        Some(scope_str) if !scope_str.is_empty() => scope_str
-            .split_whitespace()
-            .map(str::to_owned)
-            .collect(),
+        Some(scope_str) if !scope_str.is_empty() => {
+            scope_str.split_whitespace().map(str::to_owned).collect()
+        },
         _ => {
             return Err(OAuthHttpError::invalid_request(
                 "Scope parameter is required",

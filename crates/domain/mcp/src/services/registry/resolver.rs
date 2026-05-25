@@ -88,7 +88,8 @@ impl RegistryResolver {
 
     #[expect(
         clippy::unused_self,
-        reason = "method is part of a trait surface where other impls use self"
+        reason = "method placed on the resolver so future caching or context can be added without \
+                  changing the API"
     )]
     pub fn validate_registry(&self) -> McpDomainResult<()> {
         DeploymentService::validate_config()?;

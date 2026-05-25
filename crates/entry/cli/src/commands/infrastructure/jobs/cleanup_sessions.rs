@@ -20,7 +20,9 @@ pub struct CleanupSessionsArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(args: CleanupSessionsArgs) -> Result<CommandResult<SessionCleanupOutput>> {
+pub(super) async fn execute(
+    args: CleanupSessionsArgs,
+) -> Result<CommandResult<SessionCleanupOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
 
     if args.dry_run {

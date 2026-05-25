@@ -68,9 +68,7 @@ async fn wait_for_provisioning_polling(
                 },
                 "failed" => {
                     return Err(CloudError::ProvisioningFailed {
-                        message: status
-                            .message
-                            .unwrap_or_else(|| "Unknown error".to_owned()),
+                        message: status.message.unwrap_or_else(|| "Unknown error".to_owned()),
                     });
                 },
                 _ => {

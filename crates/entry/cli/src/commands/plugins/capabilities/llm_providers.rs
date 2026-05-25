@@ -11,7 +11,7 @@ pub struct LlmProvidersArgs {
     pub extension: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &LlmProvidersArgs,
     _config: &CliConfig,
 ) -> CommandResult<LlmProvidersListOutput> {
@@ -40,8 +40,5 @@ pub(crate) fn execute(
 
     CommandResult::table(output)
         .with_title("LLM Providers Across Extensions")
-        .with_columns(vec![
-            "extension_id".to_owned(),
-            "provider_name".to_owned(),
-        ])
+        .with_columns(vec!["extension_id".to_owned(), "provider_name".to_owned()])
 }

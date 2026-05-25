@@ -23,7 +23,6 @@ use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
 pub use io::load_secrets_from_path;
-pub(crate) use io::handle_load_error;
 pub use logging::{
     build_loaded_secrets_message, log_secrets_issue, log_secrets_skip, log_secrets_warn,
 };

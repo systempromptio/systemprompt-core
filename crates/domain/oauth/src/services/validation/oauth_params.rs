@@ -72,10 +72,7 @@ pub fn optional_param(value: Option<&str>) -> Option<String> {
 pub fn scope_param(value: Option<&str>) -> Result<Vec<String>, AuthError> {
     let scope_str = required_param(value, "scope")?;
 
-    let scopes: Vec<String> = scope_str
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect();
+    let scopes: Vec<String> = scope_str.split_whitespace().map(str::to_owned).collect();
 
     if scopes.is_empty() {
         return Err(AuthError::InvalidScope { scope: scope_str });

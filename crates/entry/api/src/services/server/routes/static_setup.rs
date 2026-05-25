@@ -18,12 +18,22 @@ pub(super) fn build_static_router(
     events: Option<&StartupEventSender>,
 ) -> Router {
     let path = ctx.app_paths().system().content_config().to_path_buf();
-    #[expect(
-        clippy::option_if_let_else,
-        reason = "if-let form keeps the binding name visible for the early-return path"
-    )]
-    let content_matcher = if let Some(path_str) = path.to_str() {
-        match StaticContentMatcher::from_config(path_str) {
+    let content_matcher = path.to_str().map_or_else(
+        || {
+            if let Some(tx) = events {
+                if tx
+                    .unbounded_send(StartupEvent::Warning {
+                        message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_owned(),
+                        context: None,
+                    })
+                    .is_err()
+                {
+                    tracing::debug!("Startup event receiver dropped");
+                }
+            }
+            Arc::new(StaticContentMatcher::empty())
+        },
+        |path_str| match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
             Err(e) => {
                 if let Some(tx) = events {
@@ -39,21 +49,8 @@ pub(super) fn build_static_router(
                 }
                 Arc::new(StaticContentMatcher::empty())
             },
-        }
-    } else {
-        if let Some(tx) = events {
-            if tx
-                .unbounded_send(StartupEvent::Warning {
-                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_owned(),
-                    context: None,
-                })
-                .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
-            }
-        }
-        Arc::new(StaticContentMatcher::empty())
-    };
+        },
+    );
 
     let static_state = StaticContentState {
         ctx: Arc::new(ctx.clone()),

@@ -19,7 +19,7 @@ impl JwtValidator {
 
     #[expect(
         clippy::unused_self,
-        reason = "method is part of a trait surface where other impls use self"
+        reason = "trait-shaped method kept on impl for symmetry"
     )]
     pub fn validate_token(&self, token: &str) -> Result<JwtClaims> {
         let header = decode_header(token)

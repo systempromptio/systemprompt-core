@@ -167,7 +167,8 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
 
     #[expect(
         clippy::mem_forget,
-        reason = "detached MCP server: skip Child's drop-time wait so the OS keeps the process alive after this fn returns"
+        reason = "detached MCP server: skip Child's drop-time wait so the OS keeps the process \
+                  alive after this fn returns"
     )]
     std::mem::forget(child);
 

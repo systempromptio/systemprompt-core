@@ -14,13 +14,13 @@ use super::admin_migrate::select_extensions;
 use super::types::MigrateMarkAppliedOutput;
 
 #[derive(Clone, Copy)]
-pub(crate) struct MarkAppliedArgs<'a> {
+pub(super) struct MarkAppliedArgs<'a> {
     pub extension: &'a str,
     pub version: u32,
     pub json: bool,
 }
 
-pub(crate) async fn execute_migrate_mark_applied(
+pub(super) async fn execute_migrate_mark_applied(
     config: &CliConfig,
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
@@ -44,7 +44,7 @@ pub(crate) async fn execute_migrate_mark_applied(
     .await
 }
 
-pub(crate) async fn execute_migrate_mark_applied_standalone(
+pub(super) async fn execute_migrate_mark_applied_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
     args: MarkAppliedArgs<'_>,

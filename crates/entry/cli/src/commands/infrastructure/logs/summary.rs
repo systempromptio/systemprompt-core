@@ -19,7 +19,7 @@ pub struct SummaryArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct LogsSummaryOutput {
+pub(super) struct LogsSummaryOutput {
     pub total_logs: i64,
     pub by_level: LevelCounts,
     pub top_modules: Vec<ModuleCount>,
@@ -28,7 +28,7 @@ pub(crate) struct LogsSummaryOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct LevelCounts {
+pub(super) struct LevelCounts {
     pub error: i64,
     pub warn: i64,
     pub info: i64,
@@ -37,13 +37,13 @@ pub(crate) struct LevelCounts {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct ModuleCount {
+pub(super) struct ModuleCount {
     pub module: String,
     pub count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct TimeRange {
+pub(super) struct TimeRange {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub earliest: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -53,7 +53,7 @@ pub(crate) struct TimeRange {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct DatabaseInfo {
+pub(super) struct DatabaseInfo {
     pub logs_table_rows: i64,
 }
 
@@ -143,7 +143,7 @@ fn build_level_counts(rows: &[systemprompt_logging::LevelCount]) -> LevelCounts 
     counts
 }
 
-pub(crate) fn render_text_output(output: &LogsSummaryOutput) {
+pub(super) fn render_text_output(output: &LogsSummaryOutput) {
     use systemprompt_logging::CliService;
 
     CliService::section("Logs Summary");

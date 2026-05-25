@@ -70,7 +70,7 @@ struct SkillResponse {
     name: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: RegistryArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<RegistryOutput>> {

@@ -16,7 +16,10 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<PluginListOutput>> {
+pub(super) fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<PluginListOutput>> {
     let plugins_path = get_plugins_path()?;
     let plugins = scan_plugins(&plugins_path)?;
 

@@ -1,7 +1,7 @@
 mod audit;
 mod audit_display;
 mod cleanup;
-pub(crate) mod delete;
+pub(super) mod delete;
 pub mod duration;
 mod export;
 pub mod request;

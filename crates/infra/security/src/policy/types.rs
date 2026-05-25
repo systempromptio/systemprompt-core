@@ -153,7 +153,8 @@ impl McpToolInput {
     }
 }
 
-/// Per-evaluation context handed to every policy in a [`super::GovernanceChain`].
+/// Per-evaluation context handed to every policy in a
+/// [`super::GovernanceChain`].
 #[derive(Debug)]
 pub struct PolicyContext<'a> {
     pub tool: McpToolName,
@@ -197,8 +198,8 @@ impl GovernanceChain {
         &self.entries
     }
 
-    /// Evaluate every policy in order. The first [`Decision::Deny`] short-circuits;
-    /// if all policies allow, fall through to
+    /// Evaluate every policy in order. The first [`Decision::Deny`]
+    /// short-circuits; if all policies allow, fall through to
     /// [`crate::authz::types::MatchedBy::DefaultIncluded`].
     #[must_use]
     pub fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {

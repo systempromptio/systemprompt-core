@@ -95,7 +95,10 @@ pub async fn get_message_parts(
     Ok(parts)
 }
 
-#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct PersistPartSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub part: &'a Part,
@@ -105,7 +108,9 @@ pub struct PersistPartSqlxParams<'a> {
     pub upload_ctx: Option<&'a FileUploadContext<'a>>,
 }
 
-pub(super) async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), RepositoryError> {
+pub(super) async fn persist_part_sqlx(
+    params: PersistPartSqlxParams<'_>,
+) -> Result<(), RepositoryError> {
     let PersistPartSqlxParams {
         tx,
         part,

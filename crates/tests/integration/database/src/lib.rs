@@ -21,3 +21,15 @@ mod migration_plan_status;
 #[cfg(test)]
 #[path = "../squash.rs"]
 mod squash;
+
+#[cfg(test)]
+#[path = "../advisory_lock.rs"]
+mod advisory_lock;
+
+#[cfg(test)]
+#[path = "../cascade_delete.rs"]
+mod cascade_delete;
+
+#[cfg(test)]
+#[path = "../batch_atomicity.rs"]
+mod batch_atomicity;

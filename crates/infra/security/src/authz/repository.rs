@@ -1,4 +1,5 @@
-//! `AccessControlRepository` — sqlx-backed access to the two-table authz schema.
+//! `AccessControlRepository` — sqlx-backed access to the two-table authz
+//! schema.
 //!
 //! `access_control_entities` owns one row per `(entity_type, entity_id)` and
 //! carries the `default_included` flag plus a `source` provenance string.

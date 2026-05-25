@@ -69,7 +69,8 @@ impl ProxyEngine {
         let full_url = UrlResolver::append_query_params(backend_url, query);
 
         let mut req_context = req_ctx.clone().ok_or_else(|| ProxyError::MissingContext {
-            message: "Request context required - proxy cannot operate without authentication".to_owned(),
+            message: "Request context required - proxy cannot operate without authentication"
+                .to_owned(),
         })?;
 
         if service.module_name == "agent" || service.module_name == "mcp" {

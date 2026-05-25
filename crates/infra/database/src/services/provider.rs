@@ -73,7 +73,7 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
 
 #[expect(
     async_fn_in_trait,
-    reason = "trait is consumed via static dispatch only; dyn-compatibility is not required so native async fn is preferred over #[async_trait]"
+    reason = "internal extension trait used statically; no dyn dispatch, so no Send-bound concern"
 )]
 pub trait DatabaseProviderExt {
     async fn fetch_typed_optional<T: FromDatabaseRow>(

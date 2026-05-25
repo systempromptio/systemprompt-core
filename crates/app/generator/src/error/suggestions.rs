@@ -15,9 +15,7 @@ pub(super) fn suggest_fix_for_field(field: &str) -> Option<String> {
         ),
         "title" => Some("Add 'title: Your Title' to frontmatter".to_owned()),
         "slug" => Some("Add 'slug: your-slug' to frontmatter".to_owned()),
-        "content_type" => {
-            Some("Ensure content has a valid 'kind' field in frontmatter".to_owned())
-        },
+        "content_type" => Some("Ensure content has a valid 'kind' field in frontmatter".to_owned()),
         field if field.starts_with("organization.") => Some(format!(
             "Add '{}' under metadata.structured_data.organization in content.yaml",
             field.strip_prefix("organization.").unwrap_or(field)

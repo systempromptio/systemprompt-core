@@ -22,12 +22,14 @@ fn resolve_provider_config(
             .provider
             .as_deref()
             .or(agent_runtime.provider.as_deref())
-            .unwrap_or_else(|| ai_service.default_provider()).to_owned();
+            .unwrap_or_else(|| ai_service.default_provider())
+            .to_owned();
         let model = config
             .model
             .as_deref()
             .or(agent_runtime.model.as_deref())
-            .unwrap_or_else(|| ai_service.default_model()).to_owned();
+            .unwrap_or_else(|| ai_service.default_model())
+            .to_owned();
         let max_tokens = config
             .max_output_tokens
             .or(agent_runtime.max_output_tokens)
@@ -46,11 +48,13 @@ fn resolve_provider_config(
     let provider = agent_runtime
         .provider
         .as_deref()
-        .unwrap_or_else(|| ai_service.default_provider()).to_owned();
+        .unwrap_or_else(|| ai_service.default_provider())
+        .to_owned();
     let model = agent_runtime
         .model
         .as_deref()
-        .unwrap_or_else(|| ai_service.default_model()).to_owned();
+        .unwrap_or_else(|| ai_service.default_model())
+        .to_owned();
     let max_tokens = agent_runtime
         .max_output_tokens
         .unwrap_or_else(|| ai_service.default_max_output_tokens());
@@ -58,7 +62,10 @@ fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
-#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct SynthesizeToolResultsParams<'a> {
     pub ai_service: Arc<dyn AiProvider>,
     pub agent_runtime: &'a AgentRuntimeInfo,

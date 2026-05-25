@@ -16,7 +16,7 @@ use crate::prerender::context::PrerenderContext;
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MS: u64 = 500;
 
-pub(crate) async fn fetch_content_for_source(
+pub(super) async fn fetch_content_for_source(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id: &SourceId,
@@ -63,7 +63,7 @@ async fn fetch_with_retries(
     )
 }
 
-pub(crate) async fn contents_to_json(
+pub(super) async fn contents_to_json(
     contents: &[Content],
     source_name: &str,
     providers: &[Arc<dyn ContentDataProvider>],
@@ -125,7 +125,7 @@ pub(crate) async fn contents_to_json(
         .await
 }
 
-pub(crate) async fn fetch_popular_ids(
+pub(super) async fn fetch_popular_ids(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id: &SourceId,

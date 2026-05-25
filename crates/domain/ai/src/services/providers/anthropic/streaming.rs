@@ -13,7 +13,7 @@ use super::request::{post_messages, sampling_tuple};
 use super::{converters, thinking};
 
 impl AnthropicProvider {
-    pub(crate) async fn create_stream_request(
+    pub(super) async fn create_stream_request(
         &self,
         params: GenerationParams<'_>,
         tools: Option<Vec<AnthropicTool>>,

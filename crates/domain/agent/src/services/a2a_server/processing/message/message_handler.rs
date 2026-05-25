@@ -18,7 +18,7 @@ use systemprompt_identifiers::{MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{AgUiEventBuilder, AgUiMessageRole, RequestContext, TaskMetadata};
 
 impl MessageProcessor {
-    pub(crate) async fn handle_message(
+    pub(in crate::services::a2a_server) async fn handle_message(
         &self,
         message: Message,
         agent_name: &str,
@@ -246,10 +246,8 @@ async fn collect_stream_response(
                 tool_artifacts = artifacts;
             },
             StreamEvent::Error(error) => {
-                let error_event = AgUiEventBuilder::run_error(
-                    error.clone(),
-                    Some("EXECUTION_ERROR".to_owned()),
-                );
+                let error_event =
+                    AgUiEventBuilder::run_error(error.clone(), Some("EXECUTION_ERROR".to_owned()));
                 if let Err(e) = broadcast_agui_event(
                     context.user_id(),
                     error_event,

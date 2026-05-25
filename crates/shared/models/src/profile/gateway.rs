@@ -54,6 +54,17 @@ pub enum GatewayProfileError {
     )]
     RouteProviderNotInCatalog { route: String, provider: String },
 
+    #[error(
+        "gateway route '{route}' endpoint '{route_endpoint}' disagrees with catalog provider \
+         '{provider}' endpoint '{catalog_endpoint}'"
+    )]
+    RouteEndpointMismatch {
+        route: String,
+        provider: String,
+        route_endpoint: String,
+        catalog_endpoint: String,
+    },
+
     #[error("gateway catalog model id or alias '{id}' is declared more than once")]
     DuplicateModelId { id: String },
 

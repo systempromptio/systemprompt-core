@@ -11,13 +11,13 @@ use crate::interactive::confirm_optional;
 use super::pre_sync_config::build_sync_config;
 use super::pre_sync_display::{display_destructive_warning, display_diff, handle_sync_result};
 
-pub(crate) struct PreSyncConfig {
+pub(super) struct PreSyncConfig {
     pub no_sync: bool,
     pub yes: bool,
     pub dry_run: bool,
 }
 
-pub(crate) struct PreSyncResult {
+pub(super) struct PreSyncResult {
     pub dry_run: bool,
 }
 
@@ -35,7 +35,7 @@ impl PreSyncResult {
     }
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     tenant_id: &TenantId,
     config: PreSyncConfig,
     cli_config: &CliConfig,

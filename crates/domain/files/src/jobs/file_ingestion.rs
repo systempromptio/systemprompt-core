@@ -249,7 +249,8 @@ fn mime_from_extension(ext: &str) -> String {
         "svg" => "image/svg+xml",
         "ico" => "image/x-icon",
         _ => "application/octet-stream",
-    }.to_owned()
+    }
+    .to_owned()
 }
 
 systemprompt_provider_contracts::submit_job!(&FileIngestionJob);

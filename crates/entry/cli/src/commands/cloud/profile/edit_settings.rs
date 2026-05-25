@@ -4,7 +4,7 @@ use dialoguer::{Confirm, Input, Select};
 use systemprompt_logging::CliService;
 use systemprompt_models::{Environment, LogLevel, Profile};
 
-pub(crate) fn edit_server_settings(profile: &mut Profile) -> Result<()> {
+pub(super) fn edit_server_settings(profile: &mut Profile) -> Result<()> {
     CliService::section("Server Settings");
 
     profile.server.host = Input::with_theme(&ColorfulTheme::default())
@@ -36,7 +36,7 @@ pub(crate) fn edit_server_settings(profile: &mut Profile) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn edit_security_settings(profile: &mut Profile) -> Result<()> {
+pub(super) fn edit_security_settings(profile: &mut Profile) -> Result<()> {
     CliService::section("Security Settings");
 
     profile.security.issuer = Input::with_theme(&ColorfulTheme::default())
@@ -58,7 +58,7 @@ pub(crate) fn edit_security_settings(profile: &mut Profile) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn edit_runtime_settings(profile: &mut Profile) -> Result<()> {
+pub(super) fn edit_runtime_settings(profile: &mut Profile) -> Result<()> {
     CliService::section("Runtime Settings");
 
     let env_options = vec!["development", "test", "staging", "production"];

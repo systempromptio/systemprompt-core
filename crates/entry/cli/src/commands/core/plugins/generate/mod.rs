@@ -31,7 +31,7 @@ struct PluginGenerateContext<'a> {
     output_dir_override: Option<&'a str>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &GenerateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<PluginGenerateAllOutput>> {

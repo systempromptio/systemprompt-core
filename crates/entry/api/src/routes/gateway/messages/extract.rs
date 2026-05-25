@@ -94,7 +94,8 @@ pub(super) async fn extract_request_context(
             .ok_or_else(|| {
                 (
                     StatusCode::BAD_REQUEST,
-                    "request body has no messages; cannot derive gateway conversation id".to_owned(),
+                    "request body has no messages; cannot derive gateway conversation id"
+                        .to_owned(),
                 )
             })?,
     };
@@ -113,7 +114,8 @@ pub(super) async fn extract_request_context(
     partial.provider = Some(route.provider.as_str().to_owned());
 
     let upstream_model = route
-        .effective_upstream_model(&gateway_request.model).to_owned();
+        .effective_upstream_model(&gateway_request.model)
+        .to_owned();
 
     enforce_authz_pre_dispatch(
         &principal,
@@ -148,10 +150,7 @@ fn optional_gateway_conversation_id(
     let raw = raw.to_str().map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
-            format!(
-                "invalid {} header: {e}",
-                GATEWAY_CONVERSATION_ID
-            ),
+            format!("invalid {} header: {e}", GATEWAY_CONVERSATION_ID),
         )
     })?;
     let trimmed = raw.trim();
@@ -163,10 +162,7 @@ fn optional_gateway_conversation_id(
         .map_err(|e| {
             (
                 StatusCode::BAD_REQUEST,
-                format!(
-                    "invalid {} header: {e}",
-                    GATEWAY_CONVERSATION_ID
-                ),
+                format!("invalid {} header: {e}", GATEWAY_CONVERSATION_ID),
             )
         })
 }

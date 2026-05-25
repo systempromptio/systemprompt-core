@@ -8,8 +8,9 @@
 //!
 //! Internal helpers are organised by responsibility: `context` (config + DI),
 //! `fetch` (database access), `content` (per-source orchestration), `render`
-//! (per-item HTML rendering), `list` (parent / index pages), and `utils`
-//! (JSON merge and component rendering).
+//! (per-item HTML rendering), `list` (parent / index pages), `toc`
+//! (table-of-contents generation), and `utils` (JSON merge and component
+//! rendering).
 
 mod content;
 mod context;
@@ -17,6 +18,7 @@ mod engine;
 mod fetch;
 mod list;
 mod render;
+mod toc;
 mod utils;
 
 pub use engine::{PagePrerenderResult, prerender_content, prerender_pages};

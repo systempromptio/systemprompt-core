@@ -28,7 +28,8 @@ impl WebAuthnConfig {
                 crate::error::OauthError::Internal(
                     "API_EXTERNAL_URL must contain a valid host for WebAuthn RP ID".to_owned(),
                 )
-            })?.to_owned();
+            })?
+            .to_owned();
 
         Ok(Self {
             rp_id,

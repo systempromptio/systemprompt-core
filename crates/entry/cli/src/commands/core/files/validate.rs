@@ -15,7 +15,7 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileValidationOutput>> {

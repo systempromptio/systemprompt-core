@@ -25,7 +25,7 @@ pub struct ListArgs {
     pub category: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ContentTypeListOutput>> {

@@ -2,7 +2,7 @@
 //! upstream send, and response finalization.
 #![expect(
     clippy::clone_on_ref_ptr,
-    reason = "Arc::clone calls in this module are intentional: each spawned dispatch task takes its own ref-counted handle to provider/route state"
+    reason = "Arc::clone usage is intentional and ergonomic in this gateway dispatch path"
 )]
 
 mod finalize;
@@ -99,12 +99,14 @@ impl GatewayService {
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| anyhow!("Secrets not available: {e}"))?;
 
-        let upstream_api_key = secrets.get(provider.api_key_secret.as_str()).ok_or_else(|| {
-            anyhow!(
-                "Gateway API key secret '{}' not configured",
-                provider.api_key_secret.as_str()
-            )
-        })?;
+        let upstream_api_key = secrets
+            .get(provider.api_key_secret.as_str())
+            .ok_or_else(|| {
+                anyhow!(
+                    "Gateway API key secret '{}' not configured",
+                    provider.api_key_secret.as_str()
+                )
+            })?;
 
         let upstream = GatewayUpstreamRegistry::global()
             .get(route.provider.as_str())

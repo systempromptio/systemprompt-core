@@ -64,13 +64,16 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(crate) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ToolListOutput>> {
+pub(super) async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ToolListOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

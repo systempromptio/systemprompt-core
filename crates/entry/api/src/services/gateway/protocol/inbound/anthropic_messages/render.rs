@@ -78,7 +78,8 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
 
 #[expect(
     clippy::unnecessary_wraps,
-    reason = "returns Result to match trait signature for fallible renderers"
+    reason = "Option wrap kept so future event variants that omit a frame can return None without \
+              changing the signature"
 )]
 pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {
@@ -128,7 +129,8 @@ pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<
     let event_name = value
         .get("type")
         .and_then(Value::as_str)
-        .unwrap_or("message").to_owned();
+        .unwrap_or("message")
+        .to_owned();
     Some(Bytes::from(format!(
         "event: {event_name}\ndata: {}\n\n",
         serde_json::to_string(&value).unwrap_or_else(|_| "{}".into())

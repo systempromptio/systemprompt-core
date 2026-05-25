@@ -55,7 +55,8 @@ impl Default for JwtConfig {
 /// token is preserved by chaining it underneath the new outer actor.
 #[expect(
     clippy::too_many_arguments,
-    reason = "OAuth token issuance requires the full claim set; bundling into a struct would just shift the field count without improving the call site"
+    reason = "JWT minting needs the full set of claim-shaping inputs; bundling into a struct \
+              would obscure the call sites"
 )]
 pub fn generate_jwt_with_act(
     user: &AuthenticatedUser,
@@ -218,7 +219,8 @@ pub fn generate_admin_jwt(
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "OAuth token issuance requires the full claim set; bundling into a struct would just shift the field count without improving the call site"
+    reason = "admin JWT minting needs the full set of claim-shaping inputs; bundling into a \
+              struct would obscure the call sites"
 )]
 pub fn generate_admin_jwt_with_expiry(
     user_id: &UserId,

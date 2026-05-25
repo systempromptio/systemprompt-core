@@ -14,13 +14,13 @@ use super::admin_migrate::select_extensions;
 use super::types::{MigrateRepairOutput, MigrationDriftInfo};
 
 #[derive(Clone, Copy)]
-pub(crate) struct RepairArgs<'a> {
+pub(super) struct RepairArgs<'a> {
     pub extension: Option<&'a str>,
     pub apply: bool,
     pub json: bool,
 }
 
-pub(crate) async fn execute_migrate_repair(config: &CliConfig, args: RepairArgs<'_>) -> Result<()> {
+pub(super) async fn execute_migrate_repair(config: &CliConfig, args: RepairArgs<'_>) -> Result<()> {
     let sys_config = Config::get()?;
     let database = Arc::new(
         Database::from_config_with_write(
@@ -41,7 +41,7 @@ pub(crate) async fn execute_migrate_repair(config: &CliConfig, args: RepairArgs<
     .await
 }
 
-pub(crate) async fn execute_migrate_repair_standalone(
+pub(super) async fn execute_migrate_repair_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
     args: RepairArgs<'_>,

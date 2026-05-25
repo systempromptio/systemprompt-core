@@ -9,14 +9,15 @@ use super::super::super::canonical_response::{
 };
 
 pub(super) fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let id = value.get("id").and_then(Value::as_str).map_or_else(
-        || format!("msg_{}", Uuid::new_v4().simple()),
-        str::to_owned,
-    );
+    let id = value
+        .get("id")
+        .and_then(Value::as_str)
+        .map_or_else(|| format!("msg_{}", Uuid::new_v4().simple()), str::to_owned);
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(fallback_model).to_owned();
+        .unwrap_or(fallback_model)
+        .to_owned();
     let usage = value.get("usage").map_or(
         CanonicalUsage {
             input_tokens: 0,
@@ -67,12 +68,14 @@ fn extract_message_content(msg: &Value, content: &mut Vec<CanonicalContent>) {
             let id = tc
                 .get("id")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned();
+                .unwrap_or("")
+                .to_owned();
             let func = tc.get("function").unwrap_or(&Value::Null);
             let name = func
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned();
+                .unwrap_or("")
+                .to_owned();
             let args = func
                 .get("arguments")
                 .and_then(Value::as_str)

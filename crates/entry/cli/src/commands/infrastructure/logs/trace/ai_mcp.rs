@@ -7,7 +7,7 @@ use super::ai_display::{ToolCallRow, print_content_block, print_section, truncat
 use tabled::Table;
 use tabled::settings::Style;
 
-pub(crate) async fn print_mcp_executions(
+pub(super) async fn print_mcp_executions(
     service: &AiTraceService,
     executions: &[McpToolExecution],
     task_id: &TaskId,

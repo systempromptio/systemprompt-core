@@ -25,7 +25,7 @@ pub struct DeleteArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<FileDeleteOutput>> {

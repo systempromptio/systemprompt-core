@@ -37,7 +37,7 @@ fn is_redacted(field_name: &str) -> bool {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct FieldVisitor {
+pub(super) struct FieldVisitor {
     pub message: String,
     pub fields: Option<serde_json::Value>,
 }
@@ -132,7 +132,7 @@ impl Visit for FieldVisitor {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct SpanContext {
+pub(super) struct SpanContext {
     pub user: Option<String>,
     pub session: Option<String>,
     pub task: Option<String>,
@@ -142,7 +142,7 @@ pub(crate) struct SpanContext {
 }
 
 #[derive(Debug)]
-pub(crate) struct SpanVisitor<'a> {
+pub(super) struct SpanVisitor<'a> {
     pub context: &'a mut SpanContext,
 }
 
@@ -178,7 +178,7 @@ impl SpanVisitor<'_> {
 }
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct SpanFields {
+pub(super) struct SpanFields {
     pub user: Option<String>,
     pub session: Option<String>,
     pub task: Option<String>,
@@ -187,7 +187,9 @@ pub(crate) struct SpanFields {
     pub client: Option<String>,
 }
 
-pub(crate) fn extract_span_context<S>(span: tracing_subscriber::registry::SpanRef<'_, S>) -> SpanContext
+pub(super) fn extract_span_context<S>(
+    span: tracing_subscriber::registry::SpanRef<'_, S>,
+) -> SpanContext
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {

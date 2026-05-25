@@ -19,6 +19,9 @@ mod state_binding_tests;
 mod token_tests;
 
 #[cfg(test)]
+mod token_concurrency_tests;
+
+#[cfg(test)]
 mod webauthn_tests;
 
 use std::env;

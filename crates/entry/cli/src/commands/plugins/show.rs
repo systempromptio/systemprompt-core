@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ExtensionDetailOutput>> {
@@ -103,11 +103,7 @@ pub(crate) fn execute(
         .map(|s| (*s).to_owned())
         .collect();
 
-    let dependencies: Vec<String> = ext
-        .dependencies()
-        .iter()
-        .map(|s| (*s).to_owned())
-        .collect();
+    let dependencies: Vec<String> = ext.dependencies().iter().map(|s| (*s).to_owned()).collect();
 
     let output = ExtensionDetailOutput {
         id: systemprompt_identifiers::PluginId::new(ext.id()),

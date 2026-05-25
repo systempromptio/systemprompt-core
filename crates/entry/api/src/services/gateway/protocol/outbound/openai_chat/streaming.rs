@@ -110,11 +110,13 @@ fn emit_message_start(
     let id = value
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("msg_openai").to_owned();
+        .unwrap_or("msg_openai")
+        .to_owned();
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(&state.model).to_owned();
+        .unwrap_or(&state.model)
+        .to_owned();
     state.message_id = MessageId::new(&id);
     events.push(Ok(CanonicalEvent::MessageStart {
         id,
@@ -195,12 +197,14 @@ fn open_new_tool_call(
     let id = tc
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     let name = tc
         .get("function")
         .and_then(|f| f.get("name"))
         .and_then(Value::as_str)
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     events.push(Ok(CanonicalEvent::ContentBlockStart {
         index: idx,
         block: ContentBlockKind::ToolUse { id, name },

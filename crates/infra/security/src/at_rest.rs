@@ -19,7 +19,7 @@ type HmacSha256 = Hmac<Sha256>;
 
 #[expect(
     clippy::expect_used,
-    reason = "HMAC-SHA256 accepts any key length by contract; new_from_slice is structurally infallible"
+    reason = "HMAC-SHA256 accepts any key length by construction; new_from_slice cannot fail here"
 )]
 pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> [u8; 32] {
     let mut mac = HmacSha256::new_from_slice(pepper).expect("HMAC accepts any key length");

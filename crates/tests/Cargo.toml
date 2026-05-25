@@ -10,6 +10,7 @@
 [workspace]
 members = [
     # Integration tests
+    "integration/agent",
     "integration/analytics",
     "integration/cloud",
     "integration/database",
@@ -17,9 +18,11 @@ members = [
     "integration/extension",
     "integration/files",
     "integration/gateway",
+    "integration/mcp",
     "integration/oauth",
     "integration/security",
     "integration/scheduler",
+    "integration/sync",
     "integration/users",
     # Unit tests - shared layer
     "unit/shared/extension",

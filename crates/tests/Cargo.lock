@@ -6576,6 +6576,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-agent-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "sqlx",
+ "systemprompt-agent",
+ "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-agent-tests"
 version = "0.0.11"
 dependencies = [
@@ -7668,6 +7684,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-mcp-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-mcp",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "systemprompt-mcp-tests"
 version = "0.0.11"
 dependencies = [
@@ -7772,6 +7797,7 @@ version = "0.0.11"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "futures",
  "http",
  "sha2 0.10.9",
  "sqlx",
@@ -8096,6 +8122,27 @@ dependencies = [
  "uuid",
  "walkdir",
  "zip",
+]
+
+[[package]]
+name = "systemprompt-sync-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "reqwest 0.12.28",
+ "serde_json",
+ "serde_yaml_ng",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-security",
+ "systemprompt-sync",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "url",
+ "wiremock",
 ]
 
 [[package]]

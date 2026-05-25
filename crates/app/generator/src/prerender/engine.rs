@@ -37,9 +37,7 @@ pub async fn prerender_pages(
     prerender_pages_with_context(&ctx).await
 }
 
-async fn prerender_pages_with_context(
-    ctx: &PrerenderContext,
-) -> Result<Vec<PagePrerenderResult>> {
+async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<PagePrerenderResult>> {
     let prerenderers = ctx.template_registry.page_prerenderers();
 
     if prerenderers.is_empty() {

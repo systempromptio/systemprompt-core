@@ -2,7 +2,7 @@ mod jobs;
 mod llm_providers;
 mod roles;
 mod schemas;
-pub(crate) mod templates;
+mod templates;
 mod tools;
 
 use clap::{Args, Subcommand};
@@ -39,7 +39,7 @@ pub enum CapabilitiesCommands {
     LlmProviders(llm_providers::LlmProvidersArgs),
 }
 
-pub(crate) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
+pub(super) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
     match args.cmd {
         None => {
             render_result(&execute_summary(config));

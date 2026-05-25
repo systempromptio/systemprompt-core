@@ -10,7 +10,7 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::{ProfileListOutput, ProfileSummary};
 use crate::shared::CommandResult;
 
-pub(crate) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
+pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 

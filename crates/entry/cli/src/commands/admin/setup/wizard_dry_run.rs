@@ -6,7 +6,7 @@ use systemprompt_logging::CliService;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 use super::{SetupArgs, common, profile, secrets};
 
-pub(crate) fn execute_dry_run(
+pub(super) fn execute_dry_run(
     args: &SetupArgs,
     env_name: &str,
     systemprompt_dir: &Path,

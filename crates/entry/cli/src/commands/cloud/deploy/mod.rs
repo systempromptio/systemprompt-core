@@ -5,7 +5,7 @@ mod pre_sync_config;
 mod pre_sync_display;
 mod select;
 
-pub(crate) use deploy_steps::deploy_with_secrets;
+pub(super) use deploy_steps::deploy_with_secrets;
 
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::constants::{container, paths};
@@ -14,7 +14,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::dockerfile::validate_profile_dockerfile;
-pub(crate) use super::secrets::sync_cloud_credentials;
+pub(super) use super::secrets::sync_cloud_credentials;
 use super::tenant::{find_services_config, get_credentials};
 use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
@@ -23,7 +23,7 @@ use config::DeployConfig;
 use select::resolve_profile;
 use systemprompt_loader::ConfigLoader;
 
-pub(crate) struct DeployArgs {
+pub(super) struct DeployArgs {
     pub skip_push: bool,
     pub profile_name: Option<String>,
     pub no_sync: bool,
@@ -31,7 +31,7 @@ pub(crate) struct DeployArgs {
     pub dry_run: bool,
 }
 
-pub(crate) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     CliService::section("systemprompt.io Cloud Deploy");
 
     let (profile, profile_path) = resolve_profile(args.profile_name.as_deref(), config)?;

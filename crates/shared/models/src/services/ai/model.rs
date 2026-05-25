@@ -17,7 +17,8 @@ pub struct ToolModelSettings {
 
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "each bool maps to an independent model capability flag that providers advertise separately"
+    reason = "model capability matrix: each bool is an independent provider feature flag, not \
+              state"
 )]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct ModelCapabilities {

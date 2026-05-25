@@ -51,7 +51,8 @@ impl ToolResultHandler {
         } = params;
         if !context.is_authenticated() || context.is_system() {
             return Err(AgentServiceError::Internal(
-                "Invalid user - unauthenticated and system users cannot create artifacts".to_owned(),
+                "Invalid user - unauthenticated and system users cannot create artifacts"
+                    .to_owned(),
             ));
         }
 

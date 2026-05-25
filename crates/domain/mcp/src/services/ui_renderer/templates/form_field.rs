@@ -29,11 +29,13 @@ impl FormField {
             label: value
                 .get("label")
                 .and_then(JsonValue::as_str)
-                .unwrap_or(&name).to_owned(),
+                .unwrap_or(&name)
+                .to_owned(),
             field_type: value
                 .get("type")
                 .and_then(JsonValue::as_str)
-                .unwrap_or("text").to_owned(),
+                .unwrap_or("text")
+                .to_owned(),
             required: value
                 .get("required")
                 .and_then(JsonValue::as_bool)
@@ -53,7 +55,8 @@ impl FormField {
                             let label = o
                                 .get("label")
                                 .and_then(JsonValue::as_str)
-                                .unwrap_or(&value).to_owned();
+                                .unwrap_or(&value)
+                                .to_owned();
                             Some(FormOption { value, label })
                         })
                         .collect()

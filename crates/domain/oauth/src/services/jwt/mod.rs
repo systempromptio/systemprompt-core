@@ -37,9 +37,7 @@ pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthErr
         .find_map(|cookie| {
             let cookie = cookie.trim();
             if cookie.starts_with("access_token=") {
-                cookie
-                    .strip_prefix("access_token=")
-                    .map(str::to_owned)
+                cookie.strip_prefix("access_token=").map(str::to_owned)
             } else {
                 None
             }

@@ -23,12 +23,15 @@ pub struct ListArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
-pub(crate) enum ListOutput {
+pub(super) enum ListOutput {
     ContentFiles(ContentFilesOutput),
     FileContentLinks(FileContentLinksOutput),
 }
 
-pub(crate) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOutput>> {
+pub(super) async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ListOutput>> {
     let ctx = AppContext::new().await?;
     let service = FileRepository::new(ctx.db_pool())?;
 

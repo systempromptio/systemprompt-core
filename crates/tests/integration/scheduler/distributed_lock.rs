@@ -64,7 +64,7 @@ impl Job for DistributedLockProbeJob {
         "* * * * * *"
     }
 
-    pub(crate) async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
+    async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
         Ok(JobResult::success())
     }
 }

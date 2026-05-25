@@ -23,7 +23,10 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub(crate) async fn execute(args: AddArgs, _config: &CliConfig) -> Result<CommandResult<BanAddOutput>> {
+pub(super) async fn execute(
+    args: AddArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<BanAddOutput>> {
     let ctx = AppContext::new().await?;
     let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
 

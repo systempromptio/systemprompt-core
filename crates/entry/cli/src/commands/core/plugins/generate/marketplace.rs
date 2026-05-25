@@ -4,7 +4,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::{MarketplaceConfig, PluginConfig};
 
-pub(crate) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
+pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
     let services = match ConfigLoader::load() {
         Ok(s) => s,
         Err(e) => {
@@ -76,7 +76,7 @@ fn render_marketplace(
     })
 }
 
-pub(crate) fn generate_plugin_json(
+pub(super) fn generate_plugin_json(
     plugin: &PluginConfig,
     output_dir: &Path,
     files_generated: &mut Vec<String>,
@@ -122,7 +122,7 @@ pub(crate) fn generate_plugin_json(
     Ok(())
 }
 
-pub(crate) fn copy_scripts(
+pub(super) fn copy_scripts(
     plugin: &PluginConfig,
     plugins_path: &Path,
     plugin_id: &str,

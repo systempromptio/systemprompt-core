@@ -56,7 +56,8 @@ pub(super) fn scan_markdown_files(dir: &Path, recursive: bool) -> ScanResult {
     if files.is_empty() && has_subdirectories {
         warnings.push(
             "No markdown files found in root directory, but subdirectories exist. Consider using \
-             --recursive to scan nested directories.".to_owned(),
+             --recursive to scan nested directories."
+                .to_owned(),
         );
     }
 
@@ -77,9 +78,7 @@ pub(super) fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, Con
     let parts: Vec<&str> = markdown.splitn(3, "---").collect();
 
     if parts.len() < 3 {
-        return Err(ContentError::Parse(
-            "Invalid frontmatter format".to_owned(),
-        ));
+        return Err(ContentError::Parse("Invalid frontmatter format".to_owned()));
     }
 
     let raw_yaml: serde_yaml::Value = serde_yaml::from_str(parts[1])?;

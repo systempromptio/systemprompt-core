@@ -6,13 +6,14 @@ use std::path::PathBuf;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::TenantId;
 
-pub(crate) const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
-pub(crate) const SHARED_ADMIN_USER: &str = "systemprompt_admin";
-pub(crate) const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
-pub(crate) const SHARED_PORT: u16 = 5432;
+pub(in crate::commands::cloud::tenant) const SHARED_CONTAINER_NAME: &str =
+    "systemprompt-postgres-shared";
+pub(in crate::commands::cloud) const SHARED_ADMIN_USER: &str = "systemprompt_admin";
+pub(in crate::commands::cloud) const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
+pub(in crate::commands::cloud) const SHARED_PORT: u16 = 5432;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct SharedContainerConfig {
+pub(in crate::commands::cloud) struct SharedContainerConfig {
     pub admin_password: String,
     pub port: u16,
     pub created_at: DateTime<Utc>,
@@ -20,13 +21,13 @@ pub(crate) struct SharedContainerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct TenantDatabaseMapping {
+pub(in crate::commands::cloud::tenant) struct TenantDatabaseMapping {
     pub tenant_id: TenantId,
     pub database_name: String,
 }
 
 impl SharedContainerConfig {
-    pub(crate) fn new(admin_password: String, port: u16) -> Self {
+    pub(in crate::commands::cloud::tenant) fn new(admin_password: String, port: u16) -> Self {
         Self {
             admin_password,
             port,
@@ -35,14 +36,21 @@ impl SharedContainerConfig {
         }
     }
 
-    pub(crate) fn add_tenant(&mut self, tenant: TenantId, database_name: String) {
+    pub(in crate::commands::cloud::tenant) fn add_tenant(
+        &mut self,
+        tenant: TenantId,
+        database_name: String,
+    ) {
         self.tenant_databases.push(TenantDatabaseMapping {
             tenant_id: tenant,
             database_name,
         });
     }
 
-    pub(crate) fn remove_tenant(&mut self, tenant: &str) -> Option<TenantDatabaseMapping> {
+    pub(in crate::commands::cloud::tenant) fn remove_tenant(
+        &mut self,
+        tenant: &str,
+    ) -> Option<TenantDatabaseMapping> {
         self.tenant_databases
             .iter()
             .position(|t| t.tenant_id == tenant)
@@ -50,12 +58,12 @@ impl SharedContainerConfig {
     }
 }
 
-pub(crate) fn shared_config_path() -> PathBuf {
+pub(in crate::commands::cloud::tenant) fn shared_config_path() -> PathBuf {
     let ctx = ProjectContext::discover();
     ctx.docker_dir().join("shared_config.json")
 }
 
-pub(crate) fn load_shared_config() -> Result<Option<SharedContainerConfig>> {
+pub(in crate::commands::cloud) fn load_shared_config() -> Result<Option<SharedContainerConfig>> {
     let path = shared_config_path();
     if !path.exists() {
         return Ok(None);
@@ -67,7 +75,7 @@ pub(crate) fn load_shared_config() -> Result<Option<SharedContainerConfig>> {
     Ok(Some(config))
 }
 
-pub(crate) fn save_shared_config(config: &SharedContainerConfig) -> Result<()> {
+pub(in crate::commands::cloud) fn save_shared_config(config: &SharedContainerConfig) -> Result<()> {
     let path = shared_config_path();
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;

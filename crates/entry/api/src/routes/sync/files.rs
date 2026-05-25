@@ -39,7 +39,10 @@ fn get_services_path(ctx: &AppContext) -> Result<PathBuf, String> {
     Err("Services path not configured".into())
 }
 
-pub(super) fn collect_files(services_path: &Path, directories: &[&str]) -> Result<FileManifest, String> {
+pub(super) fn collect_files(
+    services_path: &Path,
+    directories: &[&str],
+) -> Result<FileManifest, String> {
     let mut files = Vec::new();
 
     for dir in directories {

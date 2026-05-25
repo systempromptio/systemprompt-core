@@ -89,7 +89,8 @@ impl Email {
     #[must_use]
     #[expect(
         clippy::expect_used,
-        reason = "infallible constructor reserved for already-validated inputs; untrusted input must use try_new"
+        reason = "infallible constructor reserved for already-validated inputs; untrusted input \
+                  must go through try_new"
     )]
     pub fn new(value: impl Into<String>) -> Self {
         // SAFETY: `new` is the infallible constructor reserved for inputs the caller

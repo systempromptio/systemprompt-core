@@ -44,7 +44,8 @@ fn resolve_mime_type(path: &std::path::Path) -> &'static str {
 
 #[expect(
     clippy::result_large_err,
-    reason = "error variants carry detailed validation context; boxing would just hide allocation without runtime benefit"
+    reason = "ApiError carries response context that is intentionally large; boxing here would \
+              propagate to every caller for negligible gain"
 )]
 fn load_services_config() -> Result<ServicesConfig, ApiError> {
     ConfigLoader::load()

@@ -21,7 +21,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentTypeDeleteOutput>> {

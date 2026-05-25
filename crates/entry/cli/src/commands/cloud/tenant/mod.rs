@@ -1,6 +1,6 @@
 mod cancel;
 mod create;
-pub(crate) mod delete;
+pub(super) mod delete;
 mod docker;
 mod edit;
 mod list;
@@ -14,7 +14,7 @@ pub use create::{
     create_cloud_tenant, create_external_tenant, create_local_tenant, swap_to_external_host,
 };
 pub use delete::delete_tenant;
-pub use docker::wait_for_postgres_healthy;
+pub(in crate::commands::cloud) use docker::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
 pub use list::list_tenants;
 pub use rotate::rotate_credentials;

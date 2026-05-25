@@ -8,7 +8,7 @@ use super::message::extract_text_from_parts;
 use super::types::MessageOutput;
 use crate::shared::CommandResult;
 
-pub(crate) struct NonStreamingRequest<'a> {
+pub(super) struct NonStreamingRequest<'a> {
     pub agent: &'a str,
     pub agent_url: &'a str,
     pub auth_token: &'a str,
@@ -17,7 +17,7 @@ pub(crate) struct NonStreamingRequest<'a> {
     pub timeout: u64,
 }
 
-pub(crate) async fn execute_non_streaming(
+pub(super) async fn execute_non_streaming(
     params: NonStreamingRequest<'_>,
 ) -> Result<CommandResult<MessageOutput>> {
     let NonStreamingRequest {

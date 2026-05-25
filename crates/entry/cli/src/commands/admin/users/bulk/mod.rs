@@ -1,4 +1,4 @@
-pub(crate) mod delete;
+mod delete;
 mod update;
 
 use crate::cli_settings::CliConfig;
@@ -15,7 +15,7 @@ pub enum BulkCommands {
     Update(update::UpdateArgs),
 }
 
-pub(crate) async fn execute(cmd: BulkCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: BulkCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         BulkCommands::Delete(args) => {
             let result = delete::execute(args, config).await?;

@@ -12,7 +12,7 @@ use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 struct MockConfig;
 
 impl ConfigProvider for MockConfig {
-    pub(crate) fn get(&self, key: &str) -> Option<String> {
+    fn get(&self, key: &str) -> Option<String> {
         match key {
             "test_key" => Some("test_value".to_string()),
             _ => None,

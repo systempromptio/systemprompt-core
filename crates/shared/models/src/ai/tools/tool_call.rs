@@ -54,7 +54,8 @@ impl ToolExecution {
         let tool_name = row
             .get("tool_name")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("tool_name"))?.to_owned();
+            .ok_or(RowParseError::Missing("tool_name"))?
+            .to_owned();
 
         let service_id = row
             .get("service_id")
@@ -87,7 +88,8 @@ impl ToolExecution {
         let status = row
             .get("status")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("status"))?.to_owned();
+            .ok_or(RowParseError::Missing("status"))?
+            .to_owned();
 
         let execution_time_ms = row
             .get("execution_time_ms")

@@ -11,7 +11,7 @@ use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 
-pub(crate) fn execute_disk_mode(
+pub(super) fn execute_disk_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
@@ -54,7 +54,7 @@ pub(crate) fn execute_disk_mode(
     .with_title(format!("MCP Logs (Disk): {}{}", service, level_label)))
 }
 
-pub(crate) fn execute_follow_mode(
+pub(super) fn execute_follow_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,

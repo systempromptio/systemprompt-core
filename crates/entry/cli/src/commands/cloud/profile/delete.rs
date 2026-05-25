@@ -8,7 +8,10 @@ use super::DeleteArgs;
 use crate::cli_settings::CliConfig;
 use crate::shared::{CommandResult, SuccessOutput};
 
-pub(crate) fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<CommandResult<SuccessOutput>> {
+pub(super) fn execute(
+    args: &DeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<SuccessOutput>> {
     if !config.is_json_output() {
         CliService::section(&format!("Delete Profile: {}", args.name));
     }

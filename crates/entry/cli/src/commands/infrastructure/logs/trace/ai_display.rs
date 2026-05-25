@@ -45,7 +45,7 @@ struct AiRequestRow {
 }
 
 #[derive(Debug, Tabled)]
-pub(crate) struct ToolCallRow {
+pub(super) struct ToolCallRow {
     #[tabled(rename = "Tool")]
     pub tool_name: String,
     #[tabled(rename = "Server")]
@@ -57,7 +57,7 @@ pub(crate) struct ToolCallRow {
 }
 
 #[derive(Debug, Tabled)]
-pub(crate) struct ArtifactRow {
+pub(super) struct ArtifactRow {
     #[tabled(rename = "ID")]
     pub artifact: String,
     #[tabled(rename = "Type")]
@@ -70,7 +70,7 @@ pub(crate) struct ArtifactRow {
     pub tool_name: String,
 }
 
-pub(crate) fn truncate(s: &str, max_len: usize) -> String {
+pub(super) fn truncate(s: &str, max_len: usize) -> String {
     let s = s.replace('\n', " ").replace('\r', "");
     if s.len() > max_len {
         format!("{}...", &s[..max_len.saturating_sub(3)])
@@ -79,17 +79,17 @@ pub(crate) fn truncate(s: &str, max_len: usize) -> String {
     }
 }
 
-pub(crate) fn print_section(title: &str) {
+pub(super) fn print_section(title: &str) {
     CliService::section(title);
 }
 
-pub(crate) fn print_content_block(content: &str) {
+pub(super) fn print_content_block(content: &str) {
     for line in content.lines() {
         CliService::info(&format!("  {line}"));
     }
 }
 
-pub(crate) fn print_task_info(task_info: &TaskInfo) {
+pub(super) fn print_task_info(task_info: &TaskInfo) {
     let rows = vec![TaskInfoRow {
         task: task_info.task_id.as_str()[..8].to_string(),
         agent_name: task_info
@@ -119,21 +119,21 @@ pub(crate) fn print_task_info(task_info: &TaskInfo) {
     }
 }
 
-pub(crate) fn print_user_input(input: Option<&String>) {
+pub(super) fn print_user_input(input: Option<&String>) {
     if let Some(text) = input {
         print_section("USER INPUT");
         CliService::info(&format!("  {text}"));
     }
 }
 
-pub(crate) fn print_agent_response(response: Option<&String>) {
+pub(super) fn print_agent_response(response: Option<&String>) {
     if let Some(text) = response {
         print_section("AGENT RESPONSE");
         print_content_block(text);
     }
 }
 
-pub(crate) fn print_execution_steps(steps: &[ExecutionStep]) {
+pub(super) fn print_execution_steps(steps: &[ExecutionStep]) {
     if steps.is_empty() {
         return;
     }
@@ -169,7 +169,7 @@ pub(crate) fn print_execution_steps(steps: &[ExecutionStep]) {
     }
 }
 
-pub(crate) fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
+pub(super) fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
     if requests.is_empty() {
         return vec![];
     }

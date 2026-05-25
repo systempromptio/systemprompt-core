@@ -4,7 +4,7 @@ use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::super::types::ValidationIssue;
 
-pub(crate) fn validate_sitemap(
+pub(super) fn validate_sitemap(
     profile: &systemprompt_models::Profile,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,

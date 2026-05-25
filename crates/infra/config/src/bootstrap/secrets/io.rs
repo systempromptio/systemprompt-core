@@ -25,7 +25,10 @@ pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
     })
 }
 
-pub(crate) fn handle_load_error(e: ConfigError, mode: SecretsValidationMode) -> ConfigResult<Secrets> {
+pub(super) fn handle_load_error(
+    e: ConfigError,
+    mode: SecretsValidationMode,
+) -> ConfigResult<Secrets> {
     log_secrets_issue(&e, mode);
     Err(e)
 }

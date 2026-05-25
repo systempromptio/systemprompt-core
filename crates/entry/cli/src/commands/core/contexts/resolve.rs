@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_identifiers::{ContextId, UserId};
 
-pub(crate) async fn resolve_context(
+pub(super) async fn resolve_context(
     identifier: &str,
     user_id: &UserId,
     repo: &ContextRepository,

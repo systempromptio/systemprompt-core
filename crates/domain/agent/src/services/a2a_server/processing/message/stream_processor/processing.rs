@@ -172,8 +172,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
             {
                 tracing::error!(error = %fail_err, "Failed to mark steps as failed");
             }
-            if let Err(send_err) =
-                tx.try_send(StreamEvent::Error(format!("Execution failed: {e}")))
+            if let Err(send_err) = tx.try_send(StreamEvent::Error(format!("Execution failed: {e}")))
             {
                 tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
             }

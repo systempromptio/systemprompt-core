@@ -30,7 +30,6 @@ pub mod error;
 pub mod extension_loader;
 pub mod extension_registry;
 pub mod module_loader;
-mod modules;
 pub mod profile_loader;
 
 pub use config_loader::ConfigLoader;

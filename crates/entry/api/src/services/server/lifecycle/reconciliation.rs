@@ -12,7 +12,7 @@ struct ReconcileSuccessParams<'a> {
     events: Option<&'a StartupEventSender>,
 }
 
-pub(crate) async fn reconcile_system_services(
+pub(in crate::services::server) async fn reconcile_system_services(
     ctx: &AppContext,
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpOrchestrator>,
     events: Option<&StartupEventSender>,
@@ -81,7 +81,9 @@ async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<
 
 #[expect(
     clippy::collection_is_never_read,
-    reason = "`events: Option<StartupEventSender>` is consumed through `OptionalStartupEventExt` trait calls (`events.error(...)`); clippy's heuristic does not recognise those as reads"
+    reason = "`events` is consumed by `OptionalStartupEventExt` trait methods \
+              (`events.error(...)`); clippy's `collection_is_never_read` heuristic does not \
+              recognise those calls as reads of the `Option`"
 )]
 async fn handle_missing_servers(
     required_servers: &[systemprompt_mcp::McpServerConfig],
@@ -119,7 +121,8 @@ async fn handle_missing_servers(
 
 #[expect(
     clippy::collection_is_never_read,
-    reason = "`events: Option<...>` is consumed through `OptionalStartupEventExt` trait calls; clippy's heuristic does not see those as reads"
+    reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
+              recognise as reads"
 )]
 async fn verify_database_registration(
     required_servers: &[systemprompt_mcp::McpServerConfig],
@@ -174,7 +177,8 @@ async fn verify_database_registration(
 
 #[expect(
     clippy::collection_is_never_read,
-    reason = "`events: Option<...>` is consumed through `OptionalStartupEventExt` trait calls; clippy's heuristic does not see those as reads"
+    reason = "`events` is consumed by OptionalStartupEventExt trait methods that clippy does not \
+              recognise as reads"
 )]
 async fn cleanup_stale_service_entries(
     ctx: &AppContext,

@@ -248,10 +248,7 @@ pub enum DenyReason {
         required: AccessScope,
     },
     #[error("tool {tool} blocked by list {list_id}")]
-    ToolBlocked {
-        tool: McpToolName,
-        list_id: String,
-    },
+    ToolBlocked { tool: McpToolName, list_id: String },
     #[error("rate limit {window:?} exceeded; retry after {retry_after_ms}ms")]
     RateLimitExceeded {
         window: RateLimitWindow,

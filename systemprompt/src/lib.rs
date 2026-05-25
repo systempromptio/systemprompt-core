@@ -1,6 +1,6 @@
 #![expect(
     clippy::doc_markdown,
-    reason = "README and module docs contain proper names (systemprompt, Axum, SQLx, OAuth) that the lint flags as missing backticks; rewriting each occurrence would harm prose readability"
+    reason = "README contains brand names and acronyms that doc_markdown would over-flag"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]

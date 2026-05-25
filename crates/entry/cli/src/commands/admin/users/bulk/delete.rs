@@ -38,7 +38,7 @@ pub struct DeleteArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct DryRunOutput {
+pub(super) struct DryRunOutput {
     pub dry_run: bool,
     pub would_delete: usize,
     pub message: String,
@@ -46,12 +46,15 @@ pub(crate) struct DryRunOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
-pub(crate) enum DeleteResult {
+pub(super) enum DeleteResult {
     DryRun(DryRunOutput),
     Executed(BulkDeleteOutput),
 }
 
-pub(crate) async fn execute(args: DeleteArgs, _config: &CliConfig) -> Result<CommandResult<DeleteResult>> {
+pub(super) async fn execute(
+    args: DeleteArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<DeleteResult>> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will permanently delete users. Use --yes to confirm or --dry-run to preview."

@@ -13,7 +13,10 @@ use systemprompt_models::{
     is_supported_video,
 };
 
-#[expect(missing_debug_implementations, reason = "holds borrowed pool/transaction/service handles that do not implement Debug")]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct StreamProcessor {
     pub ai_service: Arc<dyn AiProvider>,
     pub context_service: ContextService,

@@ -6,7 +6,7 @@ use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::SchedulerService;
 use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
 
-pub(crate) async fn initialize_scheduler(
+pub(in crate::services::server) async fn initialize_scheduler(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {

@@ -76,10 +76,6 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            #[expect(
-                clippy::expect_used,
-                reason = "infallible constructor reserved for already-validated inputs; untrusted input must go through try_new"
-            )]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }

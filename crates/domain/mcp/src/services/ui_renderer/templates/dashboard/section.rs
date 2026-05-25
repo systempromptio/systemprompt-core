@@ -26,7 +26,8 @@ impl DashboardSection {
         let title = value
             .get("title")
             .and_then(JsonValue::as_str)
-            .unwrap_or("Section").to_owned();
+            .unwrap_or("Section")
+            .to_owned();
 
         let section_type =
             value

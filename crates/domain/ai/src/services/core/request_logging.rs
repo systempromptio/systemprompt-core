@@ -2,7 +2,12 @@ use crate::models::ai::{AiRequest, AiResponse};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-pub(super) fn log_request_start(request_id: Uuid, request: &AiRequest, provider_name: &str, model: &str) {
+pub(super) fn log_request_start(
+    request_id: Uuid,
+    request: &AiRequest,
+    provider_name: &str,
+    model: &str,
+) {
     info!(
         request_id = %request_id,
         provider = provider_name,

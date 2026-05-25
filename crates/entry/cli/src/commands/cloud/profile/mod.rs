@@ -3,7 +3,7 @@ mod builders;
 mod create;
 mod create_setup;
 mod create_tenant;
-pub(crate) mod delete;
+pub(super) mod delete;
 mod edit;
 mod edit_secrets;
 mod edit_settings;

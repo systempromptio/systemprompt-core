@@ -23,7 +23,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
     let skills_path = get_skills_path()?;
 
     if let Some(name) = args.name {

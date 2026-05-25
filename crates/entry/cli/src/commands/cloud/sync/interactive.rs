@@ -19,7 +19,7 @@ struct ProfileSelection {
     pub profile: Profile,
 }
 
-pub(crate) async fn execute(_config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(_config: &CliConfig) -> Result<()> {
     CliService::section("Sync Menu");
 
     let sync_type = select_sync_type()?;

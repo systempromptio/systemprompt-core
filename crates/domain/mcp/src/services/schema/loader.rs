@@ -119,7 +119,8 @@ impl SchemaLoader {
             .map(|name| {
                 name.trim_matches('(')
                     .trim_matches('"')
-                    .trim_matches('`').to_owned()
+                    .trim_matches('`')
+                    .to_owned()
             })
     }
 }

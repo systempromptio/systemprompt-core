@@ -1,8 +1,6 @@
-//! Markdown rendering, frontmatter extraction, and table-of-contents
-//! generation used by the prerender pipeline.
+//! Markdown rendering and frontmatter extraction used by the prerender
+//! pipeline.
 
 mod markdown;
-mod toc;
 
 pub use markdown::{extract_frontmatter, render_markdown};
-pub(crate) use toc::generate_toc;

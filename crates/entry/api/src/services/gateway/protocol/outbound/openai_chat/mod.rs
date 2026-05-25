@@ -19,10 +19,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
 
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
         let body = request::build_request_body(ctx.request, ctx.upstream_model);
-        let url = format!(
-            "{}/chat/completions",
-            ctx.endpoint.trim_end_matches('/')
-        );
+        let url = format!("{}/chat/completions", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
         let mut req = client

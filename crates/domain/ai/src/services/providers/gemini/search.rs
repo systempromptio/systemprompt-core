@@ -27,7 +27,11 @@ pub(super) struct SearchParamsBuilder<'a> {
 }
 
 impl<'a> SearchParamsBuilder<'a> {
-    pub(super) const fn new(messages: &'a [AiMessage], max_output_tokens: u32, model: &'a str) -> Self {
+    pub(super) const fn new(
+        messages: &'a [AiMessage],
+        max_output_tokens: u32,
+        model: &'a str,
+    ) -> Self {
         Self {
             messages,
             sampling: None,

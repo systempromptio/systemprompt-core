@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct StopServiceOutput {
+pub(super) struct StopServiceOutput {
     pub api_stopped: bool,
     pub agents_stopped: usize,
     pub mcp_stopped: usize,
@@ -10,7 +10,7 @@ pub(crate) struct StopServiceOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct StopIndividualOutput {
+pub(super) struct StopIndividualOutput {
     pub service_type: String,
     pub service_name: String,
     pub stopped: bool,
@@ -18,7 +18,7 @@ pub(crate) struct StopIndividualOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(crate) struct CleanupOutput {
+pub(super) struct CleanupOutput {
     pub services_cleaned: usize,
     pub stale_entries_removed: usize,
     pub dry_run: bool,

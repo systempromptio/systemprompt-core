@@ -46,7 +46,7 @@ pub struct EditArgs {
     pub description: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &EditArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentTypeEditOutput>> {
@@ -157,7 +157,7 @@ fn apply_sitemap_flags(
     Ok(())
 }
 
-pub(crate) fn apply_set_value_changes(
+pub(super) fn apply_set_value_changes(
     source: &mut systemprompt_models::content_config::ContentSourceConfigRaw,
     set_values: &[String],
     changes: &mut Vec<String>,

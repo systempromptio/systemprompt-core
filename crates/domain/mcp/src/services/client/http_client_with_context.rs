@@ -181,7 +181,8 @@ impl StreamableHttpClient for HttpClientWithContext {
                         StreamableHttpError::UnexpectedServerResponse(std::borrow::Cow::from(
                             "invalid www-authenticate header value",
                         ))
-                    })?.to_owned();
+                    })?
+                    .to_owned();
                 return Err(StreamableHttpError::UnexpectedServerResponse(
                     std::borrow::Cow::from(format!("auth required: {header}")),
                 ));
@@ -195,9 +196,7 @@ impl StreamableHttpClient for HttpClientWithContext {
         }
         let content_type = response.headers().get(reqwest::header::CONTENT_TYPE);
         let session_id = response.headers().get(HEADER_SESSION_ID);
-        let session_id = session_id
-            .and_then(|v| v.to_str().ok())
-            .map(str::to_owned);
+        let session_id = session_id.and_then(|v| v.to_str().ok()).map(str::to_owned);
         match content_type {
             Some(ct) if ct.as_bytes().starts_with(EVENT_STREAM_MIME_TYPE.as_bytes()) => {
                 let event_stream = SseStream::from_byte_stream(response.bytes_stream()).boxed();

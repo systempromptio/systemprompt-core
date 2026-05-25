@@ -28,7 +28,8 @@
 
 #![expect(
     missing_debug_implementations,
-    reason = "repositories and services hold pool/transaction handles that do not implement Debug; deriving Debug across this crate would add nothing useful"
+    reason = "service types in this crate hold pools/clients that intentionally do not implement \
+              Debug"
 )]
 
 pub mod error;

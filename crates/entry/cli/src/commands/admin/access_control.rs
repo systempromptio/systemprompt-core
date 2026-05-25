@@ -3,18 +3,18 @@
 //!
 //! Subcommands:
 //!
-//! * `export-yaml` — read role/department rules from `access_control_rules`
-//!   and print them as a YAML snippet matching `AccessControlConfig`.
-//!   Stdout-only — never writes a file. The operator pastes the output into
-//!   the committed YAML baseline and redeploys. Per-user overrides
-//!   (`rule_type='user'`) are operational state and intentionally excluded.
+//! * `export-yaml` — read role/department rules from `access_control_rules` and
+//!   print them as a YAML snippet matching `AccessControlConfig`. Stdout-only —
+//!   never writes a file. The operator pastes the output into the committed
+//!   YAML baseline and redeploys. Per-user overrides (`rule_type='user'`) are
+//!   operational state and intentionally excluded.
 //!
-//! * `lint` — read the live `access_control_entities` and `access_control_rules`
-//!   tables, then report unknown entities (rules pointing at no catalog row —
-//!   only possible if the FK was bypassed manually, e.g. mid-migration) and
-//!   unreachable rules (catalog rows with `default_included=false` and zero
-//!   grant rows — entity exists but no user can ever reach it). Exits
-//!   non-zero on any finding so it can gate CI.
+//! * `lint` — read the live `access_control_entities` and
+//!   `access_control_rules` tables, then report unknown entities (rules
+//!   pointing at no catalog row — only possible if the FK was bypassed
+//!   manually, e.g. mid-migration) and unreachable rules (catalog rows with
+//!   `default_included=false` and zero grant rows — entity exists but no user
+//!   can ever reach it). Exits non-zero on any finding so it can gate CI.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -77,13 +77,13 @@ async fn export_yaml(_args: ExportYamlArgs, _config: &CliConfig) -> Result<Comma
 
 /// Iterate every `EntityKind` and report:
 ///
-/// * **Unknown entities** — rows in `access_control_rules` whose
-///   `(entity_type, entity_id)` has no matching catalog row. The FK added in
-///   migration 007 makes this impossible going forward, but the check is
-///   cheap and catches manual SQL fixes that bypass the schema.
+/// * **Unknown entities** — rows in `access_control_rules` whose `(entity_type,
+///   entity_id)` has no matching catalog row. The FK added in migration 007
+///   makes this impossible going forward, but the check is cheap and catches
+///   manual SQL fixes that bypass the schema.
 /// * **Unreachable entities** — catalog rows with `default_included = false`
-///   and zero matching grants. The entity is registered but no one can
-///   reach it.
+///   and zero matching grants. The entity is registered but no one can reach
+///   it.
 ///
 /// Returns `(human_report, exit_nonzero)`.
 async fn lint(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
@@ -122,7 +122,9 @@ async fn lint(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
         if !unknown.is_empty() || !unreachable.is_empty() {
             report.push_str(&format!("\n[{kind}]\n"));
             for id in &unknown {
-                report.push_str(&format!("  UNKNOWN  {id} (rule rows present, no catalog row)\n"));
+                report.push_str(&format!(
+                    "  UNKNOWN  {id} (rule rows present, no catalog row)\n"
+                ));
             }
             for id in &unreachable {
                 report.push_str(&format!(
@@ -140,9 +142,7 @@ async fn lint(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
     } else {
         report.insert_str(
             0,
-            &format!(
-                "FAIL — {unknown_total} unknown, {unreachable_total} unreachable\n"
-            ),
+            &format!("FAIL — {unknown_total} unknown, {unreachable_total} unreachable\n"),
         );
         Ok((report, true))
     }

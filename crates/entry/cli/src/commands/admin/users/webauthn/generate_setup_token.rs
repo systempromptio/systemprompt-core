@@ -18,7 +18,7 @@ pub struct Args {
     pub expires_minutes: u32,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: Args,
     _config: &CliConfig,
 ) -> Result<CommandResult<WebauthnSetupTokenOutput>> {

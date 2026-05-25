@@ -123,33 +123,10 @@ pub async fn apply_notification_status(
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    if state == "completed" {
-        sqlx::query!(
-            r#"UPDATE agent_tasks SET
-                status = 'completed',
-                updated_at = $1,
-                completed_at = CURRENT_TIMESTAMP,
-                started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
-            WHERE task_id = $2"#,
-            timestamp,
-            task_id.as_str(),
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-    } else {
-        sqlx::query!(
-            "UPDATE agent_tasks SET status = $1, updated_at = $2 WHERE task_id = $3",
-            state,
-            timestamp,
-            task_id.as_str(),
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-    }
-    Ok(())
+    let parsed: TaskState = state.parse().map_err(|e: String| {
+        RepositoryError::InvalidData(format!("invalid notification task state {state:?}: {e}"))
+    })?;
+    update_task_state(pool, task_id, parsed, timestamp).await
 }
 
 pub async fn update_task_failed_with_error(

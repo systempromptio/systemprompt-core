@@ -15,7 +15,10 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(crate) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<AgentDetailOutput>> {
+pub(super) fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<AgentDetailOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name, "name", config, || {

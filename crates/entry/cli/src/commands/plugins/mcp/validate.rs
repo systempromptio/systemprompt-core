@@ -33,7 +33,7 @@ pub struct ValidateArgs {
     pub timeout: u64,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: ValidateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<McpBatchValidateOutput>> {

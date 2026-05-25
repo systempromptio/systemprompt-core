@@ -23,7 +23,11 @@ use super::initialization_steps::{
 };
 use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
 
-pub(super) fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberOrString) -> Event {
+pub(super) fn create_jsonrpc_error_event(
+    code: i32,
+    message: &str,
+    request_id: &NumberOrString,
+) -> Event {
     let error_event = json!({
         "jsonrpc": "2.0",
         "error": { "code": code, "message": message },
@@ -81,7 +85,10 @@ pub(super) fn resolve_task_id(message: &Message) -> TaskId {
         .unwrap_or_else(|| TaskId::new(Uuid::new_v4().to_string()))
 }
 
-pub(super) async fn setup_stream(input: StreamInput, tx: &Sender<Event>) -> Result<StreamSetupResult, ()> {
+pub(super) async fn setup_stream(
+    input: StreamInput,
+    tx: &Sender<Event>,
+) -> Result<StreamSetupResult, ()> {
     let StreamInput {
         message,
         agent_name,

@@ -78,7 +78,8 @@ impl ListItem {
             .get("title")
             .or_else(|| value.get("name"))
             .or_else(|| value.get("label"))
-            .and_then(JsonValue::as_str)?.to_owned();
+            .and_then(JsonValue::as_str)?
+            .to_owned();
 
         Some(Self {
             title,

@@ -89,9 +89,7 @@ pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResol
         return Ok(profile_yaml);
     }
 
-    Err(ProfileResolutionError::ProfileNotFound(
-        path_str.to_owned(),
-    ))
+    Err(ProfileResolutionError::ProfileNotFound(path_str.to_owned()))
 }
 
 fn expand_path(path_str: &str) -> PathBuf {

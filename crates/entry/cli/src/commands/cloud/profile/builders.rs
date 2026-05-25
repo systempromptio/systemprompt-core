@@ -18,7 +18,7 @@ use systemprompt_models::{
 
 use super::templates::generate_display_name;
 
-pub(crate) struct LocalProfileBuilder {
+pub(in crate::commands::cloud) struct LocalProfileBuilder {
     name: String,
     tenant_id: Option<TenantId>,
     secrets_path: String,
@@ -26,7 +26,7 @@ pub(crate) struct LocalProfileBuilder {
 }
 
 impl LocalProfileBuilder {
-    pub(crate) fn new(
+    pub(in crate::commands::cloud) fn new(
         name: impl Into<String>,
         secrets_path: impl AsRef<Path>,
         services_path: impl AsRef<Path>,
@@ -39,12 +39,12 @@ impl LocalProfileBuilder {
         }
     }
 
-    pub(crate) fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
+    pub(in crate::commands::cloud) fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
         self.tenant_id = Some(tenant_id);
         self
     }
 
-    pub(crate) fn build(self) -> Profile {
+    pub(in crate::commands::cloud) fn build(self) -> Profile {
         let ctx = ProjectContext::discover();
         let root = ctx.root();
         let system_path = root.to_string_lossy().to_string();
@@ -132,7 +132,7 @@ impl LocalProfileBuilder {
     }
 }
 
-pub(crate) struct CloudProfileBuilder {
+pub(in crate::commands::cloud) struct CloudProfileBuilder {
     name: String,
     tenant_id: Option<TenantId>,
     external_url: Option<String>,
@@ -142,7 +142,7 @@ pub(crate) struct CloudProfileBuilder {
 }
 
 impl CloudProfileBuilder {
-    pub(crate) fn new(name: impl Into<String>) -> Self {
+    pub(in crate::commands::cloud) fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             tenant_id: None,
@@ -153,32 +153,35 @@ impl CloudProfileBuilder {
         }
     }
 
-    pub(crate) fn with_trusted_issuer(mut self, issuer: TrustedIssuer) -> Self {
+    pub(in crate::commands::cloud) fn with_trusted_issuer(mut self, issuer: TrustedIssuer) -> Self {
         self.trusted_issuers.push(issuer);
         self
     }
 
-    pub(crate) fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
+    pub(in crate::commands::cloud) fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
         self.tenant_id = Some(tenant_id);
         self
     }
 
-    pub(crate) fn with_external_url(mut self, url: impl Into<String>) -> Self {
+    pub(in crate::commands::cloud) fn with_external_url(mut self, url: impl Into<String>) -> Self {
         self.external_url = Some(url.into());
         self
     }
 
-    pub(crate) const fn with_external_db_access(mut self, enabled: bool) -> Self {
+    pub(in crate::commands::cloud) const fn with_external_db_access(
+        mut self,
+        enabled: bool,
+    ) -> Self {
         self.external_db_access = enabled;
         self
     }
 
-    pub(crate) fn with_secrets_path(mut self, path: impl Into<String>) -> Self {
+    pub(in crate::commands::cloud) fn with_secrets_path(mut self, path: impl Into<String>) -> Self {
         self.secrets_path = Some(path.into());
         self
     }
 
-    pub(crate) fn build(self) -> Profile {
+    pub(in crate::commands::cloud) fn build(self) -> Profile {
         let display_name = generate_display_name(&self.name);
         let external = self
             .external_url

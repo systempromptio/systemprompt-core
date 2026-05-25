@@ -12,7 +12,7 @@ pub struct PromoteArgs {
     pub identifier: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: PromoteArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<RoleAssignOutput>> {

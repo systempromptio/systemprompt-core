@@ -11,7 +11,7 @@ use systemprompt_identifiers::{PriceId, TenantId};
 use systemprompt_logging::CliService;
 use url::Url;
 
-pub(crate) use crate::cloud::deploy::deploy_with_secrets;
+pub(super) use crate::cloud::deploy::deploy_with_secrets;
 use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 use systemprompt_cloud::{run_checkout_callback_flow, wait_for_provisioning};

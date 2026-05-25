@@ -220,7 +220,8 @@ impl FileValidator {
         MIME_EXTENSION_TABLE
             .iter()
             .find(|(mimes, _)| mimes.contains(&lower.as_str()))
-            .map_or("bin", |(_, ext)| *ext).to_owned()
+            .map_or("bin", |(_, ext)| *ext)
+            .to_owned()
     }
 }
 

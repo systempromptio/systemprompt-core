@@ -13,7 +13,8 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .ok_or(InboundParseError::MissingField("model"))?.to_owned();
+        .ok_or(InboundParseError::MissingField("model"))?
+        .to_owned();
 
     let max_tokens = value
         .get("max_output_tokens")
@@ -125,11 +126,13 @@ fn parse_function_call(item: &Value) -> CanonicalMessage {
         .get("call_id")
         .and_then(Value::as_str)
         .or_else(|| item.get("id").and_then(Value::as_str))
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     let name = item
         .get("name")
         .and_then(Value::as_str)
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     let arguments = item
         .get("arguments")
         .and_then(Value::as_str)
@@ -145,11 +148,13 @@ fn parse_function_call_output(item: &Value) -> CanonicalMessage {
     let tool_use_id = item
         .get("call_id")
         .and_then(Value::as_str)
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     let output_text = item
         .get("output")
         .and_then(Value::as_str)
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     CanonicalMessage {
         role: Role::Tool,
         content: vec![CanonicalContent::ToolResult {
@@ -217,7 +222,8 @@ fn parse_content_part(value: &Value) -> Option<CanonicalContent> {
             value
                 .get("text")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
         )),
         "input_image" => {
             let url = value.get("image_url").and_then(Value::as_str)?;

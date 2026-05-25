@@ -31,7 +31,10 @@ pub struct EditArgs {
     pub content_types: Option<String>,
 }
 
-pub(crate) fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<TemplateEditOutput>> {
+pub(super) fn execute(
+    args: EditArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<TemplateEditOutput>> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");

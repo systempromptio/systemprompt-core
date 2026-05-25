@@ -5,7 +5,7 @@ use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 
-pub(crate) fn get_tenant_id() -> Result<TenantId> {
+pub(in crate::commands::cloud) fn get_tenant_id() -> Result<TenantId> {
     let profile =
         ProfileBootstrap::get().map_err(|_e| anyhow::anyhow!("Profile not initialized"))?;
 
@@ -21,7 +21,7 @@ pub(crate) fn get_tenant_id() -> Result<TenantId> {
         .ok_or_else(|| anyhow::anyhow!("No tenant_id in profile. Create a cloud tenant first."))
 }
 
-pub(crate) fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
+pub(in crate::commands::cloud) fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
     let tenant_id = get_tenant_id()?;
 
     let profile_path =
@@ -43,7 +43,9 @@ pub(crate) fn get_tenant_and_secrets_path() -> Result<(TenantId, PathBuf)> {
     Ok((tenant_id, secrets_path))
 }
 
-pub(crate) fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
+pub(in crate::commands::cloud) fn load_secrets_json(
+    path: &PathBuf,
+) -> Result<HashMap<String, String>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
@@ -65,7 +67,9 @@ pub(crate) fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String
     Ok(secrets)
 }
 
-pub(crate) fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
+pub(in crate::commands::cloud) fn map_secrets_to_env_vars(
+    secrets: HashMap<String, String>,
+) -> HashMap<String, String> {
     use systemprompt_cloud::constants::env_vars;
 
     let has_internal = secrets.contains_key("internal_database_url");
@@ -118,17 +122,14 @@ fn is_standard_env_var(key: &str) -> bool {
     )
 }
 
-pub(crate) async fn sync_cloud_credentials(
+pub(in crate::commands::cloud) async fn sync_cloud_credentials(
     api_client: &CloudApiClient,
     tenant_id: &TenantId,
     creds: &CloudCredentials,
 ) -> Result<Vec<String>> {
     let mut secrets = HashMap::new();
 
-    secrets.insert(
-        "SYSTEMPROMPT_API_TOKEN".to_owned(),
-        creds.api_token.clone(),
-    );
+    secrets.insert("SYSTEMPROMPT_API_TOKEN".to_owned(), creds.api_token.clone());
 
     secrets.insert(
         "SYSTEMPROMPT_USER_EMAIL".to_owned(),

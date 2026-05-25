@@ -54,7 +54,8 @@ pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> Orchestr
     let pid = child.id();
     #[expect(
         clippy::mem_forget,
-        reason = "detached agent process: skip Child's drop-time wait so the spawned agent keeps running after this fn returns"
+        reason = "detached agent process: skip Child's drop-time wait so the spawned agent keeps \
+                  running after this fn returns"
     )]
     std::mem::forget(child);
 

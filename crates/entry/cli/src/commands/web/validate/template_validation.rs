@@ -6,7 +6,7 @@ use systemprompt_models::content_config::ContentConfigRaw;
 use super::super::paths::WebPaths;
 use super::super::types::{TemplatesConfig, ValidationIssue};
 
-pub(crate) fn validate_templates(
+pub(super) fn validate_templates(
     profile: &systemprompt_models::Profile,
     web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,

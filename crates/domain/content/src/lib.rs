@@ -32,7 +32,7 @@
 
 #![expect(
     clippy::use_self,
-    reason = "spelling the concrete type clarifies intent in branding/config builders where Self would be ambiguous across nested impl blocks"
+    reason = "explicit type names preferred over Self in this crate's public-facing APIs"
 )]
 
 pub(crate) mod branding_provider;

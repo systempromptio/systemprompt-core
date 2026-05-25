@@ -38,7 +38,7 @@ fn validate_paths(config: &WebConfig) -> Result<(), WebConfigError> {
     Ok(())
 }
 
-pub(crate) fn get_templates_path(config: &WebConfig, paths: &AppPaths) -> PathBuf {
+pub fn get_templates_path(config: &WebConfig, paths: &AppPaths) -> PathBuf {
     let configured = &config.paths.templates;
     if !configured.is_empty() {
         let path = Path::new(configured);

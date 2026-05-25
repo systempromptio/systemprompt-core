@@ -21,7 +21,7 @@ const fn pg_dump_format_flag(format: BackupFormat) -> &'static str {
     }
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     profile_name: &str,
     database_url: &str,
     format: BackupFormat,
