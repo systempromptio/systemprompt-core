@@ -17,6 +17,7 @@ members = [
     "integration/extension",
     "integration/files",
     "integration/gateway",
+    "integration/mcp",
     "integration/oauth",
     "integration/security",
     "integration/scheduler",
