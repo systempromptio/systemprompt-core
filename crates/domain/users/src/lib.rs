@@ -26,7 +26,10 @@
 //! `systemprompt-traits`, `systemprompt-provider-contracts`, and
 //! `systemprompt-identifiers`.
 
-#![allow(missing_debug_implementations)]
+#![expect(
+    missing_debug_implementations,
+    reason = "service types in this crate hold pools/clients that intentionally do not implement Debug"
+)]
 
 pub mod error;
 pub(crate) mod extension;
