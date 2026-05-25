@@ -5,7 +5,8 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 #[serde(rename_all = "camelCase")]
 #[expect(
     clippy::struct_field_names,
-    reason = "A2A wire schema names these fields message_id/task_id/context_id — public protocol vocabulary"
+    reason = "A2A wire schema names these fields message_id/task_id/context_id — public protocol \
+              vocabulary"
 )]
 pub struct Message {
     pub role: MessageRole,
