@@ -1,4 +1,4 @@
-pub(crate) fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>, Option<String>) {
+pub(super) fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>, Option<String>) {
     let ua_lower = ua.to_lowercase();
 
     let device_type = Some(parse_device_type(&ua_lower));

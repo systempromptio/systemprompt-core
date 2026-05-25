@@ -11,7 +11,7 @@ use crate::models::AnalyticsSession;
 
 use super::types::{ActiveSessionLookup, SessionRecord};
 
-pub(crate) async fn find_by_id(
+pub(super) async fn find_by_id(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<AnalyticsSession>> {
@@ -37,7 +37,7 @@ pub(crate) async fn find_by_id(
     .map_err(Into::into)
 }
 
-pub(crate) async fn find_by_fingerprint(
+pub(super) async fn find_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     user_id: &UserId,
@@ -67,7 +67,7 @@ pub(crate) async fn find_by_fingerprint(
     .map_err(Into::into)
 }
 
-pub(crate) async fn list_active_by_user(
+pub(super) async fn list_active_by_user(
     pool: &PgPool,
     user_id: &UserId,
 ) -> Result<Vec<AnalyticsSession>> {
@@ -94,7 +94,7 @@ pub(crate) async fn list_active_by_user(
     .map_err(Into::into)
 }
 
-pub(crate) async fn find_recent_by_fingerprint(
+pub(super) async fn find_recent_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     max_age_seconds: i64,
@@ -122,7 +122,7 @@ pub(crate) async fn find_recent_by_fingerprint(
     .map_err(Into::into)
 }
 
-pub(crate) async fn find_active_by_id(
+pub(super) async fn find_active_by_id(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<ActiveSessionLookup>> {
@@ -141,7 +141,7 @@ pub(crate) async fn find_active_by_id(
     .map_err(Into::into)
 }
 
-pub(crate) async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
+pub(super) async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     let id = session_id.as_str();
     let result = sqlx::query_scalar!(
         r#"SELECT 1 as "exists" FROM user_sessions WHERE session_id = $1 LIMIT 1"#,
@@ -152,7 +152,7 @@ pub(crate) async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool
     Ok(result.is_some())
 }
 
-pub(crate) async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result<i32> {
+pub(super) async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result<i32> {
     let id = session_id.as_str();
 
     let result = sqlx::query_scalar!(
@@ -165,7 +165,7 @@ pub(crate) async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) ->
     Ok(result.unwrap_or(0))
 }
 
-pub(crate) async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
+pub(super) async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     let count = sqlx::query_scalar!(
         r#"
         SELECT COUNT(*)::BIGINT as "count!"
@@ -179,7 +179,7 @@ pub(crate) async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     Ok(count)
 }
 
-pub(crate) async fn count_inactive(pool: &PgPool, inactive_hours: i32) -> Result<i64> {
+pub(super) async fn count_inactive(pool: &PgPool, inactive_hours: i32) -> Result<i64> {
     let cutoff = Utc::now() - Duration::hours(i64::from(inactive_hours));
     let count = sqlx::query_scalar!(
         r#"

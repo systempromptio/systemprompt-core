@@ -4,7 +4,7 @@ use systemprompt_identifiers::{FunnelId, FunnelProgressId, SessionId};
 use crate::models::{Funnel, FunnelMatchType, FunnelProgress, FunnelStep};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct FunnelRow {
+pub(super) struct FunnelRow {
     pub id: FunnelId,
     pub name: String,
     pub description: Option<String>,
@@ -14,7 +14,7 @@ pub(crate) struct FunnelRow {
 }
 
 impl FunnelRow {
-    pub(crate) fn into_funnel(self) -> Funnel {
+    pub(super) fn into_funnel(self) -> Funnel {
         Funnel {
             id: self.id,
             name: self.name,
@@ -27,7 +27,7 @@ impl FunnelRow {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct FunnelStepRow {
+pub(super) struct FunnelStepRow {
     pub funnel_id: FunnelId,
     pub step_order: i32,
     pub name: String,
@@ -36,7 +36,7 @@ pub(crate) struct FunnelStepRow {
 }
 
 impl FunnelStepRow {
-    pub(crate) fn into_step(self) -> FunnelStep {
+    pub(super) fn into_step(self) -> FunnelStep {
         FunnelStep {
             funnel_id: self.funnel_id,
             step_order: self.step_order,
@@ -48,7 +48,7 @@ impl FunnelStepRow {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub(crate) struct FunnelProgressRow {
+pub(super) struct FunnelProgressRow {
     pub id: FunnelProgressId,
     pub funnel_id: FunnelId,
     pub session_id: SessionId,
@@ -61,7 +61,7 @@ pub(crate) struct FunnelProgressRow {
 }
 
 impl FunnelProgressRow {
-    pub(crate) fn into_progress(self) -> FunnelProgress {
+    pub(super) fn into_progress(self) -> FunnelProgress {
         FunnelProgress {
             id: self.id,
             funnel_id: self.funnel_id,
