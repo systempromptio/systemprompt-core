@@ -54,15 +54,15 @@ pub(super) fn lookup_geoip(
         },
     };
 
-    let country = city_data.country.iso_code.map(ToString::to_string);
+    let country = city_data.country.iso_code.map(str::to_owned);
 
     let region = city_data
         .subdivisions
         .first()
         .and_then(|s| s.iso_code)
-        .map(ToString::to_string);
+        .map(str::to_owned);
 
-    let city_name = city_data.city.names.english.map(ToString::to_string);
+    let city_name = city_data.city.names.english.map(str::to_owned);
 
     Some((country, region, city_name))
 }
@@ -79,7 +79,7 @@ pub(super) fn parse_referrer_source(url: &str) -> Option<String> {
     match url::Url::parse(url) {
         Ok(parsed_url) => parsed_url
             .host_str()
-            .map(ToString::to_string)
+            .map(str::to_owned)
             .filter(|host| host.parse::<std::net::IpAddr>().is_err()),
         Err(err) => {
             tracing::debug!(url = %url, error = %err, "failed to parse referrer URL");

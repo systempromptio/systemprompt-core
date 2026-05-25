@@ -19,9 +19,9 @@ use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::AnalyticsSession;
 
+pub(super) use types::ActiveSessionLookup;
 pub use types::{
-    ActiveSessionLookup, CreateSessionParams, SessionBehavioralData, SessionMigrationResult,
-    SessionRecord,
+    CreateSessionParams, SessionBehavioralData, SessionMigrationResult, SessionRecord,
 };
 
 #[derive(Clone, Debug)]

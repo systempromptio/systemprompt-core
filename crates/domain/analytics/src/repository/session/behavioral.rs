@@ -2,7 +2,7 @@ use crate::Result;
 use sqlx::PgPool;
 use systemprompt_identifiers::SessionId;
 
-pub(crate) async fn mark_as_behavioral_bot(
+pub(super) async fn mark_as_behavioral_bot(
     pool: &PgPool,
     session_id: &SessionId,
     reason: &str,
@@ -23,7 +23,7 @@ pub(crate) async fn mark_as_behavioral_bot(
     Ok(())
 }
 
-pub(crate) async fn check_and_mark_behavioral_bot(
+pub(super) async fn check_and_mark_behavioral_bot(
     pool: &PgPool,
     session_id: &SessionId,
     request_count_threshold: i32,
@@ -49,7 +49,7 @@ pub(crate) async fn check_and_mark_behavioral_bot(
     Ok(result.is_some())
 }
 
-pub(crate) async fn update_behavioral_detection(
+pub(super) async fn update_behavioral_detection(
     pool: &PgPool,
     session_id: &SessionId,
     score: i32,

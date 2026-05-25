@@ -9,7 +9,7 @@ use systemprompt_identifiers::SessionId;
 
 use super::types::SessionBehavioralData;
 
-pub(crate) async fn count_sessions_by_fingerprint(
+pub(super) async fn count_sessions_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     window_hours: i64,
@@ -30,7 +30,7 @@ pub(crate) async fn count_sessions_by_fingerprint(
     Ok(count)
 }
 
-pub(crate) async fn get_endpoint_sequence(
+pub(super) async fn get_endpoint_sequence(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Vec<String>> {
@@ -52,7 +52,7 @@ pub(crate) async fn get_endpoint_sequence(
     Ok(endpoints.into_iter().flatten().collect())
 }
 
-pub(crate) async fn get_request_timestamps(
+pub(super) async fn get_request_timestamps(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Vec<DateTime<Utc>>> {
@@ -73,7 +73,7 @@ pub(crate) async fn get_request_timestamps(
     Ok(timestamps)
 }
 
-pub(crate) async fn get_session_for_behavioral_analysis(
+pub(super) async fn get_session_for_behavioral_analysis(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<SessionBehavioralData>> {
@@ -101,7 +101,7 @@ pub(crate) async fn get_session_for_behavioral_analysis(
     .map_err(Into::into)
 }
 
-pub(crate) async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
+pub(super) async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     let id = session_id.as_str();
 
     let result = sqlx::query_scalar!(
@@ -118,7 +118,7 @@ pub(crate) async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) 
     Ok(result)
 }
 
-pub(crate) async fn count_unique_ips_by_fingerprint(
+pub(super) async fn count_unique_ips_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     window_days: i64,
@@ -140,7 +140,7 @@ pub(crate) async fn count_unique_ips_by_fingerprint(
     Ok(count)
 }
 
-pub(crate) async fn count_engagement_events_by_fingerprint(
+pub(super) async fn count_engagement_events_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     window_days: i64,
@@ -162,7 +162,7 @@ pub(crate) async fn count_engagement_events_by_fingerprint(
     Ok(count)
 }
 
-pub(crate) async fn get_session_starts_by_fingerprint(
+pub(super) async fn get_session_starts_by_fingerprint(
     pool: &PgPool,
     fingerprint_hash: &str,
     window_days: i64,
@@ -184,7 +184,7 @@ pub(crate) async fn get_session_starts_by_fingerprint(
     Ok(timestamps)
 }
 
-pub(crate) async fn get_session_velocity(
+pub(super) async fn get_session_velocity(
     pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<(Option<i64>, Option<i64>)> {
