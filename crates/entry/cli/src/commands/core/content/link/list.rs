@@ -56,9 +56,9 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResul
     Ok(CommandResult::table(output)
         .with_title("Links")
         .with_columns(vec![
-            "id".to_string(),
-            "short_code".to_string(),
-            "target_url".to_string(),
-            "click_count".to_string(),
+            "id".to_owned(),
+            "short_code".to_owned(),
+            "target_url".to_owned(),
+            "click_count".to_owned(),
         ]))
 }

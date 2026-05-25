@@ -41,12 +41,12 @@ pub(super) fn execute(
     Ok(CommandResult::table(output)
         .with_title("Plugins")
         .with_columns(vec![
-            "id".to_string(),
-            "name".to_string(),
-            "display_name".to_string(),
-            "enabled".to_string(),
-            "skill_count".to_string(),
-            "agent_count".to_string(),
+            "id".to_owned(),
+            "name".to_owned(),
+            "display_name".to_owned(),
+            "enabled".to_owned(),
+            "skill_count".to_owned(),
+            "agent_count".to_owned(),
         ]))
 }
 

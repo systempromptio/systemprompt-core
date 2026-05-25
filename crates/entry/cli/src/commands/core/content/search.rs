@@ -81,9 +81,9 @@ pub async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Search Results")
         .with_columns(vec![
-            "id".to_string(),
-            "title".to_string(),
-            "slug".to_string(),
-            "source_id".to_string(),
+            "id".to_owned(),
+            "title".to_owned(),
+            "slug".to_owned(),
+            "source_id".to_owned(),
         ]))
 }

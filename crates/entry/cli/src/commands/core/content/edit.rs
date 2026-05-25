@@ -134,7 +134,7 @@ fn prompt_content_selection(
     let rt = tokio::runtime::Handle::current();
     let contents = rt.block_on(async {
         if let Some(source) = source {
-            let source = SourceId::new(source.to_string());
+            let source = SourceId::new(source.to_owned());
             repo.list_by_source_limited(&source, &LocaleCode::new("en"), 50)
                 .await
         } else {
@@ -158,5 +158,5 @@ fn prompt_content_selection(
         .interact()
         .context("Failed to get content selection")?;
 
-    Ok(contents[selection].id.as_str().to_string())
+    Ok(contents[selection].id.as_str().to_owned())
 }

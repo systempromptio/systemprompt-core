@@ -88,5 +88,5 @@ fn parse_file_id(id: &str) -> Result<FileId> {
             id
         )
     })?;
-    Ok(FileId::new(id.to_string()))
+    Ok(FileId::new(id.to_owned()))
 }

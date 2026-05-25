@@ -92,7 +92,7 @@ fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
         let entry = entry?;
         if entry.path().is_dir() && entry.path().join("config.yaml").exists() {
             if let Some(name) = entry.file_name().to_str() {
-                ids.push(name.to_string());
+                ids.push(name.to_owned());
             }
         }
     }

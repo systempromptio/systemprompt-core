@@ -62,8 +62,8 @@ pub(super) async fn execute(
     let output = ContentLinkOutput {
         file_id,
         content_id,
-        role: role.as_str().to_string(),
-        message: "File linked to content successfully".to_string(),
+        role: role.as_str().to_owned(),
+        message: "File linked to content successfully".to_owned(),
     };
 
     Ok(CommandResult::card(output).with_title("File Linked"))

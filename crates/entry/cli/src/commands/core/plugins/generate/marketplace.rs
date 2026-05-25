@@ -86,24 +86,24 @@ pub(super) fn generate_plugin_json(
 
     let mut manifest = serde_json::Map::new();
     manifest.insert(
-        "name".to_string(),
+        "name".to_owned(),
         serde_json::Value::String(plugin.id.to_string()),
     );
     manifest.insert(
-        "description".to_string(),
+        "description".to_owned(),
         serde_json::Value::String(plugin.description.clone()),
     );
     manifest.insert(
-        "version".to_string(),
+        "version".to_owned(),
         serde_json::Value::String(plugin.version.clone()),
     );
 
     let mut author_obj = serde_json::Map::new();
     author_obj.insert(
-        "name".to_string(),
+        "name".to_owned(),
         serde_json::Value::String(plugin.author.name.clone()),
     );
-    manifest.insert("author".to_string(), serde_json::Value::Object(author_obj));
+    manifest.insert("author".to_owned(), serde_json::Value::Object(author_obj));
 
     if !plugin.keywords.is_empty() {
         let keywords: Vec<serde_json::Value> = plugin
@@ -111,7 +111,7 @@ pub(super) fn generate_plugin_json(
             .iter()
             .map(|k| serde_json::Value::String(k.clone()))
             .collect();
-        manifest.insert("keywords".to_string(), serde_json::Value::Array(keywords));
+        manifest.insert("keywords".to_owned(), serde_json::Value::Array(keywords));
     }
 
     let plugin_json_path = claude_plugin_dir.join("plugin.json");

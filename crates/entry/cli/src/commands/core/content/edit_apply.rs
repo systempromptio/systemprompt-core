@@ -26,11 +26,11 @@ pub(super) fn apply_visibility_flags(
 ) {
     if args.public {
         state.public_value = Some(true);
-        changes.push("public: true".to_string());
+        changes.push("public: true".to_owned());
     }
     if args.private {
         state.public_value = Some(false);
-        changes.push("public: false".to_string());
+        changes.push("public: false".to_owned());
     }
 }
 
@@ -41,13 +41,13 @@ pub(super) fn apply_body_flags(
 ) -> Result<()> {
     if let Some(b) = &args.body {
         state.body.clone_from(b);
-        changes.push("body: updated".to_string());
+        changes.push("body: updated".to_owned());
     }
     if let Some(file) = &args.body_file {
         let path = Path::new(file);
         state.body = fs::read_to_string(path)
             .with_context(|| format!("Failed to read body file: {}", path.display()))?;
-        changes.push("body: updated from file".to_string());
+        changes.push("body: updated from file".to_owned());
     }
     Ok(())
 }
@@ -82,15 +82,15 @@ async fn apply_set_field(
 ) -> Result<()> {
     match key {
         "title" => {
-            state.title = value.to_string();
+            state.title = value.to_owned();
             changes.push(format!("title: {}", value));
         },
         "description" => {
-            state.description = value.to_string();
+            state.description = value.to_owned();
             changes.push(format!("description: {}", value));
         },
         "keywords" => {
-            state.keywords = value.to_string();
+            state.keywords = value.to_owned();
             changes.push(format!("keywords: {}", value));
         },
         "image" => apply_image_field(value, state, changes),
@@ -111,9 +111,9 @@ async fn apply_set_field(
 fn apply_image_field(value: &str, state: &mut ContentEditState, changes: &mut Vec<String>) {
     if value.eq_ignore_ascii_case("none") || value.is_empty() {
         state.image = None;
-        changes.push("image: cleared".to_string());
+        changes.push("image: cleared".to_owned());
     } else {
-        state.image = Some(value.to_string());
+        state.image = Some(value.to_owned());
         changes.push(format!("image: {}", value));
     }
 }
@@ -126,10 +126,10 @@ async fn apply_category_field(
 ) -> Result<()> {
     if value.eq_ignore_ascii_case("none") || value.is_empty() {
         state.category_id = CategoryIdUpdate::Clear;
-        changes.push("category_id: cleared".to_string());
+        changes.push("category_id: cleared".to_owned());
         return Ok(());
     }
-    let cat_id = CategoryId::new(value.to_string());
+    let cat_id = CategoryId::new(value.to_owned());
     if !repo.category_exists(&cat_id).await? {
         return Err(anyhow!(
             "Category '{}' not found. Please use an existing category ID.",
@@ -153,7 +153,7 @@ fn apply_kind_field(
             VALID_KINDS.join(", ")
         ));
     }
-    state.kind_value = Some(value.to_string());
+    state.kind_value = Some(value.to_owned());
     changes.push(format!("kind: {}", value));
     Ok(())
 }

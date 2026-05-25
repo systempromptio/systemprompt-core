@@ -90,10 +90,10 @@ pub async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Content Status")
         .with_columns(vec![
-            "slug".to_string(),
-            "title".to_string(),
-            "is_public".to_string(),
-            "prerendered".to_string(),
-            "last_updated".to_string(),
+            "slug".to_owned(),
+            "title".to_owned(),
+            "is_public".to_owned(),
+            "prerendered".to_owned(),
+            "last_updated".to_owned(),
         ]))
 }

@@ -44,10 +44,10 @@ pub(super) fn execute(
     Ok(CommandResult::table(output)
         .with_title("Plugin Validation Results")
         .with_columns(vec![
-            "plugin_id".to_string(),
-            "valid".to_string(),
-            "errors".to_string(),
-            "warnings".to_string(),
+            "plugin_id".to_owned(),
+            "valid".to_owned(),
+            "errors".to_owned(),
+            "warnings".to_owned(),
         ]))
 }
 
@@ -61,7 +61,7 @@ fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
         let entry = entry?;
         if entry.path().is_dir() && entry.path().join("config.yaml").exists() {
             if let Some(name) = entry.file_name().to_str() {
-                ids.push(name.to_string());
+                ids.push(name.to_owned());
             }
         }
     }
@@ -146,7 +146,7 @@ fn validate_skill_refs(
     if !skills_path.exists()
         && plugin.skills.source == systemprompt_models::ComponentSource::Instance
     {
-        warnings.push("Skills directory does not exist".to_string());
+        warnings.push("Skills directory does not exist".to_owned());
     }
 }
 

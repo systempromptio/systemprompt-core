@@ -62,10 +62,10 @@ pub(super) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("File Search Results")
         .with_columns(vec![
-            "id".to_string(),
-            "path".to_string(),
-            "mime_type".to_string(),
-            "size_bytes".to_string(),
-            "created_at".to_string(),
+            "id".to_owned(),
+            "path".to_owned(),
+            "mime_type".to_owned(),
+            "size_bytes".to_owned(),
+            "created_at".to_owned(),
         ]))
 }

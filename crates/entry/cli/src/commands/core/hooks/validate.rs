@@ -26,9 +26,9 @@ pub(super) fn execute(
     Ok(CommandResult::table(output)
         .with_title("Hook Validation Results")
         .with_columns(vec![
-            "plugin_id".to_string(),
-            "valid".to_string(),
-            "errors".to_string(),
+            "plugin_id".to_owned(),
+            "valid".to_owned(),
+            "errors".to_owned(),
         ]))
 }
 
@@ -50,7 +50,7 @@ fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
-            .to_string();
+            .to_owned();
         let config_path = path.join(HOOK_CONFIG_FILENAME);
         if !config_path.exists() {
             continue;
@@ -76,11 +76,11 @@ fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
         let id_str = if config.id.as_str().is_empty() {
             dir_name.clone()
         } else {
-            config.id.as_str().to_string()
+            config.id.as_str().to_owned()
         };
 
         if config.command.is_empty() {
-            errors.push("command must not be empty".to_string());
+            errors.push("command must not be empty".to_owned());
         } else {
             validate_hook_command(&config.command, &path, &mut errors);
         }

@@ -34,8 +34,8 @@ pub(super) fn execute(
     let validator = FileValidator::new(*upload_config);
 
     let (valid, category, errors) = match validator.validate(&mime_type, size_bytes) {
-        Ok(cat) => (true, cat.display_name().to_string(), vec![]),
-        Err(e) => (false, "unknown".to_string(), vec![e.to_string()]),
+        Ok(cat) => (true, cat.display_name().to_owned(), vec![]),
+        Err(e) => (false, "unknown".to_owned(), vec![e.to_string()]),
     };
 
     let output = FileValidationOutput {

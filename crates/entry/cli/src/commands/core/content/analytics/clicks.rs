@@ -63,10 +63,10 @@ pub async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Link Clicks")
         .with_columns(vec![
-            "click_id".to_string(),
-            "session_id".to_string(),
-            "clicked_at".to_string(),
-            "device_type".to_string(),
-            "country".to_string(),
+            "click_id".to_owned(),
+            "session_id".to_owned(),
+            "clicked_at".to_owned(),
+            "device_type".to_owned(),
+            "country".to_owned(),
         ]))
 }
