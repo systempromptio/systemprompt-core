@@ -8,12 +8,14 @@ use std::path::{Path, PathBuf};
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
-use crate::api_client::SyncApiClient;
-use crate::error::SyncResult;
-use crate::file_bundler::{
+mod file_bundler;
+
+use self::file_bundler::{
     INCLUDE_DIRS, add_dir_to_zip, collect_files, compare_tarball_with_local, create_tarball,
     extract_tarball, extract_tarball_selective, peek_manifest,
 };
+use crate::api_client::SyncApiClient;
+use crate::error::SyncResult;
 use crate::{SyncConfig, SyncDirection, SyncOperationResult};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

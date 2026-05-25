@@ -20,13 +20,13 @@ use zip::write::SimpleFileOptions;
 use crate::error::{SyncError, SyncResult};
 use crate::files::{FileBundle, FileEntry, FileManifest};
 
-pub(crate) use extract::{compare_tarball_with_local, extract_tarball, extract_tarball_selective};
+pub(super) use extract::{compare_tarball_with_local, extract_tarball, extract_tarball_selective};
 
-pub(crate) const INCLUDE_DIRS: [&str; 8] = [
+pub(super) const INCLUDE_DIRS: [&str; 8] = [
     "agents", "skills", "content", "web", "config", "profiles", "plugins", "hooks",
 ];
 
-pub(crate) fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
+pub(super) fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     let mut files = vec![];
 
     for dir in INCLUDE_DIRS {
@@ -74,7 +74,7 @@ fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncResul
     Ok(())
 }
 
-pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
+pub(super) fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut tar = Builder::new(&mut encoder);
@@ -87,7 +87,7 @@ pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult
     Ok(encoder.finish()?)
 }
 
-pub(crate) fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
+pub(super) fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut files = vec![];
@@ -108,7 +108,7 @@ pub(crate) fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     })
 }
 
-pub(crate) fn add_dir_to_zip<W: Write + std::io::Seek>(
+pub(super) fn add_dir_to_zip<W: Write + std::io::Seek>(
     zip: &mut ZipWriter<W>,
     dir: &Path,
     base: &Path,

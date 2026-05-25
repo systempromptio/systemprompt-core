@@ -163,7 +163,7 @@ fn get_bool_param(ctx: &JobContext, key: &str) -> bool {
         .is_some_and(|v| v == "true" || v == "1" || v == "yes")
 }
 
-pub(crate) fn load_content_config(paths: &AppPaths) -> SyncResult<ContentConfigRaw> {
+pub(super) fn load_content_config(paths: &AppPaths) -> SyncResult<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     if !config_path.exists() {
