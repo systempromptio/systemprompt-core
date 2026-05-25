@@ -1,5 +1,5 @@
 #![cfg(target_os = "windows")]
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "Win32 process / window-manipulation FFI")]
 
 use std::env;
 use std::mem::MaybeUninit;

@@ -1,4 +1,8 @@
-#![allow(clippy::print_stdout, clippy::print_stderr)]
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "git/anthropic credential-helper protocol: secrets are emitted on stdout, diagnostics on stderr"
+)]
 
 use std::process::ExitCode;
 

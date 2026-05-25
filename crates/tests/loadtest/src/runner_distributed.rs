@@ -92,7 +92,6 @@ pub async fn run_scenario_distributed<F, Fut>(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_users<F, Fut>(
     range: std::ops::Range<usize>,
     client: &Client,

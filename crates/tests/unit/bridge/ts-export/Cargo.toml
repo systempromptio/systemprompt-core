@@ -1,0 +1,15 @@
+[package]
+name = "systemprompt-bridge-ts-export-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "TS binding export tooling for systemprompt-bridge (manual; runs with --ignored)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true, features = ["ts-export"] }
+ts-rs = "10"

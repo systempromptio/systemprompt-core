@@ -1,4 +1,4 @@
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "Windows CryptoAPI / NCrypt FFI for machine-key device cert")]
 
 use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use std::{env, ptr};

@@ -73,7 +73,10 @@ pub mod tracing_init {
             return;
         };
         if let Err(e) = std::fs::create_dir_all(&dir) {
-            #[allow(clippy::print_stderr)]
+            #[allow(
+                clippy::print_stderr,
+                reason = "tracing subscriber not yet installed; stderr is the only diagnostic channel"
+            )]
             {
                 eprintln!(
                     "[systemprompt-bridge] cannot create log dir {}: {e}",
@@ -91,7 +94,10 @@ pub mod tracing_init {
         let appender = match appender {
             Ok(a) => a,
             Err(e) => {
-                #[allow(clippy::print_stderr)]
+                #[allow(
+                    clippy::print_stderr,
+                    reason = "tracing subscriber not yet installed; stderr is the only diagnostic channel"
+                )]
                 {
                     eprintln!("[systemprompt-bridge] rolling appender init failed: {e}");
                 }
@@ -172,7 +178,10 @@ pub mod tracing_init {
                     "bridge panicked (no log dir available)"
                 );
             }
-            #[allow(clippy::print_stderr)]
+            #[allow(
+                clippy::print_stderr,
+                reason = "panic hook last-resort dump: tracing may already be torn down at this point"
+            )]
             {
                 eprintln!("{dump}");
             }

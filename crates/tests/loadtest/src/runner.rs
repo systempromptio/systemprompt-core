@@ -79,7 +79,6 @@ where
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn spawn_users<F, Fut>(
     range: std::ops::Range<usize>,
     client: &Client,

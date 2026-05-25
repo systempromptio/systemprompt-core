@@ -1,0 +1,18 @@
+[package]
+name = "systemprompt-bridge-config-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-bridge config parsing and round-trip"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+
+[dev-dependencies]
+toml = "0.8"

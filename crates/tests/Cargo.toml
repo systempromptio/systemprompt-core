@@ -65,6 +65,8 @@ members = [
     "unit/bridge/integration",
     "unit/bridge/proxy",
     "unit/bridge/auth",
+    "unit/bridge/config",
+    "unit/bridge/ts-export",
     # Common test utilities
     "common/mocks",
     "common/migrate",

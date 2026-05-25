@@ -11,7 +11,7 @@ use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::Path;
 use tar::{Archive, Builder};
 use zip::ZipWriter;
@@ -124,12 +124,10 @@ pub(crate) fn add_dir_to_zip<W: Write + std::io::Seek>(
             let relative = path.strip_prefix(base)?;
             let name = relative.to_string_lossy().to_string();
             zip.start_file(&name, options)?;
-            let mut file = fs::File::open(&path).map_err(|source| SyncError::FileOpenFailed {
+            let buf = fs::read(&path).map_err(|source| SyncError::FileOpenFailed {
                 path: path.display().to_string(),
                 source,
             })?;
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf)?;
             zip.write_all(&buf)?;
         }
     }

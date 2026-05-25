@@ -1,4 +1,8 @@
-#![allow(clippy::print_stdout, clippy::print_stderr)]
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "single user-facing display sink for the bridge CLI; analogue of crates/infra/logging/services/cli"
+)]
 
 pub fn print_line(msg: &str) {
     println!("{msg}");

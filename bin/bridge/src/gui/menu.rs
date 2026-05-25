@@ -74,7 +74,10 @@ pub fn install(bindings: &mut HashMap<MenuId, UiEvent>) -> GuiResult<MenuBarHand
 }
 
 #[cfg(target_os = "windows")]
-#[allow(unsafe_code)]
+#[allow(
+    unsafe_code,
+    reason = "raw window handle is required to attach Win32 menu bar to the GUI HWND"
+)]
 pub fn attach_to_window(handles: &MenuBarHandles, window: &Window) -> GuiResult<()> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let handle = window.window_handle().map_err(|e| {

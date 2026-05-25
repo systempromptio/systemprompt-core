@@ -165,6 +165,10 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
 
     let pid = child.id();
 
+    #[expect(
+        clippy::mem_forget,
+        reason = "detached MCP server: skip Child's drop-time wait so the OS keeps the process alive after this fn returns"
+    )]
     std::mem::forget(child);
 
     Ok(pid)

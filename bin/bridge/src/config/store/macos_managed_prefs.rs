@@ -1,5 +1,5 @@
 #![cfg(target_os = "macos")]
-#![allow(unsafe_code)]
+#![allow(unsafe_code, reason = "CoreFoundation preferences FFI for managed app domain")]
 
 use std::collections::BTreeMap;
 

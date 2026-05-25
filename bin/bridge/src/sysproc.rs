@@ -34,7 +34,7 @@ pub fn list_processes() -> Vec<ProcInfo> {
 
 #[cfg(target_os = "windows")]
 mod windows {
-    #![allow(unsafe_code)]
+    #![allow(unsafe_code, reason = "Win32 ToolHelp32 process enumeration FFI")]
 
     use super::ProcInfo;
     use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
@@ -72,7 +72,7 @@ mod windows {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    #![allow(unsafe_code)]
+    #![allow(unsafe_code, reason = "macOS libproc process enumeration FFI")]
 
     use super::ProcInfo;
 

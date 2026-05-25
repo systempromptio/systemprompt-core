@@ -1,4 +1,8 @@
-#![allow(clippy::print_stdout, clippy::print_stderr)]
+#![allow(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "cargo build-script protocol uses stdout for `cargo:` directives and stderr for diagnostics"
+)]
 
 fn main() {
     if let Err(e) = vergen::EmitBuilder::builder()

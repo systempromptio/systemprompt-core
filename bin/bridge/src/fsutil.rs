@@ -6,10 +6,10 @@
 //! permission handling, and parent-dir creation. This module is the canonical
 //! implementation; the call sites are migrated in later remediation stages.
 
-// Why: Stage 1 lands these helpers without touching the three duplicate call
-// sites (Stage 3/4). Allow dead_code in the meantime so clippy -D warnings
-// doesn't break the parallel-agent merge train.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "Stage 1 lands these helpers without touching the three duplicate call sites (Stage 3/4)"
+)]
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};

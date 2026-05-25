@@ -2,7 +2,8 @@
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
     clippy::module_name_repetitions,
-    clippy::similar_names
+    clippy::similar_names,
+    reason = "bridge crate-wide pedantic carve-outs: docs are tracked in CHANGELOG; module repetition is structural; similar names are platform-paired (e.g., macos_*/windows_*)"
 )]
 
 pub mod activity;
@@ -124,28 +125,3 @@ fn purge_legacy_agents_state() {
     }
 }
 
-#[cfg(all(test, feature = "ts-export"))]
-mod ts_export_tests {
-    #![allow(clippy::expect_used)]
-
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest};
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    use crate::ipc_types::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, IpcRequest};
-    use ts_rs::TS;
-
-    #[test]
-    #[ignore]
-    fn export_bindings() {
-        assert!(
-            std::env::var_os("TS_RS_EXPORT_DIR").is_some(),
-            "TS_RS_EXPORT_DIR must be set so ts-rs writes paths relative to the crate root. Run: \
-             TS_RS_EXPORT_DIR=. cargo test --features ts-export export_bindings -- --ignored"
-        );
-        BridgeError::export_all().expect("export BridgeError");
-        ErrorScope::export_all().expect("export ErrorScope");
-        ErrorCode::export_all().expect("export ErrorCode");
-        IpcRequest::export_all().expect("export IpcRequest");
-        IpcReplyPayload::export_all().expect("export IpcReplyPayload");
-    }
-}
