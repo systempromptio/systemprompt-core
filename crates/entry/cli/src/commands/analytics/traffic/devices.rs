@@ -33,7 +33,7 @@ pub struct DevicesArgs {
     pub include_all: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: DevicesArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<DevicesOutput>> {
@@ -42,7 +42,7 @@ pub(crate) async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: DevicesArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

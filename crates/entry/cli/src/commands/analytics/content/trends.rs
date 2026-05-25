@@ -29,7 +29,7 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: TrendsArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ContentTrendsOutput>> {
@@ -38,7 +38,7 @@ pub(crate) async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: TrendsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,

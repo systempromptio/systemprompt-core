@@ -32,7 +32,7 @@ pub struct TopArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: TopArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<TopContentOutput>> {
@@ -41,7 +41,7 @@ pub(crate) async fn execute(
     execute_internal(args, &repo).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: TopArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
