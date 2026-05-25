@@ -73,7 +73,7 @@ pub async fn insert_governance_decision(
         record.session_id,
         record.tool_name,
         record.agent_id,
-        record.agent_scope.map(|s| s.as_str()),
+        record.agent_scope.map(AccessScope::as_str),
         record.decision.as_str(),
         record.policy,
         record.reason,
