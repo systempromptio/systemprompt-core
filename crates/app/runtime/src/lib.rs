@@ -21,7 +21,6 @@
 
 mod builder;
 mod context;
-mod context_loaders;
 mod context_traits;
 mod database_context;
 mod error;

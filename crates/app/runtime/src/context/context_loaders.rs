@@ -10,18 +10,13 @@
 use std::sync::Arc;
 
 use systemprompt_logging::CliService;
-use systemprompt_models::auth::UserRole;
-use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw};
-use systemprompt_users::UserService;
-
-use crate::error::{RuntimeError, RuntimeResult};
 
 #[cfg(feature = "geolocation")]
 use systemprompt_analytics::GeoIpReader;
 
 #[cfg(feature = "geolocation")]
-pub(crate) fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
+pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
     let Some(geoip_path) = &config.geoip_database_path else {
         if show_warnings {
             CliService::warning(
@@ -55,37 +50,14 @@ pub(crate) fn load_geoip_database(config: &Config, show_warnings: bool) -> Optio
 }
 
 #[cfg(not(feature = "geolocation"))]
-pub fn load_geoip_database(
+pub(super) fn load_geoip_database(
     _config: &Config,
     _show_warnings: bool,
 ) -> Option<systemprompt_analytics::GeoIpReader> {
     None
 }
 
-pub(crate) async fn resolve_system_admin(
-    cfg: &SystemAdminConfig,
-    users: &UserService,
-) -> RuntimeResult<SystemAdmin> {
-    let user = users.find_by_name(&cfg.username).await?.ok_or_else(|| {
-        RuntimeError::SystemAdminNotFound {
-            username: cfg.username.clone(),
-        }
-    })?;
-    if !user.is_active() {
-        return Err(RuntimeError::SystemAdminInactive {
-            username: cfg.username.clone(),
-        });
-    }
-    let admin_role = UserRole::Admin.as_str();
-    if !user.roles.iter().any(|r| r == admin_role) {
-        return Err(RuntimeError::SystemAdminMissingRole {
-            username: cfg.username.clone(),
-        });
-    }
-    Ok(SystemAdmin::new(user.id, user.name))
-}
-
-pub(crate) fn load_content_config(
+pub(super) fn load_content_config(
     config: &Config,
     app_paths: &AppPaths,
 ) -> Option<Arc<ContentConfigRaw>> {
@@ -117,7 +89,7 @@ pub(crate) fn load_content_config(
         Ok(mut content_cfg) => {
             let base_url = config.api_external_url.trim_end_matches('/');
 
-            content_cfg.metadata.structured_data.organization.url = base_url.to_owned();
+            base_url.clone_into(&mut content_cfg.metadata.structured_data.organization.url);
 
             let logo = &content_cfg.metadata.structured_data.organization.logo;
             if logo.starts_with('/') {

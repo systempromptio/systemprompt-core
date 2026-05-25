@@ -18,8 +18,9 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting, Ro
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_users::UserService;
 
+mod context_loaders;
+
 use crate::builder::AppContextBuilder;
-use crate::context_loaders;
 use crate::error::RuntimeResult;
 use crate::registry::ModuleApiRegistry;
 
