@@ -56,7 +56,7 @@ pub(crate) fn on_probe_requested(
             Ok(s) => s,
             Err(_) => return,
         };
-        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
+        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
             host_id: host_id_owned,
             cause,
             snapshot: snap,
@@ -80,7 +80,7 @@ pub(crate) fn on_probe_finished(
         .get(host_id)
         .and_then(|s| s.snapshot.clone());
     app.state.apply_host_snapshot(host_id, snapshot.clone());
-    let _ = app
+    _ = app
         .proxy
         .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested {
             reply_to: None,
@@ -164,7 +164,7 @@ pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 Ok(h) => h,
                 Err(_) => return,
             };
-        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
+        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
             health,
             reply_to,
         }));
@@ -196,7 +196,7 @@ pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str, rep
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let result = generate_profile_for(host).await.map_err(Arc::new);
-        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
+        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
             host_id: host_id_owned,
             result,
             reply_to,
@@ -272,7 +272,7 @@ pub(crate) fn on_profile_install_requested(
                 "profile install task join: {join_err}"
             ))))),
         };
-        let _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileInstallFinished {
+        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileInstallFinished {
             host_id: host_id_owned,
             result,
             reply_to,
@@ -304,7 +304,7 @@ pub(crate) fn on_profile_install_finished(
             ))
         },
     };
-    let _ = app
+    _ = app
         .proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
             host_id: host_id.to_string(),

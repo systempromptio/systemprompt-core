@@ -3,7 +3,7 @@ use std::process::ExitCode;
 use crate::cli::output;
 use crate::validate;
 
-pub(crate) fn cmd_validate() -> ExitCode {
+pub(super) fn cmd_validate() -> ExitCode {
     let report = match crate::proxy::block_on(validate::run()) {
         Ok(r) => r,
         Err(e) => {

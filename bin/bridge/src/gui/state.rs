@@ -325,7 +325,7 @@ impl AppState {
                 length: out.token.len(),
             });
         } else {
-            let _ = cache::clear();
+            _ = cache::clear();
             snap.cached_token = None;
             snap.verified_identity = None;
         }

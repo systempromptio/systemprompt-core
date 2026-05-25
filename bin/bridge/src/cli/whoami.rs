@@ -8,7 +8,7 @@ use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
 use crate::{auth, config};
 
-pub(crate) fn cmd_whoami() -> ExitCode {
+pub(super) fn cmd_whoami() -> ExitCode {
     match crate::proxy::block_on(async {
         let cfg = config::load();
         let gateway = config::gateway_url_or_default(&cfg);

@@ -16,12 +16,12 @@ pub fn short_sha() -> &'static str {
 
 pub fn render() -> String {
     let mut out = String::new();
-    let _ = writeln!(out, "systemprompt-bridge {}", env!("CARGO_PKG_VERSION"));
-    let _ = writeln!(out, "commit:    {GIT_SHA}");
-    let _ = writeln!(out, "branch:    {GIT_BRANCH}");
-    let _ = writeln!(out, "committed: {GIT_COMMIT_DATE}");
-    let _ = writeln!(out, "built:     {BUILD_TIMESTAMP}");
-    let _ = writeln!(
+    _ = writeln!(out, "systemprompt-bridge {}", env!("CARGO_PKG_VERSION"));
+    _ = writeln!(out, "commit:    {GIT_SHA}");
+    _ = writeln!(out, "branch:    {GIT_BRANCH}");
+    _ = writeln!(out, "committed: {GIT_COMMIT_DATE}");
+    _ = writeln!(out, "built:     {BUILD_TIMESTAMP}");
+    _ = writeln!(
         out,
         "profile:   {}",
         if cfg!(debug_assertions) {
@@ -30,26 +30,26 @@ pub fn render() -> String {
             "release"
         }
     );
-    let _ = writeln!(
+    _ = writeln!(
         out,
         "os:        {} {}",
         std::env::consts::OS,
         std::env::consts::ARCH
     );
-    let _ = writeln!(out);
-    let _ = writeln!(out, "paths:");
-    let _ = writeln!(
+    _ = writeln!(out);
+    _ = writeln!(out, "paths:");
+    _ = writeln!(
         out,
         "  log dir:    {}",
         crate::obs::log_dir().map_or_else(|| "<unavailable>".into(), |p| p.display().to_string())
     );
-    let _ = writeln!(
+    _ = writeln!(
         out,
         "  log file:   {}",
         crate::obs::log_file_path()
             .map_or_else(|| "<unavailable>".into(), |p| p.display().to_string())
     );
-    let _ = writeln!(
+    _ = writeln!(
         out,
         "  config:     {}",
         crate::config::config_path()

@@ -93,19 +93,16 @@ pub fn upsert_installed_plugin(
 
     let key = format!("{}::{}", entry.marketplace, entry.name);
     let mut report = MergeReport::default();
-    match target_index {
-        Some(i) => {
-            if array[i] == next_value {
-                report.unchanged.push(key);
-            } else {
-                array[i] = next_value;
-                report.replaced.push(key);
-            }
-        },
-        None => {
-            array.push(next_value);
-            report.inserted.push(key);
-        },
+    if let Some(i) = target_index {
+        if array[i] == next_value {
+            report.unchanged.push(key);
+        } else {
+            array[i] = next_value;
+            report.replaced.push(key);
+        }
+    } else {
+        array.push(next_value);
+        report.inserted.push(key);
     }
     Ok(report)
 }

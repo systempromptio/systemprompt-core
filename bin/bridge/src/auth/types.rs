@@ -55,7 +55,7 @@ mod header_map_serde {
     use std::collections::HashMap;
     use std::fmt;
 
-    pub fn serialize<S: Serializer>(
+    pub(super) fn serialize<S: Serializer>(
         map: &HashMap<HeaderName, HeaderValue>,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
@@ -69,7 +69,7 @@ mod header_map_serde {
         out.end()
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>>(
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<HashMap<HeaderName, HeaderValue>, D::Error> {
         struct HeaderMapVisitor;

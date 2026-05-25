@@ -120,7 +120,7 @@ fn purge_legacy_agents_state() {
         Ok(()) => tracing::info!(path = %path.display(), "purged legacy agents state file"),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
         Err(e) => {
-            tracing::warn!(path = %path.display(), error = %e, "purge legacy agents state failed")
+            tracing::warn!(path = %path.display(), error = %e, "purge legacy agents state failed");
         },
     }
 }

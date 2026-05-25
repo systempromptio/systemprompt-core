@@ -20,7 +20,7 @@ pub enum ProfileState {
 
 impl ProfileState {
     #[must_use]
-    pub fn is_installed(&self) -> bool {
+    pub const fn is_installed(&self) -> bool {
         matches!(self, Self::Installed)
     }
 

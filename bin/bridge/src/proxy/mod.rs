@@ -18,7 +18,7 @@ use crate::obs::output::diag;
 pub use server::{ProxyHandle, ProxyStats};
 
 pub const DEFAULT_PROXY_PORT: u16 = 48217;
-const REFRESH_TICK: Duration = Duration::from_secs(60);
+const REFRESH_TICK: Duration = Duration::from_mins(1);
 pub use forward::REFRESH_THRESHOLD_SECS;
 use session::SessionContext;
 use token_cache::TokenCache;
@@ -26,7 +26,7 @@ use token_cache::TokenCache;
 static HANDLE: OnceLock<ProxyHandle> = OnceLock::new();
 static RUNTIME: OnceLock<Arc<Runtime>> = OnceLock::new();
 static RUNTIME_CONFIG: OnceLock<SharedRuntimeConfig> = OnceLock::new();
-static TOKEN_CACHE: OnceLock<Arc<token_cache::TokenCache>> = OnceLock::new();
+static TOKEN_CACHE: OnceLock<Arc<TokenCache>> = OnceLock::new();
 
 #[must_use]
 pub fn runtime_config() -> SharedRuntimeConfig {
@@ -58,7 +58,7 @@ pub fn runtime_handle() -> std::io::Result<tokio::runtime::Handle> {
     runtime().map(|rt| rt.handle().clone())
 }
 
-pub fn block_on<F: std::future::Future>(fut: F) -> std::io::Result<F::Output> {
+pub fn block_on<F: Future>(fut: F) -> std::io::Result<F::Output> {
     runtime().map(|rt| rt.block_on(fut))
 }
 
@@ -96,7 +96,7 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
     ));
     // Why: idempotent one-shot init — a prior set on a re-entered start() is
     // already the correct value, so a returned-Err is the no-op we want.
-    let _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
+    _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
     let handle = match server::start(
         rt,
         DEFAULT_PROXY_PORT,
@@ -116,7 +116,7 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
 
     // Why: idempotent one-shot init — a prior set on a re-entered start() already
     // holds a live handle, so a returned-Err is the no-op we want.
-    let _ = HANDLE.set(handle);
+    _ = HANDLE.set(handle);
     HANDLE.get()
 }
 
@@ -132,6 +132,6 @@ async fn refresh_loop(cache: Arc<TokenCache>) {
         interval.tick().await;
         // Why: proactive cache warm-up; refresh failures are logged inside
         // current() and the next tick retries, so the loop must not propagate them.
-        let _ = cache.current(REFRESH_THRESHOLD_SECS).await;
+        _ = cache.current(REFRESH_THRESHOLD_SECS).await;
     }
 }

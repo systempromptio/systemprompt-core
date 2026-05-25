@@ -47,7 +47,7 @@ pub(crate) fn on_login_requested(
                 ))))),
             },
         };
-        let _ = proxy.send_event(UiEvent::LoginFinished { result, reply_to });
+        _ = proxy.send_event(UiEvent::LoginFinished { result, reply_to });
     });
 }
 
@@ -64,7 +64,7 @@ pub(crate) fn on_login_finished(
             super::gateway_probe::spawn_probe(app, None);
             app.state.reload();
             app.refresh_ui();
-            let _ = app
+            _ = app
                 .proxy
                 .send_event(UiEvent::SyncRequested { reply_to: None });
             Ok(())
@@ -123,7 +123,7 @@ pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str, reply_to
                 ))))),
             },
         };
-        let _ = proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
+        _ = proxy.send_event(UiEvent::SetGatewayFinished { result, reply_to });
     });
 }
 
@@ -174,7 +174,7 @@ pub(crate) fn on_logout_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 "logout task join: {join_err}"
             ))))),
         };
-        let _ = proxy.send_event(UiEvent::LogoutFinished { result, reply_to });
+        _ = proxy.send_event(UiEvent::LogoutFinished { result, reply_to });
     });
 }
 

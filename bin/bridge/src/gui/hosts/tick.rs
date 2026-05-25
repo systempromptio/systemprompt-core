@@ -23,7 +23,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
                 continue;
             }
         }
-        let _ = app
+        _ = app
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
                 host_id: id.to_string(),
@@ -35,7 +35,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
         let due = now_unix().saturating_sub(snap.hosts.local_proxy.probed_at_unix)
             >= super::super::PROBE_INTERVAL_SECS;
         if due {
-            let _ = app
+            _ = app
                 .proxy
                 .send_event(UiEvent::Host(HostUiEvent::ProxyProbeRequested {
                     reply_to: None,
@@ -46,7 +46,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
 
 pub(crate) fn request_initial_probe(app: &GuiApp) {
     for host in crate::integration::host_apps() {
-        let _ = app
+        _ = app
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
                 host_id: host.id().to_string(),

@@ -21,13 +21,13 @@ impl InstallOptionsBuilder {
     }
 
     #[must_use]
-    pub fn print_mdm(mut self, os: Os) -> Self {
+    pub const fn print_mdm(mut self, os: Os) -> Self {
         self.print_mdm = Some(os);
         self
     }
 
     #[must_use]
-    pub fn emit_schedule_template(mut self, os: Os) -> Self {
+    pub const fn emit_schedule_template(mut self, os: Os) -> Self {
         self.emit_schedule_template = Some(os);
         self
     }

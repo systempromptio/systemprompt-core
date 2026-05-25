@@ -38,7 +38,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
                 outcome.map_err(GuiError::from).map_err(Arc::new)
             }
         };
-        let _ = proxy.send_event(UiEvent::SyncFinished { result, reply_to });
+        _ = proxy.send_event(UiEvent::SyncFinished { result, reply_to });
     });
 }
 

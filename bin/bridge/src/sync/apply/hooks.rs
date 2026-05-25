@@ -12,7 +12,7 @@ const PLUGIN_TOKEN_ENV_VAR: &str = "SYSTEMPROMPT_PLUGIN_TOKEN";
 
 // Atomic 0600 write — the file holds a bearer token, must not leak between
 // users on multi-tenant hosts.
-pub(crate) async fn materialize_hook_token(
+pub(super) async fn materialize_hook_token(
     client: &GatewayClient,
     bearer: &str,
     plugin_id: &PluginId,
@@ -27,7 +27,7 @@ pub(crate) async fn materialize_hook_token(
     })
 }
 
-pub(crate) fn write_hooks_json(
+pub(super) fn write_hooks_json(
     gateway_base: &str,
     plugin_id: &PluginId,
     plugin_dir: &Path,
@@ -59,7 +59,7 @@ pub(crate) fn write_hooks_json(
     Ok(())
 }
 
-pub(crate) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), ApplyError> {
+pub(super) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), ApplyError> {
     let path = plugin_dir.join("claude-plugin").join("plugin.json");
     if !path.is_file() {
         return Ok(());
@@ -78,8 +78,7 @@ pub(crate) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), Ap
     let already = obj
         .get("hooks")
         .and_then(serde_json::Value::as_str)
-        .map(|s| s == "./hooks/hooks.json")
-        .unwrap_or(false);
+        .is_some_and(|s| s == "./hooks/hooks.json");
     if already {
         return Ok(());
     }

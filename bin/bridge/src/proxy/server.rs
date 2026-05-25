@@ -44,7 +44,7 @@ pub(super) struct ProxyContext {
 }
 
 impl ProxyContext {
-    pub fn snapshot(&self) -> Arc<RuntimeConfig> {
+    pub(super) fn snapshot(&self) -> Arc<RuntimeConfig> {
         self.runtime_config.load_full()
     }
 }
@@ -98,7 +98,7 @@ fn build_upstream_client() -> std::io::Result<reqwest::Client> {
         .pool_max_idle_per_host(16)
         .tcp_nodelay(true)
         .connect_timeout(Duration::from_secs(15))
-        .timeout(Duration::from_secs(600))
+        .timeout(Duration::from_mins(10))
         .build()
         .map_err(|e| std::io::Error::other(format!("upstream client build failed: {e}")))
 }
@@ -111,18 +111,18 @@ async fn run_listener(
     let listener = match bind_listener(port).await {
         Ok(l) => l,
         Err(e) => {
-            let _ = port_tx.send(Err(e));
+            _ = port_tx.send(Err(e));
             return;
         },
     };
     let bound = match listener.local_addr() {
         Ok(a) => a.port(),
         Err(e) => {
-            let _ = port_tx.send(Err(e));
+            _ = port_tx.send(Err(e));
             return;
         },
     };
-    let _ = port_tx.send(Ok(bound));
+    _ = port_tx.send(Ok(bound));
 
     loop {
         let (stream, peer) = match listener.accept().await {
@@ -137,7 +137,7 @@ async fn run_listener(
                 continue;
             },
         };
-        let _ = stream.set_nodelay(true);
+        _ = stream.set_nodelay(true);
         let conn_ctx = ctx.clone();
         tokio::spawn(async move {
             let io = TokioIo::new(stream);

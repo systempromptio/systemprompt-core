@@ -71,7 +71,7 @@ pub struct UninstallSummary {
 
 impl UninstallSummary {
     #[must_use]
-    pub fn builder() -> UninstallSummaryBuilder {
+    pub const fn builder() -> UninstallSummaryBuilder {
         UninstallSummaryBuilder::new()
     }
 }
@@ -90,7 +90,7 @@ pub enum CredentialsOutcome {
 }
 
 #[must_use]
-pub fn os_label(os: Os) -> &'static str {
+pub const fn os_label(os: Os) -> &'static str {
     mdm::os_label(os)
 }
 
@@ -106,19 +106,19 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
                 metadata.display()
             ))
         })?;
-        (Some(metadata.clone()), None)
+        (Some(metadata), None)
     } else {
-        (None, Some(metadata.clone()))
+        (None, Some(metadata))
     };
 
     let staging = paths::staging_dir(&location.path);
     if staging.exists() {
-        let _ = fs::remove_dir_all(&staging);
+        _ = fs::remove_dir_all(&staging);
     }
 
     let synthetic = location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
     if synthetic.exists() {
-        let _ = fs::remove_dir_all(&synthetic);
+        _ = fs::remove_dir_all(&synthetic);
     }
 
     if let Some(target) = crate::integration::cowork_plugins::resolve_target()
@@ -165,6 +165,6 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn remove_managed_profile() -> ManagedProfileOutcome {
+const fn remove_managed_profile() -> ManagedProfileOutcome {
     ManagedProfileOutcome::NotApplicable
 }

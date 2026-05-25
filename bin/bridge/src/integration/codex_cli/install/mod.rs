@@ -78,9 +78,7 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
                 parent.display(),
                 std::env::current_exe()
                     .ok()
-                    .as_deref()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "systemprompt".into()),
+                    .as_deref().map_or_else(|| "systemprompt".into(), |p| p.display().to_string()),
             ),
         ))
     }
@@ -93,7 +91,7 @@ fn writable(path: &Path) -> bool {
     ));
     match std::fs::File::create(&probe) {
         Ok(_) => {
-            let _ = std::fs::remove_file(&probe);
+            _ = std::fs::remove_file(&probe);
             true
         },
         Err(_) => false,

@@ -114,7 +114,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
     };
 
     let latency_ms = elapsed_ms(started);
-    let _ = stream.shutdown(std::net::Shutdown::Both);
+    _ = stream.shutdown(std::net::Shutdown::Both);
 
     ProxyHealth {
         url: Some(url.to_string()),
@@ -128,8 +128,8 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
 
 fn http_head_status(stream: &mut std::net::TcpStream, host: &str) -> Result<u16, String> {
     use std::io::{Read, Write};
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
-    let _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(1500)));
+    _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
+    _ = stream.set_write_timeout(Some(std::time::Duration::from_millis(1500)));
     let req = format!(
         "HEAD /healthz HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: \
          systemprompt-bridge-probe\r\n\r\n",

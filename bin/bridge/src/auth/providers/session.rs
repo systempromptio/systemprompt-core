@@ -102,7 +102,7 @@ fn encode_component(input: &str) -> String {
     out
 }
 
-fn hex_upper(nibble: u8) -> char {
+const fn hex_upper(nibble: u8) -> char {
     match nibble {
         0..=9 => (b'0' + nibble) as char,
         10..=15 => (b'A' + nibble - 10) as char,

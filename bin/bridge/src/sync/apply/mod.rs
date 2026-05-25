@@ -38,7 +38,7 @@ pub async fn apply_manifest(
 
     let report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
 
-    let _ = fs::remove_dir_all(&staging_root);
+    _ = fs::remove_dir_all(&staging_root);
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
@@ -157,7 +157,7 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
         source: e,
     })?;
     let staging_root = paths::staging_dir(root);
-    let _ = fs::remove_dir_all(&staging_root);
+    _ = fs::remove_dir_all(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
         context: "create staging".into(),
         source: e,

@@ -4,7 +4,7 @@
 //! Cowork reads it at hook-fire time, substitutes `$SYSTEMPROMPT_PLUGIN_TOKEN`
 //! from the sibling `.env.plugin`, and dispatches to the bridge gateway's
 //! public hook endpoints. The shape is camelCase on the wire; field names here
-//! are snake_case with `#[serde(rename_all = "camelCase")]`.
+//! are `snake_case` with `#[serde(rename_all = "camelCase")]`.
 //!
 //! Two variants share the file: `Http` entries are gateway-issued govern/track
 //! proxies; `Command` entries are user-defined hooks sourced from
@@ -50,7 +50,7 @@ pub enum HookEntry {
 }
 
 impl HookEntry {
-    pub fn govern(url: String, token_env_var: &str) -> Self {
+    pub(crate) fn govern(url: String, token_env_var: &str) -> Self {
         Self::Http {
             url,
             headers: bearer_header(token_env_var),
@@ -61,7 +61,7 @@ impl HookEntry {
         }
     }
 
-    pub fn track(url: String, token_env_var: &str, event: &str) -> Self {
+    pub(crate) fn track(url: String, token_env_var: &str, event: &str) -> Self {
         Self::Http {
             url,
             headers: bearer_header(token_env_var),
@@ -72,7 +72,7 @@ impl HookEntry {
         }
     }
 
-    pub fn user_command(command: String, event: &str, is_async: bool) -> Self {
+    pub(crate) fn user_command(command: String, event: &str, is_async: bool) -> Self {
         Self::Command {
             command,
             timeout: DEFAULT_TIMEOUT_SECS,
@@ -83,7 +83,7 @@ impl HookEntry {
 }
 
 impl HookMatcher {
-    pub fn wildcard(entry: HookEntry) -> Self {
+    pub(crate) fn wildcard(entry: HookEntry) -> Self {
         Self {
             matcher: WILDCARD_MATCHER.to_string(),
             hooks: vec![entry],
@@ -92,7 +92,7 @@ impl HookMatcher {
 }
 
 impl HooksFile {
-    pub fn new(govern_url: String, track_url: &str, token_env_var: &str) -> Self {
+    pub(crate) fn new(govern_url: String, track_url: &str, token_env_var: &str) -> Self {
         let mut hooks: BTreeMap<String, Vec<HookMatcher>> = BTreeMap::new();
         hooks.insert(
             "PreToolUse".to_string(),
@@ -114,7 +114,7 @@ impl HooksFile {
         Self { hooks }
     }
 
-    pub fn append_user_hook(&mut self, event: String, matcher: String, entry: HookEntry) {
+    pub(crate) fn append_user_hook(&mut self, event: String, matcher: String, entry: HookEntry) {
         let bucket = self.hooks.entry(event).or_default();
         let m = if matcher.is_empty() {
             WILDCARD_MATCHER.to_string()

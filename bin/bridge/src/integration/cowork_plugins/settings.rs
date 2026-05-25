@@ -49,14 +49,11 @@ pub fn enable_plugin(
     let key = enabled_plugins_key(plugin, marketplace);
     let map = ensure_enabled_map(root)?;
     let mut report = SettingsReport::default();
-    match map.get(&key) {
-        Some(Value::Bool(true)) => {
-            report.already = true;
-        },
-        _ => {
-            map.insert(key, Value::Bool(true));
-            report.set = true;
-        },
+    if matches!(map.get(&key), Some(Value::Bool(true))) {
+        report.already = true;
+    } else {
+        map.insert(key, Value::Bool(true));
+        report.set = true;
     }
     Ok(report)
 }

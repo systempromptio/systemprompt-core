@@ -136,7 +136,7 @@ fn run_apply_mobileconfig(
 }
 
 #[cfg(not(target_os = "macos"))]
-fn run_apply_mobileconfig(
+const fn run_apply_mobileconfig(
     _inference_base_url: &str,
     _pubkey: Option<&str>,
 ) -> Result<MdmDisplay, InstallError> {

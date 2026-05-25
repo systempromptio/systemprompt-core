@@ -1,7 +1,7 @@
 use super::{DeviceCert, DeviceCertSource, KeystoreError, sha256_der};
 use std::{env, fs};
 
-pub struct LinuxKeystore;
+pub(super) struct LinuxKeystore;
 
 impl DeviceCertSource for LinuxKeystore {
     fn load(&self) -> Result<DeviceCert, KeystoreError> {

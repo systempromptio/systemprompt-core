@@ -122,7 +122,7 @@ impl PersistentWriter {
             std::fs::create_dir_all(parent)?;
         }
         let file = OpenOptions::new().create(true).append(true).open(&path)?;
-        let bytes = file.metadata().map(|m| m.len()).unwrap_or(0);
+        let bytes = file.metadata().map_or(0, |m| m.len());
         Ok(Self {
             path,
             rolled,
@@ -135,7 +135,7 @@ impl PersistentWriter {
         {
             let mut guard = self.file.lock();
             if writeln!(guard, "{line}").is_ok() {
-                let _ = guard.flush();
+                _ = guard.flush();
             }
         }
         let new_bytes = self
@@ -150,8 +150,8 @@ impl PersistentWriter {
 
     fn try_rollover(&self) {
         let mut guard = self.file.lock();
-        let _ = guard.flush();
-        let _ = std::fs::remove_file(&self.rolled);
+        _ = guard.flush();
+        _ = std::fs::remove_file(&self.rolled);
         if std::fs::rename(&self.path, &self.rolled).is_err() {
             return;
         }

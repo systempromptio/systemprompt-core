@@ -74,7 +74,7 @@ impl SettingsWindow {
             .with_initialization_script(BRIDGE_BOOTSTRAP)
             .with_ipc_handler(move |req| {
                 let body = req.into_body();
-                let _ = ipc_proxy.send_event(UiEvent::IpcInbound(body));
+                _ = ipc_proxy.send_event(UiEvent::IpcInbound(body));
             })
             .with_custom_protocol(SP_PROTOCOL.to_string(), move |_id, request| {
                 serve_custom_asset(&request)
@@ -165,7 +165,7 @@ fn serve_custom_asset(request: &wry::http::Request<Vec<u8>>) -> Response<Cow<'st
 
 fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
     let mut response = Response::new(asset.body);
-    let _ = response.headers_mut().insert(
+    _ = response.headers_mut().insert(
         CONTENT_TYPE,
         match wry::http::HeaderValue::from_str(asset.content_type) {
             Ok(v) => v,
@@ -178,7 +178,7 @@ fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
 fn not_found() -> Response<Cow<'static, [u8]>> {
     let mut response = Response::new(Cow::Borrowed::<'static, [u8]>(b"not found"));
     *response.status_mut() = wry::http::StatusCode::NOT_FOUND;
-    let _ = response.headers_mut().insert(
+    _ = response.headers_mut().insert(
         CONTENT_TYPE,
         wry::http::HeaderValue::from_static("text/plain; charset=utf-8"),
     );

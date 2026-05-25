@@ -71,7 +71,7 @@ pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {
     if !next.is_empty() {
         next.push_str("\n\n");
     }
-    let _ = writeln!(next, "[sync]\npinned_pubkey = \"{pubkey}\"");
+    _ = writeln!(next, "[sync]\npinned_pubkey = \"{pubkey}\"");
     fs::write(&path, next)
 }
 

@@ -11,14 +11,11 @@ use systemprompt_identifiers::SessionId;
 use crate::auth::ChainError;
 use crate::{auth, config, proxy};
 
-pub(crate) fn cmd_credential_helper(args: &[String]) -> ExitCode {
+pub(super) fn cmd_credential_helper(args: &[String]) -> ExitCode {
     let host = parse_host(args);
-    let host = match host {
-        Some(h) => h,
-        None => {
-            eprintln!("{}", error_json("missing required --host <id>"));
-            return ExitCode::from(64);
-        },
+    let host = if let Some(h) = host { h } else {
+        eprintln!("{}", error_json("missing required --host <id>"));
+        return ExitCode::from(64);
     };
 
     match host.as_str() {

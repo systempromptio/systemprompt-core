@@ -236,8 +236,8 @@ fn build_upstream_headers(
     session_id: &SessionId,
     gateway_conversation_id: Option<&GatewayConversationId>,
     extra: &BTreeMap<String, String>,
-) -> ForwardResult<reqwest::header::HeaderMap> {
-    let mut headers = reqwest::header::HeaderMap::with_capacity(src.len() + 4 + extra.len());
+) -> ForwardResult<HeaderMap> {
+    let mut headers = HeaderMap::with_capacity(src.len() + 4 + extra.len());
     copy_request_headers(src, &mut headers);
 
     let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
@@ -303,7 +303,7 @@ async fn collect_body(body: Incoming) -> ForwardResult<Bytes> {
     Ok(collected)
 }
 
-fn copy_request_headers(src: &HeaderMap, dest: &mut reqwest::header::HeaderMap) {
+fn copy_request_headers(src: &HeaderMap, dest: &mut HeaderMap) {
     for (name, value) in src {
         if is_hop_by_hop(name.as_str()) {
             continue;
@@ -318,7 +318,7 @@ fn copy_request_headers(src: &HeaderMap, dest: &mut reqwest::header::HeaderMap) 
     }
 }
 
-fn copy_response_headers(src: &reqwest::header::HeaderMap, dest: &mut HeaderMap) {
+fn copy_response_headers(src: &HeaderMap, dest: &mut HeaderMap) {
     for (name, value) in src {
         if is_hop_by_hop(name.as_str()) {
             continue;
@@ -347,6 +347,6 @@ pub fn is_client_disconnect(err: &ForwardError) -> bool {
 }
 
 const _: fn() = || {
-    fn assert_send<T: Send>() {}
+    const fn assert_send<T: Send>() {}
     assert_send::<ForwardResult<Response<ProxyBody>>>();
 };

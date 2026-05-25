@@ -83,8 +83,8 @@ mod unix {
                 _ => SingletonResult::Error(format!("flock {}: {err}", path.display())),
             };
         }
-        let _ = file.set_len(0);
-        let _ = writeln!(file, "{}", std::process::id());
+        _ = file.set_len(0);
+        _ = writeln!(file, "{}", std::process::id());
         SingletonResult::Acquired(SingletonGuard { _file: file })
     }
 }
@@ -159,7 +159,7 @@ pub fn write_running_port(port: u16, csrf_token: &str) {
         return;
     };
     if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
+        _ = fs::create_dir_all(parent);
     }
     let payload = serde_json::json!({
         "pid": std::process::id(),
@@ -167,7 +167,7 @@ pub fn write_running_port(port: u16, csrf_token: &str) {
         "token": csrf_token,
     });
     if let Ok(mut f) = fs::File::create(&path) {
-        let _ = f.write_all(payload.to_string().as_bytes());
+        _ = f.write_all(payload.to_string().as_bytes());
     }
 }
 
@@ -175,7 +175,7 @@ pub fn clear_running_port() {
     let Some(path) = sidecar_path() else {
         return;
     };
-    let _ = fs::remove_file(path);
+    _ = fs::remove_file(path);
 }
 
 #[derive(Debug, Clone)]
@@ -209,8 +209,8 @@ pub fn ping_focus_running_instance() -> bool {
         Ok(s) => s,
         Err(_) => return false,
     };
-    let _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
-    let _ = stream.set_read_timeout(Some(Duration::from_millis(250)));
+    _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
+    _ = stream.set_read_timeout(Some(Duration::from_millis(250)));
     let mut stream = stream;
     let body = "";
     let request = format!(

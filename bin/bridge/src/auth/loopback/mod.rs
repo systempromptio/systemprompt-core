@@ -62,7 +62,7 @@ impl LoopbackServer {
     }
 
     pub async fn accept_callback(self, timeout: Duration) -> Result<Captured> {
-        let LoopbackServer { listener, .. } = self;
+        let Self { listener, .. } = self;
         match tokio::time::timeout(timeout, listener.accept()).await {
             Err(_) => Err(LoopbackError::Timeout(timeout.as_secs())),
             Ok(Err(e)) => Err(LoopbackError::Io(e)),
@@ -87,9 +87,9 @@ async fn handle_connection(stream: TcpStream) -> Result<Captured> {
         Err(_) => ("400 Bad Request", ERROR_HTML),
     };
     write_response(&mut write_half, status, body).await?;
-    let _ = write_half.shutdown().await;
+    _ = write_half.shutdown().await;
     let mut sink = [0u8; 16];
-    let _ = reader.read(&mut sink).await;
+    _ = reader.read(&mut sink).await;
     outcome.map(|code| Captured { code })
 }
 
@@ -161,7 +161,7 @@ fn url_decode(input: &str) -> String {
     String::from_utf8(out).unwrap_or_default()
 }
 
-fn hex_nibble(b: u8) -> Option<u8> {
+const fn hex_nibble(b: u8) -> Option<u8> {
     match b {
         b'0'..=b'9' => Some(b - b'0'),
         b'a'..=b'f' => Some(b - b'a' + 10),

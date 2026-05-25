@@ -21,6 +21,6 @@ pub(crate) fn should_default_to_gui() -> bool {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub(crate) fn should_default_to_gui() -> bool {
+pub(crate) const fn should_default_to_gui() -> bool {
     false
 }

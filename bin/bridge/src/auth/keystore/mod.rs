@@ -28,7 +28,7 @@ pub fn sha256_der(der: &[u8]) -> Result<CertFingerprint, KeystoreError> {
     let digest = Sha256::digest(der);
     let mut out = String::with_capacity(64);
     for byte in digest {
-        let _ = write!(out, "{byte:02x}");
+        _ = write!(out, "{byte:02x}");
     }
     Ok(CertFingerprint::try_new(out)?)
 }

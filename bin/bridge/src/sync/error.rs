@@ -35,16 +35,16 @@ impl SyncError {
     #[must_use]
     pub fn exit_code(&self) -> ExitCode {
         match self {
-            SyncError::NoCredential => ExitCode::from(5),
-            SyncError::Network(_) => ExitCode::from(3),
-            SyncError::SignatureFailed(_) => ExitCode::from(4),
-            SyncError::PathUnresolvable
-            | SyncError::PathMissing { .. }
-            | SyncError::ApplyFailed(_) => ExitCode::from(1),
-            SyncError::ReplayedManifest { .. } => ExitCode::from(6),
-            SyncError::ManifestSkew { .. } => ExitCode::from(7),
-            SyncError::PubkeyNotPinned => ExitCode::from(8),
-            SyncError::ReplayStateCorrupt(_) => ExitCode::from(9),
+            Self::NoCredential => ExitCode::from(5),
+            Self::Network(_) => ExitCode::from(3),
+            Self::SignatureFailed(_) => ExitCode::from(4),
+            Self::PathUnresolvable
+            | Self::PathMissing { .. }
+            | Self::ApplyFailed(_) => ExitCode::from(1),
+            Self::ReplayedManifest { .. } => ExitCode::from(6),
+            Self::ManifestSkew { .. } => ExitCode::from(7),
+            Self::PubkeyNotPinned => ExitCode::from(8),
+            Self::ReplayStateCorrupt(_) => ExitCode::from(9),
         }
     }
 }

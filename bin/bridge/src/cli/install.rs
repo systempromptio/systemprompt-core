@@ -9,7 +9,7 @@ use crate::install;
 use crate::obs::output::diag;
 use crate::schedule::Os;
 
-pub(crate) fn cmd_install(args: &[String]) -> ExitCode {
+pub(super) fn cmd_install(args: &[String]) -> ExitCode {
     let print_mdm = parse_opt_flag(args, "--print-mdm")
         .as_deref()
         .and_then(Os::parse);

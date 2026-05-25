@@ -85,7 +85,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
     };
 
     let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    let _ = stream.shutdown(std::net::Shutdown::Both);
+    _ = stream.shutdown(std::net::Shutdown::Both);
 
     GatewayHealth {
         url: Some(url.to_string()),

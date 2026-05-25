@@ -25,7 +25,7 @@ pub(crate) fn on_profile_fetch_requested(app: &mut GuiApp, reply_to: ReplyId) {
         let result = build_profile(snapshot).await.map_err(Arc::new);
         // Why: best-effort UI notification — once the event loop shuts down the
         // receiver is dropped and there is nothing left to deliver the result to.
-        let _ = proxy.send_event(UiEvent::ProfileFetchFinished { result, reply_to });
+        _ = proxy.send_event(UiEvent::ProfileFetchFinished { result, reply_to });
     });
 }
 

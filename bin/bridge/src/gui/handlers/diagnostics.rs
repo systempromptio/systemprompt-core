@@ -53,7 +53,7 @@ pub(crate) fn on_export_diagnostic_bundle(app: &mut GuiApp, reply_to: ReplyId) {
     });
     if let Ok(path) = result.as_ref() {
         app.append_log(format!("diagnostic bundle written to {}", path.display()));
-        let _ = opener::reveal(path);
+        _ = opener::reveal(path);
     }
     let value = result.map(|p| json!({ "path": p.display().to_string() }));
     finish(app, value, reply_to);

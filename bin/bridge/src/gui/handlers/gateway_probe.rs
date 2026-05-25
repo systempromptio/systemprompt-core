@@ -84,7 +84,7 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
         };
         // Why: best-effort UI notification — once the event loop shuts down the
         // receiver is dropped and there is nothing left to deliver the outcome to.
-        let _ = proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
+        _ = proxy.send_event(UiEvent::GatewayProbeFinished { outcome, reply_to });
     });
 }
 
@@ -113,7 +113,7 @@ async fn run_probe() -> GatewayProbeOutcome {
         if !crate::auth::has_credential_source(&cfg) {
             // Why: best-effort eviction of a now-orphaned token cache; absence is
             // the desired post-condition, so a failed clear is not actionable.
-            let _ = crate::auth::cache::clear();
+            _ = crate::auth::cache::clear();
         }
         None
     };

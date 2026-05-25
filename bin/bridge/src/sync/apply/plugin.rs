@@ -17,7 +17,7 @@ pub struct PluginApplyOutcome {
 }
 
 #[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
-pub async fn apply_plugins(
+pub(super) async fn apply_plugins(
     client: &GatewayClient,
     bearer: &str,
     manifest: &SignedManifest,

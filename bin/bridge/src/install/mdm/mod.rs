@@ -7,7 +7,7 @@ use crate::schedule::Os;
 
 const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("../templates/mdm_macos_snippet.tmpl");
 
-pub fn os_label(os: Os) -> &'static str {
+pub const fn os_label(os: Os) -> &'static str {
     match os {
         Os::Mac => "macOS",
         Os::Windows => "Windows",
@@ -92,7 +92,7 @@ pub fn apply_mdm(os: Os, gateway: &str, pubkey: Option<&str>) -> Result<Vec<Stri
         Os::Windows => windows::apply(gateway, pubkey),
         #[cfg(not(target_os = "windows"))]
         Os::Windows => {
-            let _ = (gateway, pubkey);
+            _ = (gateway, pubkey);
             Err("--apply on Windows must be run from a Windows binary".into())
         },
         #[cfg(target_os = "macos")]

@@ -72,7 +72,7 @@ pub struct SyncConfig {
 impl Config {
     pub fn load() -> Self {
         let path = config_path();
-        let mut cfg: Config = path
+        let mut cfg: Self = path
             .as_ref()
             .and_then(|p| fs::read_to_string(p).ok())
             .and_then(|s| toml::from_str(&s).ok())
@@ -153,7 +153,7 @@ pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {
     if !next.is_empty() && !next.ends_with('\n') {
         next.push('\n');
     }
-    let _ = writeln!(next, "gateway_url = \"{url}\"");
+    _ = writeln!(next, "gateway_url = \"{url}\"");
     fs::write(&path, next)
 }
 

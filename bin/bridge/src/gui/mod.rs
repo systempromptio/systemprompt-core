@@ -39,8 +39,8 @@ pub(crate) const PROBE_INTERVAL_SECS: u64 = 30;
 const PROXY_STATS_TICK_SECS: u64 = 1;
 
 fn install_termination_handlers(proxy: EventLoopProxy<UiEvent>) {
-    let _ = ctrlc::set_handler(move || {
-        let _ = proxy.send_event(UiEvent::Quit);
+    _ = ctrlc::set_handler(move || {
+        _ = proxy.send_event(UiEvent::Quit);
     });
 }
 
@@ -191,7 +191,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         }
         self.refresh_ui();
         dispatch::dispatch(self, event_loop, UiEvent::OpenSettings);
-        let _ = self
+        _ = self
             .proxy
             .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
 
@@ -222,7 +222,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if let Some(handles) = &self.tray {
             for ev in tray::drain(handles) {
-                let _ = self.proxy.send_event(ev);
+                _ = self.proxy.send_event(ev);
             }
         }
         let snap = self.state.snapshot();
@@ -232,7 +232,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
                 .map(|t| now_unix().saturating_sub(t) >= PROBE_INTERVAL_SECS)
                 .unwrap_or(true);
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
-            let _ = self
+            _ = self
                 .proxy
                 .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
         }
@@ -241,7 +241,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
 
         if self.last_proxy_stats_tick.elapsed() >= Duration::from_secs(PROXY_STATS_TICK_SECS) {
             self.last_proxy_stats_tick = Instant::now();
-            let _ = self.proxy.send_event(UiEvent::ProxyStatsTick);
+            _ = self.proxy.send_event(UiEvent::ProxyStatsTick);
         }
 
         event_loop.set_control_flow(ControlFlow::wait_duration(Duration::from_secs(1)));

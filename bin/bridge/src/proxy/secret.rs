@@ -65,7 +65,7 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
         Some(s) => s,
         None => mint(&path)?,
     };
-    let _ = SECRET.set(secret.clone());
+    _ = SECRET.set(secret.clone());
     Ok(secret)
 }
 

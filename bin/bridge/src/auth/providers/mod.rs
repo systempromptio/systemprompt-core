@@ -31,7 +31,7 @@ pub enum AuthFailedSource {
 
 impl AuthFailedSource {
     #[must_use]
-    pub fn is_terminal(&self) -> bool {
+    pub const fn is_terminal(&self) -> bool {
         match self {
             Self::Keystore(_) | Self::Loopback(_) => true,
             Self::Gateway(g) => {

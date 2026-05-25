@@ -21,7 +21,7 @@ struct VersionSentinel<'a> {
     gateway_url: Option<&'a str>,
 }
 
-pub fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
+pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
     fs::create_dir_all(&loc.path)?;
     let meta = paths::metadata_dir(&loc.path);
     fs::create_dir_all(&meta)?;
@@ -30,7 +30,7 @@ pub fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn write_version_sentinel(
+pub(super) fn write_version_sentinel(
     org_plugins: &Path,
     binary: &Path,
     gateway_url: Option<&str>,
@@ -47,7 +47,7 @@ pub fn write_version_sentinel(
     Ok(())
 }
 
-pub fn current_iso8601() -> String {
+pub(super) fn current_iso8601() -> String {
     time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| "unknown".into())

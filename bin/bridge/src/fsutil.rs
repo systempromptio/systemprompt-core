@@ -45,13 +45,13 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
         use std::os::unix::fs::PermissionsExt;
         // Why: belt-and-braces in case the file pre-existed with looser perms
         // and OpenOptions::mode was ignored on this platform/fs.
-        let _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600));
+        _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600));
     }
 
     match fs::rename(&tmp, path) {
         Ok(()) => Ok(()),
         Err(e) => {
-            let _ = fs::remove_file(&tmp);
+            _ = fs::remove_file(&tmp);
             Err(e)
         },
     }
@@ -113,7 +113,7 @@ fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
+        _ = fs::set_permissions(path, fs::Permissions::from_mode(0o700));
     }
     Ok(())
 }
@@ -123,8 +123,7 @@ fn temp_path_for(path: &Path) -> std::path::PathBuf {
     // same target path; pure ".tmp" lost writes under contention.
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
+        .map_or(0, |d| d.as_nanos());
     let pid = std::process::id();
     let suffix = format!("tmp.{pid}.{nanos}");
     let mut name = path

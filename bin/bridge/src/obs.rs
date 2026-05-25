@@ -48,14 +48,14 @@ pub mod tracing_init {
             // Why: try_init only fails if a global subscriber is already installed,
             // which is benign — the existing subscriber stays.
             if json_format_requested() {
-                let _ = tracing_subscriber::fmt()
+                _ = tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
                     .with_env_filter(filter)
                     .json()
                     .flatten_event(true)
                     .try_init();
             } else {
-                let _ = tracing_subscriber::fmt()
+                _ = tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
                     .with_env_filter(filter)
                     .event_format(BridgeFormat)
@@ -73,7 +73,7 @@ pub mod tracing_init {
             return;
         };
         if let Err(e) = std::fs::create_dir_all(&dir) {
-            #[allow(
+            #[expect(
                 clippy::print_stderr,
                 reason = "tracing subscriber not yet installed; stderr is the only diagnostic channel"
             )]
@@ -94,7 +94,7 @@ pub mod tracing_init {
         let appender = match appender {
             Ok(a) => a,
             Err(e) => {
-                #[allow(
+                #[expect(
                     clippy::print_stderr,
                     reason = "tracing subscriber not yet installed; stderr is the only diagnostic channel"
                 )]
@@ -107,8 +107,8 @@ pub mod tracing_init {
         let (writer, guard) = tracing_appender::non_blocking(appender);
         // Why: OnceLock::set is idempotent — only fails if already initialised,
         // which is benign during re-init in tests / subsequent calls.
-        let _ = GUARD.set(guard);
-        let _ = FILE_WRITER.set(writer);
+        _ = GUARD.set(guard);
+        _ = FILE_WRITER.set(writer);
     }
 
     pub fn log_dir() -> Option<PathBuf> {
@@ -162,9 +162,9 @@ pub mod tracing_init {
             if let Some(dir) = log_dir() {
                 // Why: panic hook is a best-effort dump path — recursing into tracing
                 // on a filesystem failure would itself become the failure mode.
-                let _ = std::fs::create_dir_all(&dir);
+                _ = std::fs::create_dir_all(&dir);
                 let path = dir.join(format!("bridge-crash-{ts}.log"));
-                let _ = std::fs::write(&path, &dump);
+                _ = std::fs::write(&path, &dump);
                 tracing::error!(
                     crash_log = %path.display(),
                     location = %location,
@@ -178,7 +178,7 @@ pub mod tracing_init {
                     "bridge panicked (no log dir available)"
                 );
             }
-            #[allow(
+            #[expect(
                 clippy::print_stderr,
                 reason = "panic hook last-resort dump: tracing may already be torn down at this point"
             )]
@@ -210,18 +210,18 @@ pub mod tracing_init {
         // bootstrap errors before `install_file_writer` are still visible.
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             if let Some(file) = self.file.as_mut() {
-                let _ = file.write_all(buf);
+                _ = file.write_all(buf);
             } else {
-                let _ = io::stderr().write_all(buf);
+                _ = io::stderr().write_all(buf);
             }
             Ok(buf.len())
         }
 
         fn flush(&mut self) -> io::Result<()> {
             if let Some(file) = self.file.as_mut() {
-                let _ = file.flush();
+                _ = file.flush();
             } else {
-                let _ = io::stderr().flush();
+                _ = io::stderr().flush();
             }
             Ok(())
         }
@@ -239,12 +239,12 @@ pub mod tracing_init {
         fn write_field(&mut self, name: &str, value: fmt::Arguments<'_>) {
             use std::fmt::Write as _;
             if name == "message" {
-                let _ = write!(self.message, "{value}");
+                _ = write!(self.message, "{value}");
             } else {
                 if !self.fields.is_empty() {
                     self.fields.push(' ');
                 }
-                let _ = write!(self.fields, "{name}={value}");
+                _ = write!(self.fields, "{name}={value}");
             }
         }
     }

@@ -29,7 +29,7 @@ pub(crate) fn cmd_gui() -> ExitCode {
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub(crate) fn cmd_gui() -> ExitCode {
+pub(super) fn cmd_gui() -> ExitCode {
     crate::obs::output::diag("gui not supported on this platform");
     ExitCode::from(64)
 }

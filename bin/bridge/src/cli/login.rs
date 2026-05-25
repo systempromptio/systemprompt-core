@@ -5,7 +5,7 @@ use crate::cli::args::parse_opt_flag;
 use crate::cli::output;
 use crate::obs::output::diag;
 
-pub(crate) fn cmd_login(args: &[String]) -> ExitCode {
+pub(super) fn cmd_login(args: &[String]) -> ExitCode {
     let token = match args.get(2) {
         Some(t) if !t.is_empty() => t.clone(),
         _ => {

@@ -4,7 +4,7 @@ use crate::auth::setup;
 use crate::cli::output;
 use crate::obs::output::diag;
 
-pub(crate) fn cmd_clean() -> ExitCode {
+pub(super) fn cmd_clean() -> ExitCode {
     match setup::clean() {
         Ok(report) => {
             if report.config_removed {

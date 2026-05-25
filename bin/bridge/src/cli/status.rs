@@ -22,7 +22,7 @@ struct UserFragment {
     email: Option<String>,
 }
 
-pub(crate) fn cmd_status() -> ExitCode {
+pub(super) fn cmd_status() -> ExitCode {
     let s = match setup::status() {
         Ok(s) => s,
         Err(e) => {
@@ -50,9 +50,7 @@ pub(crate) fn cmd_status() -> ExitCode {
 fn print_oauth_client_status(s: &setup::StatusReport) {
     let path_display = s
         .oauth_creds_path
-        .as_ref()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "(unresolvable)".into());
+        .as_ref().map_or_else(|| "(unresolvable)".into(), |p| p.display().to_string());
     status_line("oauth client creds", path_display);
     status_indent("present", s.oauth_creds_present);
     if s.oauth_creds_present
@@ -137,7 +135,7 @@ fn count_subdirs(dir: &std::path::Path) -> Option<usize> {
         if name.starts_with('.') {
             continue;
         }
-        if entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+        if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
             n += 1;
         }
     }
@@ -148,7 +146,7 @@ fn count_files_with_ext(dir: &std::path::Path, ext: &str) -> Option<usize> {
     let mut n = 0usize;
     for entry in std::fs::read_dir(dir).ok()?.flatten() {
         let path = entry.path();
-        if entry.file_type().ok().map(|t| t.is_file()).unwrap_or(false)
+        if entry.file_type().ok().is_some_and(|t| t.is_file())
             && path.extension().and_then(|e| e.to_str()) == Some(ext)
         {
             n += 1;

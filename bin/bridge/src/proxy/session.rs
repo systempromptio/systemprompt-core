@@ -32,7 +32,7 @@ impl SessionContext {
     }
 
     #[must_use]
-    pub fn session_id(&self) -> &SessionId {
+    pub const fn session_id(&self) -> &SessionId {
         &self.session_id
     }
 
@@ -67,8 +67,8 @@ impl SessionContext {
 
 /// Compute a stable conversation-prefix hash from a request body.
 ///
-/// Recognises Anthropic Messages (`{system, messages}`), OpenAI Chat
-/// Completions (`{messages}`) and OpenAI Responses (`{instructions,
+/// Recognises Anthropic Messages (`{system, messages}`), `OpenAI` Chat
+/// Completions (`{messages}`) and `OpenAI` Responses (`{instructions,
 /// input}`) shapes. Returns `None` when the body is not parseable JSON
 /// or has no first turn — callers fall back to letting the gateway
 /// derive the conversation id from the canonical request.

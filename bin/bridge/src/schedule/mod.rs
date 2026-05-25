@@ -9,22 +9,22 @@ pub enum Os {
 
 impl Os {
     #[must_use]
-    pub fn current() -> Self {
+    pub const fn current() -> Self {
         if cfg!(target_os = "macos") {
-            Os::Mac
+            Self::Mac
         } else if cfg!(target_os = "windows") {
-            Os::Windows
+            Self::Windows
         } else {
-            Os::Linux
+            Self::Linux
         }
     }
 
     #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
-            "macos" | "darwin" | "mac" => Some(Os::Mac),
-            "windows" | "win" => Some(Os::Windows),
-            "linux" => Some(Os::Linux),
+            "macos" | "darwin" | "mac" => Some(Self::Mac),
+            "windows" | "win" => Some(Self::Windows),
+            "linux" => Some(Self::Linux),
             _ => None,
         }
     }
@@ -40,7 +40,7 @@ pub fn template(os: Os, binary: &Path) -> String {
 }
 
 #[must_use]
-pub fn template_filename(os: Os) -> &'static str {
+pub const fn template_filename(os: Os) -> &'static str {
     match os {
         Os::Mac => "io.systemprompt.bridge-sync.plist",
         Os::Windows => "systemprompt-bridge-sync.xml",
@@ -49,7 +49,7 @@ pub fn template_filename(os: Os) -> &'static str {
 }
 
 #[must_use]
-pub fn install_hint(os: Os) -> &'static str {
+pub const fn install_hint(os: Os) -> &'static str {
     match os {
         Os::Mac => {
             "Save to ~/Library/LaunchAgents/io.systemprompt.bridge-sync.plist, then: launchctl \

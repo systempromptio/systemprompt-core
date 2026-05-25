@@ -51,7 +51,7 @@ impl GatewayClient {
     }
 
     #[must_use]
-    pub fn base_url(&self) -> &ValidatedUrl {
+    pub const fn base_url(&self) -> &ValidatedUrl {
         &self.base_url
     }
 
@@ -60,7 +60,7 @@ impl GatewayClient {
         self.base_url.as_str()
     }
 
-    pub(super) fn http(&self) -> &reqwest::Client {
+    pub(super) const fn http(&self) -> &reqwest::Client {
         &self.http
     }
 

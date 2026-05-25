@@ -134,7 +134,7 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
         .args(["sh", "-c", &script])
         .status()
         .map_err(|e| format!("sudo sh: {e}"))?;
-    let _ = fs::remove_file(&tmp_path);
+    _ = fs::remove_file(&tmp_path);
     if !status.success() {
         return Err(format!(
             "sudo direct-write exited with {}. Re-run `systemprompt-bridge install --apply` and \
@@ -225,7 +225,7 @@ pub fn remove_profile() -> Result<bool, String> {
     let sys_exists = Path::new(MANAGED_PREFS_PATH).exists();
     let user_exists = !user.is_empty() && Path::new(&user_path).exists();
 
-    let _ = Command::new("sudo")
+    _ = Command::new("sudo")
         .args(["profiles", "remove", "-identifier", PAYLOAD_IDENTIFIER])
         .status();
 

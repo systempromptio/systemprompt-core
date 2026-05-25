@@ -23,7 +23,7 @@ impl HostSync for ClaudeCodePluginSync {
     }
 
     fn clear(&self) -> Result<(), super::ApplyError> {
-        let location = match crate::config::paths::org_plugins_effective() {
+        let location = match paths::org_plugins_effective() {
             Some(loc) => loc,
             None => return Ok(()),
         };

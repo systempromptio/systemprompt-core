@@ -5,13 +5,13 @@ use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{SignedManifest, SignedManifestVerify};
 use crate::ids::PinnedPubKey;
 
-pub struct ManifestFetch {
+pub(super) struct ManifestFetch {
     pub client: GatewayClient,
     pub bearer: Secret,
     pub manifest: SignedManifest,
 }
 
-pub async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
+pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> {
     let cfg = config::load();
     let gateway = config::gateway_url_or_default(&cfg);
 
@@ -33,7 +33,7 @@ pub async fn fetch_authenticated_manifest() -> Result<ManifestFetch, SyncError> 
     })
 }
 
-pub async fn verify_signature(
+pub(super) async fn verify_signature(
     fetch: &ManifestFetch,
     allow_unsigned: bool,
     allow_tofu: bool,

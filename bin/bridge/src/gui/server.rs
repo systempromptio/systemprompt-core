@@ -59,7 +59,7 @@ impl Server {
 }
 
 fn handle_focus(mut stream: std::net::TcpStream, tx: &Sender<UiEvent>, csrf: &str) {
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
+    _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(2)));
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
     if reader.read_line(&mut request_line).is_err() {
@@ -77,7 +77,7 @@ fn handle_focus(mut stream: std::net::TcpStream, tx: &Sender<UiEvent>, csrf: &st
         || path != "/api/focus_window"
         || !constant_time_eq(supplied_token.as_bytes(), csrf.as_bytes())
     {
-        let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
         return;
     }
     loop {
@@ -89,6 +89,6 @@ fn handle_focus(mut stream: std::net::TcpStream, tx: &Sender<UiEvent>, csrf: &st
             break;
         }
     }
-    let _ = tx.send(UiEvent::FocusWindow);
-    let _ = stream.write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n");
+    _ = tx.send(UiEvent::FocusWindow);
+    _ = stream.write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n");
 }

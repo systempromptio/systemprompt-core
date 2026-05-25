@@ -38,7 +38,7 @@ pub fn read_with_threshold(min_remaining_secs: u64) -> Option<HelperOutput> {
 }
 
 #[must_use]
-pub fn is_still_valid(expires_at: u64, now: u64, min_remaining_secs: u64) -> bool {
+pub const fn is_still_valid(expires_at: u64, now: u64, min_remaining_secs: u64) -> bool {
     expires_at > now.saturating_add(min_remaining_secs)
 }
 
