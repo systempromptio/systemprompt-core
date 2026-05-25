@@ -1,29 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Breaking
-
-- **Authz `Decision::Allow` is now a struct variant carrying `matched_by: MatchedBy`.** Callers pattern-matching on `Decision::Allow` (unit) must switch to `Decision::Allow { .. }`; constructors must supply a `MatchedBy` (one of `UserAllow`, `RoleAllow { role }`, `DepartmentAllow { department }`, `DefaultIncluded`, `PolicyAllow { policy_id, detail }`).
-- **`Decision::Deny.reason` is now typed `DenyReason`** (was `String`), and `Decision::Deny.justification` is gone — justification is folded into the per-variant `justification: Option<String>` field on `DenyReason::{UserDeny, RoleDeny, DepartmentDeny}`. `AuthzDecision::Deny.reason` is also `DenyReason`. The `#[error]` strings on each variant double as the audit row `reason` column (use `.to_string()`).
-- **`AuthzRequest.context` is now typed `AuthzContext`** (was `serde_json::Value`). Variants: `GatewayInvocation { model: ModelId }`, `McpToolCall { tool: McpToolName }`, `None`. Missing/null on the wire deserializes to `None`.
-- **`resolver::resolve` signature is now `resolve(input: ResolveInput<'_>) -> Decision`.** `ResolveInput` bundles `{ entity: &EntityRef, rules, user_id, user_roles, department, default_included: Option<bool> }`. `default_included: None` signals "no entity row" → `DenyReason::UnknownEntity`; `Some(false)` → `DenyReason::NotAssigned`.
-- **`EntityRef::GatewayModel` and `EntityKind::GatewayModel` removed.** Gateway authz is now single-pass on `EntityRef::GatewayRoute`; the requested model literal travels via `AuthzContext::GatewayInvocation { model }`. The earlier two-pass model+route evaluation is gone.
-- **`Decision`-bearing audit code paths must call `.to_string()` on `DenyReason`** to populate the SQL `reason` column — `DenyReason: thiserror::Error + Serialize`, but the column is plain TEXT.
-
-### Added
-
-- **`McpToolName` typed id** in `systemprompt_identifiers::mcp`. Non-empty `define_id!` wrapper for MCP protocol tool names.
-- **`PolicyId` and `SecretPatternId` typed ids** in `systemprompt_identifiers::policy`. `PolicyId` is the canonical key for governance policies; `SecretPatternId` names secret-scanner patterns.
-- **`systemprompt_security::policy` module** — shared types for the tool-use governance plane: `AgentScope { User { user_id } | System }`, `McpToolInput` (the documented inline-`serde_json::Value` boundary for schema-less MCP arguments), `PolicyContext<'a>`, `SecretLocation { kind, path }`, `RateLimitWindow { name, seconds, limit }`, `GovernancePolicy` trait, and `GovernanceChain` (first-deny-wins composer; allow-fallthrough is `MatchedBy::DefaultIncluded`).
-- **`DenyReason` tool-use variants**: `SecretLeak`, `ScopeViolation`, `ToolBlocked`, `RateLimitExceeded`, `HookUnavailable`. Lets the template's secret-scan / scope / blocklist / rate-limit chain emit the same `Decision` shape the user→entity resolver does.
-
-### Internal
-
-- **`bin/bridge` clippy posture matches the main workspace.** `bin/bridge/Cargo.toml` adopts the workspace `[lints.clippy]` / `[lints.rust]` baseline (deny `clippy::all` + `suspicious`, warn pedantic/nursery/cargo/perf, `unreachable_pub`, `missing_debug_implementations`, `allow_attributes_without_reason`, …). The bridge now builds clean under `cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --no-deps -- -D warnings`.
-- **`clippy::redundant_pub_crate = "allow"` at the workspace level.** It conflicts with `unreachable_pub` for the repo's deliberately-narrowed `pub(crate)` module hierarchy, and the visibility-cleanup work has already chosen the narrower form.
-- **Bridge inline tests extracted.** `#[cfg(test)] mod tests` blocks under `bin/bridge/src/{config/mod.rs, lib.rs}` move to dedicated test crates `crates/tests/unit/bridge/{config, ts-export}/`.
-
 ## [0.11.2] - 2026-05-25
 
 ### Breaking
@@ -36,6 +12,12 @@
 - **`GatewayRoute.endpoint` and `GatewayRoute.api_key_secret` removed.** Both fields live exclusively on `GatewayProvider`; the route references its provider by `ProviderId` and resolves endpoint + secret through the catalog. New helper: `GatewayRoute::resolve(&self, providers: &[GatewayProvider]) -> Option<&GatewayProvider>`. YAML migration: delete `endpoint:` and `api_key_secret:` from every `gateway.routes[*]` entry — `deny_unknown_fields` now rejects them. The `RouteEndpointMismatch` validate error is gone (the drift it caught is now structurally impossible). `pub fn synthesize_route_id` signature shrinks from `(pattern, provider, endpoint)` to `(pattern, provider)`; the 6-hex hash tail is recomputed accordingly, so route ids that were previously hash-derived will change shape and operators relying on synthesized ids must rerun `ensure_route_ids` or rewrite the affected `access_control_rules` rows.
 - **Authz enforced on `/v1/messages` with a two-pass evaluation** before upstream dispatch: pass 1 evaluates `EntityRef::GatewayModel(ModelId)` (model-level policy — "ban Opus on Wednesdays"), pass 2 evaluates `EntityRef::GatewayRoute(RouteId)` (route-level policy — "the EU route is finance-only"). Either deny returns `403`; webhook fault defaults to deny via the existing `WebhookHook::fault` path. Both decisions are audited via `AuthzAuditSink`, correlated by `trace_id`. Previously only the route entity was evaluated. Webhook handlers that match on `req.entity` must handle both variants.
 - **`GatewayConfig::validate()` rejects duplicate route ids.** New variant `GatewayProfileError::DuplicateRouteId { id }` fires when two routes — whether both explicitly authored or one synthesized — collide on `id`. This guards the (vanishingly unlikely) 6-hex synthesis collision and the more common "operator copy-pasted a route block" case.
+- **Authz `Decision::Allow` is now a struct variant carrying `matched_by: MatchedBy`.** Callers pattern-matching on `Decision::Allow` (unit) must switch to `Decision::Allow { .. }`; constructors must supply a `MatchedBy` (one of `UserAllow`, `RoleAllow { role }`, `DepartmentAllow { department }`, `DefaultIncluded`, `PolicyAllow { policy_id, detail }`).
+- **`Decision::Deny.reason` is now typed `DenyReason`** (was `String`), and `Decision::Deny.justification` is gone — justification is folded into the per-variant `justification: Option<String>` field on `DenyReason::{UserDeny, RoleDeny, DepartmentDeny}`. `AuthzDecision::Deny.reason` is also `DenyReason`. The `#[error]` strings on each variant double as the audit row `reason` column (use `.to_string()`).
+- **`AuthzRequest.context` is now typed `AuthzContext`** (was `serde_json::Value`). Variants: `GatewayInvocation { model: ModelId }`, `McpToolCall { tool: McpToolName }`, `None`. Missing/null on the wire deserializes to `None`.
+- **`resolver::resolve` signature is now `resolve(input: ResolveInput<'_>) -> Decision`.** `ResolveInput` bundles `{ entity: &EntityRef, rules, user_id, user_roles, department, default_included: Option<bool> }`. `default_included: None` signals "no entity row" → `DenyReason::UnknownEntity`; `Some(false)` → `DenyReason::NotAssigned`.
+- **`EntityRef::GatewayModel` and `EntityKind::GatewayModel` removed.** Gateway authz is now single-pass on `EntityRef::GatewayRoute`; the requested model literal travels via `AuthzContext::GatewayInvocation { model }`. The earlier two-pass model+route evaluation is gone (superseding the two-pass note above).
+- **`Decision`-bearing audit code paths must call `.to_string()` on `DenyReason`** to populate the SQL `reason` column — `DenyReason: thiserror::Error + Serialize`, but the column is plain TEXT.
 
 ### Added
 
@@ -43,6 +25,10 @@
 - **`GatewayConfig::validate()`** — boot-time cross-check that fails loud on catalog/route drift. Verifies: every route's provider exists in `GatewayCatalog.providers`; every route's endpoint matches the catalog provider's endpoint; every catalog model id and alias is globally unique; every catalog model is reachable by at least one route pattern. New error variants: `RouteProviderNotInCatalog`, `RouteEndpointMismatch`, `DuplicateModelId`, `UnreachableModel`.
 - **`GatewayModel::aliases: Vec<String>`** — alternate model ids that resolve to the same catalog entry for exposure and `/profile` listing (e.g. `claude-opus-4-7[1m]` aliasing `claude-opus-4-7`).
 - **`EntityKind::GatewayModel`** in `systemprompt-security::authz` — paired with the existing `GatewayRoute` so per-model RBAC can be wired into the gateway dispatch path (consumer wiring is a follow-up). Migration `006_acl_gateway_model.sql` extends the `access_control_rules.entity_type` CHECK constraint to include the new variant.
+- **`McpToolName` typed id** in `systemprompt_identifiers::mcp`. Non-empty `define_id!` wrapper for MCP protocol tool names.
+- **`PolicyId` and `SecretPatternId` typed ids** in `systemprompt_identifiers::policy`. `PolicyId` is the canonical key for governance policies; `SecretPatternId` names secret-scanner patterns.
+- **`systemprompt_security::policy` module** — shared types for the tool-use governance plane: `AgentScope { User { user_id } | System }`, `McpToolInput` (the documented inline-`serde_json::Value` boundary for schema-less MCP arguments), `PolicyContext<'a>`, `SecretLocation { kind, path }`, `RateLimitWindow { name, seconds, limit }`, `GovernancePolicy` trait, and `GovernanceChain` (first-deny-wins composer; allow-fallthrough is `MatchedBy::DefaultIncluded`).
+- **`DenyReason` tool-use variants**: `SecretLeak`, `ScopeViolation`, `ToolBlocked`, `RateLimitExceeded`, `HookUnavailable`. Lets the template's secret-scan / scope / blocklist / rate-limit chain emit the same `Decision` shape the user→entity resolver does.
 
 ### Changed
 
@@ -61,6 +47,9 @@
 - **Workspace clippy clean outside `redundant_pub_crate`.** Cleared the remaining ~230 stragglers across the non-test crates: 58 `unreachable_pub` items lowered to `pub(crate)` (with split re-exports where the facade still consumed them publicly), 14 `private_in_public` warnings resolved by promoting clap arg structs and CLI output payloads, 46 `str_to_string` / `ToString::to_string` sites rewritten to `.to_owned()`/`str::to_owned`, 13 `assigning_clones` rewritten to `clone_into`, 81 `allow_attributes_without_reason` / `expect_attributes_without_reason` sites either deleted (where the suppression was stale) or given a substantive reason, 27 unfulfilled `#[expect]` blocks removed, six single-file modules renamed to `mod.rs`, and the final `#[allow]` converted to `#[expect]`.
 - **Three long functions split into smaller helpers** so every function fits under the 150-line threshold: `MessageProcessor::handle_message` (extracted `collect_stream_response`, `broadcast_agui_lifecycle`, `persist_or_mark_failed`); `StreamProcessor::process_message_stream` (extracted `run_stream_pipeline`); `handle_complete` (extracted `build_complete_task`, `broadcast_task_success`).
 - **Two new `just` recipes:** `just machete` (unused dependencies via `cargo-machete`) and `just hack` (feature-powerset build via `cargo-hack`).
+- **`bin/bridge` clippy posture matches the main workspace.** `bin/bridge/Cargo.toml` adopts the workspace `[lints.clippy]` / `[lints.rust]` baseline (deny `clippy::all` + `suspicious`, warn pedantic/nursery/cargo/perf, `unreachable_pub`, `missing_debug_implementations`, `allow_attributes_without_reason`, …). The bridge now builds clean under `cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --no-deps -- -D warnings`.
+- **`clippy::redundant_pub_crate = "allow"` at the workspace level.** It conflicts with `unreachable_pub` for the repo's deliberately-narrowed `pub(crate)` module hierarchy, and the visibility-cleanup work has already chosen the narrower form.
+- **Bridge inline tests extracted.** `#[cfg(test)] mod tests` blocks under `bin/bridge/src/{config/mod.rs, lib.rs}` move to dedicated test crates `crates/tests/unit/bridge/{config, ts-export}/`.
 
 ## [0.11.1] - 2026-05-22
 
