@@ -18,7 +18,7 @@ use systemprompt_identifiers::{MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{AgUiEventBuilder, AgUiMessageRole, RequestContext, TaskMetadata};
 
 impl MessageProcessor {
-    pub(crate) async fn handle_message(
+    pub(in crate::services::a2a_server) async fn handle_message(
         &self,
         message: Message,
         agent_name: &str,

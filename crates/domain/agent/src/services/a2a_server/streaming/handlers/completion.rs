@@ -17,7 +17,7 @@ use crate::services::a2a_server::processing::message::{
 use crate::services::a2a_server::streaming::broadcast_task_completed;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
-pub(crate) struct HandleCompleteParams<'a> {
+pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,
     pub full_text: String,
@@ -50,7 +50,9 @@ fn send_a2a_status_event(
     }
 }
 
-pub(crate) async fn handle_complete(params: HandleCompleteParams<'_>) {
+pub(in crate::services::a2a_server::streaming) async fn handle_complete(
+    params: HandleCompleteParams<'_>,
+) {
     let HandleCompleteParams {
         tx,
         webhook_context,
@@ -304,7 +306,7 @@ async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_>) {
     .await;
 }
 
-pub(crate) struct HandleErrorParams<'a> {
+pub(in crate::services::a2a_server::streaming) struct HandleErrorParams<'a> {
     pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,
     pub error: String,
@@ -313,7 +315,9 @@ pub(crate) struct HandleErrorParams<'a> {
     pub task_repo: &'a TaskRepository,
 }
 
-pub(crate) async fn handle_error(params: HandleErrorParams<'_>) {
+pub(in crate::services::a2a_server::streaming) async fn handle_error(
+    params: HandleErrorParams<'_>,
+) {
     let HandleErrorParams {
         tx,
         webhook_context,
