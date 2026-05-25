@@ -103,7 +103,7 @@ pub(super) async fn callback_handler(
         send_result(
             &state.tx,
             Err(CloudError::CheckoutFlow {
-                message: "Pending status but no checkout_session_id".to_string(),
+                message: "Pending status but no checkout_session_id".to_owned(),
             }),
         )
         .await;
@@ -113,7 +113,7 @@ pub(super) async fn callback_handler(
     send_result(
         &state.tx,
         Err(CloudError::CheckoutFlow {
-            message: "Missing transaction_id or tenant_id in callback".to_string(),
+            message: "Missing transaction_id or tenant_id in callback".to_owned(),
         }),
     )
     .await;
@@ -165,7 +165,7 @@ async fn wait_for_checkout_provisioning(
                     },
                     ProvisioningEventType::ProvisioningFailed => {
                         return Err(CloudError::ProvisioningFailed {
-                            message: event.message.unwrap_or_else(|| "Unknown error".to_string()),
+                            message: event.message.unwrap_or_else(|| "Unknown error".to_owned()),
                         });
                     },
                     _ => {},
@@ -178,7 +178,7 @@ async fn wait_for_checkout_provisioning(
     }
 
     Err(CloudError::SseStream {
-        message: "SSE stream closed unexpectedly".to_string(),
+        message: "SSE stream closed unexpectedly".to_owned(),
     })
 }
 
@@ -194,7 +194,7 @@ pub(super) async fn status_handler(
             app_url: status.app_url,
         }),
         Err(e) => Json(StatusResponse {
-            status: "error".to_string(),
+            status: "error".to_owned(),
             message: Some(e.to_string()),
             app_url: None,
         }),

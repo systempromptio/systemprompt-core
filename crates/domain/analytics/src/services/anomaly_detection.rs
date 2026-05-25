@@ -106,7 +106,7 @@ impl AnomalyDetectionService {
         };
 
         AnomalyCheckResult {
-            metric_name: metric_name.to_string(),
+            metric_name: metric_name.to_owned(),
             current_value: value,
             level,
             message,
@@ -116,7 +116,7 @@ impl AnomalyDetectionService {
     pub async fn record_event(&self, metric_name: &str, value: f64) {
         let now = Utc::now();
         let cutoff = now - Duration::hours(1);
-        let key = metric_name.to_string();
+        let key = metric_name.to_owned();
         let event = AnomalyEvent {
             timestamp: now,
             value,
@@ -159,7 +159,7 @@ impl AnomalyDetectionService {
 
         if spike_ratio > 3.0 {
             Some(AnomalyCheckResult {
-                metric_name: metric_name.to_string(),
+                metric_name: metric_name.to_owned(),
                 current_value: latest,
                 level: AnomalyLevel::Critical,
                 message: Some(format!(
@@ -168,7 +168,7 @@ impl AnomalyDetectionService {
             })
         } else if spike_ratio > 2.0 {
             Some(AnomalyCheckResult {
-                metric_name: metric_name.to_string(),
+                metric_name: metric_name.to_owned(),
                 current_value: latest,
                 level: AnomalyLevel::Warning,
                 message: Some(format!(
@@ -183,7 +183,7 @@ impl AnomalyDetectionService {
     pub async fn update_threshold(&self, metric_name: &str, warning: f64, critical: f64) {
         let mut thresholds = self.thresholds.write().await;
         thresholds.insert(
-            metric_name.to_string(),
+            metric_name.to_owned(),
             AnomalyThresholdConfig {
                 warning_threshold: warning,
                 critical_threshold: critical,

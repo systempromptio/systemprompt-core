@@ -98,7 +98,7 @@ fn list_providers() -> Result<ProviderListOutput> {
 
     if let Some(serde_yaml::Value::Mapping(providers_map)) = providers_section {
         for (name, config) in providers_map {
-            let name_str = name.as_str().unwrap_or("unknown").to_string();
+            let name_str = name.as_str().unwrap_or("unknown").to_owned();
 
             let enabled = config
                 .get("enabled")
@@ -143,7 +143,7 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
 
     if !providers
         .as_mapping()
-        .is_some_and(|m| m.contains_key(serde_yaml::Value::String(provider.to_string())))
+        .is_some_and(|m| m.contains_key(serde_yaml::Value::String(provider.to_owned())))
     {
         let available: Vec<String> = providers.as_mapping().map_or_else(Vec::new, |m| {
             m.keys()
@@ -159,16 +159,16 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
 
     if let Some(serde_yaml::Value::Mapping(ai_map)) = content.get_mut("ai") {
         ai_map.insert(
-            serde_yaml::Value::String("default_provider".to_string()),
-            serde_yaml::Value::String(provider.to_string()),
+            serde_yaml::Value::String("default_provider".to_owned()),
+            serde_yaml::Value::String(provider.to_owned()),
         );
     }
 
     write_yaml_file(&file_path, &content)?;
 
     Ok(ProviderSetOutput {
-        provider: provider.to_string(),
-        action: "set_default".to_string(),
+        provider: provider.to_owned(),
+        action: "set_default".to_owned(),
         message: format!("Default provider set to '{}'", provider),
     })
 }
@@ -191,7 +191,7 @@ fn set_provider_enabled(provider: &str, enabled: bool) -> Result<ProviderSetOutp
 
     if let serde_yaml::Value::Mapping(config_map) = provider_config {
         config_map.insert(
-            serde_yaml::Value::String("enabled".to_string()),
+            serde_yaml::Value::String("enabled".to_owned()),
             serde_yaml::Value::Bool(enabled),
         );
     }
@@ -201,8 +201,8 @@ fn set_provider_enabled(provider: &str, enabled: bool) -> Result<ProviderSetOutp
     let action = if enabled { "enabled" } else { "disabled" };
 
     Ok(ProviderSetOutput {
-        provider: provider.to_string(),
-        action: action.to_string(),
+        provider: provider.to_owned(),
+        action: action.to_owned(),
         message: format!("Provider '{}' {}", provider, action),
     })
 }

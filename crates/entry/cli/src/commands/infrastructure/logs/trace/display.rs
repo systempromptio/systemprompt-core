@@ -22,28 +22,28 @@ fn truncate_string(s: &str, max_len: usize) -> String {
     if s.len() > max_len {
         format!("{}...", &s[..max_len - 3])
     } else {
-        s.to_string()
+        s.to_owned()
     }
 }
 
 fn format_metadata_value(key: &str, value: &Value) -> String {
     match key {
         "cost_microdollars" => value.as_i64().map_or_else(
-            || format!("{}", value).trim_matches('"').to_string(),
+            || format!("{}", value).trim_matches('"').to_owned(),
             |microdollars| {
                 let dollars = microdollars as f64 / 1_000_000.0;
                 format!("${:.6}", dollars)
             },
         ),
         "latency_ms" | "execution_time_ms" => value.as_i64().map_or_else(
-            || format!("{}", value).trim_matches('"').to_string(),
+            || format!("{}", value).trim_matches('"').to_owned(),
             |ms| format!("{}ms", ms),
         ),
         "tokens_used" => value.as_i64().map_or_else(
-            || format!("{}", value).trim_matches('"').to_string(),
+            || format!("{}", value).trim_matches('"').to_owned(),
             |tokens| format!("{}", tokens),
         ),
-        _ => format!("{}", value).trim_matches('"').to_string(),
+        _ => format!("{}", value).trim_matches('"').to_owned(),
     }
 }
 
@@ -66,14 +66,14 @@ fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> St
             }
         }
     }
-    "-".to_string()
+    "-".to_owned()
 }
 
 pub(crate) fn print_event(event: &TraceEvent, verbose: bool, prev_timestamp: Option<DateTime<Utc>>) {
     let timestamp = event.timestamp.format("%H:%M:%S%.3f").to_string();
 
     let delta = prev_timestamp.map_or_else(
-        || "(+0ms)".to_string(),
+        || "(+0ms)".to_owned(),
         |prev| {
             let delta_ms = event
                 .timestamp
@@ -158,7 +158,7 @@ pub(crate) fn print_table(events: &[TraceEvent]) {
         .map(|e| {
             let time = e.timestamp.format("%H:%M:%S%.3f").to_string();
             let delta = prev_timestamp.map_or_else(
-                || "+0ms".to_string(),
+                || "+0ms".to_owned(),
                 |prev| {
                     let delta_ms = e.timestamp.signed_duration_since(prev).num_milliseconds();
                     format!("+{}ms", delta_ms)

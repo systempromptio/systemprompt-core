@@ -61,7 +61,7 @@ pub(crate) fn execute(
         if agent.port == 0 {
             errors.push(ValidationIssue {
                 source: name.clone(),
-                message: "Port cannot be 0".to_string(),
+                message: "Port cannot be 0".to_owned(),
                 suggestion: None,
             });
         }
@@ -69,7 +69,7 @@ pub(crate) fn execute(
         if agent.card.display_name.is_empty() {
             warnings.push(ValidationIssue {
                 source: name.clone(),
-                message: "Display name is empty".to_string(),
+                message: "Display name is empty".to_owned(),
                 suggestion: None,
             });
         }
@@ -77,7 +77,7 @@ pub(crate) fn execute(
         if agent.card.description.is_empty() {
             warnings.push(ValidationIssue {
                 source: name.clone(),
-                message: "Description is empty".to_string(),
+                message: "Description is empty".to_owned(),
                 suggestion: None,
             });
         }
@@ -85,7 +85,7 @@ pub(crate) fn execute(
         if agent.enabled && agent.metadata.provider.is_none() {
             warnings.push(ValidationIssue {
                 source: name.clone(),
-                message: "Enabled agent has no AI provider configured".to_string(),
+                message: "Enabled agent has no AI provider configured".to_owned(),
                 suggestion: None,
             });
         }

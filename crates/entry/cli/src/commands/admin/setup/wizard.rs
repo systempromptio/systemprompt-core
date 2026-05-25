@@ -107,7 +107,7 @@ pub(crate) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<Comma
             port: pg_config.port,
             name: pg_config.database.clone(),
             user: pg_config.user.clone(),
-            connection_status: connection_status.to_string(),
+            connection_status: connection_status.to_owned(),
             docker: args.docker,
         },
         secrets_configured: SecretsConfiguredInfo {
@@ -138,14 +138,14 @@ fn build_cancelled(
     config: &CliConfig,
 ) -> CommandResult<SetupOutput> {
     let output = SetupOutput {
-        environment: env_name.to_string(),
+        environment: env_name.to_owned(),
         profile_path: String::new(),
         database: DatabaseSetupInfo {
             host: args.db_host.clone(),
             port: args.db_port,
             name: args.effective_db_name(env_name),
             user: args.effective_db_user(env_name),
-            connection_status: "cancelled".to_string(),
+            connection_status: "cancelled".to_owned(),
             docker: args.docker,
         },
         secrets_configured: SecretsConfiguredInfo {
@@ -155,7 +155,7 @@ fn build_cancelled(
             github: args.github_token.is_some(),
         },
         migrations_run: false,
-        message: "Setup cancelled by user".to_string(),
+        message: "Setup cancelled by user".to_owned(),
     };
 
     if !config.is_json_output() {

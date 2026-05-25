@@ -56,21 +56,21 @@ impl LocalProfileBuilder {
             display_name,
             target: ProfileType::Local,
             site: SiteConfig {
-                name: "systemprompt.io".to_string(),
+                name: "systemprompt.io".to_owned(),
                 github_link: None,
             },
             database: ProfileDatabaseConfig {
-                db_type: consts::DEFAULT_DB_TYPE.to_string(),
+                db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: false,
             },
             server: ServerConfig {
-                host: consts::LOCAL_HOST.to_string(),
+                host: consts::LOCAL_HOST.to_owned(),
                 port: consts::DEFAULT_PORT,
                 api_server_url: local_url.clone(),
                 api_internal_url: local_url.clone(),
                 api_external_url: local_url.clone(),
                 use_https: false,
-                cors_allowed_origins: vec![local_url, "http://localhost:5173".to_string()],
+                cors_allowed_origins: vec![local_url, "http://localhost:5173".to_owned()],
                 content_negotiation: ContentNegotiationConfig::default(),
                 security_headers: SecurityHeadersConfig::default(),
                 instance_id: None,
@@ -88,7 +88,7 @@ impl LocalProfileBuilder {
                 web_path: None,
             },
             security: SecurityConfig {
-                issuer: consts::LOCAL_ISSUER.to_string(),
+                issuer: consts::LOCAL_ISSUER.to_owned(),
                 access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
                 refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
                 audiences: vec![
@@ -126,7 +126,7 @@ impl LocalProfileBuilder {
             gateway: None,
             governance: None,
             system_admin: SystemAdminConfig {
-                username: "admin".to_string(),
+                username: "admin".to_owned(),
             },
         }
     }
@@ -182,7 +182,7 @@ impl CloudProfileBuilder {
         let display_name = generate_display_name(&self.name);
         let external = self
             .external_url
-            .unwrap_or_else(|| consts::DEFAULT_CLOUD_URL.to_string());
+            .unwrap_or_else(|| consts::DEFAULT_CLOUD_URL.to_owned());
         let internal_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
 
         Profile {
@@ -190,15 +190,15 @@ impl CloudProfileBuilder {
             display_name,
             target: ProfileType::Cloud,
             site: SiteConfig {
-                name: "systemprompt.io".to_string(),
+                name: "systemprompt.io".to_owned(),
                 github_link: None,
             },
             database: ProfileDatabaseConfig {
-                db_type: consts::DEFAULT_DB_TYPE.to_string(),
+                db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: self.external_db_access,
             },
             server: ServerConfig {
-                host: consts::CLOUD_HOST.to_string(),
+                host: consts::CLOUD_HOST.to_owned(),
                 port: consts::DEFAULT_PORT,
                 api_server_url: external.clone(),
                 api_internal_url: internal_url,
@@ -212,15 +212,15 @@ impl CloudProfileBuilder {
                 trusted_proxies: Vec::new(),
             },
             paths: PathsConfig {
-                system: container::APP.to_string(),
-                services: container::SERVICES.to_string(),
-                bin: container::BIN.to_string(),
-                storage: Some(container::STORAGE.to_string()),
+                system: container::APP.to_owned(),
+                services: container::SERVICES.to_owned(),
+                bin: container::BIN.to_owned(),
+                storage: Some(container::STORAGE.to_owned()),
                 geoip_database: None,
-                web_path: Some(container::WEB.to_string()),
+                web_path: Some(container::WEB.to_owned()),
             },
             security: SecurityConfig {
-                issuer: consts::CLOUD_ISSUER.to_string(),
+                issuer: consts::CLOUD_ISSUER.to_owned(),
                 access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
                 refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
                 audiences: vec![
@@ -255,7 +255,7 @@ impl CloudProfileBuilder {
             gateway: None,
             governance: None,
             system_admin: SystemAdminConfig {
-                username: "admin".to_string(),
+                username: "admin".to_owned(),
             },
         }
     }

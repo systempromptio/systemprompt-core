@@ -38,7 +38,7 @@ pub(crate) fn extract_relation_name(msg: &str) -> String {
             return msg[start + 1..start + 1 + end].to_string();
         }
     }
-    "unknown".to_string()
+    "unknown".to_owned()
 }
 
 pub(crate) fn suggest_table_name(input: &str) -> Option<String> {
@@ -57,7 +57,7 @@ pub(crate) fn suggest_table_name(input: &str) -> Option<String> {
                 || shares_prefix_parts(&input_parts, &table_parts, 2)
         })
         .min_by_key(|&&table| levenshtein_distance(&input_lower, &table.to_lowercase()))
-        .map(|&s| s.to_string())
+        .map(|&s| s.to_owned())
 }
 
 fn shares_prefix_parts(a: &[&str], b: &[&str], min_shared: usize) -> bool {

@@ -63,7 +63,7 @@ pub(crate) fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResul
     let mut changes = Vec::new();
 
     if let Some(ct) = args.content_types {
-        let new_types: Vec<String> = ct.split(',').map(|s| s.trim().to_string()).collect();
+        let new_types: Vec<String> = ct.split(',').map(|s| s.trim().to_owned()).collect();
         entry.content_types.clone_from(&new_types);
         changes.push(format!("content_types: {:?}", new_types));
     }

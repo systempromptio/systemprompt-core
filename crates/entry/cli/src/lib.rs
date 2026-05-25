@@ -147,7 +147,7 @@ async fn initialize_post_routing(
 
     if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_fly {
         let secrets = SecretsBootstrap::get().context("Secrets required for external DB access")?;
-        let db_url = secrets.effective_database_url(true).to_string();
+        let db_url = secrets.effective_database_url(true).to_owned();
         return Ok(RoutingAction::ExternalDbUrl(db_url));
     }
 
@@ -224,16 +224,16 @@ fn resolve_log_level(cli_config: &CliConfig) -> Option<String> {
     }
 
     if let Some(level) = cli_config.verbosity.as_tracing_filter() {
-        return Some(level.to_string());
+        return Some(level.to_owned());
     }
 
     if let Ok(profile_path) = bootstrap::resolve_profile(cli_config.profile_override.as_deref()) {
         if let Some(log_level) = bootstrap::try_load_log_level(&profile_path) {
-            return Some(log_level.as_tracing_filter().to_string());
+            return Some(log_level.as_tracing_filter().to_owned());
         }
     }
 
-    Some("warn".to_string())
+    Some("warn".to_owned())
 }
 
 async fn dispatch_command(command: Option<args::Commands>, config: &CliConfig) -> Result<()> {

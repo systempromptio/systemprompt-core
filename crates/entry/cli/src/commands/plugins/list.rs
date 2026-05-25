@@ -70,8 +70,8 @@ pub(crate) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<Ext
 
                     ExtensionSummary {
                         id: systemprompt_identifiers::PluginId::new(ext.id()),
-                        name: ext.name().to_string(),
-                        version: ext.version().to_string(),
+                        name: ext.name().to_owned(),
+                        version: ext.version().to_owned(),
                         priority: ext.priority(),
                         source: ExtensionSource::Compiled,
                         enabled: true,
@@ -111,7 +111,7 @@ pub(crate) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<Ext
             extensions.push(ExtensionSummary {
                 id: systemprompt_identifiers::PluginId::new(ext.manifest.extension.name.clone()),
                 name: ext.manifest.extension.name.clone(),
-                version: "manifest".to_string(),
+                version: "manifest".to_owned(),
                 priority: 100,
                 source: ExtensionSource::Manifest,
                 enabled: ext.is_enabled(),
@@ -129,11 +129,11 @@ pub(crate) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<Ext
     CommandResult::table(output)
         .with_title("Extensions")
         .with_columns(vec![
-            "id".to_string(),
-            "name".to_string(),
-            "version".to_string(),
-            "priority".to_string(),
-            "source".to_string(),
-            "capabilities".to_string(),
+            "id".to_owned(),
+            "name".to_owned(),
+            "version".to_owned(),
+            "priority".to_owned(),
+            "source".to_owned(),
+            "capabilities".to_owned(),
         ])
 }

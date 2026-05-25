@@ -32,11 +32,11 @@ impl FunnelRepository {
 
         for (idx, step_input) in input.steps.iter().enumerate() {
             let step_order = i32::try_from(idx).unwrap_or(0);
-            funnel_ids_arr.push(funnel_id.as_str().to_string());
+            funnel_ids_arr.push(funnel_id.as_str().to_owned());
             step_orders.push(step_order);
             names.push(step_input.name.clone());
             patterns.push(step_input.match_pattern.clone());
-            match_types.push(step_input.match_type.as_str().to_string());
+            match_types.push(step_input.match_type.as_str().to_owned());
 
             steps.push(FunnelStep {
                 funnel_id: funnel_id.clone(),

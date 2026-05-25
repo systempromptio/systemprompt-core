@@ -18,7 +18,7 @@ impl CloudApiClient {
         tenant_id: &TenantId,
     ) -> Pin<Box<dyn Stream<Item = CloudResult<ProvisioningEvent>> + Send + '_>> {
         let url = format!("{}{}", self.api_url(), ApiPaths::tenant_events(tenant_id));
-        let token = self.token().to_string();
+        let token = self.token().to_owned();
         let client = self.client.clone();
 
         let stream = async_stream::stream! {
@@ -77,7 +77,7 @@ impl CloudApiClient {
             self.api_url(),
             checkout_session_id.as_str()
         );
-        let token = self.token().to_string();
+        let token = self.token().to_owned();
         let client = self.client.clone();
 
         let stream = async_stream::stream! {

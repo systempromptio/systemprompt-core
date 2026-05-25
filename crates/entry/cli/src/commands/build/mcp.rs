@@ -65,14 +65,14 @@ pub(crate) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult
         let status = match build_result {
             Ok(()) => {
                 successful += 1;
-                "success".to_string()
+                "success".to_owned()
             },
             Err(e) => format!("failed: {}", e),
         };
 
         built_extensions.push(BuildExtensionRow {
             name: ext.manifest.extension.name.clone(),
-            build_type: build_type_str.to_string(),
+            build_type: build_type_str.to_owned(),
             status,
         });
     }

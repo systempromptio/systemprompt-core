@@ -51,8 +51,8 @@ pub async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Content Journey")
         .with_columns(vec![
-            "source_content_id".to_string(),
-            "target_url".to_string(),
-            "click_count".to_string(),
+            "source_content_id".to_owned(),
+            "target_url".to_owned(),
+            "click_count".to_owned(),
         ]))
 }

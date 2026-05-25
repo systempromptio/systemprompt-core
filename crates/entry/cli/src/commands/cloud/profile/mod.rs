@@ -214,21 +214,21 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
         });
 
     let edit_label = if has_profiles {
-        "Edit".to_string()
+        "Edit".to_owned()
     } else {
-        "Edit (unavailable - no profiles)".to_string()
+        "Edit (unavailable - no profiles)".to_owned()
     };
     let delete_label = if has_profiles {
-        "Delete".to_string()
+        "Delete".to_owned()
     } else {
-        "Delete (unavailable - no profiles)".to_string()
+        "Delete (unavailable - no profiles)".to_owned()
     };
 
     let operations = vec![
-        "List".to_string(),
+        "List".to_owned(),
         edit_label,
         delete_label,
-        "Done".to_string(),
+        "Done".to_owned(),
     ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())

@@ -75,7 +75,7 @@ fn render_tool_input(input: &str, full: bool) {
         let formatted = serde_json::from_str::<serde_json::Value>(input)
             .ok()
             .and_then(|v| serde_json::to_string_pretty(&v).ok())
-            .unwrap_or_else(|| input.to_string());
+            .unwrap_or_else(|| input.to_owned());
         CliService::info(&formatted);
     } else {
         render_content(input, false, 300);

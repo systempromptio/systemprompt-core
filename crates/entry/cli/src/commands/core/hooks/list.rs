@@ -21,11 +21,11 @@ pub(crate) fn execute(_args: ListArgs, _config: &CliConfig) -> Result<CommandRes
     Ok(CommandResult::table(output)
         .with_title("Hooks")
         .with_columns(vec![
-            "plugin_id".to_string(),
-            "event".to_string(),
-            "matcher".to_string(),
-            "hook_type".to_string(),
-            "command".to_string(),
+            "plugin_id".to_owned(),
+            "event".to_owned(),
+            "matcher".to_owned(),
+            "hook_type".to_owned(),
+            "command".to_owned(),
         ]))
 }
 
@@ -72,14 +72,14 @@ fn scan_hooks(hooks_path: &Path) -> Result<Vec<HookEntry>> {
         let id_str = if config.id.as_str().is_empty() {
             dir_name
         } else {
-            config.id.as_str().to_string()
+            config.id.as_str().to_owned()
         };
 
         entries.push(HookEntry {
             plugin_id: id_str,
-            event: config.event.as_str().to_string(),
+            event: config.event.as_str().to_owned(),
             matcher: config.matcher.clone(),
-            hook_type: "command".to_string(),
+            hook_type: "command".to_owned(),
             command: if config.command.is_empty() {
                 None
             } else {

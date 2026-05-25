@@ -24,10 +24,10 @@ pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
             CommandResult::table(TemplateListOutput { templates: vec![] })
                 .with_title("Templates")
                 .with_columns(vec![
-                    "name".to_string(),
-                    "content_types".to_string(),
-                    "file_exists".to_string(),
-                    "file_path".to_string(),
+                    "name".to_owned(),
+                    "content_types".to_owned(),
+                    "file_exists".to_owned(),
+                    "file_path".to_owned(),
                 ]),
         );
     }
@@ -70,9 +70,9 @@ pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
     Ok(CommandResult::table(output)
         .with_title("Templates")
         .with_columns(vec![
-            "name".to_string(),
-            "content_types".to_string(),
-            "file_exists".to_string(),
-            "file_path".to_string(),
+            "name".to_owned(),
+            "content_types".to_owned(),
+            "file_exists".to_owned(),
+            "file_path".to_owned(),
         ]))
 }

@@ -28,7 +28,7 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
 
     let name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Tenant name")
-        .default("local".to_string())
+        .default("local".to_owned())
         .interact_text()?;
 
     if name.is_empty() {
@@ -85,7 +85,7 @@ pub async fn create_external_tenant() -> Result<StoredTenant> {
 
     let name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Tenant name")
-        .default("local".to_string())
+        .default("local".to_owned())
         .interact_text()?;
 
     if name.is_empty() {
@@ -232,7 +232,7 @@ async fn setup_local_profile(tenant: &StoredTenant, name: &str, database_url: &s
     CliService::section("Profile Setup");
     let profile_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Profile name")
-        .default(name.to_string())
+        .default(name.to_owned())
         .interact_text()?;
 
     CliService::section("API Keys");

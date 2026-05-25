@@ -74,12 +74,12 @@ pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
     Ok(CommandResult::table(output)
         .with_title("MCP Servers")
         .with_columns(vec![
-            "name".to_string(),
-            "port".to_string(),
-            "enabled".to_string(),
-            "status".to_string(),
-            "binary_debug".to_string(),
-            "binary_release".to_string(),
+            "name".to_owned(),
+            "port".to_owned(),
+            "enabled".to_owned(),
+            "status".to_owned(),
+            "binary_debug".to_owned(),
+            "binary_release".to_owned(),
         ]))
 }
 
@@ -118,13 +118,13 @@ fn get_binary_info(
 
 fn determine_status(enabled: bool, debug: Option<&str>, release: Option<&str>) -> String {
     if !enabled {
-        return "disabled".to_string();
+        return "disabled".to_owned();
     }
 
     match (debug.is_some(), release.is_some()) {
-        (true, true) => "ready".to_string(),
-        (true, false) => "debug-only".to_string(),
-        (false, true) => "release-only".to_string(),
-        (false, false) => "not-built".to_string(),
+        (true, true) => "ready".to_owned(),
+        (true, false) => "debug-only".to_owned(),
+        (false, true) => "release-only".to_owned(),
+        (false, false) => "not-built".to_owned(),
     }
 }

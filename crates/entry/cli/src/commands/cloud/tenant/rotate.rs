@@ -60,7 +60,7 @@ pub async fn rotate_credentials(
             }
             let output = RotateCredentialsOutput {
                 tenant: tenant_id.clone(),
-                status: "cancelled".to_string(),
+                status: "cancelled".to_owned(),
                 internal_database_url: String::new(),
                 external_database_url: String::new(),
             };

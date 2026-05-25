@@ -18,7 +18,7 @@ pub(crate) async fn create_database_in_docker(
         .output()
         .context("Failed to get container password")?;
 
-    let container_password = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let container_password = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
     if container_password.is_empty() {
         anyhow::bail!(

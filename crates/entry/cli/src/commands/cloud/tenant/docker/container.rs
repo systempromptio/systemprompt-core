@@ -37,7 +37,7 @@ pub fn get_container_password() -> Option<String> {
             let env_vars = String::from_utf8_lossy(&out.stdout);
             for line in env_vars.lines() {
                 if let Some(password) = line.strip_prefix("POSTGRES_PASSWORD=") {
-                    return Some(password.to_string());
+                    return Some(password.to_owned());
                 }
             }
             None
@@ -118,7 +118,7 @@ pub fn stop_shared_container() -> Result<()> {
         ])
         .output()?;
 
-    let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let container_id = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     if !container_id.is_empty() {
         Command::new("docker")
             .args(["stop", &container_id])
@@ -156,7 +156,7 @@ pub async fn wait_for_postgres_healthy(compose_path: &Path, timeout_secs: u64) -
             .output()
             .context("Failed to check container health")?;
 
-        let health = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let health = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
         if health.contains("healthy") {
             return Ok(());

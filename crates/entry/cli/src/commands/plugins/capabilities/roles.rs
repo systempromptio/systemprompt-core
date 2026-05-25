@@ -23,7 +23,7 @@ pub(crate) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<Ro
                 .iter()
                 .map(|role| RoleWithExtension {
                     extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
-                    extension_name: ext.name().to_string(),
+                    extension_name: ext.name().to_owned(),
                     role_name: role.name.clone(),
                     display_name: role.display_name.clone(),
                     description: role.description.clone(),
@@ -40,9 +40,9 @@ pub(crate) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<Ro
     CommandResult::table(output)
         .with_title("Roles Across Extensions")
         .with_columns(vec![
-            "extension_id".to_string(),
-            "role_name".to_string(),
-            "display_name".to_string(),
-            "description".to_string(),
+            "extension_id".to_owned(),
+            "role_name".to_owned(),
+            "display_name".to_owned(),
+            "description".to_owned(),
         ])
 }

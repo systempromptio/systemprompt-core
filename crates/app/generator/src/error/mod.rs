@@ -175,7 +175,7 @@ impl PublishError {
                 ..
             } => {
                 if available_templates.is_empty() {
-                    Some("Add templates to the templates directory".to_string())
+                    Some("Add templates to the templates directory".to_owned())
                 } else {
                     Some(format!(
                         "Change content type from '{}' to one of: {}",

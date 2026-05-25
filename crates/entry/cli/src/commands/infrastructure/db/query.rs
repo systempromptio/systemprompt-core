@@ -19,9 +19,9 @@ pub(crate) async fn execute_query(
     _config: &CliConfig,
 ) -> Result<CommandResult<QueryResult>> {
     let final_sql = match (params.limit, params.offset) {
-        (None, None) => params.sql.to_string(),
+        (None, None) => params.sql.to_owned(),
         (limit, offset) => {
-            let mut sql = params.sql.trim_end_matches(';').to_string();
+            let mut sql = params.sql.trim_end_matches(';').to_owned();
             if let Some(l) = limit {
                 sql.push_str(&format!(" LIMIT {}", l));
             }

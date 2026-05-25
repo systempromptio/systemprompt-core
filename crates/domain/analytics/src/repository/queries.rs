@@ -35,7 +35,7 @@ impl AnalyticsQueryRepository {
             WHERE created_at >= NOW() - INTERVAL '1 day' * $1
             ";
 
-        let mut query = base_query.to_string();
+        let mut query = base_query.to_owned();
         let mut params: Vec<Box<dyn ToDbValue>> = vec![Box::new(days)];
         let mut param_index = 2;
 
@@ -47,7 +47,7 @@ impl AnalyticsQueryRepository {
 
         if let Some(uid) = user_id {
             query.push_str(&format!(" AND user_id = {}", placeholder(&mut param_index)));
-            params.push(Box::new(uid.as_str().to_string()));
+            params.push(Box::new(uid.as_str().to_owned()));
         }
 
         query.push_str(" GROUP BY provider, model ORDER BY request_count DESC");

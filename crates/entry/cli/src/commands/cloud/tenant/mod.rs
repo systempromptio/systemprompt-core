@@ -149,22 +149,22 @@ fn select_operation() -> Result<Option<TenantCommands>> {
     let has_tenants = !store.tenants.is_empty();
 
     let edit_label = if has_tenants {
-        "Edit".to_string()
+        "Edit".to_owned()
     } else {
-        "Edit (unavailable - no tenants configured)".to_string()
+        "Edit (unavailable - no tenants configured)".to_owned()
     };
     let delete_label = if has_tenants {
-        "Delete".to_string()
+        "Delete".to_owned()
     } else {
-        "Delete (unavailable - no tenants configured)".to_string()
+        "Delete (unavailable - no tenants configured)".to_owned()
     };
 
     let operations = vec![
-        "Create".to_string(),
-        "List".to_string(),
+        "Create".to_owned(),
+        "List".to_owned(),
         edit_label,
         delete_label,
-        "Done".to_string(),
+        "Done".to_owned(),
     ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -175,7 +175,7 @@ fn select_operation() -> Result<Option<TenantCommands>> {
 
     let cmd = match selection {
         0 => Some(TenantCommands::Create {
-            region: "iad".to_string(),
+            region: "iad".to_owned(),
         }),
         1 => Some(TenantCommands::List),
         2 | 3 if !has_tenants => {
@@ -211,12 +211,12 @@ async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
 
     let build_result = check_build_ready();
     let cloud_option = match &build_result {
-        Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_string(),
-        Err(_) => "Cloud (unavailable - release build required)".to_string(),
+        Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_owned(),
+        Err(_) => "Cloud (unavailable - release build required)".to_owned(),
     };
 
     let options = vec![
-        "Local (creates PostgreSQL container automatically)".to_string(),
+        "Local (creates PostgreSQL container automatically)".to_owned(),
         cloud_option,
     ];
 

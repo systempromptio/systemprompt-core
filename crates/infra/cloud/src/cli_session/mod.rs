@@ -25,7 +25,7 @@ impl SessionKey {
     #[must_use]
     pub fn as_storage_key(&self) -> String {
         match self {
-            Self::Local => LOCAL_SESSION_KEY.to_string(),
+            Self::Local => LOCAL_SESSION_KEY.to_owned(),
             Self::Tenant(id) => format!("tenant_{}", id),
         }
     }

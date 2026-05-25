@@ -31,18 +31,18 @@ pub(crate) fn execute_preset(command: PresetCommands, config: &CliConfig) -> Res
 fn execute_preset_list(_config: &CliConfig) {
     let presets = vec![
         PresetInfo {
-            name: "development".to_string(),
-            description: "Relaxed limits for local development".to_string(),
+            name: "development".to_owned(),
+            description: "Relaxed limits for local development".to_owned(),
             builtin: true,
         },
         PresetInfo {
-            name: "production".to_string(),
-            description: "Balanced limits for production workloads".to_string(),
+            name: "production".to_owned(),
+            description: "Balanced limits for production workloads".to_owned(),
             builtin: true,
         },
         PresetInfo {
-            name: "high-traffic".to_string(),
-            description: "Strict limits for high-traffic environments".to_string(),
+            name: "high-traffic".to_owned(),
+            description: "Strict limits for high-traffic environments".to_owned(),
             builtin: true,
         },
     ];
@@ -90,9 +90,9 @@ fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> 
 
 fn get_preset_description(name: &str) -> Result<String> {
     match name {
-        "development" => Ok("Relaxed limits for local development".to_string()),
-        "production" => Ok("Balanced limits for production workloads".to_string()),
-        "high-traffic" => Ok("Strict limits for high-traffic environments".to_string()),
+        "development" => Ok("Relaxed limits for local development".to_owned()),
+        "production" => Ok("Balanced limits for production workloads".to_owned()),
+        "high-traffic" => Ok("Strict limits for high-traffic environments".to_owned()),
         _ => bail!(
             "Unknown preset: {}. Valid presets: development, production, high-traffic",
             name
@@ -124,14 +124,14 @@ fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()
 
     if profile.rate_limits.burst_multiplier != preset_config.burst_multiplier {
         changes.push(ResetChange {
-            field: "burst_multiplier".to_string(),
+            field: "burst_multiplier".to_owned(),
             old_value: profile.rate_limits.burst_multiplier.to_string(),
             new_value: preset_config.burst_multiplier.to_string(),
         });
     }
     if profile.rate_limits.disabled != preset_config.disabled {
         changes.push(ResetChange {
-            field: "disabled".to_string(),
+            field: "disabled".to_owned(),
             old_value: profile.rate_limits.disabled.to_string(),
             new_value: preset_config.disabled.to_string(),
         });

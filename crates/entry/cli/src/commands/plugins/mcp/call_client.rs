@@ -53,7 +53,7 @@ pub(crate) async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<Call
     .context("Connection timeout")?
     .context("Failed to connect to MCP server")?;
 
-    let mut params = CallToolRequestParams::new(tool_name.to_string());
+    let mut params = CallToolRequestParams::new(tool_name.to_owned());
     params.arguments = arguments.and_then(|v| v.as_object().cloned());
 
     let result = client.call_tool(params).await.map_err(|e| {
@@ -114,31 +114,31 @@ pub(crate) async fn list_available_tools(
 pub(crate) fn convert_content(raw: &RawContent) -> McpToolContent {
     match raw {
         RawContent::Text(text) => McpToolContent {
-            kind: "text".to_string(),
+            kind: "text".to_owned(),
             text: Some(text.text.clone()),
             mime_type: None,
             data: None,
         },
         RawContent::Image(image) => McpToolContent {
-            kind: "image".to_string(),
+            kind: "image".to_owned(),
             text: None,
             mime_type: Some(image.mime_type.clone()),
             data: Some(image.data.clone()),
         },
         RawContent::Resource(resource) => McpToolContent {
-            kind: "resource".to_string(),
+            kind: "resource".to_owned(),
             text: Some(format!("{:?}", resource.resource)),
             mime_type: None,
             data: None,
         },
         RawContent::Audio(audio) => McpToolContent {
-            kind: "audio".to_string(),
+            kind: "audio".to_owned(),
             text: None,
             mime_type: Some(audio.mime_type.clone()),
             data: Some(audio.data.clone()),
         },
         RawContent::ResourceLink(link) => McpToolContent {
-            kind: "resource_link".to_string(),
+            kind: "resource_link".to_owned(),
             text: Some(link.uri.clone()),
             mime_type: link.mime_type.clone(),
             data: None,

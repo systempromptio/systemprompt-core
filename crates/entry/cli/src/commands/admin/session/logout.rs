@@ -29,9 +29,9 @@ pub(crate) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandRe
 
     if store.is_empty() {
         return Ok(CommandResult::text(LogoutOutput {
-            action: "none".to_string(),
-            target: "all".to_string(),
-            message: "No sessions to remove".to_string(),
+            action: "none".to_owned(),
+            target: "all".to_owned(),
+            message: "No sessions to remove".to_owned(),
         })
         .with_title("Logout"));
     }
@@ -51,9 +51,9 @@ pub(crate) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandRe
 
         if !confirmed {
             return Ok(CommandResult::text(LogoutOutput {
-                action: "cancelled".to_string(),
+                action: "cancelled".to_owned(),
                 target: display_name,
-                message: "Operation cancelled".to_string(),
+                message: "Operation cancelled".to_owned(),
             })
             .with_title("Logout"));
         }
@@ -63,14 +63,14 @@ pub(crate) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandRe
     if removed.is_some() {
         store.save(&sessions_dir)?;
         Ok(CommandResult::text(LogoutOutput {
-            action: "removed".to_string(),
+            action: "removed".to_owned(),
             target: display_name.clone(),
             message: format!("Session removed for '{}'", display_name),
         })
         .with_title("Logout"))
     } else {
         Ok(CommandResult::text(LogoutOutput {
-            action: "not_found".to_string(),
+            action: "not_found".to_owned(),
             target: display_name.clone(),
             message: format!("No session found for '{}'", display_name),
         })
@@ -98,9 +98,9 @@ fn remove_all_sessions(
 
         if !confirmed {
             return Ok(CommandResult::text(LogoutOutput {
-                action: "cancelled".to_string(),
-                target: "all".to_string(),
-                message: "Operation cancelled".to_string(),
+                action: "cancelled".to_owned(),
+                target: "all".to_owned(),
+                message: "Operation cancelled".to_owned(),
             })
             .with_title("Logout"));
         }
@@ -110,8 +110,8 @@ fn remove_all_sessions(
     new_store.save(sessions_dir)?;
 
     Ok(CommandResult::text(LogoutOutput {
-        action: "removed_all".to_string(),
-        target: "all".to_string(),
+        action: "removed_all".to_owned(),
+        target: "all".to_owned(),
         message: format!("Removed {} session(s)", count),
     })
     .with_title("Logout"))

@@ -16,14 +16,14 @@ pub(crate) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
         .count();
 
     let local_label = match local_count {
-        0 => "Local - no tenants available".to_string(),
-        1 => "Local - 1 tenant available".to_string(),
+        0 => "Local - no tenants available".to_owned(),
+        1 => "Local - 1 tenant available".to_owned(),
         n => format!("Local - {} tenants available", n),
     };
 
     let cloud_label = match cloud_count {
-        0 => "Cloud - no tenants available".to_string(),
-        1 => "Cloud - 1 tenant available".to_string(),
+        0 => "Cloud - no tenants available".to_owned(),
+        1 => "Cloud - 1 tenant available".to_owned(),
         n => format!("Cloud - {} tenants available", n),
     };
 

@@ -27,7 +27,7 @@ pub(crate) fn execute(
                 .enumerate()
                 .map(|(i, _provider)| LlmProviderWithExtension {
                     extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
-                    extension_name: ext.name().to_string(),
+                    extension_name: ext.name().to_owned(),
                     provider_name: format!("llm_provider_{}", i),
                 })
                 .collect::<Vec<_>>()
@@ -41,7 +41,7 @@ pub(crate) fn execute(
     CommandResult::table(output)
         .with_title("LLM Providers Across Extensions")
         .with_columns(vec![
-            "extension_id".to_string(),
-            "provider_name".to_string(),
+            "extension_id".to_owned(),
+            "provider_name".to_owned(),
         ])
 }

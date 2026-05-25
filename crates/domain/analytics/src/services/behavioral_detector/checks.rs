@@ -70,7 +70,7 @@ impl BehavioralBotDetector {
             signals.push(BehavioralSignal {
                 signal_type: SignalType::SequentialNavigation,
                 points: scoring::SEQUENTIAL_NAVIGATION,
-                details: "Navigation pattern is sequential/systematic (bot-like)".to_string(),
+                details: "Navigation pattern is sequential/systematic (bot-like)".to_owned(),
             });
         }
     }
@@ -156,7 +156,7 @@ impl BehavioralBotDetector {
                 signals.push(BehavioralSignal {
                     signal_type: SignalType::OutdatedBrowser,
                     points: scoring::OUTDATED_BROWSER,
-                    details: "Browser version is outdated".to_string(),
+                    details: "Browser version is outdated".to_owned(),
                 });
             }
         }

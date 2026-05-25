@@ -45,12 +45,12 @@ pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
                 .metadata
                 .provider
                 .clone()
-                .unwrap_or_else(|| "-".to_string()),
+                .unwrap_or_else(|| "-".to_owned()),
             model: agent
                 .metadata
                 .model
                 .clone()
-                .unwrap_or_else(|| "-".to_string()),
+                .unwrap_or_else(|| "-".to_owned()),
             mcp_servers: agent.metadata.mcp_servers.clone(),
             skills_count: agent.metadata.skills.len(),
         };
@@ -81,11 +81,11 @@ pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
     Ok(CommandResult::table(ListOrDetail::List(output))
         .with_title("Agents")
         .with_columns(vec![
-            "name".to_string(),
-            "display_name".to_string(),
-            "port".to_string(),
-            "enabled".to_string(),
-            "is_primary".to_string(),
-            "is_default".to_string(),
+            "name".to_owned(),
+            "display_name".to_owned(),
+            "port".to_owned(),
+            "enabled".to_owned(),
+            "is_primary".to_owned(),
+            "is_default".to_owned(),
         ]))
 }

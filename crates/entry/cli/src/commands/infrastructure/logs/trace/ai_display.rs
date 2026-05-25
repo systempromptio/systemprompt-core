@@ -95,14 +95,14 @@ pub(crate) fn print_task_info(task_info: &TaskInfo) {
         agent_name: task_info
             .agent_name
             .clone()
-            .unwrap_or_else(|| "-".to_string()),
+            .unwrap_or_else(|| "-".to_owned()),
         status: task_info.status.clone(),
         started_at: task_info
             .started_at
-            .map_or_else(|| "-".to_string(), |t| t.format("%H:%M:%S").to_string()),
+            .map_or_else(|| "-".to_owned(), |t| t.format("%H:%M:%S").to_string()),
         duration: task_info
             .execution_time_ms
-            .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
+            .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
     }];
 
     print_section("TASK");
@@ -143,12 +143,12 @@ pub(crate) fn print_execution_steps(steps: &[ExecutionStep]) {
         .enumerate()
         .map(|(i, s)| StepRow {
             step_number: (i + 1) as i32,
-            step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_string()),
+            step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_owned()),
             title: truncate(&s.title.clone().unwrap_or_else(String::new), 40),
             status: s.status.clone(),
             duration: s
                 .duration_ms
-                .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
+                .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
         })
         .collect();
 
@@ -160,7 +160,7 @@ pub(crate) fn print_execution_steps(steps: &[ExecutionStep]) {
         if step.status == "failed" {
             if let Some(ref error) = step.error_message {
                 if !error.is_empty() {
-                    let step_type = step.step_type.clone().unwrap_or_else(|| "step".to_string());
+                    let step_type = step.step_type.clone().unwrap_or_else(|| "step".to_owned());
                     CliService::error(&format!("  {step_type} failed:"));
                     print_content_block(error);
                 }
@@ -182,7 +182,7 @@ pub(crate) fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
             model: format!("{}/{}", r.provider, r.model),
             max_tokens: r
                 .max_tokens
-                .map_or_else(|| "-".to_string(), |t| t.to_string()),
+                .map_or_else(|| "-".to_owned(), |t| t.to_string()),
             tokens: format!(
                 "{} (in:{}, out:{})",
                 r.input_tokens.unwrap_or(0) + r.output_tokens.unwrap_or(0),
@@ -192,7 +192,7 @@ pub(crate) fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
             cost: format!("${:.4}", r.cost_microdollars as f64 / 1_000_000.0),
             latency: r
                 .latency_ms
-                .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
+                .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
         })
         .collect();
 

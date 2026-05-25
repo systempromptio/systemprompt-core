@@ -21,16 +21,16 @@ pub(crate) fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandR
 
     let mut allowed = Vec::new();
     if upload_config.allowed_types.images {
-        allowed.push("images".to_string());
+        allowed.push("images".to_owned());
     }
     if upload_config.allowed_types.documents {
-        allowed.push("documents".to_string());
+        allowed.push("documents".to_owned());
     }
     if upload_config.allowed_types.audio {
-        allowed.push("audio".to_string());
+        allowed.push("audio".to_owned());
     }
     if upload_config.allowed_types.video {
-        allowed.push("video".to_string());
+        allowed.push("video".to_owned());
     }
     let allowed_types = AllowedTypesOutput { allowed };
 
@@ -45,9 +45,9 @@ pub(crate) fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandR
     let output = FileConfigOutput {
         uploads_enabled: upload_config.enabled,
         max_file_size_bytes: upload_config.max_file_size_bytes,
-        persistence_mode: persistence_mode.to_string(),
+        persistence_mode: persistence_mode.to_owned(),
         storage_root: files_config.storage().display().to_string(),
-        url_prefix: files_config.url_prefix().to_string(),
+        url_prefix: files_config.url_prefix().to_owned(),
         allowed_types,
         storage_paths,
     };

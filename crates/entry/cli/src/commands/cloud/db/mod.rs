@@ -188,7 +188,7 @@ impl CloudDbCommands {
 }
 
 pub async fn execute(cmd: CloudDbCommands, config: &CliConfig) -> Result<()> {
-    let profile_name = cmd.profile_name().to_string();
+    let profile_name = cmd.profile_name().to_owned();
     let db_url = load_cloud_database_url(&profile_name)?;
     execute_inner(cmd, &profile_name, &db_url, config).await
 }
@@ -198,7 +198,7 @@ pub async fn execute_with_database_url(
     database_url: &str,
     config: &CliConfig,
 ) -> Result<()> {
-    let profile_name = cmd.profile_name().to_string();
+    let profile_name = cmd.profile_name().to_owned();
     execute_inner(cmd, &profile_name, database_url, config).await
 }
 
@@ -238,7 +238,7 @@ fn load_cloud_database_url(profile_name: &str) -> Result<String> {
     let secrets = systemprompt_config::load_secrets_from_path(&secrets_path)
         .with_context(|| format!("Failed to load secrets for profile '{}'", profile_name))?;
 
-    Ok(secrets.effective_database_url(true).to_string())
+    Ok(secrets.effective_database_url(true).to_owned())
 }
 
 fn ensure_pg_tool(tool: &str) -> Result<()> {

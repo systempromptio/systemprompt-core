@@ -108,11 +108,11 @@ fn apply_basic_flags(
 ) {
     if args.enable {
         source.enabled = true;
-        changes.push("enabled: true".to_string());
+        changes.push("enabled: true".to_owned());
     }
     if args.disable {
         source.enabled = false;
-        changes.push("enabled: false".to_string());
+        changes.push("enabled: false".to_owned());
     }
     if let Some(ref path) = args.path {
         source.path.clone_from(path);
@@ -183,11 +183,11 @@ fn apply_set_key(
 ) -> Result<()> {
     match key {
         "description" => {
-            source.description = value.to_string();
+            source.description = value.to_owned();
             changes.push(format!("description: {}", value));
         },
         "path" => {
-            source.path = value.to_string();
+            source.path = value.to_owned();
             changes.push(format!("path: {}", value));
         },
         "enabled" => {
@@ -197,7 +197,7 @@ fn apply_set_key(
             changes.push(format!("enabled: {}", value));
         },
         "sitemap.url_pattern" => {
-            sitemap_mut(source)?.url_pattern = value.to_string();
+            sitemap_mut(source)?.url_pattern = value.to_owned();
             changes.push(format!("sitemap.url_pattern: {}", value));
         },
         "sitemap.priority" => {
@@ -208,7 +208,7 @@ fn apply_set_key(
             changes.push(format!("sitemap.priority: {}", value));
         },
         "sitemap.changefreq" => {
-            sitemap_mut(source)?.changefreq = value.to_string();
+            sitemap_mut(source)?.changefreq = value.to_owned();
             changes.push(format!("sitemap.changefreq: {}", value));
         },
         _ => {

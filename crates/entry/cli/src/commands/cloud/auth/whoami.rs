@@ -22,7 +22,7 @@ pub(crate) async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOu
         let output = WhoamiOutput {
             user_email: String::new(),
             api_url: String::new(),
-            token_status: "Not logged in".to_string(),
+            token_status: "Not logged in".to_owned(),
             authenticated_at: chrono::Utc::now(),
             local_profiles: count_local_profiles(),
             cloud_tenants: 0,
@@ -35,11 +35,11 @@ pub(crate) async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOu
     let creds = CloudCredentials::load_from_path(&creds_path)?;
 
     let token_status = if creds.is_token_expired() {
-        "Expired".to_string()
+        "Expired".to_owned()
     } else if creds.expires_within(Duration::hours(1)) {
-        "Expires soon (within 1 hour)".to_string()
+        "Expires soon (within 1 hour)".to_owned()
     } else {
-        "Valid".to_string()
+        "Valid".to_owned()
     };
 
     let cloud_count = fetch_cloud_tenant_count(&creds).await;

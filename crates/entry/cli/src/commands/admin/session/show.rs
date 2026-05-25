@@ -36,7 +36,7 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
         }
 
         let display_key = if key == LOCAL_SESSION_KEY {
-            "local".to_string()
+            "local".to_owned()
         } else {
             key.strip_prefix("tenant_")
                 .map_or_else(|| key.clone(), String::from)
@@ -66,8 +66,8 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
 
         results.push(SessionInfo {
             key: display_key,
-            profile_name: session.profile_name.as_str().to_string(),
-            user_email: session.user_email.as_str().to_string(),
+            profile_name: session.profile_name.as_str().to_owned(),
+            user_email: session.user_email.as_str().to_owned(),
             session_id: Some(session.session_id.clone()),
             context_id: Some(session.context_id.clone()),
             is_active,
@@ -89,8 +89,8 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
         });
 
         results.push(SessionInfo {
-            key: display_name.to_string(),
-            profile_name: display_name.to_string(),
+            key: display_name.to_owned(),
+            profile_name: display_name.to_owned(),
             user_email: String::new(),
             session_id: None,
             context_id: None,
@@ -115,14 +115,14 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
     let session = store.sessions.get(&active_key.as_storage_key());
 
     let profile_name = session
-        .map(|s| s.profile_name.as_str().to_string())
+        .map(|s| s.profile_name.as_str().to_owned())
         .or_else(|| store.active_profile_name.clone())
-        .unwrap_or_else(|| "unknown".to_string());
+        .unwrap_or_else(|| "unknown".to_owned());
 
     match &active_key {
         SessionKey::Local => Some(RoutingInfo {
             profile_name,
-            target: "Local".to_string(),
+            target: "Local".to_owned(),
             tenant: None,
             hostname: None,
         }),
@@ -131,11 +131,11 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
             Some(RoutingInfo {
                 profile_name,
                 target: if hostname.is_some() {
-                    "Remote".to_string()
+                    "Remote".to_owned()
                 } else {
-                    "Tenant".to_string()
+                    "Tenant".to_owned()
                 },
-                tenant: Some(tenant_id.as_str().to_string()),
+                tenant: Some(tenant_id.as_str().to_owned()),
                 hostname,
             })
         },

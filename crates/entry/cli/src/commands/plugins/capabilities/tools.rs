@@ -24,7 +24,7 @@ pub(crate) fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<To
                 .enumerate()
                 .map(|(i, _provider)| ToolWithExtension {
                     extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
-                    extension_name: ext.name().to_string(),
+                    extension_name: ext.name().to_owned(),
                     tool_name: format!("tool_provider_{}", i),
                 })
                 .collect::<Vec<_>>()
@@ -37,5 +37,5 @@ pub(crate) fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<To
 
     CommandResult::table(output)
         .with_title("Tools Across Extensions")
-        .with_columns(vec!["extension_id".to_string(), "tool_name".to_string()])
+        .with_columns(vec!["extension_id".to_owned(), "tool_name".to_owned()])
 }

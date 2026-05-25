@@ -54,7 +54,7 @@ impl AnalyticsEventsRepository {
 
         Ok(AnalyticsEventCreated {
             id,
-            event_type: event_type.to_string(),
+            event_type: event_type.to_owned(),
         })
     }
 
@@ -80,11 +80,11 @@ impl AnalyticsEventsRepository {
         for input in inputs {
             let id = format!("evt_{}", uuid::Uuid::new_v4());
             ids.push(id);
-            user_ids.push(user_id.as_str().to_string());
-            session_ids.push(session_id.as_str().to_string());
-            event_types.push(input.event_type.as_str().to_string());
-            event_categories.push(input.event_type.category().to_string());
-            severities.push("info".to_string());
+            user_ids.push(user_id.as_str().to_owned());
+            session_ids.push(session_id.as_str().to_owned());
+            event_types.push(input.event_type.as_str().to_owned());
+            event_categories.push(input.event_type.category().to_owned());
+            severities.push("info".to_owned());
             endpoints.push(input.page_url.clone());
             event_datas.push(Self::build_event_data(input));
         }
@@ -201,15 +201,15 @@ impl AnalyticsEventsRepository {
         if let Some(obj) = data.as_object_mut() {
             if let Some(content_id) = &input.content_id {
                 obj.insert(
-                    "content_id".to_string(),
+                    "content_id".to_owned(),
                     serde_json::json!(content_id.as_str()),
                 );
             }
             if let Some(slug) = &input.slug {
-                obj.insert("slug".to_string(), serde_json::json!(slug));
+                obj.insert("slug".to_owned(), serde_json::json!(slug));
             }
             if let Some(referrer) = &input.referrer {
-                obj.insert("referrer".to_string(), serde_json::json!(referrer));
+                obj.insert("referrer".to_owned(), serde_json::json!(referrer));
             }
         }
 

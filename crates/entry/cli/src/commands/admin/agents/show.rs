@@ -31,12 +31,12 @@ pub(crate) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResul
         .metadata
         .provider
         .clone()
-        .unwrap_or_else(|| "-".to_string());
+        .unwrap_or_else(|| "-".to_owned());
     let model = agent
         .metadata
         .model
         .clone()
-        .unwrap_or_else(|| "-".to_string());
+        .unwrap_or_else(|| "-".to_owned());
 
     let output = AgentDetailOutput {
         name: agent.name.clone(),

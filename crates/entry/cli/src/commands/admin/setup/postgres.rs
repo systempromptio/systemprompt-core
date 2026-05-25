@@ -196,7 +196,7 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
 
     let superuser: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Superuser name")
-        .default("postgres".to_string())
+        .default("postgres".to_owned())
         .interact_text()?;
 
     let superpass: String = Password::with_theme(&ColorfulTheme::default())

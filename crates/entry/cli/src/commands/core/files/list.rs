@@ -76,12 +76,12 @@ pub(crate) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("Files")
         .with_columns(vec![
-            "id".to_string(),
-            "path".to_string(),
-            "mime_type".to_string(),
-            "size_bytes".to_string(),
-            "ai_content".to_string(),
-            "created_at".to_string(),
+            "id".to_owned(),
+            "path".to_owned(),
+            "mime_type".to_owned(),
+            "size_bytes".to_owned(),
+            "ai_content".to_owned(),
+            "created_at".to_owned(),
         ]))
 }
 

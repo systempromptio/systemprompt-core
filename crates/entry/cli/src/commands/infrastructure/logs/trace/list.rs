@@ -76,7 +76,7 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
                 trace_id: r.trace_id,
                 timestamp: r.first_timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
                 agent: r.agent,
-                status: r.status.unwrap_or_else(|| "unknown".to_string()),
+                status: r.status.unwrap_or_else(|| "unknown".to_owned()),
                 duration_ms: (duration_ms > 0).then_some(duration_ms),
                 ai_requests: r.ai_requests,
                 mcp_calls: r.mcp_calls,
@@ -97,13 +97,13 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
     let result = CommandResult::table(output)
         .with_title("Recent Traces")
         .with_columns(vec![
-            "trace_id".to_string(),
-            "timestamp".to_string(),
-            "agent".to_string(),
-            "status".to_string(),
-            "duration_ms".to_string(),
-            "ai_requests".to_string(),
-            "mcp_calls".to_string(),
+            "trace_id".to_owned(),
+            "timestamp".to_owned(),
+            "agent".to_owned(),
+            "status".to_owned(),
+            "duration_ms".to_owned(),
+            "ai_requests".to_owned(),
+            "mcp_calls".to_owned(),
         ]);
 
     render_result(&result);

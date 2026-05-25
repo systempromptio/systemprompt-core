@@ -108,7 +108,7 @@ pub(crate) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<
         permissions: vec![Permission::HookGovern, Permission::HookTrack],
         audience: vec![JwtAudience::Hook],
         expires_in_hours: Some(expires_in_hours),
-        resource: Some("plugin".to_string()),
+        resource: Some("plugin".to_owned()),
         plugin_id: Some(args.plugin_id.clone()),
     };
 

@@ -63,7 +63,7 @@ async fn find_file(service: &FileRepository, identifier: &str) -> Result<File> {
             .await?
             .ok_or_else(|| anyhow!("File not found with path: {}", identifier))
     } else {
-        let file_id = FileId::new(identifier.to_string());
+        let file_id = FileId::new(identifier.to_owned());
         service
             .find_by_id(&file_id)
             .await?

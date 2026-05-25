@@ -54,9 +54,9 @@ pub(crate) fn execute(args: CoreArgs, config: &CliConfig) -> Result<CommandResul
     }
 
     let output = CoreBuildOutput {
-        target: "workspace".to_string(),
-        mode: mode.to_string(),
-        status: "success".to_string(),
+        target: "workspace".to_owned(),
+        mode: mode.to_owned(),
+        status: "success".to_owned(),
         duration_secs: Some(duration),
     };
 

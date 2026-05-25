@@ -140,7 +140,7 @@ pub async fn login_for_profile(
             duration,
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
-            roles: vec!["admin".to_string()],
+            roles: vec!["admin".to_owned()],
             department: None,
             rate_limit_tier: RateLimitTier::Admin,
         })
@@ -159,7 +159,7 @@ pub async fn login_for_profile(
     })?;
 
     let output = LoginOutput {
-        status: "created".to_string(),
+        status: "created".to_owned(),
         user_id: admin_user.id.clone(),
         email: admin_user.email.clone(),
         session_id,

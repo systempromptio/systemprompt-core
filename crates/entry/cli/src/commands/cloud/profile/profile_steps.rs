@@ -33,7 +33,7 @@ pub fn create_profile_for_tenant(
     control_plane_api_url: Option<&str>,
 ) -> Result<CreatedProfile> {
     let ctx = ProjectContext::discover();
-    let mut name = profile_name.to_string();
+    let mut name = profile_name.to_owned();
 
     loop {
         let profile_dir = ctx.profile_dir(&name);
@@ -103,7 +103,7 @@ pub fn create_profile_for_tenant(
                 builder = builder.with_external_url(format!("https://{}", hostname));
             }
             if let Some(api_url) = control_plane_api_url {
-                let trimmed = api_url.trim_end_matches('/').to_string();
+                let trimmed = api_url.trim_end_matches('/').to_owned();
                 builder = builder.with_trusted_issuer(TrustedIssuer {
                     issuer: trimmed.clone(),
                     jwks_uri: format!("{}/.well-known/jwks.json", trimmed),

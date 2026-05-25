@@ -63,7 +63,7 @@ pub(crate) async fn execute(
     let response = client.get_user().await?;
     spinner.finish_and_clear();
 
-    let creds = CloudCredentials::new(token, api_url.to_string(), response.user.email.clone());
+    let creds = CloudCredentials::new(token, api_url.to_owned(), response.user.email.clone());
 
     let save_path = cloud_paths.resolve(CloudPath::Credentials);
     creds.save_to_path(&save_path)?;
@@ -109,7 +109,7 @@ fn build_login_output(
     tenants_path: &std::path::Path,
 ) -> LoginOutput {
     let user = LoginUserInfo {
-        id: response.user.id.as_str().to_string(),
+        id: response.user.id.as_str().to_owned(),
         email: response.user.email.clone(),
         name: response.user.name.clone(),
     };
@@ -174,7 +174,7 @@ fn print_tenants(tenants: &[TenantInfo]) {
     for tenant in tenants {
         let status_str = tenant
             .subscription_status
-            .map_or_else(|| "Unknown".to_string(), |s| format!("{s:?}"));
+            .map_or_else(|| "Unknown".to_owned(), |s| format!("{s:?}"));
         CliService::key_value(&tenant.name, &status_str);
         if let Some(plan) = &tenant.plan {
             CliService::info(&format!(

@@ -31,7 +31,7 @@ pub(crate) async fn execute_doctor(db_pool: &DbPool, config: &CliConfig) -> Resu
     let mut owner: BTreeMap<String, String> = BTreeMap::new();
 
     for ext in registry.schema_extensions() {
-        let ext_id = ext.id().to_string();
+        let ext_id = ext.id().to_owned();
         for schema in ext.schemas() {
             if schema.table.is_empty() {
                 continue;
@@ -175,9 +175,9 @@ async fn fetch_live_columns(
         let Some(column) = row.get("column_name").and_then(|v| v.as_str()) else {
             continue;
         };
-        out.entry(table.to_string())
+        out.entry(table.to_owned())
             .or_default()
-            .insert(column.to_string());
+            .insert(column.to_owned());
     }
     Ok(out)
 }

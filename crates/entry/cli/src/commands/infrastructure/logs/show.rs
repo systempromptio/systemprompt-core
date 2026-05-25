@@ -127,7 +127,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
         CliService::subsection("Metadata");
         if let Some(obj) = metadata.as_object() {
             for (key, value) in obj {
-                let formatted = format!("{}", value).trim_matches('"').to_string();
+                let formatted = format!("{}", value).trim_matches('"').to_owned();
                 CliService::key_value(key, &formatted);
             }
         } else {

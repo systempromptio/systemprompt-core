@@ -82,14 +82,14 @@ pub(crate) async fn execute(
                 if args.detailed {
                     p.display().to_string()
                 } else {
-                    "exists".to_string()
+                    "exists".to_owned()
                 }
             }),
             debug_binary: debug_path.map(|p| {
                 if args.detailed {
                     p.display().to_string()
                 } else {
-                    "exists".to_string()
+                    "exists".to_owned()
                 }
             }),
         };
@@ -112,13 +112,13 @@ pub(crate) async fn execute(
     };
 
     let columns = vec![
-        "name".to_string(),
-        "port".to_string(),
-        "enabled".to_string(),
-        "running".to_string(),
-        "pid".to_string(),
-        "release_binary".to_string(),
-        "debug_binary".to_string(),
+        "name".to_owned(),
+        "port".to_owned(),
+        "enabled".to_owned(),
+        "running".to_owned(),
+        "pid".to_owned(),
+        "release_binary".to_owned(),
+        "debug_binary".to_owned(),
     ];
 
     Ok(CommandResult::table(output)

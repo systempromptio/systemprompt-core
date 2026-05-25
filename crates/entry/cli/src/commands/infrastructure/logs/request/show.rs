@@ -46,8 +46,8 @@ async fn execute_with_pool_inner(
             output_tokens: 0,
             cost_dollars: 0.0,
             latency_ms: 0,
-            status: "not_found".to_string(),
-            error_message: Some("Request not found".to_string()),
+            status: "not_found".to_owned(),
+            error_message: Some("Request not found".to_owned()),
             messages: Vec::new(),
             linked_mcp_calls: Vec::new(),
         };

@@ -92,7 +92,7 @@ pub(crate) async fn execute(
         if !running_server_names.contains(server_name.as_str()) {
             unavailable_servers.push(UnavailableServer {
                 name: server_name.clone(),
-                reason: "not running".to_string(),
+                reason: "not running".to_owned(),
             });
             continue;
         }
@@ -152,10 +152,10 @@ pub(crate) async fn execute(
     };
 
     let columns = vec![
-        "name".to_string(),
-        "server".to_string(),
-        "description".to_string(),
-        "parameters_count".to_string(),
+        "name".to_owned(),
+        "server".to_owned(),
+        "description".to_owned(),
+        "parameters_count".to_owned(),
     ];
 
     Ok(CommandResult::table(output)

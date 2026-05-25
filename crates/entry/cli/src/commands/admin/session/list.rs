@@ -44,10 +44,10 @@ pub(crate) fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
     CommandResult::table(output)
         .with_title("Available Profiles")
         .with_columns(vec![
-            "name".to_string(),
-            "routing".to_string(),
-            "is_active".to_string(),
-            "session_status".to_string(),
+            "name".to_owned(),
+            "routing".to_owned(),
+            "is_active".to_owned(),
+            "session_status".to_owned(),
         ])
 }
 
@@ -76,7 +76,7 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
                 return None;
             }
 
-            let name = e.file_name().to_str()?.to_string();
+            let name = e.file_name().to_str()?.to_owned();
             let profile = load_profile_config(&config_path);
 
             Some(DiscoveredProfile {
@@ -104,23 +104,23 @@ fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) ->
     });
 
     let session_status = store.map_or_else(
-        || "unknown".to_string(),
+        || "unknown".to_owned(),
         |s| match s.get_session(&session_key) {
-            Some(session) if session.is_expired() => "expired".to_string(),
+            Some(session) if session.is_expired() => "expired".to_owned(),
             Some(session) => {
                 let remaining = session.expires_at - chrono::Utc::now();
                 let hours = remaining.num_hours();
                 let minutes = remaining.num_minutes() % 60;
                 format!("{}h {}m remaining", hours, minutes)
             },
-            None => "no session".to_string(),
+            None => "no session".to_owned(),
         },
     );
 
     let routing = info
         .tenant
         .as_ref()
-        .map_or_else(|| "local".to_string(), |_| "remote".to_string());
+        .map_or_else(|| "local".to_owned(), |_| "remote".to_owned());
 
     ProfileInfo {
         name: info.name.clone(),

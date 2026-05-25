@@ -21,12 +21,12 @@ pub(crate) fn print_artifacts(artifacts: &[TaskArtifact]) {
                 name: artifact
                     .name
                     .as_ref()
-                    .map_or_else(|| "-".to_string(), |s| truncate(s, 30)),
-                source: artifact.source.clone().unwrap_or_else(|| "-".to_string()),
+                    .map_or_else(|| "-".to_owned(), |s| truncate(s, 30)),
+                source: artifact.source.clone().unwrap_or_else(|| "-".to_owned()),
                 tool_name: artifact
                     .tool_name
                     .clone()
-                    .unwrap_or_else(|| "-".to_string()),
+                    .unwrap_or_else(|| "-".to_owned()),
             });
         }
     }

@@ -36,7 +36,7 @@ pub(crate) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandRes
         .context("Failed to get file metadata")?;
     let size_bytes = metadata.len();
     let modified = metadata.modified().ok().map_or_else(
-        || "unknown".to_string(),
+        || "unknown".to_owned(),
         |t| {
             let datetime: DateTime<Utc> = t.into();
             datetime.format("%Y-%m-%dT%H:%M:%SZ").to_string()
@@ -66,7 +66,7 @@ fn find_config_references(asset_path: &str, profile: &systemprompt_models::Profi
         let search_patterns = [
             format!("/assets/{}", asset_path),
             format!("assets/{}", asset_path),
-            asset_path.to_string(),
+            asset_path.to_owned(),
         ];
 
         for pattern in &search_patterns {
@@ -82,7 +82,7 @@ fn find_config_references(asset_path: &str, profile: &systemprompt_models::Profi
         let search_patterns = [
             format!("/assets/{}", asset_path),
             format!("assets/{}", asset_path),
-            asset_path.to_string(),
+            asset_path.to_owned(),
         ];
 
         for pattern in &search_patterns {

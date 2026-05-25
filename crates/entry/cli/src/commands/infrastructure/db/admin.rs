@@ -81,7 +81,7 @@ pub(crate) async fn execute_status(admin: &DatabaseAdminService, config: &CliCon
         .context("Failed to connect to database")?;
 
     let output = DbStatusOutput {
-        status: "connected".to_string(),
+        status: "connected".to_owned(),
         version: info.version.clone(),
         tables: info.tables.len(),
         size: format_bytes(info.size as i64),

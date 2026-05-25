@@ -46,7 +46,7 @@ pub(crate) async fn execute_tables(
             .iter()
             .map(|t| TableInfo {
                 name: t.name.clone(),
-                schema: "public".to_string(),
+                schema: "public".to_owned(),
                 row_count: t.row_count,
                 size_bytes: t.size_bytes,
             })
@@ -108,7 +108,7 @@ pub(crate) async fn execute_describe(
         });
 
     let output = DbDescribeOutput {
-        table: table_name.to_string(),
+        table: table_name.to_owned(),
         row_count,
         columns: columns
             .iter()
@@ -227,7 +227,7 @@ pub(crate) async fn execute_validate(admin: &DatabaseAdminService, config: &CliC
         missing_tables: missing.clone(),
         extra_tables: extra.clone(),
         message: if valid {
-            "Database schema is valid".to_string()
+            "Database schema is valid".to_owned()
         } else {
             format!("Database schema has {} missing table(s)", missing.len())
         },
@@ -283,7 +283,7 @@ pub(crate) async fn execute_count(
     })?;
 
     let output = DbCountOutput {
-        table: table_name.to_string(),
+        table: table_name.to_owned(),
         count,
     };
 

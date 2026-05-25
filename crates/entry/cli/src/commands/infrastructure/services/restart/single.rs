@@ -24,11 +24,11 @@ pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutp
         }
         super::super::serve::execute(true, false, config).await?;
         let output = RestartOutput {
-            service_type: "api".to_string(),
+            service_type: "api".to_owned(),
             service_name: None,
             restarted_count: 1,
             failed_count: 0,
-            message: "API server started (was not running)".to_string(),
+            message: "API server started (was not running)".to_owned(),
         };
         return Ok(CommandResult::card(output).with_title("Restart API Server"));
     };
@@ -49,13 +49,13 @@ pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutp
 
     super::super::serve::execute(true, false, config).await?;
 
-    let message = "API server restarted successfully".to_string();
+    let message = "API server restarted successfully".to_owned();
     if !quiet {
         CliService::success(&message);
     }
 
     let output = RestartOutput {
-        service_type: "api".to_string(),
+        service_type: "api".to_owned(),
         service_name: None,
         restarted_count: 1,
         failed_count: 0,
@@ -89,8 +89,8 @@ pub async fn execute_agent(
     }
 
     let output = RestartOutput {
-        service_type: "agent".to_string(),
-        service_name: Some(agent.to_string()),
+        service_type: "agent".to_owned(),
+        service_name: Some(agent.to_owned()),
         restarted_count: 1,
         failed_count: 0,
         message,
@@ -125,11 +125,11 @@ pub async fn execute_mcp(
 
     if build {
         manager
-            .build_and_restart_services(Some(server_name.to_string()))
+            .build_and_restart_services(Some(server_name.to_owned()))
             .await?;
     } else {
         manager
-            .restart_services_sync(Some(server_name.to_string()))
+            .restart_services_sync(Some(server_name.to_owned()))
             .await?;
     }
 
@@ -139,8 +139,8 @@ pub async fn execute_mcp(
     }
 
     let output = RestartOutput {
-        service_type: "mcp".to_string(),
-        service_name: Some(server_name.to_string()),
+        service_type: "mcp".to_owned(),
+        service_name: Some(server_name.to_owned()),
         restarted_count: 1,
         failed_count: 0,
         message,

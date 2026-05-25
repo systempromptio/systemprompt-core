@@ -216,29 +216,29 @@ pub(crate) fn reconstruct_args(cli: &Cli) -> Vec<String> {
     let mut args = Vec::new();
 
     if cli.verbosity.debug {
-        args.push("--debug".to_string());
+        args.push("--debug".to_owned());
     } else if cli.verbosity.verbose {
-        args.push("--verbose".to_string());
+        args.push("--verbose".to_owned());
     } else if cli.verbosity.quiet {
-        args.push("--quiet".to_string());
+        args.push("--quiet".to_owned());
     }
 
     if cli.output.json {
-        args.push("--json".to_string());
+        args.push("--json".to_owned());
     } else if cli.output.yaml {
-        args.push("--yaml".to_string());
+        args.push("--yaml".to_owned());
     }
 
     if cli.display.no_color {
-        args.push("--no-color".to_string());
+        args.push("--no-color".to_owned());
     }
 
     if cli.display.non_interactive {
-        args.push("--non-interactive".to_string());
+        args.push("--non-interactive".to_owned());
     }
 
     if let Some(ref profile) = cli.profile_opts.profile {
-        args.push("--profile".to_string());
+        args.push("--profile".to_owned());
         args.push(profile.clone());
     }
 

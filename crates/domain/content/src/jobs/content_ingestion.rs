@@ -66,7 +66,7 @@ fn log_processing_sources(count: usize) {
     tracing::debug!(sources_count = count, "Processing content sources");
 }
 
-pub(crate) async fn process_all_sources(
+pub(super) async fn process_all_sources(
     service: &IngestionService,
     sources: &[(&String, &ContentSourceConfigRaw)],
     paths: &AppPaths,

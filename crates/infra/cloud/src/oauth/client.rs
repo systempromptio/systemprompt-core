@@ -54,7 +54,7 @@ async fn callback_handler(
         Ok(token)
     } else {
         Err(CloudError::OAuthFlow {
-            message: "No token received in callback".to_string(),
+            message: "No token received in callback".to_owned(),
         })
     };
 
@@ -83,8 +83,8 @@ pub async fn run_oauth_flow(
     let (tx, rx) = oneshot::channel::<CloudResult<String>>();
     let state = Arc::new(CallbackState {
         tx: Mutex::new(Some(tx)),
-        success_html: templates.success_html.to_string(),
-        error_html: templates.error_html.to_string(),
+        success_html: templates.success_html.to_owned(),
+        error_html: templates.error_html.to_owned(),
     });
 
     let app = Router::new()
@@ -146,10 +146,10 @@ pub async fn run_oauth_flow(
 
     tokio::select! {
         result = rx => {
-            result.map_err(|_e| CloudError::OAuthFlow { message: "Authentication cancelled".to_string() })?
+            result.map_err(|_e| CloudError::OAuthFlow { message: "Authentication cancelled".to_owned() })?
         }
         _ = server => {
-            Err(CloudError::OAuthFlow { message: "Server stopped unexpectedly".to_string() })
+            Err(CloudError::OAuthFlow { message: "Server stopped unexpectedly".to_owned() })
         }
         () = tokio::time::sleep(std::time::Duration::from_secs(CALLBACK_TIMEOUT_SECS)) => {
             Err(CloudError::OAuthFlow { message: format!("Authentication timed out after {CALLBACK_TIMEOUT_SECS} seconds") })

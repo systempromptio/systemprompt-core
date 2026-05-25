@@ -81,7 +81,7 @@ pub(crate) async fn execute(
         .url
         .clone()
         .or(profile_url)
-        .unwrap_or_else(|| FALLBACK_GATEWAY_URL.to_string());
+        .unwrap_or_else(|| FALLBACK_GATEWAY_URL.to_owned());
     let registry_url = format!("{}/api/v1/agents/registry", base_url.trim_end_matches('/'));
 
     let client = Client::new();
@@ -150,12 +150,12 @@ pub(crate) async fn execute(
     Ok(CommandResult::table(output)
         .with_title("Agent Registry")
         .with_columns(vec![
-            "name".to_string(),
-            "url".to_string(),
-            "status".to_string(),
-            "version".to_string(),
-            "streaming".to_string(),
-            "skills_count".to_string(),
+            "name".to_owned(),
+            "url".to_owned(),
+            "status".to_owned(),
+            "version".to_owned(),
+            "streaming".to_owned(),
+            "skills_count".to_owned(),
         ]))
 }
 
@@ -191,5 +191,5 @@ fn extract_status(agent: &AgentCardResponse) -> String {
                 }
             })
         })
-        .unwrap_or_else(|| "unknown".to_string())
+        .unwrap_or_else(|| "unknown".to_owned())
 }

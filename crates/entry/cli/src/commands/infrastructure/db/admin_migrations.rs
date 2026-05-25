@@ -146,7 +146,7 @@ async fn execute_migrations_history(
         .collect();
 
     let output = MigrationHistoryOutput {
-        extension_id: extension_id.to_string(),
+        extension_id: extension_id.to_owned(),
         migrations,
     };
 

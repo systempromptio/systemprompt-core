@@ -4,19 +4,19 @@
 pub(super) fn suggest_fix_for_field(field: &str) -> Option<String> {
     match field {
         "image" | "cover_image" => {
-            Some("Add 'image: \"/files/images/placeholder.svg\"' to frontmatter".to_string())
+            Some("Add 'image: \"/files/images/placeholder.svg\"' to frontmatter".to_owned())
         },
         "published_at" | "date" | "created_at" | "published_at/date/created_at" => {
-            Some("Add 'date: YYYY-MM-DD' to frontmatter".to_string())
+            Some("Add 'date: YYYY-MM-DD' to frontmatter".to_owned())
         },
         "author" => Some(
             "Add 'author: Your Name' to frontmatter or set metadata.default_author in config"
                 .to_string(),
         ),
-        "title" => Some("Add 'title: Your Title' to frontmatter".to_string()),
-        "slug" => Some("Add 'slug: your-slug' to frontmatter".to_string()),
+        "title" => Some("Add 'title: Your Title' to frontmatter".to_owned()),
+        "slug" => Some("Add 'slug: your-slug' to frontmatter".to_owned()),
         "content_type" => {
-            Some("Ensure content has a valid 'kind' field in frontmatter".to_string())
+            Some("Ensure content has a valid 'kind' field in frontmatter".to_owned())
         },
         field if field.starts_with("organization.") => Some(format!(
             "Add '{}' under metadata.structured_data.organization in content.yaml",

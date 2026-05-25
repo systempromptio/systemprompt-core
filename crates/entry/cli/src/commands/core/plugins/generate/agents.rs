@@ -49,8 +49,8 @@ fn resolve_agents(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<Str
     if let Some(agents) = config.get("agents").and_then(|a| a.as_mapping()) {
         for (key, _) in agents {
             if let Some(name) = key.as_str() {
-                if !plugin.agents.exclude.contains(&name.to_string()) {
-                    ids.push(name.to_string());
+                if !plugin.agents.exclude.contains(&name.to_owned()) {
+                    ids.push(name.to_owned());
                 }
             }
         }

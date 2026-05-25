@@ -33,7 +33,7 @@ pub(crate) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistor
             Some(j) => j.last_run.map_or_else(Vec::new, |last_run| {
                 vec![JobHistoryEntry {
                     job_name: j.job_name,
-                    status: j.last_status.unwrap_or_else(|| "unknown".to_string()),
+                    status: j.last_status.unwrap_or_else(|| "unknown".to_owned()),
                     run_at: last_run,
                     error: j.last_error,
                 }]
@@ -47,7 +47,7 @@ pub(crate) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistor
             .filter_map(|j| {
                 j.last_run.map(|last_run| JobHistoryEntry {
                     job_name: j.job_name,
-                    status: j.last_status.unwrap_or_else(|| "unknown".to_string()),
+                    status: j.last_status.unwrap_or_else(|| "unknown".to_owned()),
                     run_at: last_run,
                     error: j.last_error,
                 })
@@ -67,10 +67,10 @@ pub(crate) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistor
         .with_title("Job Execution History")
         .with_hints(RenderingHints {
             columns: Some(vec![
-                "job_name".to_string(),
-                "status".to_string(),
-                "run_at".to_string(),
-                "error".to_string(),
+                "job_name".to_owned(),
+                "status".to_owned(),
+                "run_at".to_owned(),
+                "error".to_owned(),
             ]),
             ..Default::default()
         }))

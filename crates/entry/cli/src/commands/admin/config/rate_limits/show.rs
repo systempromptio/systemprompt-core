@@ -62,47 +62,47 @@ pub(crate) fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
         effective_limits: EffectiveLimitsOutput {
             limits: vec![
                 EndpointRateLimit {
-                    endpoint: "oauth_public".to_string(),
+                    endpoint: "oauth_public".to_owned(),
                     per_second: apply_multiplier(limits.oauth_public_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "oauth_auth".to_string(),
+                    endpoint: "oauth_auth".to_owned(),
                     per_second: apply_multiplier(limits.oauth_auth_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "contexts".to_string(),
+                    endpoint: "contexts".to_owned(),
                     per_second: apply_multiplier(limits.contexts_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "tasks".to_string(),
+                    endpoint: "tasks".to_owned(),
                     per_second: apply_multiplier(limits.tasks_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "artifacts".to_string(),
+                    endpoint: "artifacts".to_owned(),
                     per_second: apply_multiplier(limits.artifacts_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "agent_registry".to_string(),
+                    endpoint: "agent_registry".to_owned(),
                     per_second: apply_multiplier(limits.agent_registry_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "agents".to_string(),
+                    endpoint: "agents".to_owned(),
                     per_second: apply_multiplier(limits.agents_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "mcp_registry".to_string(),
+                    endpoint: "mcp_registry".to_owned(),
                     per_second: apply_multiplier(limits.mcp_registry_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "mcp".to_string(),
+                    endpoint: "mcp".to_owned(),
                     per_second: apply_multiplier(limits.mcp_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "stream".to_string(),
+                    endpoint: "stream".to_owned(),
                     per_second: apply_multiplier(limits.stream_per_second, multiplier),
                 },
                 EndpointRateLimit {
-                    endpoint: "content".to_string(),
+                    endpoint: "content".to_owned(),
                     per_second: apply_multiplier(limits.content_per_second, multiplier),
                 },
             ],
@@ -129,103 +129,103 @@ pub(crate) fn execute_docs(config: &CliConfig) -> Result<()> {
     let output = RateLimitsDocsOutput {
         base_rates: vec![
             BaseRateRow {
-                endpoint: "OAuth Public".to_string(),
+                endpoint: "OAuth Public".to_owned(),
                 rate_per_second: limits.oauth_public_per_second,
             },
             BaseRateRow {
-                endpoint: "OAuth Auth".to_string(),
+                endpoint: "OAuth Auth".to_owned(),
                 rate_per_second: limits.oauth_auth_per_second,
             },
             BaseRateRow {
-                endpoint: "Contexts".to_string(),
+                endpoint: "Contexts".to_owned(),
                 rate_per_second: limits.contexts_per_second,
             },
             BaseRateRow {
-                endpoint: "Tasks".to_string(),
+                endpoint: "Tasks".to_owned(),
                 rate_per_second: limits.tasks_per_second,
             },
             BaseRateRow {
-                endpoint: "Artifacts".to_string(),
+                endpoint: "Artifacts".to_owned(),
                 rate_per_second: limits.artifacts_per_second,
             },
             BaseRateRow {
-                endpoint: "Agent Registry".to_string(),
+                endpoint: "Agent Registry".to_owned(),
                 rate_per_second: limits.agent_registry_per_second,
             },
             BaseRateRow {
-                endpoint: "Agents".to_string(),
+                endpoint: "Agents".to_owned(),
                 rate_per_second: limits.agents_per_second,
             },
             BaseRateRow {
-                endpoint: "MCP Registry".to_string(),
+                endpoint: "MCP Registry".to_owned(),
                 rate_per_second: limits.mcp_registry_per_second,
             },
             BaseRateRow {
-                endpoint: "MCP".to_string(),
+                endpoint: "MCP".to_owned(),
                 rate_per_second: limits.mcp_per_second,
             },
             BaseRateRow {
-                endpoint: "Stream (SSE)".to_string(),
+                endpoint: "Stream (SSE)".to_owned(),
                 rate_per_second: limits.stream_per_second,
             },
             BaseRateRow {
-                endpoint: "Content".to_string(),
+                endpoint: "Content".to_owned(),
                 rate_per_second: limits.content_per_second,
             },
         ],
         tier_multipliers: vec![
             TierMultiplierRow {
-                tier: "Admin".to_string(),
+                tier: "Admin".to_owned(),
                 multiplier: limits.tier_multipliers.admin,
             },
             TierMultiplierRow {
-                tier: "User".to_string(),
+                tier: "User".to_owned(),
                 multiplier: limits.tier_multipliers.user,
             },
             TierMultiplierRow {
-                tier: "A2A".to_string(),
+                tier: "A2A".to_owned(),
                 multiplier: limits.tier_multipliers.a2a,
             },
             TierMultiplierRow {
-                tier: "MCP".to_string(),
+                tier: "MCP".to_owned(),
                 multiplier: limits.tier_multipliers.mcp,
             },
             TierMultiplierRow {
-                tier: "Service".to_string(),
+                tier: "Service".to_owned(),
                 multiplier: limits.tier_multipliers.service,
             },
             TierMultiplierRow {
-                tier: "Anonymous".to_string(),
+                tier: "Anonymous".to_owned(),
                 multiplier: limits.tier_multipliers.anon,
             },
         ],
         effective_limits: vec![
             EffectiveLimitRow {
-                endpoint: "Contexts".to_string(),
+                endpoint: "Contexts".to_owned(),
                 admin: apply_multiplier(limits.contexts_per_second, admin_mult),
                 user: apply_multiplier(limits.contexts_per_second, user_mult),
                 anon: apply_multiplier(limits.contexts_per_second, anon_mult),
             },
             EffectiveLimitRow {
-                endpoint: "Tasks".to_string(),
+                endpoint: "Tasks".to_owned(),
                 admin: apply_multiplier(limits.tasks_per_second, admin_mult),
                 user: apply_multiplier(limits.tasks_per_second, user_mult),
                 anon: apply_multiplier(limits.tasks_per_second, anon_mult),
             },
             EffectiveLimitRow {
-                endpoint: "Agents".to_string(),
+                endpoint: "Agents".to_owned(),
                 admin: apply_multiplier(limits.agents_per_second, admin_mult),
                 user: apply_multiplier(limits.agents_per_second, user_mult),
                 anon: apply_multiplier(limits.agents_per_second, anon_mult),
             },
             EffectiveLimitRow {
-                endpoint: "Stream (SSE)".to_string(),
+                endpoint: "Stream (SSE)".to_owned(),
                 admin: apply_multiplier(limits.stream_per_second, admin_mult),
                 user: apply_multiplier(limits.stream_per_second, user_mult),
                 anon: apply_multiplier(limits.stream_per_second, anon_mult),
             },
             EffectiveLimitRow {
-                endpoint: "MCP".to_string(),
+                endpoint: "MCP".to_owned(),
                 admin: apply_multiplier(limits.mcp_per_second, admin_mult),
                 user: apply_multiplier(limits.mcp_per_second, user_mult),
                 anon: apply_multiplier(limits.mcp_per_second, anon_mult),

@@ -13,19 +13,19 @@ async fn promote_existing_user(
 ) -> SyncResult {
     match admin_service.promote_to_admin(email).await {
         Ok(PromoteResult::Promoted(_, _)) => SyncResult::Promoted {
-            email: email.to_string(),
-            profile: profile_name.to_string(),
+            email: email.to_owned(),
+            profile: profile_name.to_owned(),
         },
         Ok(PromoteResult::AlreadyAdmin(_)) => SyncResult::AlreadyAdmin {
-            email: email.to_string(),
-            profile: profile_name.to_string(),
+            email: email.to_owned(),
+            profile: profile_name.to_owned(),
         },
         Ok(PromoteResult::UserNotFound) => SyncResult::Failed {
-            profile: profile_name.to_string(),
-            error: "User not found after existence check".to_string(),
+            profile: profile_name.to_owned(),
+            error: "User not found after existence check".to_owned(),
         },
         Err(e) => SyncResult::Failed {
-            profile: profile_name.to_string(),
+            profile: profile_name.to_owned(),
             error: format!("Promotion failed: {}", e),
         },
     }
@@ -47,15 +47,15 @@ async fn create_and_promote_user(
         Ok(_) => match admin_service.promote_to_admin(&user.email).await {
             Ok(_) => SyncResult::Created {
                 email: user.email.clone(),
-                profile: profile_name.to_string(),
+                profile: profile_name.to_owned(),
             },
             Err(e) => SyncResult::Failed {
-                profile: profile_name.to_string(),
+                profile: profile_name.to_owned(),
                 error: format!("Created user but promotion failed: {}", e),
             },
         },
         Err(e) => SyncResult::Failed {
-            profile: profile_name.to_string(),
+            profile: profile_name.to_owned(),
             error: format!("User creation failed: {}", e),
         },
     }
@@ -75,15 +75,15 @@ pub async fn sync_admin_to_database(
         Ok(Ok(db)) => Arc::new(db),
         Ok(Err(e)) => {
             return SyncResult::ConnectionFailed {
-                profile: profile_name.to_string(),
+                profile: profile_name.to_owned(),
                 error: e.to_string(),
             };
         },
         Err(e) => {
             tracing::warn!(profile = %profile_name, error = %e, "Database connection timed out");
             return SyncResult::ConnectionFailed {
-                profile: profile_name.to_string(),
-                error: "Connection timed out (5s)".to_string(),
+                profile: profile_name.to_owned(),
+                error: "Connection timed out (5s)".to_owned(),
             };
         },
     };
@@ -92,7 +92,7 @@ pub async fn sync_admin_to_database(
         Ok(s) => s,
         Err(e) => {
             return SyncResult::Failed {
-                profile: profile_name.to_string(),
+                profile: profile_name.to_owned(),
                 error: format!("Failed to create user service: {}", e),
             };
         },
@@ -106,7 +106,7 @@ pub async fn sync_admin_to_database(
             create_and_promote_user(&user_service, &admin_service, user, profile_name).await
         },
         Err(e) => SyncResult::Failed {
-            profile: profile_name.to_string(),
+            profile: profile_name.to_owned(),
             error: format!("Failed to check existing user: {}", e),
         },
     }
@@ -140,7 +140,7 @@ pub async fn sync_admin_to_all_profiles(user: &CloudUser, verbose: bool) -> Vec<
         let Some(database_url) = profile.database_url.as_deref() else {
             results.push(SyncResult::Failed {
                 profile: profile.name.clone(),
-                error: "Missing database_url".to_string(),
+                error: "Missing database_url".to_owned(),
             });
             continue;
         };

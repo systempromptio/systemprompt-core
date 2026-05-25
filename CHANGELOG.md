@@ -6,6 +6,9 @@
 
 - **`systemprompt_mcp::MCP_PROTOCOL_VERSION` constant removed.** Use `systemprompt_mcp::mcp_protocol_version() -> String` or `systemprompt_mcp::mcp_protocol_version_str() -> &'static str`. Both resolve to `rmcp::model::ProtocolVersion::LATEST` and track the linked `rmcp` release.
 - **`GatewayPolicySpec::allowed_models` and `GatewayPolicySpec::model_allowed` removed.** Model exposure is now owned by the profile's `GatewayCatalog` (see `GatewayConfig::is_model_exposed`). A request whose `model` is not declared in the catalog is rejected with `403` before route resolution — the old policy-allow-list path is gone. Deployments that still set `allowed_models:` in `services/ai/gateway-policies.yaml` MUST remove the field (the spec now uses `deny_unknown_fields`).
+- **`GatewayProvider`, `GatewayModel`, and `GatewayRoute` entity-id fields are now typed.** `GatewayProvider.name: ProviderId`, `GatewayProvider.api_key_secret: SecretName`, `GatewayModel.id: ModelId`, `GatewayModel.provider: ProviderId`, `GatewayModel.aliases: Vec<ModelId>`, `GatewayRoute.id: RouteId`, `GatewayRoute.provider: ProviderId`, `GatewayRoute.api_key_secret: SecretName`. `pub fn synthesize_route_id(...) -> RouteId` (was `-> String`). Call sites comparing or stringifying these fields must use `.as_str()`. YAML deserialization is unchanged — `define_id!` derives `Deserialize` transparently.
+- **`AuthzRequest` now carries `entity: EntityRef`** instead of the `{entity_type: EntityKind, entity_id: String}` pair. `EntityRef` is a `#[serde(tag = "kind", content = "id")]` tagged union over the eight typed ids (`RouteId`, `ModelId`, `McpServerId`, `PluginId`, `AgentId`, `MarketplaceId`, `SkillId`, `HookId`), so the discriminator and id can no longer drift apart on the `/govern/authz` wire. Webhook handlers must read `req.entity.kind()` and `req.entity.id_str()`. The audit JSON in `governance_decisions.evaluated_rules` keeps the flat `entity_type` / `entity_id` keys — that JSONB is an internal store, not a wire contract.
+- **`services/ai/gateway-policies.yaml` back-compat fallback removed.** The gateway-policy loader is now single-path on `services/gateway/policies.yaml`. Deployments that still ship the legacy file MUST move it before upgrading.
 
 ### Added
 
@@ -16,7 +19,7 @@
 
 ### Changed
 
-- **`GATEWAY_POLICIES_FILE` moved from `services/ai/gateway-policies.yaml` to `services/gateway/policies.yaml`.** The loader keeps a one-release back-compat fallback on the old path and emits a warn when it triggers. Deployments should move their policies file to the new location before 0.12.
+- **`GATEWAY_POLICIES_FILE` moved from `services/ai/gateway-policies.yaml` to `services/gateway/policies.yaml`.** The loader is single-path on the new location (the one-release back-compat fallback that briefly existed in working trees was removed before release — see the breaking section).
 
 ### Fixed
 

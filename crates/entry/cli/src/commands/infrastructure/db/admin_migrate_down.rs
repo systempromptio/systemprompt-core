@@ -70,7 +70,7 @@ async fn run_down(
         .map_err(|e| anyhow!("Down migration failed: {}", e))?;
 
     let output = DbMigrateDownOutput {
-        extension: extension_id.to_string(),
+        extension: extension_id.to_owned(),
         migrations_reverted: result.migrations_run,
         message: format!(
             "Reverted {} migration(s) for '{}'",

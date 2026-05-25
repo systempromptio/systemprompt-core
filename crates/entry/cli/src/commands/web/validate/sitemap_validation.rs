@@ -27,7 +27,7 @@ pub(crate) fn validate_sitemap(
         if let Some(sitemap) = &source.sitemap {
             if sitemap.priority < 0.0 || sitemap.priority > 1.0 {
                 errors.push(ValidationIssue {
-                    source: "sitemap".to_string(),
+                    source: "sitemap".to_owned(),
                     message: format!(
                         "Invalid priority {} for '{}' (must be 0.0-1.0)",
                         sitemap.priority, name
@@ -38,7 +38,7 @@ pub(crate) fn validate_sitemap(
 
             if !valid_changefreq.contains(&sitemap.changefreq.as_str()) {
                 warnings.push(ValidationIssue {
-                    source: "sitemap".to_string(),
+                    source: "sitemap".to_owned(),
                     message: format!(
                         "Invalid changefreq '{}' for '{}' (should be one of: {:?})",
                         sitemap.changefreq, name, valid_changefreq
@@ -49,7 +49,7 @@ pub(crate) fn validate_sitemap(
 
             if !sitemap.url_pattern.starts_with('/') {
                 warnings.push(ValidationIssue {
-                    source: "sitemap".to_string(),
+                    source: "sitemap".to_owned(),
                     message: format!("URL pattern for '{}' should start with '/'", name),
                     suggestion: Some(format!("Change to /{}", sitemap.url_pattern)),
                 });
@@ -58,7 +58,7 @@ pub(crate) fn validate_sitemap(
             if let Some(parent) = &sitemap.parent_route {
                 if parent.priority < 0.0 || parent.priority > 1.0 {
                     errors.push(ValidationIssue {
-                        source: "sitemap".to_string(),
+                        source: "sitemap".to_owned(),
                         message: format!(
                             "Invalid parent route priority {} for '{}'",
                             parent.priority, name
@@ -69,7 +69,7 @@ pub(crate) fn validate_sitemap(
 
                 if !valid_changefreq.contains(&parent.changefreq.as_str()) {
                     warnings.push(ValidationIssue {
-                        source: "sitemap".to_string(),
+                        source: "sitemap".to_owned(),
                         message: format!(
                             "Invalid parent route changefreq '{}' for '{}'",
                             parent.changefreq, name

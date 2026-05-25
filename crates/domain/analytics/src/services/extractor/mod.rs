@@ -69,7 +69,7 @@ impl SessionAnalytics {
             .get("x-forwarded-for")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.split(',').next())
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim().to_owned())
             .or_else(|| {
                 headers
                     .get("x-real-ip")
@@ -87,7 +87,7 @@ impl SessionAnalytics {
             .get("accept-language")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.split(',').next())
-            .map(|s| s.trim().split(';').next().unwrap_or(s).to_string());
+            .map(|s| s.trim().split(';').next().unwrap_or(s).to_owned());
 
         let (device_type, browser, os) = user_agent
             .as_ref()
@@ -152,7 +152,7 @@ impl SessionAnalytics {
 
             if is_html_page {
                 analytics.entry_url = Some(uri.to_string());
-                analytics.landing_page = Some(uri.path().to_string());
+                analytics.landing_page = Some(uri.path().to_owned());
             }
         }
 
@@ -177,7 +177,7 @@ impl SessionAnalytics {
             q.split('&')
                 .filter_map(|param| {
                     let mut parts = param.splitn(2, '=');
-                    Some((parts.next()?.to_string(), parts.next()?.to_string()))
+                    Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
                 })
                 .collect()
         })

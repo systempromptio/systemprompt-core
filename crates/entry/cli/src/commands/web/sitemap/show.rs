@@ -79,10 +79,10 @@ pub(crate) fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResu
     Ok(CommandResult::table(output)
         .with_title("Sitemap Configuration")
         .with_columns(vec![
-            "url".to_string(),
-            "priority".to_string(),
-            "changefreq".to_string(),
-            "source".to_string(),
+            "url".to_owned(),
+            "priority".to_owned(),
+            "changefreq".to_owned(),
+            "source".to_owned(),
         ]))
 }
 

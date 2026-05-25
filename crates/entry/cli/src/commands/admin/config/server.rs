@@ -116,7 +116,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.server.host.clone();
         profile.server.host.clone_from(host);
         changes.push(ServerSetOutput {
-            field: "host".to_string(),
+            field: "host".to_owned(),
             old_value: old,
             new_value: host.clone(),
             message: format!("Updated host to {}", host),
@@ -127,7 +127,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.server.port;
         profile.server.port = port;
         changes.push(ServerSetOutput {
-            field: "port".to_string(),
+            field: "port".to_owned(),
             old_value: old.to_string(),
             new_value: port.to_string(),
             message: format!("Updated port to {}", port),
@@ -138,7 +138,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.server.use_https;
         profile.server.use_https = use_https;
         changes.push(ServerSetOutput {
-            field: "use_https".to_string(),
+            field: "use_https".to_owned(),
             old_value: old.to_string(),
             new_value: use_https.to_string(),
             message: format!("Updated use_https to {}", use_https),
@@ -149,7 +149,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.server.api_server_url.clone();
         profile.server.api_server_url.clone_from(url);
         changes.push(ServerSetOutput {
-            field: "api_server_url".to_string(),
+            field: "api_server_url".to_owned(),
             old_value: old,
             new_value: url.clone(),
             message: format!("Updated api_server_url to {}", url),
@@ -160,7 +160,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.server.api_internal_url.clone();
         profile.server.api_internal_url.clone_from(url);
         changes.push(ServerSetOutput {
-            field: "api_internal_url".to_string(),
+            field: "api_internal_url".to_owned(),
             old_value: old,
             new_value: url.clone(),
             message: format!("Updated api_internal_url to {}", url),
@@ -171,7 +171,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old = profile.server.api_external_url.clone();
         profile.server.api_external_url.clone_from(url);
         changes.push(ServerSetOutput {
-            field: "api_external_url".to_string(),
+            field: "api_external_url".to_owned(),
             old_value: old,
             new_value: url.clone(),
             message: format!("Updated api_external_url to {}", url),
@@ -218,7 +218,7 @@ fn execute_cors_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
 
     if profile.server.cors_allowed_origins.contains(&args.origin) {
         let output = CorsModifyOutput {
-            action: "skipped".to_string(),
+            action: "skipped".to_owned(),
             origin: args.origin.clone(),
             message: format!("Origin {} already exists", args.origin),
         };
@@ -233,7 +233,7 @@ fn execute_cors_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
     save_profile(&profile, profile_path)?;
 
     let output = CorsModifyOutput {
-        action: "added".to_string(),
+        action: "added".to_owned(),
         origin: args.origin.clone(),
         message: format!("Added CORS origin: {}", args.origin),
     };
@@ -258,7 +258,7 @@ fn execute_cors_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> 
 
     if profile.server.cors_allowed_origins.len() == original_len {
         let output = CorsModifyOutput {
-            action: "skipped".to_string(),
+            action: "skipped".to_owned(),
             origin: args.origin.clone(),
             message: format!("Origin {} not found", args.origin),
         };
@@ -269,7 +269,7 @@ fn execute_cors_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> 
     save_profile(&profile, profile_path)?;
 
     let output = CorsModifyOutput {
-        action: "removed".to_string(),
+        action: "removed".to_owned(),
         origin: args.origin.clone(),
         message: format!("Removed CORS origin: {}", args.origin),
     };

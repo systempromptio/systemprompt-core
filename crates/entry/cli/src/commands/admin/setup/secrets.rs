@@ -50,7 +50,7 @@ impl SecretsData {
         }
 
         if keys.is_empty() {
-            "None".to_string()
+            "None".to_owned()
         } else {
             keys.join(", ")
         }

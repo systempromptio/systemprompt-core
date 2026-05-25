@@ -96,7 +96,7 @@ fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
             .to_string();
         (name, desc)
     } else {
-        (skill.to_string(), String::new())
+        (skill.to_owned(), String::new())
     };
 
     let body = if index_md.exists() {

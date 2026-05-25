@@ -104,8 +104,8 @@ impl ConfigService {
 
                 if let Some((key, value)) = line.split_once('=') {
                     secrets.insert(
-                        key.trim().to_string(),
-                        value.trim().trim_matches('"').to_string(),
+                        key.trim().to_owned(),
+                        value.trim().trim_matches('"').to_owned(),
                     );
                 }
             }
@@ -151,7 +151,7 @@ impl ConfigService {
             },
             _ => {
                 if let Some(str_val) = value.as_str() {
-                    result.insert(prefix, str_val.to_string());
+                    result.insert(prefix, str_val.to_owned());
                 } else if let Some(num_val) = value.as_i64() {
                     result.insert(prefix, num_val.to_string());
                 } else if let Some(bool_val) = value.as_bool() {
@@ -224,7 +224,7 @@ impl ConfigService {
         secrets: &HashMap<String, String>,
         var_regex: &Regex,
     ) -> ConfigResult<String> {
-        let mut result = value.to_string();
+        let mut result = value.to_owned();
 
         for cap in var_regex.captures_iter(value) {
             let full_match = cap
@@ -243,7 +243,7 @@ impl ConfigService {
                 .or_else(|| read_env_optional(var_name))
                 .or_else(|| vars.get(var_name).cloned())
                 .unwrap_or_else(|| {
-                    default_value.map_or_else(|| full_match.to_string(), ToString::to_string)
+                    default_value.map_or_else(|| full_match.to_owned(), ToString::to_string)
                 });
 
             result = result.replace(full_match, &replacement);

@@ -95,7 +95,7 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
                 "google" => "GOOGLE_API_KEY",
                 _ => continue,
             };
-            required_secrets.push(secret_key.to_string());
+            required_secrets.push(secret_key.to_owned());
         }
     }
 

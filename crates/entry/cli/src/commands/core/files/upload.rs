@@ -141,7 +141,7 @@ pub fn detect_mime_type(path: &Path) -> String {
         .and_then(|e| e.to_str())
         .map(str::to_lowercase);
     let Some(ext) = extension.as_deref() else {
-        return "application/octet-stream".to_string();
+        return "application/octet-stream".to_owned();
     };
     EXTENSION_MIME_TABLE
         .iter()

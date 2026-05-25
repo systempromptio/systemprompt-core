@@ -86,5 +86,5 @@ pub struct EngagementOptionalMetrics {
 }
 
 fn default_event_type() -> String {
-    "page_exit".to_string()
+    "page_exit".to_owned()
 }

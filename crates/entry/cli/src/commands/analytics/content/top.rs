@@ -68,7 +68,7 @@ async fn execute_internal(
             views: row.total_views,
             unique_visitors: row.unique_visitors,
             avg_time_seconds: row.avg_time_on_page_seconds.map_or(0, |v| v as i64),
-            trend: row.trend_direction.unwrap_or_else(|| "stable".to_string()),
+            trend: row.trend_direction.unwrap_or_else(|| "stable".to_owned()),
         })
         .collect();
 
@@ -91,13 +91,13 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "slug".to_string(),
-            "title".to_string(),
-            "source".to_string(),
-            "views".to_string(),
-            "unique_visitors".to_string(),
-            "avg_time_seconds".to_string(),
-            "trend".to_string(),
+            "slug".to_owned(),
+            "title".to_owned(),
+            "source".to_owned(),
+            "views".to_owned(),
+            "unique_visitors".to_owned(),
+            "avg_time_seconds".to_owned(),
+            "trend".to_owned(),
         ]),
         ..Default::default()
     };

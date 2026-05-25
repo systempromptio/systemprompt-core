@@ -70,10 +70,10 @@ pub(crate) async fn execute_with_pool(
     Ok(CommandResult::table(output)
         .with_title("User Sessions")
         .with_columns(vec![
-            "session_id".to_string(),
-            "ip_address".to_string(),
-            "device_type".to_string(),
-            "started_at".to_string(),
-            "is_active".to_string(),
+            "session_id".to_owned(),
+            "ip_address".to_owned(),
+            "device_type".to_owned(),
+            "started_at".to_owned(),
+            "is_active".to_owned(),
         ]))
 }

@@ -33,9 +33,9 @@ pub(crate) fn validate_assets(
             let logo_path = assets_dir.join("logos").join(logo);
             if !logo_path.exists() {
                 errors.push(ValidationIssue {
-                    source: "assets".to_string(),
+                    source: "assets".to_owned(),
                     message: format!("Referenced logo not found: {}", logo_path.display()),
-                    suggestion: Some("Add the missing logo file".to_string()),
+                    suggestion: Some("Add the missing logo file".to_owned()),
                 });
             }
         }
@@ -46,9 +46,9 @@ pub(crate) fn validate_assets(
         let favicon_svg = assets_dir.join("logos").join("logo.svg");
         if !favicon_path.exists() && !favicon_svg.exists() {
             errors.push(ValidationIssue {
-                source: "assets".to_string(),
-                message: "Referenced favicon not found".to_string(),
-                suggestion: Some("Add a favicon.ico or logo.svg file".to_string()),
+                source: "assets".to_owned(),
+                message: "Referenced favicon not found".to_owned(),
+                suggestion: Some("Add a favicon.ico or logo.svg file".to_owned()),
             });
         }
     }

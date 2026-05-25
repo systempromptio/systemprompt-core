@@ -134,11 +134,11 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "tool_name".to_string(),
-            "server_name".to_string(),
-            "execution_count".to_string(),
-            "success_rate".to_string(),
-            "avg_execution_time_ms".to_string(),
+            "tool_name".to_owned(),
+            "server_name".to_owned(),
+            "execution_count".to_owned(),
+            "success_rate".to_owned(),
+            "avg_execution_time_ms".to_owned(),
         ]),
         ..Default::default()
     };

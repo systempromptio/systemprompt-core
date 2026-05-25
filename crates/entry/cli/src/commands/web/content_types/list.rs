@@ -72,11 +72,11 @@ pub(crate) fn execute(
     Ok(CommandResult::table(output)
         .with_title("Content Types")
         .with_columns(vec![
-            "name".to_string(),
-            "source_id".to_string(),
-            "category_id".to_string(),
-            "enabled".to_string(),
-            "path".to_string(),
-            "url_pattern".to_string(),
+            "name".to_owned(),
+            "source_id".to_owned(),
+            "category_id".to_owned(),
+            "enabled".to_owned(),
+            "path".to_owned(),
+            "url_pattern".to_owned(),
         ]))
 }

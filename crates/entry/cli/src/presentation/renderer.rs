@@ -163,7 +163,7 @@ impl StartupRenderer {
             },
             StartupEvent::SchedulerInitializing => {
                 let spinner = Self::create_phase_spinner("Scheduler");
-                self.state.spinners.insert("scheduler".to_string(), spinner);
+                self.state.spinners.insert("scheduler".to_owned(), spinner);
             },
             StartupEvent::SchedulerReady { job_count } => {
                 if let Some(spinner) = self.state.spinners.remove("scheduler") {

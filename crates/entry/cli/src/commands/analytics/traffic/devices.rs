@@ -73,8 +73,8 @@ async fn execute_internal(
                 0.0
             };
             DeviceRow {
-                device_type: row.device.unwrap_or_else(|| "unknown".to_string()),
-                browser: row.browser.unwrap_or_else(|| "unknown".to_string()),
+                device_type: row.device.unwrap_or_else(|| "unknown".to_owned()),
+                browser: row.browser.unwrap_or_else(|| "unknown".to_owned()),
                 session_count: row.count,
                 percentage,
             }
@@ -96,9 +96,9 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "device_type".to_string(),
-            "browser".to_string(),
-            "session_count".to_string(),
+            "device_type".to_owned(),
+            "browser".to_owned(),
+            "session_count".to_owned(),
         ]),
         ..Default::default()
     };

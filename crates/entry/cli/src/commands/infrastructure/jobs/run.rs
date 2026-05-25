@@ -44,12 +44,12 @@ pub(crate) async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOu
             .all_jobs()
             .into_iter()
             .filter(|j| j.enabled())
-            .map(|j| j.name().to_string())
+            .map(|j| j.name().to_owned())
             .collect();
 
         for job in inventory::iter::<&'static dyn Job> {
-            if job.enabled() && !names.contains(&job.name().to_string()) {
-                names.push(job.name().to_string());
+            if job.enabled() && !names.contains(&job.name().to_owned()) {
+                names.push(job.name().to_owned());
             }
         }
         names
@@ -60,7 +60,7 @@ pub(crate) async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOu
         }
         jobs.into_iter()
             .filter(|j| j.enabled())
-            .map(|j| j.name().to_string())
+            .map(|j| j.name().to_owned())
             .collect()
     } else if args.job_names.is_empty() {
         anyhow::bail!("Specify job name(s), use --all, or use --tag <tag> to run jobs");
@@ -98,7 +98,7 @@ fn parse_params(params: &[String]) -> Result<HashMap<String, String>> {
                 param
             );
         }
-        map.insert(parts[0].to_string(), parts[1].to_string());
+        map.insert(parts[0].to_owned(), parts[1].to_owned());
     }
     Ok(map)
 }
@@ -120,8 +120,8 @@ async fn run_single_job(
 
     if ext_job.is_none() && inv_job.is_none() {
         return JobRunOutput {
-            job_name: job_name.to_string(),
-            status: "failed".to_string(),
+            job_name: job_name.to_owned(),
+            status: "failed".to_owned(),
             duration_ms: start.elapsed().as_millis() as u64,
             result: JobRunResult {
                 success: false,
@@ -137,8 +137,8 @@ async fn run_single_job(
         Ok(users) => users,
         Err(e) => {
             return JobRunOutput {
-                job_name: job_name.to_string(),
-                status: "failed".to_string(),
+                job_name: job_name.to_owned(),
+                status: "failed".to_owned(),
                 duration_ms: start.elapsed().as_millis() as u64,
                 result: JobRunResult {
                     success: false,
@@ -151,8 +151,8 @@ async fn run_single_job(
     };
     let Ok(Some(admin_user)) = users.find_admin_owner().await else {
         return JobRunOutput {
-            job_name: job_name.to_string(),
-            status: "failed".to_string(),
+            job_name: job_name.to_owned(),
+            status: "failed".to_owned(),
             duration_ms: start.elapsed().as_millis() as u64,
             result: JobRunResult {
                 success: false,
@@ -166,7 +166,7 @@ async fn run_single_job(
             },
         };
     };
-    let actor = systemprompt_identifiers::Actor::job(admin_user.id, job_name.to_string());
+    let actor = systemprompt_identifiers::Actor::job(admin_user.id, job_name.to_owned());
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(ctx.app_paths_arc()));
@@ -184,8 +184,8 @@ async fn run_single_job(
 
     match execute_result {
         Ok(result) => JobRunOutput {
-            job_name: job_name.to_string(),
-            status: if result.success { "success" } else { "failed" }.to_string(),
+            job_name: job_name.to_owned(),
+            status: if result.success { "success" } else { "failed" }.to_owned(),
             duration_ms: start.elapsed().as_millis() as u64,
             result: JobRunResult {
                 success: result.success,
@@ -195,8 +195,8 @@ async fn run_single_job(
             },
         },
         Err(e) => JobRunOutput {
-            job_name: job_name.to_string(),
-            status: "failed".to_string(),
+            job_name: job_name.to_owned(),
+            status: "failed".to_owned(),
             duration_ms: start.elapsed().as_millis() as u64,
             result: JobRunResult {
                 success: false,

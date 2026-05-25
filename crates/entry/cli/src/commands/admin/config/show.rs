@@ -14,7 +14,7 @@ pub fn execute(_config: &CliConfig) -> Result<CommandResult<ConfigOverviewOutput
 
     let output = ConfigOverviewOutput {
         profile_name: profile.name.clone(),
-        profile_path: profile_path.to_string(),
+        profile_path: profile_path.to_owned(),
         server: ServerOverview {
             host: profile.server.host.clone(),
             port: profile.server.port,

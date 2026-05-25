@@ -2,7 +2,7 @@ use std::io::Write;
 use std::time::Duration;
 
 use crate::models::LoggingError;
-pub(crate) type Result<T> = std::result::Result<T, LoggingError>;
+pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 use systemprompt_traits::LogEventLevel;

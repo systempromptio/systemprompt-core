@@ -56,9 +56,9 @@ pub(crate) fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandR
         Ok(CommandResult::table(ConfigResult::List(output))
             .with_title("Extension Configurations")
             .with_columns(vec![
-                "extension_id".to_string(),
-                "config_prefix".to_string(),
-                "has_config".to_string(),
+                "extension_id".to_owned(),
+                "config_prefix".to_owned(),
+                "has_config".to_owned(),
             ]))
     }
 }

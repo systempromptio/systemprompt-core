@@ -184,7 +184,7 @@ pub(crate) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
     );
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
-    profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
+    profile_secret.insert("SYSTEMPROMPT_PROFILE".to_owned(), profile_env_path);
     api_client.set_secrets(&tenant_id, profile_secret).await?;
     spinner.finish_and_clear();
     CliService::success("Profile path configured");

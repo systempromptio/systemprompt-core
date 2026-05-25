@@ -50,11 +50,11 @@ pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
     Ok(CommandResult::table(ListOrDetail::List(output))
         .with_title("Skills")
         .with_columns(vec![
-            "skill_id".to_string(),
-            "name".to_string(),
-            "enabled".to_string(),
-            "tags".to_string(),
-            "file_path".to_string(),
+            "skill_id".to_owned(),
+            "name".to_owned(),
+            "enabled".to_owned(),
+            "tags".to_owned(),
+            "file_path".to_owned(),
         ]))
 }
 

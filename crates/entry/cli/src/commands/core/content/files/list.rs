@@ -53,11 +53,11 @@ pub(crate) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<Comma
             Ok(CommandResult::table(ListOutput::ContentFiles(output))
                 .with_title("Content Files")
                 .with_columns(vec![
-                    "file_id".to_string(),
-                    "path".to_string(),
-                    "mime_type".to_string(),
-                    "role".to_string(),
-                    "display_order".to_string(),
+                    "file_id".to_owned(),
+                    "path".to_owned(),
+                    "mime_type".to_owned(),
+                    "role".to_owned(),
+                    "display_order".to_owned(),
                 ]))
         },
         (None, Some(file_id_str)) => {
@@ -79,10 +79,10 @@ pub(crate) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<Comma
             Ok(CommandResult::table(ListOutput::FileContentLinks(output))
                 .with_title("File Content Links")
                 .with_columns(vec![
-                    "content_id".to_string(),
-                    "role".to_string(),
-                    "display_order".to_string(),
-                    "created_at".to_string(),
+                    "content_id".to_owned(),
+                    "role".to_owned(),
+                    "display_order".to_owned(),
+                    "created_at".to_owned(),
                 ]))
         },
         (Some(_), Some(_)) => Err(anyhow!(
@@ -103,5 +103,5 @@ fn parse_file_id(id: &str) -> Result<FileId> {
             id
         )
     })?;
-    Ok(FileId::new(id.to_string()))
+    Ok(FileId::new(id.to_owned()))
 }

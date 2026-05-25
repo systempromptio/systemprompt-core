@@ -14,22 +14,22 @@ pub(crate) fn execute() -> CommandResult<JobListOutput> {
     let mut jobs: Vec<JobInfo> = Vec::new();
 
     for job in registry.all_jobs() {
-        if seen_names.insert(job.name().to_string()) {
+        if seen_names.insert(job.name().to_owned()) {
             jobs.push(JobInfo {
-                name: job.name().to_string(),
-                description: job.description().to_string(),
-                schedule: job.schedule().to_string(),
+                name: job.name().to_owned(),
+                description: job.description().to_owned(),
+                schedule: job.schedule().to_owned(),
                 enabled: job.enabled(),
             });
         }
     }
 
     for job in inventory::iter::<&'static dyn Job> {
-        if seen_names.insert(job.name().to_string()) {
+        if seen_names.insert(job.name().to_owned()) {
             jobs.push(JobInfo {
-                name: job.name().to_string(),
-                description: job.description().to_string(),
-                schedule: job.schedule().to_string(),
+                name: job.name().to_owned(),
+                description: job.description().to_owned(),
+                schedule: job.schedule().to_owned(),
                 enabled: job.enabled(),
             });
         }
@@ -42,10 +42,10 @@ pub(crate) fn execute() -> CommandResult<JobListOutput> {
         .with_title("Available Jobs")
         .with_hints(RenderingHints {
             columns: Some(vec![
-                "name".to_string(),
-                "description".to_string(),
-                "schedule".to_string(),
-                "enabled".to_string(),
+                "name".to_owned(),
+                "description".to_owned(),
+                "schedule".to_owned(),
+                "enabled".to_owned(),
             ]),
             ..Default::default()
         })

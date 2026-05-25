@@ -59,12 +59,12 @@ async fn execute_inner(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "id".to_string(),
-            "trace_id".to_string(),
-            "timestamp".to_string(),
-            "level".to_string(),
-            "module".to_string(),
-            "message".to_string(),
+            "id".to_owned(),
+            "trace_id".to_owned(),
+            "timestamp".to_owned(),
+            "level".to_owned(),
+            "module".to_owned(),
+            "message".to_owned(),
         ]),
         ..Default::default()
     };

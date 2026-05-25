@@ -27,7 +27,7 @@ pub(crate) async fn print_mcp_executions(
             status: e.status.clone(),
             duration: e
                 .execution_time_ms
-                .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
+                .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
         })
         .collect();
 
@@ -111,7 +111,7 @@ async fn print_mcp_linked_ai_requests(
         let tokens = req.input_tokens.unwrap_or(0) + req.output_tokens.unwrap_or(0);
         let latency_str = req
             .latency_ms
-            .map_or_else(|| "-".to_string(), |ms| format!("{ms}ms"));
+            .map_or_else(|| "-".to_owned(), |ms| format!("{ms}ms"));
 
         CliService::info(&format!(
             "    {} {}/{} | {tokens} tokens | {latency_str}",

@@ -21,7 +21,7 @@ pub(crate) async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<Sec
 
     if secrets.is_empty() {
         let output = SecretsOutput {
-            operation: "sync".to_string(),
+            operation: "sync".to_owned(),
             keys: Vec::new(),
             rejected_keys: None,
         };
@@ -60,7 +60,7 @@ pub(crate) async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<Sec
     };
 
     let output = SecretsOutput {
-        operation: "sync".to_string(),
+        operation: "sync".to_owned(),
         keys,
         rejected_keys: None,
     };
@@ -88,7 +88,7 @@ pub(crate) async fn set_secrets(
             bail!("Invalid format: {kv}. Expected KEY=VALUE");
         }
         let key = parts[0].to_uppercase();
-        let value = parts[1].to_string();
+        let value = parts[1].to_owned();
 
         if env_vars::is_system_managed(&key) {
             rejected.push(key);
@@ -131,7 +131,7 @@ pub(crate) async fn set_secrets(
     };
 
     let output = SecretsOutput {
-        operation: "set".to_string(),
+        operation: "set".to_owned(),
         keys,
         rejected_keys: if rejected.is_empty() {
             None
@@ -204,7 +204,7 @@ pub(crate) async fn unset_secrets(
     }
 
     let output = SecretsOutput {
-        operation: "unset".to_string(),
+        operation: "unset".to_owned(),
         keys: removed,
         rejected_keys: None,
     };
@@ -228,7 +228,7 @@ pub(crate) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<
     for key in keys_to_remove {
         if config.is_json_output() {
             match client.unset_secret(&tenant_id, key).await {
-                Ok(()) => removed.push(key.to_string()),
+                Ok(()) => removed.push(key.to_owned()),
                 Err(e) => errors.push((key, e.to_string())),
             }
         } else {
@@ -236,7 +236,7 @@ pub(crate) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<
             match client.unset_secret(&tenant_id, key).await {
                 Ok(()) => {
                     spinner.finish_and_clear();
-                    removed.push(key.to_string());
+                    removed.push(key.to_owned());
                 },
                 Err(e) => {
                     spinner.finish_and_clear();
@@ -269,7 +269,7 @@ pub(crate) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<
     }
 
     let output = SecretsOutput {
-        operation: "cleanup".to_string(),
+        operation: "cleanup".to_owned(),
         keys: removed,
         rejected_keys: None,
     };

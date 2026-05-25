@@ -57,7 +57,7 @@ pub(crate) async fn execute(
             CliService::info("Deletion cancelled");
             return Ok(CommandResult::card(ContextDeletedOutput {
                 id: context_id,
-                message: "Deletion cancelled".to_string(),
+                message: "Deletion cancelled".to_owned(),
             })
             .with_title("Context Delete Cancelled"));
         }

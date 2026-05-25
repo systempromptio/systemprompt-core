@@ -105,11 +105,11 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "provider".to_string(),
-            "model".to_string(),
-            "request_count".to_string(),
-            "total_tokens".to_string(),
-            "total_cost_microdollars".to_string(),
+            "provider".to_owned(),
+            "model".to_owned(),
+            "request_count".to_owned(),
+            "total_tokens".to_owned(),
+            "total_cost_microdollars".to_owned(),
         ]),
         ..Default::default()
     };

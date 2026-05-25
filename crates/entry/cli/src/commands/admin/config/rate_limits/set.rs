@@ -59,7 +59,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         let old_value = limits.burst_multiplier;
         limits.burst_multiplier = burst;
         SetRateLimitOutput {
-            field: "burst_multiplier".to_string(),
+            field: "burst_multiplier".to_owned(),
             old_value: old_value.to_string(),
             new_value: burst.to_string(),
             message: format!("Updated burst multiplier: {}x -> {}x", old_value, burst),
@@ -85,7 +85,7 @@ pub(crate) fn execute_enable(config: &CliConfig) -> Result<()> {
     if !profile.rate_limits.disabled {
         let output = RateLimitStatusOutput {
             enabled: true,
-            message: "Rate limiting is already enabled".to_string(),
+            message: "Rate limiting is already enabled".to_owned(),
         };
         render_result(&CommandResult::text(output).with_title("Rate Limit Status"));
         return Ok(());
@@ -96,7 +96,7 @@ pub(crate) fn execute_enable(config: &CliConfig) -> Result<()> {
 
     let output = RateLimitStatusOutput {
         enabled: true,
-        message: "Rate limiting enabled".to_string(),
+        message: "Rate limiting enabled".to_owned(),
     };
     render_result(&CommandResult::text(output).with_title("Rate Limit Status"));
 
@@ -114,7 +114,7 @@ pub(crate) fn execute_disable(config: &CliConfig) -> Result<()> {
     if profile.rate_limits.disabled {
         let output = RateLimitStatusOutput {
             enabled: false,
-            message: "Rate limiting is already disabled".to_string(),
+            message: "Rate limiting is already disabled".to_owned(),
         };
         render_result(&CommandResult::text(output).with_title("Rate Limit Status"));
         return Ok(());
@@ -125,7 +125,7 @@ pub(crate) fn execute_disable(config: &CliConfig) -> Result<()> {
 
     let output = RateLimitStatusOutput {
         enabled: false,
-        message: "Rate limiting disabled".to_string(),
+        message: "Rate limiting disabled".to_owned(),
     };
     render_result(&CommandResult::text(output).with_title("Rate Limit Status"));
 

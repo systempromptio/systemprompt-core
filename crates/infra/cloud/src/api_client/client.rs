@@ -29,8 +29,8 @@ impl CloudApiClient {
                 .connect_timeout(HTTP_CONNECT_TIMEOUT)
                 .timeout(HTTP_DEFAULT_TIMEOUT)
                 .build()?,
-            api_url: api_url.to_string(),
-            token: token.to_string(),
+            api_url: api_url.to_owned(),
+            token: token.to_owned(),
             tenant_token_cache: Arc::new(Mutex::new(None)),
         })
     }

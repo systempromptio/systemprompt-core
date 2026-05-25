@@ -87,14 +87,14 @@ async fn execute_with_pool_inner(
     let result = CommandResult::table(output)
         .with_title("AI Requests")
         .with_columns(vec![
-            "request_id".to_string(),
-            "timestamp".to_string(),
-            "provider".to_string(),
-            "model".to_string(),
-            "tokens".to_string(),
-            "cost".to_string(),
-            "latency_ms".to_string(),
-            "status".to_string(),
+            "request_id".to_owned(),
+            "timestamp".to_owned(),
+            "provider".to_owned(),
+            "model".to_owned(),
+            "tokens".to_owned(),
+            "cost".to_owned(),
+            "latency_ms".to_owned(),
+            "status".to_owned(),
         ]);
 
     if result.data.requests.is_empty() {

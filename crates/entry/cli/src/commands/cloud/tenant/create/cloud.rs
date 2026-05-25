@@ -232,7 +232,7 @@ async fn build_stored_tenant(
 
 pub fn swap_to_external_host(url: &str) -> String {
     let Ok(parsed) = Url::parse(url) else {
-        return url.to_string();
+        return url.to_owned();
     };
 
     let host = parsed.host_str().unwrap_or("");

@@ -95,16 +95,16 @@ impl AgentArgs {
 pub(crate) fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Result<()> {
     match key {
         "card.displayName" | "card.display_name" => {
-            agent.card.display_name = value.to_string();
+            agent.card.display_name = value.to_owned();
         },
         "card.description" => {
-            agent.card.description = value.to_string();
+            agent.card.description = value.to_owned();
         },
         "card.version" => {
-            agent.card.version = value.to_string();
+            agent.card.version = value.to_owned();
         },
         "endpoint" => {
-            agent.endpoint = value.to_string();
+            agent.endpoint = value.to_owned();
         },
         "is_primary" => {
             agent.is_primary = value

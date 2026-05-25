@@ -54,7 +54,7 @@ fn load_profile_info() -> (Option<ProfileInfo>, Option<String>) {
         info.validation_mode = Some(format!("{:?}", cloud.validation));
         if let Some(ref tid) = cloud.tenant_id {
             info.tenant_id = Some(tid.clone());
-            tenant_id_from_profile = Some(tid.as_str().to_string());
+            tenant_id_from_profile = Some(tid.as_str().to_owned());
         }
     }
 
@@ -104,7 +104,7 @@ async fn load_credentials_and_tenants(
         let mut status_info = TenantStatusInfo {
             id: tenant.id.clone(),
             name: tenant.name.clone(),
-            status: "unknown".to_string(),
+            status: "unknown".to_owned(),
             url: None,
             message: None,
             configured_in_profile: tenant_id_from_profile == Some(tenant.id.as_str()),

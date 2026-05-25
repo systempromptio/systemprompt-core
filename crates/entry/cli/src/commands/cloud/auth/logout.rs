@@ -16,7 +16,7 @@ pub(crate) async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<Comm
 
     if !creds_path.exists() {
         let output = LogoutOutput {
-            message: "Already logged out (no credentials found)".to_string(),
+            message: "Already logged out (no credentials found)".to_owned(),
             credentials_path: None,
         };
 
@@ -41,7 +41,7 @@ pub(crate) async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<Comm
 
         if !confirmed {
             let output = LogoutOutput {
-                message: "Cancelled".to_string(),
+                message: "Cancelled".to_owned(),
                 credentials_path: None,
             };
 
@@ -59,7 +59,7 @@ pub(crate) async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<Comm
     std::fs::remove_file(&creds_path)?;
 
     let output = LogoutOutput {
-        message: "Logged out of systemprompt.io Cloud".to_string(),
+        message: "Logged out of systemprompt.io Cloud".to_owned(),
         credentials_path: Some(creds_path.display().to_string()),
     };
 

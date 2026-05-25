@@ -73,7 +73,7 @@ pub fn execute(
             }
         } else {
             all_valid = false;
-            (false, Some("File not found".to_string()))
+            (false, Some("File not found".to_owned()))
         };
 
         results.push(ConfigFileInfo {
@@ -121,7 +121,7 @@ fn validate_profile_file(path: &std::path::Path) -> Result<CommandResult<ConfigV
             let output = ConfigValidateOutput {
                 files: vec![ConfigFileInfo {
                     path: path.display().to_string(),
-                    section: "profile".to_string(),
+                    section: "profile".to_owned(),
                     exists: true,
                     valid: true,
                     error: None,
@@ -155,24 +155,24 @@ fn detect_section(path: &std::path::Path) -> String {
     let path_str = path.display().to_string();
 
     if path_str.contains("/ai/") {
-        "ai".to_string()
+        "ai".to_owned()
     } else if path_str.contains("/content/") {
-        "content".to_string()
+        "content".to_owned()
     } else if path_str.contains("/web/") {
-        "web".to_string()
+        "web".to_owned()
     } else if path_str.contains("/scheduler/") {
-        "scheduler".to_string()
+        "scheduler".to_owned()
     } else if path_str.contains("/agents/") {
-        "agents".to_string()
+        "agents".to_owned()
     } else if path_str.contains("/mcp/") {
-        "mcp".to_string()
+        "mcp".to_owned()
     } else if path_str.contains("/skills/") {
-        "skills".to_string()
+        "skills".to_owned()
     } else if path_str.contains("profile.yaml") {
-        "profile".to_string()
+        "profile".to_owned()
     } else if path_str.contains("/config/config.yaml") {
-        "services".to_string()
+        "services".to_owned()
     } else {
-        "unknown".to_string()
+        "unknown".to_owned()
     }
 }

@@ -12,11 +12,11 @@ fn parse_device_type(ua_lower: &str) -> String {
     const MOBILE: &[&str] = &["mobile", "android", "iphone"];
     const TABLET: &[&str] = &["tablet", "ipad"];
     if MOBILE.iter().any(|s| ua_lower.contains(s)) {
-        "mobile".to_string()
+        "mobile".to_owned()
     } else if TABLET.iter().any(|s| ua_lower.contains(s)) {
-        "tablet".to_string()
+        "tablet".to_owned()
     } else {
-        "desktop".to_string()
+        "desktop".to_owned()
     }
 }
 
@@ -126,7 +126,7 @@ fn parse_browser(ua_lower: &str) -> String {
             r.needles.iter().any(|n| ua_lower.contains(n))
                 && !r.negative.iter().any(|n| ua_lower.contains(n))
         })
-        .map_or_else(|| "Other".to_string(), |r| r.name.to_string())
+        .map_or_else(|| "Other".to_owned(), |r| r.name.to_owned())
 }
 
 const OS_RULES: &[(&str, &[&str])] = &[
@@ -143,5 +143,5 @@ fn parse_os(ua_lower: &str) -> String {
     OS_RULES
         .iter()
         .find(|(_, needles)| needles.iter().any(|n| ua_lower.contains(n)))
-        .map_or_else(|| "Other".to_string(), |(name, _)| (*name).to_string())
+        .map_or_else(|| "Other".to_owned(), |(name, _)| (*name).to_owned())
 }

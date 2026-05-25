@@ -71,7 +71,7 @@ async fn execute_internal(
                 0.0
             };
             BotRow {
-                bot_type: row.bot_type.unwrap_or_else(|| "Unknown".to_string()),
+                bot_type: row.bot_type.unwrap_or_else(|| "Unknown".to_owned()),
                 request_count: row.count,
                 percentage,
             }

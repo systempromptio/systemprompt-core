@@ -39,8 +39,8 @@ pub(crate) fn execute(
         .jobs()
         .iter()
         .map(|job| JobInfo {
-            name: job.name().to_string(),
-            schedule: job.schedule().to_string(),
+            name: job.name().to_owned(),
+            schedule: job.schedule().to_owned(),
             enabled: job.enabled(),
         })
         .collect();
@@ -65,7 +65,7 @@ pub(crate) fn execute(
         .iter()
         .map(|schema| SchemaInfo {
             table: schema.table.clone(),
-            source: "inline".to_string(),
+            source: "inline".to_owned(),
             required_columns: schema.required_columns.clone(),
         })
         .collect();
@@ -74,7 +74,7 @@ pub(crate) fn execute(
         .tool_providers()
         .iter()
         .map(|_provider| ToolInfo {
-            name: "tool_provider".to_string(),
+            name: "tool_provider".to_owned(),
         })
         .collect();
 
@@ -93,26 +93,26 @@ pub(crate) fn execute(
         .llm_providers()
         .iter()
         .map(|_provider| LlmProviderInfo {
-            name: "llm_provider".to_string(),
+            name: "llm_provider".to_owned(),
         })
         .collect();
 
     let storage_paths: Vec<String> = ext
         .required_storage_paths()
         .iter()
-        .map(|s| (*s).to_string())
+        .map(|s| (*s).to_owned())
         .collect();
 
     let dependencies: Vec<String> = ext
         .dependencies()
         .iter()
-        .map(|s| (*s).to_string())
+        .map(|s| (*s).to_owned())
         .collect();
 
     let output = ExtensionDetailOutput {
         id: systemprompt_identifiers::PluginId::new(ext.id()),
-        name: ext.name().to_string(),
-        version: ext.version().to_string(),
+        name: ext.name().to_owned(),
+        version: ext.version().to_owned(),
         priority: ext.priority(),
         source: ExtensionSource::Compiled,
         dependencies,
@@ -141,7 +141,7 @@ fn show_manifest(id: &str) -> Option<Result<CommandResult<ExtensionDetailOutput>
     let output = ExtensionDetailOutput {
         id: systemprompt_identifiers::PluginId::new(name.clone()),
         name: name.clone(),
-        version: "manifest".to_string(),
+        version: "manifest".to_owned(),
         priority: 100,
         source: ExtensionSource::Manifest,
         dependencies: vec![],

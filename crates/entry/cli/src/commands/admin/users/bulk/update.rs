@@ -92,7 +92,7 @@ pub(crate) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<Com
     if users.is_empty() {
         let output = BulkUpdateOutput {
             updated: 0,
-            message: "No users match the specified filters".to_string(),
+            message: "No users match the specified filters".to_owned(),
         };
         return Ok(CommandResult::text(UpdateResult::Executed(output)).with_title("Bulk Update"));
     }
