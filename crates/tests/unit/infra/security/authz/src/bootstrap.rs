@@ -154,7 +154,7 @@ async fn webhook_mode_with_url_yields_webhook_hook() {
             assert_eq!(policy, "authz_hook_fault");
             assert!(matches!(
                 reason,
-                DenyReason::HookUnavailable { policy: ref p } if p == "authz_hook_fault"
+                DenyReason::HookUnavailable { policy: p } if p == "authz_hook_fault"
             ));
         },
         AuthzDecision::Allow => panic!("unreachable webhook must deny, got Allow"),

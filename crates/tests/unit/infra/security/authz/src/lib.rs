@@ -11,6 +11,8 @@ mod bootstrap;
 #[cfg(test)]
 mod decision_schema;
 #[cfg(test)]
+mod entity_row;
+#[cfg(test)]
 mod hook_runtime;
 #[cfg(test)]
 mod profile_governance;

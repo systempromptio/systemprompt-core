@@ -1,16 +1,14 @@
-//! Bootstrap-time projection of [`AccessControlConfig`] into
-//! `access_control_rules`.
+//! Bootstrap-time projection of [`AccessControlConfig`] into the two-table
+//! authz schema (`access_control_entities` + `access_control_rules`).
 //!
 //! This is the only sanctioned YAML → DB ingestion path for authorization
-//! rules. It mirrors `systemprompt_agent::services::AgentIngestionService`
-//! and the content/skill ingestion services in spirit: a domain object
-//! parsed from disk is upserted into a typed repository, with explicit
-//! `override_existing` and `delete_orphans` knobs.
+//! rules. Direction is fixed (YAML → DB). There is no opposite. Per-user
+//! overrides (`rule_type='user'`) are runtime state and are *never* touched
+//! here, regardless of `delete_orphans`.
 //!
-//! Direction is fixed (YAML → DB). There is no opposite. Per-user
-//! overrides (`rule_type='user'`) are runtime state and are *never*
-//! touched here, regardless of `delete_orphans`. Sentinel default-included
-//! rows (`rule_value='__default__'`) are also preserved.
+//! Every rule's `entity_id` is also upserted into `access_control_entities`
+//! with `default_included = false` so the FK on `access_control_rules` is
+//! satisfied and the resolver does not treat the entity as `UnknownEntity`.
 
 use std::sync::Arc;
 
@@ -20,9 +18,9 @@ use systemprompt_identifiers::RuleId;
 
 use super::config::{AccessControlConfig, RuleEntry};
 use super::error::{AuthzError, AuthzResult};
-use super::types::RuleType;
+use super::types::{EntityKind, RuleType};
 
-const DEFAULT_SENTINEL_VALUE: &str = "__default__";
+const SOURCE_LABEL: &str = "ingestion:access_control_config";
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestOptions {
@@ -76,9 +74,7 @@ impl AccessControlIngestionService {
                 r#"
                 DELETE FROM access_control_rules
                 WHERE rule_type IN ('role', 'department')
-                  AND rule_value <> $1
                 "#,
-                DEFAULT_SENTINEL_VALUE,
             )
             .execute(&mut *tx)
             .await?;
@@ -86,6 +82,7 @@ impl AccessControlIngestionService {
         }
 
         for target in &targets {
+            upsert_entity_row(&mut tx, target).await?;
             let outcome = upsert_target(&mut tx, target, options.override_existing).await?;
             match outcome {
                 UpsertOutcome::Inserted => report.rules_inserted += 1,
@@ -114,7 +111,7 @@ impl AccessControlIngestionService {
 
 #[derive(Debug)]
 struct Target<'a> {
-    entity_type: &'a str,
+    entity_kind: EntityKind,
     entity_id: &'a str,
     rule_type: RuleType,
     rule_value: &'a str,
@@ -131,7 +128,7 @@ fn expand_targets(rules: &[RuleEntry]) -> Vec<Target<'_>> {
         };
         for role in &rule.roles {
             out.push(Target {
-                entity_type: rule.entity_type.as_str(),
+                entity_kind: rule.entity_type,
                 entity_id: rule.entity_id.as_str(),
                 rule_type: RuleType::Role,
                 rule_value: role.as_str(),
@@ -141,7 +138,7 @@ fn expand_targets(rules: &[RuleEntry]) -> Vec<Target<'_>> {
         }
         for dept in &rule.departments {
             out.push(Target {
-                entity_type: rule.entity_type.as_str(),
+                entity_kind: rule.entity_type,
                 entity_id: rule.entity_id.as_str(),
                 rule_type: RuleType::Department,
                 rule_value: dept.as_str(),
@@ -160,6 +157,29 @@ enum UpsertOutcome {
     Skipped,
 }
 
+async fn upsert_entity_row(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    target: &Target<'_>,
+) -> AuthzResult<()> {
+    // Why: the rule FK requires the entity to exist; we never want to
+    // clobber an existing default_included flag set by a higher-priority
+    // loader (the publish-pipeline bootstrap pass), so this only inserts
+    // missing rows.
+    sqlx::query!(
+        r#"
+        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
+        VALUES ($1, $2, false, $3)
+        ON CONFLICT (entity_type, entity_id) DO NOTHING
+        "#,
+        target.entity_kind.as_str(),
+        target.entity_id,
+        SOURCE_LABEL,
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
 async fn upsert_target(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     target: &Target<'_>,
@@ -172,7 +192,7 @@ async fn upsert_target(
         WHERE entity_type = $1 AND entity_id = $2
           AND rule_type = $3 AND rule_value = $4
         "#,
-        target.entity_type,
+        target.entity_kind.as_str(),
         target.entity_id,
         target.rule_type.to_string(),
         target.rule_value,
@@ -209,12 +229,11 @@ async fn upsert_target(
         sqlx::query!(
             r#"
             INSERT INTO access_control_rules
-                (id, entity_type, entity_id, rule_type, rule_value, access,
-                 default_included, justification)
-            VALUES ($1, $2, $3, $4, $5, $6, false, $7)
+                (id, entity_type, entity_id, rule_type, rule_value, access, justification)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
             id.as_str(),
-            target.entity_type,
+            target.entity_kind.as_str(),
             target.entity_id,
             target.rule_type.to_string(),
             target.rule_value,

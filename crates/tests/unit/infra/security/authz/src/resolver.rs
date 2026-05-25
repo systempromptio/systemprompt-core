@@ -11,7 +11,6 @@ fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {
         rule_type,
         rule_value: value.into(),
         access,
-        default_included: false,
         justification: None,
     }
 }

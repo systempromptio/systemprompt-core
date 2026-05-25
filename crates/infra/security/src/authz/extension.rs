@@ -19,6 +19,16 @@ impl Extension for AuthzExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::new(
+                "access_control_entities",
+                include_str!("../../schema/access_control_entities.sql"),
+            )
+            .with_required_columns(vec![
+                "entity_type".into(),
+                "entity_id".into(),
+                "default_included".into(),
+                "source".into(),
+            ]),
+            SchemaDefinition::new(
                 "access_control_rules",
                 include_str!("../../schema/access_control_rules.sql"),
             )

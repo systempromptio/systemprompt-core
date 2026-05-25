@@ -140,9 +140,27 @@ pub struct AccessRule {
     pub rule_type: RuleType,
     pub rule_value: String,
     pub access: Access,
-    pub default_included: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub justification: Option<String>,
+}
+
+/// One row from `access_control_entities`.
+///
+/// Owns the per-entity `default_included` flag and a provenance string
+/// identifying which loader pass first registered the entity
+/// (`"profile:<name>"`, `"roles.yaml"`, `"departments.yaml"`, or `"legacy:*"`
+/// for pre-split rows). Callers pair this with [`AccessRule`]s from
+/// `access_control_rules` and hand both to [`super::resolver::resolve`].
+///
+/// A `None` lookup result means the entity is unknown to access control and
+/// the resolver returns [`DenyReason::UnknownEntity`] rather than the generic
+/// `NotAssigned`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EntityRow {
+    pub kind: EntityKind,
+    pub id: String,
+    pub default_included: bool,
+    pub source: String,
 }
 
 /// Why an [`AuthzRequest`] was allowed. Carries enough structure for the

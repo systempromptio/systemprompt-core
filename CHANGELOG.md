@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- **`access_control_rules` split into `access_control_entities` + `access_control_rules`.** Migration `007_split_acl_entities.sql` creates the new catalog table (`entity_type`, `entity_id`, `default_included`, `source`, `created_at`, `updated_at`, PK on `(entity_type, entity_id)`), promotes every legacy sentinel row (`rule_type='role' AND rule_value='__default__'`) into it with `source='legacy:sentinel'`, back-fills derived entities for orphan grants with `source='legacy:rule-derived'`, deletes the sentinel rows, drops `access_control_rules.default_included` and `idx_acl_default`, then adds a composite FK on `access_control_rules(entity_type, entity_id)` referencing the catalog. The migration also deletes any pre-existing `gateway_model` rows (the kind was removed in 0.11.2) before tightening the rules check constraint.
+- **`AccessRule::default_included` field removed.** The flag now lives on `EntityRow` (new type in `authz::types`). `AccessRule`'s serde wire shape loses the field — every deserialisation site that constructed `AccessRule` literals must drop it; integration tests too.
+- **`AccessControlRepository` rewritten to a two-table API.** New: `get_entity(EntityKind, &str) -> AuthzResult<Option<EntityRow>>`, `upsert_entity(EntityKind, &str, default_included: bool, source: &str) -> AuthzResult<()>`, `list_entities(EntityKind) -> AuthzResult<Vec<EntityRow>>`. Removed: `get_default_included`, `set_default_included` — callers must transit through `get_entity` / `upsert_entity` (a `None` lookup now signals `UnknownEntity` to the resolver). `list_rules_for_entity` / `list_rules_bulk` no longer filter the sentinel rule_value — the sentinel scheme is gone.
+- **`AccessControlIngestionService` upserts entity rows alongside grants.** Each rule in the YAML config now produces an `access_control_entities` row (`source='ingestion:access_control_config'`, `default_included=false`) before the grant is inserted, so the FK on `access_control_rules` is satisfied. `delete_orphans` no longer needs to preserve the sentinel — it sweeps every `role`/`department` rule.
+
+### Added
+
+- **`systemprompt admin access-control lint` CLI subcommand.** Reads `access_control_entities` + `access_control_rules` and reports two failure modes: rules pointing at no catalog row (`UNKNOWN`) and catalog rows with `default_included=false` and zero grants (`UNREACHABLE`). Exits non-zero on findings so it can gate CI.
+- **`EntityRow` struct** in `authz::types` — `{ kind: EntityKind, id: String, default_included: bool, source: String }`. Round-trips through serde; re-exported from `authz`.
+- **Per-crate test for `EntityRow` serde + AccessRule regression** in `crates/tests/unit/infra/security/authz/src/entity_row.rs`.
+
 ## [0.11.2] - 2026-05-25
 
 ### Breaking

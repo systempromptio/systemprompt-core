@@ -1,12 +1,11 @@
-//! `AccessControlRepository` — sqlx-backed access to `access_control_rules`.
+//! `AccessControlRepository` — sqlx-backed access to the two-table authz schema.
 //!
-//! Generic over `entity_type` so the same repository serves the gateway
-//! (`gateway_route`), MCP (`mcp_server`), and any future enforcement site.
-//! The `default_included` per-entity flag is encoded as a sentinel row
-//! (`rule_type='role'`, `rule_value='__default__'`) inside the same table;
-//! [`AccessControlRepository::list_rules_for_entity`] and
-//! [`AccessControlRepository::list_rules_bulk`] filter that sentinel out so
-//! callers only see real assignments.
+//! `access_control_entities` owns one row per `(entity_type, entity_id)` and
+//! carries the `default_included` flag plus a `source` provenance string.
+//! `access_control_rules` is the per-(entity, subject) grant table, with a
+//! foreign key back to the entity catalog. Callers fetch the entity row
+//! first (a `None` result signals an entity unknown to access control), then
+//! list rules for it, and hand both to [`super::resolver::resolve`].
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -17,9 +16,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::RuleId;
 
 use super::error::{AuthzError, AuthzResult};
-use super::types::{Access, AccessRule, EntityKind, RuleType};
-
-const DEFAULT_SENTINEL_VALUE: &str = "__default__";
+use super::types::{Access, AccessRule, EntityKind, EntityRow, RuleType};
 
 #[derive(Debug, Clone)]
 pub struct ExportRuleRow {
@@ -38,10 +35,9 @@ pub struct UpsertRuleParams<'a> {
     pub rule_type: RuleType,
     pub rule_value: &'a str,
     pub access: Access,
-    /// Operator-supplied note explaining *why* this rule exists.
-    /// Surfaced in the matrix tooltip and in the audit row's
-    /// `evaluated_rules` JSON when the rule decides. `None` means
-    /// the operator declined to give a reason.
+    /// Operator-supplied note explaining *why* this rule exists. Surfaced in
+    /// the matrix tooltip and in the audit row's `evaluated_rules` JSON when
+    /// the rule decides. `None` means the operator declined to give a reason.
     pub justification: Option<&'a str>,
 }
 
@@ -67,6 +63,94 @@ impl AccessControlRepository {
         Self { pool, write_pool }
     }
 
+    /// Look up one entity catalog row. `Ok(None)` means the entity has no
+    /// catalog row at all (publish-pipeline bootstrap gap) — the resolver
+    /// turns this into [`super::DenyReason::UnknownEntity`].
+    pub async fn get_entity(
+        &self,
+        entity_type: EntityKind,
+        entity_id: &str,
+    ) -> AuthzResult<Option<EntityRow>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT entity_type, entity_id, default_included, source
+            FROM access_control_entities
+            WHERE entity_type = $1 AND entity_id = $2
+            "#,
+            entity_type.as_str(),
+            entity_id,
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        Ok(Some(EntityRow {
+            kind: EntityKind::from_str(&row.entity_type)?,
+            id: row.entity_id,
+            default_included: row.default_included,
+            source: row.source,
+        }))
+    }
+
+    /// Upsert an entity catalog row. Always overwrites `default_included` and
+    /// `source` so the most recent bootstrap pass wins — the publish pipeline
+    /// is the source of truth and runs ahead of YAML grant ingestion.
+    pub async fn upsert_entity(
+        &self,
+        entity_type: EntityKind,
+        entity_id: &str,
+        default_included: bool,
+        source: &str,
+    ) -> AuthzResult<()> {
+        sqlx::query!(
+            r#"
+            INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (entity_type, entity_id) DO UPDATE
+            SET default_included = EXCLUDED.default_included,
+                source = EXCLUDED.source,
+                updated_at = NOW()
+            "#,
+            entity_type.as_str(),
+            entity_id,
+            default_included,
+            source,
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Bulk-fetch every catalog row for a given kind. Used by the CLI lint and
+    /// the publish-pipeline validator to detect rules pointing at entities
+    /// the bootstrap pass never registered.
+    pub async fn list_entities(&self, entity_type: EntityKind) -> AuthzResult<Vec<EntityRow>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT entity_type, entity_id, default_included, source
+            FROM access_control_entities
+            WHERE entity_type = $1
+            ORDER BY entity_id
+            "#,
+            entity_type.as_str(),
+        )
+        .fetch_all(&*self.pool)
+        .await?;
+
+        let mut out = Vec::with_capacity(rows.len());
+        for row in rows {
+            out.push(EntityRow {
+                kind: EntityKind::from_str(&row.entity_type)?,
+                id: row.entity_id,
+                default_included: row.default_included,
+                source: row.source,
+            });
+        }
+        Ok(out)
+    }
+
     pub async fn list_role_department_rules_for_export(&self) -> AuthzResult<Vec<ExportRuleRow>> {
         let rows = sqlx::query_as!(
             ExportRuleRow,
@@ -74,7 +158,6 @@ impl AccessControlRepository {
             SELECT entity_type, entity_id, rule_type, rule_value, access, justification
             FROM access_control_rules
             WHERE rule_type IN ('role', 'department')
-              AND rule_value <> '__default__'
             ORDER BY entity_type, entity_id, access, rule_type, rule_value
             "#,
         )
@@ -90,7 +173,7 @@ impl AccessControlRepository {
     ) -> AuthzResult<Vec<AccessRule>> {
         let rows = sqlx::query!(
             r#"
-            SELECT id, rule_type, rule_value, access, default_included, justification
+            SELECT id, rule_type, rule_value, access, justification
             FROM access_control_rules
             WHERE entity_type = $1 AND entity_id = $2
             ORDER BY rule_type, rule_value
@@ -103,15 +186,11 @@ impl AccessControlRepository {
 
         let mut out = Vec::with_capacity(rows.len());
         for row in rows {
-            if is_sentinel(&row.rule_type, &row.rule_value) {
-                continue;
-            }
             out.push(AccessRule {
                 id: RuleId::new(row.id),
                 rule_type: RuleType::from_str(&row.rule_type)?,
                 rule_value: row.rule_value,
                 access: Access::from_str(&row.access)?,
-                default_included: row.default_included,
                 justification: row.justification,
             });
         }
@@ -133,7 +212,7 @@ impl AccessControlRepository {
 
         let rows = sqlx::query!(
             r#"
-            SELECT entity_id, id, rule_type, rule_value, access, default_included, justification
+            SELECT entity_id, id, rule_type, rule_value, access, justification
             FROM access_control_rules
             WHERE entity_type = $1 AND entity_id = ANY($2)
             ORDER BY entity_id, rule_type, rule_value
@@ -145,15 +224,11 @@ impl AccessControlRepository {
         .await?;
 
         for row in rows {
-            if is_sentinel(&row.rule_type, &row.rule_value) {
-                continue;
-            }
             let rule = AccessRule {
                 id: RuleId::new(row.id),
                 rule_type: RuleType::from_str(&row.rule_type)?,
                 rule_value: row.rule_value,
                 access: Access::from_str(&row.access)?,
-                default_included: row.default_included,
                 justification: row.justification,
             };
             out.entry(row.entity_id).or_default().push(rule);
@@ -161,6 +236,9 @@ impl AccessControlRepository {
         Ok(out)
     }
 
+    /// Insert or update a grant row. Fails with a foreign-key violation if no
+    /// entity catalog row exists — register the entity via
+    /// [`Self::upsert_entity`] first.
     pub async fn upsert_rule(&self, params: UpsertRuleParams<'_>) -> AuthzResult<AccessRule> {
         let id = RuleId::generate();
         let rule_type_str = params.rule_type.to_string();
@@ -168,14 +246,14 @@ impl AccessControlRepository {
         let row = sqlx::query!(
             r#"
             INSERT INTO access_control_rules
-                (id, entity_type, entity_id, rule_type, rule_value, access, default_included, justification)
-            VALUES ($1, $2, $3, $4, $5, $6, false, $7)
+                (id, entity_type, entity_id, rule_type, rule_value, access, justification)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (entity_type, entity_id, rule_type, rule_value)
             DO UPDATE SET
                 access = EXCLUDED.access,
                 justification = COALESCE(EXCLUDED.justification, access_control_rules.justification),
                 updated_at = NOW()
-            RETURNING id, rule_type, rule_value, access, default_included, justification
+            RETURNING id, rule_type, rule_value, access, justification
             "#,
             id.as_str(),
             params.entity_type.as_str(),
@@ -193,7 +271,6 @@ impl AccessControlRepository {
             rule_type: RuleType::from_str(&row.rule_type)?,
             rule_value: row.rule_value,
             access: Access::from_str(&row.access)?,
-            default_included: row.default_included,
             justification: row.justification,
         })
     }
@@ -223,72 +300,4 @@ impl AccessControlRepository {
         .await?;
         Ok(result.rows_affected() > 0)
     }
-
-    pub async fn set_default_included(
-        &self,
-        entity_type: EntityKind,
-        entity_id: &str,
-        value: bool,
-    ) -> AuthzResult<()> {
-        if value {
-            let id = RuleId::generate();
-            sqlx::query!(
-                r#"
-                INSERT INTO access_control_rules
-                    (id, entity_type, entity_id, rule_type, rule_value, access, default_included)
-                VALUES ($1, $2, $3, 'role', $4, 'allow', true)
-                ON CONFLICT (entity_type, entity_id, rule_type, rule_value)
-                DO UPDATE SET default_included = true, updated_at = NOW()
-                "#,
-                id.as_str(),
-                entity_type.as_str(),
-                entity_id,
-                DEFAULT_SENTINEL_VALUE,
-            )
-            .execute(&*self.write_pool)
-            .await?;
-        } else {
-            sqlx::query!(
-                r#"
-                DELETE FROM access_control_rules
-                WHERE entity_type = $1
-                  AND entity_id = $2
-                  AND rule_type = 'role'
-                  AND rule_value = $3
-                "#,
-                entity_type.as_str(),
-                entity_id,
-                DEFAULT_SENTINEL_VALUE,
-            )
-            .execute(&*self.write_pool)
-            .await?;
-        }
-        Ok(())
-    }
-
-    pub async fn get_default_included(
-        &self,
-        entity_type: EntityKind,
-        entity_id: &str,
-    ) -> AuthzResult<bool> {
-        let row = sqlx::query!(
-            r#"
-            SELECT default_included FROM access_control_rules
-            WHERE entity_type = $1
-              AND entity_id = $2
-              AND rule_type = 'role'
-              AND rule_value = $3
-            "#,
-            entity_type.as_str(),
-            entity_id,
-            DEFAULT_SENTINEL_VALUE,
-        )
-        .fetch_optional(&*self.pool)
-        .await?;
-        Ok(row.is_some_and(|r| r.default_included))
-    }
-}
-
-fn is_sentinel(rule_type: &str, rule_value: &str) -> bool {
-    rule_type == "role" && rule_value == DEFAULT_SENTINEL_VALUE
 }

@@ -31,5 +31,5 @@ pub use resolver::{ResolveInput, resolve};
 pub use runtime::{SharedAuthzHook, build_authz_hook};
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
-    DenyReason, EntityKind, EntityRef, MatchedBy, RuleType,
+    DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType,
 };
