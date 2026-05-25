@@ -33,7 +33,7 @@ impl CloudApiClient {
 
     pub async fn deploy(&self, tenant_id: &TenantId, image: &str) -> CloudResult<DeployResponse> {
         let request = DeployRequest {
-            image: image.to_string(),
+            image: image.to_owned(),
         };
         let response: ApiResponse<DeployResponse> = self
             .tenant_post(&ApiPaths::tenant_deploy(tenant_id), &request)
@@ -109,7 +109,7 @@ impl CloudApiClient {
         domain: &str,
     ) -> CloudResult<CustomDomainResponse> {
         let request = SetCustomDomainRequest {
-            domain: domain.to_string(),
+            domain: domain.to_owned(),
         };
         let response: ApiResponse<CustomDomainResponse> = self
             .tenant_post(&ApiPaths::tenant_custom_domain(tenant_id), &request)

@@ -77,9 +77,9 @@ pub async fn run_checkout_callback_flow(
             api_client.api_url(),
             api_client.token(),
         )?),
-        success_template: templates.success_html.to_string(),
-        error_template: templates.error_html.to_string(),
-        waiting_template: templates.waiting_html.to_string(),
+        success_template: templates.success_html.to_owned(),
+        error_template: templates.error_html.to_owned(),
+        waiting_template: templates.waiting_html.to_owned(),
     };
 
     let app = Router::new()
@@ -110,10 +110,10 @@ pub async fn run_checkout_callback_flow(
 
     tokio::select! {
         result = rx => {
-            result.map_err(|_e| CloudError::CheckoutFlow { message: "Checkout cancelled".to_string() })?
+            result.map_err(|_e| CloudError::CheckoutFlow { message: "Checkout cancelled".to_owned() })?
         }
         _ = server => {
-            Err(CloudError::CheckoutFlow { message: "Server stopped unexpectedly".to_string() })
+            Err(CloudError::CheckoutFlow { message: "Server stopped unexpectedly".to_owned() })
         }
         () = tokio::time::sleep(Duration::from_secs(CALLBACK_TIMEOUT_SECS)) => {
             Err(CloudError::CheckoutFlow { message: format!("Checkout timed out after {CALLBACK_TIMEOUT_SECS} seconds") })

@@ -29,7 +29,7 @@ where
                     ProvisioningEventType::TenantReady => return Ok(event),
                     ProvisioningEventType::ProvisioningFailed => {
                         return Err(CloudError::ProvisioningFailed {
-                            message: event.message.unwrap_or_else(|| "Unknown error".to_string()),
+                            message: event.message.unwrap_or_else(|| "Unknown error".to_owned()),
                         });
                     },
                     _ => {},
@@ -60,7 +60,7 @@ async fn wait_for_provisioning_polling(
                     return Ok(ProvisioningEvent {
                         tenant_id: tenant_id.clone(),
                         event_type: ProvisioningEventType::TenantReady,
-                        status: "ready".to_string(),
+                        status: "ready".to_owned(),
                         message: status.message,
                         app_url: status.app_url,
                         fly_app_name: None,
@@ -68,9 +68,7 @@ async fn wait_for_provisioning_polling(
                 },
                 "failed" => {
                     return Err(CloudError::ProvisioningFailed {
-                        message: status
-                            .message
-                            .unwrap_or_else(|| "Unknown error".to_string()),
+                        message: status.message.unwrap_or_else(|| "Unknown error".to_owned()),
                     });
                 },
                 _ => {

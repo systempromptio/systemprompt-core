@@ -80,7 +80,7 @@ impl SessionStore {
 
     pub fn set_active_with_profile(&mut self, key: &SessionKey, profile_name: &str) {
         self.active_key = Some(key.as_storage_key());
-        self.active_profile_name = Some(profile_name.to_string());
+        self.active_profile_name = Some(profile_name.to_owned());
         self.updated_at = Utc::now();
     }
 
@@ -91,7 +91,7 @@ impl SessionStore {
         profile_path: PathBuf,
     ) {
         self.active_key = Some(key.as_storage_key());
-        self.active_profile_name = Some(profile_name.to_string());
+        self.active_profile_name = Some(profile_name.to_owned());
 
         if let Some(session) = self.sessions.get_mut(&key.as_storage_key()) {
             session.update_profile_path(profile_path);

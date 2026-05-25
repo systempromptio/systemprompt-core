@@ -34,7 +34,7 @@ impl CloudApiClient {
     ) -> CloudResult<CheckoutResponse> {
         let request = CheckoutRequest {
             price_id: price_id.clone(),
-            region: region.to_string(),
+            region: region.to_owned(),
             redirect_uri: redirect_uri.map(String::from),
         };
         self.post(ApiPaths::CLOUD_CHECKOUT, &request).await
@@ -42,7 +42,7 @@ impl CloudApiClient {
 
     pub async fn report_activity(&self, event_type: &str, user_id: &UserId) -> CloudResult<()> {
         let request = ActivityRequest {
-            event: event_type.to_string(),
+            event: event_type.to_owned(),
             timestamp: Utc::now().to_rfc3339(),
             data: ActivityData {
                 user_id: user_id.clone(),
