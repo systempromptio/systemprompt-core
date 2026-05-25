@@ -46,7 +46,7 @@ pub struct CreateArgs {
     pub changefreq: String,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentTypeCreateOutput>> {

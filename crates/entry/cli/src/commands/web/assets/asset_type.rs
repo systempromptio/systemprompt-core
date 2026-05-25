@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::super::types::AssetType;
 
-pub(crate) fn determine_asset_type(path: &Path, relative_path: &str) -> AssetType {
+pub(super) fn determine_asset_type(path: &Path, relative_path: &str) -> AssetType {
     let extension = path
         .extension()
         .and_then(|e| e.to_str())

@@ -22,7 +22,7 @@ pub struct ShowArgs {
     pub preview_lines: usize,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<TemplateDetailOutput>> {

@@ -19,7 +19,7 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<ContentTypeDetailOutput>> {
