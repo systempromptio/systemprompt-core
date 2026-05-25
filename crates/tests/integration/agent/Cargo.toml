@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-agent-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-agent A2A task state machine and message ordering"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-agent = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }

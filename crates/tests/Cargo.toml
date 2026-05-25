@@ -10,6 +10,7 @@
 [workspace]
 members = [
     # Integration tests
+    "integration/agent",
     "integration/analytics",
     "integration/cloud",
     "integration/database",
