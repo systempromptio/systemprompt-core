@@ -39,7 +39,7 @@ pub enum TokenAuthorityError {
 pub type TokenAuthorityResult<T> = Result<T, TokenAuthorityError>;
 
 #[expect(clippy::struct_field_names)]
-struct Authority {
+pub(crate) struct Authority {
     signing_key: RsaSigningKey,
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
