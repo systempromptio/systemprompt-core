@@ -81,7 +81,7 @@ fn test_create_mcp_extensions_params_contain_supported_protocols() {
     let params = result[0].params.as_ref().unwrap();
     let protocols = params["supported_protocols"].as_array().unwrap();
     assert_eq!(protocols.len(), 1);
-    assert_eq!(protocols[0], "2024-11-05");
+    assert_eq!(protocols[0], "2025-11-25");
 }
 
 #[test]
