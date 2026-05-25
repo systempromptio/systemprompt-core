@@ -8,8 +8,6 @@ use systemprompt_models::profile::{
 };
 
 pub fn resolve_catalog(gateway: &mut GatewayConfig, profile_dir: &Path) -> GatewayResult<()> {
-    gateway.validate_routes()?;
-
     let Some(rel) = gateway.catalog_path.as_ref() else {
         return Ok(());
     };

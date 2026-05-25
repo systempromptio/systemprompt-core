@@ -15,6 +15,7 @@ use super::canonical_response::{CanonicalEvent, CanonicalResponse};
 #[derive(Debug)]
 pub struct OutboundCtx<'a> {
     pub route: &'a GatewayRoute,
+    pub endpoint: &'a str,
     pub api_key: &'a str,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,

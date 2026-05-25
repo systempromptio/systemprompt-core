@@ -248,7 +248,6 @@ fn build_authz_request(
         systemprompt_models::profile::synthesize_route_id(
             &route.model_pattern,
             route.provider.as_str(),
-            &route.endpoint,
         )
     } else {
         route.id.clone()

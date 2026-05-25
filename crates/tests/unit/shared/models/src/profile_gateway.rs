@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use systemprompt_identifiers::{ProviderId, RouteId, SecretName};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
-    GatewayConfig, GatewayRoute, slugify_pattern, synthesize_route_id,
+    GatewayCatalog, GatewayConfig, GatewayModel, GatewayProfileError, GatewayProvider,
+    GatewayRoute, slugify_pattern, synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
@@ -9,8 +10,6 @@ fn route(pattern: &str) -> GatewayRoute {
         id: RouteId::new(""),
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new("test"),
-        endpoint: "https://example.com".to_owned(),
-        api_key_secret: SecretName::new("secret"),
         upstream_model: None,
         extra_headers: HashMap::new(),
         pricing: None,
@@ -42,8 +41,6 @@ fn route_finds_matching_model() {
             id: RouteId::new(""),
             model_pattern: "kimi-*".to_owned(),
             provider: ProviderId::new("moonshot"),
-            endpoint: "https://api.moonshot.ai/v1".to_owned(),
-            api_key_secret: SecretName::new("moonshot"),
             upstream_model: Some("moonshot-v1-32k".to_owned()),
             extra_headers: HashMap::new(),
             pricing: None,
@@ -69,15 +66,15 @@ fn slugify_replaces_star_and_non_alnum() {
 
 #[test]
 fn synthesize_route_id_is_stable_and_input_dependent() {
-    let a = synthesize_route_id("claude-*", "anthropic", "https://api.anthropic.com");
-    let b = synthesize_route_id("claude-*", "anthropic", "https://api.anthropic.com");
+    let a = synthesize_route_id("claude-*", "anthropic");
+    let b = synthesize_route_id("claude-*", "anthropic");
     assert_eq!(a, b, "synthesize_route_id must be deterministic");
     assert!(a.as_str().starts_with("claude-star-"));
 
-    let c = synthesize_route_id("claude-*", "anthropic", "https://other.example");
-    assert_ne!(a, c, "endpoint change must produce a different id");
+    let c = synthesize_route_id("claude-*", "openai");
+    assert_ne!(a, c, "provider change must produce a different id");
 
-    let d = synthesize_route_id("gpt-*", "anthropic", "https://api.anthropic.com");
+    let d = synthesize_route_id("gpt-*", "anthropic");
     assert_ne!(a, d, "model_pattern change must produce a different id");
 }
 
@@ -92,50 +89,59 @@ fn ensure_id_backfills_empty_id() {
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
 }
 
-fn config_with_endpoint(endpoint: &str) -> GatewayConfig {
-    let mut r = route("*");
-    r.endpoint = endpoint.to_owned();
-    GatewayConfig {
-        enabled: true,
-        routes: vec![r],
-        ..GatewayConfig::default()
+fn catalog_with_endpoint(endpoint: &str) -> GatewayCatalog {
+    GatewayCatalog {
+        providers: vec![GatewayProvider {
+            name: ProviderId::new("test"),
+            endpoint: endpoint.to_owned(),
+            api_key_secret: SecretName::new("test"),
+            extra_headers: HashMap::new(),
+        }],
+        models: vec![GatewayModel {
+            id: ModelId::new("any"),
+            provider: ProviderId::new("test"),
+            aliases: Vec::new(),
+            display_name: None,
+            upstream_model: None,
+            pricing: None,
+        }],
     }
 }
 
 #[test]
-fn validate_routes_accepts_public_https_endpoint() {
+fn catalog_validate_accepts_public_https_endpoint() {
     assert!(
-        config_with_endpoint("https://api.anthropic.com/v1")
-            .validate_routes()
+        catalog_with_endpoint("https://api.anthropic.com/v1")
+            .validate()
             .is_ok()
     );
 }
 
 #[test]
-fn validate_routes_allows_loopback_http_for_local_dev() {
+fn catalog_validate_allows_loopback_http_for_local_dev() {
     assert!(
-        config_with_endpoint("http://localhost:8080")
-            .validate_routes()
+        catalog_with_endpoint("http://localhost:8080")
+            .validate()
             .is_ok()
     );
     assert!(
-        config_with_endpoint("http://127.0.0.1:8080")
-            .validate_routes()
+        catalog_with_endpoint("http://127.0.0.1:8080")
+            .validate()
             .is_ok()
     );
 }
 
 #[test]
-fn validate_routes_rejects_cloud_metadata_endpoint() {
+fn catalog_validate_rejects_cloud_metadata_endpoint() {
     assert!(
-        config_with_endpoint("http://169.254.169.254/latest/meta-data/")
-            .validate_routes()
+        catalog_with_endpoint("http://169.254.169.254/latest/meta-data/")
+            .validate()
             .is_err()
     );
 }
 
 #[test]
-fn validate_routes_rejects_private_ranges() {
+fn catalog_validate_rejects_private_ranges() {
     for endpoint in [
         "https://10.0.0.5/v1",
         "https://192.168.1.10/v1",
@@ -143,22 +149,39 @@ fn validate_routes_rejects_private_ranges() {
         "https://[fd00::1]/v1",
     ] {
         assert!(
-            config_with_endpoint(endpoint).validate_routes().is_err(),
+            catalog_with_endpoint(endpoint).validate().is_err(),
             "expected {endpoint} to be rejected as a private/ULA address"
         );
     }
 }
 
 #[test]
-fn validate_routes_rejects_non_http_scheme_and_plain_http_to_remote() {
+fn catalog_validate_rejects_non_http_scheme_and_plain_http_to_remote() {
     assert!(
-        config_with_endpoint("ftp://example.com/v1")
-            .validate_routes()
+        catalog_with_endpoint("ftp://example.com/v1")
+            .validate()
             .is_err()
     );
     assert!(
-        config_with_endpoint("http://api.anthropic.com/v1")
-            .validate_routes()
+        catalog_with_endpoint("http://api.anthropic.com/v1")
+            .validate()
             .is_err()
     );
+}
+
+#[test]
+fn validate_rejects_duplicate_route_id() {
+    let mut a = route("claude-*");
+    a.id = RouteId::new("dup");
+    let mut b = route("gpt-*");
+    b.id = RouteId::new("dup");
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![a, b],
+        ..GatewayConfig::default()
+    };
+    match config.validate() {
+        Err(GatewayProfileError::DuplicateRouteId { id }) => assert_eq!(id, "dup"),
+        other => panic!("expected DuplicateRouteId, got {other:?}"),
+    }
 }

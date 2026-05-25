@@ -54,18 +54,11 @@ pub enum GatewayProfileError {
     )]
     RouteProviderNotInCatalog { route: String, provider: String },
 
-    #[error(
-        "gateway route '{route}' endpoint '{route_endpoint}' disagrees with catalog provider '{provider}' endpoint '{catalog_endpoint}'"
-    )]
-    RouteEndpointMismatch {
-        route: String,
-        provider: String,
-        route_endpoint: String,
-        catalog_endpoint: String,
-    },
-
     #[error("gateway catalog model id or alias '{id}' is declared more than once")]
     DuplicateModelId { id: String },
+
+    #[error("gateway route id '{id}' is declared more than once")]
+    DuplicateRouteId { id: String },
 
     #[error("gateway catalog model '{model}' has no route whose pattern matches its id")]
     UnreachableModel { model: String },
@@ -135,13 +128,6 @@ impl GatewayConfig {
         self.routes.iter().find(|route| route.matches(model))
     }
 
-    pub fn validate_routes(&self) -> GatewayResult<()> {
-        for route in &self.routes {
-            validate_endpoint(&format!("route '{}'", route.model_pattern), &route.endpoint)?;
-        }
-        Ok(())
-    }
-
     #[must_use]
     pub fn is_model_exposed(&self, model: &str) -> bool {
         self.catalog
@@ -150,24 +136,24 @@ impl GatewayConfig {
     }
 
     pub fn validate(&self) -> GatewayResult<()> {
-        self.validate_routes()?;
+        let mut route_ids: std::collections::HashSet<&str> =
+            std::collections::HashSet::with_capacity(self.routes.len());
+        for route in &self.routes {
+            if !route_ids.insert(route.id.as_str()) {
+                return Err(GatewayProfileError::DuplicateRouteId {
+                    id: route.id.as_str().to_owned(),
+                });
+            }
+        }
         let Some(catalog) = self.catalog.as_ref() else {
             return Ok(());
         };
         catalog.validate()?;
         for route in &self.routes {
-            let Some(provider) = catalog.find_provider(route.provider.as_str()) else {
+            if catalog.find_provider(route.provider.as_str()).is_none() {
                 return Err(GatewayProfileError::RouteProviderNotInCatalog {
                     route: route.model_pattern.clone(),
                     provider: route.provider.as_str().to_owned(),
-                });
-            };
-            if provider.endpoint != route.endpoint {
-                return Err(GatewayProfileError::RouteEndpointMismatch {
-                    route: route.model_pattern.clone(),
-                    provider: route.provider.as_str().to_owned(),
-                    route_endpoint: route.endpoint.clone(),
-                    catalog_endpoint: provider.endpoint.clone(),
                 });
             }
         }
@@ -278,8 +264,6 @@ pub struct GatewayRoute {
     pub id: RouteId,
     pub model_pattern: String,
     pub provider: ProviderId,
-    pub endpoint: String,
-    pub api_key_secret: SecretName,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_model: Option<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -299,9 +283,12 @@ impl GatewayRoute {
 
     pub fn ensure_id(&mut self) {
         if self.id.as_str().trim().is_empty() {
-            self.id =
-                synthesize_route_id(&self.model_pattern, self.provider.as_str(), &self.endpoint);
+            self.id = synthesize_route_id(&self.model_pattern, self.provider.as_str());
         }
+    }
+
+    pub fn resolve<'a>(&self, providers: &'a [GatewayProvider]) -> Option<&'a GatewayProvider> {
+        providers.iter().find(|p| p.name == self.provider)
     }
 }
 
@@ -342,14 +329,14 @@ pub fn slugify_pattern(pattern: &str) -> String {
 }
 
 // Format: <slug>-<6 hex chars> where the hex digest is the first 6 chars of
-// DefaultHasher over (model_pattern, provider, endpoint). Mirrors the template
-// logic so ids stay identical across the core/template seam.
+// DefaultHasher over (model_pattern, provider). The collision check in
+// GatewayConfig::validate() guards against the vanishingly unlikely case of
+// two operator-authored patterns colliding on the 6-hex tail.
 #[must_use]
-pub fn synthesize_route_id(model_pattern: &str, provider: &str, endpoint: &str) -> RouteId {
+pub fn synthesize_route_id(model_pattern: &str, provider: &str) -> RouteId {
     let mut hasher = DefaultHasher::new();
     model_pattern.hash(&mut hasher);
     provider.hash(&mut hasher);
-    endpoint.hash(&mut hasher);
     let h = hasher.finish();
     let hash6: String = format!("{h:016x}").chars().take(6).collect();
     RouteId::new(format!("{}-{}", slugify_pattern(model_pattern), hash6))

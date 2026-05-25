@@ -10,8 +10,6 @@ fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> Gatewa
         id: RouteId::new(format!("{pattern}-{provider}")),
         model_pattern: pattern.to_owned(),
         provider: ProviderId::new(provider),
-        endpoint: format!("https://api.{provider}.test/v1"),
-        api_key_secret: SecretName::new(provider),
         upstream_model: None,
         extra_headers: Default::default(),
         pricing,

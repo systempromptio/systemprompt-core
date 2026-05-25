@@ -20,7 +20,7 @@ impl OutboundAdapter for AnthropicOutbound {
 
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
         let body = request::build_request_body(ctx.request, ctx.upstream_model);
-        let url = format!("{}/messages", ctx.route.endpoint.trim_end_matches('/'));
+        let url = format!("{}/messages", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
         let mut req = client

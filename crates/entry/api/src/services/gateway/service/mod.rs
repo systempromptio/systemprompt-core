@@ -83,13 +83,23 @@ impl GatewayService {
             .find_route(&request.model)
             .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;
 
+        let catalog = config.catalog.as_ref().ok_or_else(|| {
+            anyhow!("Gateway catalog is not loaded; cannot resolve provider for route")
+        })?;
+        let provider = route.resolve(&catalog.providers).ok_or_else(|| {
+            anyhow!(
+                "Gateway provider '{}' is not declared in the catalog",
+                route.provider.as_str()
+            )
+        })?;
+
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| anyhow!("Secrets not available: {e}"))?;
 
-        let upstream_api_key = secrets.get(route.api_key_secret.as_str()).ok_or_else(|| {
+        let upstream_api_key = secrets.get(provider.api_key_secret.as_str()).ok_or_else(|| {
             anyhow!(
                 "Gateway API key secret '{}' not configured",
-                route.api_key_secret.as_str()
+                provider.api_key_secret.as_str()
             )
         })?;
 
@@ -109,7 +119,7 @@ impl GatewayService {
             user_id = %ctx.user_id,
             model = %request.model,
             provider = %route.provider,
-            upstream = %route.endpoint,
+            upstream = %provider.endpoint,
             wire_protocol = %ctx.wire_protocol,
             streaming = is_streaming,
             "Gateway request dispatched"
@@ -150,6 +160,7 @@ impl GatewayService {
         let upstream_model = route.effective_upstream_model(&request.model).to_owned();
         let outbound_ctx = OutboundCtx {
             route,
+            endpoint: &provider.endpoint,
             api_key: upstream_api_key,
             request: &request,
             upstream_model: &upstream_model,
