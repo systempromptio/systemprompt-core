@@ -56,7 +56,10 @@ pub(super) fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
     }
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct EmitRunStartedParams<'a> {
     pub tx: &'a Sender<Event>,
     pub webhook_context: &'a WebhookContext,

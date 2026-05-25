@@ -35,7 +35,10 @@ impl AgentRegistry {
     // The lookup methods below are `async` to match the `AgentRegistryProvider`
     // trait surface; their bodies are pure synchronous reads of an `Arc` snapshot.
 
-    #[expect(clippy::unused_async)]
+    #[expect(
+        clippy::unused_async,
+        reason = "async signature reserved for future I/O implementation"
+    )]
     pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         self.config
             .agents
@@ -44,12 +47,18 @@ impl AgentRegistry {
             .ok_or_else(|| AgentError::NotFound(name.to_owned()))
     }
 
-    #[expect(clippy::unused_async)]
+    #[expect(
+        clippy::unused_async,
+        reason = "async signature reserved for future I/O implementation"
+    )]
     pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         Ok(self.config.agents.values().cloned().collect())
     }
 
-    #[expect(clippy::unused_async)]
+    #[expect(
+        clippy::unused_async,
+        reason = "async signature reserved for future I/O implementation"
+    )]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         Ok(self
@@ -61,7 +70,10 @@ impl AgentRegistry {
             .collect())
     }
 
-    #[expect(clippy::unused_async)]
+    #[expect(
+        clippy::unused_async,
+        reason = "async signature reserved for future I/O implementation"
+    )]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         self.config

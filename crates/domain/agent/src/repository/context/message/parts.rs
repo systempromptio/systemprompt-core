@@ -95,7 +95,10 @@ pub async fn get_message_parts(
     Ok(parts)
 }
 
-#[expect(missing_debug_implementations)]
+#[expect(
+    missing_debug_implementations,
+    reason = "params struct holds non-Debug references"
+)]
 pub struct PersistPartSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub part: &'a Part,

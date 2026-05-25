@@ -5,7 +5,6 @@ use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepContent, StepStatus};
 use systemprompt_traits::RepositoryError;
 
-#[expect(missing_debug_implementations)]
 pub(super) struct ParseStepParams {
     pub step_id: String,
     pub task_id: TaskId,
