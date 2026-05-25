@@ -1,0 +1,30 @@
+[package]
+name = "systemprompt-sync-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-sync (RFC 8693 token exchange, atomic ACL replacement, partial-deploy recovery, upload retry)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-sync = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+reqwest = { workspace = true }
+tracing = { workspace = true }
+sqlx = { workspace = true }
+chrono = { workspace = true }
+tempfile = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+wiremock = { workspace = true }
