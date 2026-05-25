@@ -63,31 +63,31 @@ impl SessionAnalytics {
         let user_agent = headers
             .get("user-agent")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let ip_address = headers
             .get("x-forwarded-for")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.split(',').next())
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim().to_owned())
             .or_else(|| {
                 headers
                     .get("x-real-ip")
                     .and_then(|v| v.to_str().ok())
-                    .map(ToString::to_string)
+                    .map(str::to_owned)
             })
             .or_else(|| socket_addr.map(|addr| addr.ip().to_string()));
 
         let fingerprint_hash = headers
             .get("x-fingerprint")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let preferred_locale = headers
             .get("accept-language")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.split(',').next())
-            .map(|s| s.trim().split(';').next().unwrap_or(s).to_string());
+            .map(|s| s.trim().split(';').next().unwrap_or(s).to_owned());
 
         let (device_type, browser, os) = user_agent
             .as_ref()
@@ -101,7 +101,7 @@ impl SessionAnalytics {
         let referrer_url = headers
             .get("referer")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let referrer_source = referrer_url
             .as_ref()
@@ -152,7 +152,7 @@ impl SessionAnalytics {
 
             if is_html_page {
                 analytics.entry_url = Some(uri.to_string());
-                analytics.landing_page = Some(uri.path().to_string());
+                analytics.landing_page = Some(uri.path().to_owned());
             }
         }
 
@@ -177,7 +177,7 @@ impl SessionAnalytics {
             q.split('&')
                 .filter_map(|param| {
                     let mut parts = param.splitn(2, '=');
-                    Some((parts.next()?.to_string(), parts.next()?.to_string()))
+                    Some((parts.next()?.to_owned(), parts.next()?.to_owned()))
                 })
                 .collect()
         })

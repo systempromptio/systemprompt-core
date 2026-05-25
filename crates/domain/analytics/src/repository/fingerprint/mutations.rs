@@ -12,7 +12,7 @@ impl FingerprintRepository {
         user_agent: Option<&str>,
         user_id: Option<&UserId>,
     ) -> Result<FingerprintReputation> {
-        let user_ids = user_id.map_or_else(Vec::new, |u| vec![u.as_str().to_string()]);
+        let user_ids = user_id.map_or_else(Vec::new, |u| vec![u.as_str().to_owned()]);
 
         let row = sqlx::query_as!(
             FingerprintReputation,

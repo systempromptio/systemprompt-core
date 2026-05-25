@@ -107,7 +107,7 @@ impl AnalyticsProvider for AnalyticsService {
         Ok(result.map(|r| AnalyticsSession {
             session_id: r.session_id,
             user_id: r.user_id,
-            fingerprint: Some(fingerprint.to_string()),
+            fingerprint: Some(fingerprint.to_owned()),
             created_at: Utc::now(),
         }))
     }
