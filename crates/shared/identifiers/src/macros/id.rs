@@ -25,7 +25,7 @@ macro_rules! define_id {
 
         impl From<&str> for $name {
             fn from(s: &str) -> Self {
-                Self(s.to_string())
+                Self(s.to_owned())
             }
         }
 
@@ -48,12 +48,11 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            #[allow(clippy::expect_used)]
+            #[expect(
+                clippy::expect_used,
+                reason = "infallible constructor reserved for already-validated inputs; callers that may pass empty must use try_new"
+            )]
             pub fn new(value: impl Into<String>) -> Self {
-                // SAFETY: `new` is the infallible constructor reserved for already-validated
-                // inputs (literals, values that round-tripped through `try_new` at a boundary).
-                // The only `try_new` failure path is the empty string; callers that may pass an
-                // empty value must use `try_new` instead.
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
             }
 
@@ -81,11 +80,11 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            #[allow(clippy::expect_used)]
+            #[expect(
+                clippy::expect_used,
+                reason = "infallible constructor reserved for already-validated inputs; untrusted input must go through try_new"
+            )]
             pub fn new(value: impl Into<String>) -> Self {
-                // SAFETY: `new` is the infallible constructor reserved for inputs the caller
-                // has already validated (compile-time literals, values that round-tripped
-                // through `try_new` at a boundary). Untrusted input must go through `try_new`.
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 
@@ -113,11 +112,11 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            #[allow(clippy::expect_used)]
+            #[expect(
+                clippy::expect_used,
+                reason = "infallible constructor reserved for already-validated inputs; untrusted input must go through try_new"
+            )]
             pub fn new(value: impl Into<String>) -> Self {
-                // SAFETY: `new` is the infallible constructor reserved for inputs the caller
-                // has already validated (compile-time literals, values that round-tripped
-                // through `try_new` at a boundary). Untrusted input must go through `try_new`.
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }
 
@@ -145,7 +144,7 @@ macro_rules! define_id {
 
         impl $name {
             pub fn system() -> Self {
-                Self("system".to_string())
+                Self("system".to_owned())
             }
         }
     };
@@ -159,7 +158,7 @@ macro_rules! define_id {
             }
 
             pub fn system() -> Self {
-                Self("system".to_string())
+                Self("system".to_owned())
             }
         }
     };
@@ -189,7 +188,7 @@ macro_rules! define_id {
 
         impl From<&str> for $name {
             fn from(s: &str) -> Self {
-                Self(s.to_string())
+                Self(s.to_owned())
             }
         }
 
@@ -231,7 +230,7 @@ macro_rules! define_id {
 
         impl From<&str> for $name {
             fn from(s: &str) -> Self {
-                Self(s.to_string())
+                Self(s.to_owned())
             }
         }
 

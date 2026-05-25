@@ -4,15 +4,15 @@ crate::define_id!(UserId, schema);
 
 impl UserId {
     pub fn anonymous() -> Self {
-        Self("anonymous".to_string())
+        Self("anonymous".to_owned())
     }
 
     pub fn system() -> Self {
-        Self("system".to_string())
+        Self("system".to_owned())
     }
 
     pub fn bootstrap(value: &'static str) -> Self {
-        Self(value.to_string())
+        Self(value.to_owned())
     }
 
     pub fn is_system(&self) -> bool {

@@ -129,6 +129,13 @@ clone_on_ref_ptr = "warn"
 separated_literal_suffix = "warn"
 try_err = "warn"
 
+map_err_ignore = "warn"
+str_to_string = "warn"
+undocumented_unsafe_blocks = "warn"
+self_named_module_files = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+
 [workspace.lints.rust]
 unsafe_code = "deny"
 missing_debug_implementations = "warn"
@@ -138,6 +145,9 @@ trivial_numeric_casts = "warn"
 unused_import_braces = "warn"
 unused_qualifications = "warn"
 variant_size_differences = "warn"
+unreachable_pub = "warn"
+unused_lifetimes = "warn"
+single_use_lifetimes = "warn"
 
 [workspace.dependencies]
 # Core dependencies

@@ -52,7 +52,7 @@ impl ProfileName {
 
     #[must_use]
     pub fn default_profile() -> Self {
-        Self("default".to_string())
+        Self("default".to_owned())
     }
 }
 

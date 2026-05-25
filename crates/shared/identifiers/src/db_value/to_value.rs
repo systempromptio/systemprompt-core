@@ -16,7 +16,7 @@ pub trait ToDbValue: Send + Sync {
 
 impl ToDbValue for &str {
     fn to_db_value(&self) -> DbValue {
-        DbValue::String((*self).to_string())
+        DbValue::String((*self).to_owned())
     }
 
     fn null_db_value() -> DbValue {

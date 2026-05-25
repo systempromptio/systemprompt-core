@@ -9,6 +9,12 @@
 ### Fixed
 
 - **MCP protocol-version reporting unified on `rmcp::model::ProtocolVersion::LATEST`** (currently `2025-11-25`). `McpDeploymentProvider::protocol_version` and the `supported_protocols` field of the `systemprompt:mcp-tools` agent extension previously returned a hardcoded `2024-11-05`, while `McpServiceProvider::protocol_version` already used the SDK value.
+- **`define_id!` macro no longer emits `&str::to_string()` or unannotated `#[allow]` attributes.** The `From<&str>` impl, the `system`/`bootstrap`/`Default` constructors in `agent`, `session`, `trace`, `profile`, `user`, `client`, and `policy`, and the `db_value` conversions now use `.to_owned()`; the macro's internal `#[allow(clippy::expect_used)]` is replaced with `#[expect(..., reason = "...")]`. Eliminates ~2,700 warnings under the newly enabled `clippy::str_to_string`, `clippy::allow_attributes`, and `clippy::allow_attributes_without_reason` lints.
+
+### Changed
+
+- **Workspace lint surface tightened.** Added `clippy::map_err_ignore`, `clippy::str_to_string`, `clippy::undocumented_unsafe_blocks`, `clippy::self_named_module_files`, `clippy::allow_attributes`, `clippy::allow_attributes_without_reason`, `rust::unreachable_pub`, `rust::unused_lifetimes`, and `rust::single_use_lifetimes` at `warn`. The previously-disabled `cognitive-complexity-threshold` and `too-many-lines-threshold` in `clippy.toml` are re-engaged at `30` and `150` respectively (from `999999`). `rustfmt.toml` `edition` now matches the workspace at `"2024"`.
+- **Two new `just` recipes:** `just machete` (unused dependencies via `cargo-machete`) and `just hack` (feature-powerset build via `cargo-hack`).
 
 ## [0.11.1] - 2026-05-22
 

@@ -10,7 +10,7 @@ msrv = "1.82"
 # Target: 15 (world-class code should be simple)
 # Warn at: 15, Error would break too much existing code
 # TEMPORARILY DISABLED: cognitive-complexity-threshold = 15
-cognitive-complexity-threshold = 999999
+cognitive-complexity-threshold = 30
 
 # TYPE COMPLEXITY - Avoid overly complex types
 type-complexity-threshold = 250
@@ -18,7 +18,7 @@ type-complexity-threshold = 250
 # FUNCTION SIZE - Keep functions focused and readable
 # Target: 75 lines maximum per function
 # TEMPORARILY DISABLED: too-many-lines-threshold = 75
-too-many-lines-threshold = 999999
+too-many-lines-threshold = 150
 
 # FUNCTION PARAMETERS - Use structs when exceeding threshold
 # Target: 5 parameters (consider builder pattern or config struct)
