@@ -12,12 +12,12 @@ use systemprompt_database::{Database, MigrationConfig, install_extension_schemas
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_models::auth::UserRole;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, AppContextParts};
-use crate::context_loaders;
 use crate::error::{RuntimeError, RuntimeResult};
 use crate::registry::ModuleApiRegistry;
 
@@ -210,9 +210,32 @@ async fn resolve_and_install_system_admin(
     let cfg = SystemAdminConfig {
         username: config.system_admin_username.clone(),
     };
-    let resolved = context_loaders::resolve_system_admin(&cfg, users.as_ref()).await?;
+    let resolved = resolve_system_admin(&cfg, users.as_ref()).await?;
     systemprompt_logging::install_log_attribution(resolved.clone());
     Ok(Arc::new(resolved))
+}
+
+async fn resolve_system_admin(
+    cfg: &SystemAdminConfig,
+    users: &UserService,
+) -> RuntimeResult<SystemAdmin> {
+    let user = users.find_by_name(&cfg.username).await?.ok_or_else(|| {
+        RuntimeError::SystemAdminNotFound {
+            username: cfg.username.clone(),
+        }
+    })?;
+    if !user.is_active() {
+        return Err(RuntimeError::SystemAdminInactive {
+            username: cfg.username.clone(),
+        });
+    }
+    let admin_role = UserRole::Admin.as_str();
+    if !user.roles.iter().any(|r| r == admin_role) {
+        return Err(RuntimeError::SystemAdminMissingRole {
+            username: cfg.username.clone(),
+        });
+    }
+    Ok(SystemAdmin::new(user.id, user.name))
 }
 
 fn build_marketplace_filter(
