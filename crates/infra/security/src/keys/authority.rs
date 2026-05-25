@@ -38,8 +38,11 @@ pub enum TokenAuthorityError {
 
 pub type TokenAuthorityResult<T> = Result<T, TokenAuthorityError>;
 
-#[expect(clippy::struct_field_names)]
-struct Authority {
+#[expect(
+    clippy::struct_field_names,
+    reason = "all fields are RSA-derived keys; the `_key` suffix distinguishes their format"
+)]
+pub(crate) struct Authority {
     signing_key: RsaSigningKey,
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
