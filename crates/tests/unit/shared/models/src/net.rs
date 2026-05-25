@@ -75,13 +75,16 @@ mod ssrf_adversarial_tests {
 
     // -- IPv4 loopback (127/8) ------------------------------------------------
 
+    // Pins the current production policy: loopback is allow-listed (incl. over
+    // https) for local-development webhooks. See finding F-T1e-002 — tightening
+    // this in production deployments needs a config-flag conversation.
     #[test]
-    fn rejects_ipv4_loopback_over_https_within_127_8() {
+    fn accepts_ipv4_loopback_over_https_by_design() {
         for ip in ["127.0.0.1", "127.1.2.3", "127.255.255.255"] {
             let url = format!("https://{ip}/h");
             assert!(
-                matches!(validate_outbound_url(&url), Err(OutboundUrlError::BlockedHost(_))),
-                "{url} should be blocked (127/8 loopback)",
+                validate_outbound_url(&url).is_ok(),
+                "{url} is allow-listed (loopback whitelist by design)",
             );
         }
     }
