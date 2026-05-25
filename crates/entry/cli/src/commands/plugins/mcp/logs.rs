@@ -69,7 +69,7 @@ fn get_default_logs_dir() -> PathBuf {
         .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: LogsArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<McpLogsOutput>> {

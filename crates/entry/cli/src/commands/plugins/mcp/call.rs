@@ -37,7 +37,7 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: CallArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<McpCallOutput>> {
