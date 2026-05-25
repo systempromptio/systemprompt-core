@@ -1,11 +1,11 @@
 //! Declarative gateway-policy specification.
 //!
-//! A [`GatewayPolicySpec`] is the `spec` payload of a row in
-//! `ai_gateway_policies`. It is the inference-model allow-list (a security
-//! control) plus per-call token ceilings, quota windows, and safety-scanner
-//! configuration. The same type is parsed from the version-controlled
-//! `services/ai/gateway-policies.yaml` and from the JSONB `spec` column, so
-//! the on-disk config and the persisted row share one schema.
+//! Spec payload of `ai_gateway_policies` rows, shared with the YAML schema in
+//! `services/gateway/policies.yaml`. Carries per-call ceilings, quota windows,
+//! and safety configuration.
+//!
+//! Model exposure lives on the profile's gateway catalog, not here — see
+//! `GatewayConfig::is_model_exposed`.
 
 use serde::{Deserialize, Serialize};
 
@@ -31,8 +31,6 @@ pub struct SafetyConfig {
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicySpec {
     #[serde(default)]
-    pub allowed_models: Option<Vec<String>>,
-    #[serde(default)]
     pub max_input_tokens_per_call: Option<u32>,
     #[serde(default)]
     pub max_tool_depth: Option<u32>,
@@ -46,12 +44,5 @@ impl GatewayPolicySpec {
     #[must_use]
     pub fn permissive() -> Self {
         Self::default()
-    }
-
-    #[must_use]
-    pub fn model_allowed(&self, model: &str) -> bool {
-        self.allowed_models
-            .as_deref()
-            .is_none_or(|list| list.iter().any(|m| m == model))
     }
 }

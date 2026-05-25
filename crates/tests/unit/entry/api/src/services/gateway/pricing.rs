@@ -61,6 +61,7 @@ fn catalog_pricing_used_when_no_route_override() {
         models: vec![GatewayModel {
             id: "claude-sonnet-4-rare".into(),
             provider: "anthropic".into(),
+            aliases: Vec::new(),
             display_name: None,
             upstream_model: None,
             pricing: Some(custom),

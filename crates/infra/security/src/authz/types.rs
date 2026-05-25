@@ -81,6 +81,7 @@ impl FromStr for Access {
 #[serde(rename_all = "snake_case")]
 pub enum EntityKind {
     GatewayRoute,
+    GatewayModel,
     McpServer,
     Plugin,
     Agent,
@@ -93,6 +94,7 @@ impl EntityKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::GatewayRoute => "gateway_route",
+            Self::GatewayModel => "gateway_model",
             Self::McpServer => "mcp_server",
             Self::Plugin => "plugin",
             Self::Agent => "agent",
@@ -109,6 +111,7 @@ impl FromStr for EntityKind {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "gateway_route" => Ok(Self::GatewayRoute),
+            "gateway_model" => Ok(Self::GatewayModel),
             "mcp_server" => Ok(Self::McpServer),
             "plugin" => Ok(Self::Plugin),
             "agent" => Ok(Self::Agent),

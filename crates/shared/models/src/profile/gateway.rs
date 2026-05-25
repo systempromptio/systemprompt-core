@@ -47,6 +47,27 @@ pub enum GatewayProfileError {
         endpoint: String,
         reason: String,
     },
+
+    #[error(
+        "gateway route '{route}' provider '{provider}' is not declared in the catalog providers"
+    )]
+    RouteProviderNotInCatalog { route: String, provider: String },
+
+    #[error(
+        "gateway route '{route}' endpoint '{route_endpoint}' disagrees with catalog provider '{provider}' endpoint '{catalog_endpoint}'"
+    )]
+    RouteEndpointMismatch {
+        route: String,
+        provider: String,
+        route_endpoint: String,
+        catalog_endpoint: String,
+    },
+
+    #[error("gateway catalog model id or alias '{id}' is declared more than once")]
+    DuplicateModelId { id: String },
+
+    #[error("gateway catalog model '{model}' has no route whose pattern matches its id")]
+    UnreachableModel { model: String },
 }
 
 /// Reject gateway upstream endpoints that point at the local host or private
@@ -58,8 +79,8 @@ fn validate_endpoint(label: &str, endpoint: &str) -> GatewayResult<()> {
     crate::net::validate_outbound_url(endpoint)
         .map(|_| ())
         .map_err(|e| GatewayProfileError::BlockedEndpoint {
-            label: label.to_string(),
-            endpoint: endpoint.to_string(),
+            label: label.to_owned(),
+            endpoint: endpoint.to_owned(),
             reason: e.to_string(),
         })
 }
@@ -97,11 +118,11 @@ impl Default for GatewayConfig {
 }
 
 fn default_auth_scheme() -> String {
-    "bearer".to_string()
+    "bearer".to_owned()
 }
 
 fn default_inference_path_prefix() -> String {
-    "/v1".to_string()
+    "/v1".to_owned()
 }
 
 impl GatewayConfig {
@@ -112,6 +133,56 @@ impl GatewayConfig {
     pub fn validate_routes(&self) -> GatewayResult<()> {
         for route in &self.routes {
             validate_endpoint(&format!("route '{}'", route.model_pattern), &route.endpoint)?;
+        }
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn is_model_exposed(&self, model: &str) -> bool {
+        self.catalog
+            .as_ref()
+            .is_none_or(|c| c.contains_model(model))
+    }
+
+    pub fn validate(&self) -> GatewayResult<()> {
+        self.validate_routes()?;
+        let Some(catalog) = self.catalog.as_ref() else {
+            return Ok(());
+        };
+        catalog.validate()?;
+        for route in &self.routes {
+            let Some(provider) = catalog.find_provider(&route.provider) else {
+                return Err(GatewayProfileError::RouteProviderNotInCatalog {
+                    route: route.model_pattern.clone(),
+                    provider: route.provider.clone(),
+                });
+            };
+            if provider.endpoint != route.endpoint {
+                return Err(GatewayProfileError::RouteEndpointMismatch {
+                    route: route.model_pattern.clone(),
+                    provider: route.provider.clone(),
+                    route_endpoint: route.endpoint.clone(),
+                    catalog_endpoint: provider.endpoint.clone(),
+                });
+            }
+        }
+        let mut seen = std::collections::HashSet::with_capacity(catalog.models.len());
+        for model in &catalog.models {
+            if !seen.insert(model.id.as_str()) {
+                return Err(GatewayProfileError::DuplicateModelId {
+                    id: model.id.clone(),
+                });
+            }
+            for alias in &model.aliases {
+                if !seen.insert(alias.as_str()) {
+                    return Err(GatewayProfileError::DuplicateModelId { id: alias.clone() });
+                }
+            }
+            if !self.routes.iter().any(|r| r.matches(&model.id)) {
+                return Err(GatewayProfileError::UnreachableModel {
+                    model: model.id.clone(),
+                });
+            }
         }
         Ok(())
     }
@@ -156,6 +227,13 @@ impl GatewayCatalog {
     pub fn find_provider(&self, name: &str) -> Option<&GatewayProvider> {
         self.providers.iter().find(|p| p.name == name)
     }
+
+    #[must_use]
+    pub fn contains_model(&self, requested: &str) -> bool {
+        self.models
+            .iter()
+            .any(|m| m.id == requested || m.aliases.iter().any(|a| a == requested))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -173,6 +251,8 @@ pub struct GatewayProvider {
 pub struct GatewayModel {
     pub id: String,
     pub provider: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

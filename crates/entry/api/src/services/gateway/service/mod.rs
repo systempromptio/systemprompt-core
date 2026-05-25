@@ -64,6 +64,21 @@ impl GatewayService {
             ));
         }
 
+        let ai_request_id = ctx.ai_request_id.clone();
+
+        if !config.is_model_exposed(&request.model) {
+            tracing::warn!(
+                ai_request_id = %ai_request_id,
+                model = %request.model,
+                "Gateway denied: model not in catalog"
+            );
+            return Err(PolicyDenied(format!(
+                "model '{}' is not permitted by gateway policy",
+                request.model
+            ))
+            .into());
+        }
+
         let route = config
             .find_route(&request.model)
             .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;
@@ -83,7 +98,6 @@ impl GatewayService {
             .ok_or_else(|| anyhow!("Gateway provider '{}' is not registered", route.provider))?;
 
         let is_streaming = request.stream;
-        let ai_request_id = ctx.ai_request_id.clone();
 
         tracing::info!(
             ai_request_id = %ai_request_id,
@@ -98,19 +112,6 @@ impl GatewayService {
 
         let resolver = PolicyResolver::new(db)?;
         let policy = resolver.resolve().await;
-
-        if !policy.model_allowed(&request.model) {
-            tracing::warn!(
-                ai_request_id = %ai_request_id,
-                model = %request.model,
-                "Gateway policy denied: model not in allowed list"
-            );
-            return Err(PolicyDenied(format!(
-                "model '{}' is not permitted by gateway policy",
-                request.model
-            ))
-            .into());
-        }
 
         let audit = Arc::new(
             GatewayAudit::new(db, ctx.clone()).map_err(|e| anyhow!("audit init failed: {e}"))?,

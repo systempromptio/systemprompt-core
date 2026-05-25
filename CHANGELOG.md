@@ -5,6 +5,14 @@
 ### Breaking
 
 - **`systemprompt_mcp::MCP_PROTOCOL_VERSION` constant removed.** Use `systemprompt_mcp::mcp_protocol_version() -> String` or `systemprompt_mcp::mcp_protocol_version_str() -> &'static str`. Both resolve to `rmcp::model::ProtocolVersion::LATEST` and track the linked `rmcp` release.
+- **`GatewayPolicySpec::allowed_models` and `GatewayPolicySpec::model_allowed` removed.** Model exposure is now owned by the profile's `GatewayCatalog` (see `GatewayConfig::is_model_exposed`). A request whose `model` is not declared in the catalog is rejected with `403` before route resolution — the old policy-allow-list path is gone. Deployments that still set `allowed_models:` in `services/ai/gateway-policies.yaml` MUST remove the field (the spec now uses `deny_unknown_fields`).
+
+### Added
+
+- **`GatewayConfig::is_model_exposed(&str) -> bool`** — single dispatch-time gate that consults the profile catalog. Replaces the per-policy `allowed_models` allow-list as the source of truth for "is this model exposed."
+- **`GatewayConfig::validate()`** — boot-time cross-check that fails loud on catalog/route drift. Verifies: every route's provider exists in `GatewayCatalog.providers`; every route's endpoint matches the catalog provider's endpoint; every catalog model id and alias is globally unique; every catalog model is reachable by at least one route pattern. New error variants: `RouteProviderNotInCatalog`, `RouteEndpointMismatch`, `DuplicateModelId`, `UnreachableModel`.
+- **`GatewayModel::aliases: Vec<String>`** — alternate model ids that resolve to the same catalog entry for exposure and `/profile` listing (e.g. `claude-opus-4-7[1m]` aliasing `claude-opus-4-7`).
+- **`EntityKind::GatewayModel`** in `systemprompt-security::authz` — paired with the existing `GatewayRoute` so per-model RBAC can be wired into the gateway dispatch path (consumer wiring is a follow-up).
 
 ### Fixed
 
