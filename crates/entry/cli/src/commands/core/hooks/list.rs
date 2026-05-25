@@ -68,7 +68,7 @@ fn scan_hooks(hooks_path: &Path) -> Result<Vec<HookEntry>> {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
-            .to_string();
+            .to_owned();
         let id_str = if config.id.as_str().is_empty() {
             dir_name
         } else {

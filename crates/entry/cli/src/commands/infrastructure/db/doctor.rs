@@ -151,7 +151,7 @@ async fn fetch_live_tables(db: &dyn DatabaseProvider) -> Result<BTreeSet<String>
     Ok(result
         .rows
         .iter()
-        .filter_map(|r| r.get("table_name")?.as_str().map(str::to_string))
+        .filter_map(|r| r.get("table_name")?.as_str().map(str::to_owned))
         .collect())
 }
 

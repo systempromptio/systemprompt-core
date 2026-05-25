@@ -63,7 +63,7 @@ impl SessionAnalytics {
         let user_agent = headers
             .get("user-agent")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let ip_address = headers
             .get("x-forwarded-for")
@@ -74,14 +74,14 @@ impl SessionAnalytics {
                 headers
                     .get("x-real-ip")
                     .and_then(|v| v.to_str().ok())
-                    .map(ToString::to_string)
+                    .map(str::to_owned)
             })
             .or_else(|| socket_addr.map(|addr| addr.ip().to_string()));
 
         let fingerprint_hash = headers
             .get("x-fingerprint")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let preferred_locale = headers
             .get("accept-language")
@@ -101,7 +101,7 @@ impl SessionAnalytics {
         let referrer_url = headers
             .get("referer")
             .and_then(|v| v.to_str().ok())
-            .map(ToString::to_string);
+            .map(str::to_owned);
 
         let referrer_source = referrer_url
             .as_ref()

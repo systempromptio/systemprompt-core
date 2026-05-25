@@ -50,7 +50,7 @@ fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
-            .to_string();
+            .to_owned();
         let config_path = path.join(HOOK_CONFIG_FILENAME);
         if !config_path.exists() {
             continue;

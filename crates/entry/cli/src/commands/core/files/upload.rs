@@ -147,5 +147,5 @@ pub fn detect_mime_type(path: &Path) -> String {
         .iter()
         .find(|(exts, _)| exts.contains(&ext))
         .map_or("application/octet-stream", |(_, mime)| *mime)
-        .to_string()
+        .to_owned()
 }

@@ -100,7 +100,6 @@ impl SchedulerService {
     /// Jobs absent from the inventory are skipped with a warning. Emits
     /// start/complete events through `events` when provided, and returns the
     /// number of jobs discovered in the inventory.
-    #[expect(clippy::collection_is_never_read)]
     pub async fn run_bootstrap_jobs(
         &self,
         events: Option<&StartupEventSender>,

@@ -222,7 +222,6 @@ pub(super) fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     })
 }
 
-#[expect(clippy::unused_async)]
 pub(super) async fn manifest(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
@@ -235,7 +234,6 @@ pub(super) async fn manifest(
     Ok(Json(manifest))
 }
 
-#[expect(clippy::unused_async)]
 pub(super) async fn download(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
@@ -263,7 +261,6 @@ pub(super) async fn download(
         .map_err(|e| ApiError::internal_error(e.to_string()))
 }
 
-#[expect(clippy::unused_async)]
 pub(super) async fn upload(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,

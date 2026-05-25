@@ -11,7 +11,7 @@ pub(super) fn suggest_fix_for_field(field: &str) -> Option<String> {
         },
         "author" => Some(
             "Add 'author: Your Name' to frontmatter or set metadata.default_author in config"
-                .to_string(),
+                .to_owned(),
         ),
         "title" => Some("Add 'title: Your Title' to frontmatter".to_owned()),
         "slug" => Some("Add 'slug: your-slug' to frontmatter".to_owned()),

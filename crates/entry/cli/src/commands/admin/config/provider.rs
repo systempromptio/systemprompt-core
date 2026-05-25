@@ -90,7 +90,7 @@ fn list_providers() -> Result<ProviderListOutput> {
         .get("default_provider")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown")
-        .to_string();
+        .to_owned();
 
     let providers_section = ai.get("providers");
 
@@ -109,7 +109,7 @@ fn list_providers() -> Result<ProviderListOutput> {
                 .get("default_model")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown")
-                .to_string();
+                .to_owned();
 
             let endpoint = config
                 .get("endpoint")

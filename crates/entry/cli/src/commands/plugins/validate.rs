@@ -61,7 +61,7 @@ pub(crate) fn execute(
             warning_type: "asset_validation_skipped".to_owned(),
             message: "Asset validation requires full profile initialization. Use 'systemprompt \
                       infra db validate'."
-                .to_string(),
+                .to_owned(),
         });
     }
 

@@ -243,7 +243,7 @@ impl ConfigService {
                 .or_else(|| read_env_optional(var_name))
                 .or_else(|| vars.get(var_name).cloned())
                 .unwrap_or_else(|| {
-                    default_value.map_or_else(|| full_match.to_owned(), ToString::to_string)
+                    default_value.map_or_else(|| full_match.to_owned(), str::to_owned)
                 });
 
             result = result.replace(full_match, &replacement);

@@ -20,7 +20,6 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
-#[expect(clippy::unused_async)]
 pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResponse {
     let server_configs = match ctx.mcp_registry().get_enabled_servers() {
         Ok(configs) => configs,

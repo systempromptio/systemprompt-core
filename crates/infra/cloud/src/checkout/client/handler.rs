@@ -61,7 +61,7 @@ pub(super) async fn callback_handler(
                     &state.tx,
                     Err(CloudError::CheckoutFlow {
                         message: "Checkout callback missing required 'status' parameter"
-                            .to_string(),
+                            .to_owned(),
                     }),
                 )
                 .await;

@@ -99,7 +99,7 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
             expires_in: None,
             stale_warning: Some(
                 "No session. Run 'systemprompt admin session login' to create a session."
-                    .to_string(),
+                    .to_owned(),
             ),
         });
     }

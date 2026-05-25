@@ -80,13 +80,13 @@ impl ProviderUsage {
             .get("provider")
             .and_then(|v| v.as_str())
             .ok_or_else(|| AnalyticsError::missing_field("provider"))?
-            .to_string();
+            .to_owned();
 
         let model = row
             .get("model")
             .and_then(|v| v.as_str())
             .ok_or_else(|| AnalyticsError::missing_field("model"))?
-            .to_string();
+            .to_owned();
 
         let request_count =
             row.get("request_count")

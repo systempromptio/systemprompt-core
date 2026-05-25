@@ -42,7 +42,7 @@ pub fn try_init_config() -> ConfigResult<()> {
 
 pub fn build_from_profile(profile: &Profile) -> ConfigResult<Config> {
     let profile_path =
-        ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_owned(), ToString::to_string);
+        ProfileBootstrap::get_path().map_or_else(|_| "<not set>".to_owned(), str::to_owned);
 
     let path_report = validate_profile_paths(profile, &profile_path);
     if path_report.has_errors() {

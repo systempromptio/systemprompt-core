@@ -141,8 +141,8 @@ impl JwksClient {
             CacheProbe::Hit(jwk) => return Ok(jwk),
             CacheProbe::KidMissRecentlyFetched => {
                 return Err(JwksClientError::KeyNotFound {
-                    issuer: issuer.to_string(),
-                    kid: kid.to_string(),
+                    issuer: issuer.to_owned(),
+                    kid: kid.to_owned(),
                 });
             },
             CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {},
@@ -167,8 +167,8 @@ impl JwksClient {
             CacheProbe::Hit(jwk) => return Ok(jwk),
             CacheProbe::KidMissRecentlyFetched => {
                 return Err(JwksClientError::KeyNotFound {
-                    issuer: issuer.to_string(),
-                    kid: kid.to_string(),
+                    issuer: issuer.to_owned(),
+                    kid: kid.to_owned(),
                 });
             },
             CacheProbe::Miss | CacheProbe::KidMissRefetchAllowed | CacheProbe::Expired => {},

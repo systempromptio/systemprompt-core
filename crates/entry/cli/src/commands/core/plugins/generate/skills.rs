@@ -88,12 +88,12 @@ fn build_skill_md(skill: &str, skill_dir: &Path) -> Result<String> {
             .get("name")
             .and_then(|v| v.as_str())
             .unwrap_or(skill)
-            .to_string();
+            .to_owned();
         let desc = cfg
             .get("description")
             .and_then(|v| v.as_str())
             .unwrap_or("")
-            .to_string();
+            .to_owned();
         (name, desc)
     } else {
         (skill.to_owned(), String::new())

@@ -177,7 +177,7 @@ fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
                 .unwrap_or(f)
                 .strip_suffix(".log")
                 .unwrap_or(f)
-                .to_string()
+                .to_owned()
         })
         .collect();
 

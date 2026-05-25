@@ -116,7 +116,7 @@ pub async fn cancel_subscription(
         tenant_name: tenant.name.clone(),
         message: "Subscription cancelled. Your tenant will be suspended and all data will be \
                   destroyed."
-            .to_string(),
+            .to_owned(),
     };
 
     Ok(CommandResult::text(output)

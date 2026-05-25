@@ -159,7 +159,7 @@ async fn run_single_job(
                 message: Some(
                     "no user with role 'admin' exists; create one with `systemprompt admin users \
                      create --role admin <name>` before running ad-hoc jobs"
-                        .to_string(),
+                        .to_owned(),
                 ),
                 items_processed: None,
                 items_failed: None,

@@ -82,12 +82,12 @@ fn build_agent_md(agent: &str, services_agents_dir: &Path) -> Result<String> {
                     .get("card")
                     .and_then(|c| c.get("description"))
                     .and_then(|d| d.as_str())
-                    .map_or_else(|| format!("{agent} agent"), ToString::to_string);
+                    .map_or_else(|| format!("{agent} agent"), str::to_owned);
                 let system_prompt = agent_val
                     .get("metadata")
                     .and_then(|m| m.get("systemPrompt"))
                     .and_then(|s| s.as_str())
-                    .map_or_else(String::new, ToString::to_string);
+                    .map_or_else(String::new, str::to_owned);
                 return Ok(format!(
                     "---\nname: {}\ndescription: \"{}\"\ntools: {}\n---\n\n{}\n",
                     agent,
