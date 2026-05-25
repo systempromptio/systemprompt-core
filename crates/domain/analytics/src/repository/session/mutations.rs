@@ -50,7 +50,10 @@ pub(crate) async fn increment_task_count(pool: &PgPool, session_id: &SessionId) 
     Ok(())
 }
 
-pub(crate) async fn increment_ai_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
+pub(crate) async fn increment_ai_request_count(
+    pool: &PgPool,
+    session_id: &SessionId,
+) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET ai_request_count = ai_request_count + 1, last_activity_at = \

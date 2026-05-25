@@ -28,7 +28,10 @@ impl ConfigWriter {
         self.project_root.join("web")
     }
 
-    pub(crate) fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
+    pub(crate) fn write_env_file(
+        config: &EnvironmentConfig,
+        output_path: &Path,
+    ) -> ConfigResult<()> {
         let mut lines: Vec<String> = config
             .variables
             .iter()

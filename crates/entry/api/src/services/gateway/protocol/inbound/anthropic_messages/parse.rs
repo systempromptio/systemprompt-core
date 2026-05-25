@@ -11,7 +11,8 @@ pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .ok_or(InboundParseError::MissingField("model"))?.to_owned();
+        .ok_or(InboundParseError::MissingField("model"))?
+        .to_owned();
     let max_tokens = value
         .get("max_tokens")
         .and_then(Value::as_u64)
@@ -144,18 +145,21 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
             value
                 .get("text")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
         )),
         "image" => parse_image(value),
         "tool_use" => Ok(CanonicalContent::ToolUse {
             id: value
                 .get("id")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
             name: value
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
             input: value.get("input").cloned().unwrap_or(Value::Null),
         }),
         "tool_result" => {
@@ -166,7 +170,8 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
                 tool_use_id: value
                     .get("tool_use_id")
                     .and_then(Value::as_str)
-                    .unwrap_or("").to_owned(),
+                    .unwrap_or("")
+                    .to_owned(),
                 content: inner,
                 is_error: value
                     .get("is_error")
@@ -178,7 +183,8 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
             text: value
                 .get("thinking")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
             signature: value
                 .get("signature")
                 .and_then(Value::as_str)
@@ -215,17 +221,20 @@ fn parse_image(value: &Value) -> Result<CanonicalContent, InboundParseError> {
             media_type: source
                 .get("media_type")
                 .and_then(Value::as_str)
-                .unwrap_or("image/png").to_owned(),
+                .unwrap_or("image/png")
+                .to_owned(),
             data: source
                 .get("data")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
         })),
         "url" => Ok(CanonicalContent::Image(ImageSource::Url(
             source
                 .get("url")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned(),
+                .unwrap_or("")
+                .to_owned(),
         ))),
         other => Err(InboundParseError::Unsupported {
             field: "image.source.type",
@@ -239,7 +248,8 @@ fn parse_tool(value: &Value) -> CanonicalTool {
         name: value
             .get("name")
             .and_then(Value::as_str)
-            .unwrap_or("").to_owned(),
+            .unwrap_or("")
+            .to_owned(),
         description: value
             .get("description")
             .and_then(Value::as_str)

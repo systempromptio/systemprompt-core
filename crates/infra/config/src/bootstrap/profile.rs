@@ -42,8 +42,8 @@ impl ProfileBootstrap {
             return Err(ProfileBootstrapError::AlreadyInitialized.into());
         }
 
-        let path_str =
-            std::env::var("SYSTEMPROMPT_PROFILE").map_err(|_e| ProfileBootstrapError::PathNotSet)?;
+        let path_str = std::env::var("SYSTEMPROMPT_PROFILE")
+            .map_err(|_e| ProfileBootstrapError::PathNotSet)?;
         let path = std::path::PathBuf::from(path_str);
 
         let profile = Self::load_from_path_and_validate(&path)?;

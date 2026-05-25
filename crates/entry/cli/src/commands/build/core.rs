@@ -19,7 +19,10 @@ pub struct CoreArgs {
     pub offline: bool,
 }
 
-pub(crate) fn execute(args: CoreArgs, config: &CliConfig) -> Result<CommandResult<CoreBuildOutput>> {
+pub(crate) fn execute(
+    args: CoreArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<CoreBuildOutput>> {
     let project_root = ProjectRoot::discover()?;
     let root = project_root.as_path();
 

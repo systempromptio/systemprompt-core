@@ -16,7 +16,8 @@ pub fn convert_messages(messages: &[AiMessage]) -> Vec<GeminiContent> {
             },
             MessageRole::User => "user",
             MessageRole::Assistant => "model",
-        }.to_owned();
+        }
+        .to_owned();
 
         let parts = convert_message_parts(message);
         contents.push(GeminiContent { role, parts });

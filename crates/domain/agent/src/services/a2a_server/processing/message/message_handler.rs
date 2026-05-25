@@ -246,10 +246,8 @@ async fn collect_stream_response(
                 tool_artifacts = artifacts;
             },
             StreamEvent::Error(error) => {
-                let error_event = AgUiEventBuilder::run_error(
-                    error.clone(),
-                    Some("EXECUTION_ERROR".to_owned()),
-                );
+                let error_event =
+                    AgUiEventBuilder::run_error(error.clone(), Some("EXECUTION_ERROR".to_owned()));
                 if let Err(e) = broadcast_agui_event(
                     context.user_id(),
                     error_event,

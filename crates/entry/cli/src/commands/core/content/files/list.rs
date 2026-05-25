@@ -28,7 +28,10 @@ pub(crate) enum ListOutput {
     FileContentLinks(FileContentLinksOutput),
 }
 
-pub(crate) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOutput>> {
+pub(crate) async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ListOutput>> {
     let ctx = AppContext::new().await?;
     let service = FileRepository::new(ctx.db_pool())?;
 

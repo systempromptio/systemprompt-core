@@ -22,7 +22,10 @@ pub struct ShowArgs {
     pub preview_lines: usize,
 }
 
-pub(crate) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<TemplateDetailOutput>> {
+pub(crate) fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<TemplateDetailOutput>> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");

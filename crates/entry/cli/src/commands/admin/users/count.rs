@@ -23,7 +23,10 @@ pub(crate) enum CountResult {
     Breakdown(UserCountBreakdownOutput),
 }
 
-pub(crate) async fn execute(args: CountArgs, config: &CliConfig) -> Result<CommandResult<CountResult>> {
+pub(crate) async fn execute(
+    args: CountArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<CountResult>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }

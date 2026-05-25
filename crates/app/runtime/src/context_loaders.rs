@@ -85,7 +85,10 @@ pub(crate) async fn resolve_system_admin(
     Ok(SystemAdmin::new(user.id, user.name))
 }
 
-pub(crate) fn load_content_config(config: &Config, app_paths: &AppPaths) -> Option<Arc<ContentConfigRaw>> {
+pub(crate) fn load_content_config(
+    config: &Config,
+    app_paths: &AppPaths,
+) -> Option<Arc<ContentConfigRaw>> {
     let content_config_path = app_paths.system().content_config().to_path_buf();
 
     if !content_config_path.exists() {

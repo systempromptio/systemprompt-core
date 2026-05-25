@@ -111,7 +111,10 @@ pub(super) async fn fetch_mcp_execution_events(
         .collect())
 }
 
-pub(super) async fn fetch_task_id_for_trace(pool: &Arc<PgPool>, trace_id: &str) -> Result<Option<String>> {
+pub(super) async fn fetch_task_id_for_trace(
+    pool: &Arc<PgPool>,
+    trace_id: &str,
+) -> Result<Option<String>> {
     let row = sqlx::query!(
         "SELECT task_id FROM agent_tasks WHERE trace_id = $1 LIMIT 1",
         trace_id

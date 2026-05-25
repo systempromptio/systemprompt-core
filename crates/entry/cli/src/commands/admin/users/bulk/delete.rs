@@ -51,7 +51,10 @@ pub(crate) enum DeleteResult {
     Executed(BulkDeleteOutput),
 }
 
-pub(crate) async fn execute(args: DeleteArgs, _config: &CliConfig) -> Result<CommandResult<DeleteResult>> {
+pub(crate) async fn execute(
+    args: DeleteArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<DeleteResult>> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will permanently delete users. Use --yes to confirm or --dry-run to preview."

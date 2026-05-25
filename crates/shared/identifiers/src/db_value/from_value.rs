@@ -36,7 +36,9 @@ impl FromDbValue for i64 {
             DbValue::Int(i) => Ok(*i),
             DbValue::Float(f) => f64_to_i64_checked(*f),
             DbValue::Bool(b) => Ok(Self::from(*b)),
-            DbValue::String(s) => s.parse().map_err(|_e| DbValueError::parse(s.clone(), "i64")),
+            DbValue::String(s) => s
+                .parse()
+                .map_err(|_e| DbValueError::parse(s.clone(), "i64")),
             DbValue::StringArray(_) => Err(DbValueError::incompatible("StringArray", "i64")),
             DbValue::Timestamp(_) => Err(DbValueError::incompatible("Timestamp", "i64")),
             DbValue::NullString
@@ -96,7 +98,9 @@ impl FromDbValue for f64 {
         match value {
             DbValue::Float(f) => Ok(*f),
             DbValue::Int(i) => i64_to_f64_checked(*i),
-            DbValue::String(s) => s.parse().map_err(|_e| DbValueError::parse(s.clone(), "f64")),
+            DbValue::String(s) => s
+                .parse()
+                .map_err(|_e| DbValueError::parse(s.clone(), "f64")),
             DbValue::StringArray(_) => Err(DbValueError::incompatible("StringArray", "f64")),
             DbValue::Timestamp(_) => Err(DbValueError::incompatible("Timestamp", "f64")),
             DbValue::NullString

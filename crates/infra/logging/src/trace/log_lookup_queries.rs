@@ -109,7 +109,10 @@ pub(super) async fn find_log_by_partial_id(
     Ok(row.map(row_to_entry))
 }
 
-pub(super) async fn find_logs_by_trace_id(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<LogEntry>> {
+pub(super) async fn find_logs_by_trace_id(
+    pool: &Arc<PgPool>,
+    trace_id: &str,
+) -> Result<Vec<LogEntry>> {
     let rows = sqlx::query_as!(
         LogRow,
         r#"

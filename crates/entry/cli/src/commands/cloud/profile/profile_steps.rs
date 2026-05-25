@@ -141,7 +141,10 @@ pub fn create_profile_for_tenant(
     Ok(CreatedProfile { name })
 }
 
-pub(crate) fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<StoredTenant> {
+pub(crate) fn resolve_tenant_from_args(
+    args: &CreateArgs,
+    store: &TenantStore,
+) -> Result<StoredTenant> {
     let tenant_id = args.tenant.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
             "Missing required flag: --tenant-id\nIn non-interactive mode, --tenant-id is \

@@ -63,7 +63,10 @@ pub struct ListArgs {
     pub status: Option<StatusFilter>,
 }
 
-pub(crate) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandResult<UserListOutput>> {
+pub(crate) async fn execute(
+    args: ListArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<UserListOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }

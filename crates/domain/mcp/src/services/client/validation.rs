@@ -123,9 +123,7 @@ async fn connect_and_validate(
     let client = client_info.serve(transport).await?;
 
     let peer_info = client.peer_info().ok_or_else(|| {
-        crate::error::McpDomainError::Internal(
-            "Failed to get peer info from MCP client".to_owned(),
-        )
+        crate::error::McpDomainError::Internal("Failed to get peer info from MCP client".to_owned())
     })?;
 
     let server_info = McpProtocolInfo {

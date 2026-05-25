@@ -105,7 +105,9 @@ pub struct PersistPartSqlxParams<'a> {
     pub upload_ctx: Option<&'a FileUploadContext<'a>>,
 }
 
-pub(super) async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), RepositoryError> {
+pub(super) async fn persist_part_sqlx(
+    params: PersistPartSqlxParams<'_>,
+) -> Result<(), RepositoryError> {
     let PersistPartSqlxParams {
         tx,
         part,

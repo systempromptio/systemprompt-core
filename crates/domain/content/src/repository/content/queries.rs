@@ -3,7 +3,10 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
-pub(super) async fn get_by_id(pool: &Arc<PgPool>, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
+pub(super) async fn get_by_id(
+    pool: &Arc<PgPool>,
+    id: &ContentId,
+) -> Result<Option<Content>, sqlx::Error> {
     sqlx::query_as!(
         Content,
         r#"

@@ -192,7 +192,10 @@ pub(crate) async fn execute_info(admin: &DatabaseAdminService, config: &CliConfi
     Ok(())
 }
 
-pub(crate) async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute_validate(
+    admin: &DatabaseAdminService,
+    config: &CliConfig,
+) -> Result<()> {
     let info = admin
         .get_database_info()
         .await

@@ -11,7 +11,10 @@ pub struct TemplatesArgs {
     pub extension: Option<String>,
 }
 
-pub(crate) fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandResult<TemplatesListOutput> {
+pub(crate) fn execute(
+    args: &TemplatesArgs,
+    _config: &CliConfig,
+) -> CommandResult<TemplatesListOutput> {
     let registry = discover_registry();
 
     let templates: Vec<TemplateWithExtension> = registry

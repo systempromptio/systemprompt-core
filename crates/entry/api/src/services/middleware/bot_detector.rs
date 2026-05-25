@@ -50,7 +50,8 @@ pub async fn detect_bots_early(
                 })
                 .ok()
         })
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
 
     let ip_address = resolve_client_ip(
         req.headers(),

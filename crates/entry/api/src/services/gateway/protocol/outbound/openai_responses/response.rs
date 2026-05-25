@@ -16,7 +16,8 @@ pub(super) fn parse_response_object(value: &Value, fallback_model: &str) -> Cano
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(fallback_model).to_owned();
+        .unwrap_or(fallback_model)
+        .to_owned();
     let usage = value.get("usage").map_or(
         CanonicalUsage {
             input_tokens: 0,
@@ -83,11 +84,13 @@ fn extract_function_call(item: &Value, content: &mut Vec<CanonicalContent>) {
         .get("call_id")
         .and_then(Value::as_str)
         .or_else(|| item.get("id").and_then(Value::as_str))
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     let name = item
         .get("name")
         .and_then(Value::as_str)
-        .unwrap_or("").to_owned();
+        .unwrap_or("")
+        .to_owned();
     let args = item
         .get("arguments")
         .and_then(Value::as_str)

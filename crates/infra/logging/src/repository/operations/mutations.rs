@@ -47,7 +47,11 @@ pub(crate) async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), Lo
     Ok(())
 }
 
-pub(crate) async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<bool, LoggingError> {
+pub(crate) async fn update_log(
+    pool: &PgPool,
+    id: &LogId,
+    entry: &LogEntry,
+) -> Result<bool, LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -86,7 +90,10 @@ pub(crate) async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, Loggin
     Ok(result.rows_affected() > 0)
 }
 
-pub(crate) async fn delete_logs_multiple(pool: &PgPool, ids: &[LogId]) -> Result<u64, LoggingError> {
+pub(crate) async fn delete_logs_multiple(
+    pool: &PgPool,
+    ids: &[LogId],
+) -> Result<u64, LoggingError> {
     if ids.is_empty() {
         return Ok(0);
     }
@@ -117,7 +124,10 @@ pub(crate) async fn cleanup_logs_before(
     Ok(result.rows_affected())
 }
 
-pub(crate) async fn count_logs_before(pool: &PgPool, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
+pub(crate) async fn count_logs_before(
+    pool: &PgPool,
+    cutoff: DateTime<Utc>,
+) -> Result<u64, LoggingError> {
     let count = sqlx::query_scalar!(
         r#"SELECT COUNT(*) as "count!" FROM logs WHERE timestamp < $1"#,
         cutoff

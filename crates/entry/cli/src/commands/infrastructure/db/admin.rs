@@ -19,10 +19,16 @@ pub(crate) use super::admin_migrate_plan::{execute_migrate_plan, execute_migrate
 pub use super::admin_migrate_repair::{
     RepairArgs, execute_migrate_repair, execute_migrate_repair_standalone,
 };
-pub(crate) use super::admin_migrate_status::{execute_migrate_status, execute_migrate_status_standalone};
+pub(crate) use super::admin_migrate_status::{
+    execute_migrate_status, execute_migrate_status_standalone,
+};
 pub(crate) use super::admin_migrations::{execute_migrations, execute_migrations_standalone};
 
-pub(crate) async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConfig) -> Result<()> {
+pub(crate) async fn execute_assign_admin(
+    ctx: &AppContext,
+    user: &str,
+    config: &CliConfig,
+) -> Result<()> {
     let user_service = UserService::new(ctx.db_pool())?;
     let user_admin = UserAdminService::new(user_service);
 

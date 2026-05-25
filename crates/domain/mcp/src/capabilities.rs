@@ -5,10 +5,7 @@ pub fn mcp_apps_ui_extension() -> (String, serde_json::Map<String, serde_json::V
     let config = McpAppsUiConfig::new();
     let key = McpExtensionId::McpAppsUi.as_str().to_owned();
     let mut value = serde_json::Map::new();
-    value.insert(
-        "mimeTypes".to_owned(),
-        serde_json::json!(config.mime_types),
-    );
+    value.insert("mimeTypes".to_owned(), serde_json::json!(config.mime_types));
     (key, value)
 }
 

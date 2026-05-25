@@ -286,8 +286,6 @@ impl SqlExecutor {
             .first()
             .and_then(|row| row.get("exists"))
             .and_then(serde_json::Value::as_bool)
-            .ok_or_else(|| {
-                RepositoryError::Internal("Failed to check column existence".to_owned())
-            })
+            .ok_or_else(|| RepositoryError::Internal("Failed to check column existence".to_owned()))
     }
 }

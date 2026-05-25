@@ -17,7 +17,10 @@ pub struct ShowArgs {
     pub path: String,
 }
 
-pub(crate) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<AssetDetailOutput>> {
+pub(crate) fn execute(
+    args: &ShowArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AssetDetailOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let web_paths = WebPaths::resolve()?;
     let assets_dir = &web_paths.assets;

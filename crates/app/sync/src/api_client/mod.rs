@@ -20,8 +20,8 @@ use tokio::time::sleep;
 
 use crate::error::{SyncError, SyncResult};
 pub use retry::RetryConfig;
-pub use token::{exchange_subject_token, exchange_subject_token_at};
 use token::is_unauthorized;
+pub use token::{exchange_subject_token, exchange_subject_token_at};
 
 #[derive(Clone, Debug)]
 pub struct SyncApiClient {

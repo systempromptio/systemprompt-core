@@ -26,7 +26,9 @@ pub(super) struct HandleToolCallsParams<'a> {
     pub tools: Vec<McpTool>,
 }
 
-pub(super) async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<ExecutionResult> {
+pub(super) async fn handle_tool_calls(
+    params: HandleToolCallsParams<'_>,
+) -> Result<ExecutionResult> {
     let HandleToolCallsParams {
         reasoning,
         calls,

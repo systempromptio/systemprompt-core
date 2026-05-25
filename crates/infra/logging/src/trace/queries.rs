@@ -13,7 +13,10 @@ pub(super) use super::step_queries::{
     fetch_mcp_execution_summary, fetch_task_id_for_trace,
 };
 
-pub(super) async fn fetch_log_events(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<TraceEvent>> {
+pub(super) async fn fetch_log_events(
+    pool: &Arc<PgPool>,
+    trace_id: &str,
+) -> Result<Vec<TraceEvent>> {
     let rows = sqlx::query!(
         r#"
         SELECT

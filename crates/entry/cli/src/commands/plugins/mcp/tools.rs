@@ -28,7 +28,10 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(crate) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResult<McpToolsOutput>> {
+pub(crate) async fn execute(
+    args: ToolsArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<McpToolsOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let session_ctx = get_or_create_session(config).await?;

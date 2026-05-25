@@ -73,7 +73,8 @@ pub(super) fn try_proxy_verified_auth(
                 "Proxy-verified request missing Authorization Bearer token".to_owned(),
                 None,
             )
-        })?.to_owned();
+        })?
+        .to_owned();
 
     let context = request_context
         .with_user(authenticated_user)

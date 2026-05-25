@@ -13,7 +13,10 @@ use super::wizard_prompts::{
 use super::{SetupArgs, common, profile, secrets};
 use crate::CliConfig;
 
-pub(crate) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResult<SetupOutput>> {
+pub(crate) async fn execute(
+    args: SetupArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<SetupOutput>> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");
     }

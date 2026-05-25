@@ -13,7 +13,10 @@ pub struct CheckArgs {
     pub ip: String,
 }
 
-pub(crate) async fn execute(args: CheckArgs, config: &CliConfig) -> Result<CommandResult<BanCheckOutput>> {
+pub(crate) async fn execute(
+    args: CheckArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<BanCheckOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }

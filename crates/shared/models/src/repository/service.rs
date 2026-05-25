@@ -26,17 +26,20 @@ impl ServiceRecord {
         let name = row
             .get("name")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("name"))?.to_owned();
+            .ok_or(RowParseError::Missing("name"))?
+            .to_owned();
 
         let module_name = row
             .get("module_name")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("module_name"))?.to_owned();
+            .ok_or(RowParseError::Missing("module_name"))?
+            .to_owned();
 
         let status = row
             .get("status")
             .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("status"))?.to_owned();
+            .ok_or(RowParseError::Missing("status"))?
+            .to_owned();
 
         let pid = row
             .get("pid")

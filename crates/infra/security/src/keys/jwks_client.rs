@@ -254,7 +254,8 @@ impl JwksClient {
         }
         let host = parsed
             .host_str()
-            .ok_or_else(|| JwksClientError::HostNotAllowed(raw.to_owned()))?.to_owned();
+            .ok_or_else(|| JwksClientError::HostNotAllowed(raw.to_owned()))?
+            .to_owned();
         if !self
             .allowed_hosts
             .iter()

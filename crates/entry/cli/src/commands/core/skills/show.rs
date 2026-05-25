@@ -15,7 +15,10 @@ pub struct ShowArgs {
     pub name: String,
 }
 
-pub(crate) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<SkillDetailOutput>> {
+pub(crate) fn execute(
+    args: &ShowArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<SkillDetailOutput>> {
     let skills_path = get_skills_path()?;
     show_skill_detail(&args.name, &skills_path)
 }

@@ -33,7 +33,8 @@ fn collect_squash_range<'m>(
     if through == 0 {
         return Err(LoaderError::MigrationFailed {
             extension: ext_id.to_owned(),
-            message: "--through must be >= 1; version 0 is reserved for the squash baseline".to_owned(),
+            message: "--through must be >= 1; version 0 is reserved for the squash baseline"
+                .to_owned(),
         });
     }
 

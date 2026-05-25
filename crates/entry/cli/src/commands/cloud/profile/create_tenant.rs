@@ -54,7 +54,10 @@ pub(crate) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
     }
 }
 
-pub(crate) fn get_tenants_by_type(store: &TenantStore, tenant_type: TenantType) -> Vec<StoredTenant> {
+pub(crate) fn get_tenants_by_type(
+    store: &TenantStore,
+    tenant_type: TenantType,
+) -> Vec<StoredTenant> {
     store
         .tenants
         .iter()

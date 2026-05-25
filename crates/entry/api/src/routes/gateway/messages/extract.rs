@@ -92,7 +92,8 @@ pub(super) async fn extract_request_context(
             .ok_or_else(|| {
                 (
                     StatusCode::BAD_REQUEST,
-                    "request body has no messages; cannot derive gateway conversation id".to_owned(),
+                    "request body has no messages; cannot derive gateway conversation id"
+                        .to_owned(),
                 )
             })?,
     };
@@ -111,7 +112,8 @@ pub(super) async fn extract_request_context(
     partial.provider = Some(route.provider.clone());
 
     let upstream_model = route
-        .effective_upstream_model(&gateway_request.model).to_owned();
+        .effective_upstream_model(&gateway_request.model)
+        .to_owned();
 
     enforce_authz_for_route(
         &principal,

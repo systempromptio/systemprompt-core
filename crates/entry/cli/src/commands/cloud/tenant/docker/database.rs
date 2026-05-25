@@ -16,7 +16,11 @@ fn sanitize_database_name(name: &str) -> String {
         .collect()
 }
 
-pub(crate) fn create_database_for_tenant(admin_password: &str, port: u16, db_name: &str) -> Result<()> {
+pub(crate) fn create_database_for_tenant(
+    admin_password: &str,
+    port: u16,
+    db_name: &str,
+) -> Result<()> {
     let database_url = format!(
         "postgres://{}:{}@localhost:{}/postgres",
         SHARED_ADMIN_USER, admin_password, port
@@ -79,7 +83,11 @@ pub(crate) fn create_database_for_tenant(admin_password: &str, port: u16, db_nam
     Ok(())
 }
 
-pub(crate) fn drop_database_for_tenant(admin_password: &str, port: u16, db_name: &str) -> Result<()> {
+pub(crate) fn drop_database_for_tenant(
+    admin_password: &str,
+    port: u16,
+    db_name: &str,
+) -> Result<()> {
     let database_url = format!(
         "postgres://{}:{}@localhost:{}/postgres",
         SHARED_ADMIN_USER, admin_password, port

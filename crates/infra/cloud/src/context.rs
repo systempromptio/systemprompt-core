@@ -80,8 +80,8 @@ impl CloudContext {
             return Ok(None);
         }
 
-        let store =
-            TenantStore::load_from_path(&tenants_path).map_err(|_e| CloudError::TenantsNotSynced)?;
+        let store = TenantStore::load_from_path(&tenants_path)
+            .map_err(|_e| CloudError::TenantsNotSynced)?;
 
         store.find_tenant(tenant_id.as_str()).map_or_else(
             || {

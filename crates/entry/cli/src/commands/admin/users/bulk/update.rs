@@ -55,7 +55,10 @@ pub(crate) enum UpdateResult {
     Executed(BulkUpdateOutput),
 }
 
-pub(crate) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandResult<UpdateResult>> {
+pub(crate) async fn execute(
+    args: UpdateArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<UpdateResult>> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will update multiple users. Use --yes to confirm or --dry-run to preview."

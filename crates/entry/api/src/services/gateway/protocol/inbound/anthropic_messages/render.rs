@@ -125,7 +125,8 @@ pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<
     let event_name = value
         .get("type")
         .and_then(Value::as_str)
-        .unwrap_or("message").to_owned();
+        .unwrap_or("message")
+        .to_owned();
     Some(Bytes::from(format!(
         "event: {event_name}\ndata: {}\n\n",
         serde_json::to_string(&value).unwrap_or_else(|_| "{}".into())

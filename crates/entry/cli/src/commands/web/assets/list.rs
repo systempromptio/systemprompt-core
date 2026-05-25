@@ -27,7 +27,10 @@ pub struct ListArgs {
     pub asset_type: AssetTypeFilter,
 }
 
-pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<AssetListOutput>> {
+pub(crate) fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AssetListOutput>> {
     let web_paths = WebPaths::resolve()?;
     let assets_dir = &web_paths.assets;
 

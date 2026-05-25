@@ -41,9 +41,7 @@ fn validate_slug(slug: &str) -> Result<(), ContentError> {
 
 pub fn validate_content_metadata(metadata: &ContentMetadata) -> Result<(), ContentError> {
     if metadata.title.trim().is_empty() {
-        return Err(ContentError::Validation(
-            "title cannot be empty".to_owned(),
-        ));
+        return Err(ContentError::Validation("title cannot be empty".to_owned()));
     }
 
     validate_slug(&metadata.slug)?;

@@ -69,7 +69,9 @@ pub(super) fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
     }
 }
 
-pub(super) fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, RepositoryError> {
+pub(super) fn build_parts_from_rows(
+    part_rows: &[MessagePart],
+) -> Result<Vec<Part>, RepositoryError> {
     let mut parts = Vec::new();
     for part_row in part_rows {
         let part = match part_row.part_kind.as_str() {

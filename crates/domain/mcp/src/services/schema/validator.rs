@@ -71,9 +71,7 @@ impl<'a> SchemaValidator<'a> {
         let mut report = SchemaValidationReport::new(service_name.to_owned());
 
         if self.mode == SchemaValidationMode::Skip {
-            report
-                .warnings
-                .push("Schema validation skipped".to_owned());
+            report.warnings.push("Schema validation skipped".to_owned());
             return Ok(report);
         }
 
@@ -144,11 +142,7 @@ impl<'a> SchemaValidator<'a> {
 
         let existing_columns: Vec<String> = rows
             .iter()
-            .filter_map(|row| {
-                row.get("name")
-                    .and_then(|v| v.as_str())
-                    .map(str::to_owned)
-            })
+            .filter_map(|row| row.get("name").and_then(|v| v.as_str()).map(str::to_owned))
             .collect();
 
         let missing_columns: Vec<&String> = required_columns

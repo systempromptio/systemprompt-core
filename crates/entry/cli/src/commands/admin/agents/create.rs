@@ -30,7 +30,10 @@ pub struct CreateArgs {
     pub agent: AgentArgs,
 }
 
-pub(crate) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<AgentCreateOutput>> {
+pub(crate) fn execute(
+    args: CreateArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<AgentCreateOutput>> {
     let name = resolve_required(args.name, "name", config, prompt_name)?;
 
     validate_agent_name(&name)?;

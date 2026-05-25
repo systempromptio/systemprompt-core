@@ -24,7 +24,11 @@ pub(crate) fn get_tier_multiplier(tiers: &TierMultipliers, tier: &str) -> Result
     }
 }
 
-pub(crate) fn set_tier_multiplier(tiers: &mut TierMultipliers, tier: &str, value: f64) -> Result<()> {
+pub(crate) fn set_tier_multiplier(
+    tiers: &mut TierMultipliers,
+    tier: &str,
+    value: f64,
+) -> Result<()> {
     match tier {
         "admin" => tiers.admin = value,
         "user" => tiers.user = value,
@@ -61,7 +65,11 @@ pub(crate) fn get_endpoint_rate(limits: &RateLimitsConfig, endpoint: &str) -> Re
     }
 }
 
-pub(crate) fn set_endpoint_rate(limits: &mut RateLimitsConfig, endpoint: &str, value: u64) -> Result<()> {
+pub(crate) fn set_endpoint_rate(
+    limits: &mut RateLimitsConfig,
+    endpoint: &str,
+    value: u64,
+) -> Result<()> {
     match endpoint {
         "oauth_public" => limits.oauth_public_per_second = value,
         "oauth_auth" => limits.oauth_auth_per_second = value,

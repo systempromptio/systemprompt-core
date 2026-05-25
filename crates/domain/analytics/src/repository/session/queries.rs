@@ -11,7 +11,10 @@ use crate::models::AnalyticsSession;
 
 use super::types::{ActiveSessionLookup, SessionRecord};
 
-pub(crate) async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
+pub(crate) async fn find_by_id(
+    pool: &PgPool,
+    session_id: &SessionId,
+) -> Result<Option<AnalyticsSession>> {
     let id = session_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,
@@ -64,7 +67,10 @@ pub(crate) async fn find_by_fingerprint(
     .map_err(Into::into)
 }
 
-pub(crate) async fn list_active_by_user(pool: &PgPool, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
+pub(crate) async fn list_active_by_user(
+    pool: &PgPool,
+    user_id: &UserId,
+) -> Result<Vec<AnalyticsSession>> {
     let uid = user_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,

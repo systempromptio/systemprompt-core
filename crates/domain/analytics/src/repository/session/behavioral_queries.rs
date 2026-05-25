@@ -30,7 +30,10 @@ pub(crate) async fn count_sessions_by_fingerprint(
     Ok(count)
 }
 
-pub(crate) async fn get_endpoint_sequence(pool: &PgPool, session_id: &SessionId) -> Result<Vec<String>> {
+pub(crate) async fn get_endpoint_sequence(
+    pool: &PgPool,
+    session_id: &SessionId,
+) -> Result<Vec<String>> {
     let id = session_id.as_str();
 
     let endpoints = sqlx::query_scalar!(

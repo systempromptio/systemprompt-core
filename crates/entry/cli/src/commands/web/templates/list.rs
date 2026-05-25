@@ -14,7 +14,10 @@ pub struct ListArgs {
     pub missing: bool,
 }
 
-pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<TemplateListOutput>> {
+pub(crate) fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<TemplateListOutput>> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");

@@ -204,7 +204,8 @@ impl ImageStorage {
             "image/webp" => "webp",
             "image/gif" => "gif",
             _ => "png",
-        }.to_owned()
+        }
+        .to_owned()
     }
 
     fn cleanup_empty_directories(&self, dir: &Path) -> Result<(), std::io::Error> {

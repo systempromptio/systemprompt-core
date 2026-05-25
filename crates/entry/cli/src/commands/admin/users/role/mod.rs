@@ -50,6 +50,10 @@ pub(crate) async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()>
     }
 }
 
-pub(crate) fn execute_with_pool(_cmd: RoleCommands, _pool: &DbPool, _config: &CliConfig) -> Result<()> {
+pub(crate) fn execute_with_pool(
+    _cmd: RoleCommands,
+    _pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<()> {
     bail!("Role management operations require full profile context")
 }

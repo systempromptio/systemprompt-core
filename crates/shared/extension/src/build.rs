@@ -148,7 +148,8 @@ fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
 fn file_stem(path: &Path) -> String {
     path.file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or_else(|| panic!("migration path {} has no usable file stem", path.display())).to_owned()
+        .unwrap_or_else(|| panic!("migration path {} has no usable file stem", path.display()))
+        .to_owned()
 }
 
 fn parse_stem(stem: &str, path: &Path) -> (u32, String) {

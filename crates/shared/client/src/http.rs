@@ -60,7 +60,11 @@ pub(crate) async fn put<B: serde::Serialize + Sync>(
     Ok(())
 }
 
-pub(crate) async fn delete(client: &Client, url: &str, token: Option<&JwtToken>) -> ClientResult<()> {
+pub(crate) async fn delete(
+    client: &Client,
+    url: &str,
+    token: Option<&JwtToken>,
+) -> ClientResult<()> {
     send_checked(apply_auth(client.delete(url), token)).await?;
     Ok(())
 }

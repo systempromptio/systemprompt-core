@@ -69,7 +69,11 @@ fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> St
     "-".to_string()
 }
 
-pub(crate) fn print_event(event: &TraceEvent, verbose: bool, prev_timestamp: Option<DateTime<Utc>>) {
+pub(crate) fn print_event(
+    event: &TraceEvent,
+    verbose: bool,
+    prev_timestamp: Option<DateTime<Utc>>,
+) {
     let timestamp = event.timestamp.format("%H:%M:%S%.3f").to_string();
 
     let delta = prev_timestamp.map_or_else(

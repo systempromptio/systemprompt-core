@@ -57,10 +57,9 @@ impl MessageValidationService {
 
     async fn load_agent_runtime(&self, agent_name: &str) -> Result<AgentRuntimeInfo> {
         let registry = AgentRegistry::new()?;
-        let agent_config = registry
-            .get_agent(agent_name)
-            .await
-            .map_err(|_e| AgentServiceError::Internal(format!("Agent not found: {}", agent_name)))?;
+        let agent_config = registry.get_agent(agent_name).await.map_err(|_e| {
+            AgentServiceError::Internal(format!("Agent not found: {}", agent_name))
+        })?;
 
         Ok(agent_config.into())
     }

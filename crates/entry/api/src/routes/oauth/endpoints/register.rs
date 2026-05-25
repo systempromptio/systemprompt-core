@@ -117,10 +117,8 @@ fn generate_opaque_token(byte_len: usize) -> String {
 
 fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>, String> {
     if let Some(scope_string) = &request.scope {
-        let requested_scopes: Vec<String> = scope_string
-            .split_whitespace()
-            .map(str::to_owned)
-            .collect();
+        let requested_scopes: Vec<String> =
+            scope_string.split_whitespace().map(str::to_owned).collect();
 
         if !requested_scopes.is_empty() {
             let valid_requested = OAuthRepository::validate_scopes(&requested_scopes)

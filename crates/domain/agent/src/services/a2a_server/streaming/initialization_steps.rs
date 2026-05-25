@@ -73,7 +73,9 @@ pub(super) async fn validate_context(
     Ok(())
 }
 
-pub(super) async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRepository, ()> {
+pub(super) async fn persist_initial_task(
+    input: PersistTaskInput<'_>,
+) -> Result<TaskRepository, ()> {
     let PersistTaskInput {
         task_id,
         context_id,

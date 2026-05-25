@@ -174,7 +174,8 @@ impl JwtContextExtractor {
             return Err(ContextExtractionError::ForbiddenHeader {
                 header: "X-Context-ID".to_owned(),
                 reason: "Context ID must be in request body (A2A spec). Use contextId field in \
-                         message.".to_owned(),
+                         message."
+                    .to_owned(),
             });
         }
 

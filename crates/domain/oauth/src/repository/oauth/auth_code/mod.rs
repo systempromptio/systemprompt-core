@@ -87,7 +87,9 @@ impl OAuthRepository {
         .await?;
 
         let Some(row) = claimed else {
-            return self.handle_unclaimable_auth_code(code_str, &code_hash).await;
+            return self
+                .handle_unclaimable_auth_code(code_str, &code_hash)
+                .await;
         };
 
         if row.expires_at < now {

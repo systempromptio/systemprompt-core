@@ -187,7 +187,9 @@ pub(crate) struct SpanFields {
     pub client: Option<String>,
 }
 
-pub(crate) fn extract_span_context<S>(span: tracing_subscriber::registry::SpanRef<'_, S>) -> SpanContext
+pub(crate) fn extract_span_context<S>(
+    span: tracing_subscriber::registry::SpanRef<'_, S>,
+) -> SpanContext
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {

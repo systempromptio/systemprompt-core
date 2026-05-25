@@ -85,9 +85,7 @@ impl<'a> RefreshTokenParams<'a> {
 impl OAuthRepository {
     pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> OauthResult<()> {
         let expires_at_dt = chrono::DateTime::<Utc>::from_timestamp(params.expires_at, 0)
-            .ok_or_else(|| {
-                OauthError::Validation("Invalid timestamp for expires_at".to_owned())
-            })?;
+            .ok_or_else(|| OauthError::Validation("Invalid timestamp for expires_at".to_owned()))?;
         let now = Utc::now();
         let token_id_hash = hash_at_rest(params.token_id.as_str())?;
         let client_id = params.client_id.as_str();

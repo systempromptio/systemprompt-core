@@ -53,7 +53,9 @@ pub(crate) struct IssuePluginTokenOutput {
     pub token: String,
 }
 
-pub(crate) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandResult<IssuePluginTokenOutput>> {
+pub(crate) async fn execute(
+    args: IssuePluginTokenArgs,
+) -> Result<CommandResult<IssuePluginTokenOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
 

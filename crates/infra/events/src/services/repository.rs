@@ -71,7 +71,10 @@ impl EventOutboxRepository {
         .await
     }
 
-    pub(super) async fn prune(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<u64, sqlx::Error> {
+    pub(super) async fn prune(
+        &self,
+        cutoff: chrono::DateTime<chrono::Utc>,
+    ) -> Result<u64, sqlx::Error> {
         sqlx::query!("DELETE FROM event_outbox WHERE created_at < $1", cutoff)
             .execute(&self.pool)
             .await

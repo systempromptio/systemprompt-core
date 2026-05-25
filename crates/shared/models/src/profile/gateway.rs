@@ -54,7 +54,8 @@ pub enum GatewayProfileError {
     RouteProviderNotInCatalog { route: String, provider: String },
 
     #[error(
-        "gateway route '{route}' endpoint '{route_endpoint}' disagrees with catalog provider '{provider}' endpoint '{catalog_endpoint}'"
+        "gateway route '{route}' endpoint '{route_endpoint}' disagrees with catalog provider \
+         '{provider}' endpoint '{catalog_endpoint}'"
     )]
     RouteEndpointMismatch {
         route: String,

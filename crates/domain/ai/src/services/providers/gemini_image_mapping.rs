@@ -105,7 +105,8 @@ pub(super) fn extract_image_from_response(response: &GeminiResponse) -> Result<(
             message: "Image generation returned empty response - this may indicate the prompt was \
                       rejected by content safety filters, API quota exceeded, or a transient \
                       service error. Please inform the user that image generation failed and the \
-                      content was created without an image.".to_owned(),
+                      content was created without an image."
+                .to_owned(),
         })?;
 
     for part in &content.parts {

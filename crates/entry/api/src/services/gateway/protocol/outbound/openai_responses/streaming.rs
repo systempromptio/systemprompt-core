@@ -129,11 +129,13 @@ fn handle_created(
     let id = response
         .get("id")
         .and_then(Value::as_str)
-        .unwrap_or("resp_unknown").to_owned();
+        .unwrap_or("resp_unknown")
+        .to_owned();
     let model = response
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or(&state.model).to_owned();
+        .unwrap_or(&state.model)
+        .to_owned();
     state.model.clone_from(&model);
     state.response_id.clone_from(&id);
     state.started = true;
@@ -163,11 +165,13 @@ fn handle_item_added(
                 .get("call_id")
                 .and_then(Value::as_str)
                 .or_else(|| item.get("id").and_then(Value::as_str))
-                .unwrap_or("").to_owned();
+                .unwrap_or("")
+                .to_owned();
             let name = item
                 .get("name")
                 .and_then(Value::as_str)
-                .unwrap_or("").to_owned();
+                .unwrap_or("")
+                .to_owned();
             (SlotKind::Function, ContentBlockKind::ToolUse { id, name })
         },
         "reasoning" => (
@@ -274,6 +278,7 @@ pub(crate) fn handle_error(value: &Value, events: &mut Vec<Result<CanonicalEvent
         .get("error")
         .and_then(|e| e.get("message"))
         .and_then(Value::as_str)
-        .unwrap_or("upstream error").to_owned();
+        .unwrap_or("upstream error")
+        .to_owned();
     events.push(Ok(CanonicalEvent::Error(msg)));
 }
