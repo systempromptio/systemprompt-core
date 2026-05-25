@@ -28,7 +28,7 @@ pub enum BanCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(crate) async fn execute(cmd: BanCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: BanCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         BanCommands::List(args) => {
             let result = list::execute(args, config).await?;
@@ -58,7 +58,7 @@ pub(crate) async fn execute(cmd: BanCommands, config: &CliConfig) -> Result<()> 
     }
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     cmd: BanCommands,
     pool: &DbPool,
     config: &CliConfig,

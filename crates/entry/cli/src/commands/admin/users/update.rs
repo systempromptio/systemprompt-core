@@ -29,7 +29,7 @@ pub struct UpdateArgs {
     pub email_verified: Option<bool>,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: UpdateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<UserUpdatedOutput>> {

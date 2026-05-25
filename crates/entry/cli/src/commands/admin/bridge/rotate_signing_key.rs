@@ -12,7 +12,7 @@ use crate::shared::CommandResult;
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs;
 
-pub(crate) fn execute(
+pub(super) fn execute(
     _args: RotateSigningKeyArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SigningKeyRotatedOutput>> {

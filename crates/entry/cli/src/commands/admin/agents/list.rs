@@ -20,12 +20,12 @@ pub struct ListArgs {
 
 #[derive(Debug, serde::Serialize)]
 #[serde(untagged)]
-pub(crate) enum ListOrDetail {
+pub(super) enum ListOrDetail {
     List(AgentListOutput),
     Detail(AgentDetailOutput),
 }
 
-pub(crate) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     if let Some(name) = args.name {

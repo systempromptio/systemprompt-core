@@ -9,7 +9,7 @@ use systemprompt_identifiers::SessionToken;
 use tokio::time::timeout;
 use tracing::debug;
 
-pub(crate) struct ToolInfo {
+pub(super) struct ToolInfo {
     pub name: String,
     pub description: Option<String>,
     pub parameters_count: usize,
@@ -17,7 +17,7 @@ pub(crate) struct ToolInfo {
     pub output_schema: Option<serde_json::Value>,
 }
 
-pub(crate) async fn list_tools_unauthenticated(
+pub(super) async fn list_tools_unauthenticated(
     server_name: &str,
     port: u16,
     timeout_secs: u64,
@@ -53,7 +53,7 @@ pub(crate) async fn list_tools_unauthenticated(
     Ok(tools)
 }
 
-pub(crate) async fn list_tools_authenticated(
+pub(super) async fn list_tools_authenticated(
     server_name: &str,
     port: u16,
     token: &SessionToken,

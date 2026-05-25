@@ -13,7 +13,7 @@ use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 
-pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -78,7 +78,7 @@ pub(crate) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn execute_enable(config: &CliConfig) -> Result<()> {
+pub(super) fn execute_enable(config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
@@ -107,7 +107,7 @@ pub(crate) fn execute_enable(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn execute_disable(config: &CliConfig) -> Result<()> {
+pub(super) fn execute_disable(config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
 

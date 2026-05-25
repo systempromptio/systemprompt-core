@@ -46,12 +46,12 @@ struct DryRunOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
-pub(crate) enum DeleteResult {
+pub(super) enum DeleteResult {
     DryRun(DryRunOutput),
     Executed(BulkDeleteOutput),
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: DeleteArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<DeleteResult>> {

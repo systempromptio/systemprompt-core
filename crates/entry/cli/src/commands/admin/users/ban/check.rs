@@ -13,7 +13,7 @@ pub struct CheckArgs {
     pub ip: String,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: CheckArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<BanCheckOutput>> {
@@ -21,7 +21,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: CheckArgs,
     pool: &DbPool,
     _config: &CliConfig,

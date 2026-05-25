@@ -22,7 +22,7 @@ pub struct LogoutArgs {
     pub all: bool,
 }
 
-pub(crate) fn execute(
+pub(super) fn execute(
     args: &LogoutArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<LogoutOutput>> {

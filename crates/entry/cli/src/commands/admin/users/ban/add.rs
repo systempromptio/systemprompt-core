@@ -23,7 +23,7 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: AddArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<BanAddOutput>> {

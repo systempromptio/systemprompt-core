@@ -18,12 +18,12 @@ pub struct CountArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
-pub(crate) enum CountResult {
+pub(super) enum CountResult {
     Simple(UserCountOutput),
     Breakdown(UserCountBreakdownOutput),
 }
 
-pub(crate) async fn execute(
+pub(super) async fn execute(
     args: CountArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<CountResult>> {
@@ -31,7 +31,7 @@ pub(crate) async fn execute(
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub(crate) async fn execute_with_pool(
+pub(super) async fn execute_with_pool(
     args: CountArgs,
     pool: &DbPool,
     _config: &CliConfig,
