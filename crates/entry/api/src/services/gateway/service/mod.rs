@@ -86,16 +86,21 @@ impl GatewayService {
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| anyhow!("Secrets not available: {e}"))?;
 
-        let upstream_api_key = secrets.get(&route.api_key_secret).ok_or_else(|| {
+        let upstream_api_key = secrets.get(route.api_key_secret.as_str()).ok_or_else(|| {
             anyhow!(
                 "Gateway API key secret '{}' not configured",
-                route.api_key_secret
+                route.api_key_secret.as_str()
             )
         })?;
 
         let upstream = GatewayUpstreamRegistry::global()
-            .get(&route.provider)
-            .ok_or_else(|| anyhow!("Gateway provider '{}' is not registered", route.provider))?;
+            .get(route.provider.as_str())
+            .ok_or_else(|| {
+                anyhow!(
+                    "Gateway provider '{}' is not registered",
+                    route.provider.as_str()
+                )
+            })?;
 
         let is_streaming = request.stream;
 

@@ -5,11 +5,11 @@
 
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_identifiers::{Actor, TraceId, UserId};
+use systemprompt_identifiers::{Actor, McpServerId, TraceId, UserId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind, SharedAuthzHook};
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook};
 
 use super::{extract_bearer_token, extract_request_context};
 
@@ -169,8 +169,7 @@ async fn enforce_authz_for_server(
 ) -> Result<(), McpError> {
     let user_id = UserId::new(claims.sub.clone());
     let req = AuthzRequest {
-        entity_type: EntityKind::McpServer,
-        entity_id: server_name.to_owned(),
+        entity: EntityRef::McpServer(McpServerId::new(server_name)),
         user_id,
         roles: claims.roles.clone(),
         department: claims.department.clone().unwrap_or_else(String::new),

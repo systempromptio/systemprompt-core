@@ -30,5 +30,6 @@ pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::resolve;
 pub use runtime::{SharedAuthzHook, build_authz_hook};
 pub use types::{
-    Access, AccessRule, AuthzDecision, AuthzRequest, Decision, DecisionTag, EntityKind, RuleType,
+    Access, AccessRule, AuthzDecision, AuthzRequest, Decision, DecisionTag, EntityKind, EntityRef,
+    RuleType,
 };

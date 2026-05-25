@@ -1,15 +1,16 @@
 use std::collections::HashMap;
+use systemprompt_identifiers::{ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     GatewayConfig, GatewayRoute, slugify_pattern, synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
-        id: String::new(),
-        model_pattern: pattern.to_string(),
-        provider: "test".to_string(),
-        endpoint: "https://example.com".to_string(),
-        api_key_secret: "secret".to_string(),
+        id: RouteId::new(""),
+        model_pattern: pattern.to_owned(),
+        provider: ProviderId::new("test"),
+        endpoint: "https://example.com".to_owned(),
+        api_key_secret: SecretName::new("secret"),
         upstream_model: None,
         extra_headers: HashMap::new(),
         pricing: None,
@@ -38,19 +39,19 @@ fn route_finds_matching_model() {
     let config = GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
-            id: String::new(),
-            model_pattern: "kimi-*".to_string(),
-            provider: "moonshot".to_string(),
-            endpoint: "https://api.moonshot.ai/v1".to_string(),
-            api_key_secret: "moonshot".to_string(),
-            upstream_model: Some("moonshot-v1-32k".to_string()),
+            id: RouteId::new(""),
+            model_pattern: "kimi-*".to_owned(),
+            provider: ProviderId::new("moonshot"),
+            endpoint: "https://api.moonshot.ai/v1".to_owned(),
+            api_key_secret: SecretName::new("moonshot"),
+            upstream_model: Some("moonshot-v1-32k".to_owned()),
             extra_headers: HashMap::new(),
             pricing: None,
         }],
         ..GatewayConfig::default()
     };
     let matched = config.find_route("kimi-latest").expect("route must match");
-    assert_eq!(matched.provider, "moonshot");
+    assert_eq!(matched.provider.as_str(), "moonshot");
     assert_eq!(
         matched.effective_upstream_model("kimi-latest"),
         "moonshot-v1-32k"
@@ -71,7 +72,7 @@ fn synthesize_route_id_is_stable_and_input_dependent() {
     let a = synthesize_route_id("claude-*", "anthropic", "https://api.anthropic.com");
     let b = synthesize_route_id("claude-*", "anthropic", "https://api.anthropic.com");
     assert_eq!(a, b, "synthesize_route_id must be deterministic");
-    assert!(a.starts_with("claude-star-"));
+    assert!(a.as_str().starts_with("claude-star-"));
 
     let c = synthesize_route_id("claude-*", "anthropic", "https://other.example");
     assert_ne!(a, c, "endpoint change must produce a different id");
@@ -83,9 +84,9 @@ fn synthesize_route_id_is_stable_and_input_dependent() {
 #[test]
 fn ensure_id_backfills_empty_id() {
     let mut r = route("claude-*");
-    assert!(r.id.is_empty());
+    assert!(r.id.as_str().is_empty());
     r.ensure_id();
-    assert!(!r.id.is_empty());
+    assert!(!r.id.as_str().is_empty());
     let preserved = r.id.clone();
     r.ensure_id();
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
@@ -93,7 +94,7 @@ fn ensure_id_backfills_empty_id() {
 
 fn config_with_endpoint(endpoint: &str) -> GatewayConfig {
     let mut r = route("*");
-    r.endpoint = endpoint.to_string();
+    r.endpoint = endpoint.to_owned();
     GatewayConfig {
         enabled: true,
         routes: vec![r],

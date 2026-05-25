@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_security::authz::audit::NullAuditSink;
 use systemprompt_security::authz::hook::DenyAllHook;
 use systemprompt_security::authz::{
-    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityKind, WebhookHook,
+    AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, EntityRef, WebhookHook,
 };
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -13,8 +13,7 @@ use systemprompt_test_fixtures::fixture_user_id;
 
 fn fixture() -> AuthzRequest {
     AuthzRequest {
-        entity_type: EntityKind::GatewayRoute,
-        entity_id: "claude-3".into(),
+        entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: fixture_user_id(),
         roles: vec!["eng".into()],
         department: "platform".into(),

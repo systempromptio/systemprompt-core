@@ -1,16 +1,15 @@
 //! Tests that the act-chain plumbing reaches the governance audit row.
 
-use systemprompt_identifiers::{TraceId, UserId};
+use systemprompt_identifiers::{RouteId, TraceId, UserId};
 use systemprompt_identifiers::{Actor, ActorKind};
-use systemprompt_security::authz::{AuthzRequest, EntityKind};
+use systemprompt_security::authz::{AuthzRequest, EntityRef};
 
 fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
-        entity_type: EntityKind::GatewayRoute,
-        entity_id: "claude-3".into(),
+        entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: UserId::new("u1"),
-        roles: vec!["eng".into()],
-        department: "platform".into(),
+        roles: vec!["eng".to_owned()],
+        department: "platform".to_owned(),
         trace_id: TraceId::new("trace-1"),
         context: serde_json::Value::Null,
         act_chain: chain,

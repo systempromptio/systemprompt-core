@@ -6,7 +6,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     ContextId, GatewayConversationId, SessionId, TraceId, UserId, headers as sp_headers,
 };
-use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityKind, SharedAuthzHook};
+use systemprompt_security::authz::{AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook};
 
 use crate::services::gateway::protocol::canonical::CanonicalRequest;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
@@ -14,7 +14,7 @@ use crate::services::gateway::protocol::inbound::InboundAdapter;
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};
 
-#[expect(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names, reason = "clippy::struct_field_names")]
 #[derive(Default)]
 pub(super) struct RejectionPartial {
     pub user_id: Option<UserId>,
@@ -108,7 +108,7 @@ pub(super) async fn extract_request_context(
                 format!("No gateway route matches model '{}'", gateway_request.model),
             )
         })?;
-    partial.provider = Some(route.provider.clone());
+    partial.provider = Some(route.provider.as_str().to_owned());
 
     let upstream_model = route
         .effective_upstream_model(&gateway_request.model).to_owned();
@@ -125,7 +125,7 @@ pub(super) async fn extract_request_context(
         principal,
         body_bytes,
         gateway_request,
-        provider: route.provider.clone(),
+        provider: route.provider.as_str().to_owned(),
         upstream_model,
         session_id,
         context_id,
@@ -244,18 +244,17 @@ fn build_authz_request(
     route: &systemprompt_models::profile::GatewayRoute,
     model: &str,
 ) -> AuthzRequest {
-    let entity_id = if route.id.trim().is_empty() {
+    let route_id = if route.id.as_str().trim().is_empty() {
         systemprompt_models::profile::synthesize_route_id(
             &route.model_pattern,
-            &route.provider,
+            route.provider.as_str(),
             &route.endpoint,
         )
     } else {
         route.id.clone()
     };
     AuthzRequest {
-        entity_type: EntityKind::GatewayRoute,
-        entity_id,
+        entity: EntityRef::GatewayRoute(route_id),
         user_id: principal.user_id.clone(),
         roles: principal.roles.clone(),
         department: principal.department.clone(),

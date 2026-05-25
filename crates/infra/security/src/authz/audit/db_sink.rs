@@ -31,10 +31,11 @@ impl AuthzAuditSink for DbAuditSink {
             AuthzDecision::Allow => String::new(),
             AuthzDecision::Deny { reason, .. } => reason.clone(),
         };
-        let entity_type = req.entity_type.as_str();
+        let entity_type = req.entity.kind().as_str();
+        let entity_id = req.entity.id_str();
         let evaluated = serde_json::json!({
             "entity_type": entity_type,
-            "entity_id": req.entity_id,
+            "entity_id": entity_id,
             "trace_id": req.trace_id.as_str(),
             "roles": req.roles,
             "department": req.department,
@@ -46,7 +47,7 @@ impl AuthzAuditSink for DbAuditSink {
             id: &id,
             actor: &actor,
             session_id: req.trace_id.as_str(),
-            tool_name: &req.entity_id,
+            tool_name: entity_id,
             agent_id: None,
             agent_scope: entity_type,
             decision: decision_tag,
@@ -61,7 +62,7 @@ impl AuthzAuditSink for DbAuditSink {
                 error = %err,
                 policy = source.policy(),
                 entity_type = %entity_type,
-                entity_id = %req.entity_id,
+                entity_id = %entity_id,
                 "failed to record core-side authz decision"
             );
         }

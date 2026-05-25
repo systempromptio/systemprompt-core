@@ -26,7 +26,7 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
 fn backfill_route_ids(gateway: &mut systemprompt_models::profile::GatewayConfig) -> bool {
     let mut mutated = false;
     for route in &mut gateway.routes {
-        if route.id.trim().is_empty() {
+        if route.id.as_str().trim().is_empty() {
             route.ensure_id();
             mutated = true;
         }

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -125,6 +126,10 @@ fn default_inference_path_prefix() -> String {
     "/v1".to_owned()
 }
 
+fn default_route_id() -> RouteId {
+    RouteId::new("")
+}
+
 impl GatewayConfig {
     pub fn find_route(&self, model: &str) -> Option<&GatewayRoute> {
         self.routes.iter().find(|route| route.matches(model))
@@ -151,16 +156,16 @@ impl GatewayConfig {
         };
         catalog.validate()?;
         for route in &self.routes {
-            let Some(provider) = catalog.find_provider(&route.provider) else {
+            let Some(provider) = catalog.find_provider(route.provider.as_str()) else {
                 return Err(GatewayProfileError::RouteProviderNotInCatalog {
                     route: route.model_pattern.clone(),
-                    provider: route.provider.clone(),
+                    provider: route.provider.as_str().to_owned(),
                 });
             };
             if provider.endpoint != route.endpoint {
                 return Err(GatewayProfileError::RouteEndpointMismatch {
                     route: route.model_pattern.clone(),
-                    provider: route.provider.clone(),
+                    provider: route.provider.as_str().to_owned(),
                     route_endpoint: route.endpoint.clone(),
                     catalog_endpoint: provider.endpoint.clone(),
                 });
@@ -170,17 +175,19 @@ impl GatewayConfig {
         for model in &catalog.models {
             if !seen.insert(model.id.as_str()) {
                 return Err(GatewayProfileError::DuplicateModelId {
-                    id: model.id.clone(),
+                    id: model.id.as_str().to_owned(),
                 });
             }
             for alias in &model.aliases {
                 if !seen.insert(alias.as_str()) {
-                    return Err(GatewayProfileError::DuplicateModelId { id: alias.clone() });
+                    return Err(GatewayProfileError::DuplicateModelId {
+                        id: alias.as_str().to_owned(),
+                    });
                 }
             }
-            if !self.routes.iter().any(|r| r.matches(&model.id)) {
+            if !self.routes.iter().any(|r| r.matches(model.id.as_str())) {
                 return Err(GatewayProfileError::UnreachableModel {
-                    model: model.id.clone(),
+                    model: model.id.as_str().to_owned(),
                 });
             }
         }
@@ -200,48 +207,51 @@ pub struct GatewayCatalog {
 impl GatewayCatalog {
     pub fn validate(&self) -> GatewayResult<()> {
         for model in &self.models {
-            if model.id.is_empty() {
+            if model.id.as_str().is_empty() {
                 return Err(GatewayProfileError::ModelEmptyId);
             }
             if !self.providers.iter().any(|p| p.name == model.provider) {
                 return Err(GatewayProfileError::UnknownProvider {
-                    model: model.id.clone(),
-                    provider: model.provider.clone(),
+                    model: model.id.as_str().to_owned(),
+                    provider: model.provider.as_str().to_owned(),
                 });
             }
         }
         for provider in &self.providers {
-            if provider.name.is_empty() {
+            if provider.name.as_str().is_empty() {
                 return Err(GatewayProfileError::ProviderEmptyName);
             }
             if provider.endpoint.is_empty() {
                 return Err(GatewayProfileError::ProviderEmptyEndpoint {
-                    name: provider.name.clone(),
+                    name: provider.name.as_str().to_owned(),
                 });
             }
-            validate_endpoint(&format!("provider '{}'", provider.name), &provider.endpoint)?;
+            validate_endpoint(
+                &format!("provider '{}'", provider.name.as_str()),
+                &provider.endpoint,
+            )?;
         }
         Ok(())
     }
 
     pub fn find_provider(&self, name: &str) -> Option<&GatewayProvider> {
-        self.providers.iter().find(|p| p.name == name)
+        self.providers.iter().find(|p| p.name.as_str() == name)
     }
 
     #[must_use]
     pub fn contains_model(&self, requested: &str) -> bool {
-        self.models
-            .iter()
-            .any(|m| m.id == requested || m.aliases.iter().any(|a| a == requested))
+        self.models.iter().any(|m| {
+            m.id.as_str() == requested || m.aliases.iter().any(|a| a.as_str() == requested)
+        })
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayProvider {
-    pub name: String,
+    pub name: ProviderId,
     pub endpoint: String,
-    pub api_key_secret: String,
+    pub api_key_secret: SecretName,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub extra_headers: HashMap<String, String>,
 }
@@ -249,10 +259,10 @@ pub struct GatewayProvider {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayModel {
-    pub id: String,
-    pub provider: String,
+    pub id: ModelId,
+    pub provider: ProviderId,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub aliases: Vec<String>,
+    pub aliases: Vec<ModelId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -264,12 +274,12 @@ pub struct GatewayModel {
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayRoute {
-    #[serde(default)]
-    pub id: String,
+    #[serde(default = "default_route_id")]
+    pub id: RouteId,
     pub model_pattern: String,
-    pub provider: String,
+    pub provider: ProviderId,
     pub endpoint: String,
-    pub api_key_secret: String,
+    pub api_key_secret: SecretName,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_model: Option<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -288,8 +298,9 @@ impl GatewayRoute {
     }
 
     pub fn ensure_id(&mut self) {
-        if self.id.trim().is_empty() {
-            self.id = synthesize_route_id(&self.model_pattern, &self.provider, &self.endpoint);
+        if self.id.as_str().trim().is_empty() {
+            self.id =
+                synthesize_route_id(&self.model_pattern, self.provider.as_str(), &self.endpoint);
         }
     }
 }
@@ -334,14 +345,14 @@ pub fn slugify_pattern(pattern: &str) -> String {
 // DefaultHasher over (model_pattern, provider, endpoint). Mirrors the template
 // logic so ids stay identical across the core/template seam.
 #[must_use]
-pub fn synthesize_route_id(model_pattern: &str, provider: &str, endpoint: &str) -> String {
+pub fn synthesize_route_id(model_pattern: &str, provider: &str, endpoint: &str) -> RouteId {
     let mut hasher = DefaultHasher::new();
     model_pattern.hash(&mut hasher);
     provider.hash(&mut hasher);
     endpoint.hash(&mut hasher);
     let h = hasher.finish();
     let hash6: String = format!("{h:016x}").chars().take(6).collect();
-    format!("{}-{}", slugify_pattern(model_pattern), hash6)
+    RouteId::new(format!("{}-{}", slugify_pattern(model_pattern), hash6))
 }
 
 fn match_pattern(pattern: &str, model: &str) -> bool {

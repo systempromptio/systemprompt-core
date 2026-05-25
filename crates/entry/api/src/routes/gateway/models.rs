@@ -57,14 +57,14 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
     if let Some(catalog) = gateway.catalog.as_ref() {
         for m in &catalog.models {
             by_id.insert(
-                m.id.clone(),
+                m.id.as_str().to_owned(),
                 ModelEntry {
                     kind: "model",
                     display_name: m
                         .display_name
                         .clone()
-                        .unwrap_or_else(|| humanize_model_id(&m.id)),
-                    id: m.id.clone(),
+                        .unwrap_or_else(|| humanize_model_id(m.id.as_str())),
+                    id: m.id.as_str().to_owned(),
                     created_at: "1970-01-01T00:00:00Z".to_owned(),
                 },
             );

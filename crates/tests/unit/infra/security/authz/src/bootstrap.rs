@@ -4,19 +4,18 @@
 //! `DenyAllHook` or a bootstrap error. Allow-all is reachable only via the
 //! literal acknowledgement string.
 
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 use systemprompt_security::authz::{
-    AuthzBootstrapError, AuthzDecision, AuthzError, AuthzRequest, EntityKind, build_authz_hook,
+    AuthzBootstrapError, AuthzDecision, AuthzError, AuthzRequest, EntityRef, build_authz_hook,
 };
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn fixture() -> AuthzRequest {
     AuthzRequest {
-        entity_type: EntityKind::GatewayRoute,
-        entity_id: "claude-3".into(),
+        entity: EntityRef::GatewayRoute(RouteId::new("claude-3")),
         user_id: fixture_user_id(),
         roles: vec!["eng".into()],
         department: "platform".into(),

@@ -1,4 +1,5 @@
 use systemprompt_api::services::gateway::pricing::{cost_microdollars, resolve};
+use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     GatewayCatalog, GatewayConfig, GatewayModel, GatewayProvider, GatewayRoute,
 };
@@ -6,11 +7,11 @@ use systemprompt_models::services::ModelPricing;
 
 fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
     GatewayRoute {
-        id: format!("{pattern}-{provider}"),
-        model_pattern: pattern.to_string(),
-        provider: provider.to_string(),
+        id: RouteId::new(format!("{pattern}-{provider}")),
+        model_pattern: pattern.to_owned(),
+        provider: ProviderId::new(provider),
         endpoint: format!("https://api.{provider}.test/v1"),
-        api_key_secret: provider.to_string(),
+        api_key_secret: SecretName::new(provider),
         upstream_model: None,
         extra_headers: Default::default(),
         pricing,
@@ -23,8 +24,8 @@ fn gateway_with(routes: Vec<GatewayRoute>, catalog: Option<GatewayCatalog>) -> G
         routes,
         catalog_path: None,
         catalog,
-        auth_scheme: "bearer".into(),
-        inference_path_prefix: "/v1".into(),
+        auth_scheme: "bearer".to_owned(),
+        inference_path_prefix: "/v1".to_owned(),
     }
 }
 
@@ -53,14 +54,14 @@ fn catalog_pricing_used_when_no_route_override() {
     };
     let catalog = GatewayCatalog {
         providers: vec![GatewayProvider {
-            name: "anthropic".into(),
-            endpoint: "https://api.anthropic.com".into(),
-            api_key_secret: "anthropic".into(),
+            name: ProviderId::new("anthropic"),
+            endpoint: "https://api.anthropic.com".to_owned(),
+            api_key_secret: SecretName::new("anthropic"),
             extra_headers: Default::default(),
         }],
         models: vec![GatewayModel {
-            id: "claude-sonnet-4-rare".into(),
-            provider: "anthropic".into(),
+            id: ModelId::new("claude-sonnet-4-rare"),
+            provider: ProviderId::new("anthropic"),
             aliases: Vec::new(),
             display_name: None,
             upstream_model: None,

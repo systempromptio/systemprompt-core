@@ -24,7 +24,7 @@ pub fn resolve(provider: &str, model: &str, gateway: Option<&GatewayConfig>) -> 
             }
         }
         if let Some(catalog) = gw.catalog.as_ref() {
-            if let Some(m) = catalog.models.iter().find(|m| m.id == model) {
+            if let Some(m) = catalog.models.iter().find(|m| m.id.as_str() == model) {
                 if let Some(p) = m.pricing {
                     return p;
                 }
