@@ -9,7 +9,7 @@
 use std::sync::{Arc, OnceLock};
 
 use anyhow::Result;
-use systemprompt_analytics::AnalyticsService;
+use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::AllowAllFilter;
@@ -19,6 +19,7 @@ use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, Securi
 use systemprompt_models::{AppPaths, Config, RouteClassifier};
 use systemprompt_runtime::{AppContext, AppContextParts, ModuleApiRegistry};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
+use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
 
@@ -72,7 +73,11 @@ pub fn fixture_config(database_url: &str) -> Config {
 /// Build an [`AppContext`] backed by `pool` and the fixture config.
 ///
 /// `database_url` is folded into the config for any code that reads it back
-/// out via `ctx.config().database_url`.
+/// out via `ctx.config().database_url`. Wires real
+/// [`UserService`](systemprompt_users::UserService) and
+/// [`FingerprintRepository`](systemprompt_analytics::FingerprintRepository)
+/// instances so the api server's middleware stack (which hard-requires both)
+/// can be assembled against the fixture context.
 pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>> {
     let paths = PathsConfig {
         system: "/tmp".to_string(),
@@ -93,8 +98,8 @@ pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppC
         content_config: None,
         route_classifier: Arc::new(RouteClassifier::new(None)),
         analytics_service: Arc::new(AnalyticsService::new(pool, None, None)?),
-        fingerprint_repo: None,
-        user_service: None,
+        fingerprint_repo: Some(Arc::new(FingerprintRepository::new(pool)?)),
+        user_service: Some(Arc::new(UserService::new(pool)?)),
         app_paths,
         marketplace_filter: Arc::new(AllowAllFilter),
         event_bridge: Arc::new(OnceLock::new()),

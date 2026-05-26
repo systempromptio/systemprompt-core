@@ -17,5 +17,6 @@ systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-users = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
