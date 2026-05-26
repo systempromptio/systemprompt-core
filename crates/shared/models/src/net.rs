@@ -55,6 +55,35 @@ pub const AI_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 /// Default timeout for a single MCP tool-call RPC (excludes connection setup).
 pub const MCP_TOOL_EXECUTION_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// Environment variable carrying the operator's explicit allowlist of
+/// non-loopback hostnames reachable over plain `http`. Comma-separated,
+/// case-insensitive, exact domain match only — no globs, no IP, no port.
+///
+/// The intended use is sealed-network demos (the air-gap scenario) and
+/// behind-the-firewall mock services, where the SSRF guard's default
+/// "loopback-only http" rule would otherwise reject a known-trusted internal
+/// hostname like `mock-inference`. **Default empty** — operator opts in by
+/// naming every host explicitly. Does not loosen the scheme, IP block, or
+/// private-range rules for any host outside the allowlist.
+pub const TRUSTED_HTTP_HOSTS_ENV: &str = "SYSTEMPROMPT_TRUSTED_HTTP_HOSTS";
+
+/// Parse [`TRUSTED_HTTP_HOSTS_ENV`] into a normalised allowlist.
+///
+/// Empty/missing → empty vec. Hosts are trimmed and lower-cased; empty
+/// entries (from `a,,b` typos) are dropped.
+#[must_use]
+pub fn trusted_http_hosts_from_env() -> Vec<String> {
+    std::env::var(TRUSTED_HTTP_HOSTS_ENV)
+        .ok()
+        .map(|raw| {
+            raw.split(',')
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Validate an operator-configured outbound webhook destination, returning the
 /// parsed URL on success.
 ///
@@ -65,6 +94,27 @@ pub const MCP_TOOL_EXECUTION_TIMEOUT: Duration = Duration::from_secs(30);
 /// `http` is allowed only for explicit loopback names used during local
 /// development.
 pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
+    let no_trust: [&str; 0] = [];
+    validate_outbound_url_with_trust(url, &no_trust)
+}
+
+/// Same as [`validate_outbound_url`], but accepts an explicit allowlist of
+/// hostnames the operator has marked as reachable over plain `http`.
+///
+/// A host in `trusted_http_hosts` is treated like `localhost` for the scheme
+/// gate (http accepted) and **also bypasses the private-range IP block** for
+/// that hostname's resolution path — the latter matters because in-network
+/// hostnames typically resolve to RFC1918 IPs that the standard guard
+/// rejects. The IP-blocklist is still enforced for every host *not* in the
+/// allowlist.
+///
+/// Matching is exact, case-insensitive, on the URL's parsed host. IPs in the
+/// allowlist are matched literally (allowlist callers should generally use
+/// hostnames, not addresses).
+pub fn validate_outbound_url_with_trust(
+    url: &str,
+    trusted_http_hosts: &[impl AsRef<str>],
+) -> Result<url::Url, OutboundUrlError> {
     let parsed = url::Url::parse(url).map_err(|e| OutboundUrlError::Parse(e.to_string()))?;
     let host = parsed
         .host()
@@ -76,14 +126,20 @@ pub fn validate_outbound_url(url: &str) -> Result<url::Url, OutboundUrlError> {
         url::Host::Ipv6(ip) => ip.is_loopback(),
     };
 
+    let host_str = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
+    let is_trusted = !host_str.is_empty()
+        && trusted_http_hosts
+            .iter()
+            .any(|h| h.as_ref().eq_ignore_ascii_case(&host_str));
+
     match parsed.scheme() {
         "https" => {},
-        "http" if is_loopback_host => {},
+        "http" if is_loopback_host || is_trusted => {},
         "http" => return Err(OutboundUrlError::NonLoopbackHttp),
         scheme => return Err(OutboundUrlError::Scheme(scheme.to_owned())),
     }
 
-    if is_loopback_host {
+    if is_loopback_host || is_trusted {
         return Ok(parsed);
     }
 

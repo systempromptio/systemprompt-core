@@ -81,7 +81,11 @@ pub enum GatewayProfileError {
 /// proxy into an SSRF primitive. Delegates to the shared outbound-URL guard so
 /// gateway, webhook, and authz destinations enforce one policy.
 fn validate_endpoint(label: &str, endpoint: &str) -> GatewayResult<()> {
-    crate::net::validate_outbound_url(endpoint)
+    // Honour SYSTEMPROMPT_TRUSTED_HTTP_HOSTS — the sealed-network opt-in for
+    // known-internal hostnames like the air-gap mock. Empty when unset, so
+    // production deployments keep the strict loopback-only http rule.
+    let trusted = crate::net::trusted_http_hosts_from_env();
+    crate::net::validate_outbound_url_with_trust(endpoint, &trusted)
         .map(|_| ())
         .map_err(|e| GatewayProfileError::BlockedEndpoint {
             label: label.to_owned(),

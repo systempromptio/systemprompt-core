@@ -1,4 +1,6 @@
-use systemprompt_models::net::{OutboundUrlError, validate_outbound_url};
+use systemprompt_models::net::{
+    OutboundUrlError, validate_outbound_url, validate_outbound_url_with_trust,
+};
 
 mod validate_outbound_url_tests {
     use super::*;
@@ -394,6 +396,98 @@ mod ssrf_adversarial_tests {
         let res =
             validate_outbound_url("https://xn--lcalhst-0za.example/h").expect("public domain");
         assert!(res.host_str().unwrap().starts_with("xn--"));
+    }
+
+    // -- Trusted-http allowlist (sealed-network opt-in) ----------------------
+
+    /// The narrow opt-in for sealed-network demos: a host named in the
+    /// allowlist passes the http scheme gate and bypasses the IP block (since
+    /// in-network hostnames typically resolve to RFC1918 addresses).
+    #[test]
+    fn trusted_http_host_accepts_plain_http() {
+        let trusted = ["mock-inference"];
+        let url = validate_outbound_url_with_trust("http://mock-inference:8080/v1/messages", &trusted)
+            .expect("trusted http host accepted");
+        assert_eq!(url.scheme(), "http");
+        assert_eq!(url.host_str(), Some("mock-inference"));
+    }
+
+    #[test]
+    fn trusted_http_match_is_case_insensitive() {
+        let trusted = ["Mock-Inference"];
+        assert!(validate_outbound_url_with_trust("http://MOCK-INFERENCE:80/h", &trusted).is_ok());
+        assert!(validate_outbound_url_with_trust("http://mock-inference/h", &trusted).is_ok());
+    }
+
+    /// The allowlist is exact-match: a sibling subdomain is NOT trusted.
+    #[test]
+    fn trusted_http_does_not_match_substring_or_sibling() {
+        let trusted = ["mock-inference"];
+        assert!(matches!(
+            validate_outbound_url_with_trust("http://other-inference/h", &trusted),
+            Err(OutboundUrlError::NonLoopbackHttp)
+        ));
+        assert!(matches!(
+            validate_outbound_url_with_trust("http://api.mock-inference/h", &trusted),
+            Err(OutboundUrlError::NonLoopbackHttp)
+        ));
+    }
+
+    /// An empty allowlist reproduces the legacy behaviour exactly. Pinned so a
+    /// future refactor of the trust path cannot quietly weaken the default.
+    #[test]
+    fn empty_trusted_list_matches_legacy_behaviour() {
+        assert!(matches!(
+            validate_outbound_url_with_trust("http://example.com/h", &[] as &[&str]),
+            Err(OutboundUrlError::NonLoopbackHttp)
+        ));
+        assert!(validate_outbound_url_with_trust("https://example.com/h", &[] as &[&str]).is_ok());
+    }
+
+    /// A host on the allowlist still has https accepted. The allowlist is an
+    /// http opt-in, not a "trust this host more in general" flag.
+    #[test]
+    fn trusted_host_under_https_still_passes() {
+        let trusted = ["mock-inference"];
+        assert!(validate_outbound_url_with_trust("https://mock-inference/h", &trusted).is_ok());
+    }
+
+    /// The IP block list is the production-critical control: it must NOT be
+    /// bypassed for a host that the operator did not name. (The allowlist
+    /// scope is "this exact hostname", not "any host on the bridge".)
+    #[test]
+    fn trusted_list_does_not_unblock_metadata_ip_for_others() {
+        let trusted = ["mock-inference"];
+        assert!(matches!(
+            validate_outbound_url_with_trust("https://169.254.169.254/x", &trusted),
+            Err(OutboundUrlError::BlockedHost(_))
+        ));
+    }
+
+    /// Hostnames are name-based, not resolved — so an allow-listed name with a
+    /// hostile DNS payload still bypasses the IP block on http; the operator is
+    /// trusting the hostname literally. Pinned so the boundary stays explicit:
+    /// the allowlist is an operator-controlled trust assertion, not a DNS
+    /// inspection.
+    #[test]
+    fn trusted_list_is_name_based_not_resolved() {
+        let trusted = ["mock-inference"];
+        // The guard does not resolve "mock-inference" — it accepts the URL based
+        // on the literal hostname. This is the documented behaviour.
+        let url = validate_outbound_url_with_trust("http://mock-inference:8080/h", &trusted)
+            .expect("trusted name accepted");
+        assert_eq!(url.host_str(), Some("mock-inference"));
+    }
+
+    /// `validate_outbound_url` (the legacy entry point) keeps the strict
+    /// loopback-only http rule. Empty-allowlist callers must remain
+    /// production-safe by default.
+    #[test]
+    fn legacy_entry_point_remains_strict() {
+        assert!(matches!(
+            validate_outbound_url("http://mock-inference/h"),
+            Err(OutboundUrlError::NonLoopbackHttp)
+        ));
     }
 
     /// Hostnames are not pre-resolved; a DNS-rebinding payload that points
