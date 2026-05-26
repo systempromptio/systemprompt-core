@@ -14,6 +14,9 @@
 mod error;
 
 #[cfg(test)]
+mod extension;
+
+#[cfg(test)]
 mod models;
 
 #[cfg(test)]

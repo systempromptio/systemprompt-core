@@ -17,3 +17,4 @@ mod protocol_events;
 mod runtime;
 mod validation;
 mod web;
+mod web_agent_requests;
