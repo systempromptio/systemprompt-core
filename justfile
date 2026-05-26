@@ -341,7 +341,7 @@ coverage:
         RUSTC_WRAPPER="" \
         LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
-        cargo test --workspace --lib --jobs 4
+        cargo test --workspace --lib --bins --jobs 4
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
     echo "==> Generated $PROFRAW_COUNT profraw files"
@@ -352,9 +352,14 @@ coverage:
     echo "==> Merging profile data"
     "$LLVM_PROFDATA" merge -sparse "$PROFDIR"/*.profraw -o "$ROOT/coverage-report/tests.profdata"
 
-    BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
+    # Test binaries land in deps/; the `systemprompt` cli bin lands one level
+    # up in debug/ (cargo writes named binaries there, not under deps/).
+    BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f \
+        \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
         | sort -rn \
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
+    SP_BIN="$ROOT/crates/tests/target/debug/systemprompt"
+    [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
 
@@ -386,9 +391,14 @@ coverage-html:
         exit 1
     fi
     LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
-    BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f -name 'systemprompt_*' ! -name '*.d' -printf '%T@ %p\n' \
+    # Test binaries land in deps/; the `systemprompt` cli bin lands one level
+    # up in debug/ (cargo writes named binaries there, not under deps/).
+    BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f \
+        \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
         | sort -rn \
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
+    SP_BIN="$ROOT/crates/tests/target/debug/systemprompt"
+    [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
     mkdir -p "$ROOT/coverage-report/html"

@@ -1,14 +1,10 @@
-//! Integration tests for systemprompt-cli that drive the public CLI surface
-//! in-process.
-//!
-//! The coverage harness (`just coverage`) runs `cargo test --workspace --lib`
-//! and only library targets are instrumented. That makes subprocess testing
-//! via `assert_cmd::cargo_bin("systemprompt")` unsuitable for raising line
-//! coverage: there is no `systemprompt` binary in the workspace (the CLI is
-//! shipped as `systemprompt_cli::run()` from the facade), and `--lib` builds
-//! no `[[bin]]` targets even if there were. So these tests exercise the same
-//! private subtrees (`runner/`, `presentation/`, `commands/cloud/**`) through
-//! the `pub` surface re-exported from `crates/entry/cli/src/lib.rs`.
+//! Integration tests for systemprompt-cli covering both the public library
+//! surface (in-process tests for `presentation`, `cloud`, `shared`,
+//! `session`, `paths`) and the `systemprompt` binary itself (subprocess
+//! tests via `assert_cmd::cargo_bin`). The coverage harness builds
+//! `--workspace --lib --bins`, the cli crate exposes `[[bin]] systemprompt`,
+//! and child processes inherit `LLVM_PROFILE_FILE` from the test runner so
+//! the binary's profraw lands in the merged report.
 
 #![allow(clippy::all)]
 
@@ -38,3 +34,5 @@ mod session_store;
 mod shared_profile;
 #[cfg(test)]
 mod shared_project;
+#[cfg(test)]
+mod subprocess_smoke;

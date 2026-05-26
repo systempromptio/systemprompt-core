@@ -20,6 +20,10 @@ workspace = true
 name = "systemprompt_cli"
 path = "src/lib.rs"
 
+[[bin]]
+name = "systemprompt"
+path = "src/main.rs"
+
 [dependencies]
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process"] }
