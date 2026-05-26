@@ -70,9 +70,12 @@ fn human_bytes(bytes: i64) -> String {
 // so passing them straight into `saturating_mul` type-checks on Linux and
 // fails on macOS. Widening every field to `u64` makes the arithmetic portable;
 // the conversion is a no-op on Linux, which is what the `allow` covers.
-#[allow(
-    clippy::useless_conversion,
-    reason = "Linux-only no-op; required on macOS where fsblkcnt_t is u32"
+#[cfg_attr(
+    not(target_os = "macos"),
+    expect(
+        clippy::useless_conversion,
+        reason = "no-op on Linux (fsblkcnt_t == u64); required on macOS where fsblkcnt_t == u32"
+    )
 )]
 fn get_disk_usage() -> Option<serde_json::Value> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;
