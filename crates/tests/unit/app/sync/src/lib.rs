@@ -20,6 +20,8 @@ mod api_client_extra;
 #[cfg(test)]
 mod config;
 #[cfg(test)]
+mod crate_deploy;
+#[cfg(test)]
 mod database_export;
 #[cfg(test)]
 mod database_sync_failure;

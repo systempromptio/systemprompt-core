@@ -25,6 +25,7 @@ sqlx = { workspace = true }
 chrono = { workspace = true }
 tempfile = { workspace = true }
 url = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -28,3 +28,9 @@ mod acl_resolver_tests;
 
 #[cfg(test)]
 mod acl_rollback_tests;
+
+#[cfg(test)]
+mod database_sync_tests;
+
+#[cfg(test)]
+mod local_sync_tests;
