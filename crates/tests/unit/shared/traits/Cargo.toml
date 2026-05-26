@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-traits = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 anyhow = { workspace = true }

@@ -21,3 +21,21 @@ mod validation_report;
 
 #[cfg(test)]
 mod startup_events;
+
+#[cfg(test)]
+mod analytics;
+
+#[cfg(test)]
+mod storage;
+
+#[cfg(test)]
+mod artifact;
+
+#[cfg(test)]
+mod jwt;
+
+#[cfg(test)]
+mod events;
+
+#[cfg(test)]
+mod file_upload;
