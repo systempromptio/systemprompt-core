@@ -140,10 +140,6 @@ impl ConnectionConfiguration {
     }
 }
 
-pub trait ConfigValidation {
-    fn validate(&self) -> Result<()>;
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentServiceConfig {
     pub agent_id: AgentId,
@@ -155,8 +151,8 @@ pub struct AgentServiceConfig {
     pub is_active: bool,
 }
 
-impl ConfigValidation for AgentServiceConfig {
-    fn validate(&self) -> Result<()> {
+impl AgentServiceConfig {
+    pub fn validate(&self) -> Result<()> {
         if self.agent_id.as_str().is_empty() {
             return Err(AgentServiceError::Validation(
                 "agent_id".to_owned(),

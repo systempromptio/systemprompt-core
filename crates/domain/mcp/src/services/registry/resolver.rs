@@ -4,7 +4,7 @@ use systemprompt_loader::ExtensionRegistry;
 use systemprompt_models::Config;
 use systemprompt_models::mcp::McpServerType;
 
-use crate::error::McpDomainResult;
+use crate::error::{McpDomainError, McpDomainResult};
 use crate::services::deployment::DeploymentService;
 
 #[derive(Debug, Clone)]
@@ -86,13 +86,33 @@ impl RegistryResolver {
         Ok(enabled)
     }
 
+    /// Exposes deployment-config validation through the registry handle so
+    /// callers don't reach into `DeploymentService` directly.
     #[expect(
         clippy::unused_self,
-        reason = "method placed on the resolver so future caching or context can be added without \
-                  changing the API"
+        reason = "registry-scoped entry-point over DeploymentService::validate_config"
     )]
-    pub fn validate_registry(&self) -> McpDomainResult<()> {
+    pub fn validate(&self) -> McpDomainResult<()> {
         DeploymentService::validate_config()?;
         Ok(())
+    }
+
+    pub fn get_enabled_servers(&self) -> McpDomainResult<Vec<crate::McpServerConfig>> {
+        self.get_enabled_servers_as_config()
+    }
+
+    pub fn reload(&self) -> McpDomainResult<()> {
+        self.validate()
+    }
+
+    pub fn find_server(&self, name: &str) -> McpDomainResult<Option<crate::McpServerConfig>> {
+        let servers = self.get_enabled_servers_as_config()?;
+        Ok(servers.into_iter().find(|s| s.name == name))
+    }
+
+    pub fn get_server(&self, name: &str) -> McpDomainResult<crate::McpServerConfig> {
+        self.find_server(name)?.ok_or_else(|| {
+            McpDomainError::ServerNotFound(format!("MCP server '{name}' not found in registry"))
+        })
     }
 }
