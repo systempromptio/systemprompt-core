@@ -55,11 +55,12 @@ pub const AI_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(60);
 /// Default timeout for a single MCP tool-call RPC (excludes connection setup).
 pub const MCP_TOOL_EXECUTION_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Operator-supplied allowlist of non-loopback hostnames reachable over plain `http`.
+/// Operator-supplied allowlist of non-loopback hostnames reachable over plain
+/// `http`.
 ///
 /// Comma-separated, case-insensitive, exact domain match only — no globs, no
-/// IP, no port. The intended use is sealed-network demos (the air-gap scenario) and
-/// behind-the-firewall mock services, where the SSRF guard's default
+/// IP, no port. The intended use is sealed-network demos (the air-gap scenario)
+/// and behind-the-firewall mock services, where the SSRF guard's default
 /// "loopback-only http" rule would otherwise reject a known-trusted internal
 /// hostname like `mock-inference`. **Default empty** — operator opts in by
 /// naming every host explicitly. Does not loosen the scheme, IP block, or

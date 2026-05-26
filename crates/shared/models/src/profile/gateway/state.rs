@@ -29,8 +29,8 @@ impl GatewayState {
             Self::Resolved(c) => Some(c),
             Self::Spec(_) => {
                 tracing::error!(
-                    "gateway state is still Spec at runtime read; \
-                     GatewayConfigSpec::resolve was never called — treating gateway as absent"
+                    "gateway state is still Spec at runtime read; GatewayConfigSpec::resolve was \
+                     never called — treating gateway as absent"
                 );
                 None
             },
