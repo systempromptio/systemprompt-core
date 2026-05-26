@@ -34,5 +34,3 @@ mod session_store;
 mod shared_profile;
 #[cfg(test)]
 mod shared_project;
-#[cfg(test)]
-mod subprocess_smoke;

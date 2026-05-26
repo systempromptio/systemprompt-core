@@ -341,7 +341,7 @@ coverage:
         RUSTC_WRAPPER="" \
         LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
-        cargo test --workspace --lib --bins --jobs 4
+        cargo test --workspace --lib --bins --tests --jobs 4
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
     echo "==> Generated $PROFRAW_COUNT profraw files"
