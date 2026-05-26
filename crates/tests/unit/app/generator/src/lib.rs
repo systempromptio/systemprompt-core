@@ -30,3 +30,11 @@ mod sitemap;
 mod sitemap_tests;
 #[cfg(test)]
 pub(crate) mod templates;
+#[cfg(test)]
+mod error_tests;
+#[cfg(test)]
+mod sitemap_provider_tests;
+#[cfg(test)]
+mod orchestrator_validate;
+#[cfg(test)]
+mod types_tests;

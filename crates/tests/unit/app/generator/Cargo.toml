@@ -15,6 +15,8 @@ systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 chrono = { workspace = true }
 serde_yaml = { workspace = true }
 
