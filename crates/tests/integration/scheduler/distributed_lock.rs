@@ -90,7 +90,7 @@ async fn read_run_count(pool: &DbPool) -> Result<i32> {
     let count: Option<i32> =
         sqlx::query_scalar("SELECT run_count FROM scheduled_jobs WHERE job_name = $1")
             .bind(TEST_JOB_NAME)
-            .fetch_optional(pool.read_pool_arc()?.as_ref())
+            .fetch_optional(pool.pool_arc()?.as_ref())
             .await?;
     Ok(count.unwrap_or(0))
 }

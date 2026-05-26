@@ -31,7 +31,7 @@ pub(super) async fn execute_migrate_down(
 
     run_down(
         &ExtensionRegistry::discover()?,
-        database.write_provider(),
+        database.write(),
         config,
         extension,
         count,
@@ -48,7 +48,7 @@ pub(super) async fn execute_migrate_down_standalone(
     let database = db_ctx.db_pool();
     run_down(
         &ExtensionRegistry::discover()?,
-        database.write_provider(),
+        database.write(),
         config,
         extension,
         count,

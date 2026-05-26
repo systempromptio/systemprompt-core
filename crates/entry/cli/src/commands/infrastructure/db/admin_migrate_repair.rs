@@ -33,7 +33,7 @@ pub(super) async fn execute_migrate_repair(config: &CliConfig, args: RepairArgs<
     );
 
     run_migrate_repair(
-        database.write_provider(),
+        database.write(),
         &ExtensionRegistry::discover()?,
         args,
         config,
@@ -47,7 +47,7 @@ pub(super) async fn execute_migrate_repair_standalone(
     args: RepairArgs<'_>,
 ) -> Result<()> {
     run_migrate_repair(
-        db_ctx.db_pool().write_provider(),
+        db_ctx.db_pool().write(),
         &ExtensionRegistry::discover()?,
         args,
         config,

@@ -21,7 +21,7 @@ pub async fn setup_test_pool() -> Arc<PgPool> {
         .await
         .expect("failed to connect to test database");
 
-    db.get_postgres_pool_arc()
+    db.pool_arc()
         .expect("test database is not Postgres-backed")
 }
 

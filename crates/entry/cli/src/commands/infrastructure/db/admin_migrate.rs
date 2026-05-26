@@ -33,7 +33,7 @@ pub(super) async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bo
 
     run_install(
         &ExtensionRegistry::discover()?,
-        database.write_provider(),
+        database.write(),
         config,
         allow_checksum_drift,
     )
@@ -48,7 +48,7 @@ pub(super) async fn execute_migrate_standalone(
     let database = db_ctx.db_pool();
     run_install(
         &ExtensionRegistry::discover()?,
-        database.write_provider(),
+        database.write(),
         config,
         allow_checksum_drift,
     )

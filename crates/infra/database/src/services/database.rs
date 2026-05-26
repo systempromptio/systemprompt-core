@@ -84,12 +84,13 @@ impl Database {
             .unwrap_or_else(|| self.provider.as_ref())
     }
 
-    pub fn get_postgres_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        self.read_pool_arc()
+    #[must_use]
+    pub fn pool(&self) -> Option<Arc<sqlx::PgPool>> {
+        self.read().get_postgres_pool()
     }
 
-    pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Self::require_postgres(self.write().get_postgres_pool())
+    pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
+        Self::require_postgres(self.read().get_postgres_pool())
     }
 
     #[must_use]
@@ -97,29 +98,13 @@ impl Database {
         self.write().get_postgres_pool()
     }
 
+    pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
+        Self::require_postgres(self.write().get_postgres_pool())
+    }
+
     #[must_use]
     pub fn has_write_pool(&self) -> bool {
         self.write_provider.is_some()
-    }
-
-    #[must_use]
-    pub fn write_provider(&self) -> &dyn DatabaseProvider {
-        self.write()
-    }
-
-    pub async fn query(
-        &self,
-        sql: &dyn crate::models::QuerySelector,
-    ) -> DatabaseResult<QueryResult> {
-        self.read().query_raw(sql).await
-    }
-
-    pub async fn query_with(
-        &self,
-        sql: &dyn crate::models::QuerySelector,
-        params: &[&dyn crate::models::ToDbValue],
-    ) -> DatabaseResult<QueryResult> {
-        self.read().query_raw_with(sql, params).await
     }
 
     pub async fn execute_batch(&self, sql: &str) -> DatabaseResult<()> {
@@ -136,29 +121,6 @@ impl Database {
             wp.test_connection().await?;
         }
         Ok(())
-    }
-
-    #[must_use]
-    pub fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.read().get_postgres_pool()
-    }
-
-    pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        self.read_pool_arc()
-    }
-
-    #[must_use]
-    pub fn pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.read().get_postgres_pool()
-    }
-
-    #[must_use]
-    pub fn read_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.read().get_postgres_pool()
-    }
-
-    pub fn read_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Self::require_postgres(self.read().get_postgres_pool())
     }
 
     pub async fn begin(&self) -> DatabaseResult<sqlx::Transaction<'_, sqlx::Postgres>> {

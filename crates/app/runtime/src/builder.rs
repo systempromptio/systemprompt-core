@@ -135,7 +135,7 @@ impl AppContextBuilder {
         if self.install_schemas {
             install_extension_schemas_full(
                 &registry,
-                database.write_provider(),
+                database.write(),
                 &[],
                 self.migration_config,
             )

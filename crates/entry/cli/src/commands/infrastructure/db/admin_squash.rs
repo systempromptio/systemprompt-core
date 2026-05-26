@@ -34,7 +34,7 @@ pub(super) async fn execute_squash(config: &CliConfig, args: SquashArgs<'_>) -> 
     );
 
     let registry = ExtensionRegistry::discover()?;
-    run_squash(&registry, database.write_provider(), config, &args).await
+    run_squash(&registry, database.write(), config, &args).await
 }
 
 pub(super) async fn execute_squash_standalone(
@@ -43,7 +43,7 @@ pub(super) async fn execute_squash_standalone(
     args: SquashArgs<'_>,
 ) -> Result<()> {
     let registry = ExtensionRegistry::discover()?;
-    run_squash(&registry, db_ctx.db_pool().write_provider(), config, &args).await
+    run_squash(&registry, db_ctx.db_pool().write(), config, &args).await
 }
 
 async fn run_squash(

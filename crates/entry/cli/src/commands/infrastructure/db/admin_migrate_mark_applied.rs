@@ -36,7 +36,7 @@ pub(super) async fn execute_migrate_mark_applied(
     );
 
     run_mark_applied(
-        database.write_provider(),
+        database.write(),
         &ExtensionRegistry::discover()?,
         args,
         config,
@@ -50,7 +50,7 @@ pub(super) async fn execute_migrate_mark_applied_standalone(
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
     run_mark_applied(
-        db_ctx.db_pool().write_provider(),
+        db_ctx.db_pool().write(),
         &ExtensionRegistry::discover()?,
         args,
         config,

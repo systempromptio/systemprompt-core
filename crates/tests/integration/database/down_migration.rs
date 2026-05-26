@@ -138,7 +138,7 @@ async fn apply_revert_reapply_round_trip() {
     };
 
     let db_arc = Arc::new(db);
-    let provider = db_arc.write_provider();
+    let provider = db_arc.write();
     let service = MigrationService::new(provider);
 
     let applied = service
@@ -202,7 +202,7 @@ async fn revert_rejects_irreversible_migration() {
     let ext = IrreversibleExtension { id: ext_id, up_sql };
 
     let db_arc = Arc::new(db);
-    let provider = db_arc.write_provider();
+    let provider = db_arc.write();
     let service = MigrationService::new(provider);
 
     service

@@ -165,7 +165,7 @@ async fn squash_through_retires_source_rows_and_writes_baseline_row() {
         ],
     };
 
-    let migration_service = MigrationService::new(db_arc.write_provider());
+    let migration_service = MigrationService::new(db_arc.write());
     let plan = migration_service
         .squash_through(&ext_for_squash, 2, true)
         .await
@@ -291,7 +291,7 @@ async fn squash_refuses_when_target_range_not_fully_applied() {
         ],
     };
 
-    let migration_service = MigrationService::new(db_arc.write_provider());
+    let migration_service = MigrationService::new(db_arc.write());
     let err = migration_service
         .squash_through(&ext_for_squash, 2, false)
         .await

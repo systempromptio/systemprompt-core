@@ -128,7 +128,7 @@ async fn plan_pending_lists_all_then_none_after_apply() {
     };
 
     let db_arc = Arc::new(db);
-    let svc = MigrationService::new(db_arc.write_provider());
+    let svc = MigrationService::new(db_arc.write());
 
     let plan_before = svc
         .plan_pending(&ext)
@@ -218,7 +218,7 @@ async fn status_reports_applied_pending_and_drift() {
         .await
         .expect("install m1 only");
 
-    let svc = MigrationService::new(db_arc.write_provider());
+    let svc = MigrationService::new(db_arc.write());
     let status = svc.status(&ext_v1_only).await.expect("status must succeed");
 
     assert_eq!(status.extension_id, ext_id);
@@ -301,7 +301,7 @@ async fn repair_drift_reconciles_tampered_checksum() {
         .await
         .expect("install");
 
-    let svc = MigrationService::new(db_arc.write_provider());
+    let svc = MigrationService::new(db_arc.write());
 
     let noop = svc.repair_drift(&ext).await.expect("repair with no drift");
     assert!(noop.repaired.is_empty(), "no drift means nothing repaired");

@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     let count = registry.schema_extensions().len();
     println!("Discovered {count} schema-bearing extensions");
 
-    install_extension_schemas(&registry, db.write_provider())
+    install_extension_schemas(&registry, db.write())
         .await
         .map_err(|e| anyhow::anyhow!("Schema installation failed: {e}"))?;
 
