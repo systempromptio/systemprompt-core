@@ -274,8 +274,11 @@ pub(super) async fn persist_part_with_tx(
         },
         Part::Data(data_part) => {
             let data_json = serde_json::to_string(&data_part.data)?;
+            // `data_content` is a jsonb column; cast the bound text payload
+            // so Postgres accepts it without an OID mismatch.
             let query: &str = "INSERT INTO message_parts (message_id, task_id, part_kind, \
-                               sequence_number, data_content) VALUES ($1, $2, 'data', $3, $4)";
+                               sequence_number, data_content) VALUES ($1, $2, 'data', $3, \
+                               $4::jsonb)";
             tx.execute(
                 &query,
                 &[&message_id_str, &task_id_str, &sequence_number, &data_json],
