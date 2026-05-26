@@ -1,0 +1,25 @@
+[package]
+name = "systemprompt-content-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-content crate (DB-backed repositories and services)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-content = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }

@@ -15,6 +15,7 @@ members = [
     "integration/api",
     "integration/cli",
     "integration/cloud",
+    "integration/content",
     "integration/database",
     "integration/events",
     "integration/extension",
