@@ -337,11 +337,23 @@ coverage:
     # --jobs 4 caps concurrent linker invocations: instrumented test
     # binaries can exceed 2GB and the default ld OOM-kills under
     # 32-way parallelism even on 23GB RAM.
+    # Build the `systemprompt` binary from the main workspace under the same
+    # instrumentation flags so subprocess tests can invoke it and contribute
+    # coverage. The crates/tests workspace doesn't include entry/cli, so its
+    # `--bins` flag would not otherwise produce the binary.
+    echo "==> Building instrumented systemprompt binary from main workspace"
+    (cd "$ROOT" && CARGO_BUILD_RUSTC_WRAPPER="" RUSTC_WRAPPER="" \
+        LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
+        RUSTFLAGS="-C instrument-coverage" \
+        cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
+    export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
+
     CARGO_BUILD_RUSTC_WRAPPER="" \
         RUSTC_WRAPPER="" \
         LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
-        cargo test --workspace --lib --bins --tests --jobs 4
+        SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
+        cargo test --workspace --lib --bins --tests --jobs 4 --no-fail-fast
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
     echo "==> Generated $PROFRAW_COUNT profraw files"

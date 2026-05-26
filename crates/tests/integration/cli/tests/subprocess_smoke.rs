@@ -13,11 +13,29 @@
 use assert_cmd::Command;
 use predicates::str::contains;
 
+fn systemprompt_bin() -> std::path::PathBuf {
+    if let Ok(path) = std::env::var("SYSTEMPROMPT_BIN") {
+        let p = std::path::PathBuf::from(path);
+        if p.exists() {
+            return p;
+        }
+    }
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for ancestor in manifest_dir.ancestors() {
+        for sub in ["target/debug/systemprompt", "crates/tests/target/debug/systemprompt"] {
+            let candidate = ancestor.join(sub);
+            if candidate.exists() {
+                return candidate;
+            }
+        }
+    }
+    panic!(
+        "systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`"
+    );
+}
+
 fn sp() -> Command {
-    let mut c = Command::cargo_bin("systemprompt").expect("systemprompt binary");
-    // Help/version paths never touch the profile, but a few descriptor
-    // resolutions read env. Force a junk profile so nothing accidentally
-    // hits a real user config.
+    let mut c = Command::new(systemprompt_bin());
     c.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     c.env_remove("RUST_LOG");
     c
