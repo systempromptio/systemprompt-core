@@ -33,6 +33,8 @@ mod models;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]
+mod repository;
+#[cfg(test)]
 mod resources;
 #[cfg(test)]
 mod response;
@@ -40,3 +42,5 @@ mod response;
 mod schema;
 #[cfg(test)]
 mod services;
+#[cfg(test)]
+mod tool_executor;

@@ -189,3 +189,62 @@ fn test_service_status_high_latency() {
 
     assert!(status.latency_ms.unwrap() > 1000);
 }
+
+#[tokio::test]
+async fn test_get_all_service_status_empty() {
+    use systemprompt_mcp::services::monitoring::status::get_all_service_status;
+    let map = get_all_service_status(&[]).await.unwrap();
+    assert!(map.is_empty());
+}
+
+#[tokio::test]
+async fn test_get_all_service_status_unreachable() {
+    use std::path::PathBuf;
+    use systemprompt_mcp::services::monitoring::status::get_all_service_status;
+    use systemprompt_models::auth::JwtAudience;
+    use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
+    use systemprompt_models::mcp::server::McpServerConfig;
+    use systemprompt_test_fixtures::fixture_user_id;
+
+    let config = McpServerConfig {
+        name: "unreach".to_owned(),
+        owner: fixture_user_id(),
+        server_type: McpServerType::Internal,
+        binary: "x".to_owned(),
+        enabled: true,
+        display_in_web: true,
+        port: 65529,
+        crate_path: PathBuf::from("."),
+        display_name: "x".to_owned(),
+        description: "x".to_owned(),
+        capabilities: vec![],
+        schemas: vec![],
+        oauth: OAuthRequirement {
+            required: false,
+            scopes: vec![],
+            audience: JwtAudience::Mcp,
+            client_id: None,
+        },
+        tools: Default::default(),
+        model_config: None,
+        env_vars: vec![],
+        version: "0.0.1".to_owned(),
+        host: "127.0.0.1".to_owned(),
+        module_name: "mcp".to_owned(),
+        protocol: "mcp".to_owned(),
+        remote_endpoint: String::new(),
+    };
+    let map = get_all_service_status(&[config]).await.unwrap();
+    assert_eq!(map.len(), 1);
+    assert!(map.contains_key("unreach"));
+}
+
+#[test]
+fn test_display_service_status_smoke() {
+    use std::collections::HashMap;
+    use systemprompt_mcp::services::monitoring::status::display_service_status;
+
+    let servers = vec![];
+    let data: HashMap<String, ServiceStatus> = HashMap::new();
+    display_service_status(&servers, &data);
+}
