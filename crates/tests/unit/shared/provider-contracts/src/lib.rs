@@ -18,3 +18,5 @@ mod job;
 mod llm;
 #[cfg(test)]
 mod tool;
+#[cfg(test)]
+mod contracts_misc;
