@@ -6,15 +6,12 @@
 //! - demote_from_admin
 
 use anyhow::Result;
-use systemprompt_database::Database;
+use systemprompt_database::DbPool;
 use systemprompt_users::{DemoteResult, PromoteResult, UserAdminService, UserService};
 
-async fn get_db() -> Option<std::sync::Arc<Database>> {
-    let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url)
-        .await
-        .ok()
-        .map(std::sync::Arc::new)
+async fn get_db() -> Option<DbPool> {
+    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
+    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
 
 #[tokio::test]

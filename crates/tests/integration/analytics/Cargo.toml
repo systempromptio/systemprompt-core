@@ -15,6 +15,7 @@ systemprompt-analytics = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

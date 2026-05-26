@@ -14,6 +14,7 @@ workspace = true
 systemprompt-files = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

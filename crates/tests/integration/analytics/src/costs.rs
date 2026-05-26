@@ -1,10 +1,9 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{Duration, TimeZone, Utc};
-use std::env;
-use std::sync::Arc;
 use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
 use systemprompt_models::UserId;
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -36,11 +35,10 @@ struct Fixture {
 impl Fixture {
     async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
-        let url = env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for cost reconciliation tests");
-        let db = Database::new_postgres(&url).await?;
+        let url = fixture_database_url()
+            .context("DATABASE_URL must be set for cost reconciliation tests")?;
+        let db = fixture_db_pool(&url).await?;
         let pool = db.pool_arc()?.as_ref().clone();
-        let db = Arc::new(db);
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = format!("test_user_{tag}");
         let context_id = format!("test_ctx_{tag}");

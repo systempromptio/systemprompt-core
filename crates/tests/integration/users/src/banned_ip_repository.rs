@@ -8,15 +8,12 @@
 //! - Cleanup of expired bans
 
 use anyhow::Result;
-use systemprompt_database::Database;
+use systemprompt_database::DbPool;
 use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository};
 
-async fn get_db() -> Option<std::sync::Arc<Database>> {
-    let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url)
-        .await
-        .ok()
-        .map(std::sync::Arc::new)
+async fn get_db() -> Option<DbPool> {
+    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
+    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
 
 async fn cleanup_test_ip(repo: &BannedIpRepository, ip: &str) {

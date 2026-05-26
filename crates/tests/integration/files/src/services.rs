@@ -3,16 +3,13 @@
 //! These tests require a running PostgreSQL database with the schema set up.
 //! Set DATABASE_URL environment variable to run these tests.
 
-use systemprompt_database::Database;
+use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, InsertFileRequest};
 use systemprompt_identifiers::{ContentId, FileId, UserId};
 
-async fn get_db() -> Option<std::sync::Arc<Database>> {
-    let database_url = std::env::var("DATABASE_URL").ok()?;
-    Database::new_postgres(&database_url)
-        .await
-        .ok()
-        .map(std::sync::Arc::new)
+async fn get_db() -> Option<DbPool> {
+    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
+    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
 }
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
