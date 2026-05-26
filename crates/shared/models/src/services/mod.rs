@@ -2,7 +2,6 @@
 
 pub mod agent_config;
 pub mod ai;
-pub mod content;
 pub mod external_agent;
 pub mod hooks;
 mod includable;
@@ -27,7 +26,6 @@ pub use ai::{
     ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig, ToolModelConfig,
     ToolModelSettings,
 };
-pub use content::ContentConfig;
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
@@ -84,8 +82,6 @@ pub struct ServicesConfig {
     pub marketplaces: HashMap<MarketplaceId, MarketplaceConfig>,
     #[serde(default)]
     pub skills: SkillsConfig,
-    #[serde(default)]
-    pub content: ContentConfig,
     #[serde(default)]
     pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
 }

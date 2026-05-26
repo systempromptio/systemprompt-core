@@ -60,9 +60,6 @@ pub enum ConfigLoadError {
     #[error("duplicate skill definition: {0}")]
     DuplicateSkill(String),
 
-    #[error("duplicate content source definition: {0}")]
-    DuplicateContentSource(String),
-
     #[error("duplicate external agent definition: {0}")]
     DuplicateExternalAgent(String),
 

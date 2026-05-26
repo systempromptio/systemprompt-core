@@ -126,7 +126,7 @@ impl StartupValidator {
 
         let mut provider = ValidationConfigProvider::new(config.clone(), services_config);
 
-        provider = load_content_config(provider, verbose);
+        provider = load_content_config(config, provider, verbose);
         provider = load_web_config(config, provider, verbose);
         provider = load_web_metadata(config, provider, verbose);
 

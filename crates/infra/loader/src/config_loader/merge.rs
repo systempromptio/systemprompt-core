@@ -3,9 +3,7 @@ use std::fs;
 use std::hash::Hash;
 use std::path::Path;
 
-use systemprompt_models::services::{
-    ContentConfig, IncludableString, ServicesConfig, SkillsConfig,
-};
+use systemprompt_models::services::{IncludableString, ServicesConfig, SkillsConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
@@ -55,7 +53,6 @@ pub(super) fn merge_into(
     }
 
     merge_skills(&mut target.skills, include.skills)?;
-    merge_content(&mut target.content, include.content)?;
 
     Ok(())
 }
@@ -90,32 +87,6 @@ fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadR
         }
         target.skills.insert(id, skill);
     }
-    Ok(())
-}
-
-fn merge_content(target: &mut ContentConfig, partial: ContentConfig) -> ConfigLoadResult<()> {
-    for (name, source) in partial.sources {
-        if target.sources.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicateContentSource(name));
-        }
-        target.sources.insert(name, source);
-    }
-
-    for (name, source) in partial.raw.content_sources {
-        if target.raw.content_sources.contains_key(&name) {
-            return Err(ConfigLoadError::DuplicateContentSource(name));
-        }
-        target.raw.content_sources.insert(name, source);
-    }
-
-    for (name, category) in partial.raw.categories {
-        target.raw.categories.entry(name).or_insert(category);
-    }
-
-    if !partial.raw.metadata.default_author.is_empty() {
-        target.raw.metadata = partial.raw.metadata;
-    }
-
     Ok(())
 }
 

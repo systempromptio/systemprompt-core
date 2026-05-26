@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use systemprompt_database::DbPool;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::{AppPaths, ContentSourceConfigRaw};
+use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::JobResult;
 
 use crate::error::{ContentError, ContentResult};
@@ -15,14 +14,14 @@ pub(in crate::jobs) struct IngestionStats {
 
 pub async fn execute_content_ingestion(
     db_pool: &DbPool,
-    services_config: &ServicesConfig,
+    content_config: &ContentConfigRaw,
     paths: &AppPaths,
 ) -> ContentResult<JobResult> {
     let start_time = std::time::Instant::now();
     log_job_started();
 
     let ingestion_service = create_ingestion_service(db_pool)?;
-    let sources = get_enabled_sources(services_config);
+    let sources = get_enabled_sources(content_config);
 
     if sources.is_empty() {
         return Ok(empty_sources_result(start_time));
@@ -44,11 +43,9 @@ fn create_ingestion_service(db_pool: &DbPool) -> ContentResult<IngestionService>
 }
 
 fn get_enabled_sources(
-    services_config: &ServicesConfig,
+    content_config: &ContentConfigRaw,
 ) -> Vec<(&String, &ContentSourceConfigRaw)> {
-    services_config
-        .content
-        .raw
+    content_config
         .content_sources
         .iter()
         .filter(|(name, cfg)| cfg.enabled && !name.contains("skill"))

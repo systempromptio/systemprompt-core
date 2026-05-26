@@ -4,7 +4,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_cloud::constants::storage;
 use systemprompt_models::ContentConfigRaw;
-use systemprompt_models::services::ServicesConfig;
 use systemprompt_provider_contracts::{
     PagePrepareContext, PagePrerenderer, PageRenderSpec, ProviderError, ProviderResult, WebConfig,
 };
@@ -12,9 +11,6 @@ use systemprompt_provider_contracts::{
 fn resolve_content_raw<'a>(
     ctx: &'a PagePrepareContext<'_>,
 ) -> ProviderResult<&'a ContentConfigRaw> {
-    if let Some(services) = ctx.content_config::<ServicesConfig>() {
-        return Ok(&services.content.raw);
-    }
     ctx.content_config::<ContentConfigRaw>().ok_or_else(|| {
         ProviderError::Configuration("ContentConfig not available in context".into())
     })

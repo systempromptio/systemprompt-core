@@ -607,29 +607,6 @@ skills:
       instructions: "You are a helpful assistant."
       assigned_agents: [alpha_agent]
       mcp_servers: [fixture_mcp]
-content:
-  content_sources:
-    blog:
-      path: content/blog
-      source_id: blog
-      category_id: blog
-      enabled: true
-      description: Fixture blog
-      allowed_content_types: [blog]
-      branding:
-        name: Blog
-        description: Fixture blog
-        image: /images/blog.png
-        keywords: blog
-      indexing:
-        clear_before: false
-        recursive: true
-      sitemap:
-        enabled: true
-        url_pattern: /blog/{slug}
-        priority: 0.8
-        changefreq: weekly
-        fetch_from: database
 "#,
     );
     yaml.push_str(FULL_WEB_BLOCK);
@@ -657,7 +634,6 @@ fn test_load_full_fixture_round_trip() {
     assert!(config.scheduler.is_some());
     assert_eq!(config.ai.default_provider, "anthropic");
     assert!(!config.ai.providers.is_empty());
-    assert!(!config.content.raw.content_sources.is_empty());
     assert_eq!(config.settings.agent_port_range, (9000, 9999));
 }
 
