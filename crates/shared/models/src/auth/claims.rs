@@ -69,6 +69,12 @@ impl ActClaim {
     }
 }
 
+/// Self-issued JWT claim shape.
+///
+/// Fields are grouped by who consumes them downstream. The platform runs
+/// authorization in three layers (see `internal/guides/authz.md`); each
+/// attribute field below is the transport for one of those layers. Do not
+/// delete a field without first removing its readers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
     pub sub: String,
@@ -84,6 +90,9 @@ pub struct JwtClaims {
     pub aud: Vec<JwtAudience>,
     pub jti: String,
 
+    /// PBAC scope: the `Permission` set this principal is granted. Enforced
+    /// at every route via `with_auth(scope)`; the first element is the
+    /// privilege level used by [`UserType::from_permissions`].
     #[serde(
         serialize_with = "serialize_scope",
         deserialize_with = "deserialize_scope"
@@ -94,9 +103,17 @@ pub struct JwtClaims {
     pub email: String,
     pub user_type: UserType,
 
+    /// RBAC/ABAC attribute: role strings minted from the user row at OAuth
+    /// issuance. Consumed by `authz::resolver::resolve` for the core RBAC
+    /// check against `access_control_rules` (`rule_type = role`) and
+    /// forwarded into every `AuthzDecisionHook::evaluate` call for extension
+    /// ABAC. Never enforced via the PBAC `scope` path.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,
 
+    /// RBAC/ABAC attribute: the principal's department string from the user
+    /// row. Consumed by `authz::resolver::resolve` (`rule_type = department`)
+    /// and forwarded into `AuthzDecisionHook::evaluate`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub department: Option<String>,
 
@@ -107,9 +124,16 @@ pub struct JwtClaims {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<SessionId>,
 
+    /// Rate-limit attribute: minted from `UserType::rate_tier` so the tier is
+    /// committed at issuance rather than re-derived per request. Read at the
+    /// rate-limit middleware via `RequestContext::rate_limit_tier()`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limit_tier: Option<RateLimitTier>,
 
+    /// Hook attribute: the plugin id this token was minted for. Validated by
+    /// the hook-token validator in `systemprompt_security::auth::hook_token` —
+    /// a hook request whose `plugin_id` claim disagrees with the URL path's
+    /// `plugin_id` is rejected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_id: Option<String>,
 

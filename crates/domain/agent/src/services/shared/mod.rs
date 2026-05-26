@@ -12,7 +12,7 @@ pub use error::{AgentServiceError, Result};
 pub type ServiceResult<T> = Result<T>;
 pub use auth::{AgentSessionUser, JwtClaims, JwtValidator, extract_bearer_token};
 pub use config::{
-    AgentServiceConfig, ConfigValidation, ConnectionConfiguration, RuntimeConfiguration,
-    RuntimeConfigurationBuilder, ServiceConfiguration,
+    AgentServiceConfig, ConnectionConfiguration, RuntimeConfiguration, RuntimeConfigurationBuilder,
+    ServiceConfiguration,
 };
 pub use slug::{generate_slug, generate_unique_slug};

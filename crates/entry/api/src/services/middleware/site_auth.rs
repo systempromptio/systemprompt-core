@@ -3,9 +3,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
 use systemprompt_models::auth::Permission;
-use systemprompt_security::TokenExtractor;
-
-use super::jwt::JwtExtractor;
+use systemprompt_security::{TokenExtractor, extract_user_context};
 
 const STATIC_ASSET_EXTENSIONS: &[&str] = &[
     ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf",
@@ -63,9 +61,7 @@ pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig
                     );
                 })
                 .ok()?;
-            let extractor = JwtExtractor::new();
-            let user_ctx = extractor
-                .extract_user_context(&token)
+            let user_ctx = extract_user_context(&token)
                 .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed"))
                 .ok()?;
             (user_ctx.role == required).then_some(())

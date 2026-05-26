@@ -44,4 +44,16 @@ pub enum AuthzBootstrapError {
          literal: {expected:?}"
     )]
     MissingUnrestrictedAcknowledgement { expected: &'static str },
+
+    #[error(
+        "governance.authz.hook.mode = extension but no extension hook was supplied via \
+         AppContextBuilder::with_authz_hook(...) — refusing to start"
+    )]
+    ExtensionModeButNoHook,
+
+    #[error(
+        "an extension authz hook was supplied via AppContextBuilder::with_authz_hook(...) but \
+         governance.authz.hook.mode is `{mode}` (must be `extension`) — refusing to start"
+    )]
+    ExtensionHookButWrongMode { mode: &'static str },
 }

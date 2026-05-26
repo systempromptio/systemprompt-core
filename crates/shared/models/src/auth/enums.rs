@@ -124,6 +124,18 @@ impl UserType {
             Self::Anon | Self::Unknown => RateLimitTier::Anon,
         }
     }
+
+    // Human types (Admin/User) are authoritative on the users row, not the JWT:
+    // an Admin-claimed token whose user row is no longer in the admin role gets
+    // downgraded here. Machine types (Service/A2a/Mcp/Anon) are not reflected in
+    // users.roles — they are minted by the OAuth layer and trusted as claimed.
+    #[must_use]
+    pub const fn reconcile_with(self, user_is_admin: bool) -> Self {
+        match self {
+            Self::Admin if !user_is_admin => Self::User,
+            other => other,
+        }
+    }
 }
 
 impl fmt::Display for UserType {

@@ -5,9 +5,8 @@ use std::time::{Duration, Instant};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::execution::context::ContextExtractionError;
+use systemprompt_security::JwtUserContext;
 use systemprompt_traits::{AnalyticsProvider, AuthUser, UserProvider};
-
-use super::token::JwtUserContext;
 
 const USER_CACHE_TTL: Duration = Duration::from_secs(30);
 

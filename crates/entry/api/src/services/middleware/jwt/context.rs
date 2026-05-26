@@ -5,19 +5,16 @@ use axum::http::HeaderMap;
 use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
-use systemprompt_identifiers::{ContextId, SessionId, UserId};
-use systemprompt_models::auth::UserType;
+use systemprompt_identifiers::ContextId;
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
-use systemprompt_security::TokenExtractor;
-use systemprompt_traits::{AnalyticsProvider, AuthUser, UserProvider};
+use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
+use systemprompt_traits::{AnalyticsProvider, UserProvider};
 
 use super::params::{BuildContextParams, build_context, extract_common_headers};
-use super::token::{JwtExtractor, JwtUserContext};
 use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
 
 #[derive(Clone)]
 pub struct JwtContextExtractor {
-    jwt_extractor: Arc<JwtExtractor>,
     token_extractor: TokenExtractor,
     analytics_provider: Arc<dyn AnalyticsProvider>,
     user_provider: Arc<dyn UserProvider>,
@@ -27,7 +24,6 @@ pub struct JwtContextExtractor {
 impl std::fmt::Debug for JwtContextExtractor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("JwtContextExtractor")
-            .field("jwt_extractor", &self.jwt_extractor)
             .field("token_extractor", &self.token_extractor)
             .finish_non_exhaustive()
     }
@@ -39,7 +35,6 @@ impl JwtContextExtractor {
         user_provider: Arc<dyn UserProvider>,
     ) -> Self {
         Self {
-            jwt_extractor: Arc::new(JwtExtractor::new()),
             token_extractor: TokenExtractor::browser_only(),
             analytics_provider,
             user_provider,
@@ -55,8 +50,7 @@ impl JwtContextExtractor {
             .token_extractor
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        self.jwt_extractor
-            .extract_user_context(&token)
+        extract_user_context(&token)
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
     }
 
@@ -64,7 +58,7 @@ impl JwtContextExtractor {
         &self,
         jwt_context: &JwtUserContext,
         route_context: &str,
-    ) -> Result<AuthUser, ContextExtractionError> {
+    ) -> Result<systemprompt_traits::AuthUser, ContextExtractionError> {
         if jwt_context.session_id.as_str().is_empty() {
             return Err(ContextExtractionError::MissingSessionId);
         }
@@ -86,35 +80,8 @@ impl JwtContextExtractor {
         &self,
         headers: &HeaderMap,
     ) -> Result<RequestContext, ContextExtractionError> {
-        let has_auth = headers.get("authorization").is_some();
-        let has_context_headers =
-            headers.get("x-user-id").is_some() && headers.get("x-session-id").is_some();
-
-        if has_context_headers && !has_auth {
-            return Err(ContextExtractionError::ForbiddenHeader {
-                header: "X-User-ID/X-Session-ID".to_owned(),
-                reason: "Context headers require valid JWT for authentication".to_owned(),
-            });
-        }
-
         let jwt_context = self.extract_jwt_context(headers)?;
         let user = self.validate(&jwt_context, "").await?;
-
-        let session_id = headers
-            .get("x-session-id")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || jwt_context.session_id.clone(),
-                |s| SessionId::new(s.to_owned()),
-            );
-
-        let user_id = headers
-            .get("x-user-id")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || jwt_context.user_id.clone(),
-                |s| UserId::new(s.to_owned()),
-            );
 
         let context_id = headers
             .get("x-context-id")
@@ -126,7 +93,9 @@ impl JwtContextExtractor {
         let (trace_id, task_id, auth_token, agent_name) =
             extract_common_headers(&self.token_extractor, headers);
 
-        let user_type = resolve_user_type(jwt_context.user_type, &user);
+        let user_type = jwt_context.user_type.reconcile_with(user_is_admin(&user));
+        let session_id = jwt_context.session_id.clone();
+        let user_id = jwt_context.user_id.clone();
 
         Ok(build_context(BuildContextParams {
             jwt_context,
@@ -141,20 +110,11 @@ impl JwtContextExtractor {
         }))
     }
 
-    pub async fn extract_mcp_a2a(
-        &self,
-        headers: &HeaderMap,
-    ) -> Result<RequestContext, ContextExtractionError> {
-        self.extract_standard(headers).await
-    }
-
     pub async fn decode_for_gateway(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
     ) -> Result<JwtUserContext, ContextExtractionError> {
-        let jwt_context = self
-            .jwt_extractor
-            .extract_user_context(jwt_token.as_str())
+        let jwt_context = extract_user_context(jwt_token.as_str())
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
 
         self.validate(&jwt_context, "gateway").await?;
@@ -201,7 +161,7 @@ impl JwtContextExtractor {
             extract_common_headers(&self.token_extractor, &headers);
 
         let task_id = task_id_from_payload.or(task_id_from_header);
-        let user_type = resolve_user_type(jwt_context.user_type, &user);
+        let user_type = jwt_context.user_type.reconcile_with(user_is_admin(&user));
 
         let session_id = jwt_context.session_id.clone();
         let user_id = jwt_context.user_id.clone();
@@ -218,17 +178,6 @@ impl JwtContextExtractor {
         });
 
         Ok((ctx, reconstructed_request))
-    }
-}
-
-// Human types (Admin, User) are settled against the users row: an Admin JWT
-// for a non-admin row is rewritten to User. Machine types (Service, A2a, Mcp,
-// Anon) are trusted from the JWT — they are minted by the OAuth layer and
-// are not reflected in the users.roles column.
-fn resolve_user_type(claimed: UserType, user: &AuthUser) -> UserType {
-    match claimed {
-        UserType::Admin if !user_is_admin(user) => UserType::User,
-        other => other,
     }
 }
 

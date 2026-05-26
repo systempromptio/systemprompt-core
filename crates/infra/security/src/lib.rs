@@ -68,6 +68,7 @@ pub use extraction::{
     CookieExtractionError, CookieExtractor, ExtractionMethod, HeaderExtractor,
     HeaderInjectionError, HeaderInjector, TokenExtractionError, TokenExtractor,
 };
-pub use jwt::{AdminTokenParams, JwtService};
+pub use authz::CompositeAuthzHook;
+pub use jwt::{AdminTokenParams, JwtService, JwtUserContext, extract_user_context};
 pub use services::ScannerDetector;
 pub use session::{SessionGenerator, SessionParams, ValidatedSessionClaims};

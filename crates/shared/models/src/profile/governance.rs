@@ -1,9 +1,12 @@
 //! Governance configuration for the gateway + MCP authorization hook.
 //!
-//! Authz is **fail-closed** with an explicit-opt-in surface. Three modes:
+//! Authz is **fail-closed** with an explicit-opt-in surface. Four modes:
 //!
 //! - `webhook` — production. Core POSTs every request to the configured URL;
 //!   any transport error, non-2xx, or decode failure denies the request.
+//! - `extension` — production. The hook is supplied at bootstrap by the
+//!   binary via `AppContextBuilder::with_authz_hook(...)`. Bootstrap errors
+//!   if no hook is supplied. See `internal/guides/authz.md`.
 //! - `disabled` — denies every request via `DenyAllHook`. Use when authz is
 //!   intentionally inactive but you want the surface installed.
 //! - `unrestricted` — TEST/DEV ONLY. Allows every request via `AllowAllHook`.
@@ -46,6 +49,7 @@ pub struct AuthzConfig {
 #[serde(rename_all = "lowercase")]
 pub enum AuthzMode {
     Webhook,
+    Extension,
     Disabled,
     Unrestricted,
 }

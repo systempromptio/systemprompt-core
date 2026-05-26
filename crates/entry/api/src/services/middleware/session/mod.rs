@@ -15,23 +15,19 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::{HeaderExtractor, TokenExtractor};
+use systemprompt_security::{HeaderExtractor, TokenExtractor, extract_user_context};
 use systemprompt_traits::AnalyticsProvider;
 use systemprompt_users::{UserProviderImpl, UserService};
 use uuid::Uuid;
 
-use super::jwt::JwtExtractor;
-
 #[derive(Clone, Debug)]
 pub struct SessionMiddleware {
-    jwt_extractor: Arc<JwtExtractor>,
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
 }
 
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> anyhow::Result<Self> {
-        let jwt_extractor = Arc::new(JwtExtractor::new());
         let user_service = UserService::new(ctx.db_pool())?;
         let concrete = Arc::clone(ctx.analytics_service());
         let analytics: Arc<dyn AnalyticsProvider> = concrete;
@@ -41,7 +37,6 @@ impl SessionMiddleware {
         ));
 
         Ok(Self {
-            jwt_extractor,
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
         })
@@ -176,7 +171,7 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) else {
+        let Ok(jwt_context) = extract_user_context(&token) else {
             let (sid, uid, token, is_new, fp) =
                 lifecycle::create_new_session(&self.session_creation_service, headers, uri, method)
                     .await?;

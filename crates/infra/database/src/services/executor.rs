@@ -231,7 +231,7 @@ impl SqlExecutor {
     }
 
     pub async fn execute_query(db: &Database, query: &str) -> DatabaseResult<QueryResult> {
-        db.query(&query)
+        db.query_raw(&query)
             .await
             .map_err(|e| RepositoryError::Internal(format!("Failed to execute query: {e}")))
     }
@@ -255,7 +255,7 @@ impl SqlExecutor {
 
     pub async fn table_exists(db: &Database, table_name: &str) -> DatabaseResult<bool> {
         let result = db
-            .query_with(
+            .query_raw_with(
                 &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = \
                   'public' AND table_name = $1) as exists",
                 &[&table_name],
@@ -275,7 +275,7 @@ impl SqlExecutor {
         column_name: &str,
     ) -> DatabaseResult<bool> {
         let result = db
-            .query_with(
+            .query_raw_with(
                 &"SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = \
                   'public' AND table_name = $1 AND column_name = $2) as exists",
                 &[&table_name, &column_name],

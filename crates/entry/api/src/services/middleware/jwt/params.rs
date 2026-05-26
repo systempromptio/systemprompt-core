@@ -2,9 +2,7 @@ use axum::http::HeaderMap;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_security::{HeaderExtractor, TokenExtractor};
-
-use super::token::JwtUserContext;
+use systemprompt_security::{HeaderExtractor, JwtUserContext, TokenExtractor};
 
 pub(super) struct BuildContextParams {
     pub jwt_context: JwtUserContext,
@@ -30,11 +28,12 @@ pub(super) fn build_context(params: BuildContextParams) -> RequestContext {
         auth_token,
         user_type,
     } = params;
-    let act_chain = jwt_context.act_chain.clone();
     let mut ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
         .with_actor(systemprompt_identifiers::Actor::user(user_id))
         .with_user_type(user_type)
-        .with_act_chain(act_chain);
+        .with_act_chain(jwt_context.act_chain)
+        .with_jti(jwt_context.jti)
+        .with_token_exp(jwt_context.exp);
 
     if let Some(client_id) = jwt_context.client_id {
         ctx = ctx.with_client_id(client_id);

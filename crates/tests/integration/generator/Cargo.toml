@@ -1,0 +1,25 @@
+[package]
+name = "systemprompt-generator-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-generator (build orchestrator, validation, RSS pipeline)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-generator = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = { workspace = true }
+serde_yaml = { workspace = true }
+serde_json = { workspace = true }

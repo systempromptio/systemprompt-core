@@ -12,6 +12,7 @@ use systemprompt_database::{Database, MigrationConfig, install_extension_schemas
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_mcp::services::registry::RegistryService;
+use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
@@ -34,6 +35,7 @@ pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
+    authz_hook: Option<SharedAuthzHook>,
     install_schemas: bool,
     migration_config: MigrationConfig,
 }
@@ -44,6 +46,7 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("extension_registry", &self.extension_registry.is_some())
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
+            .field("authz_hook", &self.authz_hook.is_some())
             .field("install_schemas", &self.install_schemas)
             .field("migration_config", &self.migration_config)
             .finish()
@@ -88,6 +91,16 @@ impl AppContextBuilder {
         self
     }
 
+    /// Supplies an extension-built authz decision hook. The hook is wired
+    /// only when `profile.governance.authz.hook.mode = extension`; pairing
+    /// this call with any other mode is a bootstrap error. See
+    /// `internal/guides/authz.md` for the contract.
+    #[must_use]
+    pub fn with_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
+        self.authz_hook = Some(hook);
+        self
+    }
+
     #[must_use]
     pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
         self.migration_config = config;
@@ -113,6 +126,7 @@ impl AppContextBuilder {
         let authz_hook = systemprompt_security::authz::build_authz_hook(
             profile.governance.as_ref(),
             authz_audit_pool,
+            self.authz_hook,
         )
         .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
 

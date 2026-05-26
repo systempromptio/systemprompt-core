@@ -1,66 +1,23 @@
-//! JWT minting service.
+//! JWT plane.
 //!
-//! Produces administrator-scoped RS256 tokens for the bridge management
-//! plane and CLI bootstrap flows. Session-scoped tokens are minted by
-//! [`crate::session::SessionGenerator`] instead.
+//! Two stateless surfaces, each a free function or unit-struct method that
+//! never holds JWT state of its own:
+//!
+//! - [`mint`] — issues administrator-scoped RS256 tokens via
+//!   [`JwtService::generate_admin_token`]. Session-scoped tokens are minted by
+//!   [`crate::session::SessionGenerator`] instead.
+//! - [`decode`] — turns a raw `Bearer …` string into a typed
+//!   [`JwtUserContext`], enforcing kid + RS256, re-deriving `user_type` from
+//!   `scope` (defence-in-depth against a forged claim), and surfacing every
+//!   failure as an [`crate::AuthError`] variant.
+//!
+//! Issuer/audience/`nbf` validation for full session decode lives in
+//! [`crate::AuthValidationService`]; the bare [`decode::extract_user_context`]
+//! is used by request-context middleware that does its own session and user
+//! lookups against the database after decode.
 
-use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
-use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
-use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
-};
+pub mod decode;
+pub mod mint;
 
-use crate::error::{JwtError, JwtResult};
-use crate::keys::authority;
-
-#[derive(Debug)]
-pub struct AdminTokenParams<'a> {
-    pub user_id: &'a UserId,
-    pub session_id: &'a SessionId,
-    pub email: &'a str,
-    pub issuer: &'a str,
-    pub duration: Duration,
-    pub client_id: Option<&'a ClientId>,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct JwtService;
-
-impl JwtService {
-    pub fn generate_admin_token(params: &AdminTokenParams<'_>) -> JwtResult<JwtToken> {
-        let now = Utc::now();
-        let expiry = now + params.duration;
-
-        let claims = JwtClaims {
-            sub: params.user_id.to_string(),
-            iat: now.timestamp(),
-            exp: expiry.timestamp(),
-            nbf: Some(now.timestamp()),
-            iss: params.issuer.to_owned(),
-            aud: JwtAudience::standard(),
-            jti: uuid::Uuid::new_v4().to_string(),
-            scope: vec![Permission::Admin],
-            username: params.email.to_owned(),
-            email: params.email.to_owned(),
-            user_type: UserType::Admin,
-            roles: vec!["admin".to_owned(), "user".to_owned()],
-            department: None,
-            client_id: params.client_id.cloned(),
-            token_type: TokenType::Bearer,
-            auth_time: now.timestamp(),
-            session_id: Some(params.session_id.clone()),
-            rate_limit_tier: Some(RateLimitTier::Admin),
-            plugin_id: None,
-            act: None,
-        };
-
-        let kid = authority::active_kid().map_err(|e| JwtError::Signing(e.to_string()))?;
-        let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some(kid.to_owned());
-        let key = authority::encoding_key().map_err(|e| JwtError::Signing(e.to_string()))?;
-        let token = encode(&header, &claims, key).map_err(JwtError::from)?;
-
-        Ok(JwtToken::new(token))
-    }
-}
+pub use decode::{JwtUserContext, extract_user_context};
+pub use mint::{AdminTokenParams, JwtService};

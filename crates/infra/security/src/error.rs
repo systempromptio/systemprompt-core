@@ -60,6 +60,15 @@ pub enum AuthError {
 
     #[error("token `act` delegation chain exceeds maximum depth of {max} (got {depth})")]
     ActChainTooDeep { depth: usize, max: usize },
+
+    #[error("token is missing the `scope` claim")]
+    MissingScope,
+
+    #[error("token `user_type` claim `{claimed}` does not match permissions (derived `{derived}`)")]
+    UserTypeMismatch {
+        claimed: systemprompt_models::auth::UserType,
+        derived: systemprompt_models::auth::UserType,
+    },
 }
 
 #[derive(Debug, Error)]
