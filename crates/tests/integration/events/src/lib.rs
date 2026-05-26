@@ -6,18 +6,16 @@
 #[cfg(test)]
 mod cross_replica;
 
-use std::env;
 use std::sync::Arc;
-use systemprompt_database::{Database, PgPool};
+use systemprompt_database::PgPool;
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 /// Connects to the test database named by `DATABASE_URL` and returns its
 /// Postgres pool, the surface the relay (`EventRouter` + `PostgresEventBridge`)
 /// is built on.
 pub async fn setup_test_pool() -> Arc<PgPool> {
-    let database_url =
-        env::var("DATABASE_URL").expect("DATABASE_URL environment variable required");
-
-    let db = Database::new_postgres(&database_url)
+    let url = fixture_database_url().expect("DATABASE_URL environment variable required");
+    let db = fixture_db_pool(&url)
         .await
         .expect("failed to connect to test database");
 

@@ -16,6 +16,7 @@ systemprompt-security = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 reqwest = { workspace = true }

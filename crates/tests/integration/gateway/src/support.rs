@@ -1,11 +1,11 @@
-use std::env;
-use std::sync::{Arc, Once};
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
+use systemprompt_test_fixtures::{
+    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
+};
 use uuid::Uuid;
 
 pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> CanonicalRequest {
@@ -29,36 +29,10 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
     }
 }
 
-pub fn ensure_secrets_bootstrap() {
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        // SAFETY: single-threaded test init before any tokio runtime is up.
-        unsafe {
-            env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
-            if env::var("OAUTH_AT_REST_PEPPER").is_err() {
-                env::set_var(
-                    "OAUTH_AT_REST_PEPPER",
-                    "test_oauth_at_rest_pepper_for_integration_tests_zzz",
-                );
-            }
-            if env::var("MANIFEST_SIGNING_SECRET_SEED").is_err() {
-                env::set_var(
-                    "MANIFEST_SIGNING_SECRET_SEED",
-                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-                );
-            }
-        }
-        SecretsBootstrap::try_init().expect("SecretsBootstrap::try_init");
-    });
-}
-
 pub async fn setup_db() -> DbPool {
-    ensure_secrets_bootstrap();
-    let url = env::var("DATABASE_URL").expect("DATABASE_URL required for gateway audit tests");
-    let db = Database::new_postgres(&url)
-        .await
-        .expect("connect to test database");
-    Arc::new(db)
+    ensure_test_secrets_bootstrap();
+    let url = fixture_database_url().expect("DATABASE_URL required for gateway audit tests");
+    fixture_db_pool(&url).await.expect("connect to test database")
 }
 
 pub async fn seed_user(db: &DbPool) -> UserId {

@@ -1,19 +1,18 @@
 //! Shared helpers for the sync integration suite: DB acquisition (with
 //! environment-skip), tenant id factory, and tiny wiremock builders.
 
-use std::env;
-use std::sync::Arc;
-
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 /// Returns a `DbPool` against `DATABASE_URL`, or `None` if the variable
 /// is unset so the test can early-skip without failing.
 pub async fn try_db() -> Option<DbPool> {
-    let url = env::var("DATABASE_URL").ok()?;
-    let db = Database::new_postgres(&url)
-        .await
-        .expect("connect to test database");
-    Some(Arc::new(db))
+    let url = fixture_database_url().ok()?;
+    Some(
+        fixture_db_pool(&url)
+            .await
+            .expect("connect to test database"),
+    )
 }
 
 /// Wipe the rows the sync integration tests touch under the given
