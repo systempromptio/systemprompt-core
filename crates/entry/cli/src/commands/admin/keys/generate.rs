@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::Args;
+use systemprompt_logging::CliService;
 use systemprompt_security::keys::RsaSigningKey;
 
 #[derive(Debug, Args)]
@@ -15,8 +16,7 @@ pub struct GenerateArgs {
 
 #[expect(
     clippy::needless_pass_by_value,
-    clippy::print_stdout,
-    reason = "clap-derived args ergonomics; CLI subcommand prints human-readable result"
+    reason = "clap-derived args ergonomics"
 )]
 pub(super) fn execute(args: GenerateArgs) -> Result<()> {
     if args.output.exists() && !args.force {
@@ -30,7 +30,10 @@ pub(super) fn execute(args: GenerateArgs) -> Result<()> {
     key.write_pem_file(&args.output)
         .with_context(|| format!("writing PEM to {}", args.output.display()))?;
 
-    println!("Wrote RSA-2048 PKCS#8 PEM to {}", args.output.display());
-    println!("kid: {}", key.kid());
+    CliService::output(&format!(
+        "Wrote RSA-2048 PKCS#8 PEM to {}",
+        args.output.display()
+    ));
+    CliService::output(&format!("kid: {}", key.kid()));
     Ok(())
 }
