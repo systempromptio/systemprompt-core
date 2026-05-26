@@ -176,10 +176,6 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
     Ok(())
 }
 
-// MessageService.persist_messages and create_tool_execution_message currently
-// hit a "metadata is jsonb but expression is text" failure in
-// persist_message_with_tx — production-code defect, not exercised here.
-
 #[tokio::test]
 async fn context_service_load_history_for_empty_context_returns_empty() -> Result<()> {
     let fx = ServicesFixture::new().await?;
