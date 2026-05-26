@@ -1,0 +1,35 @@
+[package]
+name = "systemprompt-api-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-api HTTP route handlers"
+publish = false
+
+[lib]
+path = "mod.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-test-fixtures = { workspace = true }
+systemprompt-api = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-agent = { workspace = true }
+
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+http = { workspace = true }
+http-body-util = "0.1"
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

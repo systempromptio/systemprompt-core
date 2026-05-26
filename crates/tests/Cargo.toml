@@ -12,6 +12,7 @@ members = [
     # Integration tests
     "integration/agent",
     "integration/analytics",
+    "integration/api",
     "integration/cloud",
     "integration/database",
     "integration/events",
