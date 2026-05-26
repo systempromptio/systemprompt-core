@@ -4,11 +4,16 @@
 
 ### Added
 
-- **`SYSTEMPROMPT_TRUSTED_HTTP_HOSTS` — operator opt-in for sealed-network http endpoints.** New public API on `systemprompt-models`: `validate_outbound_url_with_trust(url, trusted_http_hosts)` and the helper `trusted_http_hosts_from_env()`. Hosts on the comma-separated allowlist pass the http scheme gate and bypass the IP block for that hostname only; every other host continues to hit the strict default (loopback-only http, RFC1918/metadata block enforced). `validate_outbound_url(..)` is unchanged. The gateway profile validator reads the env automatically — empty when unset, so existing deployments keep the prior behaviour.
+- **`SYSTEMPROMPT_TRUSTED_HTTP_HOSTS` — operator opt-in for sealed-network http endpoints.** New public API on `systemprompt-models`: `validate_outbound_url_with_trust(url, trusted_http_hosts)` and the helper `trusted_http_hosts_from_env()`. Hosts on the comma-separated allowlist pass the http scheme gate and bypass the IP block for that hostname only; every other host continues to hit the strict default (loopback-only http, RFC1918/metadata block enforced). `validate_outbound_url(..)` is unchanged. The gateway profile validator reads the env automatically — empty when unset, so existing deployments keep the prior behaviour. The agent-process and MCP-process spawners now forward the variable into child environments after `env_clear`, so subprocess catalog re-validation sees the same allowlist as the parent.
 
 ### Fixed
 
 - **`systemprompt-api` now builds on macOS.** `get_disk_usage()` in `services/server/health.rs` previously fed `nix::sys::statvfs` block counts straight into `saturating_mul`. Those fields alias to `libc::fsblkcnt_t`, which is `u64` on Linux but `u32` on Darwin, so the arithmetic type-checked only on Linux. Every field is now widened to `u64` before multiplication, making the function portable across both targets.
+- **`JwtContextExtractor::decode_for_gateway` no longer discards its own `validate(...)` return value with `let _ = ...await?`.** The bound was a no-op (`validate` returns `()` on success and the `?` already propagated the error) but tripped the `let _ = <fallible>` ban. The call is now a plain statement.
+
+### Changed
+
+- **Eleven source files split below the 300-line cap.** Affects no public API: `authz/types`, `authz/repository`, `keys/jwks_client`, `profile/gateway`, `oauth/refresh_token`, `scheduling`, `entry/cli admin access-control`, `entry/cli infrastructure db schema`, and the three a2a-server agent files (`streaming/handlers/completion`, `processing/message/message_handler`, `processing/message/stream_processor/processing`) are each promoted to a `mod.rs` + cohesive submodules. Re-exports preserved so downstream `use` paths are unchanged. `just file-size` is now empty.
 
 ## [0.11.2] - 2026-05-25
 

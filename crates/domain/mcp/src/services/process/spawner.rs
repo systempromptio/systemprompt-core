@@ -36,6 +36,14 @@ fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
     if let Ok(home) = std::env::var("HOME") {
         command.env("HOME", home);
     }
+    // SSRF guard allowlist (see systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV).
+    // The MCP child re-validates outbound URLs when it loads the profile catalog,
+    // so the operator's process-wide trust assertion must travel with it —
+    // env_clear would otherwise leave the child running with an empty allowlist
+    // and reject sealed-network hostnames the parent already accepted.
+    if let Ok(trusted) = std::env::var(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV) {
+        command.env(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV, trusted);
+    }
 
     command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
