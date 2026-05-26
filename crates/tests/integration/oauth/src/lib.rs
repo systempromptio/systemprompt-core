@@ -7,6 +7,15 @@
 mod bridge_session_tests;
 
 #[cfg(test)]
+mod bridge_extra_tests;
+
+#[cfg(test)]
+mod bridge_session_repo_tests;
+
+#[cfg(test)]
+mod setup_token_tests;
+
+#[cfg(test)]
 mod client_tests;
 
 #[cfg(test)]
