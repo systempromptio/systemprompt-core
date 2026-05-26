@@ -15,6 +15,8 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-extension = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

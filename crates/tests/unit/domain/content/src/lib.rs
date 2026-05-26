@@ -21,3 +21,9 @@ mod services;
 
 #[cfg(test)]
 mod config;
+
+#[cfg(test)]
+mod lib_smoke;
+
+#[cfg(test)]
+mod extension;

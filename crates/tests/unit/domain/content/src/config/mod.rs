@@ -6,6 +6,8 @@
 //! - LoadStats structure
 //! - ParsedContent structure
 
+mod validated;
+
 use systemprompt_content::{LoadStats, ParsedContent};
 use systemprompt_identifiers::{CategoryId, SourceId};
 
