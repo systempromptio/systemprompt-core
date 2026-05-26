@@ -6596,12 +6596,14 @@ name = "systemprompt-agent-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "axum",
  "chrono",
  "rmcp",
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-agent",
  "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
@@ -6808,18 +6810,23 @@ dependencies = [
 name = "systemprompt-api-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
  "axum",
  "base64 0.22.1",
+ "bytes",
  "chrono",
  "http",
+ "ipnet",
  "jsonwebtoken",
  "serde",
  "serde_json",
+ "sqlx",
  "systemprompt-agent",
  "systemprompt-api",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-traits",
  "tokio",
 ]
 
@@ -7230,8 +7237,10 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-content",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-test-fixtures",
  "tempfile",
  "tokio",
@@ -7516,7 +7525,9 @@ dependencies = [
  "serde_yaml_ng",
  "systemprompt-content",
  "systemprompt-generator",
+ "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "tempfile",
  "tokio",
@@ -7614,6 +7625,8 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -7696,8 +7709,13 @@ dependencies = [
 name = "systemprompt-mcp-tests"
 version = "0.0.11"
 dependencies = [
+ "axum",
  "chrono",
+ "rmcp",
  "serde_json",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-mcp",
  "systemprompt-models",
@@ -7916,6 +7934,7 @@ dependencies = [
  "serde_json",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-marketplace",
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-traits",
@@ -7970,15 +7989,9 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
- "systemprompt-analytics",
  "systemprompt-database",
- "systemprompt-extension",
- "systemprompt-marketplace",
- "systemprompt-mcp",
- "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
- "systemprompt-security",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
@@ -8150,6 +8163,7 @@ name = "systemprompt-sync-tests"
 version = "0.0.11"
 dependencies = [
  "chrono",
+ "flate2",
  "reqwest 0.12.28",
  "serde_json",
  "systemprompt-agent",
@@ -8157,9 +8171,12 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-sync",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
+ "tar",
  "tempfile",
  "tokio",
  "wiremock",
+ "zip",
 ]
 
 [[package]]
@@ -8213,8 +8230,18 @@ dependencies = [
 name = "systemprompt-test-fixtures"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "dotenvy",
+ "systemprompt-analytics",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-marketplace",
+ "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-security",
+ "tokio",
  "uuid",
 ]
 
