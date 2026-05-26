@@ -11,17 +11,18 @@ mod context_export_tests {
     #[test]
     fn creation_with_session() {
         let now = Utc::now();
+        let ctx = ContextId::generate();
         let context = ContextExport {
-            context_id: ContextId::new("ctx_123"),
+            context_id: ctx.clone(),
             user_id: fixture_user_id(),
-            session_id: Some(SessionId::new("session_789")),
+            session_id: Some(SessionId::generate()),
             name: "Test Context".to_string(),
             created_at: now,
             updated_at: now,
         };
 
-        assert_eq!(context.context_id.as_str(), "ctx_123");
-        assert_eq!(context.user_id.as_str(), "user_456");
+        assert_eq!(context.context_id.as_str(), ctx.as_str());
+        assert!(!context.user_id.as_str().is_empty());
         context.session_id.as_ref().expect("Should have session id");
     }
 
@@ -29,7 +30,7 @@ mod context_export_tests {
     fn creation_without_session() {
         let now = Utc::now();
         let context = ContextExport {
-            context_id: ContextId::new("ctx_no_session"),
+            context_id: ContextId::generate(),
             user_id: fixture_user_id(),
             session_id: None,
             name: "No Session Context".to_string(),

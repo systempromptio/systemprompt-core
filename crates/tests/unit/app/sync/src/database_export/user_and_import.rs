@@ -2,13 +2,14 @@
 
 mod user_export_tests {
     use chrono::Utc;
+    use systemprompt_identifiers::UserId;
     use systemprompt_sync::database::UserExport;
 
     #[test]
     fn creation() {
         let now = Utc::now();
         let user = UserExport {
-            id: "user_123".to_string(),
+            id: UserId::new("user_123"),
             name: "testuser".to_string(),
             email: "test@example.com".to_string(),
             full_name: Some("Test User".to_string()),
@@ -32,7 +33,7 @@ mod user_export_tests {
     fn minimal() {
         let now = Utc::now();
         let user = UserExport {
-            id: "user_min".to_string(),
+            id: UserId::new("user_min"),
             name: "minimal".to_string(),
             email: "min@example.com".to_string(),
             full_name: None,
@@ -56,7 +57,7 @@ mod user_export_tests {
     fn serialization() {
         let now = Utc::now();
         let user = UserExport {
-            id: "user_ser".to_string(),
+            id: UserId::new("user_ser"),
             name: "seruser".to_string(),
             email: "ser@example.com".to_string(),
             full_name: None,

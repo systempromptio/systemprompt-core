@@ -17,7 +17,7 @@ mod boundary_tests {
     fn very_long_strings() {
         let long_string = "x".repeat(10000);
         let config = SyncConfig::builder(TenantId::new(&long_string), "https://api.com", "token", "/services").build();
-        assert_eq!(config.tenant_id.len(), 10000);
+        assert_eq!(config.tenant_id.as_str().len(), 10000);
     }
 
     #[test]
@@ -107,7 +107,7 @@ mod error_additional_tests {
     fn io_conversion() {
         let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
         let sync_error: SyncError = io_error.into();
-        assert!(sync_error.to_string().contains("IO error"));
+        assert!(sync_error.to_string().contains("io:"));
     }
 
     #[test]
@@ -116,7 +116,7 @@ mod error_additional_tests {
         let json_result: Result<serde_json::Value, _> = serde_json::from_str(json_str);
         let json_error = json_result.expect_err("invalid JSON should fail to parse");
         let sync_error: SyncError = json_error.into();
-        assert!(sync_error.to_string().contains("JSON error"));
+        assert!(sync_error.to_string().contains("json:"));
     }
 
     #[test]

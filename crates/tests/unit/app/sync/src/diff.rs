@@ -193,7 +193,7 @@ mod disk_model_tests {
 
 mod content_diff_entry_tests {
     use std::path::PathBuf;
-    use systemprompt_identifiers::SourceId;
+    use systemprompt_identifiers::{CategoryId, SourceId};
     use systemprompt_sync::{ContentDiffEntry, ContentDiffResult};
 
     #[test]
@@ -207,8 +207,8 @@ mod content_diff_entry_tests {
         };
         let entry = ContentDiffEntry {
             name: "blog".to_string(),
-            source_id: "content_blog".to_string(),
-            category_id: "blog_category".to_string(),
+            source_id: SourceId::new("content_blog"),
+            category_id: CategoryId::new("blog_category"),
             path: PathBuf::from("/content/blog"),
             allowed_content_types: vec!["article".to_string(), "post".to_string()],
             diff,
@@ -221,8 +221,8 @@ mod content_diff_entry_tests {
     fn debug() {
         let entry = ContentDiffEntry {
             name: "docs".to_string(),
-            source_id: "docs_source".to_string(),
-            category_id: "docs_cat".to_string(),
+            source_id: SourceId::new("docs_source"),
+            category_id: CategoryId::new("docs_cat"),
             path: PathBuf::from("/content/docs"),
             allowed_content_types: vec!["doc".to_string()],
             diff: ContentDiffResult::default(),

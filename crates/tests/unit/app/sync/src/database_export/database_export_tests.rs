@@ -11,7 +11,7 @@ fn full_export() {
     let export = DatabaseExport {
         users: vec![],
         contexts: vec![ContextExport {
-            context_id: ContextId::new("ctx_1"),
+            context_id: ContextId::generate(),
             user_id: fixture_user_id(),
             session_id: None,
             name: "Context".to_string(),

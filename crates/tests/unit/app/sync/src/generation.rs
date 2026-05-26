@@ -86,13 +86,14 @@ mod escape_yaml_tests {
 mod content_generation_tests {
     use super::*;
     use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, SourceId};
+    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
     #[test]
     fn markdown_structure() {
         let content = Content {
             id: ContentId::new("test-id"),
             slug: "test-article".to_string(),
+            locale: LocaleCode::new("en"),
             title: "Test Article".to_string(),
             description: "Article description".to_string(),
             body: "Article body content goes here.".to_string(),
@@ -119,6 +120,7 @@ mod content_generation_tests {
         let content = Content {
             id: ContentId::new("no-image"),
             slug: "no-image".to_string(),
+            locale: LocaleCode::new("en"),
             title: "No Image".to_string(),
             description: "No image".to_string(),
             body: "Body".to_string(),
@@ -144,6 +146,7 @@ mod content_generation_tests {
         let content = Content {
             id: ContentId::new("doc-1"),
             slug: "getting-started".to_string(),
+            locale: LocaleCode::new("en"),
             title: "Getting Started".to_string(),
             description: "How to get started".to_string(),
             body: "Documentation content".to_string(),
@@ -171,6 +174,7 @@ mod content_generation_tests {
         let content = Content {
             id: ContentId::new("blog-1"),
             slug: "my-blog-post".to_string(),
+            locale: LocaleCode::new("en"),
             title: "My Blog Post".to_string(),
             description: "A blog post".to_string(),
             body: "Blog content".to_string(),
