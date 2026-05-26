@@ -13,6 +13,7 @@
 
 mod bot_detection_functions;
 mod bot_detector;
+mod client_addr;
 mod content_negotiation;
 mod context_requirement;
 mod cors_config;

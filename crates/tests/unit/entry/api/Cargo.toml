@@ -19,6 +19,11 @@ systemprompt-agent = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 serde_json = { workspace = true }
+bytes = { workspace = true }
+ipnet = "2.10"
+systemprompt-traits = { workspace = true }
+anyhow = { workspace = true }
+sqlx = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -6,5 +6,6 @@
 //! - Default implementations
 
 mod agent;
+mod gateway_extract_credential;
 mod oauth;
 mod sync_types;

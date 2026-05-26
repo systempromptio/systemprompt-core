@@ -1,5 +1,8 @@
 mod authorize;
 mod authorize_validation;
+mod error_code;
+mod error_conversions;
+mod error_http;
 mod client_config;
 mod client_config_validation;
 mod response_builder;
