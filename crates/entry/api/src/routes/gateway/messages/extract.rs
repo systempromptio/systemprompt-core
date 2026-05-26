@@ -222,6 +222,31 @@ async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
+/// Assemble the gateway-side [`AuthzRequest`] from the authenticated principal,
+/// the matched gateway route, and the resolved model identifier.
+///
+/// Public so unit tests can lock in the JWT-claims forwarding contract
+/// without invoking the wider dispatch path.
+pub fn build_gateway_authz_request(
+    user_id: UserId,
+    roles: Vec<String>,
+    department: String,
+    act_chain: Vec<Actor>,
+    trace_id: TraceId,
+    route_id: RouteId,
+    model: ModelId,
+) -> AuthzRequest {
+    AuthzRequest {
+        entity: EntityRef::GatewayRoute(route_id),
+        user_id,
+        roles,
+        department,
+        trace_id,
+        context: AuthzContext::GatewayInvocation { model },
+        act_chain,
+    }
+}
+
 async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
     route: &systemprompt_models::profile::GatewayRoute,
@@ -236,17 +261,15 @@ async fn enforce_authz_pre_dispatch(
     } else {
         route.id.clone()
     };
-    let req = AuthzRequest {
-        entity: EntityRef::GatewayRoute(route_id),
-        user_id: principal.user_id.clone(),
-        roles: principal.roles.clone(),
-        department: principal.department.clone(),
-        trace_id: principal.trace_id.clone().unwrap_or_else(TraceId::generate),
-        context: AuthzContext::GatewayInvocation {
-            model: ModelId::new(model),
-        },
-        act_chain: principal.act_chain.clone(),
-    };
+    let req = build_gateway_authz_request(
+        principal.user_id.clone(),
+        principal.roles.clone(),
+        principal.department.clone(),
+        principal.act_chain.clone(),
+        principal.trace_id.clone().unwrap_or_else(TraceId::generate),
+        route_id,
+        ModelId::new(model),
+    );
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => Err((

@@ -24,3 +24,6 @@ mod revoked_kid_tests;
 
 #[cfg(test)]
 mod dos_guard_tests;
+
+#[cfg(test)]
+mod authz_extension_path_tests;

@@ -163,22 +163,33 @@ fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
         .unwrap_or_default()
 }
 
+/// Assemble the MCP-side [`AuthzRequest`] from the validated JWT claims and the
+/// flattened act-chain. Public so unit tests can lock in JWT-claims
+/// forwarding without spinning up a hook or RBAC stack.
+#[must_use]
+pub fn build_mcp_authz_request(
+    server_name: &str,
+    claims: &JwtClaims,
+    act_chain: Vec<Actor>,
+) -> AuthzRequest {
+    AuthzRequest {
+        entity: EntityRef::McpServer(McpServerId::new(server_name)),
+        user_id: UserId::new(claims.sub.clone()),
+        roles: claims.roles.clone(),
+        department: claims.department.clone().unwrap_or_default(),
+        trace_id: TraceId::generate(),
+        context: AuthzContext::None,
+        act_chain,
+    }
+}
+
 async fn enforce_authz_for_server(
     server_name: &str,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
     hook: &SharedAuthzHook,
 ) -> Result<(), McpError> {
-    let user_id = UserId::new(claims.sub.clone());
-    let req = AuthzRequest {
-        entity: EntityRef::McpServer(McpServerId::new(server_name)),
-        user_id,
-        roles: claims.roles.clone(),
-        department: claims.department.clone().unwrap_or_else(String::new),
-        trace_id: TraceId::generate(),
-        context: AuthzContext::None,
-        act_chain,
-    };
+    let req = build_mcp_authz_request(server_name, claims, act_chain);
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => {

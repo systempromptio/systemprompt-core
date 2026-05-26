@@ -3,7 +3,7 @@ mod dispatch;
 mod extract;
 mod rejection;
 
-pub use extract::extract_credential;
+pub use extract::{build_gateway_authz_request, extract_credential};
 
 use axum::body::Body;
 use axum::extract::Request;

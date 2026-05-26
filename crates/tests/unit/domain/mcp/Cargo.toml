@@ -24,3 +24,4 @@ serde_json = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 rmcp = { workspace = true }
+systemprompt-security = { workspace = true }
