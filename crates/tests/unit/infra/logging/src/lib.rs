@@ -16,7 +16,13 @@
 #[cfg(test)]
 mod attribution;
 #[cfg(test)]
+mod extension;
+#[cfg(test)]
+mod layer;
+#[cfg(test)]
 mod models;
+#[cfg(test)]
+mod repository;
 #[cfg(test)]
 mod services;
 #[cfg(test)]
