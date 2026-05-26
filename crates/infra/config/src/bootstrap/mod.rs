@@ -61,11 +61,6 @@ impl BootstrapSequence<Uninitialized> {
             _state: PhantomData,
         })
     }
-
-    #[must_use]
-    pub const fn skip_profile(self) -> Self {
-        self
-    }
 }
 
 impl BootstrapSequence<ProfileInitialized> {
@@ -76,11 +71,6 @@ impl BootstrapSequence<ProfileInitialized> {
         Ok(BootstrapSequence {
             _state: PhantomData,
         })
-    }
-
-    #[must_use]
-    pub const fn skip_secrets(self) -> Self {
-        self
     }
 }
 
