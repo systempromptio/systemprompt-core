@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **macOS build of `systemprompt-api`.** `get_disk_usage()` in `services/server/health.rs` mixed `fragment_size()` (returns `c_ulong` → `u64` on Darwin) with `blocks()` / `blocks_available()` / `blocks_free()` (return `fsblkcnt_t` → `u32` on Darwin), so `saturating_mul` failed type-check on macOS while compiling cleanly on Linux. All four values are now widened with `u64::from(...)` and the function carries `#[allow(clippy::useless_conversion)]` for the Linux-only no-op casts. Discovered running the `systemprompt-template` quick-start against published 0.11.2 on macOS aarch64.
+
 ## [0.11.2] - 2026-05-25
 
 ### Breaking
