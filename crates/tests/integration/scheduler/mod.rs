@@ -9,4 +9,7 @@
 mod distributed_lock;
 
 #[cfg(test)]
+mod repository_tests;
+
+#[cfg(test)]
 mod static_content_tests;
