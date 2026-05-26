@@ -1,0 +1,29 @@
+[package]
+name = "systemprompt-cli-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-cli that drive the public CLI surface in-process"
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+systemprompt-cli = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-logging = { workspace = true }
+anyhow = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
