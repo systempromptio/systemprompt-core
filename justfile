@@ -269,82 +269,87 @@ loadtest-spike *ARGS:
 loadtest-distributed NODES *ARGS:
     cargo run --manifest-path crates/tests/loadtest/Cargo.toml -- --nodes {{NODES}} {{ARGS}}
 
-# Generate coverage report (text summary)
+# Generate line-coverage summary for the workspace.
 #
-# Architecture: The test workspace (crates/tests/) has its own .cargo/config.toml
-# that overrides cranelift→llvm and removes sccache, enabling LLVM coverage
-# instrumentation. We cd into the test workspace so Cargo picks up that config.
-#
-# cargo-llvm-cov has a known issue with profraw file paths in multi-workspace
-# setups, so we use grcov for report generation as the more reliable tool.
+# Mirrors .github/workflows/coverage.yml so local + CI numbers stay
+# comparable. Forces a clean instrumented rebuild of the test workspace
+# (~30-40 min cold) because the parent .cargo/config.toml configures
+# sccache, Cranelift, and a fixed linker arg list — all three sabotage
+# `-C instrument-coverage` (sccache returns uninstrumented objects;
+# Cranelift silently strips the flag; the linker override blocks mold
+# and OOM-kills the build). The CI workflow gets a clean runner; locally
+# we mutate the two cargo configs in place for the duration of the run
+# and restore them via a trap.
 coverage:
     #!/usr/bin/env bash
-    set -e
+    set -euo pipefail
     ROOT="$(pwd)"
     PROFDIR="$ROOT/coverage-report/profraw"
-    rm -rf "$PROFDIR"
+    rm -rf "$PROFDIR" "$ROOT/coverage-report/tests.profdata"
     mkdir -p "$PROFDIR"
-    echo "Building and testing with coverage instrumentation..."
-    cd crates/tests
-    LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
-    RUSTFLAGS="-C instrument-coverage" \
-    cargo test --workspace --lib 2>&1 | tail -3
-    echo ""
-    PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
-    echo "Generated $PROFRAW_COUNT profraw files"
-    echo ""
-    echo "Merging profile data..."
-    LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
-    LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
-    "$LLVM_PROFDATA" merge -sparse "$PROFDIR"/*.profraw -o "$ROOT/coverage-report/tests.profdata"
-    echo "Generating report..."
-    TEST_BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f -name "systemprompt_*" ! -name "*.d" | head -30)
-    OBJECT_ARGS=""
-    FIRST=true
-    for bin in $TEST_BINS; do
-        if $FIRST; then
-            OBJECT_ARGS="$bin"
-            FIRST=false
-        else
-            OBJECT_ARGS="$OBJECT_ARGS --object $bin"
-        fi
+
+    CONFIGS=("$ROOT/.cargo/config.toml" "$ROOT/crates/tests/.cargo/config.toml")
+    cleanup() {
+        for c in "${CONFIGS[@]}"; do
+            [ -f "$c.cov-bak" ] && mv "$c.cov-bak" "$c"
+        done
+    }
+    trap cleanup EXIT INT TERM
+
+    echo "==> Patching cargo configs (strip [unstable], [profile.dev], RUSTC_WRAPPER)"
+    for c in "${CONFIGS[@]}"; do
+        [ -f "$c" ] || continue
+        cp "$c" "$c.cov-bak"
+        awk '
+            /^\[unstable\]/      { skip=1; next }
+            /^\[profile\.dev\]/  { skip=1; next }
+            /^\[/                { skip=0 }
+            skip                 { next }
+            /^RUSTC_WRAPPER[[:space:]]*=/ { next }
+            { print }
+        ' "$c.cov-bak" > "$c"
     done
-    "$LLVM_COV" report \
-        --instr-profile="$ROOT/coverage-report/tests.profdata" \
-        $OBJECT_ARGS \
-        --ignore-filename-regex='(\.cargo|rustc|crates/tests)' \
-        --summary-only 2>/dev/null || echo "(Some binaries may not match profdata — this is normal for incremental builds)"
+
+    echo "==> Cleaning crates/tests target (forces re-instrumented build of every dep)"
+    cd crates/tests
+    cargo clean
+
+    echo "==> Running cargo-llvm-cov"
+    # cargo-llvm-cov handles profile runtime init, LLVM_PROFILE_FILE
+    # routing, profdata merging and llvm-cov binary discovery for us.
+    # We still need to neutralise sccache (rustc-wrapper from the user's
+    # global ~/.cargo/config.toml) and pin the linker to mold + cap
+    # parallelism so the instrumented build doesn't OOM-kill the linker.
+    CARGO_BUILD_RUSTC_WRAPPER="" \
+        RUSTC_WRAPPER="" \
+        RUSTFLAGS="-C link-arg=-fuse-ld=mold" \
+        cargo llvm-cov --workspace --lib --jobs 4 \
+            --ignore-filename-regex="(\.cargo|rustc|crates/tests|$HOME/\.cargo)" \
+            --lcov --output-path "$ROOT/coverage-report/lcov.info"
+
     echo ""
+    echo "==> Coverage summary"
+    CARGO_BUILD_RUSTC_WRAPPER="" \
+        RUSTC_WRAPPER="" \
+        cargo llvm-cov report \
+            --ignore-filename-regex="(\.cargo|rustc|crates/tests|$HOME/\.cargo)" \
+            --summary-only
+
+    echo ""
+    echo "lcov.info: coverage-report/lcov.info"
     echo "For HTML report: just coverage-html"
 
-# Generate coverage HTML report
+# Render coverage as a browsable HTML tree (requires `just coverage` first).
 coverage-html:
     #!/usr/bin/env bash
-    set -e
+    set -euo pipefail
     ROOT="$(pwd)"
-    if [ ! -f "$ROOT/coverage-report/tests.profdata" ]; then
-        echo "Run 'just coverage' first to generate profdata"
-        exit 1
-    fi
-    LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
-    TEST_BINS=$(find "$ROOT/crates/tests/target/debug/deps" -maxdepth 1 -executable -type f -name "systemprompt_*" ! -name "*.d" | head -30)
-    OBJECT_ARGS=""
-    FIRST=true
-    for bin in $TEST_BINS; do
-        if $FIRST; then
-            OBJECT_ARGS="$bin"
-            FIRST=false
-        else
-            OBJECT_ARGS="$OBJECT_ARGS --object $bin"
-        fi
-    done
-    mkdir -p "$ROOT/coverage-report/html"
-    "$LLVM_COV" show \
-        --instr-profile="$ROOT/coverage-report/tests.profdata" \
-        $OBJECT_ARGS \
-        --ignore-filename-regex='(\.cargo|rustc|crates/tests)' \
-        --format=html \
-        --output-dir="$ROOT/coverage-report/html" 2>/dev/null || true
+    cd "$ROOT/crates/tests"
+    CARGO_BUILD_RUSTC_WRAPPER="" \
+        RUSTC_WRAPPER="" \
+        cargo llvm-cov report \
+            --ignore-filename-regex="(\.cargo|rustc|crates/tests|$HOME/\.cargo)" \
+            --html --output-dir "$ROOT/coverage-report/html"
     echo "Coverage report: coverage-report/html/index.html"
 
 # Clean coverage artifacts
