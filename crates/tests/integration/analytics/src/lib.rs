@@ -5,3 +5,9 @@
 
 #[cfg(test)]
 mod costs;
+
+#[cfg(test)]
+mod repositories;
+
+#[cfg(test)]
+mod repositories_extended;
