@@ -239,6 +239,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "assert_cmd"
+version = "2.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2aa3a22042e45de04255c7bf3626e239f450200fd0493c1e382263544b20aea6"
+dependencies = [
+ "anstyle",
+ "bstr",
+ "libc",
+ "predicates",
+ "predicates-core",
+ "predicates-tree",
+ "wait-timeout",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1448,6 +1463,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "difflib"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6184e33543162437515c2e2b48714794e37845ec9851711914eec9d308f6ebe8"
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1841,6 +1862,15 @@ dependencies = [
  "crc32fast",
  "miniz_oxide",
  "zlib-rs",
+]
+
+[[package]]
+name = "float-cmp"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b09cf3155332e944990140d967ff5eceb70df778b34f77d8075db46e4704e6d8"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -3630,6 +3660,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38bf9645c8b145698bb0b18a4637dcacbc421ea49bef2317e4fd8065a387cf21"
 
 [[package]]
+name = "normalize-line-endings"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61807f77802ff30975e01f4f071c8ba10c022052f98b3294119f3e615d13e5be"
+
+[[package]]
 name = "normpath"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4698,6 +4734,36 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "predicates"
+version = "3.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ada8f2932f28a27ee7b70dd6c1c39ea0675c55a36879ab92f3a715eaa1e63cfe"
+dependencies = [
+ "anstyle",
+ "difflib",
+ "float-cmp",
+ "normalize-line-endings",
+ "predicates-core",
+ "regex",
+]
+
+[[package]]
+name = "predicates-core"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cad38746f3166b4031b1a0d39ad9f954dd291e7854fcc0eed52ee41a0b50d144"
+
+[[package]]
+name = "predicates-tree"
+version = "1.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0de1b847b39c8131db0467e9df1ff60e6d0562ab8e9a16e568ad0fdb372e2f2"
+dependencies = [
+ "predicates-core",
+ "termtree",
+]
 
 [[package]]
 name = "prettyplease"
@@ -6581,12 +6647,12 @@ version = "0.0.11"
 dependencies = [
  "anyhow",
  "chrono",
+ "serde_json",
  "sqlx",
  "systemprompt-agent",
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
- "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
  "uuid",
@@ -6806,6 +6872,30 @@ dependencies = [
  "uuid",
  "validator",
  "webauthn-rs",
+]
+
+[[package]]
+name = "systemprompt-api-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "http",
+ "http-body-util",
+ "serde_json",
+ "systemprompt-agent",
+ "systemprompt-api",
+ "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-security",
+ "systemprompt-test-fixtures",
+ "tokio",
+ "tower",
+ "tower-http",
+ "uuid",
 ]
 
 [[package]]
@@ -7041,6 +7131,25 @@ dependencies = [
  "urlencoding",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "systemprompt-cli-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "futures",
+ "predicates",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-cli",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -7519,6 +7628,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-generator-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-generator",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-generator-tests"
 version = "0.0.11"
 dependencies = [
@@ -7721,6 +7846,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-security",
  "systemprompt-test-fixtures",
  "tokio",
  "uuid",
@@ -7928,6 +8054,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-runtime-integration-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-config",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-runtime",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-runtime-tests"
 version = "0.0.11"
 dependencies = [
@@ -8067,6 +8210,8 @@ dependencies = [
 name = "systemprompt-security-integration-tests"
 version = "0.0.11"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "http",
@@ -8074,11 +8219,15 @@ dependencies = [
  "rsa",
  "serde_json",
  "sha2 0.10.9",
+ "sqlx",
+ "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-security",
+ "systemprompt-test-fixtures",
  "tokio",
  "url",
+ "uuid",
  "wiremock",
 ]
 
@@ -8244,6 +8393,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-security",
+ "systemprompt-users",
  "tokio",
  "uuid",
 ]
@@ -8491,6 +8641,12 @@ dependencies = [
  "rustix 1.1.4",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "termtree"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
 
 [[package]]
 name = "testing_table"
