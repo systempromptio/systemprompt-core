@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::profile::{Profile, ProfileError, ProfileResult};
+use systemprompt_models::profile::{GatewayState, Profile, ProfileError, ProfileResult};
 
 use crate::profile_gateway;
 
@@ -12,26 +12,22 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
         source,
     })?;
     let mut profile = Profile::from_yaml(&content, path)?;
-    if let Some(gateway) = profile.gateway.as_mut() {
-        let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
-        profile_gateway::resolve_catalog(gateway, profile_dir)?;
-        let mutated = backfill_route_ids(gateway);
-        if mutated {
-            persist_profile(path, &profile)?;
-        }
-    }
-    Ok(profile)
-}
 
-fn backfill_route_ids(gateway: &mut systemprompt_models::profile::GatewayConfig) -> bool {
-    let mut mutated = false;
-    for route in &mut gateway.routes {
-        if route.id.as_str().trim().is_empty() {
-            route.ensure_id();
-            mutated = true;
-        }
+    let Some(state) = profile.gateway.take() else {
+        return Ok(profile);
+    };
+
+    let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut spec = state.into_spec();
+
+    if profile_gateway::backfill_route_ids(&mut spec) {
+        profile.gateway = Some(GatewayState::Spec(spec.clone()));
+        persist_profile(path, &profile)?;
     }
-    mutated
+
+    let resolved = spec.resolve(profile_dir)?;
+    profile.gateway = Some(GatewayState::Resolved(resolved));
+    Ok(profile)
 }
 
 fn persist_profile(path: &Path, profile: &Profile) -> ProfileResult<()> {

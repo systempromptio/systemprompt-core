@@ -52,6 +52,7 @@ pub(super) async fn extract_request_context(
         .profile
         .gateway
         .as_ref()
+        .and_then(systemprompt_models::profile::GatewayState::resolved)
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 

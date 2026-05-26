@@ -3,9 +3,12 @@
 //!
 //! - [`error`] / [`GatewayProfileError`] / [`GatewayResult`] — all failure
 //!   modes emitted by catalog load, validation, and route synthesis.
-//! - [`config`] / [`GatewayConfig`] — the top-level section embedded in a
-//!   profile, with [`GatewayConfig::validate`] enforcing catalog/route
-//!   consistency.
+//! - [`config`] / [`GatewayConfigSpec`] — the on-disk shape embedded in a
+//!   profile YAML, with [`GatewayCatalogSource`] selecting inline or
+//!   file-backed catalog.
+//! - [`config`] / [`GatewayConfig`] — the runtime shape produced by
+//!   [`GatewayConfigSpec::resolve`], with the catalog fully loaded and
+//!   validated.
 //! - [`catalog`] / [`GatewayCatalog`] — providers + models, with the
 //!   SSRF-hardened endpoint guard.
 //! - [`route`] / [`GatewayRoute`] — routing patterns and the stable id
@@ -15,8 +18,10 @@ mod catalog;
 mod config;
 mod error;
 mod route;
+mod state;
 
 pub use catalog::{GatewayCatalog, GatewayModel, GatewayProvider};
-pub use config::GatewayConfig;
+pub use config::{GatewayCatalogSource, GatewayConfig, GatewayConfigSpec};
 pub use error::{GatewayProfileError, GatewayResult};
 pub use route::{GatewayRoute, slugify_pattern, synthesize_route_id};
+pub use state::GatewayState;

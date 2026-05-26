@@ -1,38 +1,22 @@
-//! Gateway catalog resolution for profiles that reference an external
-//! catalog YAML via `gateway.catalog_path`.
+//! Gateway-section post-parse helpers for the profile loader.
+//!
+//! Catalog resolution itself lives in
+//! [`systemprompt_models::profile::GatewayConfigSpec::resolve`]; this
+//! module only owns the route-id backfill that mutates the on-disk spec
+//! before persistence.
 
-use std::path::Path;
+use systemprompt_models::profile::GatewayConfigSpec;
 
-use systemprompt_models::profile::{
-    GatewayCatalog, GatewayConfig, GatewayProfileError, GatewayResult,
-};
-
-pub fn resolve_catalog(gateway: &mut GatewayConfig, profile_dir: &Path) -> GatewayResult<()> {
-    let Some(rel) = gateway.catalog_path.as_ref() else {
-        return Ok(());
-    };
-    let absolute = if rel.is_absolute() {
-        rel.clone()
-    } else {
-        profile_dir.join(rel)
-    };
-    let content =
-        std::fs::read_to_string(&absolute).map_err(|source| GatewayProfileError::CatalogRead {
-            path: absolute.clone(),
-            source,
-        })?;
-    let catalog: GatewayCatalog =
-        serde_yaml::from_str(&content).map_err(|source| GatewayProfileError::CatalogParse {
-            path: absolute.clone(),
-            source,
-        })?;
-    catalog
-        .validate()
-        .map_err(|source| GatewayProfileError::CatalogInvalid {
-            path: absolute.clone(),
-            source: Box::new(source),
-        })?;
-    gateway.catalog_path = Some(absolute);
-    gateway.catalog = Some(catalog);
-    Ok(())
+/// Synthesize stable ids for any route that was authored without one.
+/// Returns `true` if any route was mutated and the spec should be
+/// persisted back to disk.
+pub fn backfill_route_ids(spec: &mut GatewayConfigSpec) -> bool {
+    let mut mutated = false;
+    for route in &mut spec.routes {
+        if route.id.as_str().trim().is_empty() {
+            route.ensure_id();
+            mutated = true;
+        }
+    }
+    mutated
 }

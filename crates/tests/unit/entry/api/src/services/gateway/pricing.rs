@@ -20,7 +20,6 @@ fn gateway_with(routes: Vec<GatewayRoute>, catalog: Option<GatewayCatalog>) -> G
     GatewayConfig {
         enabled: true,
         routes,
-        catalog_path: None,
         catalog,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),

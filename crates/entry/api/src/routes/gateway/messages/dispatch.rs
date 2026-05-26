@@ -48,6 +48,7 @@ pub(super) async fn dispatch_to_provider(
         .profile
         .gateway
         .as_ref()
+        .and_then(systemprompt_models::profile::GatewayState::resolved)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
     match GatewayService::dispatch(

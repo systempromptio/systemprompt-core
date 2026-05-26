@@ -226,7 +226,7 @@ See [`concepts/extensions.md`](../concepts/extensions.md) for the extension mode
 |-----|------|----------|---------|---------|
 | `enabled` | bool | no | `false` | Enable the gateway. |
 | `routes` | list of object | no | `[]` | Inline model→provider routes. See [`gateway.routes[]`](#gatewayroutes). |
-| `catalog_path` | path | no | absent | Path to a YAML gateway catalog of providers and models. |
+| `catalog` | object | no | absent | Providers and models. Either inline (`{ providers: [...], models: [...] }`) or file-backed (`{ path: "./catalog.yaml" }`). See [Gateway catalog](#gateway-catalog). |
 | `auth_scheme` | string | no | `bearer` | Upstream auth scheme. |
 | `inference_path_prefix` | string | no | `/v1` | Path prefix the gateway serves provider-facing inference under. |
 
@@ -247,9 +247,9 @@ Every route and catalog provider endpoint is validated through the shared outbou
 | `extra_headers` | map<string,string> | no | `{}` | Additional upstream request headers. |
 | `pricing` | object | no | absent | Optional model pricing metadata. |
 
-### Gateway catalog (`catalog_path` target)
+### Gateway catalog
 
-`crates/shared/models/src/profile/gateway.rs:120`. A YAML document with `providers` and `models`.
+`crates/shared/models/src/profile/gateway/catalog.rs`. The catalog content — whether inlined under `gateway.catalog:` or loaded from the file referenced by `gateway.catalog.path` — has the same shape: a document with `providers` and `models`.
 
 `providers[]`:
 

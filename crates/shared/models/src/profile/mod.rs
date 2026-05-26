@@ -26,8 +26,9 @@ pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
 pub use error::{ProfileError, ProfileResult};
 pub use gateway::{
-    GatewayCatalog, GatewayConfig, GatewayModel, GatewayProfileError, GatewayProvider,
-    GatewayResult, GatewayRoute, slugify_pattern, synthesize_route_id,
+    GatewayCatalog, GatewayCatalogSource, GatewayConfig, GatewayConfigSpec, GatewayModel,
+    GatewayProfileError, GatewayProvider, GatewayResult, GatewayRoute, GatewayState,
+    slugify_pattern, synthesize_route_id,
 };
 pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
@@ -145,7 +146,7 @@ pub struct Profile {
     pub extensions: ExtensionsConfig,
 
     #[serde(default)]
-    pub gateway: Option<GatewayConfig>,
+    pub gateway: Option<GatewayState>,
 
     #[serde(default)]
     pub governance: Option<GovernanceConfig>,
