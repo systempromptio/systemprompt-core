@@ -11,6 +11,10 @@ mod environment;
 #[cfg(test)]
 mod error;
 #[cfg(test)]
+mod error_extra;
+#[cfg(test)]
+mod discovered_project;
+#[cfg(test)]
 mod jwt;
 #[cfg(test)]
 mod paths;
