@@ -1,12 +1,9 @@
-use crate::services::shared::AgentSessionUser;
 use std::sync::Arc;
 use systemprompt_database::Database;
 pub use systemprompt_models::AgentOAuthConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_security::{AuthMode, AuthValidationService};
 use systemprompt_traits::{DynJwtValidationProvider, DynUserProvider};
-
-pub type AgentAuthenticatedUser = AgentSessionUser;
 
 #[derive(Clone)]
 pub struct AgentOAuthState {

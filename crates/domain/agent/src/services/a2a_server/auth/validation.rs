@@ -5,13 +5,14 @@ use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
 use systemprompt_traits::{AgentJwtClaims, AuthUser};
 
-use super::types::{AgentAuthenticatedUser, AgentOAuthState};
+use super::types::AgentOAuthState;
 use crate::services::a2a_server::errors::{forbidden_response, unauthorized_response};
+use crate::services::shared::AgentSessionUser;
 
 pub async fn validate_agent_token(
     token: &str,
     state: &AgentOAuthState,
-) -> Result<AgentAuthenticatedUser> {
+) -> Result<AgentSessionUser> {
     let jwt_provider = state
         .jwt_provider
         .as_ref()
@@ -39,7 +40,7 @@ pub async fn validate_agent_token(
         );
     }
 
-    Ok(AgentAuthenticatedUser::from_jwt_claims(claims))
+    Ok(AgentSessionUser::from_jwt_claims(claims))
 }
 
 async fn verify_user_exists_and_active(

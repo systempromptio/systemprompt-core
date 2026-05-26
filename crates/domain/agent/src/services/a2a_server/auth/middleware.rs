@@ -43,10 +43,10 @@ pub async fn agent_oauth_middleware(
 
 pub fn get_user_context(
     request: &Request<axum::body::Body>,
-) -> Option<&super::types::AgentAuthenticatedUser> {
+) -> Option<&crate::services::shared::AgentSessionUser> {
     request
         .extensions()
-        .get::<super::types::AgentAuthenticatedUser>()
+        .get::<crate::services::shared::AgentSessionUser>()
 }
 
 pub async fn agent_oauth_middleware_wrapper(
