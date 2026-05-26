@@ -81,3 +81,42 @@ mod secrets;
 
 #[cfg(test)]
 mod net;
+
+#[cfg(test)]
+mod services_hooks;
+
+#[cfg(test)]
+mod services_other;
+
+#[cfg(test)]
+mod content_config;
+
+#[cfg(test)]
+mod services_plugin;
+
+#[cfg(test)]
+mod auth_enums;
+
+#[cfg(test)]
+mod ai_content_part;
+
+#[cfg(test)]
+mod services_agent;
+
+#[cfg(test)]
+mod disk_agent_config;
+
+#[cfg(test)]
+mod internal_api_error;
+
+#[cfg(test)]
+mod execution_plan;
+
+#[cfg(test)]
+mod mcp_capabilities;
+
+#[cfg(test)]
+mod auth_permission;
+
+#[cfg(test)]
+mod auth_types;
