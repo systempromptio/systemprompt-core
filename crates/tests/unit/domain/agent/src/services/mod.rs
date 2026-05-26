@@ -12,4 +12,6 @@ mod registry;
 mod shared;
 mod skills;
 mod strategies;
+mod webhook_client;
+mod webhook_config;
 mod webhook_service;
