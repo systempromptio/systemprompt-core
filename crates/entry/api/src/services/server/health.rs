@@ -65,7 +65,15 @@ fn human_bytes(bytes: i64) -> String {
     format!("{size:.1} {}", UNITS[idx])
 }
 
-#[allow(clippy::useless_conversion)]
+// Why: `nix::sys::statvfs` surfaces `libc::fsblkcnt_t` (block counts) and
+// `c_ulong` (fragment size). Those alias to `u64` on Linux but `u32` on Darwin,
+// so passing them straight into `saturating_mul` type-checks on Linux and
+// fails on macOS. Widening every field to `u64` makes the arithmetic portable;
+// the conversion is a no-op on Linux, which is what the `allow` covers.
+#[allow(
+    clippy::useless_conversion,
+    reason = "Linux-only no-op; required on macOS where fsblkcnt_t is u32"
+)]
 fn get_disk_usage() -> Option<serde_json::Value> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;
 

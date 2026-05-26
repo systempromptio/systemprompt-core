@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **`systemprompt-api` now builds on macOS.** `get_disk_usage()` in `services/server/health.rs` widens `statvfs` block counts (`fsblkcnt_t`, `u32` on Darwin / `u64` on Linux) and `fragment_size` to `u64` before `saturating_mul`, so the function type-checks on both targets.
+- **`systemprompt-api` now builds on macOS.** `get_disk_usage()` in `services/server/health.rs` previously fed `nix::sys::statvfs` block counts straight into `saturating_mul`. Those fields alias to `libc::fsblkcnt_t`, which is `u64` on Linux but `u32` on Darwin, so the arithmetic type-checked only on Linux. Every field is now widened to `u64` before multiplication, making the function portable across both targets.
 
 ## [0.11.2] - 2026-05-25
 
