@@ -172,10 +172,6 @@ impl AppContext {
         &self.database
     }
 
-    pub const fn database(&self) -> &DbPool {
-        &self.database
-    }
-
     pub fn api_registry(&self) -> &ModuleApiRegistry {
         &self.api_registry
     }
