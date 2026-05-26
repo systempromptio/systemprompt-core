@@ -13,3 +13,5 @@ mod command_result;
 mod parsers;
 mod profile;
 mod project;
+mod profile_resolution;
+mod render_and_text;

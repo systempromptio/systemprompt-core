@@ -17,6 +17,14 @@
 #[cfg(test)]
 mod cli_settings;
 #[cfg(test)]
+mod commands;
+#[cfg(test)]
 mod descriptor;
+#[cfg(test)]
+mod environment;
+#[cfg(test)]
+mod interactive;
+#[cfg(test)]
+mod paths;
 #[cfg(test)]
 mod shared;
