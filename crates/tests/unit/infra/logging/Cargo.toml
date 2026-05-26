@@ -12,11 +12,13 @@ workspace = true
 
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-logging = { workspace = true }
+systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

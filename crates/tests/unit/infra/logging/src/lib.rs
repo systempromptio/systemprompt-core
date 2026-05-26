@@ -14,6 +14,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod attribution;
+#[cfg(test)]
 mod models;
 #[cfg(test)]
 mod services;
