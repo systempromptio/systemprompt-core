@@ -39,13 +39,26 @@ use systemprompt_models::profile::{AuthzMode, GovernanceConfig, UNRESTRICTED_ACK
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, NullAuditSink};
 use super::error::{AuthzBootstrapError, AuthzResult};
 use super::hook::{AllowAllHook, DenyAllHook, SharedAuthzHook, WebhookHook};
+use super::registry::{AuthzHookContext, discover_authz_hook};
 
 pub fn build_authz_hook(
     governance: Option<&GovernanceConfig>,
     pool: Option<Arc<sqlx::PgPool>>,
     extension: Option<SharedAuthzHook>,
 ) -> AuthzResult<SharedAuthzHook> {
-    let sink = build_sink(pool);
+    let sink = build_sink(pool.clone());
+
+    // Fall back to inventory-registered hooks when the builder didn't supply one.
+    // Binaries that go through `systemprompt::cli::run()` have no builder site
+    // to call `.with_authz_hook(...)` on and rely on `register_authz_hook!`.
+    let extension = extension.or_else(|| {
+        pool.as_ref().and_then(|p| {
+            discover_authz_hook(&AuthzHookContext {
+                pool: Arc::clone(p),
+                sink: Arc::clone(&sink),
+            })
+        })
+    });
 
     let Some(authz) = governance.and_then(|g| g.authz.as_ref()) else {
         if extension.is_some() {

@@ -78,6 +78,15 @@ pub enum DenyReason {
     UnknownEntity { entity: EntityRef },
     #[error("authz hook unavailable for policy {policy}")]
     HookUnavailable { policy: String },
+    /// Deny issued by an extension authz hook (via `register_authz_hook!`
+    /// or `AppContextBuilder::with_authz_hook`). The outer
+    /// `AuthzDecision::Deny.policy` carries the policy identifier
+    /// (e.g. `"abac.itar"`); `detail` is the human-readable reason.
+    #[error("{detail}")]
+    PolicyViolation {
+        policy: String,
+        detail: Cow<'static, str>,
+    },
     #[error("secret detected: {pattern_name} at {location:?}")]
     SecretLeak {
         pattern_id: SecretPatternId,
