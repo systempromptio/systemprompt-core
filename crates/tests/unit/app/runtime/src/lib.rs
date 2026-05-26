@@ -31,3 +31,11 @@ mod validation;
 mod validation_report_extended;
 #[cfg(test)]
 mod wellknown;
+#[cfg(test)]
+mod display_tests;
+#[cfg(test)]
+mod span_tests;
+#[cfg(test)]
+mod builder_extra;
+#[cfg(test)]
+mod files_validator_tests;
