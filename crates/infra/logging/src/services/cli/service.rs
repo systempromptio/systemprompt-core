@@ -65,19 +65,25 @@ impl CliService {
 
     pub fn clear_screen() {
         let mut stderr = std::io::stderr();
-        write!(stderr, "\x1B[2J\x1B[1;1H").ok();
+        if let Err(e) = write!(stderr, "\x1B[2J\x1B[1;1H") {
+            tracing::debug!(error = %e, "cli clear_screen write failed");
+        }
     }
 
     pub fn output(content: &str) {
         let mut stdout = std::io::stdout();
-        writeln!(stdout, "{content}").ok();
+        if let Err(e) = writeln!(stdout, "{content}") {
+            tracing::debug!(error = %e, "cli output write failed");
+        }
     }
 
     pub fn json<T: Serialize>(value: &T) {
         match serde_json::to_string_pretty(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
-                writeln!(stdout, "{json}").ok();
+                if let Err(e) = writeln!(stdout, "{json}") {
+                    tracing::debug!(error = %e, "cli json write failed");
+                }
             },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
@@ -87,7 +93,9 @@ impl CliService {
         match serde_json::to_string(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
-                writeln!(stdout, "{json}").ok();
+                if let Err(e) = writeln!(stdout, "{json}") {
+                    tracing::debug!(error = %e, "cli json_compact write failed");
+                }
             },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
@@ -97,7 +105,9 @@ impl CliService {
         match serde_yaml::to_string(value) {
             Ok(yaml) => {
                 let mut stdout = std::io::stdout();
-                write!(stdout, "{yaml}").ok();
+                if let Err(e) = write!(stdout, "{yaml}") {
+                    tracing::debug!(error = %e, "cli yaml write failed");
+                }
             },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
@@ -105,25 +115,27 @@ impl CliService {
 
     pub fn key_value(label: &str, value: &str) {
         let mut stderr = std::io::stderr();
-        writeln!(
+        if let Err(e) = writeln!(
             stderr,
             "{}: {}",
             Theme::color(label, EmphasisType::Bold),
             Theme::color(value, EmphasisType::Highlight)
-        )
-        .ok();
+        ) {
+            tracing::debug!(error = %e, "cli key_value write failed");
+        }
     }
 
     pub fn status_line(label: &str, value: &str, status: ItemStatus) {
         let mut stderr = std::io::stderr();
-        writeln!(
+        if let Err(e) = writeln!(
             stderr,
             "{} {}: {}",
             Theme::icon(status),
             Theme::color(label, EmphasisType::Bold),
             Theme::color(value, status)
-        )
-        .ok();
+        ) {
+            tracing::debug!(error = %e, "cli status_line write failed");
+        }
     }
 
     pub fn spinner(message: &str) -> ProgressBar {
