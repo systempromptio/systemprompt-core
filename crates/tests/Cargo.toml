@@ -21,6 +21,7 @@ members = [
     "integration/generator",
     "integration/mcp",
     "integration/oauth",
+    "integration/runtime",
     "integration/security",
     "integration/scheduler",
     "integration/sync",
