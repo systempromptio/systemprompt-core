@@ -38,3 +38,5 @@ mod sitemap_provider_tests;
 mod orchestrator_validate;
 #[cfg(test)]
 mod types_tests;
+#[cfg(test)]
+mod copy_assets_tests;
