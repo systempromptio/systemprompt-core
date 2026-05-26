@@ -2,6 +2,10 @@
 
 ## [0.11.3] - 2026-05-26
 
+### Added
+
+- **`SYSTEMPROMPT_TRUSTED_HTTP_HOSTS` — operator opt-in for sealed-network http endpoints.** New public API on `systemprompt-models`: `validate_outbound_url_with_trust(url, trusted_http_hosts)` and the helper `trusted_http_hosts_from_env()`. Hosts on the comma-separated allowlist pass the http scheme gate and bypass the IP block for that hostname only; every other host continues to hit the strict default (loopback-only http, RFC1918/metadata block enforced). `validate_outbound_url(..)` is unchanged. The gateway profile validator reads the env automatically — empty when unset, so existing deployments keep the prior behaviour.
+
 ### Fixed
 
 - **`systemprompt-api` now builds on macOS.** `get_disk_usage()` in `services/server/health.rs` previously fed `nix::sys::statvfs` block counts straight into `saturating_mul`. Those fields alias to `libc::fsblkcnt_t`, which is `u64` on Linux but `u32` on Darwin, so the arithmetic type-checked only on Linux. Every field is now widened to `u64` before multiplication, making the function portable across both targets.
