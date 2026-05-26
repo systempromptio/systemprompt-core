@@ -134,6 +134,45 @@ fn load_content_config_returns_none_when_yaml_invalid() {
 }
 
 #[test]
+fn load_content_config_rewrites_root_relative_logo() {
+    let dir = tempdir().expect("tempdir");
+    let paths = make_app_paths(dir.path());
+    let content_path = dir
+        .path()
+        .join("services")
+        .join("content")
+        .join("config.yaml");
+    fs::create_dir_all(content_path.parent().expect("parent")).expect("mkdir content");
+    let yaml = r#"
+content_sources: {}
+categories: {}
+metadata:
+  structured_data:
+    organization:
+      url: ""
+      logo: "/logo.png"
+      "@type": "Organization"
+      "@context": "https://schema.org"
+      name: "Test Org"
+"#;
+    fs::write(&content_path, yaml).expect("write yaml");
+    let cfg = minimal_config(
+        content_path.to_string_lossy().to_string(),
+        None,
+        dir.path().join("system").to_string_lossy().to_string(),
+        dir.path().join("services").to_string_lossy().to_string(),
+    );
+    let content = AppContext::load_content_config(&cfg, &paths);
+    if let Some(cc) = content {
+        let logo = &cc.metadata.structured_data.organization.logo;
+        assert!(
+            logo.starts_with("http://example.test"),
+            "logo must be rewritten with base_url, got {logo}"
+        );
+    }
+}
+
+#[test]
 fn load_content_config_parses_minimal_yaml() {
     let dir = tempdir().expect("tempdir");
     let paths = make_app_paths(dir.path());

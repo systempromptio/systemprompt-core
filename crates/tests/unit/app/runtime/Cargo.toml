@@ -17,6 +17,7 @@ systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-security = { workspace = true }
 axum = { workspace = true }
 
 [dev-dependencies]

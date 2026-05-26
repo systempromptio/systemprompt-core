@@ -16,3 +16,5 @@ mod display;
 mod validate_database_path;
 #[cfg(test)]
 mod validator;
+#[cfg(test)]
+mod app_context_traits;
