@@ -15,8 +15,6 @@
 //! - [`ai`] — LLM request/response shapes plus the [`ai::AiProvider`] trait.
 //! - [`api`] — public HTTP envelopes, error model, pagination, cloud DTOs.
 //! - [`artifacts`] — typed tool-result artifacts.
-//! - [`audit`] — [`audit::Actor`] / [`audit::ActorKind`] attribution for audit
-//!   rows.
 //! - [`auth`] — authenticated user, permission, audience, and PKCE types.
 //! - [`config`] — global [`config::Config`] singleton and validation helpers.
 //! - [`content`], [`content_config`] — published content metadata.
@@ -54,7 +52,6 @@ pub mod agui;
 pub mod ai;
 pub mod api;
 pub mod artifacts;
-pub mod audit;
 pub mod auth;
 pub mod bridge;
 pub mod config;
@@ -129,7 +126,6 @@ pub use artifacts::{
     ConversionError, ExecutionMetadata, ImageArtifact, RenderingHints,
     SortOrder as ArtifactSortOrder, TableArtifact, TableHints, ToolResponse, VideoArtifact,
 };
-pub use audit::{Actor, ActorKind};
 pub use auth::{
     AuthError, AuthenticatedUser, BEARER_PREFIX, BaseRole, BaseRoles, PkceMethod, ResponseType,
 };
