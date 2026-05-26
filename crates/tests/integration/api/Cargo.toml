@@ -22,6 +22,8 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-oauth = { workspace = true }
+systemprompt-traits = { workspace = true }
 
 axum = { workspace = true }
 tower = { workspace = true }
