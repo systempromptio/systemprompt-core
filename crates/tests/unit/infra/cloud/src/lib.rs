@@ -24,3 +24,9 @@ mod session_key;
 mod session_store;
 #[cfg(test)]
 mod tenants;
+#[cfg(test)]
+mod project_paths;
+#[cfg(test)]
+mod api_client_tests;
+#[cfg(test)]
+mod tenant_api_tests;

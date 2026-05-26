@@ -22,3 +22,4 @@ tempfile = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+wiremock = { workspace = true }
