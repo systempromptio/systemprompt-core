@@ -31,6 +31,8 @@ pub trait AuthzDecisionHook: Send + Sync + std::fmt::Debug {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision;
 }
 
+pub type SharedAuthzHook = Arc<dyn AuthzDecisionHook>;
+
 #[derive(Debug, Clone)]
 pub struct DenyAllHook {
     sink: Arc<dyn AuthzAuditSink>,

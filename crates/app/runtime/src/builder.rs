@@ -12,7 +12,7 @@ use systemprompt_database::{Database, MigrationConfig, install_extension_schemas
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_security::authz::SharedAuthzHook;
+use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
@@ -93,10 +93,23 @@ impl AppContextBuilder {
 
     /// Supplies an extension-built authz decision hook. The hook is wired
     /// only when `profile.governance.authz.hook.mode = extension`; pairing
-    /// this call with any other mode is a bootstrap error. See
-    /// `internal/guides/authz.md` for the contract.
+    /// this call with any other mode is a bootstrap error.
     #[must_use]
-    pub fn with_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
+    pub fn with_authz_hook<H>(mut self, hook: H) -> Self
+    where
+        H: AuthzDecisionHook + 'static,
+    {
+        self.authz_hook = Some(Arc::new(hook));
+        self
+    }
+
+    /// Variant of [`Self::with_authz_hook`] for callers that already hold an
+    /// `Arc<dyn AuthzDecisionHook>` (e.g. a pre-built [`CompositeAuthzHook`]
+    /// shared across consumers).
+    ///
+    /// [`CompositeAuthzHook`]: systemprompt_security::authz::CompositeAuthzHook
+    #[must_use]
+    pub fn with_shared_authz_hook(mut self, hook: SharedAuthzHook) -> Self {
         self.authz_hook = Some(hook);
         self
     }

@@ -20,9 +20,6 @@
 //!    in extensions; core ships [`DenyAllHook`], [`AllowAllHook`],
 //!    [`WebhookHook`], and the [`CompositeAuthzHook`] composer for the
 //!    multi-extension case.
-//!
-//! The full contract — when each layer fires, the discipline an ABAC hook
-//! must obey, the operator-facing config — is in `internal/guides/authz.md`.
 
 pub mod audit;
 pub mod composite;
@@ -44,11 +41,11 @@ pub use composite::CompositeAuthzHook;
 pub use config::{AccessControlConfig, DepartmentEntry, RuleEntry};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
-pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, WebhookHook};
+pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::{ResolveInput, resolve};
-pub use runtime::{SharedAuthzHook, build_authz_hook};
+pub use runtime::build_authz_hook;
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,
     DenyReason, EntityKind, EntityRef, EntityRow, MatchedBy, RuleType,

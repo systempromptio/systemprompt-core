@@ -9,17 +9,28 @@
 //! their binary entry point and pass the result to
 //! `AppContextBuilder::with_authz_hook`. Core never auto-composes.
 //!
-//! Each evaluated hook still records its own audit row through whatever
-//! `AuthzAuditSink` it was constructed with. Hooks that the short-circuit
-//! skipped are not consulted, so no audit row is produced for them — that is
-//! intentional: the composite's contract is "the first deny is the final
-//! word." If you need every hook to fire regardless, do not use this type.
+//! # Audit semantics
+//!
+//! Each *evaluated* hook records its own audit row through whatever
+//! `AuthzAuditSink` it was constructed with, keyed by `trace_id`. An audit
+//! reader reconstructs the composite's behaviour for a single request by
+//! grouping rows on `trace_id`: an N-hook composite produces between one and
+//! N rows, depending on where (or whether) a deny short-circuited the chain.
+//!
+//! Hooks that the short-circuit skipped are not consulted and produce no
+//! row — intentional: the composite's contract is "the first deny is the
+//! final word", and a skipped hook has nothing to say. The composite itself
+//! does NOT record a "composite fired" row — there is no composer-level
+//! audit. A deployment that wants one wraps the composite in its own
+//! logging hook.
+//!
+//! If every hook must fire regardless of an earlier deny, do not use this
+//! type — write a custom composer.
 
 use async_trait::async_trait;
 
-use super::hook::AuthzDecisionHook;
+use super::hook::{AuthzDecisionHook, SharedAuthzHook};
 use super::types::{AuthzDecision, AuthzRequest};
-use super::SharedAuthzHook;
 
 #[derive(Debug)]
 pub struct CompositeAuthzHook {

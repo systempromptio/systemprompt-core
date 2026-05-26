@@ -29,6 +29,7 @@ pub enum AuthzSource {
     WebhookFault,
     DenyAllDefault,
     AllowAllUnrestricted,
+    ExtensionHook,
 }
 
 impl AuthzSource {
@@ -37,6 +38,7 @@ impl AuthzSource {
             Self::WebhookFault => "authz_hook_fault",
             Self::DenyAllDefault => "authz_default_deny",
             Self::AllowAllUnrestricted => "authz_unrestricted",
+            Self::ExtensionHook => "authz_extension_hook",
         }
     }
 }

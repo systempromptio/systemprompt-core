@@ -5,7 +5,7 @@ use bytes::Bytes;
 use std::sync::Arc;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{
-    ContextId, GatewayConversationId, ModelId, SessionId, TraceId, UserId,
+    Actor, ContextId, GatewayConversationId, ModelId, RouteId, SessionId, TraceId, UserId,
 };
 use systemprompt_security::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,

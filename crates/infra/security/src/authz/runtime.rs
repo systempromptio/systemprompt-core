@@ -38,9 +38,7 @@ use systemprompt_models::profile::{AuthzMode, GovernanceConfig, UNRESTRICTED_ACK
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, NullAuditSink};
 use super::error::{AuthzBootstrapError, AuthzResult};
-use super::hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, WebhookHook};
-
-pub type SharedAuthzHook = Arc<dyn AuthzDecisionHook>;
+use super::hook::{AllowAllHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 
 pub fn build_authz_hook(
     governance: Option<&GovernanceConfig>,
@@ -51,7 +49,7 @@ pub fn build_authz_hook(
 
     let Some(authz) = governance.and_then(|g| g.authz.as_ref()) else {
         if extension.is_some() {
-            return Err(AuthzBootstrapError::ExtensionHookButWrongMode { mode: "disabled" }.into());
+            return Err(AuthzBootstrapError::NoGovernanceButExtensionHook.into());
         }
         tracing::error!(
             "governance.authz block missing — using DenyAllHook (all requests will be denied)"

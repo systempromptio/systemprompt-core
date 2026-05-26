@@ -228,7 +228,7 @@ mod extension_mode {
             .expect_err("extension hook supplied without governance must fail bootstrap");
         assert!(matches!(
             err,
-            AuthzError::Bootstrap(AuthzBootstrapError::ExtensionHookButWrongMode { .. })
+            AuthzError::Bootstrap(AuthzBootstrapError::NoGovernanceButExtensionHook)
         ));
     }
 
@@ -282,5 +282,84 @@ mod extension_mode {
         let composite = CompositeAuthzHook::new(vec![]);
         let decision = composite.evaluate(fixture()).await;
         assert_eq!(decision, AuthzDecision::Allow);
+    }
+
+    use std::sync::Mutex;
+
+    type Recorder = Arc<Mutex<Vec<&'static str>>>;
+
+    #[derive(Debug)]
+    struct RecordingHook {
+        label: &'static str,
+        decision: AuthzDecision,
+        recorder: Recorder,
+    }
+
+    impl RecordingHook {
+        fn allow(label: &'static str, recorder: Recorder) -> Self {
+            Self {
+                label,
+                decision: AuthzDecision::Allow,
+                recorder,
+            }
+        }
+
+        fn deny(label: &'static str, policy: &'static str, recorder: Recorder) -> Self {
+            Self {
+                label,
+                decision: AuthzDecision::Deny {
+                    reason: DenyReason::HookUnavailable {
+                        policy: policy.to_owned(),
+                    },
+                    policy: policy.to_owned(),
+                },
+                recorder,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl AuthzDecisionHook for RecordingHook {
+        async fn evaluate(&self, _req: AuthzRequest) -> AuthzDecision {
+            self.recorder.lock().unwrap().push(self.label);
+            self.decision.clone()
+        }
+    }
+
+    #[tokio::test]
+    async fn composite_audits_only_evaluated_hooks() {
+        let recorder: Recorder = Arc::new(Mutex::new(Vec::new()));
+        let composite = CompositeAuthzHook::new(vec![
+            Arc::new(RecordingHook::allow("first", recorder.clone())) as SharedAuthzHook,
+            Arc::new(RecordingHook::deny("second", "policy.x", recorder.clone())),
+            Arc::new(RecordingHook::allow("third", recorder.clone())),
+        ]);
+        let decision = composite.evaluate(fixture()).await;
+        assert!(matches!(decision, AuthzDecision::Deny { .. }));
+        let entries = recorder.lock().unwrap().clone();
+        assert_eq!(entries, vec!["first", "second"]);
+    }
+
+    #[tokio::test]
+    async fn composite_audits_in_order() {
+        let recorder: Recorder = Arc::new(Mutex::new(Vec::new()));
+        let composite = CompositeAuthzHook::new(vec![
+            Arc::new(RecordingHook::allow("a", recorder.clone())) as SharedAuthzHook,
+            Arc::new(RecordingHook::allow("b", recorder.clone())),
+            Arc::new(RecordingHook::allow("c", recorder.clone())),
+        ]);
+        let decision = composite.evaluate(fixture()).await;
+        assert_eq!(decision, AuthzDecision::Allow);
+        let entries = recorder.lock().unwrap().clone();
+        assert_eq!(entries, vec!["a", "b", "c"]);
+    }
+
+    #[tokio::test]
+    async fn composite_empty_records_nothing() {
+        let recorder: Recorder = Arc::new(Mutex::new(Vec::new()));
+        let composite = CompositeAuthzHook::new(vec![]);
+        let decision = composite.evaluate(fixture()).await;
+        assert_eq!(decision, AuthzDecision::Allow);
+        assert!(recorder.lock().unwrap().is_empty());
     }
 }
