@@ -157,7 +157,7 @@ impl JwtContextExtractor {
             .extract_user_context(jwt_token.as_str())
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
 
-        let _ = self.validate(&jwt_context, "gateway").await?;
+        self.validate(&jwt_context, "gateway").await?;
         Ok(jwt_context)
     }
 

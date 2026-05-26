@@ -1,7 +1,10 @@
-use crate::services::shared::Result;
+mod messages;
+
 use std::sync::Arc;
+
 use tokio::sync::mpsc;
 
+use self::messages::{BuildAiMessagesParams, build_ai_messages};
 use super::StreamProcessor;
 use super::helpers::{
     SynthesizeFinalResponseParams, build_artifacts_from_results, synthesize_final_response,
@@ -11,8 +14,9 @@ use crate::services::a2a_server::processing::message::{ProcessMessageStreamParam
 use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionStrategySelector,
 };
+use crate::services::shared::Result;
 use systemprompt_identifiers::AgentName;
-use systemprompt_models::{AiMessage, MessageRole, RequestContext};
+use systemprompt_models::{AiMessage, RequestContext};
 
 impl StreamProcessor {
     pub async fn process_message_stream(
@@ -244,84 +248,4 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
     } else {
         tracing::info!(artifact_count = artifacts.len(), "Sent Complete event");
     }
-}
-
-struct BuildAiMessagesParams<'a> {
-    agent_runtime: &'a AgentRuntimeInfo,
-    conversation_history: Vec<AiMessage>,
-    user_text: String,
-    user_parts: Vec<systemprompt_models::AiContentPart>,
-    skill_service: &'a Arc<crate::services::SkillService>,
-    request_ctx: &'a RequestContext,
-}
-
-async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<AiMessage> {
-    let BuildAiMessagesParams {
-        agent_runtime,
-        conversation_history,
-        user_text,
-        user_parts,
-        skill_service,
-        request_ctx,
-    } = params;
-    let mut ai_messages = Vec::new();
-
-    if !agent_runtime.skills.is_empty() {
-        tracing::info!(
-            skill_count = agent_runtime.skills.len(),
-            skills = ?agent_runtime.skills,
-            "Loading skills for agent"
-        );
-
-        let mut skills_prompt = String::from(
-            "# Your Skills\n\nYou have the following skills that define your capabilities and \
-             writing style:\n\n",
-        );
-
-        for skill_id in &agent_runtime.skills {
-            let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
-            match skill_service.load_skill(&skill_id_typed, request_ctx).await {
-                Ok(skill_content) => {
-                    tracing::info!(
-                        skill_id = %skill_id,
-                        content_len = skill_content.len(),
-                        "Loaded skill"
-                    );
-                    skills_prompt.push_str(&format!(
-                        "## {} Skill\n\n{}\n\n---\n\n",
-                        skill_id, skill_content
-                    ));
-                },
-                Err(e) => {
-                    tracing::warn!(skill_id = %skill_id, error = %e, "Failed to load skill");
-                },
-            }
-        }
-
-        ai_messages.push(AiMessage {
-            role: MessageRole::System,
-            content: skills_prompt,
-            parts: Vec::new(),
-        });
-
-        tracing::info!("Skills injected into agent context");
-    }
-
-    if let Some(system_prompt) = &agent_runtime.system_prompt {
-        ai_messages.push(AiMessage {
-            role: MessageRole::System,
-            content: system_prompt.clone(),
-            parts: Vec::new(),
-        });
-    }
-
-    ai_messages.extend(conversation_history);
-
-    ai_messages.push(AiMessage {
-        role: MessageRole::User,
-        content: user_text,
-        parts: user_parts,
-    });
-
-    ai_messages
 }

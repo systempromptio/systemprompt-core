@@ -1,87 +1,10 @@
-//! Refresh token persistence and rotation. Token identifiers are stored as
-//! HMAC-SHA-256 digests under the deployment pepper; raw `RefreshTokenId`
-//! values never touch the database. Consumed tokens are retained as
-//! tombstones (`consumed_at IS NOT NULL`) so a replay can be distinguished
-//! from "token never existed" and trigger family-wide revocation per
-//! RFC 6819 §5.2.2.3.
-
-use super::OAuthRepository;
-use super::at_rest::hash_at_rest;
-use crate::error::{OauthError, OauthResult};
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
 
-#[derive(Debug)]
-pub struct RefreshTokenParams<'a> {
-    pub token_id: &'a RefreshTokenId,
-    pub client_id: &'a ClientId,
-    pub user_id: &'a UserId,
-    pub scope: &'a str,
-    pub expires_at: i64,
-    /// Family-identifier shared by every refresh token derived from the same
-    /// initial authorization-code exchange. When `None`, the family is seeded
-    /// from `token_id` (first issuance). Subsequent rotations carry the parent
-    /// token's family forward so a single auth-code-replay or refresh-token-
-    /// replay detection can invalidate every descendant.
-    pub family_id: Option<&'a str>,
-}
-
-#[derive(Debug)]
-pub struct RefreshTokenParamsBuilder<'a> {
-    token_id: &'a RefreshTokenId,
-    client_id: &'a ClientId,
-    user_id: &'a UserId,
-    scope: &'a str,
-    expires_at: i64,
-    family_id: Option<&'a str>,
-}
-
-impl<'a> RefreshTokenParamsBuilder<'a> {
-    pub const fn new(
-        token_id: &'a RefreshTokenId,
-        client_id: &'a ClientId,
-        user_id: &'a UserId,
-        scope: &'a str,
-        expires_at: i64,
-    ) -> Self {
-        Self {
-            token_id,
-            client_id,
-            user_id,
-            scope,
-            expires_at,
-            family_id: None,
-        }
-    }
-
-    pub const fn with_family(mut self, family_id: &'a str) -> Self {
-        self.family_id = Some(family_id);
-        self
-    }
-
-    pub const fn build(self) -> RefreshTokenParams<'a> {
-        RefreshTokenParams {
-            token_id: self.token_id,
-            client_id: self.client_id,
-            user_id: self.user_id,
-            scope: self.scope,
-            expires_at: self.expires_at,
-            family_id: self.family_id,
-        }
-    }
-}
-
-impl<'a> RefreshTokenParams<'a> {
-    pub const fn builder(
-        token_id: &'a RefreshTokenId,
-        client_id: &'a ClientId,
-        user_id: &'a UserId,
-        scope: &'a str,
-        expires_at: i64,
-    ) -> RefreshTokenParamsBuilder<'a> {
-        RefreshTokenParamsBuilder::new(token_id, client_id, user_id, scope, expires_at)
-    }
-}
+use super::{ConsumedRefreshToken, RefreshTokenParams};
+use crate::error::{OauthError, OauthResult};
+use crate::repository::oauth::OAuthRepository;
+use crate::repository::oauth::at_rest::hash_at_rest;
 
 impl OAuthRepository {
     pub async fn store_refresh_token(&self, params: RefreshTokenParams<'_>) -> OauthResult<()> {
@@ -112,9 +35,9 @@ impl OAuthRepository {
         Ok(())
     }
 
-    /// Fetch a refresh-token's family id (returns `None` if the token does not
-    /// exist). Returns the family regardless of whether the token has been
-    /// consumed — callers use this to revoke the family on replay.
+    /// Returns the family regardless of whether the token has been consumed —
+    /// callers use this to revoke the family on replay. `None` means the
+    /// token does not exist.
     pub async fn get_refresh_token_family(
         &self,
         token_id: &RefreshTokenId,
@@ -129,8 +52,7 @@ impl OAuthRepository {
         Ok(result)
     }
 
-    /// Revoke every refresh token in a family (deletes both active and
-    /// consumed-tombstone rows). Returns the number deleted.
+    /// Deletes both active and consumed-tombstone rows for the family.
     pub async fn revoke_refresh_token_family(&self, family_id: &str) -> OauthResult<u64> {
         let result = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE family_id = $1",
@@ -261,9 +183,8 @@ impl OAuthRepository {
         Ok(result.rows_affected() > 0)
     }
 
-    /// Drop expired tokens and consumed-token tombstones whose expiry has
-    /// also passed. Live tokens (`consumed_at` IS NULL, `expires_at` >= now)
-    /// and recently-consumed tombstones (still within their original expiry
+    /// Live tokens (`consumed_at` IS NULL, `expires_at` >= now) and
+    /// recently-consumed tombstones (still within their original expiry
     /// window) are preserved so replay detection retains evidence.
     pub async fn cleanup_expired_refresh_tokens(&self) -> OauthResult<u64> {
         let now = Utc::now();
@@ -292,11 +213,4 @@ impl OAuthRepository {
 
         Ok(result.map(ClientId::new))
     }
-}
-
-#[derive(Debug)]
-pub struct ConsumedRefreshToken {
-    pub user_id: UserId,
-    pub scope: String,
-    pub family_id: String,
 }
