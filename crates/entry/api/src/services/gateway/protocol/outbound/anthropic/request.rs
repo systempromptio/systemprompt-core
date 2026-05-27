@@ -7,6 +7,7 @@ use super::super::super::canonical::{
 };
 use super::super::super::inbound::anthropic_messages::content_to_anthropic_block;
 
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
     let messages: Vec<Value> = request
         .messages

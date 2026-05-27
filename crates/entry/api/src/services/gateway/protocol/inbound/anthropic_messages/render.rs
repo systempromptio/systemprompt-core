@@ -7,6 +7,7 @@ use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn render_response_value(response: &CanonicalResponse) -> Value {
     let content: Vec<Value> = response
         .content
@@ -81,6 +82,7 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     reason = "render_event in the InboundAdapter trait returns Option<Bytes>; propagating Option \
               here keeps the call site in mod.rs a single line"
 )]
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {
         CanonicalEvent::MessageStart {

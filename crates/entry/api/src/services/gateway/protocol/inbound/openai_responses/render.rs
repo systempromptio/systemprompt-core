@@ -7,6 +7,7 @@ use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, ContentBlockKind,
 };
 
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut output: Vec<Value> = Vec::new();
     let mut text_parts: Vec<Value> = Vec::new();
@@ -73,6 +74,7 @@ fn current_unix_ts() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let (event_name, payload): (&str, Value) = match event {
         CanonicalEvent::MessageStart {

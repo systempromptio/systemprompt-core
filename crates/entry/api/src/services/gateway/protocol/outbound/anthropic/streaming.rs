@@ -7,6 +7,7 @@ use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn sse_to_canonical_events<S>(
     stream: S,
 ) -> futures_util::stream::BoxStream<'static, Result<CanonicalEvent, String>>

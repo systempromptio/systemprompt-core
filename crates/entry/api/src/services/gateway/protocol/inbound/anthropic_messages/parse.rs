@@ -7,6 +7,7 @@ use super::super::super::canonical::{
 };
 use super::super::InboundParseError;
 
+#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")
