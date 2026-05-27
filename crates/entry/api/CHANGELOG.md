@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.1] - 2026-05-27
+
+### Fixed
+
+- `services::server::metrics::install_recorder` caches the `PrometheusHandle` in a process-wide `OnceLock`. Repeated calls in the same process (multiple `setup_api_server` calls in one test binary, or any future re-bootstrap path) return a clone of the existing handle instead of erroring with "attempted to set a recorder after the metrics system was already initialized".
+
 ## [0.12.0] - 2026-05-27
 
 ### Breaking

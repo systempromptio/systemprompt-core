@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.1] - 2026-05-27
+
+### Fixed
+
+- `systemprompt::api::services::server::metrics::install_recorder` is now idempotent: the `PrometheusHandle` is cached in a process-wide `OnceLock` so repeat callers (test binaries booting multiple `ApiServer`s, future hot-reload paths) get a clone of the original handle instead of failing with "attempted to set a recorder after the metrics system was already initialized".
+
 ## [0.12.0] - 2026-05-27
 
 The `systemprompt` facade tracks the workspace version. This release re-exports the 0.12.0 surface of every member crate; consult the root `CHANGELOG.md` and per-crate changelogs for behavioural changes. Notable highlights this release surface through the facade:
