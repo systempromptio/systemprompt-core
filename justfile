@@ -370,7 +370,7 @@ coverage:
         \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
         | sort -rn \
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-    SP_BIN="$ROOT/crates/tests/target/debug/systemprompt"
+    SP_BIN="$ROOT/target/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
@@ -409,7 +409,7 @@ coverage-html:
         \( -name 'systemprompt_*' -o -name 'systemprompt-*' \) ! -name '*.d' -printf '%T@ %p\n' \
         | sort -rn \
         | awk '{ base=$2; sub(".*/", "", base); sub(/-[0-9a-f]+$/, "", base); if (!seen[base]++) print $2 }')
-    SP_BIN="$ROOT/crates/tests/target/debug/systemprompt"
+    SP_BIN="$ROOT/target/debug/systemprompt"
     [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
     OBJ_ARGS=""
     for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
