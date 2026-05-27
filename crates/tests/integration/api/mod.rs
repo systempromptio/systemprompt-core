@@ -85,5 +85,17 @@ mod routes_admin_cli;
 mod routes_agent_contexts;
 
 #[cfg(test)]
+#[path = "server_boot.rs"]
+mod server_boot;
+
+#[cfg(test)]
+#[path = "services_quota_policy.rs"]
+mod services_quota_policy;
+
+#[cfg(test)]
+#[path = "routes_bridge_data.rs"]
+mod routes_bridge_data;
+
+#[cfg(test)]
 #[path = "common.rs"]
 mod common;

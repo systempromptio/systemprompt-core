@@ -9,6 +9,38 @@
 //! and is tested through integration tests.
 
 use systemprompt_api::services::static_content::StaticContentMatcher;
+use systemprompt_api::services::static_content::static_files::{
+    CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, compute_etag,
+};
+
+#[test]
+fn compute_etag_is_deterministic_for_same_input() {
+    let a = compute_etag(b"hello world");
+    let b = compute_etag(b"hello world");
+    assert_eq!(a, b);
+}
+
+#[test]
+fn compute_etag_differs_for_different_input() {
+    let a = compute_etag(b"hello");
+    let b = compute_etag(b"world");
+    assert_ne!(a, b);
+}
+
+#[test]
+fn compute_etag_is_wrapped_in_quotes() {
+    let a = compute_etag(b"x");
+    assert!(a.starts_with('"'));
+    assert!(a.ends_with('"'));
+}
+
+#[test]
+fn cache_constants_have_expected_directives() {
+    assert!(CACHE_STATIC_ASSET.contains("public"));
+    assert!(CACHE_STATIC_ASSET.contains("immutable"));
+    assert_eq!(CACHE_HTML, "no-cache");
+    assert!(CACHE_METADATA.contains("max-age"));
+}
 
 #[test]
 fn test_static_content_matcher_empty() {
