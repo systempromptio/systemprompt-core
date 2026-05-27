@@ -7,7 +7,7 @@ use super::super::super::canonical::{
 };
 use super::super::InboundParseError;
 
-#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
+#[cfg_attr(not(feature = "test-api"), expect(unreachable_pub, reason = "items are re-exported via `test_api` only when the feature is on"))]
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")

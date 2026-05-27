@@ -8,7 +8,7 @@ use super::super::super::canonical_response::{
     CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 
-#[cfg_attr(not(feature = "test-api"), allow(unreachable_pub))]
+#[cfg_attr(not(feature = "test-api"), expect(unreachable_pub, reason = "items are re-exported via `test_api` only when the feature is on"))]
 pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
     let id = value
         .get("id")
