@@ -348,11 +348,16 @@ coverage:
         cargo build -p systemprompt-cli --bin systemprompt --jobs 4)
     export SYSTEMPROMPT_BIN="$ROOT/target/debug/systemprompt"
 
+    # DATABASE_URL is required by subprocess_full.rs and other tests that
+    # invoke the systemprompt binary through full SecretsBootstrap; without
+    # it those tests early-return and produce no coverage.
+    : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web}"
     CARGO_BUILD_RUSTC_WRAPPER="" \
         RUSTC_WRAPPER="" \
         LLVM_PROFILE_FILE="$PROFDIR/%p-%m.profraw" \
         RUSTFLAGS="-C instrument-coverage" \
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
+        DATABASE_URL="$DATABASE_URL" \
         cargo test --workspace --lib --bins --tests --jobs 4 --no-fail-fast
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
