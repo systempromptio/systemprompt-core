@@ -40,3 +40,7 @@ mod orchestrator_validate;
 mod types_tests;
 #[cfg(test)]
 mod copy_assets_tests;
+#[cfg(test)]
+mod pipeline_full;
+#[cfg(test)]
+mod pipeline_smoke;

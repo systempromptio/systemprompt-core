@@ -17,6 +17,8 @@ systemprompt-traits = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 chrono = { workspace = true }
 serde_yaml = { workspace = true }
 
@@ -24,3 +26,4 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+uuid = { workspace = true }
