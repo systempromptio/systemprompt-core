@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS access_control_entities (
     entity_id TEXT NOT NULL,
     default_included BOOLEAN NOT NULL DEFAULT false,
     -- Provenance label: "profile:<name>" (publish-pipeline bootstrap),
-    -- "roles.yaml" / "departments.yaml" (access-control loader), or
-    -- "bootstrap:*" for rows promoted from older schemas by a migration.
+    -- "roles.yaml" (access-control loader), or "bootstrap:*" for rows
+    -- promoted from older schemas by a migration.
     source TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

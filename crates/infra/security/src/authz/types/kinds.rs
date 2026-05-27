@@ -13,7 +13,6 @@ use crate::authz::error::AuthzError;
 pub enum RuleType {
     User,
     Role,
-    Department,
 }
 
 impl fmt::Display for RuleType {
@@ -21,7 +20,6 @@ impl fmt::Display for RuleType {
         f.write_str(match *self {
             Self::User => "user",
             Self::Role => "role",
-            Self::Department => "department",
         })
     }
 }
@@ -33,7 +31,6 @@ impl FromStr for RuleType {
         match s {
             "user" => Ok(Self::User),
             "role" => Ok(Self::Role),
-            "department" => Ok(Self::Department),
             other => Err(AuthzError::InvalidRuleType(other.to_owned())),
         }
     }

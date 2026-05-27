@@ -6,10 +6,6 @@
 use systemprompt_security::authz::AccessControlConfig;
 
 const VALID_YAML: &str = r#"
-departments:
-  - name: Engineering
-    manager_email: ed@example.com
-  - name: Marketing
 rules:
   - entity_type: gateway_route
     entity_id: claude-star
@@ -18,14 +14,13 @@ rules:
   - entity_type: mcp_server
     entity_id: systemprompt
     access: allow
-    departments: [Engineering]
+    roles: [developer]
     justification: "ICP team needs MCP for daily work"
 "#;
 
 #[test]
 fn parses_and_validates_full_example() {
     let cfg: AccessControlConfig = serde_yaml::from_str(VALID_YAML).expect("yaml parses");
-    assert_eq!(cfg.departments.len(), 2);
     assert_eq!(cfg.rules.len(), 2);
     cfg.validate().expect("valid baseline");
 }
@@ -33,8 +28,6 @@ fn parses_and_validates_full_example() {
 #[test]
 fn rejects_unknown_keys() {
     let bad = r#"
-departments:
-  - name: Engineering
 rules:
   - entity_type: agent
     entity_id: foo
@@ -48,7 +41,7 @@ rules:
 }
 
 #[test]
-fn rejects_rule_with_no_roles_or_departments() {
+fn rejects_rule_with_no_roles() {
     let bad = r#"
 rules:
   - entity_type: agent
@@ -58,45 +51,23 @@ rules:
     let cfg: AccessControlConfig = serde_yaml::from_str(bad).expect("yaml parses");
     let err = cfg
         .validate()
-        .expect_err("rule with neither roles nor departments must fail");
+        .expect_err("rule with no roles must fail");
     let msg = err.to_string();
-    assert!(
-        msg.contains("roles[]") && msg.contains("departments[]"),
-        "got: {msg}"
-    );
+    assert!(msg.contains("at least one role"), "got: {msg}");
 }
 
 #[test]
-fn rejects_rule_referencing_undeclared_department() {
+fn rejects_empty_role_string() {
     let bad = r#"
-departments:
-  - name: Engineering
 rules:
   - entity_type: agent
     entity_id: foo
     access: allow
-    departments: [Marketing]
+    roles: ["   "]
 "#;
     let cfg: AccessControlConfig = serde_yaml::from_str(bad).expect("yaml parses");
-    let err = cfg.validate().expect_err("undeclared department must fail");
-    assert!(
-        err.to_string()
-            .contains("undeclared department 'Marketing'"),
-        "got: {err}"
-    );
-}
-
-#[test]
-fn rejects_duplicate_department_names() {
-    let bad = r#"
-departments:
-  - name: Engineering
-  - name: Engineering
-rules: []
-"#;
-    let cfg: AccessControlConfig = serde_yaml::from_str(bad).expect("yaml parses");
-    let err = cfg.validate().expect_err("duplicate names must fail");
-    assert!(err.to_string().contains("duplicate"), "got: {err}");
+    let err = cfg.validate().expect_err("empty role string must fail");
+    assert!(err.to_string().contains("empty role"), "got: {err}");
 }
 
 #[test]
@@ -125,6 +96,5 @@ fn round_trips_through_serde() {
     let serialized = serde_yaml::to_string(&cfg).unwrap();
     let reparsed: AccessControlConfig = serde_yaml::from_str(&serialized).unwrap();
     reparsed.validate().expect("round-trip remains valid");
-    assert_eq!(reparsed.departments.len(), cfg.departments.len());
     assert_eq!(reparsed.rules.len(), cfg.rules.len());
 }

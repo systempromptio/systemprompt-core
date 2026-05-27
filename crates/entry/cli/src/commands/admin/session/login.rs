@@ -141,7 +141,7 @@ pub async fn login_for_profile(
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
             roles: vec!["admin".to_owned()],
-            department: None,
+            attributes: std::collections::BTreeMap::new(),
             rate_limit_tier: RateLimitTier::Admin,
         })
         .context("Failed to generate session token")?;

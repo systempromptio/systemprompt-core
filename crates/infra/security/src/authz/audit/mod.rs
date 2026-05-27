@@ -30,6 +30,7 @@ pub enum AuthzSource {
     DenyAllDefault,
     AllowAllUnrestricted,
     ExtensionHook,
+    RuleBased,
 }
 
 impl AuthzSource {
@@ -39,6 +40,7 @@ impl AuthzSource {
             Self::DenyAllDefault => "authz_default_deny",
             Self::AllowAllUnrestricted => "authz_unrestricted",
             Self::ExtensionHook => "authz_extension_hook",
+            Self::RuleBased => "authz_rule_based",
         }
     }
 }

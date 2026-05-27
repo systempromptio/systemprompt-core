@@ -1,20 +1,19 @@
 //! Construction of the active authz decision hook from profile config.
 //!
 //! [`build_authz_hook`] is the single entry point for both the API server and
-//! any standalone MCP binary. It inspects `governance.authz` and returns one
-//! of [`DenyAllHook`], [`AllowAllHook`], [`WebhookHook`], or an
-//! extension-supplied hook, wrapped in an `Arc<dyn AuthzDecisionHook>` that
-//! the caller stores on its `AppContext` (or equivalent) and threads to every
-//! consumer.
+//! any standalone MCP binary. It inspects `governance.authz` and returns an
+//! `Arc<dyn AuthzDecisionHook>` that the caller stores on its `AppContext`
+//! (or equivalent) and threads to every consumer.
 //!
 //! Branch table:
 //!
 //! - `mode: webhook` with a non-empty `url` that passes SSRF validation →
-//!   [`WebhookHook`] (fail-closed). A url pointing at loopback over `http`,
-//!   `169.254.169.254`, or an RFC1918 range fails bootstrap.
-//! - `mode: extension` with a hook supplied via `AppContextBuilder::with_authz_hook`
-//!   → that hook. Bootstrap fails with [`AuthzBootstrapError::ExtensionModeButNoHook`]
-//!   if no hook was supplied.
+//!   [`WebhookHook`] (fail-closed) ahead of [`RuleBasedHook`] under a
+//!   [`CompositeAuthzHook`].
+//! - `mode: extension` with one or more extension hooks (`AppContextBuilder::with_authz_hook`
+//!   or `register_authz_hook!`) → composite `[RuleBasedHook, ...extensions]`.
+//!   Bootstrap fails with [`AuthzBootstrapError::ExtensionModeButNoHook`] if
+//!   no extension hook is supplied.
 //! - `mode: disabled`, or governance/authz absent → [`DenyAllHook`].
 //! - `mode: unrestricted` → [`AllowAllHook`], but ONLY when `acknowledgement`
 //!   exactly equals [`UNRESTRICTED_ACKNOWLEDGEMENT`]. Otherwise bootstrap
@@ -26,9 +25,8 @@
 //!
 //! Bootstrap ordering: called from `AppContextBuilder::build` after the
 //! database pool is created so the audit sink can write to
-//! `governance_decisions`. The extension hook, if supplied, is constructed
-//! by the binary entry point with the same pool already in scope — see
-//! `internal/guides/authz.md` for the contract.
+//! `governance_decisions` and [`RuleBasedHook`] can query
+//! `access_control_rules`.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -37,9 +35,11 @@ use systemprompt_models::net::validate_outbound_url;
 use systemprompt_models::profile::{AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT};
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, NullAuditSink};
+use super::composite::CompositeAuthzHook;
 use super::error::{AuthzBootstrapError, AuthzResult};
 use super::hook::{AllowAllHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 use super::registry::{AuthzHookContext, discover_authz_hook};
+use super::rule_based::RuleBasedHook;
 
 pub fn build_authz_hook(
     governance: Option<&GovernanceConfig>,
@@ -48,9 +48,6 @@ pub fn build_authz_hook(
 ) -> AuthzResult<SharedAuthzHook> {
     let sink = build_sink(pool.clone());
 
-    // Fall back to inventory-registered hooks when the builder didn't supply one.
-    // Binaries that go through `systemprompt::cli::run()` have no builder site
-    // to call `.with_authz_hook(...)` on and rely on `register_authz_hook!`.
     let extension = extension.or_else(|| {
         pool.as_ref().and_then(|p| {
             discover_authz_hook(&AuthzHookContext {
@@ -73,10 +70,10 @@ pub fn build_authz_hook(
     match (authz.hook.mode, extension) {
         (AuthzMode::Extension, Some(hook)) => {
             tracing::info!(
-                "governance.authz.hook.mode = extension — using injected hook {:?}",
+                "governance.authz.hook.mode = extension — composing RuleBasedHook + {:?}",
                 hook
             );
-            Ok(hook)
+            Ok(compose_rule_based(pool, sink, vec![hook]))
         },
         (AuthzMode::Extension, None) => Err(AuthzBootstrapError::ExtensionModeButNoHook.into()),
         (mode, Some(_)) => Err(AuthzBootstrapError::ExtensionHookButWrongMode {
@@ -112,10 +109,36 @@ pub fn build_authz_hook(
                 .to_owned();
             validate_outbound_url(&url)
                 .map_err(|e| AuthzBootstrapError::InvalidWebhookUrl(e.to_string()))?;
-            let hook = WebhookHook::new(url, Duration::from_millis(authz.hook.timeout_ms), sink)?;
-            Ok(Arc::new(hook))
+            let webhook = WebhookHook::new(
+                url,
+                Duration::from_millis(authz.hook.timeout_ms),
+                Arc::clone(&sink),
+            )?;
+            let webhook: SharedAuthzHook = Arc::new(webhook);
+            Ok(compose_rule_based(pool, sink, vec![webhook]))
         },
     }
+}
+
+fn compose_rule_based(
+    pool: Option<Arc<sqlx::PgPool>>,
+    sink: Arc<dyn AuthzAuditSink>,
+    mut tail: Vec<SharedAuthzHook>,
+) -> SharedAuthzHook {
+    // Why: RuleBasedHook needs the DbPool to query access_control_rules. When
+    // no pool is available (pre-DB bootstrap, tests), skip it — the resolver
+    // cannot run without rule storage, so composing it would only deny.
+    let Some(pool) = pool else {
+        if tail.len() == 1 {
+            return tail.remove(0);
+        }
+        return Arc::new(CompositeAuthzHook::new(tail));
+    };
+    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink));
+    let mut hooks = Vec::with_capacity(tail.len() + 1);
+    hooks.push(rule_based);
+    hooks.extend(tail);
+    Arc::new(CompositeAuthzHook::new(hooks))
 }
 
 const fn mode_name(mode: AuthzMode) -> &'static str {

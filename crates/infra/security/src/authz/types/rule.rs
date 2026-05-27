@@ -17,8 +17,8 @@ pub struct AccessRule {
 ///
 /// Owns the per-entity `default_included` flag and a provenance string
 /// identifying which loader pass first registered the entity
-/// (`"profile:<name>"`, `"roles.yaml"`, `"departments.yaml"`, or
-/// `"bootstrap:*"` for rows promoted from older schemas by a migration).
+/// (`"profile:<name>"`, `"roles.yaml"`, or `"bootstrap:*"` for rows
+/// promoted from older schemas by a migration).
 /// Callers pair this with [`AccessRule`]s from
 /// `access_control_rules` and hand both to [`crate::authz::resolver::resolve`].
 ///

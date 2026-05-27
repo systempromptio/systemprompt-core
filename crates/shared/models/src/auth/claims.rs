@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 
@@ -103,19 +104,22 @@ pub struct JwtClaims {
     pub email: String,
     pub user_type: UserType,
 
-    /// RBAC/ABAC attribute: role strings minted from the user row at OAuth
+    /// RBAC attribute: role strings minted from the user row at OAuth
     /// issuance. Consumed by `authz::resolver::resolve` for the core RBAC
     /// check against `access_control_rules` (`rule_type = role`) and
-    /// forwarded into every `AuthzDecisionHook::evaluate` call for extension
-    /// ABAC. Never enforced via the PBAC `scope` path.
+    /// forwarded into every `AuthzDecisionHook::evaluate` call. The only
+    /// first-class identity vector core inspects; everything else is
+    /// extension-defined via [`attributes`](Self::attributes).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,
 
-    /// RBAC/ABAC attribute: the principal's department string from the user
-    /// row. Consumed by `authz::resolver::resolve` (`rule_type = department`)
-    /// and forwarded into `AuthzDecisionHook::evaluate`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub department: Option<String>,
+    /// Opaque ABAC attribute bag. The token issuer mints whatever
+    /// namespaced facts the extension authz hook needs (e.g.
+    /// `"acme.desk": "fixed-income"`, `"boeing.clearance": "ts/sci"`).
+    /// Core never interprets values — keys SHOULD be dotted-namespaced.
+    /// Forwarded verbatim into `AuthzRequest.attributes`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub attributes: BTreeMap<String, serde_json::Value>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,

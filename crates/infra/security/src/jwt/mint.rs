@@ -6,6 +6,7 @@
 
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, encode};
+use std::collections::BTreeMap;
 use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
@@ -45,7 +46,7 @@ impl JwtService {
             email: params.email.to_owned(),
             user_type: UserType::Admin,
             roles: vec!["admin".to_owned(), "user".to_owned()],
-            department: None,
+            attributes: BTreeMap::new(),
             client_id: params.client_id.cloned(),
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),

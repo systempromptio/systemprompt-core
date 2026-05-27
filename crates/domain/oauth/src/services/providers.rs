@@ -69,7 +69,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             email: params.username.clone(),
             roles: vec![],
             permissions: vec![],
-            department: None,
+            attributes: std::collections::BTreeMap::new(),
         };
 
         let permissions: Vec<Permission> = params

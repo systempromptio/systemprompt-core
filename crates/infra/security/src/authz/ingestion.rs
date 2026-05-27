@@ -30,7 +30,6 @@ pub struct IngestOptions {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestReport {
-    pub departments_declared: usize,
     pub rules_inserted: usize,
     pub rules_updated: usize,
     pub rules_skipped: usize,
@@ -64,17 +63,14 @@ impl AccessControlIngestionService {
         let targets = expand_targets(&cfg.rules);
 
         let mut tx = self.write_pool.begin().await?;
-        let mut report = IngestReport {
-            departments_declared: cfg.departments.len(),
-            ..IngestReport::default()
-        };
+        let mut report = IngestReport::default();
 
         if options.delete_orphans {
-            // Why: `delete_orphans` clears stale role/department rules for the
-            // entities the YAML declares — not for the entire table. An
-            // unscoped sweep would race against any other writer (parallel
-            // test, concurrent bootstrap, another tenant's loader) that owns
-            // role/department rules under a different entity.
+            // Why: `delete_orphans` clears stale role rules for the entities
+            // the YAML declares — not for the entire table. An unscoped sweep
+            // would race against any other writer (parallel test, concurrent
+            // bootstrap, another tenant's loader) that owns role rules under
+            // a different entity.
             let entity_types: Vec<String> = targets
                 .iter()
                 .map(|t| t.entity_kind.as_str().to_owned())
@@ -83,7 +79,7 @@ impl AccessControlIngestionService {
             let res = sqlx::query!(
                 r#"
                 DELETE FROM access_control_rules
-                WHERE rule_type IN ('role', 'department')
+                WHERE rule_type = 'role'
                   AND (entity_type, entity_id) IN (
                       SELECT * FROM UNNEST($1::text[], $2::text[])
                   )
@@ -110,7 +106,6 @@ impl AccessControlIngestionService {
 
         tracing::info!(
             target = "bootstrap_access_control_loaded",
-            departments_declared = report.departments_declared,
             rules_inserted = report.rules_inserted,
             rules_updated = report.rules_updated,
             rules_skipped = report.rules_skipped,
@@ -147,16 +142,6 @@ fn expand_targets(rules: &[RuleEntry]) -> Vec<Target<'_>> {
                 entity_id: rule.entity_id.as_str(),
                 rule_type: RuleType::Role,
                 rule_value: role.as_str(),
-                access: access_str,
-                justification: rule.justification.as_deref(),
-            });
-        }
-        for dept in &rule.departments {
-            out.push(Target {
-                entity_kind: rule.entity_type,
-                entity_id: rule.entity_id.as_str(),
-                rule_type: RuleType::Department,
-                rule_value: dept.as_str(),
                 access: access_str,
                 justification: rule.justification.as_deref(),
             });

@@ -14,12 +14,15 @@
 //! 1. **PBAC** — `Permission` enum on the JWT `scope` claim, enforced at the
 //!    route boundary by `with_auth(scope)`. Lives in core. Always on.
 //! 2. **RBAC** — `access_control_rules` table evaluated by [`resolve`]
-//!    against `AuthzRequest.{user_id, roles, department}`. Lives in core.
-//!    Always on after PBAC; empty table = allow-all at this layer.
+//!    (and the [`RuleBasedHook`] that wraps it) against
+//!    `AuthzRequest.{user_id, roles}`. Lives in core. Always on after PBAC;
+//!    empty table = allow-all at this layer.
 //! 3. **ABAC hook** — [`AuthzDecisionHook::evaluate`] called after RBAC. Lives
-//!    in extensions; core ships [`DenyAllHook`], [`AllowAllHook`],
-//!    [`WebhookHook`], and the [`CompositeAuthzHook`] composer for the
-//!    multi-extension case.
+//!    in extensions; core ships [`RuleBasedHook`], [`DenyAllHook`],
+//!    [`AllowAllHook`], [`WebhookHook`], and the [`CompositeAuthzHook`]
+//!    composer for the multi-extension case. Extensions read
+//!    `AuthzRequest.attributes` (the opaque tenant-defined bag) and pattern
+//!    on `AuthzContext.kind` for enforcement-site dispatch.
 
 pub mod audit;
 pub mod composite;
@@ -31,6 +34,7 @@ pub mod ingestion;
 pub mod registry;
 pub mod repository;
 pub mod resolver;
+pub mod rule_based;
 pub mod runtime;
 pub mod types;
 
@@ -39,7 +43,7 @@ pub use audit::{
     GovernanceDecisionRepository, NullAuditSink, insert_governance_decision,
 };
 pub use composite::CompositeAuthzHook;
-pub use config::{AccessControlConfig, DepartmentEntry, RuleEntry};
+pub use config::{AccessControlConfig, RuleEntry};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
@@ -47,6 +51,7 @@ pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
 pub use resolver::{ResolveInput, resolve};
+pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
 pub use types::{
     Access, AccessRule, AuthzContext, AuthzDecision, AuthzRequest, Decision, DecisionTag,

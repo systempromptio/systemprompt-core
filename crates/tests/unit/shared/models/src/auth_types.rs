@@ -16,10 +16,10 @@ fn user_with_perms(perms: Vec<Permission>) -> AuthenticatedUser {
 }
 
 #[test]
-fn authenticated_user_new_defaults_roles_and_department() {
+fn authenticated_user_new_defaults_roles_and_attributes() {
     let u = user_with_perms(vec![Permission::User]);
     assert!(u.roles.is_empty());
-    assert!(u.department.is_none());
+    assert!(u.attributes.is_empty());
     assert_eq!(u.permissions(), &[Permission::User]);
 }
 
@@ -36,11 +36,11 @@ fn authenticated_user_new_with_roles_carries_roles() {
 }
 
 #[test]
-fn authenticated_user_with_department() {
-    let u = user_with_perms(vec![]).with_department(Some("eng".to_owned()));
-    assert_eq!(u.department(), Some("eng"));
-    let u = u.with_department(None);
-    assert!(u.department().is_none());
+fn authenticated_user_with_attributes_round_trip() {
+    let mut attrs = std::collections::BTreeMap::new();
+    attrs.insert("acme.desk".to_owned(), serde_json::json!("fixed-income"));
+    let u = user_with_perms(vec![]).with_attributes(attrs.clone());
+    assert_eq!(u.attributes(), &attrs);
 }
 
 #[test]

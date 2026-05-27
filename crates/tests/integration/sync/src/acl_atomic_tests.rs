@@ -1,9 +1,8 @@
 //! Atomicity of `AccessControlIngestionService::ingest_config` when
-//! `delete_orphans=true`: the DELETE of stale role/department rules and
-//! the INSERT of the new set must happen inside one transaction so a
-//! concurrent reader cannot observe an empty / partially-rebuilt rule
-//! set (which would briefly read as "no rules → fall back to default
-//! which may be allow").
+//! `delete_orphans=true`: the DELETE of stale role rules and the INSERT of
+//! the new set must happen inside one transaction so a concurrent reader
+//! cannot observe an empty / partially-rebuilt rule set (which would
+//! briefly read as "no rules → fall back to default which may be allow").
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,21 +16,7 @@ use systemprompt_security::authz::{
 use crate::support::{try_db, wipe_rules};
 
 fn cfg(entity_id: &str, rules: Vec<RuleEntry>) -> AccessControlConfig {
-    let mut depts = std::collections::HashSet::new();
-    for r in &rules {
-        for d in &r.departments {
-            depts.insert(d.clone());
-        }
-    }
     AccessControlConfig {
-        departments: depts
-            .into_iter()
-            .map(|name| systemprompt_security::authz::DepartmentEntry {
-                name,
-                description: None,
-                manager_email: None,
-            })
-            .collect(),
         rules: rules
             .into_iter()
             .map(|mut r| {
@@ -54,7 +39,6 @@ fn role_rule(entity_id: &str, role: &str, allow: bool) -> RuleEntry {
             systemprompt_security::authz::types::Access::Deny
         },
         roles: vec![role.to_owned()],
-        departments: Vec::new(),
         justification: None,
     }
 }

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     entity_id TEXT NOT NULL,
     rule_type TEXT NOT NULL
         CONSTRAINT access_control_rules_rule_type_check
-        CHECK (rule_type IN ('role','department','user')),
+        CHECK (rule_type IN ('role','user')),
     rule_value TEXT NOT NULL,
     access TEXT NOT NULL DEFAULT 'allow'
         CONSTRAINT access_control_rules_access_check

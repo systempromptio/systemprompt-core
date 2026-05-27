@@ -46,7 +46,7 @@ pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String,
         let catalog_ids: BTreeSet<String> = catalog.iter().map(|e| e.id.clone()).collect();
 
         let rule_rows = repo
-            .list_role_department_rules_for_export()
+            .list_role_rules_for_export()
             .await
             .map_err(|e| anyhow!("list rules: {e}"))?;
         let rule_ids: BTreeSet<String> = rule_rows

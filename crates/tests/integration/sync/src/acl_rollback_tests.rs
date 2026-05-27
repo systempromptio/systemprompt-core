@@ -1,11 +1,10 @@
-//! Transactional rollback when a YAML bundle fails validation
-//! (e.g. references an undeclared department). The pre-existing rule set
-//! must remain intact — no half-written ACL state.
+//! Transactional rollback when a YAML bundle fails validation. The
+//! pre-existing rule set must remain intact — no half-written ACL state.
 
 use systemprompt_security::authz::types::{Access, EntityKind};
 use systemprompt_security::authz::{
-    AccessControlConfig, AccessControlIngestionService, AccessControlRepository, DepartmentEntry,
-    IngestOptions, RuleEntry,
+    AccessControlConfig, AccessControlIngestionService, AccessControlRepository, IngestOptions,
+    RuleEntry,
 };
 
 use crate::support::{try_db, wipe_rules};
@@ -23,13 +22,11 @@ async fn invalid_yaml_leaves_existing_rules_untouched() {
     let repo = AccessControlRepository::new(&db).expect("repo");
 
     let seed = AccessControlConfig {
-        departments: vec![],
         rules: vec![RuleEntry {
             entity_type: EntityKind::McpServer,
             entity_id: entity_id.to_owned(),
             access: Access::Allow,
             roles: vec!["seeded-role".to_owned()],
-            departments: vec![],
             justification: None,
         }],
     };
@@ -44,18 +41,12 @@ async fn invalid_yaml_leaves_existing_rules_untouched() {
     .expect("seed");
 
     let bad = AccessControlConfig {
-        departments: vec![DepartmentEntry {
-            name: "finance".to_owned(),
-            description: None,
-            manager_email: None,
-        }],
         rules: vec![
             RuleEntry {
                 entity_type: EntityKind::McpServer,
                 entity_id: entity_id.to_owned(),
                 access: Access::Allow,
                 roles: vec!["new-role".to_owned()],
-                departments: vec![],
                 justification: None,
             },
             RuleEntry {
@@ -63,7 +54,6 @@ async fn invalid_yaml_leaves_existing_rules_untouched() {
                 entity_id: entity_id.to_owned(),
                 access: Access::Allow,
                 roles: vec![],
-                departments: vec!["undeclared-dept".to_owned()],
                 justification: None,
             },
         ],

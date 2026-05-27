@@ -8,13 +8,13 @@ use crate::authz::error::AuthzResult;
 use crate::authz::types::{Access, AccessRule, EntityKind, RuleType};
 
 impl AccessControlRepository {
-    pub async fn list_role_department_rules_for_export(&self) -> AuthzResult<Vec<ExportRuleRow>> {
+    pub async fn list_role_rules_for_export(&self) -> AuthzResult<Vec<ExportRuleRow>> {
         let rows = sqlx::query_as!(
             ExportRuleRow,
             r#"
             SELECT entity_type, entity_id, rule_type, rule_value, access, justification
             FROM access_control_rules
-            WHERE rule_type IN ('role', 'department')
+            WHERE rule_type = 'role'
             ORDER BY entity_type, entity_id, access, rule_type, rule_value
             "#,
         )

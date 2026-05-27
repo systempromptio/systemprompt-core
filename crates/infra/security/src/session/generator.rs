@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, encode};
+use std::collections::BTreeMap;
 use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
@@ -17,7 +18,7 @@ pub struct SessionParams<'a> {
     pub user_type: UserType,
     pub permissions: Vec<Permission>,
     pub roles: Vec<String>,
-    pub department: Option<String>,
+    pub attributes: BTreeMap<String, serde_json::Value>,
     pub rate_limit_tier: RateLimitTier,
 }
 
@@ -50,7 +51,7 @@ impl SessionGenerator {
             email: params.email.to_owned(),
             user_type: params.user_type,
             roles: params.roles.clone(),
-            department: params.department.clone(),
+            attributes: params.attributes.clone(),
             client_id: None,
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),

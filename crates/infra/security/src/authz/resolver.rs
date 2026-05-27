@@ -1,9 +1,9 @@
-//! Pure deny-overrides resolver with `user > role > department` specificity.
+//! Pure deny-overrides resolver with `user > role` specificity.
 //!
 //! The function is intentionally synchronous and free of I/O so it can be
-//! reused by the in-process default hook, the template's webhook handler,
-//! and unit tests without setup. Callers fetch [`AccessRule`]s plus the
-//! `default_included` sentinel from
+//! reused by the in-process [`super::rule_based::RuleBasedHook`], the
+//! template's webhook handler, and unit tests without setup. Callers fetch
+//! [`AccessRule`]s plus the `default_included` sentinel from
 //! [`super::repository::AccessControlRepository`] and pass them in.
 //!
 //! `default_included` is `Option<bool>` — `None` signals the entity is
@@ -24,7 +24,6 @@ pub struct ResolveInput<'a> {
     pub rules: &'a [AccessRule],
     pub user_id: &'a UserId,
     pub user_roles: &'a [String],
-    pub department: &'a str,
     pub default_included: Option<bool>,
 }
 
@@ -35,7 +34,6 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
         rules,
         user_id,
         user_roles,
-        department,
         default_included,
     } = input;
     let Some(default_included) = default_included else {
@@ -50,9 +48,6 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
         |r: &AccessRule| r.rule_type == RuleType::User && r.rule_value == user_id.as_str();
     let role_match = |r: &AccessRule| {
         r.rule_type == RuleType::Role && user_roles.iter().any(|role| role == &r.rule_value)
-    };
-    let dept_match = |r: &AccessRule| {
-        r.rule_type == RuleType::Department && r.rule_value == department && !department.is_empty()
     };
 
     if let Some(rule) = rules
@@ -94,28 +89,6 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
         return Decision::Allow {
             matched_by: MatchedBy::RoleAllow {
                 role: rule.rule_value.clone(),
-            },
-        };
-    }
-    if let Some(rule) = rules
-        .iter()
-        .find(|r| dept_match(r) && r.access == Access::Deny)
-    {
-        return Decision::Deny {
-            reason: DenyReason::DepartmentDeny {
-                entity: entity.clone(),
-                department: rule.rule_value.clone(),
-                justification: rule.justification.clone(),
-            },
-        };
-    }
-    if rules
-        .iter()
-        .any(|r| dept_match(r) && r.access == Access::Allow)
-    {
-        return Decision::Allow {
-            matched_by: MatchedBy::DepartmentAllow {
-                department: department.to_owned(),
             },
         };
     }

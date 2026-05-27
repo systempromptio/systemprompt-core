@@ -176,9 +176,9 @@ pub fn build_mcp_authz_request(
         entity: EntityRef::McpServer(McpServerId::new(server_name)),
         user_id: UserId::new(claims.sub.clone()),
         roles: claims.roles.clone(),
-        department: claims.department.clone().unwrap_or_default(),
+        attributes: claims.attributes.clone(),
         trace_id: TraceId::generate(),
-        context: AuthzContext::None,
+        context: AuthzContext::none(),
         act_chain,
     }
 }

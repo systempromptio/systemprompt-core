@@ -1,19 +1,85 @@
 use axum::http::StatusCode;
+use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::middleware::JwtContextExtractor;
 
-pub(super) struct AuthedPrincipal {
+pub(super) enum AuthedPrincipal {
+    Jwt(JwtPrincipal),
+    ApiKey(ApiKeyPrincipal),
+}
+
+pub(super) struct JwtPrincipal {
     pub user_id: UserId,
-    pub trace_id: Option<TraceId>,
+    pub trace_id: TraceId,
     pub roles: Vec<String>,
-    pub department: String,
+    pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
-    // None for API-key credentials (not session-bound). Gateways MUST refuse a
-    // request whose X-Session-ID header disagrees with this value.
-    pub jwt_session_id: Option<SessionId>,
+    attested_session: SessionId,
+}
+
+pub(super) struct ApiKeyPrincipal {
+    pub user_id: UserId,
+    pub trace_id: TraceId,
+}
+
+impl AuthedPrincipal {
+    pub(super) fn user_id(&self) -> &UserId {
+        match self {
+            Self::Jwt(p) => &p.user_id,
+            Self::ApiKey(p) => &p.user_id,
+        }
+    }
+
+    pub(super) fn trace_id(&self) -> &TraceId {
+        match self {
+            Self::Jwt(p) => &p.trace_id,
+            Self::ApiKey(p) => &p.trace_id,
+        }
+    }
+
+    pub(super) fn authz_attributes(
+        &self,
+    ) -> (Vec<String>, BTreeMap<String, serde_json::Value>, Vec<Actor>) {
+        match self {
+            Self::Jwt(p) => (
+                p.roles.clone(),
+                p.attributes.clone(),
+                p.act_chain.clone(),
+            ),
+            Self::ApiKey(_) => (Vec::new(), BTreeMap::new(), Vec::new()),
+        }
+    }
+
+    pub(super) fn enforce_session_binding(
+        &self,
+        header: &SessionId,
+    ) -> Result<(), (StatusCode, String)> {
+        match self {
+            Self::Jwt(p) => p.enforce_session_binding(header),
+            Self::ApiKey(_) => Ok(()),
+        }
+    }
+}
+
+impl JwtPrincipal {
+    fn enforce_session_binding(&self, header: &SessionId) -> Result<(), (StatusCode, String)> {
+        if self.attested_session.as_str() == header.as_str() {
+            return Ok(());
+        }
+        tracing::warn!(
+            header_session = %header.as_str(),
+            jwt_session = %self.attested_session.as_str(),
+            user_id = %self.user_id,
+            "X-Session-ID header does not match bearer JWT session_id; rejecting"
+        );
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "X-Session-ID does not match authenticated session".to_owned(),
+        ))
+    }
 }
 
 pub(super) async fn authenticate(
@@ -44,14 +110,10 @@ async fn authenticate_api_key(
         )
     })?;
     match record {
-        Some(rec) => Ok(AuthedPrincipal {
+        Some(rec) => Ok(AuthedPrincipal::ApiKey(ApiKeyPrincipal {
             user_id: rec.user_id,
-            trace_id: Some(TraceId::generate()),
-            roles: Vec::new(),
-            department: String::new(),
-            act_chain: Vec::new(),
-            jwt_session_id: None,
-        }),
+            trace_id: TraceId::generate(),
+        })),
         None => Err((
             StatusCode::UNAUTHORIZED,
             "Invalid or revoked API key".to_owned(),
@@ -83,12 +145,12 @@ async fn authenticate_jwt(
             )
         })?;
 
-    Ok(AuthedPrincipal {
+    Ok(AuthedPrincipal::Jwt(JwtPrincipal {
         user_id: claims.user_id,
-        trace_id: Some(TraceId::generate()),
+        trace_id: TraceId::generate(),
         roles: user.roles,
-        department: String::new(),
+        attributes: claims.attributes,
         act_chain: claims.act_chain,
-        jwt_session_id: Some(claims.session_id),
-    })
+        attested_session: claims.session_id,
+    }))
 }

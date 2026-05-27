@@ -1,6 +1,8 @@
 //! Regression coverage for JWT-claims → `AuthzRequest` forwarding on the MCP
-//! middleware path. Locks in that `claims.roles` and `claims.department` are
+//! middleware path. Locks in that `claims.roles` and `claims.attributes` are
 //! passed verbatim into the hook input.
+
+use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
@@ -10,7 +12,10 @@ use systemprompt_models::auth::{
 };
 use systemprompt_security::authz::EntityRef;
 
-fn claims_with(roles: Vec<String>, department: Option<String>) -> JwtClaims {
+fn claims_with(
+    roles: Vec<String>,
+    attributes: BTreeMap<String, serde_json::Value>,
+) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
         sub: "user_42".to_string(),
@@ -25,7 +30,7 @@ fn claims_with(roles: Vec<String>, department: Option<String>) -> JwtClaims {
         email: "u@example.com".to_string(),
         user_type: UserType::User,
         roles,
-        department,
+        attributes,
         client_id: Some(ClientId::new("c")),
         token_type: TokenType::Bearer,
         auth_time: now.timestamp(),
@@ -37,10 +42,12 @@ fn claims_with(roles: Vec<String>, department: Option<String>) -> JwtClaims {
 }
 
 #[test]
-fn forwards_roles_and_department_from_claims() {
+fn forwards_roles_and_attributes_from_claims() {
+    let mut attrs = BTreeMap::new();
+    attrs.insert("acme.desk".to_owned(), serde_json::json!("fixed-income"));
     let claims = claims_with(
         vec!["eng".to_owned(), "platform".to_owned()],
-        Some("infra".to_owned()),
+        attrs.clone(),
     );
     let act_chain: Vec<Actor> = vec![Actor::user(UserId::new("user_42"))];
 
@@ -48,14 +55,14 @@ fn forwards_roles_and_department_from_claims() {
 
     assert_eq!(req.user_id.as_str(), "user_42");
     assert_eq!(req.roles, vec!["eng".to_owned(), "platform".to_owned()]);
-    assert_eq!(req.department, "infra");
+    assert_eq!(req.attributes, attrs);
     assert_eq!(req.act_chain.len(), act_chain.len());
     assert!(matches!(req.entity, EntityRef::McpServer(_)));
 }
 
 #[test]
-fn department_none_becomes_empty_string() {
-    let claims = claims_with(vec![], None);
+fn empty_attributes_round_trip() {
+    let claims = claims_with(vec![], BTreeMap::new());
     let req = build_mcp_authz_request("server-x", &claims, Vec::new());
-    assert_eq!(req.department, "");
+    assert!(req.attributes.is_empty());
 }

@@ -24,7 +24,6 @@ fn input<'a>(
     rules: &'a [AccessRule],
     user_id: &'a systemprompt_identifiers::UserId,
     user_roles: &'a [String],
-    department: &'a str,
     default_included: Option<bool>,
 ) -> ResolveInput<'a> {
     ResolveInput {
@@ -32,7 +31,6 @@ fn input<'a>(
         rules,
         user_id,
         user_roles,
-        department,
         default_included,
     }
 }
@@ -42,7 +40,7 @@ fn unknown_entity_denies() {
     let e = entity();
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let d = resolve(input(&e, &[], &u, &roles, "platform", None));
+    let d = resolve(input(&e, &[], &u, &roles, None));
     assert!(matches!(
         d,
         Decision::Deny {
@@ -56,7 +54,7 @@ fn no_rules_no_default_denies() {
     let e = entity();
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let d = resolve(input(&e, &[], &u, &roles, "platform", Some(false)));
+    let d = resolve(input(&e, &[], &u, &roles, Some(false)));
     assert!(matches!(
         d,
         Decision::Deny {
@@ -70,7 +68,7 @@ fn no_rules_default_allows() {
     let e = entity();
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
-    let d = resolve(input(&e, &[], &u, &roles, "platform", Some(true)));
+    let d = resolve(input(&e, &[], &u, &roles, Some(true)));
     assert_eq!(
         d,
         Decision::Allow {
@@ -88,7 +86,7 @@ fn user_deny_overrides_role_allow() {
         rule(RuleType::User, "test-user", Access::Deny),
         rule(RuleType::Role, "eng", Access::Allow),
     ];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(true)));
+    let d = resolve(input(&e, &rules, &u, &roles, Some(true)));
     assert!(
         matches!(
             d,
@@ -109,7 +107,7 @@ fn user_allow_beats_role_deny() {
         rule(RuleType::User, "test-user", Access::Allow),
         rule(RuleType::Role, "eng", Access::Deny),
     ];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(false)));
+    let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
     assert_eq!(
         d,
         Decision::Allow {
@@ -127,7 +125,7 @@ fn role_deny_overrides_role_allow_in_multirole() {
         rule(RuleType::Role, "eng", Access::Allow),
         rule(RuleType::Role, "contractor", Access::Deny),
     ];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(false)));
+    let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
     assert!(
         matches!(
             d,
@@ -140,77 +138,12 @@ fn role_deny_overrides_role_allow_in_multirole() {
 }
 
 #[test]
-fn role_allow_beats_department_deny() {
-    let e = entity();
-    let u = fixture_user_id();
-    let roles: Vec<String> = vec!["eng".into()];
-    let rules = vec![
-        rule(RuleType::Role, "eng", Access::Allow),
-        rule(RuleType::Department, "platform", Access::Deny),
-    ];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(false)));
-    assert_eq!(
-        d,
-        Decision::Allow {
-            matched_by: MatchedBy::RoleAllow { role: "eng".into() }
-        }
-    );
-}
-
-#[test]
-fn department_deny_when_no_role_match() {
-    let e = entity();
-    let u = fixture_user_id();
-    let roles: Vec<String> = vec!["eng".into()];
-    let rules = vec![rule(RuleType::Department, "platform", Access::Deny)];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(true)));
-    assert!(matches!(
-        d,
-        Decision::Deny {
-            reason: DenyReason::DepartmentDeny { ref department, .. }
-        } if department == "platform"
-    ));
-}
-
-#[test]
-fn department_allow_when_no_role_match() {
-    let e = entity();
-    let u = fixture_user_id();
-    let roles: Vec<String> = vec!["eng".into()];
-    let rules = vec![rule(RuleType::Department, "platform", Access::Allow)];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(false)));
-    assert_eq!(
-        d,
-        Decision::Allow {
-            matched_by: MatchedBy::DepartmentAllow {
-                department: "platform".into()
-            }
-        }
-    );
-}
-
-#[test]
-fn empty_department_does_not_match_dept_rules() {
-    let e = entity();
-    let u = fixture_user_id();
-    let roles: Vec<String> = vec!["eng".into()];
-    let rules = vec![rule(RuleType::Department, "", Access::Allow)];
-    let d = resolve(input(&e, &rules, &u, &roles, "", Some(false)));
-    assert!(matches!(
-        d,
-        Decision::Deny {
-            reason: DenyReason::NotAssigned { .. }
-        }
-    ));
-}
-
-#[test]
 fn no_match_with_default_off_denies_not_assigned() {
     let e = entity();
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![rule(RuleType::Role, "ops", Access::Allow)];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(false)));
+    let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
     assert!(matches!(
         d,
         Decision::Deny {
@@ -225,7 +158,7 @@ fn no_match_with_default_on_allows() {
     let u = fixture_user_id();
     let roles: Vec<String> = vec!["eng".into()];
     let rules = vec![rule(RuleType::Role, "ops", Access::Allow)];
-    let d = resolve(input(&e, &rules, &u, &roles, "platform", Some(true)));
+    let d = resolve(input(&e, &rules, &u, &roles, Some(true)));
     assert_eq!(
         d,
         Decision::Allow {
@@ -240,7 +173,7 @@ fn user_allow_alone_allows() {
     let u = fixture_user_id();
     let roles: Vec<String> = vec![];
     let rules = vec![rule(RuleType::User, "test-user", Access::Allow)];
-    let d = resolve(input(&e, &rules, &u, &roles, "", Some(false)));
+    let d = resolve(input(&e, &rules, &u, &roles, Some(false)));
     assert_eq!(
         d,
         Decision::Allow {

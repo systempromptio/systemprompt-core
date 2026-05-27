@@ -2,9 +2,9 @@
 //! [`build_authz_hook`] + supplied hook + `DbAuditSink` round-trip.
 //!
 //! Verifies that when `governance.authz.hook.mode = extension` and the
-//! caller supplies a hook, evaluating that hook (a) returns the
-//! extension-supplied decision and (b) lands an audit row in
-//! `governance_decisions` tagged with [`AuthzSource::ExtensionHook`].
+//! caller supplies a hook, evaluating the composed pipeline (a) lets the
+//! extension hook fire after the core RuleBasedHook allows the entity and
+//! (b) lands an audit row tagged with [`AuthzSource::ExtensionHook`].
 
 use std::sync::{Arc, Mutex};
 
@@ -32,14 +32,14 @@ fn extension_governance() -> GovernanceConfig {
     }
 }
 
-fn request_with_trace(trace: &str) -> AuthzRequest {
+fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
     AuthzRequest {
-        entity: EntityRef::GatewayRoute(RouteId::new("route-x")),
+        entity: EntityRef::GatewayRoute(RouteId::new(route)),
         user_id: fixture_user_id(),
         roles: vec!["eng".into()],
-        department: "platform".into(),
+        attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new(trace),
-        context: AuthzContext::None,
+        context: AuthzContext::none(),
         act_chain: Vec::new(),
     }
 }
@@ -74,6 +74,21 @@ async fn extension_hook_evaluated_and_audited() {
     let pool = fixture_db_pool(&url).await.expect("connect db");
     let write_pool = pool.write_pool_arc().expect("write pool");
 
+    let route = format!("route-{}", uuid::Uuid::new_v4());
+    // Why: the composite now runs RuleBasedHook ahead of the extension hook;
+    // it would deny unknown entities. Register a default-included catalog row
+    // so the extension hook receives the request.
+    sqlx::query(
+        "INSERT INTO access_control_entities (entity_type, entity_id, default_included, source) \
+         VALUES ($1, $2, true, $3) ON CONFLICT (entity_type, entity_id) DO NOTHING",
+    )
+    .bind("gateway_route")
+    .bind(&route)
+    .bind("test:extension_hook")
+    .execute(write_pool.as_ref())
+    .await
+    .expect("seed entity row");
+
     let sink: Arc<dyn AuthzAuditSink> = Arc::new(
         systemprompt_security::authz::DbAuditSink::new(
             systemprompt_security::authz::GovernanceDecisionRepository::from_pool(
@@ -92,7 +107,7 @@ async fn extension_hook_evaluated_and_audited() {
         .expect("bootstrap ok");
 
     let trace = format!("trace-{}", uuid::Uuid::new_v4());
-    let decision = built.evaluate(request_with_trace(&trace)).await;
+    let decision = built.evaluate(request_with_trace(&route, &trace)).await;
     assert_eq!(decision, AuthzDecision::Allow);
 
     let recorded = calls.lock().unwrap().clone();

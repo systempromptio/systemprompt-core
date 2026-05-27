@@ -18,9 +18,6 @@ pub enum MatchedBy {
     RoleAllow {
         role: String,
     },
-    DepartmentAllow {
-        department: String,
-    },
     /// No matching rule, but the entity's `default_included` flag was set.
     DefaultIncluded,
     /// Allowed by a named tool-use governance policy (secret scan, etc).
@@ -33,7 +30,7 @@ pub enum MatchedBy {
 /// Structured deny rationale.
 ///
 /// Variants cover both the user→entity resolver
-/// (`UserDeny`, `RoleDeny`, `DepartmentDeny`, `NotAssigned`, `UnknownEntity`),
+/// (`UserDeny`, `RoleDeny`, `NotAssigned`, `UnknownEntity`),
 /// the hook plane (`HookUnavailable`), and the tool-use governance chain
 /// (`SecretLeak`, `ScopeViolation`, `ToolBlocked`, `RateLimitExceeded`). The
 /// human-readable `#[error]` strings double as the `reason` column in the
@@ -52,13 +49,6 @@ pub enum DenyReason {
     RoleDeny {
         entity: EntityRef,
         role: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        justification: Option<String>,
-    },
-    #[error("department {department} denied for {entity}")]
-    DepartmentDeny {
-        entity: EntityRef,
-        department: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         justification: Option<String>,
     },

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.0] - 2026-05-27
+
+### Breaking
+
+- **`JwtClaims.department` and `AuthzRequest.department` removed; replaced by `attributes: BTreeMap<String, serde_json::Value>`.** The single tenant-axis string baked one deployment shape into core. Token issuers populate the bag with namespaced keys (`acme.desk`, `boeing.clearance`); extension hooks read `req.attributes.get("your.key")`. `AuthenticatedUser` loses `department` / `with_department` / `department()` and gains `attributes` / `with_attributes` / `attributes()`. `SessionParams.department: Option<String>` is replaced by `attributes: BTreeMap<...>`. `JwtUserContext` carries `attributes` so the gateway path forwards them onto every `AuthzRequest`. **Every JWT issued by a pre-0.12 build is incompatible with this release**: the claims schema has changed, so all outstanding access tokens, refresh tokens, and sessions must be re-issued — rotate signing keys or wait out existing token lifetimes before upgrading.
+- **`AuthzContext` enum replaced with `{ kind: Cow<'static, str>, payload: serde_json::Value }`.** Core mints three kinds — `"none"`, `"gateway.invocation"` (`{ "model": ... }`), `"mcp.tool_call"` (`{ "tool": ... }`) — via the new `AuthzContext::none()` / `gateway_invocation(&ModelId)` / `mcp_tool_call(&McpToolName)` constructors. Tenants add their own kinds with `AuthzContext::extension(kind, payload)`. Typed accessors `gateway_invocation_model()` / `mcp_tool_call_tool()` return `None` on kind mismatch. Pattern matches on the old enum variants no longer compile — switch to constructor calls and `kind` checks.
+- **`RuleType::Department`, `DenyReason::DepartmentDeny`, and `MatchedBy::DepartmentAllow` removed from the resolver.** `ResolveInput` drops its `department` field. `access_control_rules.rule_type` is narrowed to `('role','user')` via migration `008_drop_department_acl.sql`, which also deletes any existing `rule_type='department'` rows. Department-as-rule moves out of core — tenants that need attribute-based rules write a hook (or compose `RuleBasedHook` with their own).
+- **`AccessControlConfig.departments` and `RuleEntry.departments` removed.** The exported `DepartmentEntry` type is gone. YAML files that declared top-level `departments:` or per-rule `departments:` arrays must drop them before upgrading; `deny_unknown_fields` rejects either form. `IngestReport.departments_declared` is gone. `AccessControlRepository::list_role_department_rules_for_export` is renamed `list_role_rules_for_export`.
+
+### Added
+
+- **`RuleBasedHook` — the core RBAC resolver promoted to a first-class `AuthzDecisionHook`.** Wraps the sync `authz::resolver::resolve` so extension hooks can compose it explicitly via `CompositeAuthzHook`. Bootstrap composes `[RuleBasedHook, ...extensions]` automatically when a DB pool is available; `mode: webhook` composes `[RuleBasedHook, WebhookHook]`. The implicit "resolver runs before the hook" flow is gone — every decision is a hook now.
+- **`AuthzSource::RuleBased` audit-source variant** (`policy = "authz_rule_based"`) so `RuleBasedHook` decisions stay observable alongside webhook and extension rows in `governance_decisions`.
+- **`AuthzContext::extension(kind, payload)` constructor and `AuthzContext::{NONE_KIND, GATEWAY_INVOCATION_KIND, MCP_TOOL_CALL_KIND}` const literals** for tenants minting their own enforcement-site kinds.
+
 ## [0.11.3] - 2026-05-26
 
 ### Breaking

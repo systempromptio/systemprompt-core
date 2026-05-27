@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use systemprompt_identifiers::ClientId;
 use uuid::Uuid;
 
@@ -15,8 +16,11 @@ pub struct AuthenticatedUser {
     pub permissions: Vec<Permission>,
     #[serde(default)]
     pub roles: Vec<String>,
-    #[serde(default)]
-    pub department: Option<String>,
+    /// Opaque ABAC attribute bag forwarded into `JwtClaims.attributes` and
+    /// onward to `AuthzRequest.attributes`. Tenant-defined, namespaced
+    /// keys; core never interprets values.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub attributes: BTreeMap<String, serde_json::Value>,
 }
 
 impl AuthenticatedUser {
@@ -32,7 +36,7 @@ impl AuthenticatedUser {
             email,
             permissions,
             roles: Vec::new(),
-            department: None,
+            attributes: BTreeMap::new(),
         }
     }
 
@@ -49,19 +53,22 @@ impl AuthenticatedUser {
             email,
             permissions,
             roles,
-            department: None,
+            attributes: BTreeMap::new(),
         }
     }
 
     #[must_use]
-    pub fn with_department(mut self, department: Option<String>) -> Self {
-        self.department = department;
+    pub fn with_attributes(
+        mut self,
+        attributes: BTreeMap<String, serde_json::Value>,
+    ) -> Self {
+        self.attributes = attributes;
         self
     }
 
     #[must_use]
-    pub fn department(&self) -> Option<&str> {
-        self.department.as_deref()
+    pub fn attributes(&self) -> &BTreeMap<String, serde_json::Value> {
+        &self.attributes
     }
 
     pub fn has_permission(&self, permission: Permission) -> bool {

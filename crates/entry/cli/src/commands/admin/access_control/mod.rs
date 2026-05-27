@@ -10,8 +10,8 @@ use crate::shared::{CommandResult, render_result};
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AccessControlCommands {
     #[command(
-        about = "Print current role/department rules as a YAML snippet for promotion to the \
-                 committed baseline"
+        about = "Print current role rules as a YAML snippet for promotion to the committed \
+                 baseline"
     )]
     ExportYaml(ExportYamlArgs),
 

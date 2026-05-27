@@ -40,7 +40,7 @@ impl AuthzAuditSink for DbAuditSink {
             "entity_id": entity_id,
             "trace_id": req.trace_id.as_str(),
             "roles": req.roles,
-            "department": req.department,
+            "attributes": req.attributes,
             "context": req.context,
             "source": format!("{:?}", source),
         });

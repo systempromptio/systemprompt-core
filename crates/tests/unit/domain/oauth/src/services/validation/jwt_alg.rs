@@ -21,7 +21,7 @@ fn sample_claims() -> JwtClaims {
         email: "u@example.com".to_string(),
         user_type: UserType::User,
         roles: vec!["user".to_string()],
-        department: None,
+        attributes: std::collections::BTreeMap::new(),
         client_id: Some(ClientId::new("c")),
         token_type: TokenType::Bearer,
         auth_time: now.timestamp(),

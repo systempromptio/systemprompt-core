@@ -5,24 +5,14 @@
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_security::authz::types::{Access, Decision, EntityKind, EntityRef};
 use systemprompt_security::authz::{
-    AccessControlConfig, AccessControlIngestionService, AccessControlRepository, DepartmentEntry,
-    IngestOptions, ResolveInput, RuleEntry, resolve,
+    AccessControlConfig, AccessControlIngestionService, AccessControlRepository, IngestOptions,
+    ResolveInput, RuleEntry, resolve,
 };
 
 use crate::support::{try_db, wipe_rules};
 
-fn yaml_with(rules: Vec<RuleEntry>, depts: Vec<&str>) -> AccessControlConfig {
-    AccessControlConfig {
-        departments: depts
-            .into_iter()
-            .map(|n| DepartmentEntry {
-                name: n.to_owned(),
-                description: None,
-                manager_email: None,
-            })
-            .collect(),
-        rules,
-    }
+fn yaml_with(rules: Vec<RuleEntry>) -> AccessControlConfig {
+    AccessControlConfig { rules }
 }
 
 #[tokio::test]
@@ -34,27 +24,22 @@ async fn role_deny_overrides_role_allow_for_same_subject() {
     let entity_id = "sync-it-deny-vs-allow";
     wipe_rules(&db, EntityKind::McpServer.as_str(), entity_id).await;
 
-    let cfg = yaml_with(
-        vec![
-            RuleEntry {
-                entity_type: EntityKind::McpServer,
-                entity_id: entity_id.to_owned(),
-                access: Access::Allow,
-                roles: vec!["engineer".to_owned()],
-                departments: vec![],
-                justification: None,
-            },
-            RuleEntry {
-                entity_type: EntityKind::McpServer,
-                entity_id: entity_id.to_owned(),
-                access: Access::Deny,
-                roles: vec!["engineer".to_owned()],
-                departments: vec![],
-                justification: Some("emergency lockout".to_owned()),
-            },
-        ],
-        vec![],
-    );
+    let cfg = yaml_with(vec![
+        RuleEntry {
+            entity_type: EntityKind::McpServer,
+            entity_id: entity_id.to_owned(),
+            access: Access::Allow,
+            roles: vec!["engineer".to_owned()],
+            justification: None,
+        },
+        RuleEntry {
+            entity_type: EntityKind::McpServer,
+            entity_id: entity_id.to_owned(),
+            access: Access::Deny,
+            roles: vec!["engineer".to_owned()],
+            justification: Some("emergency lockout".to_owned()),
+        },
+    ]);
 
     AccessControlIngestionService::new(&db)
         .expect("svc")
@@ -80,7 +65,6 @@ async fn role_deny_overrides_role_allow_for_same_subject() {
         rules: &rules,
         user_id: &UserId::new("user-1"),
         user_roles: &["engineer".to_owned()],
-        department: "",
         default_included: Some(false),
     });
     assert!(
@@ -100,17 +84,13 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
     let entity_id = "sync-it-user-vs-role";
     wipe_rules(&db, EntityKind::McpServer.as_str(), entity_id).await;
 
-    let cfg = yaml_with(
-        vec![RuleEntry {
-            entity_type: EntityKind::McpServer,
-            entity_id: entity_id.to_owned(),
-            access: Access::Allow,
-            roles: vec!["admin".to_owned()],
-            departments: vec![],
-            justification: None,
-        }],
-        vec![],
-    );
+    let cfg = yaml_with(vec![RuleEntry {
+        entity_type: EntityKind::McpServer,
+        entity_id: entity_id.to_owned(),
+        access: Access::Allow,
+        roles: vec!["admin".to_owned()],
+        justification: None,
+    }]);
     AccessControlIngestionService::new(&db)
         .expect("svc")
         .ingest_config(
@@ -148,7 +128,6 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
         rules: &rules,
         user_id: &UserId::new("banned-user"),
         user_roles: &["admin".to_owned()],
-        department: "",
         default_included: Some(false),
     });
     assert!(
@@ -161,11 +140,7 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
 
 /// Deny-overrides at resolve time: when both an Allow and a Deny rule
 /// persist for the same user against the same entity, Deny must win
-/// regardless of the order they appear in `rules`. (Uses pre-built
-/// `AccessRule` vectors rather than YAML ingestion, since the two-table
-/// ACL schema collapses same-(entity, rule_type, rule_value) entries via
-/// upsert — only the last write survives, which is the documented
-/// ingestion semantic, not a resolver concern.)
+/// regardless of the order they appear in `rules`.
 #[tokio::test]
 async fn deny_overrides_at_resolve_regardless_of_rule_order() {
     use systemprompt_security::authz::types::{AccessRule, RuleType};
@@ -198,7 +173,6 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
         rules: &allow_first,
         user_id: &user,
         user_roles: &roles,
-        department: "",
         default_included: Some(false),
     });
     let decision_b = resolve(ResolveInput {
@@ -206,7 +180,6 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
         rules: &deny_first,
         user_id: &user,
         user_roles: &roles,
-        department: "",
         default_included: Some(false),
     });
     assert!(
@@ -239,7 +212,6 @@ async fn yaml_rule_ordering_does_not_change_decision() {
             entity_id: id.to_owned(),
             access: Access::Allow,
             roles: vec!["dev".to_owned()],
-            departments: vec![],
             justification: None,
         };
         let deny = RuleEntry {
@@ -247,17 +219,13 @@ async fn yaml_rule_ordering_does_not_change_decision() {
             entity_id: id.to_owned(),
             access: Access::Deny,
             roles: vec!["dev".to_owned()],
-            departments: vec![],
             justification: None,
         };
-        yaml_with(
-            if allow_first {
-                vec![allow, deny]
-            } else {
-                vec![deny, allow]
-            },
-            vec![],
-        )
+        yaml_with(if allow_first {
+            vec![allow, deny]
+        } else {
+            vec![deny, allow]
+        })
     };
 
     let svc = AccessControlIngestionService::new(&db).expect("svc");
@@ -299,7 +267,6 @@ async fn yaml_rule_ordering_does_not_change_decision() {
         rules: &rules_a,
         user_id: &user,
         user_roles: &roles,
-        department: "",
         default_included: Some(false),
     });
     let decision_b = resolve(ResolveInput {
@@ -307,7 +274,6 @@ async fn yaml_rule_ordering_does_not_change_decision() {
         rules: &rules_b,
         user_id: &user,
         user_roles: &roles,
-        department: "",
         default_included: Some(false),
     });
     assert!(

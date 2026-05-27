@@ -2,6 +2,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{
@@ -68,23 +69,10 @@ pub(super) async fn extract_request_context(
     let header_gateway_conversation = optional_gateway_conversation_id(request.headers())?;
 
     let principal = authenticate(&presented, rc.jwt_extractor, rc.ctx).await?;
-    partial.user_id = Some(principal.user_id.clone());
-    partial.trace_id.clone_from(&principal.trace_id);
+    partial.user_id = Some(principal.user_id().clone());
+    partial.trace_id = Some(principal.trace_id().clone());
 
-    if let Some(ref jwt_session) = principal.jwt_session_id
-        && jwt_session.as_str() != session_id.as_str()
-    {
-        tracing::warn!(
-            header_session = %session_id.as_str(),
-            jwt_session = %jwt_session.as_str(),
-            user_id = %principal.user_id,
-            "X-Session-ID header does not match bearer JWT session_id; rejecting"
-        );
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            "X-Session-ID does not match authenticated session".to_owned(),
-        ));
-    }
+    principal.enforce_session_binding(&session_id)?;
 
     let (body_bytes, gateway_request) = read_gateway_body(inbound, request, partial).await?;
 
@@ -222,15 +210,12 @@ async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
-/// Assemble the gateway-side [`AuthzRequest`] from the authenticated principal,
-/// the matched gateway route, and the resolved model identifier.
-///
 /// Public so unit tests can lock in the JWT-claims forwarding contract
 /// without invoking the wider dispatch path.
 pub fn build_gateway_authz_request(
     user_id: UserId,
     roles: Vec<String>,
-    department: String,
+    attributes: BTreeMap<String, serde_json::Value>,
     act_chain: Vec<Actor>,
     trace_id: TraceId,
     route_id: RouteId,
@@ -240,9 +225,9 @@ pub fn build_gateway_authz_request(
         entity: EntityRef::GatewayRoute(route_id),
         user_id,
         roles,
-        department,
+        attributes,
         trace_id,
-        context: AuthzContext::GatewayInvocation { model },
+        context: AuthzContext::gateway_invocation(&model),
         act_chain,
     }
 }
@@ -261,12 +246,13 @@ async fn enforce_authz_pre_dispatch(
     } else {
         route.id.clone()
     };
+    let (roles, attributes, act_chain) = principal.authz_attributes();
     let req = build_gateway_authz_request(
-        principal.user_id.clone(),
-        principal.roles.clone(),
-        principal.department.clone(),
-        principal.act_chain.clone(),
-        principal.trace_id.clone().unwrap_or_else(TraceId::generate),
+        principal.user_id().clone(),
+        roles,
+        attributes,
+        act_chain,
+        principal.trace_id().clone(),
         route_id,
         ModelId::new(model),
     );

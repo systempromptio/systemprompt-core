@@ -9,6 +9,7 @@
 //! session validation.
 
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
+use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
 use systemprompt_models::auth::{JwtClaims, Permission, UserType};
 
@@ -23,6 +24,7 @@ pub struct JwtUserContext {
     pub user_type: UserType,
     pub client_id: Option<ClientId>,
     pub act_chain: Vec<Actor>,
+    pub attributes: BTreeMap<String, serde_json::Value>,
     pub jti: String,
     pub exp: i64,
 }
@@ -67,6 +69,7 @@ pub fn extract_user_context(token: &str) -> AuthResult<JwtUserContext> {
         user_type: derived_type,
         client_id: claims.client_id,
         act_chain,
+        attributes: claims.attributes,
         jti: claims.jti,
         exp: claims.exp,
     })
