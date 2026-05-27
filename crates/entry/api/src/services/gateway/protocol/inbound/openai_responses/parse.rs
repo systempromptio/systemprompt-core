@@ -9,7 +9,13 @@ use super::super::InboundParseError;
 
 const DEFAULT_MAX_OUTPUT_TOKENS: u32 = 4096;
 
-#[cfg_attr(not(feature = "test-api"), expect(unreachable_pub, reason = "items are re-exported via `test_api` only when the feature is on"))]
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")

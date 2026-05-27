@@ -7,7 +7,13 @@ use super::super::super::canonical::{
 };
 use super::super::super::inbound::anthropic_messages::content_to_anthropic_block;
 
-#[cfg_attr(not(feature = "test-api"), expect(unreachable_pub, reason = "items are re-exported via `test_api` only when the feature is on"))]
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
     let messages: Vec<Value> = request
         .messages

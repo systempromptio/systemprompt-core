@@ -7,7 +7,13 @@ use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
-#[cfg_attr(not(feature = "test-api"), expect(unreachable_pub, reason = "items are re-exported via `test_api` only when the feature is on"))]
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 pub fn sse_to_canonical_events<S>(
     stream: S,
 ) -> futures_util::stream::BoxStream<'static, Result<CanonicalEvent, String>>
