@@ -54,6 +54,12 @@ impl Fixture {
             .execute(&pool)
             .await?;
 
+        sqlx::query("INSERT INTO user_sessions (session_id, user_id) VALUES ($1, $2)")
+            .bind(session_id.as_str())
+            .bind(user_id.as_str())
+            .execute(&pool)
+            .await?;
+
         sqlx::query("INSERT INTO user_contexts (context_id, user_id, name) VALUES ($1, $2, $3)")
             .bind(context_id.as_str())
             .bind(user_id.as_str())

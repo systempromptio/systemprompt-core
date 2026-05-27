@@ -50,7 +50,7 @@ async fn conversation_service_debug_impl() -> Result<()> {
 async fn conversation_service_with_persisted_messages_returns_history() -> Result<()> {
     use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
     use systemprompt_agent::services::{MessageService, PersistMessagesParams};
-    use systemprompt_identifiers::{MessageId, TaskId};
+    use systemprompt_identifiers::MessageId;
     use systemprompt_models::a2a::TaskState;
 
     let fx = Fixture::new().await?;

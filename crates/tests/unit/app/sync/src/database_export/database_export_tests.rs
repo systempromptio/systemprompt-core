@@ -1,7 +1,7 @@
 //! Tests for DatabaseExport struct
 
 use chrono::{TimeZone, Utc};
-use systemprompt_identifiers::{ContextId, UserId};
+use systemprompt_identifiers::ContextId;
 use systemprompt_sync::{ContextExport, DatabaseExport};
 use systemprompt_test_fixtures::fixture_user_id;
 

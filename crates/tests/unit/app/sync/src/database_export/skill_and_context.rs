@@ -1,7 +1,7 @@
 //! Tests for ContextExport.
 
 use chrono::Utc;
-use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_sync::ContextExport;
 use systemprompt_test_fixtures::fixture_user_id;
 

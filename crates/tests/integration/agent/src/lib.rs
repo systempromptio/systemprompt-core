@@ -60,3 +60,6 @@ mod agent_database_service_e2e;
 
 #[cfg(test)]
 mod agent_monitor_e2e;
+
+#[cfg(test)]
+mod task_helper_tests;
