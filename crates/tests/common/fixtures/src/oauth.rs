@@ -12,6 +12,7 @@ use sha2::{Digest, Sha256};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
+use systemprompt_oauth::services::hash_client_secret;
 use uuid::Uuid;
 
 /// Test-known plaintext client secret. The repository stores its hash; tests
@@ -33,11 +34,10 @@ pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthC
     let repo = ClientRepository::new(pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
     let client_id = ClientId::new(format!("test-client-{}", Uuid::new_v4().simple()));
 
-    // Hash the secret as the repo expects; the repo verifies plaintext against
-    // this hash on `/token`.
-    let mut hasher = Sha256::new();
-    hasher.update(TEST_CLIENT_SECRET.as_bytes());
-    let client_secret_hash = format!("{:x}", hasher.finalize());
+    // Hash the secret with bcrypt — the same primitive the `/token` handler
+    // calls via `verify_client_secret` when checking the supplied secret.
+    let client_secret_hash = hash_client_secret(TEST_CLIENT_SECRET)
+        .map_err(|e| anyhow::anyhow!("hash client secret: {e}"))?;
 
     repo.create(CreateClientParams {
         client_id: client_id.clone(),
