@@ -28,3 +28,5 @@ rmcp = { workspace = true }
 async-trait = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
+wiremock = { workspace = true }
+futures = { workspace = true }
