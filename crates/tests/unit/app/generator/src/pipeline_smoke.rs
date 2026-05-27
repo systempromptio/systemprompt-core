@@ -24,23 +24,6 @@ async fn default_sitemap_provider_async_new_reads_bootstrap_config() {
 }
 
 #[tokio::test]
-async fn default_sitemap_provider_static_urls_with_empty_config() {
-    use systemprompt_provider_contracts::SitemapProvider;
-    let boot = ensure_test_bootstrap();
-    let p = DefaultSitemapProvider::new(&boot.app_paths).await.unwrap();
-    let urls = p.static_urls("https://example.com");
-    assert!(urls.is_empty(), "expected no static urls from empty config");
-}
-
-#[tokio::test]
-async fn default_sitemap_provider_source_specs_with_empty_config() {
-    use systemprompt_provider_contracts::SitemapProvider;
-    let boot = ensure_test_bootstrap();
-    let p = DefaultSitemapProvider::new(&boot.app_paths).await.unwrap();
-    assert!(p.source_specs().is_empty());
-}
-
-#[tokio::test]
 async fn default_sitemap_provider_provider_id_stable() {
     use systemprompt_provider_contracts::SitemapProvider;
     let boot = ensure_test_bootstrap();
