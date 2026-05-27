@@ -1,7 +1,6 @@
 # AI Crate Test Coverage Status
 
-**Last Updated:** 2026-01-22
-**Total Tests:** 638
+**Last Updated:** 2026-05-27 (per-module list below remains the structural map; the authoritative current test count is `cargo test -p systemprompt-ai-tests --list | grep -c 'test '`, and per-line coverage lives in the workspace LCOV roll-up produced by `just coverage`)
 
 ## Module Coverage Summary
 

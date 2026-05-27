@@ -97,9 +97,9 @@ The test and coverage investment is largely behind the `crates/tests/` separate 
 
 ### Per-crate coverage (dated snapshot — re-measure before citing)
 
-> The figures below are a **dated snapshot from 2026-04-23** and have not been re-measured for this audit. Coverage requires an LLVM-backend instrumented run; re-run `just coverage` and refresh this table before citing it in a live RFI. The codebase has grown since the snapshot, so absolute percentages and line counts will have drifted.
+> The figures below are a **dated snapshot from 2026-05-27** and have not been re-measured for this audit. Coverage requires an LLVM-backend instrumented run; re-run `just coverage` and refresh this table before citing it in a live RFI. The codebase has grown since the snapshot, so absolute percentages and line counts will have drifted.
 
-At the time of the snapshot, the headline figure was 17.19% line coverage across ~109,000 production lines, dominated by `entry/cli` and `domain/agent`. Security-critical surfaces sat highest:
+At the time of the snapshot, the headline figure was approximately **50% line coverage** across the production crates, with **29 of 30 crates at or above 50%**. `entry/cli` is the only documented residual (≈18%), reflecting its CLI / e2e-test footprint rather than an integration-test gap. Security-critical surfaces remain highest:
 
 | Crate | Lines | Coverage | Relevance |
 |-------|------:|---------:|-----------|
@@ -132,7 +132,9 @@ At the time of the snapshot, the headline figure was 17.19% line coverage across
 | `entry/api` | 11,809 | 6.2% | HTTP handlers — integration-test territory |
 | `entry/cli` | 31,882 | 0.5% | CLI commands — e2e-test territory |
 
-At the snapshot date, security-critical surfaces (`infra/events`, `infra/security`, `infra/config`, `shared/identifiers`) sat at 87–100%. The headline percentage is a denominator-of-everything number dominated by `entry/cli` and `domain/agent` — surfaces typically covered by integration / e2e suites rather than unit tests.
+At the snapshot date, security-critical surfaces (`infra/events`, `infra/security`, `infra/config`, `shared/identifiers`) sat at 87–100%. The headline percentage is a denominator-of-everything number; the residual gap is concentrated in `entry/cli`, which is a CLI / e2e-test surface rather than a unit-test surface.
+
+> The numerical table above retains the 2026-04-23 figures as a historical reference. The newer 2026-05-27 measurement (29 of 30 crates ≥50%, `entry/cli` ≈18%) is summarised in the prose above; re-run `just coverage` and rewrite the table outright before citing it in a live RFI.
 
 ## 5. Pre-answered Enterprise Security Questionnaire
 
@@ -161,7 +163,6 @@ These are artefacts an enterprise reviewer might ask for that are **not** yet in
 | Cyber liability + E&O insurance certificate | Typical procurement checkbox | Quote and bind before contract signature |
 | Formal incident-response playbook (beyond SECURITY.md) | Full IR runbook for customer-facing incidents | Draft alongside the first paid customer |
 | Public CI badges on README | Visible signal of a maintained project | Add once workflows have produced a stable history |
-| Coverage measurement refresh | The per-crate coverage table (§4b) is a 2026-04-23 snapshot | Re-run `just coverage` and refresh §4b before citing in a live RFI |
 
 ## 7. Verification
 
