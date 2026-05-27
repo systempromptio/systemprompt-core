@@ -2,8 +2,8 @@
 
 Snapshot of the codebase's RFI / enterprise-security review posture. Every item below reflects the state of `main` at the audit date; re-run the verification column to refresh.
 
-**Audit date:** 2026-05-22
-**Snapshot:** `main`, workspace version 0.11.1.
+**Audit date:** 2026-05-27
+**Snapshot:** `main`, workspace version 0.12.0.
 
 ## 1. Documentation Artefacts
 
@@ -187,3 +187,4 @@ All commands should complete without errors on a clean checkout.
 | 2026-04-23 | Initial audit following an enterprise RFI inbound. 37 Dependabot advisories resolved to 1 LOW documented ignore; public evaluation pack shipped. |
 | 2026-05-22 | Fidelity pass against `main` (0.11.1). Corrected the RUSTSEC-2023-0071 rationale to the real RS256-only mitigations (no ES/EdDSA path exists; the exploitable surface is RSA decryption, not the signature-verification path exercised here). Corrected the test-workspace figure to 52 workspace members and flagged the per-crate coverage table as a dated snapshot to re-measure. Repointed the secrets-bootstrap citation to `crates/infra/config/src/bootstrap/secrets/`. Noted `validate_aud=false` as a tracked open item and that the audit-table grant is operator-provisioned. |
 | 2026-05-22 | `release-sign.yml` now exists and signs the bridge binary (Sigstore `cosign` keyless, `bridge-v*` tags) — recorded it in the CI table and reframed the gap as core-platform release signing. SBOM (`sbom.yml`) and CodeQL remain not authored. |
+| 2026-05-27 | Re-pinned snapshot to 0.12.0. Authz surface refactored: `JwtClaims.department` / `AuthzRequest.department` replaced by an `attributes: BTreeMap<String, serde_json::Value>` bag (token issuers namespace their own keys); `AuthzContext` enum replaced with `{ kind, payload }`; `RuleType::Department` removed and migration `008_drop_department_acl.sql` narrows `access_control_rules.rule_type` to `('role','user')`; core RBAC resolver promoted to a first-class `RuleBasedHook` so every decision flows through the `AuthzDecisionHook` pipeline. All pre-0.12 JWTs are incompatible — rotate signing keys or wait out existing token lifetimes before upgrading. |
