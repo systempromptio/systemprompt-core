@@ -12,6 +12,7 @@ mod network;
 mod network_proxy;
 mod orchestrator;
 mod orchestrator_handlers;
+mod orchestrator_extended;
 mod orchestrator_smoke;
 mod process;
 mod process_spawner;
