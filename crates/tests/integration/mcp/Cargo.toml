@@ -12,7 +12,12 @@ workspace = true
 
 [dependencies]
 systemprompt-mcp = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+rmcp = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true }

@@ -36,3 +36,5 @@ mod stale_pid_cleanup;
 mod startup_failure;
 #[cfg(test)]
 mod zombie_cleanup;
+#[cfg(test)]
+mod session_handler;
