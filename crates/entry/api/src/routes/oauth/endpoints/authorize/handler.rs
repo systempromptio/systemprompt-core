@@ -9,15 +9,13 @@ use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::StateBindingParams;
+use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
 use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::validation::CsrfToken;
 use tracing::instrument;
 
-// Only same-origin, CR/LF-free absolute paths are accepted; everything else
-// (including opaque CSRF tokens used by external OAuth clients) collapses to
-// "/" so the callback never trusts an attacker-controlled return target.
-fn derive_return_to(client_state: &str) -> String {
+// Rejects open-redirect inputs: only same-origin, CR/LF-free absolute paths.
+fn same_origin_return_path(client_state: &str) -> Option<String> {
     let raw = client_state.trim();
     if raw.is_empty()
         || !raw.starts_with('/')
@@ -26,9 +24,27 @@ fn derive_return_to(client_state: &str) -> String {
         || raw.contains('\n')
         || raw.contains('\r')
     {
-        return "/".to_owned();
+        return None;
     }
-    raw.to_owned()
+    Some(raw.to_owned())
+}
+
+async fn issue_server_state(
+    repo: &OAuthRepository,
+    return_to: &str,
+    params: &AuthorizeQuery,
+) -> Result<String, OAuthHttpError> {
+    let server_state = generate_secure_token("state");
+    let binding = StateBindingParams::builder(&server_state)
+        .with_return_to(return_to)
+        .with_client_id(params.client_id.as_str())
+        .with_redirect_uri(params.redirect_uri.as_deref().unwrap_or(""))
+        .build();
+    repo.store_state_binding(binding).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to persist OAuth state binding");
+        OAuthHttpError::server_error("Failed to persist authorization state")
+    })?;
+    Ok(server_state)
 }
 
 fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHttpError {
@@ -94,23 +110,13 @@ pub async fn handle_authorize_get(
                 "Authorization request validated"
             );
 
-            let server_state = generate_secure_token("state");
-            let return_to = derive_return_to(csrf_token.as_str());
-            let client_id_str = params.client_id.as_str();
-            let redirect_uri_str = params.redirect_uri.as_deref().unwrap_or("");
-            let binding = StateBindingParams::builder(&server_state)
-                .with_return_to(&return_to)
-                .with_client_id(client_id_str)
-                .with_redirect_uri(redirect_uri_str)
-                .build();
-            repo.store_state_binding(binding).await.map_err(|e| {
-                tracing::error!(error = %e, "Failed to persist OAuth state binding");
-                OAuthHttpError::server_error("Failed to persist authorization state")
-            })?;
-
-            let mut bound_params = params.clone();
-            bound_params.state = Some(server_state);
-            let webauthn_form = generate_webauthn_form(&bound_params, &resolved_scope);
+            let form_state = match same_origin_return_path(csrf_token.as_str()) {
+                Some(return_to) => issue_server_state(&repo, &return_to, &params).await?,
+                None => csrf_token.as_str().to_owned(),
+            };
+            let mut form_params = params.clone();
+            form_params.state = Some(form_state);
+            let webauthn_form = generate_webauthn_form(&form_params, &resolved_scope);
             Ok(Html(webauthn_form).into_response())
         },
         Err(error) => {

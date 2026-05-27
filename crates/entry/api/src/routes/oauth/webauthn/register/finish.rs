@@ -53,6 +53,7 @@ impl FinishRegisterRequest {
 pub(super) struct FinishRegisterResponse {
     pub user_id: UserId,
     pub success: bool,
+    pub auth_token: Option<String>,
 }
 
 #[instrument(skip(state, oauth_repo, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
@@ -95,11 +96,17 @@ pub async fn finish_register(
         migrate_session_user(&state, session_id_str, &user_id).await;
     }
 
+    let auth_token = systemprompt_oauth::services::generate_secure_token("webauthn_verified");
+    webauthn_service
+        .store_verified_authentication(auth_token.clone(), user_id.clone())
+        .await;
+
     Ok((
         StatusCode::OK,
         Json(FinishRegisterResponse {
             user_id,
             success: true,
+            auth_token: Some(auth_token),
         }),
     )
         .into_response())

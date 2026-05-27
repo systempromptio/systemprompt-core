@@ -6,7 +6,8 @@
 
 - `systemprompt_api::services::server::metrics::install_recorder` now caches the `PrometheusHandle` in a process-wide `OnceLock`. Repeated calls in the same process (e.g. multiple `setup_api_server` calls in one test binary) return a clone of the existing handle instead of erroring with "attempted to set a recorder after the metrics system was already initialized".
 - `POST /oauth/register` accepts unauthenticated requests, per RFC 7591 §3. Newly registered clients are owned by the requesting anonymous session's user. The RFC 7592 management routes at `/oauth/register/{client_id}` continue to require authentication.
-- `/oauth/authorize` no longer rejects RFC 8707 `resource` parameters that point at private or loopback hosts. The resource indicator identifies the protected resource and is not dereferenced by the authorization server, so an SSRF guard does not apply. Scheme and fragment validation are retained.
+- `GET /oauth/webauthn/complete` receives the one-time `auth_token` minted by `/oauth/webauthn/auth/finish` and `/oauth/webauthn/register/finish`. The bundled WebAuthn template forwards the token on both flows, and the registration finish handler now mints one alongside the authentication finish handler.
+- `/oauth/authorize` echoes the client's `state` parameter back to the registered `redirect_uri` verbatim, per RFC 6749 §10.12. Server-side state binding remains active for the integrated admin-login flow whose state is a same-origin return path.
 
 ## [0.12.0] - 2026-05-27
 

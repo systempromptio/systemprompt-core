@@ -501,6 +501,7 @@
                 // Complete OAuth flow - use user_id from registration
                 const completeParams = new URLSearchParams();
                 completeParams.append('user_id', finishResponse.data.user_id);
+                if (finishResponse.data.auth_token) completeParams.append('auth_token', finishResponse.data.auth_token);
 
                 // Pass through OAuth parameters individually
                 if (oauthState.response_type) completeParams.append('response_type', oauthState.response_type);
@@ -589,6 +590,7 @@
                 // Redirect to WebAuthn completion endpoint with OAuth parameters
                 const completeParams = new URLSearchParams();
                 completeParams.append('user_id', finishResponse.data.user_id);
+                if (finishResponse.data.auth_token) completeParams.append('auth_token', finishResponse.data.auth_token);
 
                 // Pass through OAuth parameters individually
                 if (oauthState.response_type) completeParams.append('response_type', oauthState.response_type);
