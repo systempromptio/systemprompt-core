@@ -5,6 +5,7 @@
 ### Fixed
 
 - `systemprompt_api::services::server::metrics::install_recorder` now caches the `PrometheusHandle` in a process-wide `OnceLock`. Repeated calls in the same process (e.g. multiple `setup_api_server` calls in one test binary) return a clone of the existing handle instead of erroring with "attempted to set a recorder after the metrics system was already initialized".
+- `POST /oauth/register` accepts unauthenticated requests, per RFC 7591 §3. Newly registered clients are owned by the requesting anonymous session's user. The RFC 7592 management routes at `/oauth/register/{client_id}` continue to require authentication.
 
 ## [0.12.0] - 2026-05-27
 
