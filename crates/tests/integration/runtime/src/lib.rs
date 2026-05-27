@@ -18,3 +18,5 @@ mod validate_database_path;
 mod validator;
 #[cfg(test)]
 mod app_context_traits;
+#[cfg(test)]
+mod bootstrap_fixture;
