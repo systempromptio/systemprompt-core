@@ -7,7 +7,7 @@ use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
-pub(super) fn sse_to_canonical_events<S>(
+pub fn sse_to_canonical_events<S>(
     stream: S,
 ) -> futures_util::stream::BoxStream<'static, Result<CanonicalEvent, String>>
 where

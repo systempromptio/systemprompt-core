@@ -45,7 +45,11 @@ pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthC
         client_secret_hash,
         client_name: "test-client".to_owned(),
         redirect_uris: vec![TEST_REDIRECT_URI.to_owned()],
-        grant_types: Some(vec!["authorization_code".to_owned(), "refresh_token".to_owned()]),
+        grant_types: Some(vec![
+            "authorization_code".to_owned(),
+            "refresh_token".to_owned(),
+            "client_credentials".to_owned(),
+        ]),
         response_types: Some(vec!["code".to_owned()]),
         scopes: vec!["openid".to_owned(), "profile".to_owned()],
         token_endpoint_auth_method: Some("client_secret_basic".to_owned()),

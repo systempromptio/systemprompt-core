@@ -7,7 +7,7 @@ use super::super::super::canonical_response::{
     CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 
-pub(super) fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
+pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
     let id = value
         .get("id")
         .and_then(Value::as_str)

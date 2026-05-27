@@ -7,7 +7,7 @@ use super::super::super::canonical::{
 };
 use super::super::super::inbound::anthropic_messages::content_to_anthropic_block;
 
-pub(super) fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
+pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
     let messages: Vec<Value> = request
         .messages
         .iter()

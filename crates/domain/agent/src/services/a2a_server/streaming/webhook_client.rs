@@ -1,3 +1,16 @@
+//! Webhook delivery for AGUI and A2A streaming events.
+//!
+//! The free [`broadcast_agui_event`] / [`broadcast_a2a_event`] entry points
+//! dispatch through a globally installed [`WebhookBroadcaster`]. Production
+//! installs nothing and gets the default [`HttpWebhookBroadcaster`]; tests
+//! call [`install_for_test`] with a recording fake. The indirection lets
+//! the deep callers in `event_loop`, `complete_handler`, `message_handler`,
+//! and `skills` stay as free-function calls while the harness still swaps
+//! the network for a deterministic spy.
+
+use std::sync::{Arc, OnceLock};
+
+use async_trait::async_trait;
 use reqwest::Client;
 use serde::Serialize;
 use systemprompt_identifiers::UserId;
@@ -9,6 +22,26 @@ pub enum WebhookError {
     Request(#[from] reqwest::Error),
     #[error("Webhook returned error status {status}: {message}")]
     StatusError { status: u16, message: String },
+}
+
+/// Pluggable transport for AGUI / A2A webhook delivery. Production wires the
+/// `HttpWebhookBroadcaster`; tests install a recording fake via
+/// [`install_for_test`].
+#[async_trait]
+pub trait WebhookBroadcaster: Send + Sync + std::fmt::Debug {
+    async fn broadcast_agui(
+        &self,
+        user_id: &UserId,
+        event: AgUiEvent,
+        auth_token: &str,
+    ) -> Result<usize, WebhookError>;
+
+    async fn broadcast_a2a(
+        &self,
+        user_id: &UserId,
+        event: A2AEvent,
+        auth_token: &str,
+    ) -> Result<usize, WebhookError>;
 }
 
 #[derive(Serialize)]
@@ -32,84 +65,131 @@ fn get_api_url() -> String {
     )
 }
 
+/// Default broadcaster: POSTs JSON to the in-tenant API webhook endpoints.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HttpWebhookBroadcaster;
+
+#[async_trait]
+impl WebhookBroadcaster for HttpWebhookBroadcaster {
+    async fn broadcast_agui(
+        &self,
+        user_id: &UserId,
+        event: AgUiEvent,
+        auth_token: &str,
+    ) -> Result<usize, WebhookError> {
+        let url = format!("{}/api/v1/webhook/agui", get_api_url());
+        let event_type = event.event_type();
+        if auth_token.is_empty() {
+            tracing::warn!(
+                event_type = ?event_type,
+                user_id = %user_id,
+                "AGUI broadcast with empty auth_token"
+            );
+        }
+        let payload = AgUiWebhookPayload {
+            event,
+            user_id: user_id.clone(),
+        };
+        post_and_decode(&url, auth_token, &payload, "AGUI").await
+    }
+
+    async fn broadcast_a2a(
+        &self,
+        user_id: &UserId,
+        event: A2AEvent,
+        auth_token: &str,
+    ) -> Result<usize, WebhookError> {
+        let url = format!("{}/api/v1/webhook/a2a", get_api_url());
+        let payload = A2AWebhookPayload {
+            event,
+            user_id: user_id.clone(),
+        };
+        post_and_decode(&url, auth_token, &payload, "A2A").await
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct WebhookResponse {
+    connection_count: usize,
+}
+
+async fn post_and_decode<T: Serialize + Sync + ?Sized>(
+    url: &str,
+    auth_token: &str,
+    payload: &T,
+    kind: &str,
+) -> Result<usize, WebhookError> {
+    let client = Client::new();
+    let response = client
+        .post(url)
+        .header("Authorization", format!("Bearer {auth_token}"))
+        .header("Content-Type", "application/json")
+        .json(payload)
+        .send()
+        .await;
+    match response {
+        Ok(resp) if resp.status().is_success() => match resp.json::<WebhookResponse>().await {
+            Ok(r) => {
+                tracing::debug!(
+                    kind = kind,
+                    connection_count = r.connection_count,
+                    "broadcasted"
+                );
+                Ok(r.connection_count)
+            },
+            Err(e) => {
+                tracing::error!(kind = kind, error = %e, "response parse error");
+                Err(WebhookError::Request(e))
+            },
+        },
+        Ok(resp) => {
+            let status = resp.status().as_u16();
+            let message = resp
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<error reading response: {e}>"));
+            tracing::error!(kind = kind, status, message = %message, "event failed");
+            Err(WebhookError::StatusError { status, message })
+        },
+        Err(e) => {
+            tracing::error!(kind = kind, error = %e, "request error");
+            Err(WebhookError::Request(e))
+        },
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Global dispatch
+// -----------------------------------------------------------------------------
+
+static GLOBAL_BROADCASTER: OnceLock<Arc<dyn WebhookBroadcaster>> = OnceLock::new();
+
+fn default_broadcaster() -> Arc<dyn WebhookBroadcaster> {
+    Arc::new(HttpWebhookBroadcaster)
+}
+
+fn active_broadcaster() -> Arc<dyn WebhookBroadcaster> {
+    Arc::clone(GLOBAL_BROADCASTER.get_or_init(default_broadcaster))
+}
+
+/// Test-only seam.
+///
+/// Installs `broadcaster` as the process-wide implementation returned by every
+/// subsequent `broadcast_*` call. Subsequent calls to `install_for_test` are
+/// no-ops — the first caller wins (matching the
+/// `RsaSigningKey::install_for_test` / `Config::install` pattern).
+pub fn install_for_test(broadcaster: Arc<dyn WebhookBroadcaster>) {
+    drop(GLOBAL_BROADCASTER.set(broadcaster));
+}
+
 pub async fn broadcast_agui_event(
     user_id: &UserId,
     event: AgUiEvent,
     auth_token: &str,
 ) -> Result<usize, WebhookError> {
-    let url = format!("{}/api/v1/webhook/agui", get_api_url());
-    let event_type = event.event_type();
-
-    if auth_token.is_empty() {
-        tracing::warn!(
-            event_type = ?event_type,
-            user_id = %user_id,
-            "Attempting to broadcast AGUI event with empty auth_token - webhook will fail"
-        );
-    }
-
-    tracing::debug!(event_type = ?event_type, url = %url, has_token = !auth_token.is_empty(), "Sending AGUI event");
-
-    let payload = AgUiWebhookPayload {
-        event,
-        user_id: user_id.clone(),
-    };
-
-    let client = Client::new();
-    let response = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", auth_token))
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await;
-
-    match response {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                #[derive(serde::Deserialize)]
-                struct WebhookResponse {
-                    connection_count: usize,
-                }
-
-                match resp.json::<WebhookResponse>().await {
-                    Ok(result) => {
-                        tracing::debug!(
-                            event_type = ?event_type,
-                            connection_count = result.connection_count,
-                            "AGUI event broadcasted"
-                        );
-                        Ok(result.connection_count)
-                    },
-                    Err(e) => {
-                        tracing::error!(
-                            event_type = ?event_type,
-                            error = %e,
-                            "AGUI response parse error"
-                        );
-                        Err(WebhookError::Request(e))
-                    },
-                }
-            } else {
-                let status = resp.status().as_u16();
-                let message = resp
-                    .text()
-                    .await
-                    .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-                tracing::error!(
-                    event_type = ?event_type,
-                    status = status,
-                    message = %message,
-                    "AGUI event failed"
-                );
-                Err(WebhookError::StatusError { status, message })
-            }
-        },
-        Err(e) => {
-            tracing::error!(event_type = ?event_type, error = %e, "AGUI request error");
-            Err(WebhookError::Request(e))
-        },
-    }
+    active_broadcaster()
+        .broadcast_agui(user_id, event, auth_token)
+        .await
 }
 
 pub async fn broadcast_a2a_event(
@@ -117,71 +197,9 @@ pub async fn broadcast_a2a_event(
     event: A2AEvent,
     auth_token: &str,
 ) -> Result<usize, WebhookError> {
-    let url = format!("{}/api/v1/webhook/a2a", get_api_url());
-    let event_type = event.event_type();
-
-    tracing::debug!(event_type = ?event_type, url = %url, "Sending A2A event");
-
-    let payload = A2AWebhookPayload {
-        event,
-        user_id: user_id.clone(),
-    };
-
-    let client = Client::new();
-    let response = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", auth_token))
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()
-        .await;
-
-    match response {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                #[derive(serde::Deserialize)]
-                struct WebhookResponse {
-                    connection_count: usize,
-                }
-
-                match resp.json::<WebhookResponse>().await {
-                    Ok(result) => {
-                        tracing::debug!(
-                            event_type = ?event_type,
-                            connection_count = result.connection_count,
-                            "A2A event broadcasted"
-                        );
-                        Ok(result.connection_count)
-                    },
-                    Err(e) => {
-                        tracing::error!(
-                            event_type = ?event_type,
-                            error = %e,
-                            "A2A response parse error"
-                        );
-                        Err(WebhookError::Request(e))
-                    },
-                }
-            } else {
-                let status = resp.status().as_u16();
-                let message = resp
-                    .text()
-                    .await
-                    .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-                tracing::error!(
-                    event_type = ?event_type,
-                    status = status,
-                    message = %message,
-                    "A2A event failed"
-                );
-                Err(WebhookError::StatusError { status, message })
-            }
-        },
-        Err(e) => {
-            tracing::error!(event_type = ?event_type, error = %e, "A2A request error");
-            Err(WebhookError::Request(e))
-        },
-    }
+    active_broadcaster()
+        .broadcast_a2a(user_id, event, auth_token)
+        .await
 }
 
 #[derive(Clone, Debug)]

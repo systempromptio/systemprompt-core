@@ -8,7 +8,7 @@ use super::super::super::canonical_response::{
     CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 
-pub(super) fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalResponse {
+pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalResponse {
     let id = value.get("id").and_then(Value::as_str).map_or_else(
         || format!("resp_{}", Uuid::new_v4().simple()),
         str::to_owned,

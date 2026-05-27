@@ -1,21 +1,26 @@
-//! Authenticated gateway routes — exercises pubkey, whoami, and manifest by
-//! installing a test signing key and minting a bearer JWT for an admin user
-//! seeded in the fixture DB.
+//! Authenticated gateway routes — drives the happy path through `whoami`,
+//! `manifest`, `profile/usage`, `heartbeat`, and `profile/enabled_hosts` using
+//! `seed_admin_credential`, which inserts the user row + active session row +
+//! mints a matching JWT in one call so `decode_for_gateway` returns Ok.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, header};
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, Response, header};
+use http::StatusCode;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{install_test_signing_key, mint_admin_jwt};
+use systemprompt_database::DbPool;
+use systemprompt_test_fixtures::{
+    AuthedFixture, install_test_signing_key, seed_admin_credential,
+};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
 
-async fn router() -> anyhow::Result<Router> {
-    let (_pool, ctx) = setup_ctx().await?;
+async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
+    let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    Ok(gateway_router(&ctx).expect("gateway router available"))
+    let router = gateway_router(&ctx).expect("gateway router available");
+    Ok((router, pool))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -26,14 +31,32 @@ fn authed_get(uri: &str, token: &str) -> Request<Body> {
         .expect("request build")
 }
 
+fn authed_post(uri: &str, token: &str, body: serde_json::Value) -> Request<Body> {
+    Request::builder()
+        .method(http::Method::POST)
+        .uri(uri)
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .expect("request build")
+}
+
+async fn read_body(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
+    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
+    Ok(serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null))
+}
+
 #[tokio::test]
 async fn pubkey_after_install_returns_ok() -> anyhow::Result<()> {
-    let app = router().await?;
+    let (app, _pool) = router_and_pool().await?;
     let resp = app
-        .oneshot(Request::builder().uri("/bridge/pubkey").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/bridge/pubkey")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await?;
-    // Either OK (signing key installed for both authority + manifest_signing)
-    // or 500 if manifest_signing key isn't installed in the test process.
     assert!(
         resp.status().is_success() || resp.status().is_server_error(),
         "{}",
@@ -43,83 +66,104 @@ async fn pubkey_after_install_returns_ok() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn whoami_with_jwt_for_unknown_user_returns_404_or_500() -> anyhow::Result<()> {
-    let app = router().await?;
-    let user = UserId::new(format!("test-user-{}", uuid::Uuid::new_v4()));
-    let jwt = mint_admin_jwt(&user, "u@example.com", "test");
-    let resp = app.oneshot(authed_get("/bridge/whoami", jwt.as_str())).await?;
-    // Either NOT_FOUND (user not in DB), or 500 (DB schema mismatch in fixture).
-    let s = resp.status().as_u16();
-    assert!(
-        s == 404 || s == 500 || s == 401,
-        "whoami unexpected status: {s}"
-    );
+async fn whoami_for_seeded_admin_returns_envelope() -> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let cred: AuthedFixture = seed_admin_credential(&pool, "whoami@example.invalid").await?;
+    let resp = app.oneshot(authed_get("/bridge/whoami", cred.jwt.as_str())).await?;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = read_body(resp).await?;
+    assert_eq!(body["user_id"], cred.user_id.as_str());
+    assert_eq!(body["email"], "whoami@example.invalid");
+    assert!(body["roles"].as_array().is_some());
     Ok(())
 }
 
 #[tokio::test]
-async fn manifest_with_jwt_no_profile_returns_5xx_or_4xx() -> anyhow::Result<()> {
-    let app = router().await?;
-    let user = UserId::new("u1");
-    let jwt = mint_admin_jwt(&user, "u@example.com", "test");
-    let resp = app.oneshot(authed_get("/bridge/manifest", jwt.as_str())).await?;
-    let s = resp.status();
-    assert!(s.is_client_error() || s.is_server_error(), "{s}");
-    Ok(())
-}
-
-#[tokio::test]
-async fn profile_usage_with_jwt_returns_response() -> anyhow::Result<()> {
-    let app = router().await?;
-    let user = UserId::new("u1");
-    let jwt = mint_admin_jwt(&user, "u@example.com", "test");
+async fn whoami_missing_authorization_returns_4xx() -> anyhow::Result<()> {
+    let (app, _pool) = router_and_pool().await?;
     let resp = app
-        .oneshot(authed_get("/bridge/profile/usage", jwt.as_str()))
+        .oneshot(
+            Request::builder()
+                .uri("/bridge/whoami")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await?;
-    let s = resp.status();
-    assert!(s.as_u16() >= 200, "{s}");
+    assert!(resp.status().is_client_error(), "{}", resp.status());
     Ok(())
 }
 
 #[tokio::test]
-async fn heartbeat_with_jwt_returns_response() -> anyhow::Result<()> {
-    let app = router().await?;
-    let user = UserId::new("u1");
-    let jwt = mint_admin_jwt(&user, "u@example.com", "test");
-    let body = serde_json::json!({
-        "session_id": "00000000-0000-0000-0000-000000000000",
+async fn whoami_garbage_bearer_returns_unauthorized() -> anyhow::Result<()> {
+    let (app, _pool) = router_and_pool().await?;
+    let resp = app
+        .oneshot(authed_get("/bridge/whoami", "not-a-jwt"))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    Ok(())
+}
+
+#[tokio::test]
+async fn profile_usage_for_seeded_admin_returns_ok_envelope() -> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let cred = seed_admin_credential(&pool, "usage@example.invalid").await?;
+    let resp = app
+        .oneshot(authed_get("/bridge/profile/usage", cred.jwt.as_str()))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = read_body(resp).await?;
+    assert!(body.is_object(), "expected json object, got {body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn heartbeat_for_seeded_admin_accepts_payload() -> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let cred = seed_admin_credential(&pool, "heartbeat@example.invalid").await?;
+    let payload = serde_json::json!({
+        "session_id": cred.session_id.as_str(),
         "bridge_version": "1.0.0",
         "os": "linux",
         "hostname": "test"
     });
-    let req = Request::builder()
-        .method(http::Method::POST)
-        .uri("/bridge/heartbeat")
-        .header(header::AUTHORIZATION, format!("Bearer {}", jwt.as_str()))
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap();
-    let resp = app.oneshot(req).await?;
+    let resp = app
+        .oneshot(authed_post("/bridge/heartbeat", cred.jwt.as_str(), payload))
+        .await?;
     let s = resp.status();
-    assert!(s.as_u16() >= 200, "{s}");
+    assert!(s.is_success() || s == StatusCode::ACCEPTED, "{s}");
     Ok(())
 }
 
 #[tokio::test]
-async fn set_enabled_host_with_jwt_returns_response() -> anyhow::Result<()> {
-    let app = router().await?;
-    let user = UserId::new("u1");
-    let jwt = mint_admin_jwt(&user, "u@example.com", "test");
-    let body = serde_json::json!({"host_id": "claude-code", "enabled": true});
-    let req = Request::builder()
-        .method(http::Method::POST)
-        .uri("/bridge/profile/enabled_hosts")
-        .header(header::AUTHORIZATION, format!("Bearer {}", jwt.as_str()))
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap();
-    let resp = app.oneshot(req).await?;
+async fn set_enabled_host_toggles_pref_for_seeded_admin() -> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let cred = seed_admin_credential(&pool, "hosts@example.invalid").await?;
+    let payload = serde_json::json!({"host_id": "claude-code", "enabled": true});
+    let resp = app
+        .oneshot(authed_post(
+            "/bridge/profile/enabled_hosts",
+            cred.jwt.as_str(),
+            payload,
+        ))
+        .await?;
+    assert!(resp.status().is_success(), "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn manifest_for_seeded_admin_returns_response() -> anyhow::Result<()> {
+    let (app, pool) = router_and_pool().await?;
+    let cred = seed_admin_credential(&pool, "manifest@example.invalid").await?;
+    let resp = app
+        .oneshot(authed_get("/bridge/manifest", cred.jwt.as_str()))
+        .await?;
     let s = resp.status();
-    assert!(s.as_u16() >= 200, "{s}");
+    // Manifest assembly depends on services/marketplace state being present in
+    // the fixture; the happy path 200 is the primary assertion, but 5xx is
+    // tolerated when the fixture's marketplace fixture isn't populated.
+    assert!(
+        s == StatusCode::OK || s.is_server_error(),
+        "manifest unexpected status: {s}"
+    );
     Ok(())
 }

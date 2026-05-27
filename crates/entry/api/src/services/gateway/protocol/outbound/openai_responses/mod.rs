@@ -9,6 +9,13 @@ mod response;
 mod slot;
 mod streaming;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::request::build_request_body;
+    pub use super::response::parse_response_object;
+    pub use super::streaming::sse_to_canonical_events;
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenAiResponsesOutbound;
 

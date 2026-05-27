@@ -63,3 +63,12 @@ mod agent_monitor_e2e;
 
 #[cfg(test)]
 mod task_helper_tests;
+
+#[cfg(test)]
+mod webhook_broadcaster_tests;
+
+#[cfg(test)]
+mod task_builder_multiturn_tests;
+
+#[cfg(test)]
+mod a2a_streaming_harness;

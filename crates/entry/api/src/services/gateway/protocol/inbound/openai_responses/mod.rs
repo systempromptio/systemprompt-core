@@ -9,6 +9,12 @@ use super::{InboundAdapter, InboundParseError};
 mod parse;
 mod render;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::parse::parse as parse_request;
+    pub use super::render::{render_event_frame, render_response_object};
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OpenAiResponsesInbound;
 

@@ -30,7 +30,9 @@ pub fn install_recorder() -> anyhow::Result<PrometheusHandle> {
     let handle = PrometheusBuilder::new()
         .install_recorder()
         .map_err(|e| anyhow::anyhow!("failed to install Prometheus recorder: {e}"))?;
-    let _ = RECORDER.set(handle.clone());
+    // If another thread won the race and stored its handle first, drop ours
+    // and keep the existing one — both refer to the same global recorder.
+    drop(RECORDER.set(handle.clone()));
     Ok(handle)
 }
 

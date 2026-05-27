@@ -11,6 +11,12 @@ mod render;
 
 pub use render::content_to_anthropic_block;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::parse::parse as parse_request;
+    pub use super::render::{render_event_frame, render_response_value};
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnthropicMessagesInbound;
 

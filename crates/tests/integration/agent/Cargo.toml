@@ -17,8 +17,10 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-test-mocks = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }
+rmcp = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }

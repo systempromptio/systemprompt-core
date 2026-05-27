@@ -115,5 +115,12 @@ tar = { workspace = true }
 prost = "0.13"
 opentelemetry-proto = { version = "0.27", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
 
+[features]
+default = []
+# Re-exports private protocol-matrix entry points (canonical request/response
+# encoders/decoders) so the integration-tests crate can drive them as pure
+# units. Production builds leave the feature off; the modules stay private.
+test-api = []
+
 [lints]
 workspace = true

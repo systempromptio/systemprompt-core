@@ -9,7 +9,7 @@ use super::super::InboundParseError;
 
 const DEFAULT_MAX_OUTPUT_TOKENS: u32 = 4096;
 
-pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
+pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")
         .and_then(Value::as_str)

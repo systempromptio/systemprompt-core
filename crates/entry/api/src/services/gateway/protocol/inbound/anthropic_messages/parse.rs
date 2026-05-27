@@ -7,7 +7,7 @@ use super::super::super::canonical::{
 };
 use super::super::InboundParseError;
 
-pub(super) fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
+pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
     let model = value
         .get("model")
         .and_then(Value::as_str)

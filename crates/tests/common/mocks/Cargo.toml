@@ -18,3 +18,4 @@ systemprompt-traits = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-events = { workspace = true }
+systemprompt-agent = { workspace = true }

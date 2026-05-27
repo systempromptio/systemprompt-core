@@ -2,8 +2,8 @@ mod builders;
 pub mod helpers;
 
 pub use builders::{
-    build_canceled_task, build_completed_task, build_mock_task, build_multiturn_task,
-    build_submitted_task,
+    BuildMultiturnTaskParams, build_canceled_task, build_completed_task, build_mock_task,
+    build_multiturn_task, build_submitted_task,
 };
 
 use crate::models::a2a::{

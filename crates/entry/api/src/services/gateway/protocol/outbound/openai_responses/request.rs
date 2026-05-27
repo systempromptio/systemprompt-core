@@ -6,7 +6,7 @@ use super::super::super::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource, Role,
 };
 
-pub(super) fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
+pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
     let mut input: Vec<Value> = Vec::new();
     for msg in &request.messages {
         match msg.role {

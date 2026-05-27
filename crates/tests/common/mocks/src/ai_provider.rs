@@ -40,6 +40,7 @@ pub struct MockAiProvider {
     health_check_responses: HealthCheckQueue,
     plan_responses: Arc<Mutex<VecDeque<Result<PlanningResult>>>>,
     generate_response_responses: Arc<Mutex<VecDeque<Result<String>>>>,
+    stream_chunks: Arc<Mutex<VecDeque<Vec<Result<StreamChunk>>>>>,
     calls: Arc<Mutex<Vec<MockAiCall>>>,
     default_provider: String,
     default_model: String,
@@ -148,6 +149,7 @@ impl Default for MockAiProvider {
             health_check_responses: Arc::new(Mutex::new(VecDeque::new())),
             plan_responses: Arc::new(Mutex::new(VecDeque::new())),
             generate_response_responses: Arc::new(Mutex::new(VecDeque::new())),
+            stream_chunks: Arc::new(Mutex::new(VecDeque::new())),
             calls: Arc::new(Mutex::new(Vec::new())),
             default_provider: "mock-provider".to_string(),
             default_model: "mock-model".to_string(),
@@ -184,7 +186,13 @@ impl AiProvider for MockAiProvider {
         self.record_call(MockAiCall::GenerateStream {
             request: request.clone(),
         });
-        Ok(Box::pin(stream::empty()))
+        let chunks = self
+            .stream_chunks
+            .lock()
+            .expect("lock poisoned")
+            .pop_front()
+            .unwrap_or_default();
+        Ok(Box::pin(stream::iter(chunks)))
     }
 
     async fn generate_with_tools(&self, request: &AiRequest) -> Result<AiResponse> {
@@ -289,6 +297,7 @@ pub struct MockAiProviderBuilder {
     health_check_responses: VecDeque<Result<HashMap<String, bool>>>,
     plan_responses: VecDeque<Result<PlanningResult>>,
     generate_response_responses: VecDeque<Result<String>>,
+    stream_chunks: VecDeque<Vec<Result<StreamChunk>>>,
     default_provider: Option<String>,
     default_model: Option<String>,
     default_max_output_tokens: Option<u32>,
@@ -333,6 +342,14 @@ impl MockAiProviderBuilder {
         self
     }
 
+    /// Queue a single `generate_stream` invocation's emitted chunks. Subsequent
+    /// calls each consume the next queued vector; an empty queue yields no
+    /// chunks (consistent with the previous default behaviour).
+    pub fn with_stream_chunks(mut self, chunks: Vec<Result<StreamChunk>>) -> Self {
+        self.stream_chunks.push_back(chunks);
+        self
+    }
+
     pub fn with_provider(mut self, provider: impl Into<String>) -> Self {
         self.default_provider = Some(provider.into());
         self
@@ -356,6 +373,7 @@ impl MockAiProviderBuilder {
             health_check_responses: Arc::new(Mutex::new(self.health_check_responses)),
             plan_responses: Arc::new(Mutex::new(self.plan_responses)),
             generate_response_responses: Arc::new(Mutex::new(self.generate_response_responses)),
+            stream_chunks: Arc::new(Mutex::new(self.stream_chunks)),
             calls: Arc::new(Mutex::new(Vec::new())),
             default_provider: self
                 .default_provider

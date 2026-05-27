@@ -109,5 +109,17 @@ mod routes_oauth_pkce_flow;
 mod middleware_edges;
 
 #[cfg(test)]
+#[path = "gateway_extract_units.rs"]
+mod gateway_extract_units;
+
+#[cfg(test)]
+#[path = "protocol_matrix.rs"]
+mod protocol_matrix;
+
+#[cfg(test)]
+#[path = "routes_oauth_token.rs"]
+mod routes_oauth_token;
+
+#[cfg(test)]
 #[path = "common.rs"]
 mod common;
