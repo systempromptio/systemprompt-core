@@ -38,6 +38,10 @@ impl ApiServer {
         }
     }
 
+    pub fn into_router(self) -> Router {
+        self.router
+    }
+
     pub async fn serve(self, addr: &str) -> Result<()> {
         if let Some(ref tx) = self.events {
             if tx
