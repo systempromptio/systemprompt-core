@@ -1,3 +1,5 @@
+use systemprompt_models::net::OutboundUrlError;
+
 pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
     let url = reqwest::Url::parse(resource)
         .map_err(|_e| format!("Invalid resource URI: '{resource}' is not a valid absolute URI"))?;
@@ -20,7 +22,8 @@ pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
     // routable, externally-reachable service.
     let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
     let host_is_loopback_name = host == "localhost";
-    let host_is_mdns_suffix = host.ends_with(".local") || host.ends_with(".internal");
+    let last_label = host.rsplit('.').next();
+    let host_is_mdns_suffix = matches!(last_label, Some("local" | "internal"));
     if host_is_loopback_name || host_is_mdns_suffix {
         return Err(format!(
             "Resource URI host '{host}' is an internal or private network address"
@@ -37,7 +40,6 @@ pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
     // workspace-canonical guard. The scheme gate is OAuth's own concern (we
     // accept http above for legacy relying parties) — only fail on the
     // address-block rule.
-    use systemprompt_models::net::OutboundUrlError;
     match systemprompt_models::net::validate_outbound_url(resource) {
         Ok(_) | Err(OutboundUrlError::NonLoopbackHttp) => Ok(()),
         Err(e @ OutboundUrlError::BlockedHost(_)) => Err(format!(
