@@ -47,8 +47,14 @@ async fn load_enabled_hosts_empty_for_unknown_user() -> anyhow::Result<()> {
 #[tokio::test]
 async fn upsert_host_pref_round_trip() -> anyhow::Result<()> {
     let _ = ensure_test_bootstrap();
-    let (_pool, ctx) = setup_ctx().await?;
+    let (pool, ctx) = setup_ctx().await?;
     let user = UserId::new(format!("pref-{}", uuid::Uuid::new_v4()));
+    let exec_pool = pool.pool_arc().expect("read pool");
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(user.as_str())
+        .bind(format!("{}@test.invalid", user.as_str()))
+        .execute(exec_pool.as_ref())
+        .await?;
     upsert_host_pref(&ctx, &user, "claude-code", true).await?;
     let hosts = load_enabled_hosts(&ctx, &user).await?;
     assert!(hosts.iter().any(|h| h == "claude-code"), "got {hosts:?}");

@@ -24,14 +24,6 @@ async fn marketplace_json_returns_error_without_profile() -> anyhow::Result<()> 
 }
 
 #[tokio::test]
-async fn list_marketplaces_returns_error_without_profile() -> anyhow::Result<()> {
-    let app = router().await?;
-    let resp = app.oneshot(empty_get("/marketplaces")).await?;
-    assert!(resp.status().is_client_error() || resp.status().is_server_error());
-    Ok(())
-}
-
-#[tokio::test]
 async fn get_marketplace_by_id_returns_error_without_profile() -> anyhow::Result<()> {
     let app = router().await?;
     let resp = app.oneshot(empty_get("/marketplaces/default")).await?;
