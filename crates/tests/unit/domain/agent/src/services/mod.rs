@@ -8,6 +8,8 @@ mod a2a_server;
 mod auth_validation;
 mod agent_orchestration;
 mod mcp;
+mod oauth_validation;
+mod plan_executor;
 mod registry;
 mod shared;
 mod skills;

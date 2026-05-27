@@ -12,6 +12,7 @@
 mod a2a;
 mod agent_info;
 mod context;
+mod database_rows;
 mod external_integrations;
 mod protocol_events;
 mod runtime;

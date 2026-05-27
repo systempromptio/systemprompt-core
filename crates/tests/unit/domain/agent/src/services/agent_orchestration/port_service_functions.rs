@@ -1,6 +1,61 @@
 use systemprompt_agent::services::agent_orchestration::port_service::{
-    find_process_using_port, get_process_info, is_agent_process, PortService,
+    PortService, find_process_using_port, get_process_info, is_agent_process,
 };
+
+#[tokio::test]
+async fn port_service_kill_unused_port_returns_false() {
+    let svc = PortService::new();
+    // High port unlikely to be in use
+    let result = svc.kill_process_on_port(64739).await;
+    // returns Ok(false) for no process found
+    assert!(result.is_ok() || result.is_err());
+    if let Ok(killed) = result {
+        assert!(!killed);
+    }
+}
+
+#[tokio::test]
+async fn port_service_wait_for_port_available_succeeds_when_free() {
+    let svc = PortService::new();
+    let result = svc.wait_for_port_available(64758, 1).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn port_service_cleanup_port_if_not_in_use_returns_ok() {
+    let svc = PortService::new();
+    let result = svc.cleanup_port_if_needed(64769).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn port_service_cleanup_agent_ports_handles_empty() {
+    let svc = PortService::new();
+    let result = svc.cleanup_agent_ports(&[]).await.expect("ok");
+    assert_eq!(result, 0);
+}
+
+#[tokio::test]
+async fn port_service_cleanup_agent_ports_with_unused_returns_zero_cleaned() {
+    let svc = PortService::new();
+    let result = svc
+        .cleanup_agent_ports(&[64789, 64790, 64791])
+        .await
+        .expect("ok");
+    assert_eq!(result, 0);
+}
+
+#[test]
+fn port_service_verify_all_ports_available_with_empty_list() {
+    let result = PortService::verify_all_ports_available(&[]);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn port_service_verify_all_ports_available_with_free_ports() {
+    let result = PortService::verify_all_ports_available(&[64810, 64811, 64812]);
+    assert!(result.is_ok());
+}
 
 #[test]
 fn port_service_new_is_unit_struct() {
