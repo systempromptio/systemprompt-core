@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0] - 2026-05-27
+
+### Breaking
+
+- `JwtClaims.department` and `AuthzRequest.department` removed; replaced by `attributes: BTreeMap<String, serde_json::Value>`. Token issuers populate the bag with namespaced keys (`acme.desk`, `boeing.clearance`); extension hooks read `req.attributes.get("your.key")`.
+- `JwtUserContext.department` removed; `attributes: BTreeMap<String, serde_json::Value>` added so the gateway path forwards them onto every `AuthzRequest`. `JwtUserContext.roles: Vec<String>` narrowed to a single `role: Permission`.
+- `SessionParams.department: Option<String>` replaced by `attributes: BTreeMap<String, serde_json::Value>`.
+- `AuthzContext` enum replaced with `{ kind: Cow<'static, str>, payload: serde_json::Value }`. Core mints three kinds — `"none"`, `"gateway.invocation"` (`{ "model": ... }`), `"mcp.tool_call"` (`{ "tool": ... }`) — via `AuthzContext::none()` / `gateway_invocation(&ModelId)` / `mcp_tool_call(&McpToolName)`. Tenants extend via `AuthzContext::extension(kind, payload)`. Typed accessors `gateway_invocation_model()` / `mcp_tool_call_tool()` return `None` on kind mismatch.
+- `AccessControlConfig.departments` and `RuleEntry.departments` removed; the exported `DepartmentEntry` type is gone. YAML files with top-level `departments:` or per-rule `departments:` arrays are rejected by `deny_unknown_fields`. `IngestReport.departments_declared` removed.
+- `Profile.gateway` is now `Option<GatewayState>` (enum `Spec(GatewayConfigSpec) | Resolved(GatewayConfig)`); runtime read paths call `GatewayState::resolved() -> Option<&GatewayConfig>`. The on-disk `gateway.catalog_path: <path>` field is removed — write `gateway.catalog: { path: "..." }` for the file-backed form or `gateway.catalog: { providers: [...], models: [...] }` for the inline form. The runtime `GatewayConfig` loses `Deserialize` / `schemars::JsonSchema` and is constructed only via `GatewayConfigSpec::resolve(profile_dir)`.
+- `ServicesConfig.content` field removed; `services/content/config.yaml` is loaded directly. The `pub mod content` declaration is gone; the loader aggregator no longer wraps the file under a `content:` key.
+
+### Added
+
+- `AuthzContext::{NONE_KIND, GATEWAY_INVOCATION_KIND, MCP_TOOL_CALL_KIND}` const literals and `AuthzContext::extension(kind, payload)` constructor for tenants minting their own enforcement-site kinds.
+- `GatewayConfigSpec`, `GatewayCatalogSource`, `GatewayState` public types exported from `systemprompt_models::profile`, mirroring the existing `GatewayPolicySpec` / `GatewayPolicyConfig` pattern in the AI domain.
+
 ## [0.11.0] - 2026-05-20
 
 ### Breaking

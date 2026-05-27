@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.0] - 2026-05-27
+
+### Breaking
+
+- `RuleType::Department`, `DenyReason::DepartmentDeny`, and `MatchedBy::DepartmentAllow` removed from the authz resolver. `ResolveInput` drops its `department` field. Migration `008_drop_department_acl.sql` narrows `access_control_rules.rule_type` to `('role','user')` and deletes any existing department rows.
+- `AccessControlRepository::list_role_department_rules_for_export` renamed to `list_role_rules_for_export`.
+- `AppContextBuilder::with_authz_hook` is now generic over `H: AuthzDecisionHook + 'static`; callers pass owned hook values. Callers holding an `Arc<dyn AuthzDecisionHook>` use the new `with_shared_authz_hook(SharedAuthzHook)` method.
+- `SharedAuthzHook` moved to `systemprompt_security::authz::hook`; the `authz` facade re-export is unchanged.
+- `AuthzMode::Extension` selection at bootstrap requires a hook supplied via `with_authz_hook(...)` or registered through `register_authz_hook!`; bootstrap errors if neither is present.
+
+### Added
+
+- `RuleBasedHook` — the core RBAC resolver promoted to a first-class `AuthzDecisionHook`. Wraps the sync `authz::resolver::resolve` so extensions compose it via `CompositeAuthzHook`. Bootstrap composes `[RuleBasedHook, ...extensions]` automatically when a DB pool is available; `mode: webhook` composes `[RuleBasedHook, WebhookHook]`.
+- `AuthzSource::RuleBased` audit-source variant (`policy = "authz_rule_based"`) so resolver decisions stay observable in `governance_decisions` alongside webhook and extension rows.
+- `authz::registry` inventory site for static-init authz hook registration (`register_authz_hook!`), used when binaries delegate to `systemprompt::cli::run()` and have no builder call-site.
+
 ## [0.11.0] - 2026-05-20
 
 ### Breaking

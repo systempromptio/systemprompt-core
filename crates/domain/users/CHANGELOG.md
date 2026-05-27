@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.0] - 2026-05-27
+
+### Breaking
+
+- `AuthenticatedUser`: `department`, `with_department`, and `department()` removed and replaced by `attributes: BTreeMap<String, serde_json::Value>` with `with_attributes` and `attributes()`.
+
 ## [0.11.0] - 2026-05-20
 
 ### Changed

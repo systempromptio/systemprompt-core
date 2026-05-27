@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.0] - 2026-05-27
+
+### Breaking
+
+- Gateway authz path forwards `JwtUserContext.attributes` onto every `AuthzRequest` and mints `AuthzContext::gateway_invocation(&ModelId)` at the enforcement site. Routes consuming the old `AuthzRequest.department` field no longer compile.
+- Gateway derives `ContextId` from `GatewayConversationId` via UUID v5; upstream `x-context-id` headers on gateway routes are ignored. MCP and A2A surfaces continue to honour `x-context-id`.
+
+### Added
+
+- Bootstrap composes `[RuleBasedHook, ...extensions]` automatically when a DB pool is available so the core RBAC resolver runs as a first-class hook; `mode: webhook` composes `[RuleBasedHook, WebhookHook]`. The implicit "resolver runs before the hook" flow is gone — every decision is a hook now.
+
 ## [0.11.0] - 2026-05-20
 
 ### Breaking

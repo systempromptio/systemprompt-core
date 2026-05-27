@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.0] - 2026-05-27
+
+### Changed
+
+- `access_control_rules` repository SQLx query cache refreshed for the `rule_type ('role','user')` narrowing in `systemprompt-security` migration `008_drop_department_acl.sql`.
+
 ## [0.11.0] - 2026-05-20
 
 ### Breaking
