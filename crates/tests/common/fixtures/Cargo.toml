@@ -15,6 +15,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-oauth = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-users = { workspace = true }
@@ -23,3 +24,6 @@ tempfile = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
+jsonwebtoken = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }

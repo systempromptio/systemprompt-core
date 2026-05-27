@@ -24,7 +24,7 @@
   </picture>
 </div>
 
-**Status**: Framework & Planning Complete. Ready for Implementation.
+**Status**: Active. 20 integration-test crates exercise the production crates against a live PostgreSQL fixture; see the per-crate roll-up in the workspace coverage report for current line coverage (workspace total ~50% as of 2026-05-27).
 
 ## Quick Links
 
@@ -40,19 +40,15 @@
 ## Current Status
 
 ### By Numbers
-- **64 total tests** across 6 domains
-- **95.7% are stubs** - just setup with no assertions
-- **0% have database validation** - never check if data persisted
-- **2 tests have partial coverage** - only HTTP status checks
 
-### Risk Level
-**HIGH** - Tests pass but don't validate functionality. False confidence.
+Integration test crates: 20, covering agent / analytics / api / cli / cloud / content / database / events / extension / files / gateway / generator / mcp / oauth / runtime / scheduler / security / sync / users (plus the shared `common/fixtures` crate). Each crate runs against a real Postgres instance via the `systemprompt-test-fixtures` `ensure_test_bootstrap` / `fixture_db_pool` helpers — assertions exercise both HTTP-status surfaces and post-condition database state, not just setup.
+
+The earlier "stub" framing in this README dates from a pre-Phase-2 snapshot; most tests now do real DB work. The authoritative source for what each suite covers is the per-test docstring in `crates/tests/integration/<crate>/src/*.rs` and the LCOV roll-up from `just coverage`.
 
 ### What's Ready
-- ✅ 6 detailed implementation guides (one per folder)
-- ✅ 1 master implementation plan (8-10 week timeline)
-- ✅ 200+ SQL validation queries
-- ✅ 40+ complete code examples
+- ✅ Shared test fixtures (`crates/tests/common/fixtures`): bootstrap, db pool, JWT minting, OAuth client seeding, PKCE pair, system-admin fixture
+- ✅ Live-Postgres integration suites across all 20 sub-crates
+- ✅ End-to-end coverage workflow (`just coverage`) producing per-crate LCOV
 - ✅ 7-phase test pattern (copy-paste ready)
 - ✅ Common pitfalls & solutions documented
 

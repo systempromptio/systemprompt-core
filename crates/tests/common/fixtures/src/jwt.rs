@@ -1,17 +1,24 @@
-//! Test-only signing key install and bridge JWT minting helpers.
+//! Test-only signing key install and JWT minting helpers.
 //!
 //! [`install_test_signing_key`] is idempotent — the underlying authority cell
 //! is process-wide, so the first caller wins. Concurrent test runs must share
 //! the same minted key, which is fine because every test that consumes a JWT
-//! resolves it via [`mint_admin_jwt`].
+//! resolves it via [`mint_admin_jwt`] / [`mint_bridge_jwt`].
 
+use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-use chrono::Duration;
+use chrono::{Duration, Utc};
+use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
+use systemprompt_models::auth::{
+    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+};
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
 use systemprompt_security::keys::RsaSigningKey;
-use systemprompt_security::keys::authority::install_for_test;
+use systemprompt_security::keys::authority::{
+    active_kid, encoding_key, install_for_test,
+};
 
 static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
 
@@ -35,4 +42,46 @@ pub fn mint_admin_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
         client_id: None,
     };
     JwtService::generate_admin_token(&params).expect("mint admin jwt")
+}
+
+/// Bridge JWT shape — same RS256 signature path as admin tokens but with a
+/// user-tier `user_type` and `User` permissions. The gateway only requires a
+/// valid signature, an extant DB user row, and a non-empty session id; we keep
+/// `roles = ["user"]` and `scope = [User]` to exercise the non-admin code
+/// paths in `decode_for_gateway`.
+pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
+    install_test_signing_key();
+    let session = SessionId::generate();
+    let now = Utc::now();
+    let expiry = now + Duration::hours(1);
+
+    let claims = JwtClaims {
+        sub: user_id.to_string(),
+        iat: now.timestamp(),
+        exp: expiry.timestamp(),
+        nbf: Some(now.timestamp()),
+        iss: issuer.to_owned(),
+        aud: JwtAudience::standard(),
+        jti: uuid::Uuid::new_v4().to_string(),
+        scope: vec![Permission::User],
+        username: email.to_owned(),
+        email: email.to_owned(),
+        user_type: UserType::User,
+        roles: vec!["user".to_owned()],
+        attributes: BTreeMap::new(),
+        client_id: None,
+        token_type: TokenType::Bearer,
+        auth_time: now.timestamp(),
+        session_id: Some(session),
+        rate_limit_tier: Some(RateLimitTier::User),
+        plugin_id: None,
+        act: None,
+    };
+
+    let kid = active_kid().expect("active kid present");
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(kid.to_owned());
+    let key = encoding_key().expect("encoding key present");
+    let token = encode(&header, &claims, key).expect("encode bridge jwt");
+    JwtToken::new(token)
 }

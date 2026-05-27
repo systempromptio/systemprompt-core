@@ -6657,6 +6657,7 @@ dependencies = [
  "systemprompt-traits",
  "tokio",
  "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -6887,10 +6888,12 @@ version = "0.0.11"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "chrono",
  "http",
  "http-body-util",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "systemprompt-agent",
  "systemprompt-analytics",
@@ -8447,8 +8450,11 @@ name = "systemprompt-test-fixtures"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "dotenvy",
+ "jsonwebtoken",
+ "sha2 0.10.9",
  "systemprompt-analytics",
  "systemprompt-config",
  "systemprompt-database",
@@ -8458,6 +8464,7 @@ dependencies = [
  "systemprompt-marketplace",
  "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-oauth",
  "systemprompt-runtime",
  "systemprompt-security",
  "systemprompt-users",

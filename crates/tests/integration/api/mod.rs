@@ -97,5 +97,17 @@ mod services_quota_policy;
 mod routes_bridge_data;
 
 #[cfg(test)]
+#[path = "routes_gateway_bridge_jwt.rs"]
+mod routes_gateway_bridge_jwt;
+
+#[cfg(test)]
+#[path = "routes_oauth_pkce_flow.rs"]
+mod routes_oauth_pkce_flow;
+
+#[cfg(test)]
+#[path = "middleware_edges.rs"]
+mod middleware_edges;
+
+#[cfg(test)]
 #[path = "common.rs"]
 mod common;
