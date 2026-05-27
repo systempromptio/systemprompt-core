@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.2] - 2026-05-27
+
+### Changed
+
+- Track `systemprompt-identifiers` and `systemprompt-models` 0.12.0 dependency pins.
+
 ## [0.9.1] - 2026-05-25
 
 ### Changed
