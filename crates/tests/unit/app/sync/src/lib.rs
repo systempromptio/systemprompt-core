@@ -49,3 +49,9 @@ mod retry;
 mod sync_service_lib;
 #[cfg(test)]
 mod token_exchange;
+#[cfg(test)]
+mod api_client_mock;
+#[cfg(test)]
+mod file_bundler_extra;
+#[cfg(test)]
+mod file_sync_service_extra;
