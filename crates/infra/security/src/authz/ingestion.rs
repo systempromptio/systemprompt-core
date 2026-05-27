@@ -30,10 +30,10 @@ pub struct IngestOptions {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestReport {
-    pub rules_inserted: usize,
-    pub rules_updated: usize,
-    pub rules_skipped: usize,
-    pub rules_deleted: usize,
+    pub inserted: usize,
+    pub updated: usize,
+    pub skipped: usize,
+    pub deleted: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -89,16 +89,16 @@ impl AccessControlIngestionService {
             )
             .execute(&mut *tx)
             .await?;
-            report.rules_deleted = res.rows_affected() as usize;
+            report.deleted = res.rows_affected() as usize;
         }
 
         for target in &targets {
             upsert_entity_row(&mut tx, target).await?;
             let outcome = upsert_target(&mut tx, target, options.override_existing).await?;
             match outcome {
-                UpsertOutcome::Inserted => report.rules_inserted += 1,
-                UpsertOutcome::Updated => report.rules_updated += 1,
-                UpsertOutcome::Skipped => report.rules_skipped += 1,
+                UpsertOutcome::Inserted => report.inserted += 1,
+                UpsertOutcome::Updated => report.updated += 1,
+                UpsertOutcome::Skipped => report.skipped += 1,
             }
         }
 
@@ -106,10 +106,10 @@ impl AccessControlIngestionService {
 
         tracing::info!(
             target = "bootstrap_access_control_loaded",
-            rules_inserted = report.rules_inserted,
-            rules_updated = report.rules_updated,
-            rules_skipped = report.rules_skipped,
-            rules_deleted = report.rules_deleted,
+            inserted = report.inserted,
+            updated = report.updated,
+            skipped = report.skipped,
+            deleted = report.deleted,
             override_existing = options.override_existing,
             delete_orphans = options.delete_orphans,
             "access-control YAML ingested",

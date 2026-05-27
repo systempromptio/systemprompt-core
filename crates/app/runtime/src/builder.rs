@@ -12,10 +12,10 @@ use systemprompt_database::{Database, MigrationConfig, install_extension_schemas
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_models::auth::UserRole;
 use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
+use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, AppContextParts};
@@ -160,13 +160,8 @@ impl AppContextBuilder {
         registry.validate()?;
 
         if self.install_schemas {
-            install_extension_schemas_full(
-                &registry,
-                database.write(),
-                &[],
-                self.migration_config,
-            )
-            .await?;
+            install_extension_schemas_full(&registry, database.write(), &[], self.migration_config)
+                .await?;
         }
 
         let extension_registry = Arc::new(registry);

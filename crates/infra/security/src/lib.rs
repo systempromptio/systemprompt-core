@@ -61,6 +61,7 @@ pub mod session;
 pub use at_rest::{hmac_sha256, hmac_sha256_hex};
 
 pub use auth::{AuthMode, AuthValidationService, HookTokenValidator, ValidatedHookClaims};
+pub use authz::CompositeAuthzHook;
 pub use error::{
     AuthError, AuthResult, JwtError, JwtResult, ManifestSigningError, ManifestSigningResult,
 };
@@ -68,7 +69,6 @@ pub use extraction::{
     CookieExtractionError, CookieExtractor, ExtractionMethod, HeaderExtractor,
     HeaderInjectionError, HeaderInjector, TokenExtractionError, TokenExtractor,
 };
-pub use authz::CompositeAuthzHook;
 pub use jwt::{AdminTokenParams, JwtService, JwtUserContext, extract_user_context};
 pub use services::ScannerDetector;
 pub use session::{SessionGenerator, SessionParams, ValidatedSessionClaims};

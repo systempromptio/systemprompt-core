@@ -3,7 +3,7 @@
 //! Companion to [`AppContextBuilder::with_authz_hook`][with]: binaries that
 //! delegate to `systemprompt::cli::run()` have no builder site to call, so
 //! they register a hook factory at static-init time via
-//! [`register_authz_hook!`]. [`build_authz_hook`][bah] consults this registry
+//! [`crate::register_authz_hook!`]. [`build_authz_hook`][bah] consults this registry
 //! when no builder-supplied hook is present and the profile selects
 //! `mode: extension`.
 //!
@@ -37,7 +37,7 @@ impl std::fmt::Debug for AuthzHookContext {
     }
 }
 
-/// One inventory submission per [`register_authz_hook!`] call. The factory
+/// One inventory submission per [`crate::register_authz_hook!`] call. The factory
 /// runs once at `AppContext` build time and must not block.
 #[derive(Debug, Clone, Copy)]
 pub struct AuthzHookRegistration {
@@ -46,7 +46,7 @@ pub struct AuthzHookRegistration {
 
 inventory::collect!(AuthzHookRegistration);
 
-/// Returns the composed extension hook from every [`register_authz_hook!`]
+/// Returns the composed extension hook from every [`crate::register_authz_hook!`]
 /// submission in the binary, or `None` if no submissions exist.
 #[must_use]
 pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
@@ -55,7 +55,7 @@ pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
         .collect();
     match hooks.len() {
         0 => None,
-        1 => Some(hooks.into_iter().next().expect("len==1")),
+        1 => hooks.into_iter().next(),
         _ => Some(Arc::new(CompositeAuthzHook::new(hooks))),
     }
 }

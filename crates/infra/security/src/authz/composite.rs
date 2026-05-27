@@ -48,9 +48,8 @@ impl CompositeAuthzHook {
 impl AuthzDecisionHook for CompositeAuthzHook {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
         for hook in &self.hooks {
-            match hook.evaluate(req.clone()).await {
-                AuthzDecision::Allow => continue,
-                deny @ AuthzDecision::Deny { .. } => return deny,
+            if let deny @ AuthzDecision::Deny { .. } = hook.evaluate(req.clone()).await {
+                return deny;
             }
         }
         AuthzDecision::Allow

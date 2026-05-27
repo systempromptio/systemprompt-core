@@ -10,10 +10,11 @@
 //! - `mode: webhook` with a non-empty `url` that passes SSRF validation →
 //!   [`WebhookHook`] (fail-closed) ahead of [`RuleBasedHook`] under a
 //!   [`CompositeAuthzHook`].
-//! - `mode: extension` with one or more extension hooks (`AppContextBuilder::with_authz_hook`
-//!   or `register_authz_hook!`) → composite `[RuleBasedHook, ...extensions]`.
-//!   Bootstrap fails with [`AuthzBootstrapError::ExtensionModeButNoHook`] if
-//!   no extension hook is supplied.
+//! - `mode: extension` with one or more extension hooks
+//!   (`AppContextBuilder::with_authz_hook` or `register_authz_hook!`) →
+//!   composite `[RuleBasedHook, ...extensions]`. Bootstrap fails with
+//!   [`AuthzBootstrapError::ExtensionModeButNoHook`] if no extension hook is
+//!   supplied.
 //! - `mode: disabled`, or governance/authz absent → [`DenyAllHook`].
 //! - `mode: unrestricted` → [`AllowAllHook`], but ONLY when `acknowledgement`
 //!   exactly equals [`UNRESTRICTED_ACKNOWLEDGEMENT`]. Otherwise bootstrap

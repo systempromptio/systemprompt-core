@@ -13,16 +13,16 @@
 //!
 //! 1. **PBAC** — `Permission` enum on the JWT `scope` claim, enforced at the
 //!    route boundary by `with_auth(scope)`. Lives in core. Always on.
-//! 2. **RBAC** — `access_control_rules` table evaluated by [`resolve`]
-//!    (and the [`RuleBasedHook`] that wraps it) against
-//!    `AuthzRequest.{user_id, roles}`. Lives in core. Always on after PBAC;
-//!    empty table = allow-all at this layer.
+//! 2. **RBAC** — `access_control_rules` table evaluated by [`resolve`] (and the
+//!    [`RuleBasedHook`] that wraps it) against `AuthzRequest.{user_id, roles}`.
+//!    Lives in core. Always on after PBAC; empty table = allow-all at this
+//!    layer.
 //! 3. **ABAC hook** — [`AuthzDecisionHook::evaluate`] called after RBAC. Lives
 //!    in extensions; core ships [`RuleBasedHook`], [`DenyAllHook`],
 //!    [`AllowAllHook`], [`WebhookHook`], and the [`CompositeAuthzHook`]
 //!    composer for the multi-extension case. Extensions read
-//!    `AuthzRequest.attributes` (the opaque tenant-defined bag) and pattern
-//!    on `AuthzContext.kind` for enforcement-site dispatch.
+//!    `AuthzRequest.attributes` (the opaque tenant-defined bag) and pattern on
+//!    `AuthzContext.kind` for enforcement-site dispatch.
 
 pub mod audit;
 pub mod composite;

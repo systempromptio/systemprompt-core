@@ -78,8 +78,8 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
 
 #[expect(
     clippy::unnecessary_wraps,
-    reason = "render_event in the InboundAdapter trait returns Option<Bytes>; \
-              propagating Option here keeps the call site in mod.rs a single line"
+    reason = "render_event in the InboundAdapter trait returns Option<Bytes>; propagating Option \
+              here keeps the call site in mod.rs a single line"
 )]
 pub(super) fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> {
     let value = match event {

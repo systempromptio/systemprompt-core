@@ -69,10 +69,10 @@ impl AccessControlLocalSync {
             .map_err(SyncError::internal)?;
 
         Ok(LocalSyncResult {
-            items_synced: report.rules_inserted + report.rules_updated,
-            items_skipped: report.rules_skipped,
+            items_synced: report.inserted + report.updated,
+            items_skipped: report.skipped,
             items_skipped_modified: 0,
-            items_deleted: report.rules_deleted,
+            items_deleted: report.deleted,
             errors: Vec::new(),
             direction: LocalSyncDirection::ToDatabase,
         })

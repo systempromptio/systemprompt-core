@@ -58,9 +58,9 @@ pub enum AuthzBootstrapError {
     ExtensionHookButWrongMode { mode: &'static str },
 
     #[error(
-        "an extension authz hook was supplied via AppContextBuilder::with_authz_hook(...) but \
-         the profile has no `governance.authz` block — set `governance.authz.hook.mode = \
-         extension` or drop the `with_authz_hook` call"
+        "an extension authz hook was supplied via AppContextBuilder::with_authz_hook(...) but the \
+         profile has no `governance.authz` block — set `governance.authz.hook.mode = extension` \
+         or drop the `with_authz_hook` call"
     )]
     NoGovernanceButExtensionHook,
 }

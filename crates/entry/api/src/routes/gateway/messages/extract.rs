@@ -210,17 +210,34 @@ async fn read_gateway_body(
     Ok((body_bytes, canonical))
 }
 
+/// Inputs for [`build_gateway_authz_request`].
+///
+/// Owned bundle so the JWT-claims forwarding contract can be exercised from
+/// unit tests without standing up the full principal/route stack.
+#[derive(Debug, Clone)]
+pub struct GatewayAuthzRequestInput {
+    pub user_id: UserId,
+    pub roles: Vec<String>,
+    pub attributes: BTreeMap<String, serde_json::Value>,
+    pub act_chain: Vec<Actor>,
+    pub trace_id: TraceId,
+    pub route_id: RouteId,
+    pub model: ModelId,
+}
+
 /// Public so unit tests can lock in the JWT-claims forwarding contract
 /// without invoking the wider dispatch path.
-pub fn build_gateway_authz_request(
-    user_id: UserId,
-    roles: Vec<String>,
-    attributes: BTreeMap<String, serde_json::Value>,
-    act_chain: Vec<Actor>,
-    trace_id: TraceId,
-    route_id: RouteId,
-    model: ModelId,
-) -> AuthzRequest {
+#[must_use]
+pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequest {
+    let GatewayAuthzRequestInput {
+        user_id,
+        roles,
+        attributes,
+        act_chain,
+        trace_id,
+        route_id,
+        model,
+    } = input;
     AuthzRequest {
         entity: EntityRef::GatewayRoute(route_id),
         user_id,
@@ -247,15 +264,15 @@ async fn enforce_authz_pre_dispatch(
         route.id.clone()
     };
     let (roles, attributes, act_chain) = principal.authz_attributes();
-    let req = build_gateway_authz_request(
-        principal.user_id().clone(),
+    let req = build_gateway_authz_request(GatewayAuthzRequestInput {
+        user_id: principal.user_id().clone(),
         roles,
         attributes,
         act_chain,
-        principal.trace_id().clone(),
+        trace_id: principal.trace_id().clone(),
         route_id,
-        ModelId::new(model),
-    );
+        model: ModelId::new(model),
+    });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => Err((

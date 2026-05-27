@@ -37,7 +37,8 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "async signature required by AgentRegistryProvider trait impl in registry_provider.rs"
+        reason = "async signature required by AgentRegistryProvider trait impl in \
+                  registry_provider.rs"
     )]
     pub async fn get_agent(&self, name: &str) -> AgentResult<AgentConfig> {
         self.config
@@ -49,7 +50,8 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "async signature required by AgentRegistryProvider trait impl in registry_provider.rs"
+        reason = "async signature required by AgentRegistryProvider trait impl in \
+                  registry_provider.rs"
     )]
     pub async fn list_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         Ok(self.config.agents.values().cloned().collect())
@@ -57,7 +59,8 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "async signature required by AgentRegistryProvider trait impl in registry_provider.rs"
+        reason = "async signature required by AgentRegistryProvider trait impl in \
+                  registry_provider.rs"
     )]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
@@ -72,7 +75,8 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
-        reason = "async signature required by AgentRegistryProvider trait impl in registry_provider.rs"
+        reason = "async signature required by AgentRegistryProvider trait impl in \
+                  registry_provider.rs"
     )]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
         let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);

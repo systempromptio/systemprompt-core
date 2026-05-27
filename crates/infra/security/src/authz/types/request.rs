@@ -7,10 +7,11 @@ use systemprompt_identifiers::{Actor, McpToolName, ModelId, TraceId, UserId};
 use super::decision::DenyReason;
 use super::entity_ref::EntityRef;
 
-/// Open extension point for the enforcement-site context attached to an
-/// `AuthzRequest`. Replaces the previous closed enum so tenants can add
-/// their own enforcement sites (skill execution, order submission, file
-/// egress, ...) without a core change.
+/// Open enforcement-site context attached to an [`AuthzRequest`].
+///
+/// Replaces the previous closed enum so tenants can add their own
+/// enforcement sites (skill execution, order submission, file egress, ...)
+/// without a core change.
 ///
 /// `kind` is a dotted-namespaced literal. Core mints three:
 ///

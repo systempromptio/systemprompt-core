@@ -26,14 +26,14 @@ pub(super) struct ApiKeyPrincipal {
 }
 
 impl AuthedPrincipal {
-    pub(super) fn user_id(&self) -> &UserId {
+    pub(super) const fn user_id(&self) -> &UserId {
         match self {
             Self::Jwt(p) => &p.user_id,
             Self::ApiKey(p) => &p.user_id,
         }
     }
 
-    pub(super) fn trace_id(&self) -> &TraceId {
+    pub(super) const fn trace_id(&self) -> &TraceId {
         match self {
             Self::Jwt(p) => &p.trace_id,
             Self::ApiKey(p) => &p.trace_id,
@@ -44,11 +44,7 @@ impl AuthedPrincipal {
         &self,
     ) -> (Vec<String>, BTreeMap<String, serde_json::Value>, Vec<Actor>) {
         match self {
-            Self::Jwt(p) => (
-                p.roles.clone(),
-                p.attributes.clone(),
-                p.act_chain.clone(),
-            ),
+            Self::Jwt(p) => (p.roles.clone(), p.attributes.clone(), p.act_chain.clone()),
             Self::ApiKey(_) => (Vec::new(), BTreeMap::new(), Vec::new()),
         }
     }

@@ -58,16 +58,13 @@ impl AuthenticatedUser {
     }
 
     #[must_use]
-    pub fn with_attributes(
-        mut self,
-        attributes: BTreeMap<String, serde_json::Value>,
-    ) -> Self {
+    pub fn with_attributes(mut self, attributes: BTreeMap<String, serde_json::Value>) -> Self {
         self.attributes = attributes;
         self
     }
 
     #[must_use]
-    pub fn attributes(&self) -> &BTreeMap<String, serde_json::Value> {
+    pub const fn attributes(&self) -> &BTreeMap<String, serde_json::Value> {
         &self.attributes
     }
 
