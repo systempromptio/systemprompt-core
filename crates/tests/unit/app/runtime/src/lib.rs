@@ -39,3 +39,7 @@ mod span_tests;
 mod builder_extra;
 #[cfg(test)]
 mod files_validator_tests;
+#[cfg(test)]
+mod files_validator_load;
+#[cfg(test)]
+mod context_loaders_extra;
