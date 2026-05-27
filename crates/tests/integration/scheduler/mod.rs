@@ -12,4 +12,10 @@ mod distributed_lock;
 mod repository_tests;
 
 #[cfg(test)]
+mod job_execute_tests;
+
+#[cfg(test)]
+mod service_management_tests;
+
+#[cfg(test)]
 mod static_content_tests;
