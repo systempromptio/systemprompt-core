@@ -62,8 +62,8 @@ impl AuthzContext {
         }
     }
 
-    /// Tenant-facing constructor for an extension-defined enforcement site.
-    /// `kind` should be dotted-namespaced (e.g. `"acme.order_submission"`).
+    /// `kind` must be dotted-namespaced (e.g. `"acme.order_submission"`) so
+    /// kinds from independent extensions cannot collide.
     #[must_use]
     pub fn extension(kind: impl Into<Cow<'static, str>>, payload: serde_json::Value) -> Self {
         Self {
