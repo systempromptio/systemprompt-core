@@ -19,6 +19,7 @@ mod context_requirement;
 mod cors_config;
 mod rate_limit_config;
 mod security_headers;
+mod security_trace_served_by;
 mod session_tracking;
 mod should_redirect;
 mod trailing_slash;

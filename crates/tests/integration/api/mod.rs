@@ -41,6 +41,10 @@ mod routes_misc;
 mod routes_gateway;
 
 #[cfg(test)]
+#[path = "routes_gateway_authed.rs"]
+mod routes_gateway_authed;
+
+#[cfg(test)]
 #[path = "routes_oauth_discovery.rs"]
 mod routes_oauth_discovery;
 
