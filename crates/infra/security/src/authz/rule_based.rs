@@ -1,10 +1,10 @@
-//! Core `AuthzDecisionHook` that wraps the in-process [`super::resolver`].
+//! Core `AuthzDecisionHook` wrapping the in-process [`super::resolver`].
 //!
-//! `RuleBasedHook` is the canonical RBAC layer. It loads `access_control_rules`
-//! for the request's entity, runs the sync [`super::resolver::resolve`] over
-//! them, and emits an `AuthzDecision`. Promoted from an implicit pre-hook
-//! step in 0.11.x to a first-class hook in 12.0 so extensions can compose it
-//! explicitly via [`super::CompositeAuthzHook`]:
+//! `RuleBasedHook` is the canonical RBAC layer: it loads
+//! `access_control_rules` for the request's entity, runs the sync resolver
+//! over them, and emits an `AuthzDecision`. Exposed as a hook so extensions
+//! can compose it explicitly with their own ABAC predicates via
+//! [`super::CompositeAuthzHook`]:
 //!
 //! ```ignore
 //! let composite = CompositeAuthzHook::new(vec![
@@ -13,9 +13,8 @@
 //! ]);
 //! ```
 //!
-//! Composition rules: deny-overrides. The composite iterates in declaration
-//! order and short-circuits on the first deny. Put `RuleBasedHook` first so
-//! coarse-grained RBAC rejects pass before any attribute lookup runs.
+//! Put `RuleBasedHook` first so a coarse-grained RBAC reject short-circuits
+//! the chain before any per-attribute lookup runs.
 
 use std::sync::Arc;
 
