@@ -76,7 +76,6 @@ mod url;
 mod user;
 mod webhook;
 
-pub mod bootstrap;
 pub mod error;
 pub mod headers;
 pub mod macros;
