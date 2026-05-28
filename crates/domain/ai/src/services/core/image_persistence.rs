@@ -37,12 +37,13 @@ async fn persist_ai_request(
     request: &ImageGenerationRequest,
     response: &ImageGenerationResponse,
 ) -> Result<()> {
-    let mut builder = AiRequestRecordBuilder::new(response.request_id.clone(), request.user_id.clone())
-        .provider(&response.provider)
-        .model(&response.model)
-        .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))
-        .latency(response.generation_time_ms as i32)
-        .completed();
+    let mut builder =
+        AiRequestRecordBuilder::new(response.request_id.clone(), request.user_id.clone())
+            .provider(&response.provider)
+            .model(&response.model)
+            .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))
+            .latency(response.generation_time_ms as i32)
+            .completed();
 
     if let Some(session_id) = &request.session_id {
         builder = builder.session_id(session_id.clone());

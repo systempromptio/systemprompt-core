@@ -53,5 +53,4 @@ impl AgentOAuthState {
         self.user_provider = Some(provider);
         self
     }
-
 }

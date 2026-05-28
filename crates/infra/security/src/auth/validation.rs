@@ -1,6 +1,8 @@
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
-use systemprompt_models::auth::{JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, UserType};
+use systemprompt_models::auth::{
+    JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, UserType,
+};
 use systemprompt_models::execution::context::RequestContext;
 
 use crate::error::{AuthError, AuthResult};
@@ -121,5 +123,4 @@ impl AuthValidationService {
         .with_jti(claims.jti.clone())
         .with_token_exp(claims.exp)
     }
-
 }
