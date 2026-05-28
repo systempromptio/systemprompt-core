@@ -6,6 +6,29 @@ use anyhow::Result;
 use systemprompt_oauth::repository::OAuthRepository;
 use url::Origin;
 
+/// The set of origins a resource indicator is allowed to match for the
+/// self-origin carve-out in [`resource::validate_resource_uri`]. The primary
+/// origin is derived from `api_external_url`; the request origin is derived
+/// from the (allowlisted) Host header so that RFC 9728 dual-self-identity
+/// flows — where one gateway answers on both `127.0.0.1` and `localhost` —
+/// accept resource URIs constructed from either advertised identity.
+#[derive(Debug, Clone)]
+pub struct SelfOrigins {
+    primary: Origin,
+    request: Origin,
+}
+
+impl SelfOrigins {
+    #[must_use]
+    pub fn new(primary: Origin, request: Origin) -> Self {
+        Self { primary, request }
+    }
+
+    pub fn matches(&self, other: &Origin) -> bool {
+        &self.primary == other || &self.request == other
+    }
+}
+
 pub async fn validate_authorize_request(
     state: &systemprompt_oauth::OAuthState,
     params: &AuthorizeQuery,
@@ -61,7 +84,7 @@ pub async fn validate_authorize_request(
 
 pub fn validate_oauth_parameters(
     params: &AuthorizeQuery,
-    self_origin: &Origin,
+    self_origins: &SelfOrigins,
 ) -> Result<(), String> {
     if params.response_type != "code" {
         return Err(format!(
@@ -88,7 +111,7 @@ pub fn validate_oauth_parameters(
     }
 
     if let Some(resource) = &params.resource {
-        resource::validate_resource_uri(resource, self_origin)?;
+        resource::validate_resource_uri(resource, self_origins)?;
     }
 
     Ok(())

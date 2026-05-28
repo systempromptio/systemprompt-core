@@ -1,7 +1,11 @@
 use systemprompt_models::net::OutboundUrlError;
-use url::Origin;
 
-pub(super) fn validate_resource_uri(resource: &str, self_origin: &Origin) -> Result<(), String> {
+use super::SelfOrigins;
+
+pub(super) fn validate_resource_uri(
+    resource: &str,
+    self_origins: &SelfOrigins,
+) -> Result<(), String> {
     let url = reqwest::Url::parse(resource)
         .map_err(|_e| format!("Invalid resource URI: '{resource}' is not a valid absolute URI"))?;
 
@@ -17,12 +21,11 @@ pub(super) fn validate_resource_uri(resource: &str, self_origin: &Origin) -> Res
     }
 
     // Self-origin carve-out: OAuth clients are permitted to target the gateway
-    // itself, even when its `api_external_url` is a loopback dev URL. The
-    // managed-MCP resource URI is synthesised from `api_external_url` (see
-    // routes/proxy/mcp.rs), so rejecting it here would make the gateway refuse
-    // resource indicators it produced. Any other host still falls through to
-    // the stricter rules below.
-    if url.origin() == *self_origin {
+    // itself, even when its `api_external_url` is a loopback dev URL. Under
+    // RFC 9728 dual-self-identity (one gateway answering on multiple hosts,
+    // e.g. `127.0.0.1` and `localhost`), the request-derived origin may
+    // differ from `api_external_url`; either is a valid self-reference.
+    if self_origins.matches(&url.origin()) {
         return Ok(());
     }
 

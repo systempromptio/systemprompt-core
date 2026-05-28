@@ -1,10 +1,11 @@
 use super::response_builder::{
     convert_form_to_query, generate_webauthn_form, is_user_consent_granted,
 };
-use super::validation::{validate_authorize_request, validate_oauth_parameters};
+use super::validation::{SelfOrigins, validate_authorize_request, validate_oauth_parameters};
 use super::{AuthorizeQuery, AuthorizeRequest};
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::services::request_base_url::RequestBaseUrl;
 use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
 use systemprompt_models::{Config, RequestContext};
@@ -59,6 +60,7 @@ fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHtt
 pub async fn handle_authorize_get(
     State(state): State<OAuthState>,
     Extension(_req_ctx): Extension<RequestContext>,
+    base: RequestBaseUrl,
     Query(params): Query<AuthorizeQuery>,
     OAuthRepo(repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
@@ -93,7 +95,7 @@ pub async fn handle_authorize_get(
         ));
     }
 
-    let self_origin = Config::get()
+    let primary_origin = Config::get()
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to load config for OAuth self-origin");
             OAuthHttpError::server_error("Configuration unavailable")
@@ -110,8 +112,9 @@ pub async fn handle_authorize_get(
                     OAuthHttpError::server_error("Configuration invalid")
                 })
         })?;
+    let self_origins = SelfOrigins::new(primary_origin, base.origin().clone());
 
-    if let Err(validation_error) = validate_oauth_parameters(&params, &self_origin) {
+    if let Err(validation_error) = validate_oauth_parameters(&params, &self_origins) {
         return Err(with_redirect_if_set(
             OAuthHttpError::invalid_request(validation_error),
             &params,

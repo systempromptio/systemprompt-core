@@ -3,12 +3,12 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use serde::Serialize;
-use systemprompt_models::Config;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_runtime::AppContext;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
+use crate::services::request_base_url::RequestBaseUrl;
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {
@@ -30,18 +30,8 @@ pub struct WellKnownResponse {
     pub claims_supported: Vec<String>,
 }
 
-pub async fn handle_well_known() -> impl IntoResponse {
-    let global_config = match Config::get() {
-        Ok(c) => c,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("Failed to get config: {e}")})),
-            )
-                .into_response();
-        },
-    };
-    let config = OAuthServerConfig::from_api_server_url(&global_config.api_external_url);
+pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
+    let config = OAuthServerConfig::from_api_server_url(base.as_str());
 
     let response = WellKnownResponse {
         issuer: config.issuer.clone(),
@@ -90,18 +80,8 @@ pub struct OAuthProtectedResourceResponse {
     pub resource_documentation: Option<String>,
 }
 
-pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
-    let global_config = match Config::get() {
-        Ok(c) => c,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("Failed to get config: {e}")})),
-            )
-                .into_response();
-        },
-    };
-    let config = OAuthServerConfig::from_api_server_url(&global_config.api_external_url);
+pub async fn handle_oauth_protected_resource(base: RequestBaseUrl) -> impl IntoResponse {
+    let config = OAuthServerConfig::from_api_server_url(base.as_str());
 
     let response = OAuthProtectedResourceResponse {
         resource: config.issuer.clone(),
@@ -116,6 +96,7 @@ pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
 
 pub async fn handle_oauth_protected_resource_with_path(
     State(ctx): State<AppContext>,
+    base: RequestBaseUrl,
     axum::extract::Path(path): axum::extract::Path<String>,
 ) -> impl IntoResponse {
     let mcp_prefix = ApiPaths::MCP_BASE.trim_start_matches('/');
@@ -132,20 +113,10 @@ pub async fn handle_oauth_protected_resource_with_path(
 
     let service_name = match service_name {
         Some(name) => name.to_owned(),
-        None => return handle_oauth_protected_resource().await.into_response(),
+        None => return handle_oauth_protected_resource(base).await.into_response(),
     };
 
-    let base_url = match Config::get() {
-        Ok(c) => c.api_external_url.clone(),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to get config");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Configuration unavailable"})),
-            )
-                .into_response();
-        },
-    };
+    let base_url = base.as_str().to_owned();
 
     let scopes = get_mcp_server_scopes(ctx.mcp_registry(), &service_name)
         .await

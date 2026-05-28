@@ -1,16 +1,20 @@
 use systemprompt_api::routes::oauth::endpoints::authorize::AuthorizeQuery;
-use systemprompt_api::routes::oauth::endpoints::authorize::validation::validate_oauth_parameters;
+use systemprompt_api::routes::oauth::endpoints::authorize::validation::{
+    SelfOrigins, validate_oauth_parameters,
+};
 use systemprompt_identifiers::ClientId;
-use url::{Origin, Url};
+use url::Url;
 
-fn default_origin() -> Origin {
-    Url::parse("https://gateway.example.com")
+fn default_origin() -> SelfOrigins {
+    let origin = Url::parse("https://gateway.example.com")
         .expect("test origin parses")
-        .origin()
+        .origin();
+    SelfOrigins::new(origin.clone(), origin)
 }
 
-fn origin_of(url: &str) -> Origin {
-    Url::parse(url).expect("test origin parses").origin()
+fn origin_of(url: &str) -> SelfOrigins {
+    let origin = Url::parse(url).expect("test origin parses").origin();
+    SelfOrigins::new(origin.clone(), origin)
 }
 
 fn valid_query() -> AuthorizeQuery {
@@ -560,5 +564,49 @@ fn test_resource_non_self_local_suffix_still_rejected_with_loopback_self() {
         ..valid_query()
     };
     let err = validate_oauth_parameters(&query, &self_origin).unwrap_err();
+    assert!(err.contains("internal or private"));
+}
+
+fn dual_origins(primary: &str, request: &str) -> SelfOrigins {
+    let p = Url::parse(primary).expect("primary parses").origin();
+    let r = Url::parse(request).expect("request parses").origin();
+    SelfOrigins::new(p, r)
+}
+
+#[test]
+fn test_resource_matches_request_origin_when_primary_differs() {
+    // RFC 9728 dual-self-identity: gateway advertises 127.0.0.1 because the
+    // client dialled via 127.0.0.1, while api_external_url is localhost.
+    // The resource URI the client constructs from discovery uses 127.0.0.1
+    // and must pass the self-origin carve-out even though primary differs.
+    let origins = dual_origins("http://localhost:8080", "http://127.0.0.1:8080");
+    let query = AuthorizeQuery {
+        resource: Some("http://127.0.0.1:8080/api/v1/mcp/foo/mcp".to_string()),
+        ..valid_query()
+    };
+    assert!(validate_oauth_parameters(&query, &origins).is_ok());
+}
+
+#[test]
+fn test_resource_matches_primary_origin_when_request_differs() {
+    let origins = dual_origins("https://gateway.example.com", "https://gateway.example.com");
+    let query = AuthorizeQuery {
+        resource: Some("https://gateway.example.com/api/v1/mcp/foo/mcp".to_string()),
+        ..valid_query()
+    };
+    assert!(validate_oauth_parameters(&query, &origins).is_ok());
+}
+
+#[test]
+fn test_resource_unrelated_loopback_rejected_even_with_dual_origins() {
+    // Dual self-origins cover the gateway's own loopback ports. A different
+    // loopback port is NOT in either self-origin, so the stricter address
+    // rules below the carve-out must still reject it.
+    let origins = dual_origins("http://localhost:8080", "http://127.0.0.1:8080");
+    let query = AuthorizeQuery {
+        resource: Some("http://localhost:9999/api".to_string()),
+        ..valid_query()
+    };
+    let err = validate_oauth_parameters(&query, &origins).unwrap_err();
     assert!(err.contains("internal or private"));
 }
