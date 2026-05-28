@@ -16,14 +16,15 @@ pub(crate) mod registry;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{publish, resolve_target, unpublish};
+pub use emit::{publish, resolve_target, sanitize_path_segment, unpublish};
 
 pub use marketplace::{
     MARKETPLACE_SCHEMA_URL, MarketplaceFile, MarketplaceMetadata, MarketplaceOwner,
     MarketplacePluginEntry, render_marketplace,
 };
 pub use registry::{
-    InstalledPluginEntry, KnownMarketplaceEntry, LocalSource, MergeReport, installed_plugin_key,
+    InstalledPluginEntry, InstalledPluginInstall, InstalledPluginsFile, KnownMarketplaceEntry,
+    KnownMarketplaceValue, KnownMarketplacesFile, LocalSource, MergeReport, installed_plugin_key,
     parse_root, retain_installed_plugin, retain_known_marketplaces, upsert_installed_plugin,
     upsert_known_marketplace,
 };

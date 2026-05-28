@@ -68,7 +68,7 @@ impl CoworkTarget {
 // the `:` is reserved on NTFS (alternate data streams), so using the raw string
 // as a path segment trips ERROR_INVALID_NAME (Win os error 123). Sanitize at
 // the filesystem boundary; the manifest format itself stays untouched.
-pub(super) fn sanitize_path_segment(s: &str) -> String {
+pub fn sanitize_path_segment(s: &str) -> String {
     s.chars()
         .map(|c| {
             if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {

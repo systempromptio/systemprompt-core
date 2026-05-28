@@ -199,7 +199,9 @@ fn check_loopback_secret() -> Check {
 // UI shows "no plugins" with no other signal.
 fn check_cowork_marketplace() -> Check {
     use crate::config::paths;
-    use crate::integration::cowork_plugins::{KNOWN_MARKETPLACES_FILE, resolve_target};
+    use crate::integration::cowork_plugins::{
+        KNOWN_MARKETPLACES_FILE, KnownMarketplacesFile, resolve_target,
+    };
     let Some(target) = resolve_target() else {
         return Check::warn(
             "cowork marketplace",
@@ -213,8 +215,8 @@ fn check_cowork_marketplace() -> Check {
     let known = target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE);
     let mp_dir_exists = mp_dir.is_dir();
     let registered = match std::fs::read_to_string(&known) {
-        Ok(text) => serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&text)
-            .map(|m| m.contains_key(paths::BRIDGE_MARKETPLACE_NAME))
+        Ok(text) => serde_json::from_str::<KnownMarketplacesFile>(&text)
+            .map(|f| f.contains(paths::BRIDGE_MARKETPLACE_NAME))
             .unwrap_or(false),
         Err(_) => false,
     };

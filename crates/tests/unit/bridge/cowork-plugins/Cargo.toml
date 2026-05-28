@@ -1,0 +1,17 @@
+[package]
+name = "systemprompt-bridge-cowork-plugins-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for the Bridge → Cowork host adapter (per-session install state) and the canonical anthropic marketplace.json shape"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]

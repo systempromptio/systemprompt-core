@@ -7018,6 +7018,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-cowork-plugins-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-bridge",
+]
+
+[[package]]
 name = "systemprompt-bridge-install-tests"
 version = "0.0.11"
 dependencies = [
