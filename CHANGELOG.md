@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.12.2] - 2026-05-27
+
+### Fixed
+
+- `SessionMiddleware`'s skip-tracked and bot-classified branches persist a real anonymous users row via `UserProvider::create_anonymous` before constructing `Actor`. Previously these paths returned a sentinel `user_id` (`"anonymous"` / `"bot"`) that violated the documented `Actor` invariant and caused `POST /oauth/register` to fail with a foreign-key violation on freshly-migrated databases.
+- Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
+
+### Removed
+
+- `systemprompt_identifiers::bootstrap::{anonymous, bot, unknown, default, empty_sentinel}` are deleted, along with `UserId::{anonymous, system, bootstrap, is_anonymous, is_system}`. `UserId` values must originate from a row in the `users` table; the middleware persists one before constructing a request context.
+- `AiRequestRecord::minimal_fallback` is deleted. Construction failures propagate to the caller, which logs and skips persistence rather than writing a record with a fabricated `user_id`.
+- `ExecutionMetadata::default()` is deleted (no production callers).
+- `AuthValidationService::validate_request` no longer takes an `AuthMode`; the `AuthMode` enum, the anonymous-context fallback, and `AgentOAuthState::auth_mode` are deleted. The A2A server middleware consequently requires a Bearer token; unauthenticated A2A traffic returns 401.
+
+### Changed
+
+- `TaskContextInfo.user_id` is now `Option<UserId>`, exposing the database's existing NULL semantics rather than masking them with a sentinel string.
+- `ImageGenerationRequest.user_id` is now non-optional. Callers that cannot supply a `UserId` were never authorised to generate images.
+
 ## [0.12.1] - 2026-05-27
 
 ### Fixed
