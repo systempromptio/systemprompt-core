@@ -331,12 +331,11 @@ impl AppState {
         }
 
         if let Some(loc) = loc {
-            let meta = paths::metadata_dir(&loc.path);
-
             snap.plugin_count = count_plugin_dirs(&loc.path);
             snap.malformed_plugin_count = count_malformed_plugin_dirs(&loc.path);
 
-            if let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
+            if let Some(meta) = paths::bridge_metadata_dir()
+                && let Ok(bytes) = std::fs::read(meta.join(paths::LAST_SYNC_SENTINEL))
                 && let Ok(record) = serde_json::from_slice::<LastSyncRecord>(&bytes)
             {
                 let when = record.synced_at.as_deref().unwrap_or("unknown");

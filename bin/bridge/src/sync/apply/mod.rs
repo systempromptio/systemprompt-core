@@ -165,20 +165,35 @@ fn manifest_with_servers(base: &SignedManifest, servers: Vec<ManagedMcpServer>) 
     next
 }
 
+// `root` is the org-plugins root (e.g. `C:\Program Files\Claude\org-plugins`
+// on Windows) — admin-write-only by Windows convention. We MUST NOT create
+// bridge-internal scratch dirs under it; only the published per-plugin tree
+// at `root/<plugin-id>/` is written there, and only succeeds because
+// `install --apply` widens that root's ACL to grant the current user Modify.
+//
+// Staging + metadata move to the bridge's own user-writable working dir
+// (`%LOCALAPPDATA%\systemprompt-bridge\…` on Windows). Always user-writable,
+// never needs elevation, isolates bridge state from the published namespace.
 fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
     fs::create_dir_all(root).map_err(|e| ApplyError::Io {
         context: format!("create {}", root.display()),
         source: e,
     })?;
-    let meta_dir = paths::metadata_dir(root);
+    let meta_dir = paths::bridge_metadata_dir().ok_or_else(|| ApplyError::Io {
+        context: "resolve bridge metadata dir".into(),
+        source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
+    })?;
     fs::create_dir_all(&meta_dir).map_err(|e| ApplyError::Io {
-        context: "create metadata dir".into(),
+        context: format!("create metadata dir at {}", meta_dir.display()),
         source: e,
     })?;
-    let staging_root = paths::staging_dir(root);
+    let staging_root = paths::bridge_staging_dir().ok_or_else(|| ApplyError::Io {
+        context: "resolve bridge staging dir".into(),
+        source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
+    })?;
     _ = fs::remove_dir_all(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
-        context: "create staging".into(),
+        context: format!("create staging at {}", staging_root.display()),
         source: e,
     })?;
     Ok((meta_dir, staging_root))

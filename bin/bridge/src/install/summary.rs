@@ -19,13 +19,14 @@ pub fn render_install_summary(s: &InstallSummary) -> String {
         "  org-plugins: {} ({scope_label})",
         s.location.path.display()
     );
-    let meta = paths::metadata_dir(&s.location.path);
-    _ = writeln!(out, "  metadata:    {}", meta.display());
-    _ = writeln!(
-        out,
-        "    user.json:    {}",
-        meta.join(paths::USER_FRAGMENT).display()
-    );
+    if let Some(meta) = paths::bridge_metadata_dir() {
+        _ = writeln!(out, "  metadata:    {}", meta.display());
+        _ = writeln!(
+            out,
+            "    user.json:    {}",
+            meta.join(paths::USER_FRAGMENT).display()
+        );
+    }
     let synthetic = s.location.path.join(paths::SYNTHETIC_PLUGIN_NAME);
     _ = writeln!(out, "  managed plugin: {}", synthetic.display());
     _ = writeln!(

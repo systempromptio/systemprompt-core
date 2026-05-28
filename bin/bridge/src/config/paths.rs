@@ -1,10 +1,8 @@
 use std::path::PathBuf;
 
-pub const METADATA_DIR: &str = ".systemprompt-bridge";
 pub const VERSION_SENTINEL: &str = "version.json";
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const USER_FRAGMENT: &str = "user.json";
-pub const STAGING_DIR: &str = ".staging";
 
 pub const SYNTHETIC_PLUGIN_NAME: &str = "systemprompt-managed";
 
@@ -143,12 +141,44 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
 
 pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 
+// Where the bridge keeps its OWN working state — staging dir, sync sentinel,
+// user fragment, etc. Distinct from `org_plugins_*` (the *published* plugin
+// tree Cowork reads, which on Windows lives under `Program Files` and is
+// admin-write-only). The two MUST NOT be conflated: writing bridge-internal
+// scratch under a read-only published namespace was the cause of the
+// `Sync failed: io error in create staging: Access is denied` regression.
+#[cfg(target_os = "windows")]
 #[must_use]
-pub fn metadata_dir(org_plugins: &std::path::Path) -> PathBuf {
-    org_plugins.join(METADATA_DIR)
+pub fn bridge_working_dir() -> Option<PathBuf> {
+    std::env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("systemprompt-bridge"))
+}
+
+#[cfg(target_os = "macos")]
+#[must_use]
+pub fn bridge_working_dir() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| {
+        h.join("Library")
+            .join("Application Support")
+            .join("systemprompt-bridge")
+    })
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[must_use]
+pub fn bridge_working_dir() -> Option<PathBuf> {
+    std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
+        .map(|base| base.join("systemprompt-bridge"))
 }
 
 #[must_use]
-pub fn staging_dir(org_plugins: &std::path::Path) -> PathBuf {
-    org_plugins.join(STAGING_DIR)
+pub fn bridge_staging_dir() -> Option<PathBuf> {
+    bridge_working_dir().map(|p| p.join("staging"))
 }
+
+#[must_use]
+pub fn bridge_metadata_dir() -> Option<PathBuf> {
+    bridge_working_dir().map(|p| p.join("metadata"))
+}
+

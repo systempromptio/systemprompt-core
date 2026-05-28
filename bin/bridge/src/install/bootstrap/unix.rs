@@ -34,6 +34,13 @@ pub(super) fn chown_to_sudo_user_if_root(path: &Path) {
     }
 }
 
+// No-op on Unix — POSIX directory permissions are already correctly
+// inherited via the umask + chown above. The Windows path needs an explicit
+// icacls grant because Program Files is admin-write-only by default.
+pub(super) fn grant_user_modify(_path: &std::path::Path) -> std::io::Result<()> {
+    Ok(())
+}
+
 fn lookup_uid_gid(user: &str) -> Option<(u32, u32)> {
     let output = std::process::Command::new("/usr/bin/id")
         .arg("-u")

@@ -23,19 +23,30 @@ struct VersionSentinel<'a> {
 
 pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<()> {
     fs::create_dir_all(&loc.path)?;
-    let meta = paths::metadata_dir(&loc.path);
+    let meta = paths::bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("bridge metadata dir unresolvable"))?;
     fs::create_dir_all(&meta)?;
     os::chown_to_sudo_user_if_root(&loc.path);
     os::chown_to_sudo_user_if_root(&meta);
+    if let Err(e) = os::grant_user_modify(&loc.path) {
+        tracing::warn!(
+            path = %loc.path.display(),
+            error = %e,
+            "could not widen org-plugins ACL to grant user Modify; unelevated sync may fail"
+        );
+    }
     Ok(())
 }
 
 pub(super) fn write_version_sentinel(
-    org_plugins: &Path,
+    _org_plugins: &Path,
     binary: &Path,
     gateway_url: Option<&str>,
 ) -> std::io::Result<()> {
-    let sentinel = paths::metadata_dir(org_plugins).join(paths::VERSION_SENTINEL);
+    let meta = paths::bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("bridge metadata dir unresolvable"))?;
+    fs::create_dir_all(&meta)?;
+    let sentinel = meta.join(paths::VERSION_SENTINEL);
     let payload = VersionSentinel {
         binary: binary.display().to_string(),
         binary_version: env!("CARGO_PKG_VERSION"),

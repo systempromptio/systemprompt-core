@@ -102,9 +102,10 @@ pub fn build_listing() -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
 
-    let last_sync = loc.as_ref().and_then(|l| {
-        let path = paths::metadata_dir(&l.path).join(paths::LAST_SYNC_SENTINEL);
-        read_last_sync(&path).ok().flatten()
+    let last_sync = paths::bridge_metadata_dir().and_then(|meta| {
+        read_last_sync(&meta.join(paths::LAST_SYNC_SENTINEL))
+            .ok()
+            .flatten()
     });
 
     let (mut plugins, skills, hooks, mcp, agents) = match loc {

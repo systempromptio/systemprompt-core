@@ -86,7 +86,10 @@ fn check_org_plugins(report: &mut Report) {
         &format!("{} (scope: {scope})", loc.path.display()),
     );
 
-    let meta = paths::metadata_dir(&loc.path);
+    let Some(meta) = paths::bridge_metadata_dir() else {
+        report.warn("metadata dir", "bridge metadata dir unresolvable");
+        return;
+    };
     if meta.exists() {
         report.ok("metadata dir", &meta.display().to_string());
     } else {

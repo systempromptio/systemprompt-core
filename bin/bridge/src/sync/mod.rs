@@ -130,7 +130,8 @@ pub async fn run_once(
         });
     }
 
-    let last_sync_path = paths::metadata_dir(&location.path).join(paths::LAST_SYNC_SENTINEL);
+    let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
+    let last_sync_path = meta.join(paths::LAST_SYNC_SENTINEL);
     let now = chrono::Utc::now();
     if !force_replay {
         let last_state = match read_last_sync(&last_sync_path) {

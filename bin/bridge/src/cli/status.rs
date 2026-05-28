@@ -93,7 +93,10 @@ fn print_cowork_status() {
 
 fn print_org_plugins_status(plugins_path: &std::path::Path) {
     status_line("org-plugins", plugins_path.display());
-    let meta = paths::metadata_dir(plugins_path);
+    let Some(meta) = paths::bridge_metadata_dir() else {
+        status_indent("last sync", "(metadata dir unresolvable)");
+        return;
+    };
 
     let last_sync = meta.join(paths::LAST_SYNC_SENTINEL);
     let last_sync_value = if last_sync.exists() {
