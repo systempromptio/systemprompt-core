@@ -237,7 +237,8 @@ fn request_context_validate_authenticated_fails_with_anonymous_user() {
 fn request_context_validate_authenticated_succeeds_when_valid() {
     let ctx = test_context()
         .with_auth_token("valid-token")
-        .with_actor(fixture_actor());
+        .with_actor(fixture_actor())
+        .with_user_type(UserType::User);
     assert!(ctx.validate_authenticated().is_ok());
 }
 
