@@ -212,11 +212,9 @@ fn check_cowork_marketplace() -> Check {
         .join(paths::BRIDGE_MARKETPLACE_NAME);
     let known = target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE);
     let mp_dir_exists = mp_dir.is_dir();
-    #[derive(serde::Deserialize)]
-    struct KnownMarketplaces(serde_json::Map<String, serde_json::Value>);
     let registered = match std::fs::read_to_string(&known) {
-        Ok(text) => serde_json::from_str::<KnownMarketplaces>(&text)
-            .map(|m| m.0.contains_key(paths::BRIDGE_MARKETPLACE_NAME))
+        Ok(text) => serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&text)
+            .map(|m| m.contains_key(paths::BRIDGE_MARKETPLACE_NAME))
             .unwrap_or(false),
         Err(_) => false,
     };
