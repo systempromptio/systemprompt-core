@@ -154,6 +154,7 @@ async fn skill_service_load_skill_custom_content_file() {
 
 #[tokio::test]
 async fn skill_service_load_skill_invalid_yaml_errors() {
+    let _skills_fixture_write = crate::SKILLS_FIXTURE_LOCK.write().await;
     let root = skills_root();
     let dir = root.join("invalid_yaml_skill");
     fs::create_dir_all(&dir).expect("dir");
@@ -162,7 +163,12 @@ async fn skill_service_load_skill_invalid_yaml_errors() {
 
     let svc = SkillService::new().expect("svc");
     let id = SkillId::new("invalid_yaml_skill");
-    let err = svc.load_skill_metadata(&id).await.expect_err("should fail");
+    let result = svc.load_skill_metadata(&id).await;
+    // Drop the malformed stub before yielding: sibling `registry_service`
+    // tests load this shared dir in full via the strict `ConfigLoader`, which
+    // (unlike a targeted `load_skill_metadata`) rejects an unparseable stub.
+    fs::remove_dir_all(&dir).ok();
+    let err = result.expect_err("should fail");
     assert!(format!("{err}").contains("Invalid YAML"));
 }
 
@@ -224,13 +230,21 @@ async fn skill_service_list_skill_ids_uses_config_id_when_set() {
 
 #[tokio::test]
 async fn skill_service_list_skill_ids_handles_invalid_yaml_gracefully() {
+    let _skills_fixture_write = crate::SKILLS_FIXTURE_LOCK.write().await;
     let root = skills_root();
     let dir = root.join("list_bad_yaml");
     fs::create_dir_all(&dir).expect("dir");
     fs::write(dir.join("config.yaml"), "[[not yaml").expect("config");
 
     let svc = SkillService::new().expect("svc");
-    let ids = svc.list_skill_ids().await.expect("should not error");
+    let ids = svc.list_skill_ids().await;
+    // The bootstrap skills dir is shared with sibling tests that load it in
+    // full via `ServicesConfig` discovery, which (unlike the lenient
+    // `list_skill_ids`) rejects an unparseable skill stub. Drop the fixture as
+    // soon as it has served this assertion so a concurrent full-config load
+    // cannot trip over it.
+    fs::remove_dir_all(&dir).ok();
+    let ids = ids.expect("should not error");
     assert!(!ids.contains(&"list_bad_yaml".to_owned()));
 }
 
