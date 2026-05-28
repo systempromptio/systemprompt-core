@@ -1,9 +1,11 @@
 use axum::body::Body;
-use axum::http::header::AUTHORIZATION;
+use axum::http::header::{AUTHORIZATION, HOST};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
 use serde_json::json;
 use std::str::FromStr;
+
+use crate::services::request_base_url::resolve as resolve_request_base_url;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_models::RequestContext;
@@ -37,21 +39,44 @@ impl AuthValidator {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct OAuthChallengeBuilder;
+pub struct OAuthChallengeBuilder;
 
 impl OAuthChallengeBuilder {
+    /// Build the `resource_metadata` URL advertised in the WWW-Authenticate
+    /// header. Host-derives the base from the incoming request so the 401
+    /// challenge agrees with the body of
+    /// `/.well-known/oauth-protected-resource` — both must reflect
+    /// whichever identity the client dialled in on (127.0.0.1 vs localhost
+    /// vs configured public host), or the OAuth flow fails to round-trip.
+    pub fn resource_metadata_url(
+        headers: &HeaderMap,
+        configured_api_external_url: &str,
+        resource_path: &str,
+    ) -> Result<String, url::ParseError> {
+        let configured = url::Url::parse(configured_api_external_url)?;
+        let raw_host = headers.get(HOST).and_then(|v| v.to_str().ok());
+        let base = resolve_request_base_url(raw_host, &configured).into_string();
+        Ok(format!(
+            "{base}/.well-known/oauth-protected-resource{resource_path}"
+        ))
+    }
+
     pub(super) fn build_challenge_response(
         service_name: &str,
         resource_path: &str,
+        headers: &HeaderMap,
         ctx: &AppContext,
         status_code: StatusCode,
         has_authorization: bool,
     ) -> Result<Response<Body>, StatusCode> {
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
-        let oauth_base_url = &ctx.config().api_external_url;
         let resource_metadata_url =
-            format!("{oauth_base_url}/.well-known/oauth-protected-resource{resource_path}");
+            Self::resource_metadata_url(headers, &ctx.config().api_external_url, resource_path)
+                .map_err(|e| {
+                    tracing::error!(error = %e, "api_external_url is not a valid URL");
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
 
         let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
             if has_authorization {
@@ -129,6 +154,7 @@ impl AccessValidator {
                     return Err(challenge_or_error(
                         service_name,
                         &resource_path,
+                        headers,
                         ctx,
                         status_code,
                         has_authorization,
@@ -225,6 +251,7 @@ fn mcp_session_fallback(
 fn challenge_or_error(
     service_name: &str,
     resource_path: &str,
+    headers: &HeaderMap,
     ctx: &AppContext,
     status_code: StatusCode,
     has_authorization: bool,
@@ -232,6 +259,7 @@ fn challenge_or_error(
     match OAuthChallengeBuilder::build_challenge_response(
         service_name,
         resource_path,
+        headers,
         ctx,
         status_code,
         has_authorization,

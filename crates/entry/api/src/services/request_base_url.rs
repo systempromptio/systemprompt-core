@@ -3,7 +3,7 @@
 //! RFC 9728 implementations identify themselves coherently from the host the
 //! client actually dialled. A single gateway reachable via both `127.0.0.1`
 //! and `localhost` must echo whichever the client used in every URL it
-//! returns (issuer, authorization_endpoint, token_endpoint, resource…),
+//! returns (`issuer`, `authorization_endpoint`, `token_endpoint`, `resource`…),
 //! otherwise the client's RFC 8707 `resource` indicator won't round-trip
 //! against the configured `api_external_url` origin.
 //!
@@ -32,7 +32,7 @@ impl RequestBaseUrl {
     }
 
     #[must_use]
-    pub fn origin(&self) -> &url::Origin {
+    pub const fn origin(&self) -> &url::Origin {
         &self.origin
     }
 
@@ -71,10 +71,11 @@ fn fallback_from_url(configured: &url::Url) -> RequestBaseUrl {
     }
 }
 
-/// Resolve a [`RequestBaseUrl`] from an optional Host header value and the
-/// configured `api_external_url`. Exposed for unit testing — production
-/// callers use the [`FromRequestParts`] impl which reads both from the
-/// request and global config.
+/// Resolve a [`RequestBaseUrl`] from an optional Host header and configured
+/// `api_external_url`.
+///
+/// Exposed for unit testing — production callers use the [`FromRequestParts`]
+/// impl which reads both from the request and global config.
 #[must_use]
 pub fn resolve(raw_host: Option<&str>, configured: &url::Url) -> RequestBaseUrl {
     if let Some(host) = raw_host.map(str::trim).filter(|s| !s.is_empty())
@@ -102,7 +103,7 @@ fn build_from_host(raw_host: &str, configured: &url::Url) -> Result<RequestBaseU
         configured.scheme()
     };
     let base = format!("{scheme}://{raw_host}");
-    let parsed = url::Url::parse(&base).map_err(|_| "host header did not parse as URL")?;
+    let parsed = url::Url::parse(&base).map_err(|_e| "host header did not parse as URL")?;
     Ok(RequestBaseUrl {
         base: base.trim_end_matches('/').to_owned(),
         origin: parsed.origin(),

@@ -1,4 +1,4 @@
-mod auth;
+pub mod auth;
 mod backend;
 mod client;
 mod engine;

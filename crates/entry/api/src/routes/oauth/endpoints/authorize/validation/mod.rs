@@ -6,12 +6,12 @@ use anyhow::Result;
 use systemprompt_oauth::repository::OAuthRepository;
 use url::Origin;
 
-/// The set of origins a resource indicator is allowed to match for the
-/// self-origin carve-out in [`resource::validate_resource_uri`]. The primary
-/// origin is derived from `api_external_url`; the request origin is derived
-/// from the (allowlisted) Host header so that RFC 9728 dual-self-identity
-/// flows — where one gateway answers on both `127.0.0.1` and `localhost` —
-/// accept resource URIs constructed from either advertised identity.
+/// Origin pair the `resource` self-origin carve-out matches against.
+///
+/// `primary` is derived from `api_external_url`; `request` is derived from the
+/// (allowlisted) Host header so that RFC 9728 dual-self-identity flows — where
+/// one gateway answers on both `127.0.0.1` and `localhost` — accept resource
+/// URIs constructed from either advertised identity.
 #[derive(Debug, Clone)]
 pub struct SelfOrigins {
     primary: Origin,
@@ -20,7 +20,7 @@ pub struct SelfOrigins {
 
 impl SelfOrigins {
     #[must_use]
-    pub fn new(primary: Origin, request: Origin) -> Self {
+    pub const fn new(primary: Origin, request: Origin) -> Self {
         Self { primary, request }
     }
 

@@ -107,9 +107,9 @@ async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Res
 
     assert!(
         !body.contains("'anon' is not authorized for this route"),
-        "MCP route mount regressed to a gate that excludes Anon. The proxy \
-         handler (services/proxy/auth.rs) cannot emit its RFC 9728 401 \
-         challenge if the gate 403s first. status={status} body={body}"
+        "MCP route mount regressed to a gate that excludes Anon. The proxy handler \
+         (services/proxy/auth.rs) cannot emit its RFC 9728 401 challenge if the gate 403s first. \
+         status={status} body={body}"
     );
     Ok(())
 }
@@ -157,9 +157,8 @@ async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyh
     );
     assert!(
         !www_auth.contains("error="),
-        "RFC 6750 §3 violation: no-credentials challenge must omit error= so \
-         clients begin OAuth discovery rather than treat the request as \
-         rejected. WWW-Authenticate={www_auth}"
+        "RFC 6750 §3 violation: no-credentials challenge must omit error= so clients begin OAuth \
+         discovery rather than treat the request as rejected. WWW-Authenticate={www_auth}"
     );
     assert!(
         !body.contains("\"error\""),
@@ -167,10 +166,9 @@ async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyh
     );
     assert!(
         !body.contains("authorization_url"),
-        "non-standard `authorization_url` field must not appear in the 401 \
-         body — authorization servers are advertised via the \
-         `authorization_servers` array in oauth-protected-resource metadata. \
-         body={body}"
+        "non-standard `authorization_url` field must not appear in the 401 body — authorization \
+         servers are advertised via the `authorization_servers` array in oauth-protected-resource \
+         metadata. body={body}"
     );
     Ok(())
 }
@@ -208,13 +206,11 @@ async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Res
     let www_auth = www_auth.expect("WWW-Authenticate header present on 401");
     assert!(
         www_auth.contains("error=\"invalid_token\""),
-        "bad-token challenge must advertise error=invalid_token per RFC 6750 \
-         §3.1, got: {www_auth}"
+        "bad-token challenge must advertise error=invalid_token per RFC 6750 §3.1, got: {www_auth}"
     );
     assert!(
         www_auth.contains("resource_metadata="),
-        "WWW-Authenticate must still carry resource_metadata for client \
-         recovery, got: {www_auth}"
+        "WWW-Authenticate must still carry resource_metadata for client recovery, got: {www_auth}"
     );
     assert!(
         body.contains("\"error\":\"invalid_token\""),
@@ -222,8 +218,7 @@ async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Res
     );
     assert!(
         !body.contains("authorization_url"),
-        "non-standard `authorization_url` field must not appear in the 401 \
-         body; body={body}"
+        "non-standard `authorization_url` field must not appear in the 401 body; body={body}"
     );
     Ok(())
 }

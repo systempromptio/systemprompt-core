@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::services::{
-    MarketplaceConfigFile, PluginConfigFile, ServicesConfig, SkillConfig,
+    MarketplaceConfigFile, PluginComponentRef, PluginConfigFile, ServicesConfig, SkillConfig,
 };
 use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
 
@@ -230,8 +230,8 @@ fn discover_skills(base_path: &Path, merged: &mut ServicesConfig) -> ConfigLoadR
                 enabled: disk.enabled,
                 tags: disk.tags,
                 instructions: None,
-                assigned_agents: Default::default(),
-                mcp_servers: Default::default(),
+                assigned_agents: PluginComponentRef::default(),
+                mcp_servers: PluginComponentRef::default(),
                 model_config: None,
             },
         );
