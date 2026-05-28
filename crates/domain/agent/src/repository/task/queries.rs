@@ -135,7 +135,7 @@ pub async fn get_tasks_by_user_id(
 #[derive(Debug, Clone)]
 pub struct TaskContextInfo {
     pub context_id: ContextId,
-    pub user_id: UserId,
+    pub user_id: Option<UserId>,
 }
 
 pub async fn get_task_context_info(
@@ -156,8 +156,6 @@ pub async fn get_task_context_info(
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,
-        user_id: r
-            .user_id
-            .unwrap_or_else(systemprompt_identifiers::bootstrap::empty_sentinel),
+        user_id: r.user_id,
     }))
 }
