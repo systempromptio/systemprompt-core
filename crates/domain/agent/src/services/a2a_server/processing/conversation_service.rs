@@ -71,7 +71,8 @@ impl ConversationService {
         Ok(history_messages)
     }
 
-    fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {
+    #[doc(hidden)]
+    pub fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {
         let mut text_content = String::new();
         let mut content_parts = Vec::new();
 
@@ -95,7 +96,8 @@ impl ConversationService {
         (text_content, content_parts)
     }
 
-    fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
+    #[doc(hidden)]
+    pub fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
         let mime_type = file_part.file.mime_type.as_deref()?;
         let file_name = file_part.file.name.as_deref().unwrap_or("unnamed");
 
@@ -125,7 +127,8 @@ impl ConversationService {
         None
     }
 
-    fn decode_text_file(bytes: &str, file_name: &str, mime_type: &str) -> Option<AiContentPart> {
+    #[doc(hidden)]
+    pub fn decode_text_file(bytes: &str, file_name: &str, mime_type: &str) -> Option<AiContentPart> {
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(bytes)
             .map_err(|e| {
@@ -155,7 +158,8 @@ impl ConversationService {
         Some(AiContentPart::text(formatted))
     }
 
-    fn serialize_artifact_for_context(artifact: &Artifact) -> String {
+    #[doc(hidden)]
+    pub fn serialize_artifact_for_context(artifact: &Artifact) -> String {
         let artifact_name = artifact
             .title
             .clone()

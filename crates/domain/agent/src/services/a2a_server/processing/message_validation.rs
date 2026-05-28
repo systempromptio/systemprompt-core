@@ -88,7 +88,8 @@ impl MessageValidationService {
         Ok(())
     }
 
-    fn validate_message_format(message: &Message) -> Result<()> {
+    #[doc(hidden)]
+    pub fn validate_message_format(message: &Message) -> Result<()> {
         let has_text_part = message
             .parts
             .iter()
@@ -103,7 +104,8 @@ impl MessageValidationService {
         Ok(())
     }
 
-    fn determine_task_id(message: &Message) -> TaskId {
+    #[doc(hidden)]
+    pub fn determine_task_id(message: &Message) -> TaskId {
         message
             .task_id
             .clone()
