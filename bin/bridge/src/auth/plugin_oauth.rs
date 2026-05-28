@@ -285,7 +285,7 @@ pub async fn mint_or_refresh_plugin_token(
     let creds = ensure_creds(gateway, pat).await?;
     let response = match mint(gateway, &creds, plugin_id).await {
         Ok(r) => r,
-        Err(GatewayError::HttpStatus { status, .. }) if status.as_u16() == 401 => {
+        Err(GatewayError::HookTokenRejected { status, .. }) if status.as_u16() == 401 => {
             tracing::warn!(
                 plugin_id = plugin_id.as_str(),
                 "hook token mint 401; rotating client secret and retrying"

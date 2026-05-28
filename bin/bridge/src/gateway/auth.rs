@@ -133,10 +133,9 @@ impl GatewayClient {
             .map_err(|e| GatewayError::HookTokenRequest(Box::new(e)))?;
         record_span(&resp, started);
         if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "oauth-token",
-            });
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(GatewayError::HookTokenRejected { status, body });
         }
         resp.json::<HookTokenResponse>()
             .await

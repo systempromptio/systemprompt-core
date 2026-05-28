@@ -55,6 +55,11 @@ pub enum GatewayError {
     HookTokenRequest(Box<reqwest::Error>),
     #[error("malformed hook token response: {0}")]
     HookTokenDecode(Box<reqwest::Error>),
+    #[error("gateway rejected hook token request: status={status} body={body}")]
+    HookTokenRejected {
+        status: reqwest::StatusCode,
+        body: String,
+    },
     #[error("gateway request failed: {0}")]
     PostRequest(Box<reqwest::Error>),
     #[error("malformed gateway response: {0}")]
