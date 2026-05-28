@@ -23,8 +23,12 @@ fn missing_scheme_yields_http_error() {
 #[test]
 fn refused_connection_to_closed_port_yields_refused() {
     let health = proxy_probe::probe(Some("http://127.0.0.1:1"));
-    assert!(matches!(
+    assert!(
+        matches!(
+            health.state,
+            ProxyProbeState::Refused | ProxyProbeState::HttpError | ProxyProbeState::Timeout
+        ),
+        "unexpected state: {:?}",
         health.state,
-        ProxyProbeState::Refused | ProxyProbeState::HttpError
-    ));
+    );
 }

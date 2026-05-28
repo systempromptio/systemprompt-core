@@ -7,7 +7,7 @@
 - `SessionMiddleware`'s skip-tracked and bot-classified branches persist a real anonymous users row via `UserProvider::create_anonymous` before constructing `Actor`. Previously these paths returned a sentinel `user_id` (`"anonymous"` / `"bot"`) that violated the documented `Actor` invariant and caused `POST /oauth/register` to fail with a foreign-key violation on freshly-migrated databases.
 - Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
 - Bridge cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
-- `client_credentials` grant rejections log the underlying validation error via `tracing::warn!` (client_id + cause) without changing the opaque `invalid_client` response surface, so operators can distinguish "client not found" from "secret mismatch".
+- Bridge `sync` propagates per-host emit failures into `SyncSummary::host_failures` and the one-line summary now reads `sync PARTIAL (…) — N host(s) failed: …`, so a silently half-published marketplace surfaces in the GUI Activity panel instead of being reported as `sync ok`.
 
 ### Removed
 
@@ -22,9 +22,11 @@
 - `ImageGenerationRequest.user_id` is now non-optional. Callers that cannot supply a `UserId` were never authorised to generate images.
 - Bridge `marketplace.json` shape matches the current Cowork (Claude 1.5354) reader: top-level `$schema`, `description`, `metadata { description, version, pluginRoot }`, `owner`, and per-plugin `author` / `category` fields; `plugins[].source` is now a plain string path.
 - Bridge `known_marketplaces.json` and `installed_plugins.json` carry `installLocation`, `installPath`, `scope`, and `lastUpdated` fields. Foreign sibling entries continue to be preserved verbatim.
+- `RequestContext::is_system` and `RequestContext::is_anonymous` are now `const fn`, callable in const contexts.
 
 ### Added
 
+- `SyncError::GatewayUnauthorized { endpoint, status }` represents gateway 401/403 from `/manifest` and `/pubkey` as a distinct error with exit code 10 and an actionable "run `systemprompt-bridge login <sp-live-...>`" message. The GUI surfaces it via the new `sync-gateway-unauthorized` Fluent string.
 - `bridge doctor` command groups the bridge-side self-checks (paths, gateway, credentials, loopback secret, pinned pubkey) into a single one-line-per-check diagnostic surface.
 - Unit-test coverage expanded across `domain/agent` (a2a_server processing helpers), `domain/oauth` (bridge/jwt/providers/validation modules), `shared/models` (a2a artifact + task metadata, bridge ids), `domain/ai` (gemini/openai image provider HTTP, resilient provider), and `app/scheduler` (process_cleanup).
 

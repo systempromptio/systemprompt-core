@@ -51,10 +51,7 @@ fn upsert_known_marketplace_inserts_then_replaces_then_unchanged() {
 #[test]
 fn upsert_known_marketplace_preserves_foreign_entries_and_root_keys() {
     let raw = br#"{
-        "marketplaces": [
-            { "name": "user-mp", "source": { "type": "git", "url": "https://example.com" } }
-        ],
-        "anthropicAddedField": 42
+        "user-mp": { "source": { "source": "local", "path": "/user/path" }, "installLocation": "/user/path", "lastUpdated": "2026-01-01T00:00:00Z" }
     }"#;
     let mut root = parse_root(raw).unwrap();
 
@@ -62,15 +59,10 @@ fn upsert_known_marketplace_preserves_foreign_entries_and_root_keys() {
 
     let bytes = serde_json::to_vec(&serde_json::Value::Object(root.clone())).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(parsed["anthropicAddedField"], 42);
-    let marketplaces = parsed["marketplaces"].as_array().unwrap();
-    assert_eq!(marketplaces.len(), 2);
-    let names: Vec<&str> = marketplaces
-        .iter()
-        .filter_map(|v| v["name"].as_str())
-        .collect();
-    assert!(names.contains(&"user-mp"));
-    assert!(names.contains(&"systemprompt-bridge-managed"));
+    let obj = parsed.as_object().unwrap();
+    assert!(obj.contains_key("user-mp"));
+    assert!(obj.contains_key("systemprompt-bridge-managed"));
+    assert_eq!(obj.len(), 2);
 }
 
 #[test]
@@ -79,12 +71,12 @@ fn upsert_installed_plugin_keys_on_marketplace_plus_name() {
 
     let r1 = upsert_installed_plugin(&mut root, &installed("mp-a", "plugin-x")).unwrap();
     let r2 = upsert_installed_plugin(&mut root, &installed("mp-b", "plugin-x")).unwrap();
-    assert_eq!(r1.inserted, vec!["mp-a::plugin-x".to_string()]);
-    assert_eq!(r2.inserted, vec!["mp-b::plugin-x".to_string()]);
+    assert_eq!(r1.inserted, vec!["plugin-x@mp-a".to_string()]);
+    assert_eq!(r2.inserted, vec!["plugin-x@mp-b".to_string()]);
 
     let bytes = serde_json::to_vec(&serde_json::Value::Object(root)).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(parsed["installedPlugins"].as_array().unwrap().len(), 2);
+    assert_eq!(parsed["plugins"].as_object().unwrap().len(), 2);
 }
 
 #[test]
