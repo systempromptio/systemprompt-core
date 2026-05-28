@@ -76,6 +76,8 @@ async fn run_checks() -> (Vec<Check>, bool) {
     checks.push(check_cowork_enable());
     checks.push(check_plugin_installation_preference());
     checks.push(check_personal_session_sentinel());
+    checks.push(check_bridge_working_dir());
+    checks.push(check_org_plugins_writable());
     checks.push(check_hook_token_mint(&client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
     (checks, any_fail)
@@ -431,6 +433,100 @@ fn check_personal_session_sentinel() -> Check {
                  bin/bridge/src/integration/cowork_plugins/emit.rs to whatever literal Cowork now \
                  hard-codes (search app.asar for the new value)",
                 root.display()
+            ),
+        ),
+    }
+}
+
+// Why: every sync needs to create a staging dir and write a metadata sentinel.
+// Both live under `%LOCALAPPDATA%\systemprompt-bridge\` (or per-OS equivalent)
+// — always user-writable by design. If the dirs can't be created, the bridge
+// is either running with a stripped/unset LOCALAPPDATA or a sandbox restriction
+// applied. The error from sync would be `io error in create staging: …` —
+// this check surfaces the same condition pre-emptively with a recovery hint.
+fn check_bridge_working_dir() -> Check {
+    use crate::config::paths;
+    let Some(staging) = paths::bridge_staging_dir() else {
+        return Check::fail(
+            "bridge working dir",
+            "could not resolve LOCALAPPDATA / state dir — bridge_working_dir() returned None",
+        );
+    };
+    let Some(meta) = paths::bridge_metadata_dir() else {
+        return Check::fail(
+            "bridge working dir",
+            "could not resolve LOCALAPPDATA / state dir for metadata",
+        );
+    };
+    for (label, dir) in [("staging", &staging), ("metadata", &meta)] {
+        if let Err(e) = std::fs::create_dir_all(dir) {
+            return Check::fail(
+                "bridge working dir",
+                format!("cannot create {label} at {}: {e}", dir.display()),
+            );
+        }
+        let probe = dir.join(".sp-bridge-writeprobe");
+        if let Err(e) = std::fs::write(&probe, b"") {
+            return Check::fail(
+                "bridge working dir",
+                format!(
+                    "cannot write {label} at {} — sync will fail with `Access is denied`: {e}",
+                    dir.display()
+                ),
+            );
+        }
+        _ = std::fs::remove_file(&probe);
+    }
+    Check::ok(
+        "bridge working dir",
+        format!(
+            "staging+metadata writable under {}",
+            paths::bridge_working_dir()
+                .map_or_else(|| "<unresolved>".to_string(), |p| p.display().to_string())
+        ),
+    )
+}
+
+// Why: every sync needs to write the per-plugin tree at
+// `<org_plugins_root>/<plugin-id>/`. On Windows the root is
+// `C:\Program Files\Claude\org-plugins\` which is admin-write-only by default.
+// `install --apply` widens its ACL once (icacls /grant <user>:(OI)(CI)M) so
+// unelevated syncs can update plugin contents. If that grant isn't present
+// (admin reset the ACL, or install --apply was never run), every sync fails
+// with `Access is denied`. Catch it here with the actionable recovery hint
+// rather than the user staring at a generic OS-error in the GUI.
+fn check_org_plugins_writable() -> Check {
+    use crate::config::paths;
+    let Some(loc) = paths::org_plugins_effective() else {
+        return Check::warn(
+            "org-plugins writable",
+            "no org-plugins location resolvable",
+        );
+    };
+    if !loc.path.exists() {
+        return Check::warn(
+            "org-plugins writable",
+            format!(
+                "{} not present — run `systemprompt-bridge install --apply`",
+                loc.path.display()
+            ),
+        );
+    }
+    let probe = loc.path.join(".sp-bridge-writeprobe");
+    match std::fs::write(&probe, b"") {
+        Ok(()) => {
+            _ = std::fs::remove_file(&probe);
+            Check::ok(
+                "org-plugins writable",
+                format!("{} is writable by the current user", loc.path.display()),
+            )
+        },
+        Err(e) => Check::fail(
+            "org-plugins writable",
+            format!(
+                "{} is NOT writable by the current user ({e}) — re-run `systemprompt-bridge \
+                 install --apply` to restore the user-Modify ACL grant (will prompt for UAC)",
+                loc.path.display()
             ),
         ),
     }

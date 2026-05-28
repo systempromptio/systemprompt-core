@@ -71,8 +71,7 @@ fn bootstrap_install(
         };
         return Err(InstallError::Bootstrap(msg));
     }
-    bootstrap::write_version_sentinel(&location.path, binary, gateway_url)
-        .map_err(InstallError::Sentinel)?;
+    bootstrap::write_version_sentinel(binary, gateway_url).map_err(InstallError::Sentinel)?;
     Ok(())
 }
 

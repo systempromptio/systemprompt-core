@@ -39,7 +39,6 @@ pub(super) fn bootstrap_directory(loc: &OrgPluginsLocation) -> std::io::Result<(
 }
 
 pub(super) fn write_version_sentinel(
-    _org_plugins: &Path,
     binary: &Path,
     gateway_url: Option<&str>,
 ) -> std::io::Result<()> {

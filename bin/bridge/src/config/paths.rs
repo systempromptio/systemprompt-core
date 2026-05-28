@@ -141,12 +141,8 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
 
 pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 
-// Where the bridge keeps its OWN working state — staging dir, sync sentinel,
-// user fragment, etc. Distinct from `org_plugins_*` (the *published* plugin
-// tree Cowork reads, which on Windows lives under `Program Files` and is
-// admin-write-only). The two MUST NOT be conflated: writing bridge-internal
-// scratch under a read-only published namespace was the cause of the
-// `Sync failed: io error in create staging: Access is denied` regression.
+// Bridge-owned working dir: always user-writable. The org-plugins root is
+// admin-write-only on Windows, so bridge-internal scratch cannot live there.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {

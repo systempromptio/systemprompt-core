@@ -165,15 +165,6 @@ fn manifest_with_servers(base: &SignedManifest, servers: Vec<ManagedMcpServer>) 
     next
 }
 
-// `root` is the org-plugins root (e.g. `C:\Program Files\Claude\org-plugins`
-// on Windows) — admin-write-only by Windows convention. We MUST NOT create
-// bridge-internal scratch dirs under it; only the published per-plugin tree
-// at `root/<plugin-id>/` is written there, and only succeeds because
-// `install --apply` widens that root's ACL to grant the current user Modify.
-//
-// Staging + metadata move to the bridge's own user-writable working dir
-// (`%LOCALAPPDATA%\systemprompt-bridge\…` on Windows). Always user-writable,
-// never needs elevation, isolates bridge state from the published namespace.
 fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf), ApplyError> {
     fs::create_dir_all(root).map_err(|e| ApplyError::Io {
         context: format!("create {}", root.display()),
