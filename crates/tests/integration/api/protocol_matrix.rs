@@ -302,13 +302,10 @@ async fn openai_chat_streaming_decoder_emits_text_deltas() {
 #[tokio::test]
 async fn openai_responses_streaming_decoder_recognises_response_created() {
     let chunks = vec![
-        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r_1\",\"model\":\"gpt-5\"}}\\
-         n\n",
-        "data: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"i_1\",\"type\":\"\
-         message\",\"content\":[]}}\n\n",
+        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r_1\",\"model\":\"gpt-5\"}}\n\n",
+        "data: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"i_1\",\"type\":\"message\",\"content\":[]}}\n\n",
         "data: {\"type\":\"response.output_text.delta\",\"delta\":\"world\"}\n\n",
-        "data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":3,\"\
-         output_tokens\":5}}}\n\n",
+        "data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":3,\"output_tokens\":5}}}\n\n",
         "data: [DONE]\n\n",
     ];
     let stream = outbound_openai_responses::test_api::sse_to_canonical_events(
