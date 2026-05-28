@@ -117,7 +117,10 @@ fn multiturn_carries_total_iterations_and_tool_count_in_metadata() {
 
     let metadata = result.metadata.expect("metadata present");
     let ext = metadata.extensions.expect("extensions present");
-    assert_eq!(ext.get("total_iterations").and_then(|v| v.as_u64()), Some(3));
+    assert_eq!(
+        ext.get("total_iterations").and_then(|v| v.as_u64()),
+        Some(3)
+    );
     assert_eq!(
         ext.get("total_tools_called").and_then(|v| v.as_u64()),
         Some(2)

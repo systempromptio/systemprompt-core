@@ -57,9 +57,10 @@ impl SyncSummary {
             )
         };
         // Why: per-host failure summary must be visible in the single line the GUI
-        // Activity panel renders. Without this, a cowork-emit IO error (e.g. NTFS-illegal
-        // path segment) silently produces "sync ok" while the marketplace is in fact
-        // half-published, and the user has no signal to investigate the bridge log.
+        // Activity panel renders. Without this, a cowork-emit IO error (e.g.
+        // NTFS-illegal path segment) silently produces "sync ok" while the
+        // marketplace is in fact half-published, and the user has no signal to
+        // investigate the bridge log.
         let host_suffix = if self.host_failures.is_empty() {
             String::new()
         } else {

@@ -1,8 +1,8 @@
+use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::models::a2a::protocol::{
     MessageSendConfiguration, PushNotificationConfig, TaskNotCancelableError, TaskNotFoundError,
     UnsupportedOperationError,
 };
-use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_identifiers::TaskId;
 
 #[test]

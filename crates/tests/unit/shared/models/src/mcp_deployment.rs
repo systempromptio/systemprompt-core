@@ -34,7 +34,10 @@ fn internal_endpoint_absolute_url_is_rejected() {
     );
     let err = d.validate("fixture").unwrap_err();
     let msg = err.to_string();
-    assert!(msg.contains("fixture"), "error should mention server name: {msg}");
+    assert!(
+        msg.contains("fixture"),
+        "error should mention server name: {msg}"
+    );
     assert!(
         msg.contains("relative path"),
         "error should mention relative path requirement: {msg}"
@@ -44,13 +47,15 @@ fn internal_endpoint_absolute_url_is_rejected() {
 #[test]
 fn internal_endpoint_relative_is_accepted() {
     let d = deployment(McpServerType::Internal, Some("/api/v1/mcp/fixture/mcp"));
-    d.validate("fixture").expect("relative endpoint must be accepted");
+    d.validate("fixture")
+        .expect("relative endpoint must be accepted");
 }
 
 #[test]
 fn internal_endpoint_none_is_accepted() {
     let d = deployment(McpServerType::Internal, None);
-    d.validate("fixture").expect("absent endpoint must be accepted");
+    d.validate("fixture")
+        .expect("absent endpoint must be accepted");
 }
 
 #[test]
@@ -59,5 +64,6 @@ fn external_endpoint_absolute_url_is_accepted() {
         McpServerType::External,
         Some("https://example.com/upstream/mcp"),
     );
-    d.validate("upstream").expect("external servers may use absolute URLs");
+    d.validate("upstream")
+        .expect("external servers may use absolute URLs");
 }

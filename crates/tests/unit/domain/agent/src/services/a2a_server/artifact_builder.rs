@@ -1,6 +1,7 @@
 //! Unit tests for ArtifactBuilder.
 //!
-//! Target: crates/domain/agent/src/services/a2a_server/processing/artifact/mod.rs
+//! Target: crates/domain/agent/src/services/a2a_server/processing/artifact/mod.
+//! rs
 
 use rmcp::model::{CallToolResult, Content};
 use systemprompt_agent::services::a2a_server::processing::ArtifactBuilder;
@@ -40,8 +41,13 @@ fn empty_struct() -> CallToolResult {
 
 #[test]
 fn build_artifacts_empty_lists_returns_empty() {
-    let builder =
-        ArtifactBuilder::new(vec![], vec![], vec![], ContextId::generate(), TaskId::generate());
+    let builder = ArtifactBuilder::new(
+        vec![],
+        vec![],
+        vec![],
+        ContextId::generate(),
+        TaskId::generate(),
+    );
     let artifacts = builder.build_artifacts().expect("ok");
     assert!(artifacts.is_empty());
 }
@@ -81,7 +87,9 @@ fn build_artifacts_fails_for_invalid_structured_content() {
         ContextId::generate(),
         TaskId::generate(),
     );
-    let err = builder.build_artifacts().expect_err("transform should fail");
+    let err = builder
+        .build_artifacts()
+        .expect_err("transform should fail");
     assert!(err.to_string().contains("artifact transform failed"));
 }
 
@@ -138,8 +146,13 @@ fn build_artifacts_empty_structured_content_object_fails() {
 
 #[test]
 fn build_artifacts_debug_impl_includes_struct_name() {
-    let builder =
-        ArtifactBuilder::new(vec![], vec![], vec![], ContextId::generate(), TaskId::generate());
+    let builder = ArtifactBuilder::new(
+        vec![],
+        vec![],
+        vec![],
+        ContextId::generate(),
+        TaskId::generate(),
+    );
     let s = format!("{:?}", builder);
     assert!(s.contains("ArtifactBuilder"));
 }

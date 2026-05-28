@@ -31,18 +31,24 @@ async fn make_orchestrator() -> Option<McpOrchestrator> {
 
 #[tokio::test]
 async fn orchestrator_new_succeeds() {
-    let Some(_o) = make_orchestrator().await else { return };
+    let Some(_o) = make_orchestrator().await else {
+        return;
+    };
 }
 
 #[tokio::test]
 async fn orchestrator_get_running_servers() {
-    let Some(o) = make_orchestrator().await else { return };
+    let Some(o) = make_orchestrator().await else {
+        return;
+    };
     let _ = o.get_running_servers().await.unwrap();
 }
 
 #[tokio::test]
 async fn orchestrator_get_service_info_missing_returns_none() {
-    let Some(o) = make_orchestrator().await else { return };
+    let Some(o) = make_orchestrator().await else {
+        return;
+    };
     let r = o
         .get_service_info(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
@@ -52,12 +58,16 @@ async fn orchestrator_get_service_info_missing_returns_none() {
 
 #[tokio::test]
 async fn orchestrator_subscribe_events_returns_receiver() {
-    let Some(o) = make_orchestrator().await else { return };
+    let Some(o) = make_orchestrator().await else {
+        return;
+    };
     let _rx = o.subscribe_events();
 }
 
 #[tokio::test]
 async fn orchestrator_registry_accessor() {
-    let Some(o) = make_orchestrator().await else { return };
+    let Some(o) = make_orchestrator().await else {
+        return;
+    };
     let _ = o.registry();
 }

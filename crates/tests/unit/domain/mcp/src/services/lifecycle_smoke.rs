@@ -72,7 +72,9 @@ async fn make_orchestrator() -> Option<(LifecycleOrchestrator, McpServerConfig)>
 
 #[tokio::test]
 async fn accessor_methods_return_inner_services() {
-    let Some((life, _)) = make_orchestrator().await else { return };
+    let Some((life, _)) = make_orchestrator().await else {
+        return;
+    };
     let _ = life.process();
     let _ = life.network();
     let _ = life.database();
@@ -82,20 +84,26 @@ async fn accessor_methods_return_inner_services() {
 
 #[tokio::test]
 async fn stop_server_on_missing_service_is_noop() {
-    let Some((life, config)) = make_orchestrator().await else { return };
+    let Some((life, config)) = make_orchestrator().await else {
+        return;
+    };
     life.stop_server(&config).await.unwrap();
 }
 
 #[tokio::test]
 async fn health_check_on_missing_service_returns_false() {
-    let Some((life, config)) = make_orchestrator().await else { return };
+    let Some((life, config)) = make_orchestrator().await else {
+        return;
+    };
     let r = life.health_check(&config).await.unwrap();
     assert!(!r);
 }
 
 #[tokio::test]
 async fn start_server_with_nonexistent_binary_returns_err() {
-    let Some((life, config)) = make_orchestrator().await else { return };
+    let Some((life, config)) = make_orchestrator().await else {
+        return;
+    };
     let r = life.start_server(&config).await;
     assert!(r.is_err());
 }

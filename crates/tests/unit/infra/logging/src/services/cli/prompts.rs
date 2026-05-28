@@ -3,8 +3,8 @@
 //! Interactive `dialoguer` flows are out of scope. We exercise the empty/
 //! short-circuit branches and the `PromptBuilder` value-type surface.
 
-use systemprompt_logging::services::cli::prompts::{PromptBuilder, Prompts};
 use systemprompt_logging::services::cli::module::ModuleInstall;
+use systemprompt_logging::services::cli::prompts::{PromptBuilder, Prompts};
 
 #[test]
 fn confirm_install_empty_returns_ok_false() {

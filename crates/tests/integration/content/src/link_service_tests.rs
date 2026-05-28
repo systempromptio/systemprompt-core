@@ -72,7 +72,9 @@ async fn generate_link_with_utm_persists_utm_json() {
     };
     let link = svc.generate_link(params).await.expect("generate");
     assert!(
-        link.utm_params.as_ref().is_some_and(|s| s.contains("twitter")),
+        link.utm_params
+            .as_ref()
+            .is_some_and(|s| s.contains("twitter")),
         "utm_params should contain the source token; got {:?}",
         link.utm_params
     );
@@ -87,12 +89,7 @@ async fn generate_social_media_link_round_trips_through_get_by_short_code() {
     };
     let svc = LinkGenerationService::new(&db).expect("service");
     let link = svc
-        .generate_social_media_link(
-            "https://example.com/post",
-            "linkedin",
-            "release-week",
-            None,
-        )
+        .generate_social_media_link("https://example.com/post", "linkedin", "release-week", None)
         .await
         .expect("social link");
 
@@ -113,12 +110,7 @@ async fn delete_link_via_service_removes_row() {
     };
     let svc = LinkGenerationService::new(&db).expect("service");
     let link = svc
-        .generate_social_media_link(
-            "https://example.com/x",
-            "x",
-            "campaign-x",
-            None,
-        )
+        .generate_social_media_link("https://example.com/x", "x", "campaign-x", None)
         .await
         .expect("social link");
     let removed = svc.delete_link(&link.id).await.expect("delete");

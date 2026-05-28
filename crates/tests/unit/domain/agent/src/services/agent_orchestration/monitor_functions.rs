@@ -1,6 +1,6 @@
 use systemprompt_agent::services::agent_orchestration::monitor::{
-    check_a2a_agent_health, check_agent_health, check_agent_responsiveness, HealthCheckResult,
-    MonitoringReport,
+    HealthCheckResult, MonitoringReport, check_a2a_agent_health, check_agent_health,
+    check_agent_responsiveness,
 };
 
 #[test]

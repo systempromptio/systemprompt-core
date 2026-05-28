@@ -70,7 +70,8 @@ fn record_str_drops_literal_system_value() {
     });
 
     let logs = writer.contents();
-    // The 'actor=system' field must not appear (record_str early-returns on "system").
+    // The 'actor=system' field must not appear (record_str early-returns on
+    // "system").
     assert!(!logs.contains("actor="));
     // The 'message' field WAS emitted (and logged as the event message).
     assert!(logs.contains("should-not-emit-actor"));

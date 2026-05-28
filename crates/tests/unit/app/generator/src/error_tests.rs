@@ -25,9 +25,16 @@ fn missing_field_cover_image_suggestion() {
 
 #[test]
 fn missing_field_published_at_suggestion() {
-    for field in ["published_at", "date", "created_at", "published_at/date/created_at"] {
+    for field in [
+        "published_at",
+        "date",
+        "created_at",
+        "published_at/date/created_at",
+    ] {
         let err = PublishError::missing_field(field, "slug");
-        let sugg = err.suggestion_string().expect("date variant has suggestion");
+        let sugg = err
+            .suggestion_string()
+            .expect("date variant has suggestion");
         assert!(sugg.contains("YYYY-MM-DD"));
     }
 }

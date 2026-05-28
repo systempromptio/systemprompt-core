@@ -9,9 +9,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use systemprompt_logging::set_startup_mode;
+use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
-use systemprompt_models::Config;
 use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
@@ -89,7 +89,10 @@ fn validate_returns_services_config_error_when_profile_uninitialised_verbose() {
     let report = validator.validate(&cfg);
     set_startup_mode(false);
 
-    assert!(report.has_errors(), "verbose path must still bail with errors");
+    assert!(
+        report.has_errors(),
+        "verbose path must still bail with errors"
+    );
     assert!(
         report.error_count() >= 1,
         "exactly the services-config error is expected: {report:?}",

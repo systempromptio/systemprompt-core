@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use crate::services::providers::mock_http;
-use systemprompt_ai::models::ai::AiMessage;
+use systemprompt_ai::models::ai::{AiMessage, ResponseFormat};
+use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::resilient_provider::ResilientProvider;
 use systemprompt_ai::services::providers::{
     AiProvider, GenerationParams, SchemaGenerationParams, StructuredGenerationParams,
     ToolGenerationParams, ToolResultsParams,
 };
-use systemprompt_ai::models::ai::ResponseFormat;
-use systemprompt_ai::models::tools::McpTool;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::services::ResilienceSettings;
 
@@ -56,11 +55,9 @@ async fn delegates_metadata() {
 
 #[tokio::test]
 async fn maps_inner_error() {
-    let server = mock_http::anthropic_messages_error(
-        500,
-        serde_json::json!({"error":{"message":"boom"}}),
-    )
-    .await;
+    let server =
+        mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
+            .await;
     let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri());
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
@@ -92,12 +89,11 @@ async fn delegates_generate_with_tools() {
 
 #[tokio::test]
 async fn delegates_generate_with_schema() {
-    let server =
-        mock_http::anthropic_messages_success(mock_http::anthropic_tool_use_body(
-            "structured_output",
-            serde_json::json!({"answer": 42}),
-        ))
-        .await;
+    let server = mock_http::anthropic_messages_success(mock_http::anthropic_tool_use_body(
+        "structured_output",
+        serde_json::json!({"answer": 42}),
+    ))
+    .await;
     let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri());
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
@@ -145,7 +141,8 @@ async fn delegates_generate_with_tool_results() {
 
 #[tokio::test]
 async fn delegates_generate_with_tools_stream() {
-    let sse = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n";
+    let sse = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"\
+               text_delta\",\"text\":\"hi\"}}\n\n";
     let server = mock_http::anthropic_messages_stream(sse).await;
     let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri());
     let s = settings();
@@ -160,11 +157,9 @@ async fn delegates_generate_with_tools_stream() {
 
 #[tokio::test]
 async fn stream_open_failure_releases_permit() {
-    let server = mock_http::anthropic_messages_error(
-        500,
-        serde_json::json!({"error":{"message":"boom"}}),
-    )
-    .await;
+    let server =
+        mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
+            .await;
     let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri());
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
@@ -176,7 +171,8 @@ async fn stream_open_failure_releases_permit() {
 
 #[tokio::test]
 async fn stream_call_guards_path() {
-    let sse = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n";
+    let sse = "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"\
+               text_delta\",\"text\":\"hi\"}}\n\n";
     let server = mock_http::anthropic_messages_stream(sse).await;
     let inner = AnthropicProvider::with_endpoint("k".to_owned(), server.uri());
     let s = settings();

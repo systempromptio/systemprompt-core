@@ -74,7 +74,10 @@ fn test_credentials_not_initialized() {
 fn test_credentials_already_initialized() {
     let err = CloudError::CredentialsAlreadyInitialized;
     assert_eq!(err.to_string(), "Credentials already initialized");
-    assert_eq!(err.user_message(), "Credentials bootstrap already initialised");
+    assert_eq!(
+        err.user_message(),
+        "Credentials bootstrap already initialised"
+    );
 }
 
 #[test]
@@ -149,7 +152,10 @@ fn test_http_status() {
     let s = err.to_string();
     assert!(s.contains("502"));
     assert!(s.contains("bad gateway"));
-    assert_eq!(err.user_message(), "Cloud API returned a non-success status");
+    assert_eq!(
+        err.user_message(),
+        "Cloud API returned a non-success status"
+    );
 }
 
 #[test]
@@ -181,13 +187,24 @@ fn test_json_from_conversion() {
 fn test_requires_login_false_for_misc() {
     assert!(!CloudError::AppNotConfigured.requires_login());
     assert!(!CloudError::CredentialsAlreadyInitialized.requires_login());
-    assert!(!CloudError::HttpStatus { status: 500, body: String::new() }.requires_login());
+    assert!(
+        !CloudError::HttpStatus {
+            status: 500,
+            body: String::new()
+        }
+        .requires_login()
+    );
 }
 
 #[test]
 fn test_requires_setup_false_for_misc() {
     assert!(!CloudError::Unauthorized.requires_setup());
-    assert!(!CloudError::OAuthFlow { message: "x".to_string() }.requires_setup());
+    assert!(
+        !CloudError::OAuthFlow {
+            message: "x".to_string()
+        }
+        .requires_setup()
+    );
 }
 
 #[test]

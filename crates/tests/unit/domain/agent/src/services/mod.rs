@@ -5,8 +5,8 @@
 //! - Agent orchestration (events, event_bus, status, validation)
 
 mod a2a_server;
-mod auth_validation;
 mod agent_orchestration;
+mod auth_validation;
 mod mcp;
 mod oauth_validation;
 mod plan_executor;

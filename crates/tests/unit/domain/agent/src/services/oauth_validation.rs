@@ -85,13 +85,9 @@ fn claims_user(perms: &[&str]) -> AgentJwtClaims {
 async fn validate_oauth_no_bearer_returns_unauthorized() {
     let id = NumberOrString::Number(1);
     let provider = StubJwtProvider::ok(claims_admin());
-    let result = validate_oauth_for_request(
-        &HeaderMap::new(),
-        &id,
-        &[Permission::User],
-        Some(&provider),
-    )
-    .await;
+    let result =
+        validate_oauth_for_request(&HeaderMap::new(), &id, &[Permission::User], Some(&provider))
+            .await;
     let err = result.expect_err("should be unauthorized");
     assert_eq!(err.0, axum::http::StatusCode::UNAUTHORIZED);
 }
@@ -134,13 +130,8 @@ async fn validate_oauth_admin_bypasses_scope_check() {
     let headers = bearer("token");
     let id = NumberOrString::Number(7);
     let provider = StubJwtProvider::ok(claims_admin());
-    let result = validate_oauth_for_request(
-        &headers,
-        &id,
-        &[Permission::User],
-        Some(&provider),
-    )
-    .await;
+    let result =
+        validate_oauth_for_request(&headers, &id, &[Permission::User], Some(&provider)).await;
     let value = result.expect("ok").expect("Some");
     assert_eq!(value.get("is_admin"), Some(&serde_json::json!(true)));
     assert_eq!(value.get("username"), Some(&serde_json::json!("admin")));
@@ -165,13 +156,8 @@ async fn validate_oauth_user_with_matching_permission_succeeds() {
     let headers = bearer("token");
     let id = NumberOrString::Number(1);
     let provider = StubJwtProvider::ok(claims_user(&["admin"]));
-    let result = validate_oauth_for_request(
-        &headers,
-        &id,
-        &[Permission::User],
-        Some(&provider),
-    )
-    .await;
+    let result =
+        validate_oauth_for_request(&headers, &id, &[Permission::User], Some(&provider)).await;
     let value = result.expect("ok").expect("Some");
     assert_eq!(value.get("username"), Some(&serde_json::json!("alice")));
 }
@@ -181,14 +167,9 @@ async fn validate_oauth_user_lacking_permission_forbidden() {
     let headers = bearer("token");
     let id = NumberOrString::Number(1);
     let provider = StubJwtProvider::ok(claims_user(&[]));
-    let err = validate_oauth_for_request(
-        &headers,
-        &id,
-        &[Permission::Admin],
-        Some(&provider),
-    )
-    .await
-    .expect_err("forbidden");
+    let err = validate_oauth_for_request(&headers, &id, &[Permission::Admin], Some(&provider))
+        .await
+        .expect_err("forbidden");
     assert_eq!(err.0, axum::http::StatusCode::FORBIDDEN);
 }
 

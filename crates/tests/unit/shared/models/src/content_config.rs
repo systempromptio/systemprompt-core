@@ -38,9 +38,18 @@ fn make_config() -> ContentConfigRaw {
 
 #[test]
 fn matches_url_pattern_handles_slug_placeholder() {
-    assert!(ContentConfigRaw::matches_url_pattern("/blog/{slug}", "/blog/foo"));
-    assert!(ContentConfigRaw::matches_url_pattern("/{slug}", "/anything"));
-    assert!(!ContentConfigRaw::matches_url_pattern("/blog/{slug}", "/news/foo"));
+    assert!(ContentConfigRaw::matches_url_pattern(
+        "/blog/{slug}",
+        "/blog/foo"
+    ));
+    assert!(ContentConfigRaw::matches_url_pattern(
+        "/{slug}",
+        "/anything"
+    ));
+    assert!(!ContentConfigRaw::matches_url_pattern(
+        "/blog/{slug}",
+        "/news/foo"
+    ));
     assert!(!ContentConfigRaw::matches_url_pattern(
         "/blog/{slug}",
         "/blog/foo/bar"
@@ -86,10 +95,7 @@ fn is_html_page_filters_well_known_paths() {
 #[test]
 fn determine_source_ignores_disabled_sources_for_routing() {
     let mut cfg = make_config();
-    cfg.content_sources
-        .get_mut("blog")
-        .unwrap()
-        .enabled = false;
+    cfg.content_sources.get_mut("blog").unwrap().enabled = false;
     assert_eq!(cfg.determine_source("/blog/post-1"), "unknown");
 }
 
@@ -114,7 +120,10 @@ fn determine_source_returns_unknown_for_no_match() {
 #[test]
 fn resolve_slug_extracts_after_prefix() {
     let cfg = make_config();
-    assert_eq!(cfg.resolve_slug("/blog/my-post"), Some("my-post".to_owned()));
+    assert_eq!(
+        cfg.resolve_slug("/blog/my-post"),
+        Some("my-post".to_owned())
+    );
     assert_eq!(
         cfg.resolve_slug("/blog/post-2?ref=a#section"),
         Some("post-2".to_owned())

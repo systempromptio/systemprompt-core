@@ -23,24 +23,24 @@ mod build_tests;
 #[cfg(test)]
 mod content;
 #[cfg(test)]
+mod copy_assets_tests;
+#[cfg(test)]
+mod error_tests;
+#[cfg(test)]
 mod markdown_tests;
 #[cfg(test)]
+mod orchestrator_validate;
+#[cfg(test)]
+mod pipeline_full;
+#[cfg(test)]
+mod pipeline_smoke;
+#[cfg(test)]
 mod sitemap;
+#[cfg(test)]
+mod sitemap_provider_tests;
 #[cfg(test)]
 mod sitemap_tests;
 #[cfg(test)]
 pub(crate) mod templates;
 #[cfg(test)]
-mod error_tests;
-#[cfg(test)]
-mod sitemap_provider_tests;
-#[cfg(test)]
-mod orchestrator_validate;
-#[cfg(test)]
 mod types_tests;
-#[cfg(test)]
-mod copy_assets_tests;
-#[cfg(test)]
-mod pipeline_full;
-#[cfg(test)]
-mod pipeline_smoke;

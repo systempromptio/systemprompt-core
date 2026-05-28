@@ -1,6 +1,7 @@
 //! Minimal [`AppContext`] fixture for integration tests.
 //!
-//! Bypasses the full [`AppContextBuilder`](systemprompt_runtime::AppContextBuilder)
+//! Bypasses the full
+//! [`AppContextBuilder`](systemprompt_runtime::AppContextBuilder)
 //! bootstrap (profile / config / logging / system-admin resolution) and
 //! assembles a context directly via `AppContext::from_parts`. The fixture wires
 //! in an [`AllowAllHook`](systemprompt_security::authz::AllowAllHook) so route

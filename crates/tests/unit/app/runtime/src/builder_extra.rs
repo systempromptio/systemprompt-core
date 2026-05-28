@@ -15,8 +15,7 @@ fn with_migration_config_applies() {
 
 #[test]
 fn with_marketplace_filter_applies() {
-    let builder = AppContextBuilder::new()
-        .with_marketplace_filter(Arc::new(AllowAllFilter));
+    let builder = AppContextBuilder::new().with_marketplace_filter(Arc::new(AllowAllFilter));
     let dbg = format!("{:?}", builder);
     assert!(dbg.contains("marketplace_filter"));
 }

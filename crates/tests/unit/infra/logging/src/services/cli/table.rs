@@ -58,11 +58,7 @@ fn render_table_multiple_rows_unequal_widths() {
 
 #[test]
 fn render_table_handles_extra_cells() {
-    let rows = vec![vec![
-        "a".to_owned(),
-        "b".to_owned(),
-        "extra".to_owned(),
-    ]];
+    let rows = vec![vec!["a".to_owned(), "b".to_owned(), "extra".to_owned()]];
     render_table(&["X", "Y"], &rows);
 }
 

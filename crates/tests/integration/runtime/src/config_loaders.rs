@@ -5,9 +5,8 @@
 use std::fs;
 use std::path::PathBuf;
 
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
 use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_runtime::AppContext;
 use tempfile::tempdir;

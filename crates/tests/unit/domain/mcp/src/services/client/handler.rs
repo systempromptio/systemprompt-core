@@ -24,5 +24,8 @@ fn http_client_with_context_new_returns_clonable_value() {
 fn rewrite_url_for_internal_use_falls_back_when_config_uninitialised() {
     let url = "http://example.com/mcp";
     let out = rewrite_url_for_internal_use(url);
-    assert_eq!(out, url, "without Config::get, URL passes through unchanged");
+    assert_eq!(
+        out, url,
+        "without Config::get, URL passes through unchanged"
+    );
 }

@@ -5,7 +5,7 @@
 use std::sync::{Arc, Once};
 
 use axum::Router;
-use systemprompt_api::routes::oauth::{public_router, authenticated_router};
+use systemprompt_api::routes::oauth::{authenticated_router, public_router};
 use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};

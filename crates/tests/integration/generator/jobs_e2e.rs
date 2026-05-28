@@ -7,7 +7,9 @@
 
 use std::sync::Arc;
 
-use systemprompt_generator::{ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets};
+use systemprompt_generator::{
+    ContentPrerenderJob, PagePrerenderJob, execute_copy_extension_assets,
+};
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_models::AppPaths;
 use systemprompt_models::profile::PathsConfig;
@@ -82,7 +84,10 @@ fn page_prerender_job_metadata() {
 async fn content_prerender_job_errors_when_db_pool_missing() {
     let job = ContentPrerenderJob;
     let ctx = empty_job_ctx();
-    let err = job.execute(&ctx).await.expect_err("must fail with no DbPool");
+    let err = job
+        .execute(&ctx)
+        .await
+        .expect_err("must fail with no DbPool");
     assert!(err.to_string().to_lowercase().contains("dbpool"));
 }
 
@@ -90,6 +95,9 @@ async fn content_prerender_job_errors_when_db_pool_missing() {
 async fn page_prerender_job_errors_when_db_pool_missing() {
     let job = PagePrerenderJob;
     let ctx = empty_job_ctx();
-    let err = job.execute(&ctx).await.expect_err("must fail with no DbPool");
+    let err = job
+        .execute(&ctx)
+        .await
+        .expect_err("must fail with no DbPool");
     assert!(err.to_string().to_lowercase().contains("dbpool"));
 }

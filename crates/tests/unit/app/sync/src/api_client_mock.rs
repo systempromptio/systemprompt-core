@@ -159,7 +159,10 @@ async fn get_tenant_app_id_missing_returns_no_app_error() {
         .get_tenant_app_id(&tenant)
         .await
         .expect_err("expect no app");
-    assert!(format!("{err}").to_lowercase().contains("tenant") || format!("{err}").to_lowercase().contains("app"));
+    assert!(
+        format!("{err}").to_lowercase().contains("tenant")
+            || format!("{err}").to_lowercase().contains("app")
+    );
 }
 
 #[tokio::test]
@@ -200,7 +203,9 @@ async fn get_database_url_missing_returns_404_error() {
         .get_database_url(&tenant)
         .await
         .expect_err("missing url errors");
-    assert!(format!("{err}").contains("404") || format!("{err}").to_lowercase().contains("database"));
+    assert!(
+        format!("{err}").contains("404") || format!("{err}").to_lowercase().contains("database")
+    );
 }
 
 #[tokio::test]

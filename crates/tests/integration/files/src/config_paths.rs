@@ -101,7 +101,10 @@ fn files_config_ensure_storage_structure_creates_subdirs() {
     let cfg = FilesConfig::get().expect("initialised");
 
     let errors = cfg.ensure_storage_structure();
-    assert!(errors.is_empty(), "ensure_storage_structure errors: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "ensure_storage_structure errors: {errors:?}"
+    );
     assert!(cfg.files().exists(), "files dir created");
     assert!(cfg.images().exists(), "images dir created");
 }
@@ -130,7 +133,9 @@ fn files_config_validator_load_and_validate() {
     let _env = test_env();
 
     let v = FilesConfigValidator::new();
-    let err = v.validate().expect_err("validator with no config should error");
+    let err = v
+        .validate()
+        .expect_err("validator with no config should error");
     let _ = format!("{err:?}");
     assert_eq!(v.domain_id(), "files");
     assert!(v.priority() > 0);

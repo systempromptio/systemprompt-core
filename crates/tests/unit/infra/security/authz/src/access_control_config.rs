@@ -49,9 +49,7 @@ rules:
     access: allow
 "#;
     let cfg: AccessControlConfig = serde_yaml::from_str(bad).expect("yaml parses");
-    let err = cfg
-        .validate()
-        .expect_err("rule with no roles must fail");
+    let err = cfg.validate().expect_err("rule with no roles must fail");
     let msg = err.to_string();
     assert!(msg.contains("at least one role"), "got: {msg}");
 }

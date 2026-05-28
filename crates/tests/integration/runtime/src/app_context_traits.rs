@@ -183,4 +183,3 @@ async fn files_config_validator_validate_when_initialised() {
     let report = v.validate().expect("validate");
     let _ = report.has_errors();
 }
-

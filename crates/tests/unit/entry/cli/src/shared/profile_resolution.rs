@@ -47,8 +47,7 @@ fn resolve_profile_from_path_returns_dir_when_dir_exists() {
     let dir = TempDir::new().expect("tempdir");
     let yaml = dir.path().join("profile.yaml");
     std::fs::write(&yaml, "name: test\n").expect("write");
-    let resolved =
-        resolve_profile_from_path(dir.path().to_str().expect("utf8")).expect("resolves");
+    let resolved = resolve_profile_from_path(dir.path().to_str().expect("utf8")).expect("resolves");
     assert_eq!(resolved, dir.path());
 }
 
@@ -65,8 +64,7 @@ fn resolve_profile_from_path_nonexistent_dir_falls_back_to_inner_yaml() {
 
 #[test]
 fn resolve_profile_from_path_missing_errors() {
-    let err =
-        resolve_profile_from_path("/definitely/not/a/real/path/please/12345").unwrap_err();
+    let err = resolve_profile_from_path("/definitely/not/a/real/path/please/12345").unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("not found"));
 }

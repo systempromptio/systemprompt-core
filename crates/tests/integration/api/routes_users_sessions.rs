@@ -1,7 +1,7 @@
 //! Users / sessions route.
 
-use axum::{Extension, Router};
 use axum::routing::post;
+use axum::{Extension, Router};
 use systemprompt_api::routes::users::sessions::revoke_all_mine;
 use tower::ServiceExt;
 

@@ -8,7 +8,10 @@ use systemprompt_models::artifacts::{
 
 #[test]
 fn text_artifact_artifact_type_str() {
-    assert_eq!(TextArtifact::artifact_type(), TextArtifact::ARTIFACT_TYPE_STR);
+    assert_eq!(
+        TextArtifact::artifact_type(),
+        TextArtifact::ARTIFACT_TYPE_STR
+    );
 }
 
 #[test]

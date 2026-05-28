@@ -6,13 +6,15 @@ use bytes::Bytes;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalToolChoice, ImageSource, Role,
 };
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::InboundParseError;
 use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
 
-fn parse_ok(body: &[u8]) -> systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest {
+fn parse_ok(
+    body: &[u8],
+) -> systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest {
     let a = OpenAiResponsesInbound;
-    a.parse_request(&Bytes::copy_from_slice(body)).expect("parse")
+    a.parse_request(&Bytes::copy_from_slice(body))
+        .expect("parse")
 }
 
 #[test]
@@ -20,7 +22,9 @@ fn parse_input_as_string_becomes_single_user_message() {
     let req = parse_ok(br#"{"model":"gpt-4o","input":"hi there"}"#);
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.messages[0].role, Role::User);
-    assert!(matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hi there"));
+    assert!(
+        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hi there")
+    );
 }
 
 #[test]
@@ -66,7 +70,9 @@ fn parse_input_message_string_content() {
     }"#;
     let req = parse_ok(body);
     assert_eq!(req.messages[0].role, Role::Assistant);
-    assert!(matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hello"));
+    assert!(
+        matches!(req.messages[0].content.first(), Some(CanonicalContent::Text(t)) if t == "hello")
+    );
 }
 
 #[test]
@@ -130,7 +136,11 @@ fn parse_function_call_output_becomes_tool_result() {
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.messages[0].role, Role::Tool);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::ToolResult { tool_use_id, content, is_error }) => {
+        Some(CanonicalContent::ToolResult {
+            tool_use_id,
+            content,
+            is_error,
+        }) => {
             assert_eq!(tool_use_id, "call_1");
             assert!(!is_error);
             assert!(matches!(content.first(), Some(CanonicalContent::Text(t)) if t == "42"));
@@ -194,7 +204,10 @@ fn parse_tool_choice_string_none() {
 #[test]
 fn parse_tool_choice_string_required() {
     let req = parse_ok(br#"{"model":"gpt-4o","tool_choice":"required"}"#);
-    assert!(matches!(req.tool_choice, Some(CanonicalToolChoice::Required)));
+    assert!(matches!(
+        req.tool_choice,
+        Some(CanonicalToolChoice::Required)
+    ));
 }
 
 #[test]

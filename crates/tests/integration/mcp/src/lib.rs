@@ -31,10 +31,10 @@ mod orphaned_children;
 #[cfg(test)]
 mod port_binding;
 #[cfg(test)]
+mod session_handler;
+#[cfg(test)]
 mod stale_pid_cleanup;
 #[cfg(test)]
 mod startup_failure;
 #[cfg(test)]
 mod zombie_cleanup;
-#[cfg(test)]
-mod session_handler;

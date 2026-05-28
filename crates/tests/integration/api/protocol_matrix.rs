@@ -9,9 +9,8 @@ use bytes::Bytes;
 use futures::StreamExt;
 use systemprompt_api::services::gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
-    Role,
-    anthropic_messages, openai_responses as openai_responses_in, outbound_anthropic, openai_chat,
-    outbound_openai_responses,
+    Role, anthropic_messages, openai_chat, openai_responses as openai_responses_in,
+    outbound_anthropic, outbound_openai_responses,
 };
 
 // -----------------------------------------------------------------------------
@@ -76,10 +75,12 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
     CanonicalRequest {
         model: model.to_owned(),
         system: Some("be brief".to_owned()),
-        messages: vec![systemprompt_api::services::gateway::protocol::CanonicalMessage {
-            role: Role::User,
-            content: vec![CanonicalContent::Text("hello".to_owned())],
-        }],
+        messages: vec![
+            systemprompt_api::services::gateway::protocol::CanonicalMessage {
+                role: Role::User,
+                content: vec![CanonicalContent::Text("hello".to_owned())],
+            },
+        ],
         max_tokens: 256,
         temperature: Some(0.5),
         top_p: None,
@@ -115,8 +116,7 @@ fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
 #[test]
 fn openai_responses_outbound_request_builder_uses_responses_shape() {
     let req = fixture_request("gpt-5", false);
-    let body =
-        outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream");
+    let body = outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream");
     assert_eq!(body["model"], "gpt-5-upstream");
     assert!(body.get("input").is_some() || body.get("messages").is_some());
 }
@@ -171,10 +171,12 @@ fn openai_chat_response_parser_extracts_choice_content() {
     });
     let canon = openai_chat::test_api::parse_response(&resp, "fallback");
     assert_eq!(canon.id, "chatcmpl_1");
-    assert!(canon
-        .content
-        .iter()
-        .any(|p| matches!(p, CanonicalContent::Text(t) if t == "answer")));
+    assert!(
+        canon
+            .content
+            .iter()
+            .any(|p| matches!(p, CanonicalContent::Text(t) if t == "answer"))
+    );
     assert_eq!(canon.usage.input_tokens, 5);
     assert_eq!(canon.usage.output_tokens, 7);
 }
@@ -192,10 +194,12 @@ fn openai_responses_object_parser_extracts_output_text() {
     });
     let canon = outbound_openai_responses::test_api::parse_response_object(&resp, "fallback");
     assert_eq!(canon.id, "resp_1");
-    assert!(canon
-        .content
-        .iter()
-        .any(|p| matches!(p, CanonicalContent::Text(t) if t.contains("hello"))));
+    assert!(
+        canon
+            .content
+            .iter()
+            .any(|p| matches!(p, CanonicalContent::Text(t) if t.contains("hello")))
+    );
 }
 
 // -----------------------------------------------------------------------------
@@ -224,39 +228,63 @@ where
 #[tokio::test]
 async fn anthropic_streaming_decoder_emits_text_delta_then_message_stop() {
     let chunks = vec![
-        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n",
-        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
-        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n",
+        "event: message_start\ndata: \
+         {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude\",\"usage\":\
+         {\"input_tokens\":1,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: \
+         {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"\
+         text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: \
+         {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\"\
+         :\"hi\"}}\n\n",
         "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
-        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n",
+        "event: message_delta\ndata: \
+         {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"\
+         output_tokens\":5}}\n\n",
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
     ];
     let stream = outbound_anthropic::test_api::sse_to_canonical_events(byte_stream(chunks));
     let events = collect_events(stream).await;
-    assert!(events.iter().any(|e| matches!(e, CanonicalEvent::MessageStart { .. })));
-    assert!(events
-        .iter()
-        .any(|e| matches!(e, CanonicalEvent::TextDelta { text, .. } if text == "hi")));
-    assert!(events.iter().any(|e| matches!(e, CanonicalEvent::MessageStop { .. })));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::MessageStart { .. }))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::TextDelta { text, .. } if text == "hi"))
+    );
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::MessageStop { .. }))
+    );
 }
 
 #[tokio::test]
 async fn anthropic_streaming_decoder_handles_split_event_across_chunk_boundary() {
     // The 'message_start' event payload is split mid-JSON across two chunks.
     let chunks = vec![
-        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_split\",\"model\":\"cl",
+        "event: message_start\ndata: \
+         {\"type\":\"message_start\",\"message\":{\"id\":\"msg_split\",\"model\":\"cl",
         "aude\",\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n",
         "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
     ];
     let stream = outbound_anthropic::test_api::sse_to_canonical_events(byte_stream(chunks));
     let events = collect_events(stream).await;
-    assert!(events.iter().any(|e| matches!(e, CanonicalEvent::MessageStart { id, .. } if id == "msg_split")));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::MessageStart { id, .. } if id == "msg_split"))
+    );
 }
 
 #[tokio::test]
 async fn openai_chat_streaming_decoder_emits_text_deltas() {
     let chunks = vec![
-        "data: {\"id\":\"c_1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"}}]}\n\n",
+        "data: {\"id\":\"c_1\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\
+         \"assistant\",\"content\":\"\"}}]}\n\n",
         "data: {\"id\":\"c_1\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hello\"}}]}\n\n",
         "data: {\"id\":\"c_1\",\"choices\":[{\"index\":0,\"finish_reason\":\"stop\"}]}\n\n",
         "data: [DONE]\n\n",
@@ -264,18 +292,23 @@ async fn openai_chat_streaming_decoder_emits_text_deltas() {
     let stream =
         openai_chat::test_api::sse_to_canonical_events(byte_stream(chunks), "gpt-4o".to_owned());
     let events = collect_events(stream).await;
-    assert!(events
-        .iter()
-        .any(|e| matches!(e, CanonicalEvent::TextDelta { text, .. } if text == "hello")));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::TextDelta { text, .. } if text == "hello"))
+    );
 }
 
 #[tokio::test]
 async fn openai_responses_streaming_decoder_recognises_response_created() {
     let chunks = vec![
-        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r_1\",\"model\":\"gpt-5\"}}\n\n",
-        "data: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"i_1\",\"type\":\"message\",\"content\":[]}}\n\n",
+        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r_1\",\"model\":\"gpt-5\"}}\\
+         n\n",
+        "data: {\"type\":\"response.output_item.added\",\"item\":{\"id\":\"i_1\",\"type\":\"\
+         message\",\"content\":[]}}\n\n",
         "data: {\"type\":\"response.output_text.delta\",\"delta\":\"world\"}\n\n",
-        "data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":3,\"output_tokens\":5}}}\n\n",
+        "data: {\"type\":\"response.completed\",\"response\":{\"usage\":{\"input_tokens\":3,\"\
+         output_tokens\":5}}}\n\n",
         "data: [DONE]\n\n",
     ];
     let stream = outbound_openai_responses::test_api::sse_to_canonical_events(
@@ -283,7 +316,11 @@ async fn openai_responses_streaming_decoder_recognises_response_created() {
         "gpt-5".to_owned(),
     );
     let events = collect_events(stream).await;
-    assert!(events.iter().any(|e| matches!(e, CanonicalEvent::MessageStart { .. })));
+    assert!(
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::MessageStart { .. }))
+    );
 }
 
 #[tokio::test]
@@ -321,10 +358,13 @@ fn anthropic_render_event_frame_text_delta_produces_sse_block() {
         index: 0,
         text: "x".to_owned(),
     };
-    let bytes = anthropic_messages::test_api::render_event_frame(&event, "claude")
-        .expect("rendered");
+    let bytes =
+        anthropic_messages::test_api::render_event_frame(&event, "claude").expect("rendered");
     let s = std::str::from_utf8(&bytes).unwrap_or_default();
-    assert!(s.contains("content_block_delta") || s.contains("text_delta"), "{s}");
+    assert!(
+        s.contains("content_block_delta") || s.contains("text_delta"),
+        "{s}"
+    );
 }
 
 #[test]

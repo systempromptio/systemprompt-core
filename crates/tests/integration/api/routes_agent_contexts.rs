@@ -83,9 +83,7 @@ async fn list_artifacts_by_context_runs() -> anyhow::Result<()> {
         .with_state((*ctx).clone())
         .layer(Extension(request_context("user_ctx")));
     let resp = app
-        .oneshot(empty_get(
-            "/00000000-0000-0000-0000-000000000000/artifacts",
-        ))
+        .oneshot(empty_get("/00000000-0000-0000-0000-000000000000/artifacts"))
         .await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())

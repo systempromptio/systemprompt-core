@@ -23,7 +23,8 @@ fn write_markdown(dir: &Path, name: &str, body: &str) {
 
 fn sample_frontmatter(slug: &str, title: &str) -> String {
     format!(
-        "---\ntitle: \"{title}\"\nslug: \"{slug}\"\nkind: article\nauthor: \"Integration Test\"\npublished_at: \"2025-01-01\"\n---\n\n# {title}\n\nSample body.\n",
+        "---\ntitle: \"{title}\"\nslug: \"{slug}\"\nkind: article\nauthor: \"Integration \
+         Test\"\npublished_at: \"2025-01-01\"\n---\n\n# {title}\n\nSample body.\n",
     )
 }
 

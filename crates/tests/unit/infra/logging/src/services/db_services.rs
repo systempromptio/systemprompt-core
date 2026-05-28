@@ -1,10 +1,11 @@
-//! DB-backed tests for [`DatabaseLogService`] and [`LoggingMaintenanceService`].
+//! DB-backed tests for [`DatabaseLogService`] and
+//! [`LoggingMaintenanceService`].
 
 use chrono::{Duration as ChronoDuration, Utc};
 use serde_json::json;
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
-use systemprompt_logging::{DatabaseLogService, LoggingMaintenanceService};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
+use systemprompt_logging::{DatabaseLogService, LoggingMaintenanceService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use systemprompt_traits::LogService;
 use uuid::Uuid;

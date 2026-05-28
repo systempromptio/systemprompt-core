@@ -73,9 +73,12 @@ fn builder_with_all_optional_ids() {
 #[test]
 fn builder_skips_empty_context_id() {
     let (u, s, t) = ids();
-    // ContextId requires UUID, but with_context_id() only checks `as_str().is_empty()`.
-    // We exercise the populated branch and rely on the new_unchecked-like absence.
+    // ContextId requires UUID, but with_context_id() only checks
+    // `as_str().is_empty()`. We exercise the populated branch and rely on the
+    // new_unchecked-like absence.
     let ctx = ContextId::generate();
-    let span = RequestSpanBuilder::new(&u, &s, &t).with_context_id(&ctx).build();
+    let span = RequestSpanBuilder::new(&u, &s, &t)
+        .with_context_id(&ctx)
+        .build();
     let _entered = span.enter();
 }

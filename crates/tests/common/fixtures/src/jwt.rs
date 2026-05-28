@@ -9,16 +9,14 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
+use jsonwebtoken::{encode, Algorithm, Header};
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::jwt::{AdminTokenParams, JwtService};
+use systemprompt_security::keys::authority::{active_kid, encoding_key, install_for_test};
 use systemprompt_security::keys::RsaSigningKey;
-use systemprompt_security::keys::authority::{
-    active_kid, encoding_key, install_for_test,
-};
 
 static SIGNING_KEY: OnceLock<RsaSigningKey> = OnceLock::new();
 

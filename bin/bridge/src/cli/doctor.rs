@@ -2,8 +2,7 @@ use std::process::ExitCode;
 
 use systemprompt_identifiers::{PluginId, SessionId};
 
-use crate::auth::ChainError;
-use crate::auth::plugin_oauth;
+use crate::auth::{ChainError, plugin_oauth};
 use crate::cli::output;
 use crate::gateway::GatewayClient;
 use crate::gateway::errors::GatewayError;
@@ -245,19 +244,16 @@ fn check_cowork_enable() -> Check {
     }
 }
 
-// Why: a synced plugin whose `plugin.json` lacks (or defaults) `installationPreference`
-// produces Cowork's "Contact an organization owner to install connectors" tooltip
-// under MDM + custom-gateway deployment. We always emit `"auto_install"` from the
-// bridge (see write_synthetic_plugin); this check fails loudly if a future refactor
-// drops it.
+// Why: a synced plugin whose `plugin.json` lacks (or defaults)
+// `installationPreference` produces Cowork's "Contact an organization owner to
+// install connectors" tooltip under MDM + custom-gateway deployment. We always
+// emit `"auto_install"` from the bridge (see write_synthetic_plugin); this
+// check fails loudly if a future refactor drops it.
 // Docs: https://claude.com/docs/cowork/3p/extensions
 fn check_plugin_installation_preference() -> Check {
     use crate::config::paths;
     let Some(location) = paths::org_plugins_effective() else {
-        return Check::warn(
-            "plugin auto-install",
-            "no org-plugins location resolvable",
-        );
+        return Check::warn("plugin auto-install", "no org-plugins location resolvable");
     };
     let plugin_json = location
         .path
@@ -402,7 +398,9 @@ fn check_personal_session_sentinel() -> Check {
                 }
                 total_orgs += 1;
                 let name = org.file_name();
-                if name.to_str().is_some_and(|s| s.eq_ignore_ascii_case(PERSONAL_SESSION_UUID))
+                if name
+                    .to_str()
+                    .is_some_and(|s| s.eq_ignore_ascii_case(PERSONAL_SESSION_UUID))
                 {
                     matched = true;
                 }
@@ -430,8 +428,8 @@ fn check_personal_session_sentinel() -> Check {
             format!(
                 "{n} Cowork org dir(s) under {} but none matches PERSONAL_SESSION_UUID \
                  ({PERSONAL_SESSION_UUID}) — Cowork may have bumped the constant; update \
-                 bin/bridge/src/integration/cowork_plugins/emit.rs to whatever literal Cowork \
-                 now hard-codes (search app.asar for the new value)",
+                 bin/bridge/src/integration/cowork_plugins/emit.rs to whatever literal Cowork now \
+                 hard-codes (search app.asar for the new value)",
                 root.display()
             ),
         ),

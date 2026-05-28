@@ -60,27 +60,42 @@ mod escape_yaml_tests {
     use super::*;
 
     #[test]
-    fn plain_string() { assert_eq!(escape_yaml("Simple text"), "Simple text"); }
-
-    #[test]
-    fn backslash() { assert_eq!(escape_yaml(r"Path\to\file"), r"Path\\to\\file"); }
-
-    #[test]
-    fn quotes() { assert_eq!(escape_yaml(r#"Say "hello""#), r#"Say \"hello\""#); }
-
-    #[test]
-    fn newlines() { assert_eq!(escape_yaml("Line1\nLine2"), r"Line1\nLine2"); }
-
-    #[test]
-    fn combined() {
-        assert_eq!(escape_yaml("Path\\to\\file \"with\nnewline\""), r#"Path\\to\\file \"with\nnewline\""#);
+    fn plain_string() {
+        assert_eq!(escape_yaml("Simple text"), "Simple text");
     }
 
     #[test]
-    fn empty() { assert_eq!(escape_yaml(""), ""); }
+    fn backslash() {
+        assert_eq!(escape_yaml(r"Path\to\file"), r"Path\\to\\file");
+    }
 
     #[test]
-    fn multiple_escapes() { assert_eq!(escape_yaml("a\\b\"c\nd"), r#"a\\b\"c\nd"#); }
+    fn quotes() {
+        assert_eq!(escape_yaml(r#"Say "hello""#), r#"Say \"hello\""#);
+    }
+
+    #[test]
+    fn newlines() {
+        assert_eq!(escape_yaml("Line1\nLine2"), r"Line1\nLine2");
+    }
+
+    #[test]
+    fn combined() {
+        assert_eq!(
+            escape_yaml("Path\\to\\file \"with\nnewline\""),
+            r#"Path\\to\\file \"with\nnewline\""#
+        );
+    }
+
+    #[test]
+    fn empty() {
+        assert_eq!(escape_yaml(""), "");
+    }
+
+    #[test]
+    fn multiple_escapes() {
+        assert_eq!(escape_yaml("a\\b\"c\nd"), r#"a\\b\"c\nd"#);
+    }
 }
 
 mod content_generation_tests {
@@ -98,7 +113,10 @@ mod content_generation_tests {
             description: "Article description".to_string(),
             body: "Article body content goes here.".to_string(),
             author: "Test Author".to_string(),
-            published_at: Utc.with_ymd_and_hms(2024, 6, 15, 0, 0, 0).single().expect("valid date"),
+            published_at: Utc
+                .with_ymd_and_hms(2024, 6, 15, 0, 0, 0)
+                .single()
+                .expect("valid date"),
             keywords: "test, article".to_string(),
             kind: "article".to_string(),
             image: Some("cover.jpg".to_string()),
@@ -107,7 +125,10 @@ mod content_generation_tests {
             version_hash: "hash123".to_string(),
             public: true,
             links: serde_json::json!([]),
-            updated_at: Utc.with_ymd_and_hms(2024, 7, 20, 0, 0, 0).single().expect("valid date"),
+            updated_at: Utc
+                .with_ymd_and_hms(2024, 7, 20, 0, 0, 0)
+                .single()
+                .expect("valid date"),
         };
         let markdown = generate_content_markdown(&content);
         assert!(markdown.starts_with("---\n"));
@@ -192,6 +213,12 @@ mod content_generation_tests {
         };
         let result = export_content_to_file(&content, temp_dir.path(), "blog");
         result.expect("result should succeed");
-        assert!(temp_dir.path().join("my-blog-post").join("index.md").exists());
+        assert!(
+            temp_dir
+                .path()
+                .join("my-blog-post")
+                .join("index.md")
+                .exists()
+        );
     }
 }

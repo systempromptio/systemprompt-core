@@ -12,6 +12,7 @@
 
 use std::sync::Arc;
 
+use systemprompt_agent::AgentState;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
@@ -19,7 +20,6 @@ use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream,
 };
-use systemprompt_agent::AgentState;
 use systemprompt_identifiers::{
     AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
@@ -85,9 +85,7 @@ fn fixture_agent_config() -> AgentConfig {
     }
 }
 
-async fn build_state(
-    permits: usize,
-) -> anyhow::Result<Arc<AgentHandlerState>> {
+async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
     let bootstrap = ensure_test_bootstrap();
     let db_pool = fixture_db_pool(&bootstrap.database_url).await?;
 
@@ -97,9 +95,11 @@ async fn build_state(
 
     let jwt_provider: DynJwtValidationProvider = Arc::new(StubJwtProvider);
 
-    let agent_state = Arc::new(
-        AgentState::new(Arc::clone(&db_pool), Arc::clone(&global_config), Arc::clone(&jwt_provider)),
-    );
+    let agent_state = Arc::new(AgentState::new(
+        Arc::clone(&db_pool),
+        Arc::clone(&global_config),
+        Arc::clone(&jwt_provider),
+    ));
 
     let oauth_state = Arc::new(
         AgentOAuthState::new(

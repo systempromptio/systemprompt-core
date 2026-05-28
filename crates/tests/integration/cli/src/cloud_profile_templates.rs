@@ -122,4 +122,3 @@ fn generate_oauth_at_rest_pepper_produces_unique_values() {
     assert!(!b.is_empty());
     assert_ne!(a, b);
 }
-

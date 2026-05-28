@@ -26,7 +26,9 @@ async fn make_db_service() -> Option<DatabaseService> {
 
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     let r = svc
         .get_service_by_name(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
@@ -36,38 +38,50 @@ async fn get_service_by_name_missing_returns_none() {
 
 #[tokio::test]
 async fn cleanup_stale_services_runs() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     svc.cleanup_stale_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     svc.delete_crashed_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn sync_state_empty_runs() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     svc.sync_state(&[]).await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_disabled_services_empty_runs() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     let _ = svc.delete_disabled_services(&[]).await.unwrap();
 }
 
 #[tokio::test]
 async fn get_running_servers_errors_when_registry_not_validated() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     let r = svc.get_running_servers().await;
     let _ = r;
 }
 
 #[tokio::test]
 async fn update_service_status_missing_no_panic() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     svc.update_service_status(
         &format!("missing-{}", uuid::Uuid::new_v4().simple()),
         "stopped",
@@ -78,7 +92,9 @@ async fn update_service_status_missing_no_panic() {
 
 #[tokio::test]
 async fn clear_service_pid_missing_no_panic() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     svc.clear_service_pid(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
@@ -86,7 +102,9 @@ async fn clear_service_pid_missing_no_panic() {
 
 #[tokio::test]
 async fn unregister_missing_no_panic() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     svc.unregister_service(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
         .await
         .unwrap();
@@ -94,7 +112,9 @@ async fn unregister_missing_no_panic() {
 
 #[tokio::test]
 async fn accessors() {
-    let Some(svc) = make_db_service().await else { return };
+    let Some(svc) = make_db_service().await else {
+        return;
+    };
     let _ = svc.app_paths();
     let _ = svc.db_pool();
     let _ = svc.clone();

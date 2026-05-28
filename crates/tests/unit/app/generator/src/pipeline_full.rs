@@ -15,9 +15,7 @@ use systemprompt_generator::{
     prerender_content, prerender_pages,
 };
 use systemprompt_models::AppPaths;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 
 const WEB_CONFIG_YAML: &str = r##"
 paths:
@@ -147,13 +145,9 @@ content_sources:
 
 fn install_full_web_config() -> &'static systemprompt_test_fixtures::TestBootstrap {
     let boot = ensure_test_bootstrap();
-    let web_cfg = boot
-        .services_path
-        .join("web/config.yaml");
+    let web_cfg = boot.services_path.join("web/config.yaml");
     fs::write(&web_cfg, WEB_CONFIG_YAML).expect("write full web config");
-    let content_cfg = boot
-        .services_path
-        .join("content/config.yaml");
+    let content_cfg = boot.services_path.join("content/config.yaml");
     fs::write(&content_cfg, CONTENT_CONFIG_YAML).expect("write content config");
     boot
 }

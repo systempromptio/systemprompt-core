@@ -57,13 +57,19 @@ fn missing_field_unknown_field_has_no_suggestion() {
 fn missing_field_with_path_exposes_location() {
     let path = PathBuf::from("/tmp/post.md");
     let err = PublishError::missing_field_with_path("title", "post", path.clone());
-    assert_eq!(err.location().as_deref(), Some(path.display().to_string().as_str()));
+    assert_eq!(
+        err.location().as_deref(),
+        Some(path.display().to_string().as_str())
+    );
 }
 
 #[test]
 fn template_not_found_suggestion_lists_available() {
-    let err =
-        PublishError::template_not_found("blog", "intro", vec!["post".to_owned(), "page".to_owned()]);
+    let err = PublishError::template_not_found(
+        "blog",
+        "intro",
+        vec!["post".to_owned(), "page".to_owned()],
+    );
     let s = err.suggestion_string().expect("suggestion");
     assert!(s.contains("blog"));
     assert!(s.contains("post"));

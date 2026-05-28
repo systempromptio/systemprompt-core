@@ -56,7 +56,12 @@ fn status_display_builder_and_display() {
 
 #[test]
 fn module_item_display_renders() {
-    let m = ModuleItemDisplay::new(ModuleType::Module, "src.yaml", "dst.yaml", ItemStatus::Valid);
+    let m = ModuleItemDisplay::new(
+        ModuleType::Module,
+        "src.yaml",
+        "dst.yaml",
+        ItemStatus::Valid,
+    );
     m.display();
     assert_eq!(m.file, "src.yaml");
     assert_eq!(m.target, "dst.yaml");
@@ -64,17 +69,11 @@ fn module_item_display_renders() {
 
 #[test]
 fn collection_display_with_count_and_without() {
-    let coll = CollectionDisplay::new(
-        "Things",
-        vec![StatusDisplay::new(ItemStatus::Valid, "one")],
-    );
+    let coll = CollectionDisplay::new("Things", vec![StatusDisplay::new(ItemStatus::Valid, "one")]);
     coll.display();
 
-    let coll = CollectionDisplay::new(
-        "Things",
-        vec![StatusDisplay::new(ItemStatus::Valid, "one")],
-    )
-    .without_count();
+    let coll = CollectionDisplay::new("Things", vec![StatusDisplay::new(ItemStatus::Valid, "one")])
+        .without_count();
     coll.display();
 }
 

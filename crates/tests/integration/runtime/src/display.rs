@@ -11,9 +11,8 @@ use systemprompt_traits::validation_report::{ValidationError, ValidationWarning}
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 fn report_with_errors() -> StartupValidationReport {
-    let mut report = StartupValidationReport::new().with_profile_path(PathBuf::from(
-        "/tmp/integration-test/profile.yaml",
-    ));
+    let mut report = StartupValidationReport::new()
+        .with_profile_path(PathBuf::from("/tmp/integration-test/profile.yaml"));
 
     let mut domain = ValidationReport::new("web");
     domain.add_error(

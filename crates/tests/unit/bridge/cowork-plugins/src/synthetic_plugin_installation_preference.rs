@@ -24,7 +24,8 @@ fn constant_is_one_of_documented_auto_install_values() {
     // absent — never a value we want to emit.
     assert!(
         matches!(PLUGIN_INSTALLATION_PREFERENCE, "required" | "auto_install"),
-        "PLUGIN_INSTALLATION_PREFERENCE={PLUGIN_INSTALLATION_PREFERENCE:?} is not a Cowork-auto-install value"
+        "PLUGIN_INSTALLATION_PREFERENCE={PLUGIN_INSTALLATION_PREFERENCE:?} is not a \
+         Cowork-auto-install value"
     );
 }
 

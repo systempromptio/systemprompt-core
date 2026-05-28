@@ -90,7 +90,10 @@ async fn generate_image_handles_http_error() {
         .mount(&server)
         .await;
     let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
-    let err = p.generate_image(&make_request("ok")).await.expect_err("err");
+    let err = p
+        .generate_image(&make_request("ok"))
+        .await
+        .expect_err("err");
     let _ = format!("{err}");
 }
 
@@ -103,7 +106,10 @@ async fn generate_image_handles_missing_data() {
         .mount(&server)
         .await;
     let p = OpenAiImageProvider::with_endpoint("k".to_owned(), server.uri());
-    let err = p.generate_image(&make_request("ok")).await.expect_err("err");
+    let err = p
+        .generate_image(&make_request("ok"))
+        .await
+        .expect_err("err");
     let _ = format!("{err}");
 }
 
@@ -205,8 +211,7 @@ async fn generate_image_maps_size_for_landscape() {
 
 #[tokio::test]
 async fn provider_metadata_is_consistent() {
-    let p =
-        OpenAiImageProvider::new("k".to_owned()).with_default_model("dall-e-3".to_owned());
+    let p = OpenAiImageProvider::new("k".to_owned()).with_default_model("dall-e-3".to_owned());
     assert_eq!(p.name(), "openai-image");
     assert_eq!(p.default_model(), "dall-e-3");
     let caps = p.capabilities();

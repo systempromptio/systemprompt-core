@@ -125,11 +125,7 @@ async fn conversation_service_with_artifacts_in_history() -> Result<()> {
             text: "artifact body".to_string(),
         })],
         extensions: vec![],
-        metadata: ArtifactMetadata::new(
-            "text".to_string(),
-            fx.context_id.clone(),
-            task_id.clone(),
-        ),
+        metadata: ArtifactMetadata::new("text".to_string(), fx.context_id.clone(), task_id.clone()),
     };
     artifact_repo
         .create_artifact(&task_id, &fx.context_id, &artifact)

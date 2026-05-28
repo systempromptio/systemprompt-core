@@ -63,10 +63,7 @@ fn verify_binary_missing_returns_err() {
 
 #[test]
 fn verify_binary_present_succeeds() {
-    let dir = std::env::temp_dir().join(format!(
-        "verify-bin-{}",
-        uuid::Uuid::new_v4().simple()
-    ));
+    let dir = std::env::temp_dir().join(format!("verify-bin-{}", uuid::Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).unwrap();
     let bin_name = "fakebin";
     let bin_path = dir.join(bin_name);

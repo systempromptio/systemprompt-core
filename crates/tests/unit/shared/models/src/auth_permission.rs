@@ -28,7 +28,14 @@ fn permission_from_str_rejects_unknown() {
 #[test]
 fn permission_is_valid_role_recognises_known_strings() {
     for s in [
-        "admin", "user", "anonymous", "a2a", "mcp", "service", "hook:govern", "hook:track",
+        "admin",
+        "user",
+        "anonymous",
+        "a2a",
+        "mcp",
+        "service",
+        "hook:govern",
+        "hook:track",
     ] {
         assert!(Permission::is_valid_role(s), "{s}");
     }
@@ -65,12 +72,21 @@ fn permission_as_user_type_maps_all_variants() {
 
 #[test]
 fn permission_from_user_type_maps_all_variants() {
-    assert_eq!(Permission::from_user_type(UserType::Admin), Permission::Admin);
+    assert_eq!(
+        Permission::from_user_type(UserType::Admin),
+        Permission::Admin
+    );
     assert_eq!(Permission::from_user_type(UserType::User), Permission::User);
     assert_eq!(Permission::from_user_type(UserType::A2a), Permission::A2a);
     assert_eq!(Permission::from_user_type(UserType::Mcp), Permission::Mcp);
-    assert_eq!(Permission::from_user_type(UserType::Service), Permission::Service);
-    assert_eq!(Permission::from_user_type(UserType::Anon), Permission::Anonymous);
+    assert_eq!(
+        Permission::from_user_type(UserType::Service),
+        Permission::Service
+    );
+    assert_eq!(
+        Permission::from_user_type(UserType::Anon),
+        Permission::Anonymous
+    );
     assert_eq!(
         Permission::from_user_type(UserType::Unknown),
         Permission::Anonymous

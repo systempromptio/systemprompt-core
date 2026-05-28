@@ -86,10 +86,7 @@ fn apply_rejects_disallowed_top_level_dir() {
 
 #[test]
 fn apply_accepts_directory_entries_in_allowed_paths() {
-    let tarball = build_tarball_dir(
-        &[("agents/a.yaml", b"agent: 1")],
-        &["agents/"],
-    );
+    let tarball = build_tarball_dir(&[("agents/a.yaml", b"agent: 1")], &["agents/"]);
     let tmp = TempDir::new().expect("tmp");
     let _ = FileSyncService::apply(&tarball, tmp.path(), None).expect("apply");
     assert!(tmp.path().join("agents/a.yaml").exists());
@@ -97,10 +94,7 @@ fn apply_accepts_directory_entries_in_allowed_paths() {
 
 #[test]
 fn apply_selective_skips_paths_outside_filter() {
-    let tarball = build_tarball(&[
-        ("agents/a.yaml", b"agent"),
-        ("agents/b.yaml", b"agent2"),
-    ]);
+    let tarball = build_tarball(&[("agents/a.yaml", b"agent"), ("agents/b.yaml", b"agent2")]);
     let tmp = TempDir::new().expect("tmp");
     let only = ["agents/a.yaml".to_owned()];
     let extracted = FileSyncService::apply(&tarball, tmp.path(), Some(&only)).expect("apply");

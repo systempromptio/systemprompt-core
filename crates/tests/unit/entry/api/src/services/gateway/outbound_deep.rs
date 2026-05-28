@@ -9,10 +9,11 @@ use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageSource, Role, ThinkingConfig,
 };
+use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
+use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
+use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundOutcome,
-    anthropic::AnthropicOutbound, openai_chat::OpenAiChatOutbound,
-    openai_responses::OpenAiResponsesOutbound,
 };
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::profile::GatewayRoute;
@@ -271,7 +272,9 @@ async fn anthropic_outbound_no_system_no_tools() {
 #[tokio::test]
 async fn openai_chat_outbound_streaming_with_extra_headers() {
     let server = MockServer::start().await;
-    let body = "data: {\"id\":\"x\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"upstream-1\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hi\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n";
+    let body = "data: {\"id\":\"x\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\\
+                "upstream-1\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"\
+                content\":\"hi\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n";
     Mock::given(method("POST"))
         .and(path("/chat/completions"))
         .respond_with(

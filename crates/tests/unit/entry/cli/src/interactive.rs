@@ -1,9 +1,9 @@
 //! Unit tests for the `interactive` module.
 //!
-//! All tests force non-interactive mode via `CliConfig::with_interactive(false)`
-//! so the dialoguer prompts never fire — every public function in `interactive`
-//! has an early-return branch for that case, and those branches are what we
-//! cover.
+//! All tests force non-interactive mode via
+//! `CliConfig::with_interactive(false)` so the dialoguer prompts never fire —
+//! every public function in `interactive` has an early-return branch for that
+//! case, and those branches are what we cover.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 

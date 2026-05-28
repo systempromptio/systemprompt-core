@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_scheduler::{
-    BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-    DatabaseCleanupJob, GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
+    BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
+    GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
 use systemprompt_test_fixtures::{fixture_actor, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{Job, JobContext};
@@ -67,10 +67,7 @@ async fn behavioral_analysis_job_execute_succeeds() {
         return;
     };
     let ctx = make_ctx(&pool);
-    let result = BehavioralAnalysisJob
-        .execute(&ctx)
-        .await
-        .expect("job runs");
+    let result = BehavioralAnalysisJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
 }
 
@@ -80,7 +77,10 @@ async fn ghost_session_cleanup_job_execute_succeeds() {
         return;
     };
     let ctx = make_ctx(&pool);
-    let result = GhostSessionCleanupJob.execute(&ctx).await.expect("job runs");
+    let result = GhostSessionCleanupJob
+        .execute(&ctx)
+        .await
+        .expect("job runs");
     assert!(result.success);
 }
 

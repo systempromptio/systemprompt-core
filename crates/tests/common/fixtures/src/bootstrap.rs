@@ -8,7 +8,7 @@ use std::env;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use systemprompt_config::{ProfileBootstrap, SecretsBootstrap, init_config_from_profile};
+use systemprompt_config::{init_config_from_profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 use systemprompt_models::{AppPaths, Config};

@@ -10,12 +10,9 @@ fn sample_config(url: &str) -> PushNotificationConfig {
     PushNotificationConfig {
         endpoint: url.to_string(),
         headers: Some(
-            [(
-                "x-custom".to_string(),
-                serde_json::json!("custom-value"),
-            )]
-            .into_iter()
-            .collect(),
+            [("x-custom".to_string(), serde_json::json!("custom-value"))]
+                .into_iter()
+                .collect(),
         ),
         url: url.to_string(),
         token: Some("secret-token".to_string()),
@@ -50,9 +47,15 @@ async fn push_notification_list_returns_all_configs() -> Result<()> {
     let task_id = fx.insert_task(TaskState::Submitted).await?;
     let repo = PushNotificationConfigRepository::new(&fx.db)?;
 
-    let _id1 = repo.add_config(&task_id, &sample_config("https://a.test")).await?;
-    let _id2 = repo.add_config(&task_id, &sample_config("https://b.test")).await?;
-    let _id3 = repo.add_config(&task_id, &sample_config("https://c.test")).await?;
+    let _id1 = repo
+        .add_config(&task_id, &sample_config("https://a.test"))
+        .await?;
+    let _id2 = repo
+        .add_config(&task_id, &sample_config("https://b.test"))
+        .await?;
+    let _id3 = repo
+        .add_config(&task_id, &sample_config("https://c.test"))
+        .await?;
 
     let list = repo.list_configs(&task_id).await?;
     assert_eq!(list.len(), 3);
@@ -94,7 +97,9 @@ async fn push_notification_delete_single() -> Result<()> {
     let task_id = fx.insert_task(TaskState::Submitted).await?;
     let repo = PushNotificationConfigRepository::new(&fx.db)?;
 
-    let cfg_id = repo.add_config(&task_id, &sample_config("https://del.test")).await?;
+    let cfg_id = repo
+        .add_config(&task_id, &sample_config("https://del.test"))
+        .await?;
     let cid = ConfigId::new(&cfg_id);
     let deleted = repo.delete_config(&task_id, &cid).await?;
     assert!(deleted);
@@ -124,9 +129,15 @@ async fn push_notification_delete_all_for_task_removes_all() -> Result<()> {
     let task_id = fx.insert_task(TaskState::Submitted).await?;
     let repo = PushNotificationConfigRepository::new(&fx.db)?;
 
-    let _ = repo.add_config(&task_id, &sample_config("https://1.test")).await?;
-    let _ = repo.add_config(&task_id, &sample_config("https://2.test")).await?;
-    let _ = repo.add_config(&task_id, &sample_config("https://3.test")).await?;
+    let _ = repo
+        .add_config(&task_id, &sample_config("https://1.test"))
+        .await?;
+    let _ = repo
+        .add_config(&task_id, &sample_config("https://2.test"))
+        .await?;
+    let _ = repo
+        .add_config(&task_id, &sample_config("https://3.test"))
+        .await?;
 
     let count = repo.delete_all_for_task(&task_id).await?;
     assert_eq!(count, 3);

@@ -54,11 +54,7 @@ async fn upsert_job_inserts_then_updates_in_place() {
     repo.upsert_job(&name, "*/5 * * * *", false)
         .await
         .expect("second upsert");
-    let updated = repo
-        .find_job(&name)
-        .await
-        .expect("find")
-        .expect("row");
+    let updated = repo.find_job(&name).await.expect("find").expect("row");
     assert_eq!(updated.schedule, "*/5 * * * *");
     assert!(!updated.enabled);
 
@@ -92,11 +88,7 @@ async fn update_job_execution_records_status_and_error() {
         .await
         .expect("update execution");
 
-    let row = repo
-        .find_job(&name)
-        .await
-        .expect("find")
-        .expect("row");
+    let row = repo.find_job(&name).await.expect("find").expect("row");
     assert_eq!(row.last_status.as_deref(), Some("failed"));
     assert_eq!(row.last_error.as_deref(), Some("boom"));
     assert!(row.last_run.is_some());
@@ -163,9 +155,6 @@ async fn cleanup_empty_contexts_runs_without_error() {
         return;
     };
     let repo = SchedulerRepository::new(&pool).expect("repo");
-    let deleted = repo
-        .cleanup_empty_contexts(24)
-        .await
-        .expect("cleanup runs");
+    let deleted = repo.cleanup_empty_contexts(24).await.expect("cleanup runs");
     let _ = deleted;
 }

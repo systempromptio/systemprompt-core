@@ -11,5 +11,5 @@ pub use database::{MockDatabaseProvider, MockDatabaseProviderBuilder, MockDbResp
 pub use file_storage::MockFileStorage;
 pub use scheduler::MockJobTrigger;
 pub use webhook_broadcaster::{
-    RecordedBroadcast, RecordingWebhookBroadcaster, arc_recording_broadcaster,
+    arc_recording_broadcaster, RecordedBroadcast, RecordingWebhookBroadcaster,
 };

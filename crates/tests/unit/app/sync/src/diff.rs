@@ -27,9 +27,18 @@ mod diff_status_tests {
 
     #[test]
     fn serialization() {
-        assert_eq!(serde_json::to_string(&DiffStatus::Added).unwrap(), "\"Added\"");
-        assert_eq!(serde_json::to_string(&DiffStatus::Removed).unwrap(), "\"Removed\"");
-        assert_eq!(serde_json::to_string(&DiffStatus::Modified).unwrap(), "\"Modified\"");
+        assert_eq!(
+            serde_json::to_string(&DiffStatus::Added).unwrap(),
+            "\"Added\""
+        );
+        assert_eq!(
+            serde_json::to_string(&DiffStatus::Removed).unwrap(),
+            "\"Removed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&DiffStatus::Modified).unwrap(),
+            "\"Modified\""
+        );
     }
 }
 

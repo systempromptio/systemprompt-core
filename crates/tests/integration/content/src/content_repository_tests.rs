@@ -4,8 +4,7 @@
 //! which the pure-unit tests cannot reach.
 
 use chrono::Utc;
-use systemprompt_content::models::CategoryIdUpdate;
-use systemprompt_content::models::{CreateContentParams, UpdateContentParams};
+use systemprompt_content::models::{CategoryIdUpdate, CreateContentParams, UpdateContentParams};
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
@@ -302,9 +301,7 @@ async fn list_slugs_with_locales_by_source_lists_inserted() {
         .await
         .expect("list slug/locale pairs");
     assert!(
-        pairs
-            .iter()
-            .any(|(s, l)| s == &slug && l.as_str() == "en"),
+        pairs.iter().any(|(s, l)| s == &slug && l.as_str() == "en"),
         "should contain ({slug}, en); got {pairs:?}"
     );
 

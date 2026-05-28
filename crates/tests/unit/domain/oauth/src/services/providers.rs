@@ -52,10 +52,8 @@ fn generate_secure_token_returns_unique_values() {
 
 #[test]
 fn validate_token_rejects_malformed_input() {
-    let provider = JwtValidationProviderImpl::new(
-        "https://issuer.test".to_string(),
-        vec![JwtAudience::Api],
-    );
+    let provider =
+        JwtValidationProviderImpl::new("https://issuer.test".to_string(), vec![JwtAudience::Api]);
 
     let err = provider
         .validate_token("not.a.valid.jwt")
@@ -70,8 +68,7 @@ fn validate_token_rejects_malformed_input() {
 
 #[test]
 fn validate_token_rejects_empty_string() {
-    let provider =
-        JwtValidationProviderImpl::new("issuer".to_string(), vec![JwtAudience::Api]);
+    let provider = JwtValidationProviderImpl::new("issuer".to_string(), vec![JwtAudience::Api]);
 
     let err = provider
         .validate_token("")

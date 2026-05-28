@@ -128,4 +128,3 @@ async fn load_managed_mcp_servers_synthesises_url_from_api_external_url() {
         "http://localhost:8080/api/v1/mcp/sharepoint-sim/mcp"
     );
 }
-

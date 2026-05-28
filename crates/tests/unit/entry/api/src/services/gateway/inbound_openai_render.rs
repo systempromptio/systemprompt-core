@@ -145,10 +145,7 @@ fn render_event_usage_delta_is_skipped() {
     let inbound = OpenAiResponsesInbound;
     assert!(
         inbound
-            .render_event(
-                &CanonicalEvent::UsageDelta(CanonicalUsage::default()),
-                "m"
-            )
+            .render_event(&CanonicalEvent::UsageDelta(CanonicalUsage::default()), "m")
             .is_none()
     );
 }

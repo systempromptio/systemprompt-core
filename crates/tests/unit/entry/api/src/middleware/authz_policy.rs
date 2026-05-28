@@ -85,8 +85,7 @@ async fn public_admits_missing_request_context_as_anon() {
 
 #[tokio::test]
 async fn authenticated_rejects_anonymous() {
-    let (status, body) =
-        drive(gate_app(AuthzPolicy::authenticated(), Some(anon_context()))).await;
+    let (status, body) = drive(gate_app(AuthzPolicy::authenticated(), Some(anon_context()))).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
     assert!(
         body.contains("anon"),
@@ -97,15 +96,21 @@ async fn authenticated_rejects_anonymous() {
 #[tokio::test]
 async fn user_admits_user_and_admin_but_not_anon_or_mcp() {
     let (s_anon, _) = drive(gate_app(AuthzPolicy::user(), Some(anon_context()))).await;
-    let (s_user, _) =
-        drive(gate_app(AuthzPolicy::user(), Some(user_context(UserType::User)))).await;
+    let (s_user, _) = drive(gate_app(
+        AuthzPolicy::user(),
+        Some(user_context(UserType::User)),
+    ))
+    .await;
     let (s_admin, _) = drive(gate_app(
         AuthzPolicy::user(),
         Some(user_context(UserType::Admin)),
     ))
     .await;
-    let (s_mcp, _) =
-        drive(gate_app(AuthzPolicy::user(), Some(user_context(UserType::Mcp)))).await;
+    let (s_mcp, _) = drive(gate_app(
+        AuthzPolicy::user(),
+        Some(user_context(UserType::Mcp)),
+    ))
+    .await;
     assert_eq!(s_anon, StatusCode::FORBIDDEN);
     assert_eq!(s_user, StatusCode::OK);
     assert_eq!(s_admin, StatusCode::OK);
@@ -161,7 +166,7 @@ async fn mcp_route_gate_must_admit_anon_so_proxy_can_emit_rfc9728_challenge() {
     assert_eq!(
         status,
         StatusCode::OK,
-        "AuthzPolicy::public() must admit UserType::Anon — anything else \
-         collapses the MCP proxy's RFC 9728 401 challenge into a 403"
+        "AuthzPolicy::public() must admit UserType::Anon — anything else collapses the MCP \
+         proxy's RFC 9728 401 challenge into a 403"
     );
 }

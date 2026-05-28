@@ -13,10 +13,7 @@ async fn db() -> Option<systemprompt_database::DbPool> {
 
 #[test]
 fn get_binary_mtime_missing_file_returns_none() {
-    let path = PathBuf::from(format!(
-        "/tmp/no-such-{}",
-        uuid::Uuid::new_v4().simple()
-    ));
+    let path = PathBuf::from(format!("/tmp/no-such-{}", uuid::Uuid::new_v4().simple()));
     assert!(get_binary_mtime(&path).is_none());
 }
 

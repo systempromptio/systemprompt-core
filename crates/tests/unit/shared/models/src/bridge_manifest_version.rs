@@ -24,7 +24,10 @@ fn manifest_version_rejects_missing_separator() {
 #[test]
 fn manifest_version_rejects_bad_timestamp() {
     let err = ManifestVersion::try_new("not-a-date-deadbeef").unwrap_err();
-    assert!(matches!(err, ManifestVersionParseError::BadTimestamp { .. }));
+    assert!(matches!(
+        err,
+        ManifestVersionParseError::BadTimestamp { .. }
+    ));
 }
 
 #[test]

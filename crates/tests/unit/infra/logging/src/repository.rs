@@ -6,10 +6,10 @@
 use chrono::{Duration as ChronoDuration, Utc};
 use serde_json::json;
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
+use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_logging::{
     AnalyticsEvent, AnalyticsRepository, DatabaseLogService, LoggingRepository,
 };
-use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 async fn pool() -> Option<systemprompt_database::DbPool> {

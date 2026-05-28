@@ -5,11 +5,10 @@
 //! constraint on register — see migration 010.
 
 use anyhow::Result;
-use axum::Router;
 use axum::body::Body;
 use axum::http::Request;
-use axum::middleware;
 use axum::routing::get;
+use axum::{Router, middleware};
 use systemprompt_api::services::middleware::SessionMiddleware;
 use tower::ServiceExt;
 
@@ -22,12 +21,12 @@ async fn ok_handler() -> &'static str {
 async fn app_with_session_mw() -> Result<Router> {
     let (_pool, ctx) = setup_ctx().await?;
     let session_mw = SessionMiddleware::new(&ctx)?;
-    Ok(Router::new().route("/health", get(ok_handler)).layer(
-        middleware::from_fn(move |req, next| {
+    Ok(Router::new()
+        .route("/health", get(ok_handler))
+        .layer(middleware::from_fn(move |req, next| {
             let mw = session_mw.clone();
             async move { mw.handle(req, next).await }
-        }),
-    ))
+        })))
 }
 
 #[tokio::test]

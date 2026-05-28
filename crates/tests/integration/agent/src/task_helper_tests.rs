@@ -6,11 +6,9 @@ use anyhow::Result;
 use systemprompt_agent::services::mcp::task_helper::{
     SaveMessagesForToolExecutionParams, ensure_task_exists, save_messages_for_tool_execution,
 };
-use systemprompt_identifiers::{
-    AgentName, ContextId, SessionId, TaskId, TraceId, UserId,
-};
-use systemprompt_models::a2a::{Artifact, ArtifactMetadata};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::a2a::{Artifact, ArtifactMetadata};
 
 use crate::common::Fixture;
 
@@ -54,11 +52,10 @@ async fn ensure_task_exists_creates_task_for_valid_context() -> Result<()> {
     // RequestContext must have been mutated to carry the new task_id.
     assert_eq!(ctx.task_id(), Some(&result.task_id));
 
-    let row: (String,) =
-        sqlx::query_as("SELECT status FROM agent_tasks WHERE task_id = $1")
-            .bind(result.task_id.as_str())
-            .fetch_one(&f.pool)
-            .await?;
+    let row: (String,) = sqlx::query_as("SELECT status FROM agent_tasks WHERE task_id = $1")
+        .bind(result.task_id.as_str())
+        .fetch_one(&f.pool)
+        .await?;
     assert_eq!(row.0, "TASK_STATE_SUBMITTED");
 
     f.cleanup().await?;
@@ -112,13 +109,15 @@ async fn save_messages_for_tool_execution_persists_pair() -> Result<()> {
     .await
     .expect("persist ok");
 
-    let count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM task_messages WHERE task_id = $1",
-    )
-    .bind(task_id.as_str())
-    .fetch_one(&f.pool)
-    .await?;
-    assert!(count.0 >= 2, "user + agent message rows present, got {}", count.0);
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM task_messages WHERE task_id = $1")
+        .bind(task_id.as_str())
+        .fetch_one(&f.pool)
+        .await?;
+    assert!(
+        count.0 >= 2,
+        "user + agent message rows present, got {}",
+        count.0
+    );
 
     f.cleanup().await?;
     Ok(())

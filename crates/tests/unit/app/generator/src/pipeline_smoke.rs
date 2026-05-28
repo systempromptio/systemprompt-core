@@ -4,9 +4,7 @@
 //! `Config::get()` path. Tests that need a full `web/config.yaml` are
 //! left to integration suites.
 
-use systemprompt_generator::{
-    DefaultSitemapProvider, generate_feed_with_providers,
-};
+use systemprompt_generator::{DefaultSitemapProvider, generate_feed_with_providers};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 #[tokio::test]

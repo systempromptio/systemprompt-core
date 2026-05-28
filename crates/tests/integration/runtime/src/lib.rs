@@ -9,6 +9,10 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod app_context_traits;
+#[cfg(test)]
+mod bootstrap_fixture;
+#[cfg(test)]
 mod config_loaders;
 #[cfg(test)]
 mod display;
@@ -16,7 +20,3 @@ mod display;
 mod validate_database_path;
 #[cfg(test)]
 mod validator;
-#[cfg(test)]
-mod app_context_traits;
-#[cfg(test)]
-mod bootstrap_fixture;

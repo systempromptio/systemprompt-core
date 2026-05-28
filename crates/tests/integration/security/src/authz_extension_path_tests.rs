@@ -10,9 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{RouteId, TraceId};
-use systemprompt_models::profile::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
-};
+use systemprompt_models::profile::{AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig};
 use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, AuthzSource,
     EntityRef, SharedAuthzHook, build_authz_hook,
@@ -89,13 +87,9 @@ async fn extension_hook_evaluated_and_audited() {
     .await
     .expect("seed entity row");
 
-    let sink: Arc<dyn AuthzAuditSink> = Arc::new(
-        systemprompt_security::authz::DbAuditSink::new(
-            systemprompt_security::authz::GovernanceDecisionRepository::from_pool(
-                write_pool.clone(),
-            ),
-        ),
-    );
+    let sink: Arc<dyn AuthzAuditSink> = Arc::new(systemprompt_security::authz::DbAuditSink::new(
+        systemprompt_security::authz::GovernanceDecisionRepository::from_pool(write_pool.clone()),
+    ));
     let calls = Arc::new(Mutex::new(Vec::new()));
     let hook: SharedAuthzHook = Arc::new(RecordingHook {
         calls: calls.clone(),

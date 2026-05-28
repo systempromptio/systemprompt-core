@@ -28,7 +28,11 @@ fn schemas_contain_all_tables() {
     assert!(table_names.iter().any(|n| n == "artifact_parts"));
     assert!(table_names.iter().any(|n| n == "context_agents"));
     assert!(table_names.iter().any(|n| n == "context_notifications"));
-    assert!(table_names.iter().any(|n| n == "task_push_notification_configs"));
+    assert!(
+        table_names
+            .iter()
+            .any(|n| n == "task_push_notification_configs")
+    );
     assert!(table_names.iter().any(|n| n == "task_execution_steps"));
     assert!(table_names.iter().any(|n| n == "services"));
     assert!(table_names.iter().any(|n| n == "user_session_analytics"));

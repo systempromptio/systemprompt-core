@@ -32,7 +32,9 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
 pub async fn setup_db() -> DbPool {
     ensure_test_secrets_bootstrap();
     let url = fixture_database_url().expect("DATABASE_URL required for gateway audit tests");
-    fixture_db_pool(&url).await.expect("connect to test database")
+    fixture_db_pool(&url)
+        .await
+        .expect("connect to test database")
 }
 
 pub async fn seed_user(db: &DbPool) -> UserId {

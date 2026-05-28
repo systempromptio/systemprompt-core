@@ -26,8 +26,7 @@ fn is_ai_crawler_detects_known_tokens_case_insensitively() {
 #[test]
 fn is_ai_crawler_false_for_browser_user_agent() {
     assert!(
-        !ua("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15")
-            .is_ai_crawler()
+        !ua("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15").is_ai_crawler()
     );
     assert!(!SessionAnalytics::default().is_ai_crawler());
 }

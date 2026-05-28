@@ -9,8 +9,7 @@ use super::common::{json_post, request_context, setup_ctx};
 #[tokio::test]
 async fn record_engagement_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app =
-        engagement_router(&ctx)?.layer(Extension(request_context("user_engagement")));
+    let app = engagement_router(&ctx)?.layer(Extension(request_context("user_engagement")));
     let body = serde_json::json!({
         "event_type": "scroll",
         "session_id": "00000000-0000-0000-0000-000000000000",
@@ -24,8 +23,7 @@ async fn record_engagement_runs_handler() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_engagement_rejects_bad_payload() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app =
-        engagement_router(&ctx)?.layer(Extension(request_context("user_engagement")));
+    let app = engagement_router(&ctx)?.layer(Extension(request_context("user_engagement")));
     let resp = app
         .oneshot(json_post("/", serde_json::json!({"nope": true})))
         .await?;
@@ -37,8 +35,7 @@ async fn record_engagement_rejects_bad_payload() -> anyhow::Result<()> {
 #[tokio::test]
 async fn record_engagement_batch_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app =
-        engagement_router(&ctx)?.layer(Extension(request_context("user_engagement")));
+    let app = engagement_router(&ctx)?.layer(Extension(request_context("user_engagement")));
     let body = serde_json::json!({ "events": [] });
     let resp = app.oneshot(json_post("/batch", body)).await?;
     assert!(resp.status().as_u16() >= 200);

@@ -8,20 +8,19 @@
 
 use std::sync::{Arc, Once};
 
+use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
-use axum::Router;
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::execution::context::RequestContext;
+use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;
-use systemprompt_identifiers::ClientId;
 use systemprompt_test_fixtures::{
     OAuthClientFixture, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, ensure_test_bootstrap,
     fixture_db_pool, seed_oauth_client,
@@ -138,13 +137,7 @@ async fn read_json(resp: Response<Body>) -> anyhow::Result<serde_json::Value> {
 fn urlencode(pairs: &[(&str, &str)]) -> String {
     pairs
         .iter()
-        .map(|(k, v)| {
-            format!(
-                "{}={}",
-                urlencoding_minimal(k),
-                urlencoding_minimal(v)
-            )
-        })
+        .map(|(k, v)| format!("{}={}", urlencoding_minimal(k), urlencoding_minimal(v)))
         .collect::<Vec<_>>()
         .join("&")
 }
@@ -170,11 +163,7 @@ async fn token_unsupported_grant_returns_400() -> anyhow::Result<()> {
     let resp = app.oneshot(form_post("/token", body)).await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     let v = read_json(resp).await?;
-    assert_eq!(
-        v["error"].as_str(),
-        Some("unsupported_grant_type"),
-        "{v:?}"
-    );
+    assert_eq!(v["error"].as_str(), Some("unsupported_grant_type"), "{v:?}");
     Ok(())
 }
 
@@ -278,11 +267,14 @@ async fn token_client_credentials_with_inactive_owner_returns_invalid_client() -
     let pool = fixture_db_pool(&b.database_url).await?;
     let user = UserId::new(format!("oauth-token-inactive-{}", Uuid::new_v4()));
     let p = pool.pool_arc().expect("read pool");
-    sqlx::query("INSERT INTO users (id, name, email, status) VALUES ($1, $1, $2, 'inactive') ON CONFLICT (id) DO UPDATE SET status='inactive'")
-        .bind(user.as_str())
-        .bind(format!("{}@oauth.invalid", user.as_str()))
-        .execute(p.as_ref())
-        .await?;
+    sqlx::query(
+        "INSERT INTO users (id, name, email, status) VALUES ($1, $1, $2, 'inactive') ON CONFLICT \
+         (id) DO UPDATE SET status='inactive'",
+    )
+    .bind(user.as_str())
+    .bind(format!("{}@oauth.invalid", user.as_str()))
+    .execute(p.as_ref())
+    .await?;
     let client = seed_oauth_client(&pool, &user).await?;
 
     let app = token_app().await?;
@@ -327,16 +319,16 @@ async fn seed_client_with_scopes(scopes: Vec<&str>) -> anyhow::Result<OAuthClien
     let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
     sqlx::query(
-        "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) \
-         ON CONFLICT DO NOTHING",
+        "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) ON CONFLICT \
+         DO NOTHING",
     )
     .bind(user.as_str())
     .bind(format!("{}@oauth.invalid", user.as_str()))
     .execute(p.as_ref())
     .await?;
     let client_id = ClientId::new(format!("test-client-cc-{}", Uuid::new_v4().simple()));
-    let secret_hash = hash_client_secret(TEST_CLIENT_SECRET)
-        .map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;
+    let secret_hash =
+        hash_client_secret(TEST_CLIENT_SECRET).map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;
     let repo = ClientRepository::new(&pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
     repo.create(CreateClientParams {
         client_id: client_id.clone(),

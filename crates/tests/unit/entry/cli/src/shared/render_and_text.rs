@@ -75,10 +75,7 @@ fn render_result_raw_text_in_json_mode() {
 #[test]
 fn render_result_chart_form_dashboard() {
     set_global_config(CliConfig::default().with_output_format(OutputFormat::Json));
-    render_result(&CommandResult::chart(
-        vec![1_u32, 2, 3],
-        ChartType::Bar,
-    ));
+    render_result(&CommandResult::chart(vec![1_u32, 2, 3], ChartType::Bar));
     render_result(&CommandResult::form(TextOutput::new("f")));
     render_result(&CommandResult::dashboard(TextOutput::new("d")));
     render_result(&CommandResult::copy_paste(TextOutput::new("c")));

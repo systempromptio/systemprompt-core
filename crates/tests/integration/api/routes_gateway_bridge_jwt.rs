@@ -19,7 +19,10 @@ use super::common::setup_ctx;
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    Ok((gateway_router(&ctx).expect("gateway router available"), pool))
+    Ok((
+        gateway_router(&ctx).expect("gateway router available"),
+        pool,
+    ))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {

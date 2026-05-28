@@ -23,7 +23,11 @@ async fn list_keys_returns_empty_array_for_new_user() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = keys_app(&ctx);
     let resp = app.oneshot(empty_get("/api-keys")).await?;
-    assert!(resp.status().is_success() || resp.status().is_server_error(), "{}", resp.status());
+    assert!(
+        resp.status().is_success() || resp.status().is_server_error(),
+        "{}",
+        resp.status()
+    );
     Ok(())
 }
 
@@ -33,11 +37,11 @@ async fn issue_key_then_list_then_revoke() -> anyhow::Result<()> {
 
     // Issue
     let body = serde_json::json!({ "name": format!("test-key-{}", uuid::Uuid::new_v4()) });
-    let resp = keys_app(&ctx)
-        .oneshot(json_post("/api-keys", body))
-        .await?;
+    let resp = keys_app(&ctx).oneshot(json_post("/api-keys", body)).await?;
     let status = resp.status();
-    let bytes = http_body_util::BodyExt::collect(resp.into_body()).await?.to_bytes();
+    let bytes = http_body_util::BodyExt::collect(resp.into_body())
+        .await?
+        .to_bytes();
     let text = String::from_utf8_lossy(&bytes).into_owned();
     assert!(
         status.is_success() || status.is_server_error(),

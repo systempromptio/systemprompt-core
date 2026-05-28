@@ -1,6 +1,7 @@
 //! Unit tests for build_multiturn_task and its history/artifact builders.
 //!
-//! Target: crates/domain/agent/src/services/a2a_server/processing/task_builder/builders.rs
+//! Target: crates/domain/agent/src/services/a2a_server/processing/task_builder/
+//! builders.rs
 
 use rmcp::model::{CallToolResult, Content};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
@@ -74,7 +75,8 @@ fn build_multiturn_with_tools_produces_three_extra_entries() {
         total_iterations: 1,
     });
     let history = task.history.unwrap();
-    // user + (executing + results) + final = 4 (single iteration consumed both calls).
+    // user + (executing + results) + final = 4 (single iteration consumed both
+    // calls).
     assert_eq!(history.len(), 4);
     assert_eq!(history[0].role, MessageRole::User);
     assert_eq!(history[1].role, MessageRole::Agent);
@@ -137,7 +139,8 @@ fn build_multiturn_no_artifacts_when_no_structured_content() {
         final_response: "x".to_string(),
         total_iterations: 1,
     });
-    // structured_content::is_error is None, so build_artifacts filter_map returns None.
+    // structured_content::is_error is None, so build_artifacts filter_map returns
+    // None.
     assert!(task.artifacts.is_none());
 }
 
@@ -189,7 +192,8 @@ fn build_multiturn_history_tool_results_message_is_user_role() {
         total_iterations: 1,
     });
     let history = task.history.unwrap();
-    // The "tool_results: true" message is the third entry (index 2) and is User role.
+    // The "tool_results: true" message is the third entry (index 2) and is User
+    // role.
     let tool_results_msg = &history[2];
     assert_eq!(tool_results_msg.role, MessageRole::User);
     let metadata = tool_results_msg.metadata.as_ref().unwrap();

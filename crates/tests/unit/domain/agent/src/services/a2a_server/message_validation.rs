@@ -1,6 +1,7 @@
 //! Unit tests for MessageValidationService pure helpers.
 //!
-//! Target: crates/domain/agent/src/services/a2a_server/processing/message_validation.rs
+//! Target: crates/domain/agent/src/services/a2a_server/processing/
+//! message_validation.rs
 
 use systemprompt_agent::models::a2a::{DataPart, Message, MessageRole, Part, TextPart};
 use systemprompt_agent::services::a2a_server::processing::MessageValidationService;

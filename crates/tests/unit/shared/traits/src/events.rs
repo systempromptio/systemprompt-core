@@ -5,13 +5,22 @@ use systemprompt_traits::events::{LogEventData, LogEventLevel};
 
 #[test]
 fn log_event_level_from_str_known_variants() {
-    assert_eq!(LogEventLevel::from_str("error").unwrap(), LogEventLevel::Error);
-    assert_eq!(LogEventLevel::from_str("warn").unwrap(), LogEventLevel::Warn);
+    assert_eq!(
+        LogEventLevel::from_str("error").unwrap(),
+        LogEventLevel::Error
+    );
+    assert_eq!(
+        LogEventLevel::from_str("warn").unwrap(),
+        LogEventLevel::Warn
+    );
     assert_eq!(
         LogEventLevel::from_str("warning").unwrap(),
         LogEventLevel::Warn
     );
-    assert_eq!(LogEventLevel::from_str("info").unwrap(), LogEventLevel::Info);
+    assert_eq!(
+        LogEventLevel::from_str("info").unwrap(),
+        LogEventLevel::Info
+    );
     assert_eq!(
         LogEventLevel::from_str("debug").unwrap(),
         LogEventLevel::Debug
@@ -24,8 +33,14 @@ fn log_event_level_from_str_known_variants() {
 
 #[test]
 fn log_event_level_from_str_is_case_insensitive() {
-    assert_eq!(LogEventLevel::from_str("ERROR").unwrap(), LogEventLevel::Error);
-    assert_eq!(LogEventLevel::from_str("Info").unwrap(), LogEventLevel::Info);
+    assert_eq!(
+        LogEventLevel::from_str("ERROR").unwrap(),
+        LogEventLevel::Error
+    );
+    assert_eq!(
+        LogEventLevel::from_str("Info").unwrap(),
+        LogEventLevel::Info
+    );
 }
 
 #[test]

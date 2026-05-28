@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use systemprompt_models::auth::{JwtAudience, Permission, RateLimitTier, TokenType, UserRole, UserStatus, UserType};
+use systemprompt_models::auth::{
+    JwtAudience, Permission, RateLimitTier, TokenType, UserRole, UserStatus, UserType,
+};
 
 #[test]
 fn jwt_audience_as_str_matches_known_variants() {
@@ -11,7 +13,10 @@ fn jwt_audience_as_str_matches_known_variants() {
     assert_eq!(JwtAudience::Internal.as_str(), "internal");
     assert_eq!(JwtAudience::Bridge.as_str(), "bridge");
     assert_eq!(JwtAudience::Hook.as_str(), "hook");
-    assert_eq!(JwtAudience::Resource("custom".to_owned()).as_str(), "custom");
+    assert_eq!(
+        JwtAudience::Resource("custom".to_owned()).as_str(),
+        "custom"
+    );
 }
 
 #[test]

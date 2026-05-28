@@ -56,7 +56,8 @@ async fn hook_token_401_captures_body() {
 #[tokio::test(flavor = "multi_thread")]
 async fn hook_token_500_captures_body() {
     let server = MockServer::start().await;
-    let body = r#"{"error":"server_error","error_description":"Failed to load client owner: db down"}"#;
+    let body =
+        r#"{"error":"server_error","error_description":"Failed to load client owner: db down"}"#;
     Mock::given(method("POST"))
         .and(path("/v1/oauth/token"))
         .respond_with(

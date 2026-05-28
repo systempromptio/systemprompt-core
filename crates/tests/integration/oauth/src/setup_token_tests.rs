@@ -34,7 +34,10 @@ async fn setup_token_full_lifecycle() {
             assert_eq!(record.purpose, SetupTokenPurpose::CredentialLink);
             assert!(repo.consume_setup_token(&record.id).await.expect("consume"));
             assert!(
-                !repo.consume_setup_token(&record.id).await.expect("re-consume"),
+                !repo
+                    .consume_setup_token(&record.id)
+                    .await
+                    .expect("re-consume"),
                 "second consume returns false"
             );
         },
@@ -52,7 +55,11 @@ async fn validate_unknown_token_returns_not_found() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db).expect("repo");
 
-    match repo.validate_setup_token("nonexistent-hash").await.expect("validate") {
+    match repo
+        .validate_setup_token("nonexistent-hash")
+        .await
+        .expect("validate")
+    {
         TokenValidationResult::NotFound => {},
         other => panic!("expected NotFound, got {:?}", other),
     }
@@ -96,10 +103,16 @@ async fn revoke_user_setup_tokens_marks_unused_tokens_used() {
         .await
         .expect("store");
     }
-    let revoked = repo.revoke_user_setup_tokens(&user_id).await.expect("revoke");
+    let revoked = repo
+        .revoke_user_setup_tokens(&user_id)
+        .await
+        .expect("revoke");
     assert!(revoked >= 3);
 
-    let again = repo.revoke_user_setup_tokens(&user_id).await.expect("revoke twice");
+    let again = repo
+        .revoke_user_setup_tokens(&user_id)
+        .await
+        .expect("revoke twice");
     assert_eq!(again, 0, "second revoke is a no-op");
 }
 
@@ -112,7 +125,10 @@ async fn cleanup_expired_setup_tokens_returns_count() {
 
 #[test]
 fn purpose_as_str_and_display_match() {
-    assert_eq!(SetupTokenPurpose::CredentialLink.as_str(), "credential_link");
+    assert_eq!(
+        SetupTokenPurpose::CredentialLink.as_str(),
+        "credential_link"
+    );
     assert_eq!(SetupTokenPurpose::Recovery.as_str(), "recovery");
     assert_eq!(format!("{}", SetupTokenPurpose::Recovery), "recovery");
 }

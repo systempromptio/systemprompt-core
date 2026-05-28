@@ -276,9 +276,9 @@ async fn mcp_falls_back_to_session_context_on_extractor_failure() {
     assert_eq!(
         status,
         StatusCode::OK,
-        "MCP flavour must fall through with the session Anon context on extractor \
-         failure so the downstream proxy can emit an RFC 9728 401 challenge — \
-         see routes_mcp_unauth_challenge integration test"
+        "MCP flavour must fall through with the session Anon context on extractor failure so the \
+         downstream proxy can emit an RFC 9728 401 challenge — see routes_mcp_unauth_challenge \
+         integration test"
     );
     assert!(
         body.contains("agent=session;"),

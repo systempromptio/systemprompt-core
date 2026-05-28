@@ -26,4 +26,3 @@ async fn default_agent_card_returns_error_without_profile() -> anyhow::Result<()
     assert!(resp.status().as_u16() >= 400);
     Ok(())
 }
-

@@ -10,12 +10,9 @@ use axum::http::{Request, StatusCode};
 use axum::middleware::from_fn;
 use axum::routing::get;
 use systemprompt_api::services::middleware::{inject_security_headers, inject_trace_header};
-use systemprompt_models::Config;
-use systemprompt_models::RequestContext;
 use systemprompt_models::config::RateLimitConfig;
-use systemprompt_models::profile::{
-    ContentNegotiationConfig, SecurityHeadersConfig,
-};
+use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
+use systemprompt_models::{Config, RequestContext};
 use tower::ServiceExt;
 
 static CONFIG_INSTALL: Once = Once::new();
@@ -80,7 +77,10 @@ async fn security_headers_inject_all_configured_headers() {
             let cfg = cfg.clone();
             async move { inject_security_headers(cfg, req, next).await }
         }));
-    let resp = app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap()).await.unwrap();
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let h = resp.headers();
     assert!(h.contains_key("strict-transport-security"));
@@ -100,7 +100,10 @@ async fn security_headers_skip_csp_when_none() {
             let cfg = cfg.clone();
             async move { inject_security_headers(cfg, req, next).await }
         }));
-    let resp = app.oneshot(Request::builder().uri("/").body(Body::empty()).unwrap()).await.unwrap();
+    let resp = app
+        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
     assert!(!resp.headers().contains_key("content-security-policy"));
 }
 
@@ -121,7 +124,9 @@ async fn trace_header_present_when_context_attached() {
     req.extensions_mut().insert(ctx);
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(
-        resp.headers().get("x-trace-id").and_then(|h| h.to_str().ok()),
+        resp.headers()
+            .get("x-trace-id")
+            .and_then(|h| h.to_str().ok()),
         Some("trace-xyz")
     );
 }

@@ -9,9 +9,7 @@ use std::path::Path;
 use crate::fsutil;
 
 use super::emit::{CoworkTarget, EmitError};
-use super::{
-    COWORK_SETTINGS_FILE, disable_plugin, enable_plugin, parse_settings, render_settings,
-};
+use super::{COWORK_SETTINGS_FILE, disable_plugin, enable_plugin, parse_settings, render_settings};
 
 pub(super) fn upsert_enabled(
     target: &CoworkTarget,

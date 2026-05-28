@@ -1,7 +1,6 @@
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
-    TaskBuilder, build_canceled_task, build_completed_task, build_mock_task,
-    build_submitted_task,
+    TaskBuilder, build_canceled_task, build_completed_task, build_mock_task, build_submitted_task,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::TaskMetadata;

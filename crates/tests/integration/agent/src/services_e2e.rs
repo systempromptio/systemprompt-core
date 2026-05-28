@@ -9,8 +9,8 @@ use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_models::PlannedTool;
+use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_traits::ContextProvider;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
@@ -125,7 +125,6 @@ impl ServicesFixture {
             .ok();
         Ok(())
     }
-
 }
 
 #[tokio::test]
@@ -153,13 +152,10 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
         .await?;
 
     let (tracked_tool, tool_step) = svc
-        .track_tool_execution(
-            task_id.clone(),
-            "echo",
-            serde_json::json!({"x": 1}),
-        )
+        .track_tool_execution(task_id.clone(), "echo", serde_json::json!({"x": 1}))
         .await?;
-    svc.complete(tracked_tool, Some(serde_json::json!({"ok": true}))).await?;
+    svc.complete(tracked_tool, Some(serde_json::json!({"ok": true})))
+        .await?;
 
     let _completion = svc.track_completion(task_id.clone()).await?;
 
@@ -275,9 +271,7 @@ async fn message_service_persist_empty_list_returns_empty() -> Result<()> {
 
 #[tokio::test]
 async fn message_service_creates_tool_execution_message() -> Result<()> {
-    use systemprompt_agent::services::message::{
-        CreateToolExecutionMessageParams, MessageService,
-    };
+    use systemprompt_agent::services::message::{CreateToolExecutionMessageParams, MessageService};
     use systemprompt_models::RequestContext;
 
     let fx = ServicesFixture::new().await?;
@@ -342,7 +336,9 @@ async fn context_service_loads_history_with_messages() -> Result<()> {
         })
         .await?;
 
-    let _history = context_svc.load_conversation_history(&fx.context_id).await?;
+    let _history = context_svc
+        .load_conversation_history(&fx.context_id)
+        .await?;
 
     fx.cleanup().await?;
     Ok(())

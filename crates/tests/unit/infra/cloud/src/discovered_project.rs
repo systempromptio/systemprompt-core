@@ -17,7 +17,10 @@ fn from_root_sets_paths_relative_to_root() {
     let p = DiscoveredProject::from_root(root.clone());
     assert_eq!(p.root(), root);
     assert_eq!(p.systemprompt_dir(), root.join(".systemprompt"));
-    assert_eq!(p.credentials_path(), root.join(".systemprompt/credentials.json"));
+    assert_eq!(
+        p.credentials_path(),
+        root.join(".systemprompt/credentials.json")
+    );
     assert_eq!(p.tenants_path(), root.join(".systemprompt/tenants.json"));
     assert_eq!(p.session_path(), root.join(".systemprompt/session.json"));
 }
@@ -62,9 +65,21 @@ fn directory_helpers_return_expected_paths() {
 fn profile_helpers() {
     let tmp = TempDir::new().unwrap();
     let p = DiscoveredProject::from_root(tmp.path().to_path_buf());
-    assert!(p.profile_dir("local").to_string_lossy().contains("profiles/local"));
-    assert!(p.profile_config("local").to_string_lossy().ends_with("profile.yaml"));
-    assert!(p.profile_secrets("local").to_string_lossy().ends_with("secrets.json"));
+    assert!(
+        p.profile_dir("local")
+            .to_string_lossy()
+            .contains("profiles/local")
+    );
+    assert!(
+        p.profile_config("local")
+            .to_string_lossy()
+            .ends_with("profile.yaml")
+    );
+    assert!(
+        p.profile_secrets("local")
+            .to_string_lossy()
+            .ends_with("secrets.json")
+    );
 }
 
 #[test]

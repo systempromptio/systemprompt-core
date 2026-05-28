@@ -155,8 +155,14 @@ fn gemini_static_defaults() {
     ];
     for (provider, model, inp, out) in cases {
         let p = resolve(provider, model, None);
-        assert!((p.input_per_million - inp).abs() < 1e-9, "{provider} {model}");
-        assert!((p.output_per_million - out).abs() < 1e-9, "{provider} {model}");
+        assert!(
+            (p.input_per_million - inp).abs() < 1e-9,
+            "{provider} {model}"
+        );
+        assert!(
+            (p.output_per_million - out).abs() < 1e-9,
+            "{provider} {model}"
+        );
     }
 }
 

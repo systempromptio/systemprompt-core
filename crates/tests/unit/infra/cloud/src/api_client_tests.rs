@@ -127,7 +127,9 @@ async fn create_checkout_without_redirect() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let _ = client.create_checkout(&PriceId::new("p"), "lhr", None).await;
+    let _ = client
+        .create_checkout(&PriceId::new("p"), "lhr", None)
+        .await;
 }
 
 #[tokio::test]
@@ -168,7 +170,10 @@ async fn report_activity_failure_propagates() {
         .await;
 
     let client = CloudApiClient::new(&server.uri(), "t").unwrap();
-    let _ = client.report_activity("e", &UserId::new("u3")).await.unwrap_err();
+    let _ = client
+        .report_activity("e", &UserId::new("u3"))
+        .await
+        .unwrap_err();
 }
 
 #[tokio::test]

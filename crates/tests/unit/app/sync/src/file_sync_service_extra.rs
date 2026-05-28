@@ -140,10 +140,7 @@ async fn pull_live_extracts_tarball_to_services_path() {
 #[tokio::test]
 async fn download_and_diff_against_empty_local_reports_all_added() {
     let server = MockServer::start().await;
-    let tarball = build_tarball(&[
-        ("agents/a.yaml", b"agent: 1"),
-        ("skills/s.md", b"# skill"),
-    ]);
+    let tarball = build_tarball(&[("agents/a.yaml", b"agent: 1"), ("skills/s.md", b"# skill")]);
     Mock::given(method("GET"))
         .and(path("/api/v1/cloud/tenants/t1/files"))
         .respond_with(ResponseTemplate::new(200).set_body_bytes(tarball))

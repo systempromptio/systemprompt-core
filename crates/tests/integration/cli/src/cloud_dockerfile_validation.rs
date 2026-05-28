@@ -21,8 +21,13 @@ fn get_required_mcp_copy_lines_with_no_extensions_is_empty() {
 fn validate_dockerfile_with_wildcard_skips_all_checks() {
     let root = tempdir().unwrap();
     let dockerfile = "FROM rust\nCOPY target/release/systemprompt-* /bin/\n";
-    let missing = validate_dockerfile_has_mcp_binaries(dockerfile, root.path(), &empty_services_config());
-    let stale = validate_dockerfile_has_no_stale_binaries(dockerfile, root.path(), &empty_services_config());
+    let missing =
+        validate_dockerfile_has_mcp_binaries(dockerfile, root.path(), &empty_services_config());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        root.path(),
+        &empty_services_config(),
+    );
     assert!(missing.is_empty());
     assert!(stale.is_empty());
 }
@@ -30,8 +35,13 @@ fn validate_dockerfile_with_wildcard_skips_all_checks() {
 #[test]
 fn validate_dockerfile_extracts_specific_binary_names() {
     let root = tempdir().unwrap();
-    let dockerfile = "FROM rust\nCOPY target/release/systemprompt-foo /bin/\nCOPY target/release/systemprompt-bar /bin/\n";
-    let stale = validate_dockerfile_has_no_stale_binaries(dockerfile, root.path(), &empty_services_config());
+    let dockerfile = "FROM rust\nCOPY target/release/systemprompt-foo /bin/\nCOPY \
+                      target/release/systemprompt-bar /bin/\n";
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        root.path(),
+        &empty_services_config(),
+    );
     assert_eq!(stale.len(), 2);
     assert!(stale.iter().any(|s| s == "systemprompt-foo"));
     assert!(stale.iter().any(|s| s == "systemprompt-bar"));
@@ -41,7 +51,11 @@ fn validate_dockerfile_extracts_specific_binary_names() {
 fn validate_dockerfile_ignores_non_systemprompt_copy_lines() {
     let root = tempdir().unwrap();
     let dockerfile = "FROM rust\nCOPY target/release/other-tool /bin/\nCOPY src/ /app/src/\n";
-    let stale = validate_dockerfile_has_no_stale_binaries(dockerfile, root.path(), &empty_services_config());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        root.path(),
+        &empty_services_config(),
+    );
     assert!(stale.is_empty());
 }
 
@@ -58,7 +72,11 @@ fn validate_profile_dockerfile_missing_file_errors() {
 fn validate_profile_dockerfile_passing_file_ok() {
     let root = tempdir().unwrap();
     let dockerfile_path = root.path().join("Dockerfile");
-    std::fs::write(&dockerfile_path, "FROM rust\nCOPY target/release/systemprompt-* /bin/\n").unwrap();
+    std::fs::write(
+        &dockerfile_path,
+        "FROM rust\nCOPY target/release/systemprompt-* /bin/\n",
+    )
+    .unwrap();
     validate_profile_dockerfile(&dockerfile_path, root.path(), &empty_services_config())
         .expect("wildcard dockerfile should pass");
 }
@@ -84,9 +102,14 @@ fn generate_dockerfile_content_includes_base_image() {
 fn validate_dockerfile_no_release_copy_lines_extracts_nothing() {
     let root = tempdir().unwrap();
     let dockerfile = "FROM rust\nWORKDIR /app\n";
-    let stale = validate_dockerfile_has_no_stale_binaries(dockerfile, root.path(), &empty_services_config());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        root.path(),
+        &empty_services_config(),
+    );
     assert!(stale.is_empty());
-    let missing = validate_dockerfile_has_mcp_binaries(dockerfile, root.path(), &empty_services_config());
+    let missing =
+        validate_dockerfile_has_mcp_binaries(dockerfile, root.path(), &empty_services_config());
     assert!(missing.is_empty());
 }
 
@@ -95,6 +118,10 @@ fn validate_dockerfile_skips_bare_systemprompt_wildcard_only() {
     let root = tempdir().unwrap();
     // Confirm `systemprompt-*` line in the binary-name extractor is filtered.
     let dockerfile = "COPY target/release/systemprompt-* /bin/\n";
-    let stale = validate_dockerfile_has_no_stale_binaries(dockerfile, root.path(), &empty_services_config());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        root.path(),
+        &empty_services_config(),
+    );
     assert!(stale.is_empty());
 }

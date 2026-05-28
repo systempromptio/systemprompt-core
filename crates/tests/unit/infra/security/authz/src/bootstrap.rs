@@ -60,7 +60,8 @@ async fn disabled_mode_yields_deny_all() {
 #[tokio::test]
 async fn webhook_mode_without_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, None, None);
-    let err = build_authz_hook(Some(&cfg), None, None).expect_err("missing url must fail bootstrap");
+    let err =
+        build_authz_hook(Some(&cfg), None, None).expect_err("missing url must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::MissingWebhookUrl)
@@ -84,8 +85,8 @@ async fn webhook_mode_with_metadata_ip_url_errors() {
         Some("http://169.254.169.254/authz"),
         None,
     );
-    let err =
-        build_authz_hook(Some(&cfg), None, None).expect_err("cloud-metadata url must fail bootstrap");
+    let err = build_authz_hook(Some(&cfg), None, None)
+        .expect_err("cloud-metadata url must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::InvalidWebhookUrl(_))
@@ -95,8 +96,8 @@ async fn webhook_mode_with_metadata_ip_url_errors() {
 #[tokio::test]
 async fn webhook_mode_with_private_range_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, Some("https://10.0.0.5/authz"), None);
-    let err =
-        build_authz_hook(Some(&cfg), None, None).expect_err("private-range url must fail bootstrap");
+    let err = build_authz_hook(Some(&cfg), None, None)
+        .expect_err("private-range url must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::InvalidWebhookUrl(_))
@@ -106,8 +107,8 @@ async fn webhook_mode_with_private_range_url_errors() {
 #[tokio::test]
 async fn webhook_mode_with_non_loopback_http_url_errors() {
     let cfg = governance_with(AuthzMode::Webhook, Some("http://authz.example.com/h"), None);
-    let err =
-        build_authz_hook(Some(&cfg), None, None).expect_err("non-loopback http url must fail bootstrap");
+    let err = build_authz_hook(Some(&cfg), None, None)
+        .expect_err("non-loopback http url must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::InvalidWebhookUrl(_))
@@ -128,8 +129,8 @@ async fn unrestricted_without_acknowledgement_errors() {
 #[tokio::test]
 async fn unrestricted_with_wrong_acknowledgement_errors() {
     let cfg = governance_with(AuthzMode::Unrestricted, None, Some("yolo"));
-    let err =
-        build_authz_hook(Some(&cfg), None, None).expect_err("wrong acknowledgement must fail bootstrap");
+    let err = build_authz_hook(Some(&cfg), None, None)
+        .expect_err("wrong acknowledgement must fail bootstrap");
     assert!(matches!(
         err,
         AuthzError::Bootstrap(AuthzBootstrapError::MissingUnrestrictedAcknowledgement { .. })

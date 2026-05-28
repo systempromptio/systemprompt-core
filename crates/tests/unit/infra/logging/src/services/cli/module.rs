@@ -83,10 +83,7 @@ fn module_display_missing_seeds_empty_short_circuits() {
 
 #[test]
 fn module_display_missing_seeds_renders() {
-    ModuleDisplay::missing_seeds(
-        "m",
-        &[("seed.sql".to_owned(), "users".to_owned())],
-    );
+    ModuleDisplay::missing_seeds("m", &[("seed.sql".to_owned(), "users".to_owned())]);
 }
 
 #[test]

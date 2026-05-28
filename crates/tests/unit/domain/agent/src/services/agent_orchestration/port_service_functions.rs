@@ -112,7 +112,8 @@ async fn port_service_wait_for_port_available_returns_quickly_when_free() {
     let svc = PortService::new();
     // Pick a port unlikely to be in use; should not block long.
     let result = svc.wait_for_port_available(54321, 1).await;
-    // Either OK (free) or error (still in use after timeout); both exercise the loop.
+    // Either OK (free) or error (still in use after timeout); both exercise the
+    // loop.
     let _ = result;
 }
 

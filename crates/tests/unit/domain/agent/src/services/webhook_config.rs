@@ -15,11 +15,13 @@ fn webhook_config_default_has_30s_timeout() {
 fn webhook_config_clone() {
     let mut cfg = WebhookConfig::default();
     cfg.secret = Some("hush".to_string());
-    cfg.headers
-        .insert("X-Trace".to_string(), "abc".to_string());
+    cfg.headers.insert("X-Trace".to_string(), "abc".to_string());
     let cloned = cfg.clone();
     assert_eq!(cloned.secret.as_deref(), Some("hush"));
-    assert_eq!(cloned.headers.get("X-Trace").map(|s| s.as_str()), Some("abc"));
+    assert_eq!(
+        cloned.headers.get("X-Trace").map(|s| s.as_str()),
+        Some("abc")
+    );
 }
 
 #[test]

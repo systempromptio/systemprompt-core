@@ -9,9 +9,7 @@ use axum::http::{Request, Response, header};
 use http::StatusCode;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{
-    AuthedFixture, install_test_signing_key, seed_admin_credential,
-};
+use systemprompt_test_fixtures::{AuthedFixture, install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
@@ -69,7 +67,9 @@ async fn pubkey_after_install_returns_ok() -> anyhow::Result<()> {
 async fn whoami_for_seeded_admin_returns_envelope() -> anyhow::Result<()> {
     let (app, pool) = router_and_pool().await?;
     let cred: AuthedFixture = seed_admin_credential(&pool, "whoami@example.invalid").await?;
-    let resp = app.oneshot(authed_get("/bridge/whoami", cred.jwt.as_str())).await?;
+    let resp = app
+        .oneshot(authed_get("/bridge/whoami", cred.jwt.as_str()))
+        .await?;
     assert_eq!(resp.status(), StatusCode::OK);
     let body = read_body(resp).await?;
     assert_eq!(body["user_id"], cred.user_id.as_str());

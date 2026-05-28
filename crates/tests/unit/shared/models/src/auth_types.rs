@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::{
-    AuthenticatedUser, AuthError, Permission, PkceMethod, ResponseType, UserType,
+    AuthError, AuthenticatedUser, Permission, PkceMethod, ResponseType, UserType,
 };
 use uuid::Uuid;
 
@@ -81,7 +81,11 @@ fn authenticated_user_user_type_derives_from_permissions() {
 
 #[test]
 fn auth_error_displays_have_useful_text() {
-    assert!(AuthError::InvalidTokenFormat.to_string().contains("Invalid"));
+    assert!(
+        AuthError::InvalidTokenFormat
+            .to_string()
+            .contains("Invalid")
+    );
     assert!(AuthError::TokenExpired.to_string().contains("expired"));
     assert!(
         AuthError::InvalidSignature
@@ -153,7 +157,11 @@ fn auth_error_displays_have_useful_text() {
         .to_string()
         .contains("bad")
     );
-    assert!(AuthError::Internal("x".to_owned()).to_string().contains("x"));
+    assert!(
+        AuthError::Internal("x".to_owned())
+            .to_string()
+            .contains("x")
+    );
 }
 
 #[test]
@@ -177,7 +185,10 @@ fn pkce_method_rejects_unknown_as_invalid_request() {
 #[test]
 fn response_type_round_trips_code_and_token() {
     assert_eq!(ResponseType::from_str("code").unwrap(), ResponseType::Code);
-    assert_eq!(ResponseType::from_str("token").unwrap(), ResponseType::Token);
+    assert_eq!(
+        ResponseType::from_str("token").unwrap(),
+        ResponseType::Token
+    );
     assert_eq!(ResponseType::Code.to_string(), "code");
     assert_eq!(ResponseType::Token.to_string(), "token");
 }

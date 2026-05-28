@@ -6,11 +6,11 @@
 //!
 //! 1. The bridge manifest's `skills[]` list is sourced exclusively from
 //!    `services/skills/<id>/config.yaml`. Agent YAML `card.skills[]` arrays
-//!    must NOT leak into the manifest, even when they reference skill ids
-//!    that do not exist on disk.
-//! 2. An agent's `metadata.skills: [id, ...]` is the only authored signal
-//!    that drives the manifest's `AgentEntry.skills` field. Authored
-//!    `card.skills` (now deprecated) must be ignored by the bridge manifest.
+//!    must NOT leak into the manifest, even when they reference skill ids that
+//!    do not exist on disk.
+//! 2. An agent's `metadata.skills: [id, ...]` is the only authored signal that
+//!    drives the manifest's `AgentEntry.skills` field. Authored `card.skills`
+//!    (now deprecated) must be ignored by the bridge manifest.
 //!
 //! Both tests exercise the manifest loaders directly against a synthetic
 //! `services/` tree on disk so they are free of the shared `OnceLock`
@@ -117,8 +117,8 @@ fn manifest_skills_come_from_services_skills_dir_only() {
     );
     assert!(
         !ids.iter().any(|id| id == "bar"),
-        "manifest must NOT include 'bar': it is only authored in agent card.skills, \
-         not present in services/skills/. Got {ids:?}"
+        "manifest must NOT include 'bar': it is only authored in agent card.skills, not present \
+         in services/skills/. Got {ids:?}"
     );
 }
 

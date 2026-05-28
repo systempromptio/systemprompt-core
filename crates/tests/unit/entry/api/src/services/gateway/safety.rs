@@ -113,7 +113,10 @@ async fn heuristic_detects_credit_card_via_luhn() {
     let req = req_with("My card is 4111-1111-1111-1111 thanks");
     let findings = s.scan_request(&req).await;
     let cc = findings.iter().find(|f| f.category == "pii_credit_card");
-    assert!(cc.is_some(), "expected credit_card finding, got {findings:?}");
+    assert!(
+        cc.is_some(),
+        "expected credit_card finding, got {findings:?}"
+    );
     assert_eq!(cc.unwrap().severity, Severity::High);
 }
 

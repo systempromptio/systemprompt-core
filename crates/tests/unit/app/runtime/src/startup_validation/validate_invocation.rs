@@ -9,9 +9,9 @@
 
 use std::path::PathBuf;
 
+use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
-use systemprompt_models::Config;
 use systemprompt_runtime::StartupValidator;
 
 fn minimal_config() -> Config {
@@ -67,7 +67,10 @@ fn validate_without_profile_short_circuits_with_services_config_error() {
     // Profile is not bootstrapped in this process, so `ConfigLoader::load()`
     // fails inside `load_configs` and the validator records an error on the
     // `services` domain before returning early.
-    assert!(report.has_errors(), "validation without profile must report errors");
+    assert!(
+        report.has_errors(),
+        "validation without profile must report errors"
+    );
     assert!(
         report.domains.iter().any(|d| d.domain == "services"),
         "expected a `services` domain error, got domains: {:?}",

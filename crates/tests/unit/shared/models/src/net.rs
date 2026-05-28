@@ -406,8 +406,9 @@ mod ssrf_adversarial_tests {
     #[test]
     fn trusted_http_host_accepts_plain_http() {
         let trusted = ["mock-inference"];
-        let url = validate_outbound_url_with_trust("http://mock-inference:8080/v1/messages", &trusted)
-            .expect("trusted http host accepted");
+        let url =
+            validate_outbound_url_with_trust("http://mock-inference:8080/v1/messages", &trusted)
+                .expect("trusted http host accepted");
         assert_eq!(url.scheme(), "http");
         assert_eq!(url.host_str(), Some("mock-inference"));
     }

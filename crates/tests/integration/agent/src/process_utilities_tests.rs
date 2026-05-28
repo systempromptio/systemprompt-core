@@ -1,8 +1,8 @@
 use anyhow::Result;
-use systemprompt_agent::services::agent_orchestration::{PortService, process};
 use systemprompt_agent::services::agent_orchestration::port_service::{
     find_process_using_port, get_process_info, is_agent_process,
 };
+use systemprompt_agent::services::agent_orchestration::{PortService, process};
 
 fn free_port() -> u16 {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");

@@ -55,4 +55,3 @@ fn build_submitted_task_includes_user_message_in_history() {
     let history = t.history.expect("history present");
     assert_eq!(history.len(), 1);
 }
-

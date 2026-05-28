@@ -2,8 +2,8 @@
 //!
 //! Tests that need a real Postgres connection use [`fixture_db_pool`] against
 //! the URL exposed via `DATABASE_URL`. The caller is responsible for ensuring
-//! the database itself exists and has been migrated (the `systemprompt-test-migrate`
-//! binary handles the latter).
+//! the database itself exists and has been migrated (the
+//! `systemprompt-test-migrate` binary handles the latter).
 
 use std::sync::Arc;
 

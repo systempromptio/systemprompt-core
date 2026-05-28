@@ -4,9 +4,8 @@
 use bytes::Bytes;
 use http::StatusCode;
 use systemprompt_api::services::gateway::protocol::canonical::{CanonicalContent, Role};
-use systemprompt_api::services::gateway::protocol::inbound::InboundParseError;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
+use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
 
 #[test]
 fn wire_name_is_anthropic_messages() {
@@ -36,7 +35,9 @@ fn parse_request_invalid_json_returns_invalidjson() {
 fn parse_request_missing_model() {
     let a = AnthropicMessagesInbound;
     let body = br#"{"max_tokens":100,"messages":[]}"#;
-    let err = a.parse_request(&Bytes::from_static(body)).expect_err("should fail");
+    let err = a
+        .parse_request(&Bytes::from_static(body))
+        .expect_err("should fail");
     match err {
         InboundParseError::MissingField("model") => {},
         other => panic!("expected MissingField(model), got {other:?}"),
@@ -47,7 +48,9 @@ fn parse_request_missing_model() {
 fn parse_request_missing_max_tokens() {
     let a = AnthropicMessagesInbound;
     let body = br#"{"model":"claude","messages":[]}"#;
-    let err = a.parse_request(&Bytes::from_static(body)).expect_err("should fail");
+    let err = a
+        .parse_request(&Bytes::from_static(body))
+        .expect_err("should fail");
     match err {
         InboundParseError::MissingField("max_tokens") => {},
         other => panic!("expected MissingField(max_tokens), got {other:?}"),
@@ -58,7 +61,9 @@ fn parse_request_missing_max_tokens() {
 fn parse_request_missing_messages() {
     let a = AnthropicMessagesInbound;
     let body = br#"{"model":"claude","max_tokens":100}"#;
-    let err = a.parse_request(&Bytes::from_static(body)).expect_err("should fail");
+    let err = a
+        .parse_request(&Bytes::from_static(body))
+        .expect_err("should fail");
     match err {
         InboundParseError::MissingField("messages") => {},
         other => panic!("expected MissingField(messages), got {other:?}"),

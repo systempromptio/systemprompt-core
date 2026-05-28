@@ -11,7 +11,10 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use crate::common::Fixture;
 
-fn make_artifact(ctx_id: &systemprompt_identifiers::ContextId, task_id: &systemprompt_identifiers::TaskId) -> Artifact {
+fn make_artifact(
+    ctx_id: &systemprompt_identifiers::ContextId,
+    task_id: &systemprompt_identifiers::TaskId,
+) -> Artifact {
     Artifact {
         id: ArtifactId::generate(),
         title: Some("Hello".to_string()),

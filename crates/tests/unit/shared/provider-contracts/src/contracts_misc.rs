@@ -101,7 +101,10 @@ fn page_render_spec_new_assigns_fields() {
         std::path::PathBuf::from("/out/index.html"),
     );
     assert_eq!(spec.template_name, "home");
-    assert_eq!(spec.output_path, std::path::PathBuf::from("/out/index.html"));
+    assert_eq!(
+        spec.output_path,
+        std::path::PathBuf::from("/out/index.html")
+    );
     assert_eq!(spec.base_data["key"], "value");
 }
 

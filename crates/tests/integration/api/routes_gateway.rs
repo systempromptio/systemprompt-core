@@ -126,7 +126,10 @@ async fn mtls_unknown_fingerprint_returns_unauthorized() -> anyhow::Result<()> {
 async fn oauth_client_missing_bearer_returns_401() -> anyhow::Result<()> {
     let app = router().await?;
     let resp = app
-        .oneshot(json_post("/auth/bridge/oauth-client", serde_json::json!({})))
+        .oneshot(json_post(
+            "/auth/bridge/oauth-client",
+            serde_json::json!({}),
+        ))
         .await?;
     assert_eq!(resp.status().as_u16(), 401);
     Ok(())

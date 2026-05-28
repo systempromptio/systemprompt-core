@@ -1,5 +1,5 @@
-use systemprompt_agent::services::registry::skills::{extract_description, load_skill_from_disk};
 use systemprompt_agent::services::registry::load_agent_skills_from_dir;
+use systemprompt_agent::services::registry::skills::{extract_description, load_skill_from_disk};
 use systemprompt_identifiers::SkillId;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
@@ -327,7 +327,11 @@ fn a2a_card_skills_are_joined_from_metadata_skills_against_disk_catalog() {
     let agent = agent_with_metadata_skills(vec!["example_web_search".to_owned()]);
     let resolved = load_agent_skills_from_dir(&agent, dir.path());
 
-    assert_eq!(resolved.len(), 1, "expected one resolved skill, got {resolved:?}");
+    assert_eq!(
+        resolved.len(),
+        1,
+        "expected one resolved skill, got {resolved:?}"
+    );
     let skill = &resolved[0];
     assert_eq!(skill.id, "example_web_search");
     assert_eq!(skill.name, "Example Web Search");
@@ -340,8 +344,7 @@ fn a2a_card_skills_drop_unresolvable_metadata_ids_silently() {
     // Skills listed in metadata.skills but missing from the on-disk catalog
     // must be skipped, not crash the card assembly.
     let dir = TempDir::new().unwrap();
-    let agent =
-        agent_with_metadata_skills(vec!["does_not_exist_on_disk".to_owned()]);
+    let agent = agent_with_metadata_skills(vec!["does_not_exist_on_disk".to_owned()]);
 
     let resolved = load_agent_skills_from_dir(&agent, dir.path());
     assert!(resolved.is_empty(), "expected empty, got {resolved:?}");

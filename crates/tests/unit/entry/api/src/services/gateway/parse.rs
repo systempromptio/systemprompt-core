@@ -2,9 +2,7 @@
 //! from a canonical response.
 
 use serde_json::json;
-use systemprompt_api::services::gateway::parse::{
-    extract_assistant_text, extract_from_canonical,
-};
+use systemprompt_api::services::gateway::parse::{extract_assistant_text, extract_from_canonical};
 use systemprompt_api::services::gateway::protocol::canonical::CanonicalContent;
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalResponse, CanonicalStopReason, CanonicalUsage,

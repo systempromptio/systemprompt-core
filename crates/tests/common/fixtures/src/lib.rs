@@ -10,15 +10,15 @@ pub mod secrets;
 pub mod user;
 
 pub use app_context::{fixture_app_context, fixture_config};
-pub use bootstrap::{TestBootstrap, ensure_test_bootstrap};
+pub use bootstrap::{ensure_test_bootstrap, TestBootstrap};
 pub use credential::{
-    AuthedFixture, seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_session,
+    seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_session, AuthedFixture,
 };
 pub use db::{fixture_database_url, fixture_db_pool};
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use oauth::{
-    OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, pkce_pair,
-    seed_oauth_client,
+    pkce_pair, seed_oauth_client, OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET,
+    TEST_REDIRECT_URI,
 };
 pub use secrets::ensure_test_secrets_bootstrap;
 pub use user::{fixture_actor, fixture_system_admin, fixture_user_id, unique_user_id};

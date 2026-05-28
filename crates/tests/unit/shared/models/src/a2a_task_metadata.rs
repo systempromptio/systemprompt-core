@@ -97,17 +97,15 @@ fn new_validated_agent_message_accepts_valid_name() {
 
 #[test]
 fn new_validated_mcp_execution_rejects_empty_agent_name() {
-    let err =
-        TaskMetadata::new_validated_mcp_execution(String::new(), "tool".into(), "srv".into())
-            .unwrap_err();
+    let err = TaskMetadata::new_validated_mcp_execution(String::new(), "tool".into(), "srv".into())
+        .unwrap_err();
     assert_eq!(err.field, "agent_name");
 }
 
 #[test]
 fn new_validated_mcp_execution_rejects_empty_tool_name() {
-    let err =
-        TaskMetadata::new_validated_mcp_execution("a".into(), String::new(), "srv".into())
-            .unwrap_err();
+    let err = TaskMetadata::new_validated_mcp_execution("a".into(), String::new(), "srv".into())
+        .unwrap_err();
     assert_eq!(err.field, "tool_name");
 }
 

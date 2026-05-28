@@ -100,10 +100,7 @@ async fn delete_link_returns_true_for_existing_false_for_missing() {
     let deleted = repo.delete_link(&created.id).await.expect("delete");
     assert!(deleted, "first delete should return true");
 
-    let again = repo
-        .delete_link(&created.id)
-        .await
-        .expect("delete twice");
+    let again = repo.delete_link(&created.id).await.expect("delete twice");
     assert!(!again, "second delete should return false");
 }
 
@@ -165,7 +162,8 @@ async fn list_links_by_source_content_filters_correctly() {
         .expect("create content");
 
     let repo = LinkRepository::new(&db).expect("repo");
-    let params = sample_params(unique_short_code()).with_source_content_id(Some(content.id.clone()));
+    let params =
+        sample_params(unique_short_code()).with_source_content_id(Some(content.id.clone()));
     let created = repo.create_link(&params).await.expect("create link");
 
     let listed = repo
@@ -186,13 +184,9 @@ async fn find_link_by_source_and_target_matches_active_link() {
     let repo = LinkRepository::new(&db).expect("repo");
     let source_page = format!("/page-{}", uuid::Uuid::new_v4().simple());
     let target = format!("https://example.com/{}", uuid::Uuid::new_v4());
-    let params = CreateLinkParams::new(
-        unique_short_code(),
-        target.clone(),
-        "redirect".to_owned(),
-    )
-    .with_source_page(Some(source_page.clone()))
-    .with_is_active(true);
+    let params = CreateLinkParams::new(unique_short_code(), target.clone(), "redirect".to_owned())
+        .with_source_page(Some(source_page.clone()))
+        .with_is_active(true);
     let created = repo.create_link(&params).await.expect("create");
 
     let found = repo

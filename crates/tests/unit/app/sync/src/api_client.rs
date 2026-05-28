@@ -32,7 +32,6 @@ mod sync_api_client_tests {
         let debug_str = format!("{:?}", client);
         assert!(debug_str.contains("None"));
     }
-
 }
 
 mod registry_token_tests {
@@ -40,10 +39,8 @@ mod registry_token_tests {
 
     #[test]
     fn deserialize() {
-        let json =
-            r#"{"registry":"registry.fly.io","username":"testuser","token":"secret123"}"#;
-        let token: RegistryToken =
-            serde_json::from_str(json).expect("deserialize registry token");
+        let json = r#"{"registry":"registry.fly.io","username":"testuser","token":"secret123"}"#;
+        let token: RegistryToken = serde_json::from_str(json).expect("deserialize registry token");
 
         assert_eq!(token.registry, "registry.fly.io");
         assert_eq!(token.username, "testuser");
@@ -53,8 +50,7 @@ mod registry_token_tests {
     #[test]
     fn debug() {
         let json = r#"{"registry":"registry.fly.io","username":"user","token":"tok"}"#;
-        let token: RegistryToken =
-            serde_json::from_str(json).expect("deserialize registry token");
+        let token: RegistryToken = serde_json::from_str(json).expect("deserialize registry token");
 
         let debug_str = format!("{:?}", token);
         assert!(debug_str.contains("RegistryToken"));
@@ -101,8 +97,13 @@ mod sync_service_tests {
 
     #[test]
     fn creation() {
-        let config =
-            SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .build();
 
         let service = SyncService::new(config);
         let debug_str = format!("{:?}", service);
@@ -111,14 +112,18 @@ mod sync_service_tests {
 
     #[test]
     fn with_full_config() {
-        let config =
-            SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
-                .with_direction(SyncDirection::Pull)
-                .with_dry_run(true)
-                .with_verbose(true)
-                .with_hostname(Some("host.com".to_string()))
-                .with_local_database_url("postgresql://db:5432/app")
-                .build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .with_direction(SyncDirection::Pull)
+        .with_dry_run(true)
+        .with_verbose(true)
+        .with_hostname(Some("host.com".to_string()))
+        .with_local_database_url("postgresql://db:5432/app")
+        .build();
 
         let service = SyncService::new(config);
         let debug_str = format!("{:?}", service);
@@ -189,11 +194,15 @@ mod file_sync_service_tests {
 
     #[test]
     fn creation() {
-        let config =
-            SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .build();
 
-        let api_client =
-            SyncApiClient::new("https://api.com", "token").expect("test client");
+        let api_client = SyncApiClient::new("https://api.com", "token").expect("test client");
         let service = FileSyncService::new(config, api_client);
 
         let debug_str = format!("{:?}", service);

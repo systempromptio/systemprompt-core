@@ -22,16 +22,17 @@ fn systemprompt_bin() -> std::path::PathBuf {
     }
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for ancestor in manifest_dir.ancestors() {
-        for sub in ["target/debug/systemprompt", "crates/tests/target/debug/systemprompt"] {
+        for sub in [
+            "target/debug/systemprompt",
+            "crates/tests/target/debug/systemprompt",
+        ] {
             let candidate = ancestor.join(sub);
             if candidate.exists() {
                 return candidate;
             }
         }
     }
-    panic!(
-        "systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`"
-    );
+    panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
 }
 
 fn sp() -> Command {
@@ -84,9 +85,7 @@ fn help_short_flag() {
 
 #[test]
 fn unknown_subcommand_exits_nonzero() {
-    sp().arg("definitely-not-a-real-command")
-        .assert()
-        .failure();
+    sp().arg("definitely-not-a-real-command").assert().failure();
 }
 
 #[test]
@@ -559,12 +558,16 @@ fn no_color_flag_with_help() {
 
 #[test]
 fn non_interactive_flag_with_help() {
-    sp().args(["--non-interactive", "--help"]).assert().success();
+    sp().args(["--non-interactive", "--help"])
+        .assert()
+        .success();
 }
 
 #[test]
 fn profile_flag_with_help() {
-    sp().args(["--profile", "local", "--help"]).assert().success();
+    sp().args(["--profile", "local", "--help"])
+        .assert()
+        .success();
 }
 
 #[test]
@@ -606,7 +609,9 @@ fn core_unknown_subcommand_fails() {
 
 #[test]
 fn analytics_unknown_subcommand_fails() {
-    sp().args(["analytics", "does-not-exist"]).assert().failure();
+    sp().args(["analytics", "does-not-exist"])
+        .assert()
+        .failure();
 }
 
 #[test]

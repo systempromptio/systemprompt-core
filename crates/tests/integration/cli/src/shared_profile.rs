@@ -144,7 +144,9 @@ fn discovered_profile_is_debug() {
     assert!(format!("{:?}", err).contains("NoProfiles"));
     let err = ProfileResolutionError::ProfileNotFound("x".into());
     assert!(format!("{:?}", err).contains("ProfileNotFound"));
-    let err = ProfileResolutionError::MultipleProfilesFound { profiles: vec!["a".into()] };
+    let err = ProfileResolutionError::MultipleProfilesFound {
+        profiles: vec!["a".into()],
+    };
     assert!(format!("{:?}", err).contains("MultipleProfiles"));
     let _ = std::mem::size_of::<DiscoveredProfile>();
 }

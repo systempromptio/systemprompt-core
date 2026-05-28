@@ -9,14 +9,21 @@ mod boundary_tests {
 
     #[test]
     fn empty_tenant_id() {
-        let config = SyncConfig::builder(TenantId::new(""), "https://api.com", "token", "/services").build();
+        let config =
+            SyncConfig::builder(TenantId::new(""), "https://api.com", "token", "/services").build();
         assert_eq!(config.tenant_id, "");
     }
 
     #[test]
     fn very_long_strings() {
         let long_string = "x".repeat(10000);
-        let config = SyncConfig::builder(TenantId::new(&long_string), "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(
+            TenantId::new(&long_string),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .build();
         assert_eq!(config.tenant_id.as_str().len(), 10000);
     }
 
@@ -27,19 +34,28 @@ mod boundary_tests {
             "https://api.example.com/v1",
             "token+with/special=chars",
             "/path/with spaces/and-dashes",
-        ).build();
+        )
+        .build();
         assert_eq!(config.tenant_id, "tenant-123_special!@#");
     }
 
     #[test]
     fn file_entry_zero_size() {
-        let entry = FileEntry { path: "empty.txt".to_string(), checksum: "empty_hash".to_string(), size: 0 };
+        let entry = FileEntry {
+            path: "empty.txt".to_string(),
+            checksum: "empty_hash".to_string(),
+            size: 0,
+        };
         assert_eq!(entry.size, 0);
     }
 
     #[test]
     fn file_entry_large_size() {
-        let entry = FileEntry { path: "large.bin".to_string(), checksum: "large_hash".to_string(), size: u64::MAX };
+        let entry = FileEntry {
+            path: "large.bin".to_string(),
+            checksum: "large_hash".to_string(),
+            size: u64::MAX,
+        };
         assert_eq!(entry.size, u64::MAX);
     }
 
@@ -66,8 +82,16 @@ mod serialization_roundtrip_tests {
         let bundle = FileBundle {
             manifest: FileManifest {
                 files: vec![
-                    FileEntry { path: "agents/default/config.yaml".to_string(), checksum: "abc123".to_string(), size: 512 },
-                    FileEntry { path: "skills/test-skill/SKILL.md".to_string(), checksum: "def456".to_string(), size: 1024 },
+                    FileEntry {
+                        path: "agents/default/config.yaml".to_string(),
+                        checksum: "abc123".to_string(),
+                        size: 512,
+                    },
+                    FileEntry {
+                        path: "skills/test-skill/SKILL.md".to_string(),
+                        checksum: "def456".to_string(),
+                        size: 1024,
+                    },
                 ],
                 timestamp: now,
                 checksum: "manifest_checksum".to_string(),
@@ -80,10 +104,18 @@ mod serialization_roundtrip_tests {
 
     #[test]
     fn file_manifest_with_many_files() {
-        let files: Vec<FileEntry> = (0..1000).map(|i| FileEntry {
-            path: format!("file_{}.txt", i), checksum: format!("hash_{}", i), size: i as u64,
-        }).collect();
-        let manifest = FileManifest { files, timestamp: Utc::now(), checksum: "large_manifest".to_string() };
+        let files: Vec<FileEntry> = (0..1000)
+            .map(|i| FileEntry {
+                path: format!("file_{}.txt", i),
+                checksum: format!("hash_{}", i),
+                size: i as u64,
+            })
+            .collect();
+        let manifest = FileManifest {
+            files,
+            timestamp: Utc::now(),
+            checksum: "large_manifest".to_string(),
+        };
         assert_eq!(manifest.files.len(), 1000);
     }
 }
@@ -94,7 +126,10 @@ mod error_additional_tests {
     #[test]
     fn missing_config() {
         let error = SyncError::MissingConfig("local_database_url not configured".to_string());
-        assert_eq!(error.to_string(), "Missing configuration: local_database_url not configured");
+        assert_eq!(
+            error.to_string(),
+            "Missing configuration: local_database_url not configured"
+        );
     }
 
     #[test]
@@ -121,7 +156,10 @@ mod error_additional_tests {
 
     #[test]
     fn debug_format() {
-        let error = SyncError::ApiError { status: 503, message: "Service unavailable".to_string() };
+        let error = SyncError::ApiError {
+            status: 503,
+            message: "Service unavailable".to_string(),
+        };
         let debug_str = format!("{:?}", error);
         assert!(debug_str.contains("ApiError"));
     }
@@ -132,34 +170,60 @@ mod config_additional_tests {
 
     #[test]
     fn builder_with_hostname() {
-        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
-            .with_hostname(Some("app.example.com".to_string())).build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .with_hostname(Some("app.example.com".to_string()))
+        .build();
         assert_eq!(config.hostname, Some("app.example.com".to_string()));
     }
 
     #[test]
     fn builder_with_hostname_none() {
-        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
-            .with_hostname(None).build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .with_hostname(None)
+        .build();
         assert!(config.hostname.is_none());
     }
 
     #[test]
     fn builder_with_local_database_url() {
-        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services")
-            .with_local_database_url("postgresql://localhost:5432/testdb").build();
-        assert_eq!(config.local_database_url, Some("postgresql://localhost:5432/testdb".to_string()));
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .with_local_database_url("postgresql://localhost:5432/testdb")
+        .build();
+        assert_eq!(
+            config.local_database_url,
+            Some("postgresql://localhost:5432/testdb".to_string())
+        );
     }
 
     #[test]
     fn builder_all_options() {
-        let config = SyncConfig::builder(TenantId::new("tenant-full"), "https://api.com", "api-token", "/services")
-            .with_direction(SyncDirection::Pull)
-            .with_dry_run(true)
-            .with_verbose(true)
-            .with_hostname(Some("host.example.com".to_string()))
-            .with_local_database_url("postgresql://db:5432/app")
-            .build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant-full"),
+            "https://api.com",
+            "api-token",
+            "/services",
+        )
+        .with_direction(SyncDirection::Pull)
+        .with_dry_run(true)
+        .with_verbose(true)
+        .with_hostname(Some("host.example.com".to_string()))
+        .with_local_database_url("postgresql://db:5432/app")
+        .build();
         assert_eq!(config.tenant_id, "tenant-full");
         assert_eq!(config.direction, SyncDirection::Pull);
         assert!(config.dry_run);
@@ -168,7 +232,13 @@ mod config_additional_tests {
 
     #[test]
     fn config_debug() {
-        let config = SyncConfig::builder(TenantId::new("tenant"), "https://api.com", "token", "/services").build();
+        let config = SyncConfig::builder(
+            TenantId::new("tenant"),
+            "https://api.com",
+            "token",
+            "/services",
+        )
+        .build();
         let debug_str = format!("{:?}", config);
         assert!(debug_str.contains("SyncConfig"));
     }

@@ -1,6 +1,8 @@
 use std::time::Duration;
 use systemprompt_cli::presentation::StartupRenderer;
-use systemprompt_traits::{Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, startup_channel};
+use systemprompt_traits::{
+    Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, startup_channel,
+};
 
 fn svc(name: &str, ty: ServiceType, state: ServiceState) -> ServiceInfo {
     ServiceInfo {
@@ -17,7 +19,10 @@ async fn renderer_drives_full_happy_path() {
     let (tx, rx) = startup_channel();
     let renderer = StartupRenderer::new(rx);
 
-    tx.unbounded_send(StartupEvent::PhaseStarted { phase: Phase::McpServers }).unwrap();
+    tx.unbounded_send(StartupEvent::PhaseStarted {
+        phase: Phase::McpServers,
+    })
+    .unwrap();
     tx.unbounded_send(StartupEvent::McpServerReady {
         name: "mcp-a".to_owned(),
         port: 9001,
@@ -30,10 +35,20 @@ async fn renderer_drives_full_happy_path() {
         error: "boom".to_owned(),
     })
     .unwrap();
-    tx.unbounded_send(StartupEvent::McpReconciliationComplete { running: 1, required: 2 }).unwrap();
-    tx.unbounded_send(StartupEvent::PhaseCompleted { phase: Phase::McpServers }).unwrap();
+    tx.unbounded_send(StartupEvent::McpReconciliationComplete {
+        running: 1,
+        required: 2,
+    })
+    .unwrap();
+    tx.unbounded_send(StartupEvent::PhaseCompleted {
+        phase: Phase::McpServers,
+    })
+    .unwrap();
 
-    tx.unbounded_send(StartupEvent::PhaseStarted { phase: Phase::Agents }).unwrap();
+    tx.unbounded_send(StartupEvent::PhaseStarted {
+        phase: Phase::Agents,
+    })
+    .unwrap();
     tx.unbounded_send(StartupEvent::AgentReady {
         name: "agent-a".to_owned(),
         port: 9100,
@@ -45,12 +60,25 @@ async fn renderer_drives_full_happy_path() {
         error: "fail".to_owned(),
     })
     .unwrap();
-    tx.unbounded_send(StartupEvent::AgentReconciliationComplete { running: 1, total: 2 }).unwrap();
-    tx.unbounded_send(StartupEvent::PhaseCompleted { phase: Phase::Agents }).unwrap();
+    tx.unbounded_send(StartupEvent::AgentReconciliationComplete {
+        running: 1,
+        total: 2,
+    })
+    .unwrap();
+    tx.unbounded_send(StartupEvent::PhaseCompleted {
+        phase: Phase::Agents,
+    })
+    .unwrap();
 
-    tx.unbounded_send(StartupEvent::PortConflict { port: 8080, pid: 12345 }).unwrap();
-    tx.unbounded_send(StartupEvent::SchedulerInitializing).unwrap();
-    tx.unbounded_send(StartupEvent::SchedulerReady { job_count: 4 }).unwrap();
+    tx.unbounded_send(StartupEvent::PortConflict {
+        port: 8080,
+        pid: 12345,
+    })
+    .unwrap();
+    tx.unbounded_send(StartupEvent::SchedulerInitializing)
+        .unwrap();
+    tx.unbounded_send(StartupEvent::SchedulerReady { job_count: 4 })
+        .unwrap();
     tx.unbounded_send(StartupEvent::Warning {
         message: "warm".to_owned(),
         context: Some("ctx".to_owned()),
@@ -90,7 +118,10 @@ async fn renderer_handles_phase_failed_branch() {
     let (tx, rx) = startup_channel();
     let renderer = StartupRenderer::new(rx);
 
-    tx.unbounded_send(StartupEvent::PhaseStarted { phase: Phase::McpServers }).unwrap();
+    tx.unbounded_send(StartupEvent::PhaseStarted {
+        phase: Phase::McpServers,
+    })
+    .unwrap();
     tx.unbounded_send(StartupEvent::PhaseFailed {
         phase: Phase::McpServers,
         error: "init failed".to_owned(),
@@ -119,16 +150,30 @@ async fn renderer_ignores_irrelevant_events_and_completes() {
 
     // Pass through every "fall-through" event type to drive the `_ => false`
     // arm in `handle_terminal_event`.
-    tx.unbounded_send(StartupEvent::PortCheckStarted { port: 7000 }).unwrap();
-    tx.unbounded_send(StartupEvent::PortAvailable { port: 7000 }).unwrap();
-    tx.unbounded_send(StartupEvent::PortConflictResolved { port: 7000 }).unwrap();
+    tx.unbounded_send(StartupEvent::PortCheckStarted { port: 7000 })
+        .unwrap();
+    tx.unbounded_send(StartupEvent::PortAvailable { port: 7000 })
+        .unwrap();
+    tx.unbounded_send(StartupEvent::PortConflictResolved { port: 7000 })
+        .unwrap();
     tx.unbounded_send(StartupEvent::MigrationStarted).unwrap();
-    tx.unbounded_send(StartupEvent::MigrationApplied { name: "001".to_owned() }).unwrap();
-    tx.unbounded_send(StartupEvent::MigrationComplete { applied: 1, skipped: 0 }).unwrap();
+    tx.unbounded_send(StartupEvent::MigrationApplied {
+        name: "001".to_owned(),
+    })
+    .unwrap();
+    tx.unbounded_send(StartupEvent::MigrationComplete {
+        applied: 1,
+        skipped: 0,
+    })
+    .unwrap();
     tx.unbounded_send(StartupEvent::DatabaseValidated).unwrap();
     tx.unbounded_send(StartupEvent::RoutesConfiguring).unwrap();
-    tx.unbounded_send(StartupEvent::RoutesConfigured { module_count: 5 }).unwrap();
-    tx.unbounded_send(StartupEvent::Info { message: "hi".to_owned() }).unwrap();
+    tx.unbounded_send(StartupEvent::RoutesConfigured { module_count: 5 })
+        .unwrap();
+    tx.unbounded_send(StartupEvent::Info {
+        message: "hi".to_owned(),
+    })
+    .unwrap();
     tx.unbounded_send(StartupEvent::StartupComplete {
         duration: Duration::from_millis(10),
         api_url: "http://x".to_owned(),

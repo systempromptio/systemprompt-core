@@ -1,9 +1,11 @@
 //! Unit tests for execution strategies selector and Default impls.
 //!
 //! Targets:
-//! - crates/domain/agent/src/services/a2a_server/processing/strategies/selector.rs
+//! - crates/domain/agent/src/services/a2a_server/processing/strategies/
+//!   selector.rs
 //! - crates/domain/agent/src/services/a2a_server/processing/strategies/mod.rs
-//! - crates/domain/agent/src/services/a2a_server/processing/strategies/standard.rs
+//! - crates/domain/agent/src/services/a2a_server/processing/strategies/
+//!   standard.rs
 
 use systemprompt_agent::services::a2a_server::processing::strategies::{
     ExecutionResult, ExecutionStrategy, ExecutionStrategySelector, PlannedAgenticStrategy,

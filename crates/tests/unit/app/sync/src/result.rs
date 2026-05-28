@@ -20,9 +20,14 @@ mod success {
 
     #[test]
     fn with_details_chains_value() {
-        let r = SyncOperationResult::success("op", 1)
-            .with_details(serde_json::json!({ "k": "v" }));
-        assert_eq!(r.details.as_ref().and_then(|d| d.get("k")).and_then(|v| v.as_str()), Some("v"));
+        let r = SyncOperationResult::success("op", 1).with_details(serde_json::json!({ "k": "v" }));
+        assert_eq!(
+            r.details
+                .as_ref()
+                .and_then(|d| d.get("k"))
+                .and_then(|v| v.as_str()),
+            Some("v")
+        );
     }
 }
 
@@ -57,14 +62,23 @@ mod sync_op_state {
         assert_ne!(SyncOpState::NotStarted, SyncOpState::Completed);
         assert_ne!(SyncOpState::Completed, SyncOpState::Failed);
         assert_ne!(
-            SyncOpState::Partial { completed: 1, total: 2 },
-            SyncOpState::Partial { completed: 2, total: 2 }
+            SyncOpState::Partial {
+                completed: 1,
+                total: 2
+            },
+            SyncOpState::Partial {
+                completed: 2,
+                total: 2
+            }
         );
     }
 
     #[test]
     fn copy_and_clone() {
-        let s = SyncOpState::Partial { completed: 1, total: 5 };
+        let s = SyncOpState::Partial {
+            completed: 1,
+            total: 5,
+        };
         let c = s;
         let cl = c.clone();
         assert_eq!(c, cl);
@@ -73,16 +87,28 @@ mod sync_op_state {
     #[test]
     fn serialise_tagged_snake_case() {
         let not_started = serde_json::to_value(SyncOpState::NotStarted).expect("ser");
-        assert_eq!(not_started.get("kind").and_then(|v| v.as_str()), Some("not_started"));
+        assert_eq!(
+            not_started.get("kind").and_then(|v| v.as_str()),
+            Some("not_started")
+        );
 
-        let partial = serde_json::to_value(SyncOpState::Partial { completed: 1, total: 4 })
-            .expect("ser");
-        assert_eq!(partial.get("kind").and_then(|v| v.as_str()), Some("partial"));
+        let partial = serde_json::to_value(SyncOpState::Partial {
+            completed: 1,
+            total: 4,
+        })
+        .expect("ser");
+        assert_eq!(
+            partial.get("kind").and_then(|v| v.as_str()),
+            Some("partial")
+        );
         assert_eq!(partial.get("completed").and_then(|v| v.as_u64()), Some(1));
         assert_eq!(partial.get("total").and_then(|v| v.as_u64()), Some(4));
 
         let completed = serde_json::to_value(SyncOpState::Completed).expect("ser");
-        assert_eq!(completed.get("kind").and_then(|v| v.as_str()), Some("completed"));
+        assert_eq!(
+            completed.get("kind").and_then(|v| v.as_str()),
+            Some("completed")
+        );
 
         let failed = serde_json::to_value(SyncOpState::Failed).expect("ser");
         assert_eq!(failed.get("kind").and_then(|v| v.as_str()), Some("failed"));
@@ -92,7 +118,13 @@ mod sync_op_state {
     fn deserialise_roundtrip() {
         let json = serde_json::json!({"kind": "partial", "completed": 3, "total": 9});
         let s: SyncOpState = serde_json::from_value(json).expect("de");
-        assert_eq!(s, SyncOpState::Partial { completed: 3, total: 9 });
+        assert_eq!(
+            s,
+            SyncOpState::Partial {
+                completed: 3,
+                total: 9
+            }
+        );
     }
 }
 

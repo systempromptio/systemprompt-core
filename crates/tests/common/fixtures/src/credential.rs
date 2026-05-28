@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Result;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, Header, encode};
+use jsonwebtoken::{encode, Algorithm, Header};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
@@ -56,9 +56,9 @@ pub async fn seed_user_session(
         .pool_arc()
         .map_err(|e| anyhow::anyhow!("read pool: {e}"))?;
     sqlx::query!(
-        "INSERT INTO user_sessions (session_id, user_id, session_source) \
-         VALUES ($1, $2, 'bridge') \
-         ON CONFLICT (session_id) DO UPDATE SET user_id = EXCLUDED.user_id, revoked_at = NULL",
+        "INSERT INTO user_sessions (session_id, user_id, session_source) VALUES ($1, $2, \
+         'bridge') ON CONFLICT (session_id) DO UPDATE SET user_id = EXCLUDED.user_id, revoked_at \
+         = NULL",
         session_id.as_str(),
         user_id.as_str(),
     )

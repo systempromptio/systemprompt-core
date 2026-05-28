@@ -2,7 +2,9 @@
 //! `McpState`, and the protocol-version accessors.
 
 use std::time::Duration;
-use systemprompt_mcp::{McpHttpConfig, SessionTimeouts, mcp_protocol_version, mcp_protocol_version_str};
+use systemprompt_mcp::{
+    McpHttpConfig, SessionTimeouts, mcp_protocol_version, mcp_protocol_version_str,
+};
 
 #[test]
 fn test_session_timeouts_default_is_none() {

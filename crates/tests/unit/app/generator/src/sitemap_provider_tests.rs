@@ -10,9 +10,7 @@ use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_models::{
     ContentConfigRaw, ContentSourceConfigRaw, ParentRoute, SitemapConfig, SourceBranding,
 };
-use systemprompt_provider_contracts::{
-    PlaceholderMapping, SitemapContext, SitemapProvider,
-};
+use systemprompt_provider_contracts::{PlaceholderMapping, SitemapContext, SitemapProvider};
 
 fn source(
     source_id: &str,
@@ -195,7 +193,10 @@ async fn resolve_placeholders_string_field() {
         .resolve_placeholders(&ctx, &content, &placeholders)
         .await
         .unwrap();
-    assert_eq!(resolved.get("{slug}").map(String::as_str), Some("hello-world"));
+    assert_eq!(
+        resolved.get("{slug}").map(String::as_str),
+        Some("hello-world")
+    );
 }
 
 #[tokio::test]

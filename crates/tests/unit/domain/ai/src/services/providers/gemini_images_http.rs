@@ -2,9 +2,9 @@ use serde_json::json;
 use systemprompt_ai::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageResolution,
 };
-use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_ai::services::providers::gemini_images::GeminiImageProvider;
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
+use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -78,7 +78,10 @@ async fn generate_image_handles_http_error() {
         .mount(&server)
         .await;
     let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
-    let err = p.generate_image(&make_request("ok")).await.expect_err("err");
+    let err = p
+        .generate_image(&make_request("ok"))
+        .await
+        .expect_err("err");
     let _ = format!("{err}");
 }
 

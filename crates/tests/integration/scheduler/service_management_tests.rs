@@ -38,10 +38,7 @@ async fn get_running_services_with_pid_returns_vec() {
         return;
     };
     let svc = ServiceManagementService::new(&pool).expect("svc");
-    let services = svc
-        .get_running_services_with_pid()
-        .await
-        .expect("query");
+    let services = svc.get_running_services_with_pid().await.expect("query");
     let _ = services.len();
 }
 
@@ -98,7 +95,10 @@ async fn state_verifier_get_running_services_filters_correctly() {
         port: 1,
         enabled: false,
     }];
-    let running = verifier.get_running_services(&configs).await.expect("query");
+    let running = verifier
+        .get_running_services(&configs)
+        .await
+        .expect("query");
     assert!(running.is_empty());
 }
 
@@ -128,7 +128,10 @@ async fn state_verifier_get_crashed_services_filters() {
     };
     let verifier = ServiceStateVerifier::new(pool);
     let configs: Vec<ServiceConfig> = vec![];
-    let crashed = verifier.get_crashed_services(&configs).await.expect("query");
+    let crashed = verifier
+        .get_crashed_services(&configs)
+        .await
+        .expect("query");
     assert!(crashed.is_empty());
 }
 

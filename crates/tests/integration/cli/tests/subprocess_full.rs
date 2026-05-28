@@ -198,11 +198,7 @@ governance:
         // db_url isn't embedded in the profile because the postgres URL comes
         // from the DATABASE_URL env var via SecretsBootstrap; profiles
         // describe shape, not credentials.
-    )
-    + &format!(
-        "# db_url={}\n",
-        db_url.replace('\n', " ")
-    )
+    ) + &format!("# db_url={}\n", db_url.replace('\n', " "))
 }
 
 fn systemprompt_bin() -> PathBuf {

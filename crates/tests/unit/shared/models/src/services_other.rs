@@ -3,7 +3,8 @@ use std::str::FromStr;
 use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
 use systemprompt_models::services::{
     DiskSkillConfig, ExternalAgentConfig, ExternalAgentKind, JobConfig, RuntimeStatus,
-    SchedulerConfig, ServiceType, Settings, SkillDetail, SkillSummary, SystemAdmin, strip_frontmatter,
+    SchedulerConfig, ServiceType, Settings, SkillDetail, SkillSummary, SystemAdmin,
+    strip_frontmatter,
 };
 
 #[test]
@@ -22,9 +23,18 @@ fn runtime_status_display_round_trips() {
 
 #[test]
 fn runtime_status_from_str_accepts_error_alias_and_uppercase() {
-    assert_eq!(RuntimeStatus::from_str("ERROR").unwrap(), RuntimeStatus::Crashed);
-    assert_eq!(RuntimeStatus::from_str("Error").unwrap(), RuntimeStatus::Crashed);
-    assert_eq!(RuntimeStatus::from_str("Running").unwrap(), RuntimeStatus::Running);
+    assert_eq!(
+        RuntimeStatus::from_str("ERROR").unwrap(),
+        RuntimeStatus::Crashed
+    );
+    assert_eq!(
+        RuntimeStatus::from_str("Error").unwrap(),
+        RuntimeStatus::Crashed
+    );
+    assert_eq!(
+        RuntimeStatus::from_str("Running").unwrap(),
+        RuntimeStatus::Running
+    );
     assert!(RuntimeStatus::from_str("nope").is_err());
 }
 
@@ -54,7 +64,10 @@ fn service_type_from_module_name_routes_correctly() {
     assert_eq!(ServiceType::from_module_name("AGENT"), ServiceType::Agent);
     assert_eq!(ServiceType::from_module_name("api"), ServiceType::Api);
     assert_eq!(ServiceType::from_module_name("Api"), ServiceType::Api);
-    assert_eq!(ServiceType::from_module_name("filesystem"), ServiceType::Mcp);
+    assert_eq!(
+        ServiceType::from_module_name("filesystem"),
+        ServiceType::Mcp
+    );
     assert_eq!(ServiceType::from_module_name(""), ServiceType::Mcp);
 }
 

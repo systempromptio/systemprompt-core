@@ -240,16 +240,26 @@ fn db_query_select_users() {
 #[test]
 fn db_query_with_limit() {
     run_db_with_format(&[
-        "infra", "db", "query", "SELECT * FROM users",
-        "--limit", "5",
+        "infra",
+        "db",
+        "query",
+        "SELECT * FROM users",
+        "--limit",
+        "5",
     ]);
 }
 
 #[test]
 fn db_query_with_limit_and_offset() {
     run_db_with_format(&[
-        "infra", "db", "query", "SELECT * FROM users",
-        "--limit", "5", "--offset", "0",
+        "infra",
+        "db",
+        "query",
+        "SELECT * FROM users",
+        "--limit",
+        "5",
+        "--offset",
+        "0",
     ]);
 }
 
@@ -260,12 +270,7 @@ fn db_query_invalid_sql() {
 
 #[test]
 fn db_query_empty_result() {
-    run_db_with_format(&[
-        "infra",
-        "db",
-        "query",
-        "SELECT 1 AS x WHERE 1=0",
-    ]);
+    run_db_with_format(&["infra", "db", "query", "SELECT 1 AS x WHERE 1=0"]);
 }
 
 #[test]
@@ -280,19 +285,18 @@ fn db_query_information_schema() {
 
 #[test]
 fn db_query_pg_catalog() {
-    run_db_with_format(&[
-        "infra",
-        "db",
-        "query",
-        "SELECT current_database() AS db",
-    ]);
+    run_db_with_format(&["infra", "db", "query", "SELECT current_database() AS db"]);
 }
 
 #[test]
 fn db_query_with_format_flag() {
     run_db(&[
-        "infra", "db", "query", "SELECT 1 AS one",
-        "--format", "json",
+        "infra",
+        "db",
+        "query",
+        "SELECT 1 AS one",
+        "--format",
+        "json",
     ]);
 }
 
@@ -318,19 +322,17 @@ fn db_execute_noop() {
 
 #[test]
 fn db_execute_invalid_sql() {
-    run_db(&["infra", "db", "execute", "DELETE FROM nonexistent_table_xyz"]);
-}
-
-#[test]
-fn db_execute_with_format() {
     run_db(&[
         "infra",
         "db",
         "execute",
-        "SELECT 1",
-        "--format",
-        "json",
+        "DELETE FROM nonexistent_table_xyz",
     ]);
+}
+
+#[test]
+fn db_execute_with_format() {
+    run_db(&["infra", "db", "execute", "SELECT 1", "--format", "json"]);
 }
 
 // ============================================================================
@@ -669,13 +671,7 @@ fn admin_users_ban_list() {
 
 #[test]
 fn admin_users_create_requires_profile() {
-    run_db(&[
-        "admin",
-        "users",
-        "create",
-        "--email",
-        "test@example.com",
-    ]);
+    run_db(&["admin", "users", "create", "--email", "test@example.com"]);
 }
 
 #[test]
@@ -968,7 +964,8 @@ fn db_url_with_non_interactive() {
 }
 
 // ============================================================================
-// Commands with CommandDescriptor::NONE — run without --database-url, no profile
+// Commands with CommandDescriptor::NONE — run without --database-url, no
+// profile
 // ============================================================================
 
 fn sp_noprofile() -> Command {
@@ -1011,9 +1008,7 @@ fn admin_session_list_json() {
 
 #[test]
 fn admin_session_logout_no_profile() {
-    let _ = sp_noprofile()
-        .args(["admin", "session", "logout"])
-        .assert();
+    let _ = sp_noprofile().args(["admin", "session", "logout"]).assert();
 }
 
 #[test]
@@ -1028,17 +1023,13 @@ fn cloud_auth_no_profile() {
 #[test]
 fn db_status_verbose() {
     let Some(mut c) = sp_db() else { return };
-    let _ = c
-        .args(["--verbose", "infra", "db", "status"])
-        .assert();
+    let _ = c.args(["--verbose", "infra", "db", "status"]).assert();
 }
 
 #[test]
 fn db_status_debug() {
     let Some(mut c) = sp_db() else { return };
-    let _ = c
-        .args(["--debug", "infra", "db", "status"])
-        .assert();
+    let _ = c.args(["--debug", "infra", "db", "status"]).assert();
 }
 
 #[test]
@@ -1060,31 +1051,23 @@ fn db_query_no_color() {
 #[test]
 fn analytics_overview_verbose() {
     let Some(mut c) = sp_db() else { return };
-    let _ = c
-        .args(["--verbose", "analytics", "overview"])
-        .assert();
+    let _ = c.args(["--verbose", "analytics", "overview"]).assert();
 }
 
 #[test]
 fn admin_users_list_quiet() {
     let Some(mut c) = sp_db() else { return };
-    let _ = c
-        .args(["--quiet", "admin", "users", "list"])
-        .assert();
+    let _ = c.args(["--quiet", "admin", "users", "list"]).assert();
 }
 
 #[test]
 fn db_indexes_yaml() {
     let Some(mut c) = sp_db() else { return };
-    let _ = c
-        .args(["--yaml", "infra", "db", "indexes"])
-        .assert();
+    let _ = c.args(["--yaml", "infra", "db", "indexes"]).assert();
 }
 
 #[test]
 fn analytics_costs_yaml() {
     let Some(mut c) = sp_db() else { return };
-    let _ = c
-        .args(["--yaml", "analytics", "costs", "summary"])
-        .assert();
+    let _ = c.args(["--yaml", "analytics", "costs", "summary"]).assert();
 }

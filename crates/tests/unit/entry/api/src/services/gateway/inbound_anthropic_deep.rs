@@ -6,13 +6,15 @@ use bytes::Bytes;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalToolChoice, ImageSource, Role,
 };
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::InboundParseError;
 use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
 
-fn parse_ok(body: &[u8]) -> systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest {
+fn parse_ok(
+    body: &[u8],
+) -> systemprompt_api::services::gateway::protocol::canonical::CanonicalRequest {
     let a = AnthropicMessagesInbound;
-    a.parse_request(&Bytes::copy_from_slice(body)).expect("parse")
+    a.parse_request(&Bytes::copy_from_slice(body))
+        .expect("parse")
 }
 
 #[test]
@@ -83,7 +85,9 @@ fn parse_unknown_role_returns_unsupported() {
         "messages":[{"role":"narrator","content":"x"}]
     }"#;
     let err = a.parse_request(&Bytes::from_static(body)).expect_err("err");
-    assert!(matches!(err, InboundParseError::Unsupported { field, .. } if field == "messages[].role"));
+    assert!(
+        matches!(err, InboundParseError::Unsupported { field, .. } if field == "messages[].role")
+    );
 }
 
 #[test]
@@ -94,7 +98,10 @@ fn parse_missing_message_role_errors() {
         "messages":[{"content":"x"}]
     }"#;
     let err = a.parse_request(&Bytes::from_static(body)).expect_err("err");
-    assert!(matches!(err, InboundParseError::MissingField("messages[].role")));
+    assert!(matches!(
+        err,
+        InboundParseError::MissingField("messages[].role")
+    ));
 }
 
 #[test]
@@ -105,7 +112,10 @@ fn parse_missing_message_content_errors() {
         "messages":[{"role":"user"}]
     }"#;
     let err = a.parse_request(&Bytes::from_static(body)).expect_err("err");
-    assert!(matches!(err, InboundParseError::MissingField("messages[].content")));
+    assert!(matches!(
+        err,
+        InboundParseError::MissingField("messages[].content")
+    ));
 }
 
 #[test]
@@ -185,7 +195,11 @@ fn parse_content_block_tool_result_text_content() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::ToolResult { tool_use_id, content, is_error }) => {
+        Some(CanonicalContent::ToolResult {
+            tool_use_id,
+            content,
+            is_error,
+        }) => {
             assert_eq!(tool_use_id, "tu_1");
             assert!(!is_error);
             assert!(matches!(content.first(), Some(CanonicalContent::Text(t)) if t == "42"));
@@ -204,7 +218,11 @@ fn parse_content_block_tool_result_error_string() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::ToolResult { tool_use_id, is_error, .. }) => {
+        Some(CanonicalContent::ToolResult {
+            tool_use_id,
+            is_error,
+            ..
+        }) => {
             assert_eq!(tool_use_id, "tu_2");
             assert!(is_error);
         },
@@ -238,7 +256,9 @@ fn parse_unknown_content_block_returns_unsupported() {
         "messages":[{"role":"user","content":[{"type":"audio","data":"xxx"}]}]
     }"#;
     let err = a.parse_request(&Bytes::from_static(body)).expect_err("err");
-    assert!(matches!(err, InboundParseError::Unsupported { field, .. } if field == "messages[].content[].type"));
+    assert!(
+        matches!(err, InboundParseError::Unsupported { field, .. } if field == "messages[].content[].type")
+    );
 }
 
 #[test]
@@ -253,7 +273,10 @@ fn parse_optional_sampling_params() {
     assert_eq!(req.temperature, Some(0.7));
     assert_eq!(req.top_p, Some(0.9));
     assert_eq!(req.top_k, Some(40));
-    assert_eq!(req.stop_sequences, vec!["END".to_owned(), "STOP".to_owned()]);
+    assert_eq!(
+        req.stop_sequences,
+        vec!["END".to_owned(), "STOP".to_owned()]
+    );
 }
 
 #[test]

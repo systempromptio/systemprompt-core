@@ -79,7 +79,12 @@ fn execution_state_add_result_halts_on_first_failure() {
     ));
     assert!(!s.halted);
 
-    s.add_result(ToolCallResult::failure("b".to_owned(), json!({}), "boom", 20));
+    s.add_result(ToolCallResult::failure(
+        "b".to_owned(),
+        json!({}),
+        "boom",
+        20,
+    ));
     assert!(s.halted);
     assert_eq!(s.halt_reason.as_deref(), Some("boom"));
 

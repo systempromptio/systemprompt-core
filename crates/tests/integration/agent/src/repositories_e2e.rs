@@ -1,18 +1,17 @@
 use anyhow::Result;
 use chrono::Utc;
 use std::sync::Arc;
+use systemprompt_agent::models::a2a::protocol::PushNotificationConfig;
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Message, MessageRole, Part,
     TextPart,
 };
-use systemprompt_agent::models::a2a::protocol::PushNotificationConfig;
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
-use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_agent::repository::context::ContextNotificationRepository;
 use systemprompt_agent::repository::context::message::{
     MessageRepository, PersistMessageSqlxParams,
 };
+use systemprompt_agent::repository::context::{ContextNotificationRepository, ContextRepository};
 use systemprompt_agent::repository::task::{
     RepoCreateTaskParams, TaskConstructor, TaskRepository, UpdateTaskAndSaveMessagesParams,
 };
@@ -167,7 +166,10 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
     assert!(by_user.iter().any(|t| t.id == t1));
     assert!(by_user.iter().any(|t| t.id == t2));
 
-    repos.tasks.track_agent_in_context(&fx.context_id, "e2e-agent").await?;
+    repos
+        .tasks
+        .track_agent_in_context(&fx.context_id, "e2e-agent")
+        .await?;
 
     let now = Utc::now();
     repos
@@ -206,7 +208,9 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
     let message = Message {
         role: MessageRole::User,
         parts: vec![
-            Part::Text(TextPart { text: "hello".into() }),
+            Part::Text(TextPart {
+                text: "hello".into(),
+            }),
             Part::Data(DataPart { data: data_obj }),
             Part::File(FilePart {
                 file: FileContent {
@@ -263,14 +267,10 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
     let artifact_id = ArtifactId::new(format!("art_{}", Uuid::new_v4().simple()));
-    let metadata = ArtifactMetadata::new(
-        "text".to_owned(),
-        fx.context_id.clone(),
-        task_id.clone(),
-    )
-    .with_source("mcp_tool".to_owned())
-    .with_tool_name("echo".to_owned())
-    .with_fingerprint("fp-1".to_owned());
+    let metadata = ArtifactMetadata::new("text".to_owned(), fx.context_id.clone(), task_id.clone())
+        .with_source("mcp_tool".to_owned())
+        .with_tool_name("echo".to_owned())
+        .with_fingerprint("fp-1".to_owned());
 
     let artifact = Artifact {
         id: artifact_id.clone(),
@@ -391,10 +391,12 @@ async fn execution_step_repository_lifecycle() -> Result<()> {
         .fail_step(&plan_step.step_id, plan_step.started_at, "planner died")
         .await?;
 
-    assert!(!repos
-        .execution_steps
-        .mcp_execution_id_exists("non-existent")
-        .await?);
+    assert!(
+        !repos
+            .execution_steps
+            .mcp_execution_id_exists("non-existent")
+            .await?
+    );
 
     fx.cleanup().await?;
     Ok(())
@@ -432,9 +434,7 @@ async fn context_repository_crud_and_listing() -> Result<()> {
     assert!(!with_stats.is_empty());
 
     let since = Utc::now() - chrono::Duration::hours(1);
-    let _events = ctx_repo
-        .get_context_events_since(&new_ctx, since)
-        .await?;
+    let _events = ctx_repo.get_context_events_since(&new_ctx, since).await?;
 
     ctx_repo.delete_context(&new_ctx, &fx.user_id).await?;
     assert!(ctx_repo.get_context(&new_ctx, &fx.user_id).await.is_err());
@@ -479,7 +479,10 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
     assert!(status.is_some());
     assert_eq!(status.unwrap().status, "running");
 
-    repos.agent_services.update_health_status(&name, "running").await?;
+    repos
+        .agent_services
+        .update_health_status(&name, "running")
+        .await?;
     let running = repos.agent_services.list_running_agents().await?;
     assert!(running.iter().any(|r| r.name == name));
     let running_pids = repos.agent_services.list_running_agent_pids().await?;
@@ -488,7 +491,10 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
     repos.agent_services.mark_crashed(&name).await?;
     repos.agent_services.mark_error(&name).await?;
     repos.agent_services.mark_stopped(&name).await?;
-    repos.agent_services.register_agent(&name, 12345, 20000).await?;
+    repos
+        .agent_services
+        .register_agent(&name, 12345, 20000)
+        .await?;
     repos.agent_services.remove_agent_service(&name).await?;
 
     fx.cleanup().await?;
@@ -511,7 +517,9 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
     let message = Message {
         role: MessageRole::Agent,
         parts: vec![
-            Part::Text(TextPart { text: "agent reply".into() }),
+            Part::Text(TextPart {
+                text: "agent reply".into(),
+            }),
             Part::Data(DataPart { data: data_obj }),
         ],
         message_id,
@@ -540,8 +548,7 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
 
     // Artifact with text + file parts
     let artifact_id = ArtifactId::new(format!("art_ctor_{}", Uuid::new_v4().simple()));
-    let metadata =
-        ArtifactMetadata::new("text".to_owned(), fx.context_id.clone(), task_id.clone());
+    let metadata = ArtifactMetadata::new("text".to_owned(), fx.context_id.clone(), task_id.clone());
     let artifact = Artifact {
         id: artifact_id,
         title: Some("ctor artifact".into()),
@@ -562,7 +569,9 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
         extensions: vec![],
         metadata,
     };
-    artifacts.create_artifact(&task_id, &fx.context_id, &artifact).await?;
+    artifacts
+        .create_artifact(&task_id, &fx.context_id, &artifact)
+        .await?;
 
     // Now construct + verify
     let ctor = TaskConstructor::new(&fx.db)?;

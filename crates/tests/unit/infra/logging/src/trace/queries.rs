@@ -6,8 +6,10 @@
 //! combinations.
 
 use chrono::{Duration as ChronoDuration, Utc};
+use systemprompt_logging::trace::{
+    AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
+};
 use systemprompt_logging::{AiTraceService, TraceQueryService};
-use systemprompt_logging::trace::{TraceListFilter, ToolExecutionFilter, AiRequestFilter, LogSearchFilter};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 async fn pool_arc() -> Option<std::sync::Arc<sqlx::PgPool>> {
@@ -76,7 +78,12 @@ async fn trace_service_search_logs_branches() {
 
     let _ = svc.search_logs("nothing", None, None, 10).await.unwrap();
     let _ = svc
-        .search_logs("nothing", Some(Utc::now() - ChronoDuration::hours(1)), Some("INFO"), 10)
+        .search_logs(
+            "nothing",
+            Some(Utc::now() - ChronoDuration::hours(1)),
+            Some("INFO"),
+            10,
+        )
         .await
         .unwrap();
     let _ = svc
@@ -125,11 +132,7 @@ async fn trace_service_log_lookup_branches() {
     let _ = svc.find_log_by_partial_id("abc").await.unwrap();
     let _ = svc.list_logs_filtered(None, None, 10).await.unwrap();
     let _ = svc
-        .list_logs_filtered(
-            Some(Utc::now() - ChronoDuration::days(1)),
-            Some("ERROR"),
-            5,
-        )
+        .list_logs_filtered(Some(Utc::now() - ChronoDuration::days(1)), Some("ERROR"), 5)
         .await
         .unwrap();
 }
@@ -161,10 +164,8 @@ async fn trace_service_log_summary_branches() {
 async fn ai_trace_service_methods_with_random_ids() {
     let Some(pool) = pool_arc().await else { return };
     let svc = AiTraceService::new(pool);
-    let task_id = systemprompt_identifiers::TaskId::new(format!(
-        "task-{}",
-        uuid::Uuid::new_v4().simple()
-    ));
+    let task_id =
+        systemprompt_identifiers::TaskId::new(format!("task-{}", uuid::Uuid::new_v4().simple()));
     let ctx_id = systemprompt_identifiers::ContextId::generate();
     let _ = svc.get_task_info(&task_id).await;
     let _ = svc.get_user_input(&task_id).await.unwrap();
@@ -180,7 +181,9 @@ async fn ai_trace_service_methods_with_random_ids() {
 #[test]
 fn filter_value_types() {
     let _ = ToolExecutionFilter::new(10);
-    let _ = AiRequestFilter::new(10).with_model("m".to_owned()).with_provider("p".to_owned());
+    let _ = AiRequestFilter::new(10)
+        .with_model("m".to_owned())
+        .with_provider("p".to_owned());
     let _ = LogSearchFilter::new("p".to_owned(), 10)
         .with_level("WARN".to_owned())
         .with_since(Utc::now() - ChronoDuration::hours(1));

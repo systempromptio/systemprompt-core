@@ -41,10 +41,7 @@ async fn engagement_router_batch_runs() -> anyhow::Result<()> {
     let ctx = ctx().await?;
     let app = routes::engagement_router(&ctx)?.layer(Extension(request_context("u")));
     let resp = app
-        .oneshot(json_post(
-            "/batch",
-            serde_json::json!({ "events": [] }),
-        ))
+        .oneshot(json_post("/batch", serde_json::json!({ "events": [] })))
         .await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
@@ -91,7 +88,10 @@ async fn analytics_router_batch() -> anyhow::Result<()> {
     let ctx = ctx().await?;
     let app = routes::analytics_router(&ctx)?.layer(Extension(request_context("u")));
     let resp = app
-        .oneshot(json_post("/events/batch", serde_json::json!({ "events": [] })))
+        .oneshot(json_post(
+            "/events/batch",
+            serde_json::json!({ "events": [] }),
+        ))
         .await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
@@ -232,7 +232,9 @@ async fn delete_unknown_api_key_returns_status() -> anyhow::Result<()> {
     let app = routes::admin::router()
         .with_state((*ctx).clone())
         .layer(Extension(request_context("u_admin")));
-    let resp = app.oneshot(empty_delete("/api-keys/key_does_not_exist")).await?;
+    let resp = app
+        .oneshot(empty_delete("/api-keys/key_does_not_exist"))
+        .await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
 }

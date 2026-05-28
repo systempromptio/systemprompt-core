@@ -62,7 +62,10 @@ fn test_build_artifact_viewer_with_icons() {
     let result = build_artifact_viewer_resource(&config);
     let resource = &result.resources[0];
     assert!(resource.raw.icons.is_some());
-    assert_eq!(resource.raw.icons.as_ref().expect("icons").len(), icons.len());
+    assert_eq!(
+        resource.raw.icons.as_ref().expect("icons").len(),
+        icons.len()
+    );
 }
 
 #[test]
@@ -106,8 +109,7 @@ fn test_read_artifact_viewer_resource_empty_uri() {
 fn test_read_artifact_viewer_resource_arbitrary_template_passthrough() {
     let request = ReadResourceRequestParams::new("ui://srv/artifact-viewer");
     let template = "ARBITRARY-PAYLOAD-${VAR}";
-    let result =
-        read_artifact_viewer_resource(&request, "srv", template).expect("should succeed");
+    let result = read_artifact_viewer_resource(&request, "srv", template).expect("should succeed");
     // The text contents should contain our template body.
     let serialized = serde_json::to_string(&result.contents).expect("serializable");
     assert!(serialized.contains("ARBITRARY-PAYLOAD"));

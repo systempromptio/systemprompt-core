@@ -65,8 +65,8 @@ impl Fixture {
         let window_end = window_start + Duration::days(1);
 
         sqlx::query(
-            "INSERT INTO user_contexts (context_id, user_id, name, created_at, updated_at) \
-             VALUES ($1, $2, $3, $4, $4)",
+            "INSERT INTO user_contexts (context_id, user_id, name, created_at, updated_at) VALUES \
+             ($1, $2, $3, $4, $4)",
         )
         .bind(&context_id)
         .bind(&user_id)
@@ -107,8 +107,8 @@ impl Fixture {
         let task_id = format!("task_{}_{}", self.tag, Uuid::new_v4().simple());
         sqlx::query(
             "INSERT INTO agent_tasks (task_id, context_id, agent_name, user_id, status, \
-             started_at, execution_time_ms) VALUES ($1, $2, $3, $4, 'TASK_STATE_COMPLETED', \
-             $5, 250)",
+             started_at, execution_time_ms) VALUES ($1, $2, $3, $4, 'TASK_STATE_COMPLETED', $5, \
+             250)",
         )
         .bind(&task_id)
         .bind(&self.context_id)
@@ -144,8 +144,8 @@ impl Fixture {
         let started = self.window_start + Duration::minutes(4);
         sqlx::query(
             "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, status, \
-             input, started_at, created_at, user_id) VALUES ($1, $2, 'test-server', $3, '{}', \
-             $4, $4, $5)",
+             input, started_at, created_at, user_id) VALUES ($1, $2, 'test-server', $3, '{}', $4, \
+             $4, $5)",
         )
         .bind(&id)
         .bind(tool_name)
@@ -232,7 +232,9 @@ async fn agent_repository_smoke() -> Result<()> {
         assert!(listed.iter().any(|r| r.agent_name == agent));
     }
 
-    let exists = repo.agent_exists(&agent, fx.window_start, fx.window_end).await?;
+    let exists = repo
+        .agent_exists(&agent, fx.window_start, fx.window_end)
+        .await?;
     assert!(exists >= 2);
     let summary = repo
         .get_agent_summary(&agent, fx.window_start, fx.window_end)
@@ -247,9 +249,7 @@ async fn agent_repository_smoke() -> Result<()> {
     let _hourly = repo
         .get_hourly_distribution(&agent, fx.window_start, fx.window_end)
         .await?;
-    let stats = repo
-        .get_stats(fx.window_start, fx.window_end, None)
-        .await?;
+    let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total_tasks >= 2);
     let _stats_f = repo
         .get_stats(fx.window_start, fx.window_end, Some(&agent))
@@ -299,9 +299,7 @@ async fn tool_repository_smoke() -> Result<()> {
         .await?;
     assert!(filtered.iter().any(|r| r.tool_name == tool));
 
-    let stats = repo
-        .get_stats(fx.window_start, fx.window_end, None)
-        .await?;
+    let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total_executions >= 2);
     let _stats_f = repo
         .get_stats(fx.window_start, fx.window_end, Some("test"))
@@ -395,7 +393,9 @@ async fn cost_repository_per_user_paths() -> Result<()> {
 async fn content_analytics_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
     let repo = ContentAnalyticsRepository::new(&fx.db)?;
-    let _top = repo.get_top_content(fx.window_start, fx.window_end, 10).await?;
+    let _top = repo
+        .get_top_content(fx.window_start, fx.window_end, 10)
+        .await?;
     let _stats = repo.get_stats(fx.window_start, fx.window_end).await?;
     let _trend = repo
         .get_content_for_trends(fx.window_start, fx.window_end)

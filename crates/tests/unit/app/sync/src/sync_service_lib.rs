@@ -98,7 +98,11 @@ async fn sync_files_dry_run_with_real_files() {
 #[test]
 fn import_result_serialises() {
     use systemprompt_sync::database::ImportResult;
-    let r = ImportResult { created: 3, updated: 2, skipped: 1 };
+    let r = ImportResult {
+        created: 3,
+        updated: 2,
+        skipped: 1,
+    };
     let json = serde_json::to_string(&r).expect("ser");
     assert!(json.contains("\"created\":3"));
     assert!(json.contains("\"updated\":2"));

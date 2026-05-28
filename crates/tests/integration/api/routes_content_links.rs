@@ -30,9 +30,7 @@ async fn get_link_performance_runs_handler() -> anyhow::Result<()> {
 async fn get_link_clicks_runs_handler() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let app = content::public_router(&ctx).layer(Extension(request_context("user_links")));
-    let resp = app
-        .oneshot(empty_get("/links/some_link_id/clicks"))
-        .await?;
+    let resp = app.oneshot(empty_get("/links/some_link_id/clicks")).await?;
     assert!(resp.status().as_u16() >= 200);
     Ok(())
 }

@@ -19,7 +19,12 @@ fn unused_port() -> u16 {
     port
 }
 
-fn make_config(name: &str, server_type: McpServerType, port: u16, endpoint: &str) -> McpServerConfig {
+fn make_config(
+    name: &str,
+    server_type: McpServerType,
+    port: u16,
+    endpoint: &str,
+) -> McpServerConfig {
     McpServerConfig {
         name: name.to_owned(),
         owner: fixture_user_id(),

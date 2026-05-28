@@ -7,8 +7,12 @@ use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_
 
 #[tokio::test]
 async fn tool_provider_construction_and_accessors() {
-    let Ok(url) = fixture_database_url() else { return };
-    let Ok(db) = fixture_db_pool(&url).await else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    let Ok(db) = fixture_db_pool(&url).await else {
+        return;
+    };
     let registry = RegistryService::new(fixture_user_id());
     let resilience = ResilienceSettings::default();
     let provider = McpToolProvider::new(db, registry, &resilience);
@@ -21,8 +25,12 @@ async fn tool_provider_construction_and_accessors() {
 async fn tool_provider_list_tools_unknown_agent_returns_error_or_empty() {
     use systemprompt_identifiers::Actor;
     use systemprompt_traits::{ToolContext, ToolProvider};
-    let Ok(url) = fixture_database_url() else { return };
-    let Ok(db) = fixture_db_pool(&url).await else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    let Ok(db) = fixture_db_pool(&url).await else {
+        return;
+    };
     let registry = RegistryService::new(fixture_user_id());
     let provider = McpToolProvider::new(db, registry, &ResilienceSettings::default());
     let ctx = ToolContext::new(Actor::user(fixture_user_id()), "");

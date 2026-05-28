@@ -13,14 +13,26 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod builder_extra;
+#[cfg(test)]
 mod config_validation;
 #[cfg(test)]
 mod context;
 #[cfg(test)]
+mod context_loaders_extra;
+#[cfg(test)]
 mod database_context;
+#[cfg(test)]
+mod display_tests;
+#[cfg(test)]
+mod files_validator_load;
+#[cfg(test)]
+mod files_validator_tests;
 #[cfg(test)]
 #[cfg(test)]
 mod registry;
+#[cfg(test)]
+mod span_tests;
 #[cfg(test)]
 mod startup_validation;
 #[cfg(test)]
@@ -31,15 +43,3 @@ mod validation;
 mod validation_report_extended;
 #[cfg(test)]
 mod wellknown;
-#[cfg(test)]
-mod display_tests;
-#[cfg(test)]
-mod span_tests;
-#[cfg(test)]
-mod builder_extra;
-#[cfg(test)]
-mod files_validator_tests;
-#[cfg(test)]
-mod files_validator_load;
-#[cfg(test)]
-mod context_loaders_extra;

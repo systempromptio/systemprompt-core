@@ -152,7 +152,13 @@ async fn fail_in_progress_steps_for_task_marks_outstanding_steps() -> Result<()>
 
     let after = repo.get(&s_inprog_id).await?.unwrap();
     assert_eq!(after.status, StepStatus::Failed);
-    assert!(after.error_message.as_deref().unwrap_or("").contains("shutdown"));
+    assert!(
+        after
+            .error_message
+            .as_deref()
+            .unwrap_or("")
+            .contains("shutdown")
+    );
 
     // Completed step unaffected
     let done = repo.get(&s_done_id).await?.unwrap();

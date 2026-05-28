@@ -1,6 +1,7 @@
 //! Unit tests for ConversationService pure helpers.
 //!
-//! Target: crates/domain/agent/src/services/a2a_server/processing/conversation_service.rs
+//! Target: crates/domain/agent/src/services/a2a_server/processing/
+//! conversation_service.rs
 
 use base64::Engine;
 use systemprompt_agent::models::a2a::{

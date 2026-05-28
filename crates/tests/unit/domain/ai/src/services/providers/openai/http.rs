@@ -36,8 +36,7 @@ fn sampling() -> SamplingParams {
 
 #[tokio::test]
 async fn generate_parses_response() {
-    let server = mock_http::openai_chat_success(mock_http::openai_response_body("hello"))
-        .await;
+    let server = mock_http::openai_chat_success(mock_http::openai_response_body("hello")).await;
     let p = provider(server.uri());
     let messages = msgs();
     let s = sampling();
@@ -62,21 +61,17 @@ async fn generate_returns_error_on_4xx() {
 
 #[tokio::test]
 async fn generate_with_tools_extracts_tool_calls() {
-    let server = mock_http::openai_chat_success(mock_http::openai_tool_call_body(
-        "do_thing",
-        "{\"x\":1}",
-    ))
-    .await;
+    let server =
+        mock_http::openai_chat_success(mock_http::openai_tool_call_body("do_thing", "{\"x\":1}"))
+            .await;
     let p = provider(server.uri());
     let messages = msgs();
     let tools = vec![
         McpTool::new("do_thing", McpServerId::new("svc"))
             .with_input_schema(json!({"type": "object"})),
     ];
-    let params = ToolGenerationParams::new(
-        GenerationParams::new(&messages, "gpt-4o-mini", 64),
-        tools,
-    );
+    let params =
+        ToolGenerationParams::new(GenerationParams::new(&messages, "gpt-4o-mini", 64), tools);
     let (_resp, calls) = p.generate_with_tools(params).await.expect("ok");
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].name, "do_thing");
@@ -84,10 +79,8 @@ async fn generate_with_tools_extracts_tool_calls() {
 
 #[tokio::test]
 async fn generate_with_schema_returns_structured() {
-    let server = mock_http::openai_chat_success(mock_http::openai_response_body(
-        "{\"answer\": 42}",
-    ))
-    .await;
+    let server =
+        mock_http::openai_chat_success(mock_http::openai_response_body("{\"answer\": 42}")).await;
     let p = provider(server.uri());
     let messages = msgs();
     let schema = json!({ "type": "object", "properties": {"answer": {"type":"integer"}}});
@@ -101,8 +94,7 @@ async fn generate_with_schema_returns_structured() {
 
 #[tokio::test]
 async fn generate_structured_json_object() {
-    let server = mock_http::openai_chat_success(mock_http::openai_response_body("{\"k\":1}"))
-        .await;
+    let server = mock_http::openai_chat_success(mock_http::openai_response_body("{\"k\":1}")).await;
     let p = provider(server.uri());
     let messages = msgs();
     let fmt = ResponseFormat::JsonObject;
@@ -116,7 +108,9 @@ async fn generate_structured_json_object() {
 
 #[tokio::test]
 async fn generate_stream_yields_chunks() {
-    let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":2,\"total_tokens\":3}}\n\ndata: [DONE]\n\n";
+    let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: \
+               {\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":2,\"\
+               total_tokens\":3}}\n\ndata: [DONE]\n\n";
     let server = mock_http::openai_chat_stream(sse).await;
     let p = provider(server.uri());
     let messages = msgs();

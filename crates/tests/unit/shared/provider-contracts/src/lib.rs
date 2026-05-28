@@ -13,10 +13,10 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod contracts_misc;
+#[cfg(test)]
 mod job;
 #[cfg(test)]
 mod llm;
 #[cfg(test)]
 mod tool;
-#[cfg(test)]
-mod contracts_misc;

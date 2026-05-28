@@ -5,7 +5,10 @@ use systemprompt_models::mcp::capabilities::{
 
 #[test]
 fn mcp_extension_id_as_str_for_known_and_custom() {
-    assert_eq!(McpExtensionId::McpAppsUi.as_str(), "io.modelcontextprotocol/ui");
+    assert_eq!(
+        McpExtensionId::McpAppsUi.as_str(),
+        "io.modelcontextprotocol/ui"
+    );
     let c = McpExtensionId::custom("acme/foo");
     assert_eq!(c.as_str(), "acme/foo");
 }

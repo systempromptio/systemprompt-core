@@ -4,9 +4,7 @@
 //! optional fields (context_id, task_id, client_id) based on the source data.
 //! Each branch is exercised by toggling those optional inputs.
 
-use systemprompt_identifiers::{
-    AgentName, ClientId, ContextId, SessionId, TaskId, TraceId,
-};
+use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TaskId, TraceId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::create_request_span;
 

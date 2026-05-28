@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 use systemprompt_generator::{
-    GeneratedFeed, PagePrerenderResult, SitemapUrl, build_rss_xml, build_sitemap_index,
-    build_sitemap_xml, escape_xml, RssChannel,
+    GeneratedFeed, PagePrerenderResult, RssChannel, SitemapUrl, build_rss_xml, build_sitemap_index,
+    build_sitemap_xml, escape_xml,
 };
 
 #[test]

@@ -6,11 +6,17 @@ use axum::response::IntoResponse;
 use serde_json::Value;
 use systemprompt_api::routes::oauth::{OAuthErrorCode, OAuthHttpError};
 
-async fn body_string(resp: axum::response::Response) -> (StatusCode, axum::http::HeaderMap, String) {
+async fn body_string(
+    resp: axum::response::Response,
+) -> (StatusCode, axum::http::HeaderMap, String) {
     let status = resp.status();
     let headers = resp.headers().clone();
     let bytes = to_bytes(resp.into_body(), 64 * 1024).await.expect("body");
-    (status, headers, String::from_utf8(bytes.to_vec()).unwrap_or_default())
+    (
+        status,
+        headers,
+        String::from_utf8(bytes.to_vec()).unwrap_or_default(),
+    )
 }
 
 #[test]
@@ -38,7 +44,10 @@ fn helper_constructors_match_code() {
     check!(invalid_token, OAuthErrorCode::InvalidToken);
     check!(access_denied, OAuthErrorCode::AccessDenied);
     check!(server_error, OAuthErrorCode::ServerError);
-    check!(invalid_client_metadata, OAuthErrorCode::InvalidClientMetadata);
+    check!(
+        invalid_client_metadata,
+        OAuthErrorCode::InvalidClientMetadata
+    );
     check!(authentication_failed, OAuthErrorCode::AuthenticationFailed);
     check!(registration_failed, OAuthErrorCode::RegistrationFailed);
     check!(username_unavailable, OAuthErrorCode::UsernameUnavailable);
@@ -108,7 +117,10 @@ async fn with_redirect_emits_302_with_error_query() {
         status == StatusCode::SEE_OTHER || status == StatusCode::TEMPORARY_REDIRECT,
         "{status}"
     );
-    assert!(location.starts_with("https://app.example/cb?"), "{location}");
+    assert!(
+        location.starts_with("https://app.example/cb?"),
+        "{location}"
+    );
     assert!(location.contains("error=access_denied"));
     assert!(location.contains("error_description="));
     assert!(location.contains("state=xyz"));

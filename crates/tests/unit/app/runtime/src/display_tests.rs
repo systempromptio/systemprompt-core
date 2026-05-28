@@ -52,8 +52,7 @@ fn display_report_with_extension_errors() {
 
 #[test]
 fn display_report_with_profile_path() {
-    let report =
-        StartupValidationReport::new().with_profile_path(PathBuf::from("/profiles/local"));
+    let report = StartupValidationReport::new().with_profile_path(PathBuf::from("/profiles/local"));
     display_validation_report(&report);
 }
 
@@ -91,9 +90,7 @@ fn display_warnings_with_simple_warning() {
 fn display_warnings_with_suggestion() {
     let mut report = StartupValidationReport::new();
     let mut d = ValidationReport::new("config");
-    d.add_warning(
-        ValidationWarning::new("field.x", "deprecated").with_suggestion("use field.y"),
-    );
+    d.add_warning(ValidationWarning::new("field.x", "deprecated").with_suggestion("use field.y"));
     report.add_domain(d);
     display_validation_warnings(&report);
 }

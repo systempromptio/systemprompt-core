@@ -3,9 +3,8 @@
 
 use bytes::Bytes;
 use http::StatusCode;
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::InboundParseError;
 use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_api::services::gateway::protocol::inbound::{InboundAdapter, InboundParseError};
 
 #[test]
 fn wire_name_is_openai_responses() {

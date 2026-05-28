@@ -3,12 +3,14 @@ use futures::StreamExt;
 use serde_json::json;
 use systemprompt_ai::models::ai::{AiMessage, SamplingParams};
 use systemprompt_ai::models::tools::McpTool;
-use systemprompt_ai::services::providers::anthropic::{AnthropicProvider, search as anthropic_search};
-use systemprompt_identifiers::McpServerId;
+use systemprompt_ai::services::providers::anthropic::{
+    AnthropicProvider, search as anthropic_search,
+};
 use systemprompt_ai::services::providers::{
     AiProvider, GenerationParams, SchemaGenerationParams, SearchGenerationParams,
     ToolGenerationParams,
 };
+use systemprompt_identifiers::McpServerId;
 
 fn provider(endpoint: String) -> AnthropicProvider {
     AnthropicProvider::with_endpoint("test-key".to_owned(), endpoint)
@@ -31,10 +33,9 @@ fn sampling() -> SamplingParams {
 
 #[tokio::test]
 async fn generate_parses_text_response() {
-    let server = mock_http::anthropic_messages_success(mock_http::anthropic_response_body(
-        "hello there",
-    ))
-    .await;
+    let server =
+        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("hello there"))
+            .await;
     let p = provider(server.uri());
     let messages = msgs();
     let sampling = sampling();
@@ -55,7 +56,9 @@ async fn generate_returns_error_on_4xx() {
     let messages = msgs();
     let params = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 32);
     let err = p.generate(params).await.expect_err("must fail");
-    assert!(format!("{err:?}").to_lowercase().contains("anthropic") || !format!("{err:?}").is_empty());
+    assert!(
+        format!("{err:?}").to_lowercase().contains("anthropic") || !format!("{err:?}").is_empty()
+    );
 }
 
 #[tokio::test]
@@ -102,7 +105,13 @@ async fn generate_with_schema_returns_structured_output() {
 
 #[tokio::test]
 async fn generate_stream_yields_text_chunks() {
-    let sse = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hello\"}}\n\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":5}}\n\n";
+    let sse = "data: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"\
+               role\":\"assistant\",\"model\":\"claude\",\"content\":[],\"stop_reason\":null,\"\
+               stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\ndata: \
+               {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"\
+               text\":\"hello\"}}\n\ndata: \
+               {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"\
+               output_tokens\":5}}\n\n";
     let server = mock_http::anthropic_messages_stream(sse).await;
     let p = provider(server.uri());
     let messages = msgs();

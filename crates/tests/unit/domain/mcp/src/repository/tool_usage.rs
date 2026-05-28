@@ -78,7 +78,9 @@ async fn start_and_complete_execution_roundtrip() {
         ContextId::generate(),
         AgentName::new("test-agent"),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new("test-user")));
+    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
+        "test-user",
+    )));
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {

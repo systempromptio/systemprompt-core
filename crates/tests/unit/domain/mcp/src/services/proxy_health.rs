@@ -19,10 +19,7 @@ async fn can_route_traffic_missing_service_returns_false() {
     let Some(db) = db().await else { return };
     let p = ProxyHealthCheck::new(&db).unwrap();
     let r = p
-        .can_route_traffic(
-            &format!("missing-{}", uuid::Uuid::new_v4().simple()),
-            65530,
-        )
+        .can_route_traffic(&format!("missing-{}", uuid::Uuid::new_v4().simple()), 65530)
         .await
         .unwrap();
     assert!(!r);

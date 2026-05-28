@@ -6,7 +6,9 @@ pub(super) mod synthetic_plugin;
 
 pub use error::{ApplyError, TomlError};
 pub use plugin::HostFailure;
-pub use synthetic_plugin::{PLUGIN_INSTALLATION_PREFERENCE, render_plugin_json, write_synthetic_plugin};
+pub use synthetic_plugin::{
+    PLUGIN_INSTALLATION_PREFERENCE, render_plugin_json, write_synthetic_plugin,
+};
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};

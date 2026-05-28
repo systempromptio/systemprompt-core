@@ -19,8 +19,7 @@ pub async fn setup_test_pool() -> Arc<PgPool> {
         .await
         .expect("failed to connect to test database");
 
-    db.pool_arc()
-        .expect("test database is not Postgres-backed")
+    db.pool_arc().expect("test database is not Postgres-backed")
 }
 
 /// Ensures the `event_outbox` table exists. The schema mirrors

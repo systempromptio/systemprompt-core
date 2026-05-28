@@ -10,10 +10,11 @@ use serde_json::json;
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice, Role,
 };
+use systemprompt_api::services::gateway::protocol::outbound::anthropic::AnthropicOutbound;
+use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
+use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundOutcome,
-    anthropic::AnthropicOutbound, openai_chat::OpenAiChatOutbound,
-    openai_responses::OpenAiResponsesOutbound,
 };
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::profile::GatewayRoute;
@@ -131,7 +132,10 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
 #[tokio::test]
 async fn anthropic_outbound_streaming_returns_stream() {
     let server = MockServer::start().await;
-    let sse = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n";
+    let sse = "event: message_start\ndata: \
+               {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\"\
+               :\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"stop_sequence\\
+               ":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n";
     Mock::given(method("POST"))
         .and(path("/messages"))
         .respond_with(
@@ -203,7 +207,9 @@ async fn openai_chat_outbound_buffered_parses_response() {
 #[tokio::test]
 async fn openai_chat_outbound_streaming_returns_stream() {
     let server = MockServer::start().await;
-    let sse = "data: {\"id\":\"a\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"upstream-1\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n";
+    let sse = "data: {\"id\":\"a\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"\
+               upstream-1\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"}}]}\n\ndata: \
+               [DONE]\n\n";
     Mock::given(method("POST"))
         .and(path("/chat/completions"))
         .respond_with(
@@ -332,10 +338,11 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
-        assert!(r
-            .content
-            .iter()
-            .any(|c| matches!(c, CanonicalContent::ToolUse { .. })));
+        assert!(
+            r.content
+                .iter()
+                .any(|c| matches!(c, CanonicalContent::ToolUse { .. }))
+        );
     } else {
         panic!("expected buffered");
     }
@@ -472,9 +479,10 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
         assert!(matches!(r.stop_reason, Some(_)));
-        assert!(r
-            .content
-            .iter()
-            .any(|c| matches!(c, CanonicalContent::ToolUse { .. })));
+        assert!(
+            r.content
+                .iter()
+                .any(|c| matches!(c, CanonicalContent::ToolUse { .. }))
+        );
     }
 }

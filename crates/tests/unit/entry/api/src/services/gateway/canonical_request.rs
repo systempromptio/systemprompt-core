@@ -92,7 +92,10 @@ fn flatten_text_skips_images() {
 #[test]
 fn flatten_message_text_filters_by_role() {
     let r = req_with(vec![user("u1"), assistant("a1"), user("u2")], None);
-    assert_eq!(r.flatten_message_text(Role::User).as_deref(), Some("u1\nu2"));
+    assert_eq!(
+        r.flatten_message_text(Role::User).as_deref(),
+        Some("u1\nu2")
+    );
     assert_eq!(
         r.flatten_message_text(Role::Assistant).as_deref(),
         Some("a1")

@@ -13,10 +13,7 @@ async fn content_local_sync_calculate_diff_against_empty_dir_returns_empty_resul
     };
     let sync = ContentLocalSync::new(db);
     let dir = TempDir::new().expect("tempdir");
-    let source = systemprompt_identifiers::SourceId::new(format!(
-        "src-{}",
-        uuid::Uuid::new_v4()
-    ));
+    let source = systemprompt_identifiers::SourceId::new(format!("src-{}", uuid::Uuid::new_v4()));
     let result = sync
         .calculate_diff(&source, dir.path(), &["article".to_owned()])
         .await
@@ -42,8 +39,7 @@ async fn access_control_local_sync_missing_yaml_path_returns_missing_config() {
         .expect_err("missing file must error");
     let msg = err.to_string();
     assert!(
-        msg.to_lowercase().contains("missing")
-            || msg.to_lowercase().contains("not found"),
+        msg.to_lowercase().contains("missing") || msg.to_lowercase().contains("not found"),
         "expected missing-config error, got: {msg}"
     );
 }
@@ -62,10 +58,7 @@ async fn access_control_local_sync_invalid_yaml_returns_invalid_input() {
         .await
         .expect_err("invalid yaml must error");
     let msg = err.to_string();
-    assert!(
-        !msg.is_empty(),
-        "expected non-empty error for invalid yaml"
-    );
+    assert!(!msg.is_empty(), "expected non-empty error for invalid yaml");
 }
 
 #[tokio::test]
@@ -77,7 +70,10 @@ async fn access_control_local_sync_empty_config_succeeds_with_zero_synced() {
     let path = dir.path().join("acl.yaml");
     std::fs::write(&path, "rules: []\n").expect("write");
     let sync = AccessControlLocalSync::new(db, path);
-    let result = sync.sync_to_db(false, false).await.expect("empty config ok");
+    let result = sync
+        .sync_to_db(false, false)
+        .await
+        .expect("empty config ok");
     assert_eq!(result.items_synced, 0);
     assert_eq!(result.items_deleted, 0);
     assert!(result.errors.is_empty());

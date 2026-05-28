@@ -29,7 +29,10 @@ fn file_upload_input_builders_chain() {
 
 #[test]
 fn file_upload_provider_error_displays_useful_text() {
-    assert_eq!(FileUploadProviderError::Disabled.to_string(), "Upload disabled");
+    assert_eq!(
+        FileUploadProviderError::Disabled.to_string(),
+        "Upload disabled"
+    );
     let e = FileUploadProviderError::ValidationFailed("too large".to_owned());
     assert!(e.to_string().contains("too large"));
     let e = FileUploadProviderError::StorageError("disk full".to_owned());

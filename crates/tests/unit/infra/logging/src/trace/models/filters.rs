@@ -4,7 +4,9 @@
 //! `LogSearchFilter` — each is a small const-fn builder over an `Option`-bag.
 
 use chrono::{TimeZone, Utc};
-use systemprompt_logging::{AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter};
+use systemprompt_logging::{
+    AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
+};
 
 mod ai_request_filter {
     use super::*;
@@ -20,7 +22,10 @@ mod ai_request_filter {
 
     #[test]
     fn with_since_sets_value() {
-        let ts = Utc.with_ymd_and_hms(2026, 1, 2, 3, 4, 5).single().expect("date");
+        let ts = Utc
+            .with_ymd_and_hms(2026, 1, 2, 3, 4, 5)
+            .single()
+            .expect("date");
         let f = AiRequestFilter::new(10).with_since(ts);
         assert_eq!(f.since, Some(ts));
     }
@@ -88,7 +93,9 @@ mod trace_list_filter {
 
     #[test]
     fn boolean_flags_toggle() {
-        let f = TraceListFilter::new(1).with_has_mcp(true).with_include_system(true);
+        let f = TraceListFilter::new(1)
+            .with_has_mcp(true)
+            .with_include_system(true);
         assert!(f.has_mcp);
         assert!(f.include_system);
     }
@@ -106,7 +113,10 @@ mod trace_list_filter {
 
     #[test]
     fn with_since() {
-        let ts = Utc.with_ymd_and_hms(2026, 5, 26, 0, 0, 0).single().expect("date");
+        let ts = Utc
+            .with_ymd_and_hms(2026, 5, 26, 0, 0, 0)
+            .single()
+            .expect("date");
         let f = TraceListFilter::new(1).with_since(ts);
         assert_eq!(f.since, Some(ts));
     }

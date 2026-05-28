@@ -69,8 +69,8 @@ impl Fixture {
         let window_end = window_start + Duration::days(1);
 
         sqlx::query(
-            "INSERT INTO user_contexts (context_id, user_id, name, created_at, updated_at) \
-             VALUES ($1, $2, $3, $4, $4)",
+            "INSERT INTO user_contexts (context_id, user_id, name, created_at, updated_at) VALUES \
+             ($1, $2, $3, $4, $4)",
         )
         .bind(&context_id)
         .bind(&user_id)
@@ -105,8 +105,8 @@ impl Fixture {
         sqlx::query(
             "INSERT INTO user_sessions (session_id, user_id, started_at, last_activity_at, \
              is_bot, is_behavioral_bot, is_scanner, referrer_source, country, device_type, \
-             browser, user_agent, landing_page, request_count) VALUES ($1, $2, $3, $3, $4, \
-             false, false, $5, $6, $7, $8, $9, '/', 5)",
+             browser, user_agent, landing_page, request_count) VALUES ($1, $2, $3, $3, $4, false, \
+             false, $5, $6, $7, $8, $9, '/', 5)",
         )
         .bind(session_id)
         .bind(&self.user_id)
@@ -220,7 +220,9 @@ async fn traffic_repository_smoke() -> Result<()> {
     let bot_engaged = repo
         .get_bot_totals(fx.window_start, fx.window_end, true)
         .await?;
-    let bot_breakdown = repo.get_bot_breakdown(fx.window_start, fx.window_end).await?;
+    let bot_breakdown = repo
+        .get_bot_breakdown(fx.window_start, fx.window_end)
+        .await?;
 
     assert!(!sources.is_empty());
     let _ = sources_engaged;
@@ -231,9 +233,11 @@ async fn traffic_repository_smoke() -> Result<()> {
     assert!(bot_totals.human >= 1);
     assert!(bot_totals.bot >= 1);
     assert!(bot_engaged.human <= bot_totals.human);
-    assert!(bot_breakdown
-        .iter()
-        .any(|r| r.bot_type.as_deref() == Some("Google")));
+    assert!(
+        bot_breakdown
+            .iter()
+            .any(|r| r.bot_type.as_deref() == Some("Google"))
+    );
 
     fx.cleanup().await?;
     Ok(())
@@ -267,9 +271,7 @@ async fn overview_repository_smoke() -> Result<()> {
     let _tool = repo
         .get_tool_metrics(fx.window_start, fx.window_end)
         .await?;
-    let active = repo
-        .get_active_session_count(fx.window_start)
-        .await?;
+    let active = repo.get_active_session_count(fx.window_start).await?;
     let total = repo
         .get_total_session_count(fx.window_start, fx.window_end)
         .await?;
@@ -409,10 +411,14 @@ async fn conversation_repository_smoke() -> Result<()> {
     let _gw = repo
         .list_gateway_sessions(fx.window_start, fx.window_end, 50)
         .await?;
-    let ctx_ct = repo.get_context_count(fx.window_start, fx.window_end).await?;
+    let ctx_ct = repo
+        .get_context_count(fx.window_start, fx.window_end)
+        .await?;
     assert!(ctx_ct >= 1);
     let _tasks = repo.get_task_stats(fx.window_start, fx.window_end).await?;
-    let msg = repo.get_message_count(fx.window_start, fx.window_end).await?;
+    let msg = repo
+        .get_message_count(fx.window_start, fx.window_end)
+        .await?;
     assert!(msg >= 0);
     let ctx_ts = repo
         .get_context_timestamps(fx.window_start, fx.window_end)

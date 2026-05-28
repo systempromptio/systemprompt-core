@@ -88,7 +88,10 @@ fn system_prompt_file_defaults_when_unset_or_empty() {
 fn to_agent_config_synthesizes_endpoint_when_absent() {
     let cfg = valid_disk("agent_one");
     let runtime = cfg.to_agent_config("https://api.example.com/", None);
-    assert_eq!(runtime.endpoint, "https://api.example.com/api/v1/agents/agent_one");
+    assert_eq!(
+        runtime.endpoint,
+        "https://api.example.com/api/v1/agents/agent_one"
+    );
     assert_eq!(runtime.name, "agent_one");
     assert_eq!(runtime.port, 9000);
     assert_eq!(runtime.card.name.as_deref(), Some("Display"));

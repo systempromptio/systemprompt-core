@@ -1,8 +1,6 @@
 use anyhow::Result;
 use std::collections::HashMap;
-use systemprompt_agent::models::external_integrations::{
-    WebhookEndpoint, WebhookRequest,
-};
+use systemprompt_agent::models::external_integrations::{WebhookEndpoint, WebhookRequest};
 use systemprompt_agent::services::external_integrations::webhook::WebhookService;
 use systemprompt_identifiers::WebhookEndpointId;
 
@@ -46,7 +44,9 @@ async fn register_get_list_remove_endpoint() -> Result<()> {
 #[tokio::test]
 async fn handle_webhook_inactive_endpoint_returns_404() -> Result<()> {
     let svc = WebhookService::new();
-    let id = svc.register_endpoint(endpoint(false, None, &["push"])).await?;
+    let id = svc
+        .register_endpoint(endpoint(false, None, &["push"]))
+        .await?;
     let req = WebhookRequest {
         headers: HashMap::new(),
         body: serde_json::json!({"x": 1}),

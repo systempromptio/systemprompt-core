@@ -47,8 +47,14 @@ async fn list_user_tasks_handles_all_status_values() -> anyhow::Result<()> {
         "auth-required",
         "weird-unknown",
     ] {
-        let resp = app(&ctx).oneshot(empty_get(&format!("/?status={s}"))).await?;
-        assert!(resp.status().is_success(), "status={s} -> {}", resp.status());
+        let resp = app(&ctx)
+            .oneshot(empty_get(&format!("/?status={s}")))
+            .await?;
+        assert!(
+            resp.status().is_success(),
+            "status={s} -> {}",
+            resp.status()
+        );
     }
     Ok(())
 }
@@ -56,9 +62,7 @@ async fn list_user_tasks_handles_all_status_values() -> anyhow::Result<()> {
 #[tokio::test]
 async fn get_missing_task_returns_404() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let resp = app(&ctx)
-        .oneshot(empty_get("/task_does_not_exist"))
-        .await?;
+    let resp = app(&ctx).oneshot(empty_get("/task_does_not_exist")).await?;
     assert_eq!(resp.status().as_u16(), 404);
     Ok(())
 }
@@ -78,10 +82,6 @@ async fn delete_missing_task_is_idempotent() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let resp = app(&ctx).oneshot(empty_delete("/task_missing")).await?;
     // DELETE is idempotent in the repo: returns 204 even if nothing matched.
-    assert!(
-        resp.status().is_success(),
-        "{}",
-        resp.status()
-    );
+    assert!(resp.status().is_success(), "{}", resp.status());
     Ok(())
 }

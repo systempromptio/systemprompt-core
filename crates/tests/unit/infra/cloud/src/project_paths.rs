@@ -165,7 +165,11 @@ fn project_context_new_stores_root() {
 fn project_context_discover_from_finds_valid_root() {
     let tmp = TempDir::new().unwrap();
     make_project(tmp.path());
-    let nested = tmp.path().join(".systemprompt").join("profiles").join("local");
+    let nested = tmp
+        .path()
+        .join(".systemprompt")
+        .join("profiles")
+        .join("local");
     let ctx = ProjectContext::discover_from(&nested);
     assert_eq!(ctx.root(), tmp.path());
 }
@@ -186,13 +190,21 @@ fn project_context_discover_returns_some_context() {
 fn project_context_resolve_helpers() {
     let tmp = TempDir::new().unwrap();
     let ctx = ProjectContext::new(tmp.path().to_path_buf());
-    assert!(ctx.systemprompt_dir().to_string_lossy().contains(".systemprompt"));
+    assert!(
+        ctx.systemprompt_dir()
+            .to_string_lossy()
+            .contains(".systemprompt")
+    );
     assert!(ctx.profiles_dir().to_string_lossy().contains("profiles"));
     let pd = ctx.profile_dir("local");
     assert!(pd.to_string_lossy().contains("local"));
     let pp = ctx.profile_path("local", ProfilePath::Config);
     assert!(pp.to_string_lossy().contains("local"));
-    assert!(ctx.profile_docker_dir("local").to_string_lossy().contains("local"));
+    assert!(
+        ctx.profile_docker_dir("local")
+            .to_string_lossy()
+            .contains("local")
+    );
     let _ = ctx.profile_dockerfile("local");
     let _ = ctx.profile_entrypoint("local");
     let _ = ctx.profile_dockerignore("local");
@@ -273,7 +285,11 @@ fn unified_context_with_profile_paths_overrides() {
         "tenants.json",
     );
     assert!(ctx.cloud_paths().is_some());
-    assert!(ctx.credentials_path().to_string_lossy().contains("credentials"));
+    assert!(
+        ctx.credentials_path()
+            .to_string_lossy()
+            .contains("credentials")
+    );
     assert!(ctx.tenants_path().to_string_lossy().contains("tenants"));
     let _ = ctx.session_path();
 }

@@ -144,7 +144,10 @@ fn plugin_script_round_trips_serde() {
 
 #[test]
 fn marketplace_visibility_default_and_serde() {
-    assert_eq!(MarketplaceVisibility::default(), MarketplaceVisibility::Public);
+    assert_eq!(
+        MarketplaceVisibility::default(),
+        MarketplaceVisibility::Public
+    );
     let json = serde_json::to_string(&MarketplaceVisibility::Org).unwrap();
     assert_eq!(json, "\"org\"");
     let parsed: MarketplaceVisibility = serde_json::from_str("\"private\"").unwrap();

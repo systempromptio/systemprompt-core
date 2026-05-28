@@ -51,7 +51,13 @@ mod sync_diff_result {
                 FileDiffStatus::Unchanged => unchanged += 1,
             }
         }
-        SyncDiffResult { entries, added, modified, deleted, unchanged }
+        SyncDiffResult {
+            entries,
+            added,
+            modified,
+            deleted,
+            unchanged,
+        }
     }
 
     #[test]
@@ -74,7 +80,11 @@ mod sync_diff_result {
 
     #[test]
     fn any_added_modified_or_deleted_has_changes() {
-        for st in [FileDiffStatus::Added, FileDiffStatus::Modified, FileDiffStatus::Deleted] {
+        for st in [
+            FileDiffStatus::Added,
+            FileDiffStatus::Modified,
+            FileDiffStatus::Deleted,
+        ] {
             let r = make(vec![SyncDiffEntry {
                 path: format!("{st:?}.txt"),
                 status: st,
@@ -87,9 +97,21 @@ mod sync_diff_result {
     #[test]
     fn changed_paths_excludes_unchanged() {
         let r = make(vec![
-            SyncDiffEntry { path: "kept.txt".to_owned(), status: FileDiffStatus::Unchanged, size: 1 },
-            SyncDiffEntry { path: "new.txt".to_owned(), status: FileDiffStatus::Added, size: 2 },
-            SyncDiffEntry { path: "gone.txt".to_owned(), status: FileDiffStatus::Deleted, size: 0 },
+            SyncDiffEntry {
+                path: "kept.txt".to_owned(),
+                status: FileDiffStatus::Unchanged,
+                size: 1,
+            },
+            SyncDiffEntry {
+                path: "new.txt".to_owned(),
+                status: FileDiffStatus::Added,
+                size: 2,
+            },
+            SyncDiffEntry {
+                path: "gone.txt".to_owned(),
+                status: FileDiffStatus::Deleted,
+                size: 0,
+            },
         ]);
         let paths = r.changed_paths();
         assert_eq!(paths.len(), 2);
@@ -126,8 +148,14 @@ mod backup_services {
         let names: Vec<String> = (0..zip.len())
             .map(|i| zip.by_index(i).expect("entry").name().to_owned())
             .collect();
-        assert!(names.iter().any(|n| n.contains("agents/a.yaml")), "{names:?}");
-        assert!(!names.iter().any(|n| n.contains("excluded_dir")), "{names:?}");
+        assert!(
+            names.iter().any(|n| n.contains("agents/a.yaml")),
+            "{names:?}"
+        );
+        assert!(
+            !names.iter().any(|n| n.contains("excluded_dir")),
+            "{names:?}"
+        );
     }
 }
 
@@ -143,7 +171,8 @@ mod apply_tarball {
                 header.set_size(content.len() as u64);
                 header.set_mode(0o644);
                 header.set_cksum();
-                tar.append_data(&mut header, name, *content).expect("append");
+                tar.append_data(&mut header, name, *content)
+                    .expect("append");
             }
             tar.finish().expect("finish");
         }
@@ -152,10 +181,7 @@ mod apply_tarball {
 
     #[test]
     fn apply_extracts_all_entries() {
-        let tarball = build_tarball(&[
-            ("agents/a.yaml", b"agent: 1"),
-            ("skills/s.md", b"# skill"),
-        ]);
+        let tarball = build_tarball(&[("agents/a.yaml", b"agent: 1"), ("skills/s.md", b"# skill")]);
         let tmp = TempDir::new().expect("tmp");
         let extracted = FileSyncService::apply(&tarball, tmp.path(), None).expect("apply");
         assert!(extracted >= 1);

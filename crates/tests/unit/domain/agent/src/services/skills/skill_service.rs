@@ -63,10 +63,7 @@ async fn skill_service_load_skill_metadata_missing_returns_err() {
     let _root = skills_root();
     let svc = SkillService::new().expect("svc");
     let id = SkillId::new("__does_not_exist_xyz__");
-    let err = svc
-        .load_skill_metadata(&id)
-        .await
-        .expect_err("should fail");
+    let err = svc.load_skill_metadata(&id).await.expect_err("should fail");
     assert!(format!("{err}").contains("Skill not found"));
 }
 
@@ -165,10 +162,7 @@ async fn skill_service_load_skill_invalid_yaml_errors() {
 
     let svc = SkillService::new().expect("svc");
     let id = SkillId::new("invalid_yaml_skill");
-    let err = svc
-        .load_skill_metadata(&id)
-        .await
-        .expect_err("should fail");
+    let err = svc.load_skill_metadata(&id).await.expect_err("should fail");
     assert!(format!("{err}").contains("Invalid YAML"));
 }
 
@@ -297,7 +291,9 @@ async fn skill_service_with_execution_step_repo_returns_self() {
         Ok(r) => Arc::new(r),
         Err(_) => return,
     };
-    let svc = SkillService::new().expect("svc").with_execution_step_repo(repo);
+    let svc = SkillService::new()
+        .expect("svc")
+        .with_execution_step_repo(repo);
     let dbg = format!("{:?}", svc);
     assert!(dbg.contains("ExecutionStepRepository"));
 }

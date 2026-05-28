@@ -156,8 +156,7 @@ fn test_create_agent_request_from_raw_input_modes_preserved() {
 
 #[tokio::test]
 async fn test_create_agent_validate_empty_name() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.name = "   ".to_string();
 
     let err = request.validate().await.unwrap_err();
@@ -166,8 +165,7 @@ async fn test_create_agent_validate_empty_name() {
 
 #[tokio::test]
 async fn test_create_agent_validate_bad_url() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.supported_interfaces[0].url = "ftp://example.com/foo".to_string();
 
     let err = request.validate().await.unwrap_err();
@@ -176,8 +174,7 @@ async fn test_create_agent_validate_bad_url() {
 
 #[tokio::test]
 async fn test_create_agent_validate_bad_version() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.version = "not-a-version".to_string();
     request.card.supported_interfaces[0].url = "http://example.com".to_string();
 
@@ -187,8 +184,7 @@ async fn test_create_agent_validate_bad_version() {
 
 #[tokio::test]
 async fn test_create_agent_validate_ok_without_mcp() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.supported_interfaces[0].url = "http://example.com".to_string();
     request.mcp_servers = None;
 
@@ -198,8 +194,7 @@ async fn test_create_agent_validate_ok_without_mcp() {
 
 #[tokio::test]
 async fn test_create_agent_validate_ok_empty_mcp_servers() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.supported_interfaces[0].url = "https://example.com:443".to_string();
     request.mcp_servers = Some(Vec::new());
 
@@ -221,8 +216,7 @@ fn test_create_agent_is_active_default() {
 
 #[test]
 fn test_create_agent_is_active_false() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.is_active = Some(false);
     assert!(!request.is_active());
 }
@@ -235,16 +229,14 @@ fn test_create_agent_extract_port_default() {
 
 #[test]
 fn test_create_agent_extract_port_explicit() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.supported_interfaces[0].url = "http://example.com:9001/path".to_string();
     assert_eq!(request.extract_port(), 9001);
 }
 
 #[test]
 fn test_create_agent_extract_port_https_default() {
-    let mut request: CreateAgentRequest =
-        serde_json::from_value(create_json_minimal()).unwrap();
+    let mut request: CreateAgentRequest = serde_json::from_value(create_json_minimal()).unwrap();
     request.card.supported_interfaces[0].url = "https://example.com/x".to_string();
     assert_eq!(request.extract_port(), 443);
 }

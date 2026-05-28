@@ -3,9 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use systemprompt_agent::services::skills::{SkillInjector, SkillService};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, SessionId, SkillId, TraceId, UserId,
-};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, SkillId, TraceId, UserId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 

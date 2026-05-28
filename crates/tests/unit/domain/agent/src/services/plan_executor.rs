@@ -1,13 +1,13 @@
 use serde_json::Value;
 use systemprompt_agent::services::a2a_server::processing::strategies::plan_executor::{
-    ToolExecutorTrait, convert_to_call_tool_results, convert_to_tool_calls, execute_tools_sequentially,
-    execute_tools_with_templates, format_results_for_response,
+    ToolExecutorTrait, convert_to_call_tool_results, convert_to_tool_calls,
+    execute_tools_sequentially, execute_tools_with_templates, format_results_for_response,
 };
 use systemprompt_agent::services::shared::Result;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::McpTool;
 use systemprompt_models::ai::{ExecutionState, PlannedToolCall, ToolCallResult};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::McpTool;
 
 struct AlwaysOkExecutor;
 #[async_trait::async_trait]
@@ -33,11 +33,7 @@ impl ToolExecutorTrait for AlwaysFailExecutor {
         _tools: &[McpTool],
         _ctx: &RequestContext,
     ) -> Result<Value> {
-        Err(
-            systemprompt_agent::services::shared::AgentServiceError::Internal(
-                "boom".to_string(),
-            ),
-        )
+        Err(systemprompt_agent::services::shared::AgentServiceError::Internal("boom".to_string()))
     }
 }
 
@@ -141,11 +137,13 @@ async fn execute_tools_sequentially_records_failures() {
         .expect("ok");
     assert_eq!(state.results.len(), 1);
     assert_eq!(state.failed_results().len(), 1);
-    assert!(state.failed_results()[0]
-        .error
-        .as_deref()
-        .unwrap_or("")
-        .contains("boom"));
+    assert!(
+        state.failed_results()[0]
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("boom")
+    );
 }
 
 #[tokio::test]

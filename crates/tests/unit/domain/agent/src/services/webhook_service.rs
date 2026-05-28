@@ -1,16 +1,20 @@
 //! Unit tests for WebhookService in-memory endpoint registry.
 //!
 //! Targets:
-//! - crates/domain/agent/src/services/external_integrations/webhook/service/mod.rs
+//! - crates/domain/agent/src/services/external_integrations/webhook/service/
+//!   mod.rs
 
 use std::collections::HashMap;
+use systemprompt_agent::models::external_integrations::{WebhookEndpoint, WebhookRequest};
 use systemprompt_agent::services::external_integrations::WebhookService;
 use systemprompt_identifiers::WebhookEndpointId;
-use systemprompt_agent::models::external_integrations::{
-    WebhookEndpoint, WebhookRequest,
-};
 
-fn make_endpoint(id: &str, secret: Option<&str>, events: Vec<&str>, active: bool) -> WebhookEndpoint {
+fn make_endpoint(
+    id: &str,
+    secret: Option<&str>,
+    events: Vec<&str>,
+    active: bool,
+) -> WebhookEndpoint {
     WebhookEndpoint {
         id: WebhookEndpointId::new(id),
         url: "https://example.com/hook".to_string(),
@@ -21,7 +25,11 @@ fn make_endpoint(id: &str, secret: Option<&str>, events: Vec<&str>, active: bool
     }
 }
 
-fn make_request(headers: &[(&str, &str)], body: serde_json::Value, signature: Option<&str>) -> WebhookRequest {
+fn make_request(
+    headers: &[(&str, &str)],
+    body: serde_json::Value,
+    signature: Option<&str>,
+) -> WebhookRequest {
     WebhookRequest {
         headers: headers
             .iter()
@@ -167,11 +175,7 @@ async fn handle_webhook_wildcard_event_subscription() {
         .await
         .unwrap();
 
-    let req = make_request(
-        &[("x-event-type", "anything")],
-        serde_json::json!({}),
-        None,
-    );
+    let req = make_request(&[("x-event-type", "anything")], serde_json::json!({}), None);
     let response = service
         .handle_webhook(&WebhookEndpointId::new("ep"), req)
         .await

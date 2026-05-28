@@ -8,8 +8,8 @@
 
 use std::time::Duration;
 use systemprompt_agent::services::shared::config::{
-    AgentServiceConfig, ConnectionConfiguration, RuntimeConfiguration,
-    RuntimeConfigurationBuilder, ServiceConfiguration,
+    AgentServiceConfig, ConnectionConfiguration, RuntimeConfiguration, RuntimeConfigurationBuilder,
+    ServiceConfiguration,
 };
 use systemprompt_identifiers::AgentId;
 

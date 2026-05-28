@@ -40,11 +40,8 @@ async fn generate_parses_text_response() {
 
 #[tokio::test]
 async fn generate_returns_error_on_4xx() {
-    let server = mock_http::gemini_generate_error(
-        400,
-        json!({ "error": { "message": "bad input" } }),
-    )
-    .await;
+    let server =
+        mock_http::gemini_generate_error(400, json!({ "error": { "message": "bad input" } })).await;
     let p = provider(server.uri());
     let messages = msgs();
     let params = GenerationParams::new(&messages, "gemini-2.5-flash", 32);
@@ -69,7 +66,9 @@ async fn generate_with_schema_returns_structured() {
 
 #[tokio::test]
 async fn generate_stream_yields_chunks() {
-    let sse = "data: [{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]}}],\"usageMetadata\":{\"promptTokenCount\":1,\"totalTokenCount\":2,\"candidatesTokenCount\":1}}]\n\n";
+    let sse = "data: [{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\\
+               "}]}}],\"usageMetadata\":{\"promptTokenCount\":1,\"totalTokenCount\":2,\"\
+               candidatesTokenCount\":1}}]\n\n";
     let server = mock_http::gemini_generate_stream(sse).await;
     let p = provider(server.uri());
     let messages = msgs();
@@ -90,15 +89,13 @@ async fn generate_stream_yields_chunks() {
 #[tokio::test]
 async fn generate_with_google_search_returns_grounded() {
     let server =
-        mock_http::gemini_generate_success(mock_http::gemini_grounded_body("grounded answer")).await;
+        mock_http::gemini_generate_success(mock_http::gemini_grounded_body("grounded answer"))
+            .await;
     let p = provider(server.uri()).with_google_search();
     let messages = msgs();
-    let params = SearchGenerationParams::new(GenerationParams::new(
-        &messages,
-        "gemini-2.5-flash",
-        32,
-    ))
-    .with_urls(vec!["https://example.com".to_owned()]);
+    let params =
+        SearchGenerationParams::new(GenerationParams::new(&messages, "gemini-2.5-flash", 32))
+            .with_urls(vec!["https://example.com".to_owned()]);
     let _ = p.generate_with_google_search(params).await;
 }
 
