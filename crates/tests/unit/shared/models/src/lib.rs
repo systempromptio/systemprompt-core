@@ -17,6 +17,12 @@
 mod a2a;
 
 #[cfg(test)]
+mod a2a_artifact_metadata;
+
+#[cfg(test)]
+mod a2a_task_metadata;
+
+#[cfg(test)]
 mod ai;
 
 #[cfg(test)]
@@ -120,3 +126,9 @@ mod auth_permission;
 
 #[cfg(test)]
 mod auth_types;
+
+#[cfg(test)]
+mod bridge_ids;
+
+#[cfg(test)]
+mod bridge_manifest_version;
