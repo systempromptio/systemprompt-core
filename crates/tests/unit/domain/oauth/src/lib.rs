@@ -12,6 +12,9 @@
 //! - Audience validation
 
 #[cfg(test)]
+mod error;
+
+#[cfg(test)]
 mod models;
 
 #[cfg(test)]
