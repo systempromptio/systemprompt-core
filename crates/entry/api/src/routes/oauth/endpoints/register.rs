@@ -50,12 +50,8 @@ pub async fn register_client(
     let redirect_uris = request
         .get_redirect_uris()
         .map_err(OAuthHttpError::invalid_client_metadata)?;
-    let grant_types = request
-        .get_grant_types()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
-    let response_types = request
-        .get_response_types()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
+    let grant_types = request.get_grant_types();
+    let response_types = request.get_response_types();
     let scopes = determine_scopes(&request)
         .map_err(|e| OAuthHttpError::invalid_client_metadata(format!("Invalid scopes: {e}")))?;
     let token_endpoint_auth_method = request.get_token_endpoint_auth_method();

@@ -229,6 +229,76 @@ async fn register_client_runs_handler() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Regression guard for RFC 7591 §2 spec defaults: a minimal registration that
+/// omits `grant_types` and `response_types` must succeed (201 Created) and the
+/// response body must echo the spec-mandated defaults
+/// (`["authorization_code"]` / `["code"]`) — not 400 invalid_client_metadata.
+#[tokio::test]
+async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_omitted()
+-> anyhow::Result<()> {
+    use axum::Extension;
+    use systemprompt_identifiers::UserId;
+    use uuid::Uuid;
+
+    ensure_config();
+    let (pool, ctx) = setup_ctx().await?;
+
+    let user_id = UserId::new(format!("dcr-defaults-{}", Uuid::new_v4()));
+    {
+        let p = pool.pool_arc().expect("read pool");
+        sqlx::query(
+            "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
+        )
+        .bind(user_id.as_str())
+        .bind(format!("{}@dcr-fixture.invalid", user_id.as_str()))
+        .execute(p.as_ref())
+        .await?;
+    }
+
+    let mut req_ctx = super::common::request_context("ignored");
+    req_ctx.auth.actor.user_id = user_id.clone();
+
+    let state = OAuthState::new(
+        Arc::clone(ctx.db_pool()),
+        ctx.analytics_provider().expect("analytics"),
+        ctx.user_provider().expect("user"),
+    );
+    let app = systemprompt_api::routes::oauth::public_router()
+        .with_state(state)
+        .layer(Extension(req_ctx));
+
+    let body = serde_json::json!({
+        "client_name": "rfc7591-probe",
+        "redirect_uris": ["http://127.0.0.1:53280/callback"],
+    });
+    let resp = app.oneshot(json_post("/register", body)).await?;
+    let status = resp.status();
+    let (_, body_str) = super::common::body_to_string(resp).await?;
+    assert_eq!(
+        status.as_u16(),
+        201,
+        "expected 201 Created, got {status}: {body_str}"
+    );
+
+    let json: serde_json::Value = serde_json::from_str(&body_str)?;
+    assert_eq!(
+        json["grant_types"],
+        serde_json::json!(["authorization_code"]),
+        "grant_types must default to RFC 7591 §2 value when omitted; got {body_str}"
+    );
+    assert_eq!(
+        json["response_types"],
+        serde_json::json!(["code"]),
+        "response_types must default to RFC 7591 §2 value when omitted; got {body_str}"
+    );
+    assert!(json["client_id"].as_str().is_some(), "missing client_id");
+    assert!(
+        json["client_secret"].as_str().is_some(),
+        "missing client_secret"
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn get_client_configuration_unknown_returns_4xx() -> anyhow::Result<()> {
     let app = authenticated_app().await?;

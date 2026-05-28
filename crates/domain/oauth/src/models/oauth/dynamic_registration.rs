@@ -65,20 +65,24 @@ impl DynamicRegistrationRequest {
             .cloned()
     }
 
-    pub fn get_grant_types(&self) -> Result<Vec<String>, String> {
+    pub fn get_grant_types(&self) -> Vec<String> {
         self.grant_types
             .as_ref()
             .filter(|types| !types.is_empty())
-            .ok_or_else(|| "grant_types are required for client registration".to_owned())
             .cloned()
+            // RFC 7591 §2: when the client omits grant_types, the authorization server MUST
+            // default to ["authorization_code"]. A client wanting refresh_token must list it.
+            .unwrap_or_else(|| vec!["authorization_code".to_owned()])
     }
 
-    pub fn get_response_types(&self) -> Result<Vec<String>, String> {
+    pub fn get_response_types(&self) -> Vec<String> {
         self.response_types
             .as_ref()
             .filter(|types| !types.is_empty())
-            .ok_or_else(|| "response_types are required for client registration".to_owned())
             .cloned()
+            // RFC 7591 §2: when the client omits response_types, the authorization server MUST
+            // default to ["code"].
+            .unwrap_or_else(|| vec!["code".to_owned()])
     }
 
     pub fn get_scopes(&self) -> Vec<String> {

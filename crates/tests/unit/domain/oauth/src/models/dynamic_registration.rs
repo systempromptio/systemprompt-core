@@ -99,53 +99,60 @@ fn test_get_redirect_uris_empty() {
 }
 
 #[test]
-fn test_get_grant_types_success() {
+fn test_get_grant_types_explicit_preserved() {
     let request = create_valid_request();
-    let result = request.get_grant_types();
-    let val = result.expect("expected success");
-    assert_eq!(val, vec!["authorization_code"]);
+    assert_eq!(request.get_grant_types(), vec!["authorization_code"]);
 }
 
 #[test]
-fn test_get_grant_types_missing() {
+fn test_get_grant_types_explicit_multi_preserved_verbatim() {
+    let json = r#"{"grant_types": ["authorization_code", "refresh_token"]}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    assert_eq!(
+        request.get_grant_types(),
+        vec!["authorization_code", "refresh_token"]
+    );
+}
+
+#[test]
+fn test_get_grant_types_missing_defaults_to_authorization_code() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    let result = request.get_grant_types();
-    let err = result.unwrap_err();
-    assert!(err.contains("grant_types are required"));
+    assert_eq!(request.get_grant_types(), vec!["authorization_code"]);
 }
 
 #[test]
-fn test_get_grant_types_empty() {
+fn test_get_grant_types_empty_defaults_to_authorization_code() {
     let json = r#"{"grant_types": []}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    let result = request.get_grant_types();
-    result.unwrap_err();
+    assert_eq!(request.get_grant_types(), vec!["authorization_code"]);
 }
 
 #[test]
-fn test_get_response_types_success() {
+fn test_get_response_types_explicit_preserved() {
     let request = create_valid_request();
-    let result = request.get_response_types();
-    let val = result.expect("expected success");
-    assert_eq!(val, vec!["code"]);
+    assert_eq!(request.get_response_types(), vec!["code"]);
 }
 
 #[test]
-fn test_get_response_types_missing() {
+fn test_get_response_types_missing_defaults_to_code() {
     let json = r#"{}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    let result = request.get_response_types();
-    let err = result.unwrap_err();
-    assert!(err.contains("response_types are required"));
+    assert_eq!(request.get_response_types(), vec!["code"]);
 }
 
 #[test]
-fn test_get_response_types_empty() {
+fn test_get_response_types_empty_defaults_to_code() {
     let json = r#"{"response_types": []}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
-    let result = request.get_response_types();
-    result.unwrap_err();
+    assert_eq!(request.get_response_types(), vec!["code"]);
+}
+
+#[test]
+fn test_get_token_endpoint_auth_method_none_accepted_for_pkce_public_client() {
+    let json = r#"{"token_endpoint_auth_method": "none"}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    assert_eq!(request.get_token_endpoint_auth_method(), "none");
 }
 
 #[test]
