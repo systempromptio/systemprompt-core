@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use systemprompt_models::ai::ToolModelOverrides;
+use systemprompt_models::services::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -11,12 +12,12 @@ pub struct AgentRuntimeInfo {
     pub is_enabled: bool,
     pub is_primary: bool,
     pub system_prompt: Option<String>,
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub max_output_tokens: Option<u32>,
     #[serde(default)]
-    pub skills: Vec<String>,
+    pub skills: PluginComponentRef,
     #[serde(default)]
     pub tool_model_overrides: ToolModelOverrides,
 }

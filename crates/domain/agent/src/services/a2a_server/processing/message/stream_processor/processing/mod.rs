@@ -142,9 +142,9 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
 
     let ai_messages_for_synthesis = ai_messages.clone();
 
-    let has_tools = !agent_runtime.mcp_servers.is_empty();
+    let has_tools = !agent_runtime.mcp_servers.include.is_empty();
     tracing::info!(
-        mcp_server_count = agent_runtime.mcp_servers.len(),
+        mcp_server_count = agent_runtime.mcp_servers.include.len(),
         has_tools = has_tools,
         "Agent MCP server status"
     );

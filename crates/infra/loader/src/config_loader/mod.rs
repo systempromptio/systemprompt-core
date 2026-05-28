@@ -17,7 +17,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::{MarketplaceConfigFile, ServicesConfig};
+use systemprompt_models::services::{
+    MarketplaceConfigFile, PluginConfigFile, ServicesConfig, SkillConfig,
+};
+use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
@@ -111,6 +114,8 @@ impl ConfigLoader {
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
         warn_on_authored_card_skills(&merged);
 
+        discover_skills(&self.base_path, &mut merged)?;
+        discover_plugins(&self.base_path, &mut merged)?;
         discover_marketplaces(&self.base_path, &mut merged)?;
 
         if let Ok(val) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
@@ -170,6 +175,123 @@ impl ConfigLoader {
 ///
 /// `base_path` is the parent of the root `config.yaml` (i.e.
 /// `<services>/config`), so the marketplaces directory is its sibling.
+/// Walks `<services>/skills/<id>/config.yaml`, parses each as
+/// [`DiskSkillConfig`], and inserts a corresponding [`SkillConfig`] into
+/// `merged.skills.skills` so that marketplace/plugin `skills.include`
+/// references can be resolved at validation time.
+fn discover_skills(base_path: &Path, merged: &mut ServicesConfig) -> ConfigLoadResult<()> {
+    let Some(services_dir) = base_path.parent() else {
+        return Ok(());
+    };
+    let skills_dir = services_dir.join("skills");
+    if !skills_dir.exists() {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(&skills_dir).map_err(|e| ConfigLoadError::Io {
+        path: skills_dir.clone(),
+        source: e,
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| ConfigLoadError::Io {
+            path: skills_dir.clone(),
+            source: e,
+        })?;
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        let config_path = dir.join(SKILL_CONFIG_FILENAME);
+        if !config_path.exists() {
+            continue;
+        }
+
+        let content = fs::read_to_string(&config_path).map_err(|e| ConfigLoadError::Io {
+            path: config_path.clone(),
+            source: e,
+        })?;
+        let disk: DiskSkillConfig =
+            serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
+                path: config_path.clone(),
+                source: e,
+            })?;
+
+        let key = disk.id.as_str().to_owned();
+        if merged.skills.skills.contains_key(&key) {
+            continue;
+        }
+        merged.skills.skills.insert(
+            key,
+            SkillConfig {
+                id: disk.id,
+                name: disk.name,
+                description: disk.description,
+                enabled: disk.enabled,
+                tags: disk.tags,
+                instructions: None,
+                assigned_agents: Default::default(),
+                mcp_servers: Default::default(),
+                model_config: None,
+            },
+        );
+    }
+
+    Ok(())
+}
+
+/// Walks `<services>/plugins/<id>/config.yaml`, parses each as
+/// [`PluginConfigFile`], and inserts the contained [`PluginConfig`] into
+/// `merged.plugins` so that marketplace `plugins.include` references and
+/// plugin-binding validation resolve at load time.
+fn discover_plugins(base_path: &Path, merged: &mut ServicesConfig) -> ConfigLoadResult<()> {
+    let Some(services_dir) = base_path.parent() else {
+        return Ok(());
+    };
+    let plugins_dir = services_dir.join("plugins");
+    if !plugins_dir.exists() {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(&plugins_dir).map_err(|e| ConfigLoadError::Io {
+        path: plugins_dir.clone(),
+        source: e,
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| ConfigLoadError::Io {
+            path: plugins_dir.clone(),
+            source: e,
+        })?;
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        let config_path = dir.join("config.yaml");
+        if !config_path.exists() {
+            continue;
+        }
+
+        let content = fs::read_to_string(&config_path).map_err(|e| ConfigLoadError::Io {
+            path: config_path.clone(),
+            source: e,
+        })?;
+        let file: PluginConfigFile =
+            serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
+                path: config_path.clone(),
+                source: e,
+            })?;
+
+        let id = file.plugin.id.as_str().to_owned();
+        if merged.plugins.contains_key(&id) {
+            continue;
+        }
+        merged.plugins.insert(id, file.plugin);
+    }
+
+    Ok(())
+}
+
 fn discover_marketplaces(base_path: &Path, merged: &mut ServicesConfig) -> ConfigLoadResult<()> {
     let Some(services_dir) = base_path.parent() else {
         return Ok(());

@@ -6,6 +6,14 @@
 
 use systemprompt_agent::models::runtime::AgentRuntimeInfo;
 use systemprompt_models::ai::ToolModelOverrides;
+use systemprompt_models::services::PluginComponentRef;
+
+fn pcr<I: IntoIterator<Item = &'static str>>(items: I) -> PluginComponentRef {
+    PluginComponentRef {
+        include: items.into_iter().map(|s| s.to_string()).collect(),
+        ..Default::default()
+    }
+}
 
 #[test]
 fn test_agent_runtime_info_serialize() {
@@ -15,11 +23,11 @@ fn test_agent_runtime_info_serialize() {
         is_enabled: true,
         is_primary: false,
         system_prompt: Some("You are a helpful assistant".to_string()),
-        mcp_servers: vec!["server1".to_string(), "server2".to_string()],
+        mcp_servers: pcr(["server1", "server2"]),
         provider: Some("anthropic".to_string()),
         model: Some("claude-3-opus".to_string()),
         max_output_tokens: Some(4096),
-        skills: vec!["skill1".to_string()],
+        skills: pcr(["skill1"]),
         tool_model_overrides: ToolModelOverrides::default(),
     };
 
@@ -38,11 +46,11 @@ fn test_agent_runtime_info_deserialize() {
         "isEnabled": true,
         "isPrimary": true,
         "systemPrompt": "System prompt here",
-        "mcpServers": ["mcp1"],
+        "mcpServers": {"include": ["mcp1"]},
         "provider": "openai",
         "model": "gpt-4",
         "maxOutputTokens": 8192,
-        "skills": [],
+        "skills": {},
         "toolModelOverrides": {}
     }"#;
 
@@ -52,7 +60,7 @@ fn test_agent_runtime_info_deserialize() {
     assert!(info.is_enabled);
     assert!(info.is_primary);
     assert_eq!(info.system_prompt, Some("System prompt here".to_string()));
-    assert_eq!(info.mcp_servers, vec!["mcp1".to_string()]);
+    assert_eq!(info.mcp_servers.include, vec!["mcp1".to_string()]);
     assert_eq!(info.provider, Some("openai".to_string()));
     assert_eq!(info.model, Some("gpt-4".to_string()));
     assert_eq!(info.max_output_tokens, Some(8192));
@@ -65,8 +73,8 @@ fn test_agent_runtime_info_optional_fields() {
         "port": 3000,
         "isEnabled": false,
         "isPrimary": false,
-        "mcpServers": [],
-        "skills": [],
+        "mcpServers": {},
+        "skills": {},
         "toolModelOverrides": {}
     }"#;
 
@@ -79,7 +87,7 @@ fn test_agent_runtime_info_optional_fields() {
     assert!(info.provider.is_none());
     assert!(info.model.is_none());
     assert!(info.max_output_tokens.is_none());
-    assert!(info.mcp_servers.is_empty());
+    assert!(info.mcp_servers.include.is_empty());
 }
 
 #[test]
@@ -90,11 +98,11 @@ fn test_agent_runtime_info_debug() {
         is_enabled: true,
         is_primary: false,
         system_prompt: None,
-        mcp_servers: vec![],
+        mcp_servers: PluginComponentRef::default(),
         provider: None,
         model: None,
         max_output_tokens: None,
-        skills: vec![],
+        skills: PluginComponentRef::default(),
         tool_model_overrides: ToolModelOverrides::default(),
     };
 
@@ -112,11 +120,11 @@ fn test_agent_runtime_info_clone() {
         is_enabled: true,
         is_primary: true,
         system_prompt: Some("Cloned prompt".to_string()),
-        mcp_servers: vec!["server".to_string()],
+        mcp_servers: pcr(["server"]),
         provider: Some("provider".to_string()),
         model: Some("model".to_string()),
         max_output_tokens: Some(2048),
-        skills: vec!["skill".to_string()],
+        skills: pcr(["skill"]),
         tool_model_overrides: ToolModelOverrides::default(),
     };
 
@@ -136,20 +144,16 @@ fn test_agent_runtime_info_with_skills() {
         is_enabled: true,
         is_primary: false,
         system_prompt: None,
-        mcp_servers: vec![],
+        mcp_servers: PluginComponentRef::default(),
         provider: None,
         model: None,
         max_output_tokens: None,
-        skills: vec![
-            "code-review".to_string(),
-            "documentation".to_string(),
-            "testing".to_string(),
-        ],
+        skills: pcr(["code-review", "documentation", "testing"]),
         tool_model_overrides: ToolModelOverrides::default(),
     };
 
-    assert_eq!(info.skills.len(), 3);
-    assert!(info.skills.contains(&"code-review".to_string()));
-    assert!(info.skills.contains(&"documentation".to_string()));
-    assert!(info.skills.contains(&"testing".to_string()));
+    assert_eq!(info.skills.include.len(), 3);
+    assert!(info.skills.include.contains(&"code-review".to_string()));
+    assert!(info.skills.include.contains(&"documentation".to_string()));
+    assert!(info.skills.include.contains(&"testing".to_string()));
 }

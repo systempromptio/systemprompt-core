@@ -590,8 +590,9 @@ plugins:
       include:
         - alpha_agent
     mcp_servers:
-      - fixture_mcp
-    content_sources: []
+      include:
+        - fixture_mcp
+    content_sources: {}
     scripts: []
 skills:
   enabled: true
@@ -604,8 +605,10 @@ skills:
       enabled: true
       tags: [help, general]
       instructions: "You are a helpful assistant."
-      assigned_agents: [alpha_agent]
-      mcp_servers: [fixture_mcp]
+      assigned_agents:
+        include: [alpha_agent]
+      mcp_servers:
+        include: [fixture_mcp]
 "#,
     );
     yaml.push_str(FULL_WEB_BLOCK);

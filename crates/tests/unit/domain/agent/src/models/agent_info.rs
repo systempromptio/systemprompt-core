@@ -126,12 +126,15 @@ fn test_agent_info_with_skills() {
 #[test]
 fn test_agent_info_with_mcp_servers() {
     let card = create_test_card();
-    let servers = vec!["brave".to_string(), "postgres".to_string()];
+    let servers = systemprompt_models::services::PluginComponentRef {
+        include: vec!["brave".to_string(), "postgres".to_string()],
+        ..Default::default()
+    };
 
     let info = AgentInfo::from_card(AgentId::new("agent-1"), card, true).with_mcp_servers(servers);
 
     let servers = info.mcp_servers.expect("expected Some value");
-    assert_eq!(servers.len(), 2);
+    assert_eq!(servers.include.len(), 2);
 }
 
 #[test]
@@ -149,7 +152,10 @@ fn test_agent_info_builder_chain() {
         output_modes: None,
         security: None,
     }];
-    let servers = vec!["brave".to_string()];
+    let servers = systemprompt_models::services::PluginComponentRef {
+        include: vec!["brave".to_string()],
+        ..Default::default()
+    };
 
     let info = AgentInfo::from_card(AgentId::new("agent-1"), card, true)
         .with_skills(skills)
@@ -221,11 +227,14 @@ fn test_agent_info_mcp_count_none() {
 #[test]
 fn test_agent_info_mcp_count_with_servers() {
     let card = create_test_card();
-    let servers = vec![
-        "brave".to_string(),
-        "postgres".to_string(),
-        "filesystem".to_string(),
-    ];
+    let servers = systemprompt_models::services::PluginComponentRef {
+        include: vec![
+            "brave".to_string(),
+            "postgres".to_string(),
+            "filesystem".to_string(),
+        ],
+        ..Default::default()
+    };
 
     let info = AgentInfo::from_card(AgentId::new("agent-1"), card, true).with_mcp_servers(servers);
 

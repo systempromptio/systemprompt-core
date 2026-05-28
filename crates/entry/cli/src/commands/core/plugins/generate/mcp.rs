@@ -8,14 +8,14 @@ pub(super) fn generate_mcp_json(
     output_dir: &Path,
     files_generated: &mut Vec<String>,
 ) -> Result<()> {
-    if plugin.mcp_servers.is_empty() {
+    if plugin.mcp_servers.include.is_empty() {
         return Ok(());
     }
 
     let config_path = services_path.join("config").join("config.yaml");
     let mut mcp_servers = serde_json::Map::new();
 
-    for mcp_name in &plugin.mcp_servers {
+    for mcp_name in &plugin.mcp_servers.include {
         let port = resolve_mcp_port(mcp_name, &config_path).unwrap_or(5000);
         let url = format!("http://localhost:{}/api/v1/mcp/{}/mcp", port, mcp_name);
         let mut server = serde_json::Map::new();

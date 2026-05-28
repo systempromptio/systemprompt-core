@@ -23,6 +23,7 @@ use crate::bridge::ids::{
 };
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::hooks::{HookCategory, HookEvent};
+use crate::services::plugin::PluginComponentRef;
 use systemprompt_identifiers::{AgentId, AgentName, HookId, TenantId, UserId, ValidatedUrl};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,9 +106,9 @@ pub struct AgentEntry {
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     #[serde(default)]
-    pub skills: Vec<String>,
+    pub skills: PluginComponentRef,
     #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default)]

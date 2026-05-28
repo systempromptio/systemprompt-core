@@ -7,6 +7,7 @@ use systemprompt_identifiers::AgentId;
 use super::card::{AgentCardConfig, AgentMetadataConfig, OAuthConfig, default_true};
 use super::{AgentConfig, DEFAULT_AGENT_SYSTEM_PROMPT_FILE};
 use crate::errors::ConfigValidationError;
+use crate::services::plugin::PluginComponentRef;
 
 fn default_version() -> String {
     "1.0.0".to_owned()
@@ -39,9 +40,9 @@ pub struct DiskAgentConfig {
     #[serde(default)]
     pub category: Option<String>,
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     #[serde(default)]
-    pub skills: Vec<String>,
+    pub skills: PluginComponentRef,
     #[serde(default)]
     pub provider: Option<String>,
     #[serde(default)]

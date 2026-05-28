@@ -157,7 +157,7 @@ impl AgentRegistry {
 
     pub async fn get_mcp_servers(&self, agent_name: &str) -> AgentResult<Vec<String>> {
         let agent = self.get_agent(agent_name).await?;
-        Ok(agent.metadata.mcp_servers)
+        Ok(agent.metadata.mcp_servers.include)
     }
 
     pub async fn find_next_available_port(&self) -> AgentResult<u16> {
@@ -226,7 +226,7 @@ pub fn load_agent_skills_from_dir(
     skills_dir: &Path,
 ) -> Vec<crate::models::a2a::AgentSkill> {
     let mut all_skills = Vec::new();
-    for skill_id in &agent.metadata.skills {
+    for skill_id in &agent.metadata.skills.include {
         let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
         match load_skill_from_disk(skills_dir, &skill_id_typed) {
             Ok(skill) => all_skills.push(skill),

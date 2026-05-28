@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ai::ToolModelOverrides;
 use crate::auth::{JwtAudience, Permission};
+use crate::services::plugin::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,9 +95,9 @@ pub struct AgentMetadataConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     #[serde(default)]
-    pub skills: Vec<String>,
+    pub skills: PluginComponentRef,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

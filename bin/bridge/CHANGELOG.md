@@ -2,6 +2,10 @@
 
 ## [0.9.4] - 2026-05-28
 
+### Breaking
+
+- `bridge::manifest::AgentEntry.mcp_servers` and `AgentEntry.skills` are now `PluginComponentRef { source, include, exclude }` instead of `Vec<String>`. The manifest envelope tracks the unified `PluginComponentRef` shape now applied across every entity-id reference list in `systemprompt-models`. Bridge / Cowork consumers that read these fields must traverse `.include` instead of treating the value as a flat list; serialised manifests authored against 0.9.3 are no longer accepted.
+
 ### Changed
 
 - Bridge no longer emits the `deploymentOrganizationUuid` policy key into the Claude Desktop managed-prefs plist (macOS) or `HKCU\…\Policies\Claude` registry hive (Windows). Cowork's 3P custom-gateway contract is inference-only (`POST /v1/messages` + optional `GET /v1/models`, per docs/cowork/3p/gateway and gateway-sso); a custom gateway has no spec surface to assert the `integrations:manage` permission that this key flips Cowork into checking. Emitting it locked the Install button under the "Contact an organization owner to install connectors" tooltip without recourse. Cowork now resolves through `manageFromPersonal = true` and the Install button is live — MCP installation and use over the bridge proxy are unchanged.

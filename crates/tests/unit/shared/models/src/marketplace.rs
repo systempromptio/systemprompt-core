@@ -73,8 +73,8 @@ fn services_config_validates_marketplace_with_known_plugin() {
             category: "general".to_string(),
             skills: PluginComponentRef::default(),
             agents: PluginComponentRef::default(),
-            mcp_servers: vec![],
-            content_sources: vec![],
+            mcp_servers: PluginComponentRef::default(),
+            content_sources: PluginComponentRef::default(),
             scripts: vec![],
         },
     );

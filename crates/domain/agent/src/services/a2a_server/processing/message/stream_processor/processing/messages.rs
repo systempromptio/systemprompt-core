@@ -25,10 +25,10 @@ pub(super) async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<
     } = params;
     let mut ai_messages = Vec::new();
 
-    if !agent_runtime.skills.is_empty() {
+    if !agent_runtime.skills.include.is_empty() {
         tracing::info!(
-            skill_count = agent_runtime.skills.len(),
-            skills = ?agent_runtime.skills,
+            skill_count = agent_runtime.skills.include.len(),
+            skills = ?agent_runtime.skills.include,
             "Loading skills for agent"
         );
 
@@ -37,7 +37,7 @@ pub(super) async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<
              writing style:\n\n",
         );
 
-        for skill_id in &agent_runtime.skills {
+        for skill_id in &agent_runtime.skills.include {
             let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
             match skill_service.load_skill(&skill_id_typed, request_ctx).await {
                 Ok(skill_content) => {

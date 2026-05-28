@@ -93,7 +93,10 @@ fn phantom_agent() -> AgentConfig {
         default: false,
         card,
         metadata: AgentMetadataConfig {
-            skills: vec!["foo".to_owned()],
+            skills: systemprompt_models::services::PluginComponentRef {
+                include: vec!["foo".to_owned()],
+                ..Default::default()
+            },
             ..AgentMetadataConfig::default()
         },
         oauth: OAuthConfig::default(),
@@ -133,7 +136,7 @@ fn manifest_agent_entry_skills_mirror_metadata_skills() {
         "fixture should still tolerate (deprecated) card.skills in YAML"
     );
     assert_eq!(agent.card.skills[0].id.as_str(), "bar");
-    assert_eq!(agent.metadata.skills, vec!["foo".to_owned()]);
+    assert_eq!(agent.metadata.skills.include, vec!["foo".to_owned()]);
 
     let mut services = ServicesConfig::default();
     services.agents.insert("phantom_agent".to_owned(), agent);
@@ -142,12 +145,12 @@ fn manifest_agent_entry_skills_mirror_metadata_skills() {
     assert_eq!(entries.len(), 1);
     let entry = &entries[0];
     assert_eq!(
-        entry.skills,
+        entry.skills.include,
         vec!["foo".to_owned()],
         "AgentEntry.skills must mirror metadata.skills, not card.skills"
     );
     assert!(
-        !entry.skills.iter().any(|s| s == "bar"),
+        !entry.skills.include.iter().any(|s| s == "bar"),
         "AgentEntry.skills must not leak card.skills ids"
     );
 }

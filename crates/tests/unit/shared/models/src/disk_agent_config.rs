@@ -1,7 +1,15 @@
 use systemprompt_identifiers::{AgentId, SkillId};
 use systemprompt_models::services::{
     AgentCardConfig, AgentSkillConfig, CapabilitiesConfig, DiskAgentConfig, OAuthConfig,
+    PluginComponentRef,
 };
+
+fn pcr<I: IntoIterator<Item = &'static str>>(items: I) -> PluginComponentRef {
+    PluginComponentRef {
+        include: items.into_iter().map(|s| s.to_string()).collect(),
+        ..Default::default()
+    }
+}
 
 fn empty_card() -> AgentCardConfig {
     AgentCardConfig {
@@ -49,8 +57,8 @@ fn valid_disk(name: &str) -> DiskAgentConfig {
         system_prompt_file: None,
         tags: vec![],
         category: None,
-        mcp_servers: vec!["fs".to_owned()],
-        skills: vec!["skill_a".to_owned()],
+        mcp_servers: pcr(["fs"]),
+        skills: pcr(["skill_a"]),
         provider: Some("anthropic".to_owned()),
         model: Some("claude".to_owned()),
         card: empty_card(),
@@ -84,7 +92,7 @@ fn to_agent_config_synthesizes_endpoint_when_absent() {
     assert_eq!(runtime.name, "agent_one");
     assert_eq!(runtime.port, 9000);
     assert_eq!(runtime.card.name.as_deref(), Some("Display"));
-    assert_eq!(runtime.metadata.mcp_servers, vec!["fs".to_owned()]);
+    assert_eq!(runtime.metadata.mcp_servers.include, vec!["fs".to_owned()]);
     assert_eq!(runtime.metadata.provider.as_deref(), Some("anthropic"));
     assert_eq!(runtime.metadata.model.as_deref(), Some("claude"));
     assert_eq!(runtime.metadata.system_prompt, None);
@@ -175,8 +183,10 @@ name: my_agent
 display_name: My Agent
 description: An agent
 port: 9001
-mcp_servers: [fs]
-skills: [a, b]
+mcp_servers:
+  include: [fs]
+skills:
+  include: [a, b]
 card:
   protocolVersion: '1.0'
   displayName: My Agent
@@ -193,5 +203,5 @@ card:
     assert_eq!(cfg.port, 9001);
     assert!(cfg.enabled);
     assert_eq!(cfg.version, "1.0.0");
-    assert_eq!(cfg.mcp_servers, vec!["fs".to_owned()]);
+    assert_eq!(cfg.mcp_servers.include, vec!["fs".to_owned()]);
 }

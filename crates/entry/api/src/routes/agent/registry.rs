@@ -48,7 +48,7 @@ pub async fn handle_agent_registry(
                     };
 
                 let mcp_extensions = create_mcp_extensions_from_config(
-                    &agent_config.metadata.mcp_servers,
+                    &agent_config.metadata.mcp_servers.include,
                     api_external_url,
                 );
 

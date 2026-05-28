@@ -95,8 +95,8 @@ fn agent(name: &str) -> AgentEntry {
         is_primary: false,
         provider: None,
         model: None,
-        mcp_servers: vec![],
-        skills: vec![],
+        mcp_servers: Default::default(),
+        skills: Default::default(),
         tags: vec![],
         system_prompt: Some(format!("You are {name}.")),
     }

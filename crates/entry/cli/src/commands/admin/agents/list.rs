@@ -51,8 +51,8 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
                 .model
                 .clone()
                 .unwrap_or_else(|| "-".to_owned()),
-            mcp_servers: agent.metadata.mcp_servers.clone(),
-            skills_count: agent.metadata.skills.len(),
+            mcp_servers: agent.metadata.mcp_servers.include.clone(),
+            skills_count: agent.metadata.skills.include.len(),
         };
 
         return Ok(CommandResult::card(ListOrDetail::Detail(output))

@@ -46,7 +46,7 @@ pub(super) async fn execute(
         .get(&name)
         .ok_or_else(|| anyhow!("Agent '{}' not found", name))?;
 
-    let configured_servers = &agent.metadata.mcp_servers;
+    let configured_servers = &agent.metadata.mcp_servers.include;
 
     if configured_servers.is_empty() {
         let output = AgentToolsOutput {

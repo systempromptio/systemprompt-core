@@ -6,6 +6,7 @@ pub use systemprompt_models::bridge::manifest::{
     AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, PluginFile, SignedManifest, SkillEntry,
     UserInfo,
 };
+pub use systemprompt_models::services::PluginComponentRef;
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 use crate::ids::ManifestSignature;

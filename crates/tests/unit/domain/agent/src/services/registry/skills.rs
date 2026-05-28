@@ -295,7 +295,10 @@ fn agent_with_metadata_skills(skills: Vec<String>) -> AgentConfig {
         default: false,
         card: agent_card_config_empty(),
         metadata: AgentMetadataConfig {
-            skills,
+            skills: systemprompt_models::services::PluginComponentRef {
+                include: skills,
+                ..Default::default()
+            },
             ..AgentMetadataConfig::default()
         },
         oauth: OAuthConfig::default(),

@@ -41,7 +41,7 @@ impl MessageValidationService {
 
         let task_id = Self::determine_task_id(message);
 
-        let has_tools = !agent_runtime.mcp_servers.is_empty();
+        let has_tools = !agent_runtime.mcp_servers.include.is_empty();
 
         let context_id = message.context_id.clone();
 

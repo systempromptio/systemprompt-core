@@ -1,5 +1,6 @@
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, SignedManifest, SkillEntry, UserInfo, canonical_payload,
+    AgentEntry, AgentId, AgentName, PluginComponentRef, SignedManifest, SkillEntry, UserInfo,
+    canonical_payload,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{ManifestSignature, Sha256Digest, SkillId, SkillName};
@@ -71,8 +72,14 @@ fn canonical_payload_includes_user_skills_agents() {
             is_primary: true,
             provider: Some("anthropic".into()),
             model: Some("claude".into()),
-            mcp_servers: vec!["github".into()],
-            skills: vec!["s1".into()],
+            mcp_servers: PluginComponentRef {
+                include: vec!["github".into()],
+                ..Default::default()
+            },
+            skills: PluginComponentRef {
+                include: vec!["s1".into()],
+                ..Default::default()
+            },
             tags: vec![],
             system_prompt: None,
         }],

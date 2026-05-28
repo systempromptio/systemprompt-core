@@ -24,8 +24,8 @@ fn valid_plugin(id: &str) -> PluginConfig {
         category: "dev".to_owned(),
         skills: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
-        mcp_servers: vec![],
-        content_sources: vec![],
+        mcp_servers: PluginComponentRef::default(),
+        content_sources: PluginComponentRef::default(),
         scripts: vec![],
     }
 }
@@ -164,7 +164,7 @@ fn valid_marketplace(id: &str) -> MarketplaceConfig {
         visibility: MarketplaceVisibility::Public,
         plugins: PluginComponentRef::default(),
         skills: PluginComponentRef::default(),
-        mcp_servers: vec![],
+        mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
     }
 }

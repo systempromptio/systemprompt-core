@@ -4,7 +4,8 @@
 
 ### Breaking
 
-- `MarketplaceConfig.mcp_servers` is now `PluginComponentRef { source, include, exclude }` instead of a flat `Vec<String>`. Tenants must rewrite YAML from `mcp_servers: [a, b]` to `mcp_servers: { source: explicit, include: [a, b], exclude: [] }`. The flat-list form is rejected at config-load time with a deserialiser error. Validation now resolves `mcp_servers.include` ids against the top-level `services.mcp_servers` catalogue at load time, matching the existing `skills` / `agents` / `plugins` shape on `MarketplaceConfig`. `PluginConfig.mcp_servers` and `PluginConfig.content_sources` are unchanged in this release.
+- `MarketplaceConfig.mcp_servers` is now `PluginComponentRef { source, include, exclude }` instead of a flat `Vec<String>`. Tenants must rewrite YAML from `mcp_servers: [a, b]` to `mcp_servers: { source: explicit, include: [a, b], exclude: [] }`. The flat-list form is rejected at config-load time with a deserialiser error. Validation now resolves `mcp_servers.include` ids against the top-level `services.mcp_servers` catalogue at load time, matching the existing `skills` / `agents` / `plugins` shape on `MarketplaceConfig`.
+- All remaining entity-id reference lists across the services config now use `PluginComponentRef` for shape uniformity: `PluginConfig.mcp_servers`, `PluginConfig.content_sources`, `SkillConfig.mcp_servers`, `SkillConfig.assigned_agents`, `DiskAgentConfig.mcp_servers`, `DiskAgentConfig.skills`, `AgentMetadataConfig.mcp_servers`, `AgentMetadataConfig.skills`, `bridge::manifest::AgentEntry.mcp_servers`, `bridge::manifest::AgentEntry.skills`, and `AgentRuntimeInfo.{skills,mcp_servers}`. Authoring YAML must move from flat lists (`mcp_servers: [a, b]`) to the object form (`mcp_servers: { include: [a, b] }`). The deserialiser rejects flat-list inputs with a "expected struct, found sequence" error. `PluginComponentRef` now derives `PartialEq`/`Eq` so it can appear inside `#[derive(PartialEq)]` runtime info structs. `AgentInfo::with_mcp_servers` and `AgentRegistry::get_mcp_servers` callers must thread the `.include` list explicitly when projecting back to `Vec<String>`.
 
 ### Changed
 
@@ -25,6 +26,7 @@
 
 - `SyncError::GatewayUnauthorized { endpoint, status }` represents gateway 401/403 from `/manifest` and `/pubkey` as a distinct error with exit code 10 and an actionable "run `systemprompt-bridge login <sp-live-...>`" message. The GUI surfaces it via the new `sync-gateway-unauthorized` Fluent string.
 - `bridge doctor` command groups the bridge-side self-checks (paths, gateway, credentials, loopback secret, pinned pubkey) into a single one-line-per-check diagnostic surface.
+- Services-config loader auto-discovers `<services>/skills/<id>/config.yaml` and `<services>/plugins/<id>/config.yaml` and inserts them into `ServicesConfig.skills.skills` / `ServicesConfig.plugins.plugins` at load time. Marketplace / plugin `skills.include` and `mcp_servers.include` references resolve against the on-disk catalogue without each tenant duplicating every skill or plugin id under `services/config/config.yaml`.
 - Unit-test coverage expanded across `domain/agent` (a2a_server processing helpers), `domain/oauth` (bridge/jwt/providers/validation modules), `shared/models` (a2a artifact + task metadata, bridge ids), `domain/ai` (gemini/openai image provider HTTP, resilient provider), and `app/scheduler` (process_cleanup).
 
 ### Removed

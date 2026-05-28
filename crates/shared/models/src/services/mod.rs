@@ -162,10 +162,11 @@ impl ServicesConfig {
         plugin_name: &str,
         plugin: &PluginConfig,
     ) -> Result<(), ConfigValidationError> {
-        for mcp_ref in &plugin.mcp_servers {
+        for mcp_ref in &plugin.mcp_servers.include {
             if !self.mcp_servers.contains_key(mcp_ref) {
                 return Err(ConfigValidationError::unknown_reference(format!(
-                    "Plugin '{plugin_name}': mcp_servers references unknown mcp_server '{mcp_ref}'"
+                    "Plugin '{plugin_name}': mcp_servers.include references unknown mcp_server \
+                     '{mcp_ref}'"
                 )));
             }
         }
@@ -192,7 +193,7 @@ impl ServicesConfig {
                 )));
             }
 
-            for agent_ref in &skill.assigned_agents {
+            for agent_ref in &skill.assigned_agents.include {
                 if !self.agents.contains_key(agent_ref) {
                     tracing::warn!(
                         skill = %key,
@@ -202,7 +203,7 @@ impl ServicesConfig {
                 }
             }
 
-            for mcp_ref in &skill.mcp_servers {
+            for mcp_ref in &skill.mcp_servers.include {
                 if !self.mcp_servers.contains_key(mcp_ref) {
                     tracing::warn!(
                         skill = %key,

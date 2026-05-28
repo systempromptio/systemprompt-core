@@ -4,7 +4,8 @@
 
 ### Breaking
 
-- `MarketplaceConfig.mcp_servers` is now `PluginComponentRef { source, include, exclude }` instead of a flat `Vec<String>`. Tenants must rewrite YAML from `mcp_servers: [a, b]` to `mcp_servers: { source: explicit, include: [a, b], exclude: [] }`. The flat-list form is rejected at config-load time with a serde "expected struct, found sequence" error. `ServicesConfig::validate_marketplace_bindings` now reads `marketplace.mcp_servers.include` and resolves each id against the top-level `services.mcp_servers` catalogue. `PluginConfig.mcp_servers` and `PluginConfig.content_sources` remain `Vec<String>` in this release.
+- `MarketplaceConfig.mcp_servers` is now `PluginComponentRef { source, include, exclude }` instead of a flat `Vec<String>`. Tenants must rewrite YAML from `mcp_servers: [a, b]` to `mcp_servers: { source: explicit, include: [a, b], exclude: [] }`. The flat-list form is rejected at config-load time with a serde "expected struct, found sequence" error. `ServicesConfig::validate_marketplace_bindings` now reads `marketplace.mcp_servers.include` and resolves each id against the top-level `services.mcp_servers` catalogue.
+- All remaining entity-id reference lists across the services config now use `PluginComponentRef` for shape uniformity: `PluginConfig.mcp_servers`, `PluginConfig.content_sources`, `SkillConfig.mcp_servers`, `SkillConfig.assigned_agents`, `DiskAgentConfig.mcp_servers`, `DiskAgentConfig.skills`, `AgentMetadataConfig.mcp_servers`, `AgentMetadataConfig.skills`, `bridge::manifest::AgentEntry.mcp_servers`, and `bridge::manifest::AgentEntry.skills`. Authoring YAML must move from flat lists (`mcp_servers: [a, b]`) to the object form (`mcp_servers: { include: [a, b] }`). `PluginComponentRef` now derives `PartialEq`/`Eq` so it can appear inside `#[derive(PartialEq)]` runtime info structs.
 
 ### Changed
 

@@ -75,14 +75,14 @@ pub struct PluginConfig {
     pub skills: PluginComponentRef,
     pub agents: PluginComponentRef,
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     #[serde(default)]
-    pub content_sources: Vec<String>,
+    pub content_sources: PluginComponentRef,
     #[serde(default)]
     pub scripts: Vec<PluginScript>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginComponentRef {
     #[serde(default)]
     pub source: ComponentSource,

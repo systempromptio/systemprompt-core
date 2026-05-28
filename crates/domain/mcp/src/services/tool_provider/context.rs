@@ -77,5 +77,5 @@ pub(super) fn load_agent_servers(agent_name: &str) -> McpDomainResult<Vec<String
         ))
     })?;
 
-    Ok(agent.metadata.mcp_servers.clone())
+    Ok(agent.metadata.mcp_servers.include.clone())
 }

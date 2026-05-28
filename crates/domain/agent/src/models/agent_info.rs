@@ -4,6 +4,7 @@ use crate::models::a2a::{AgentCard, AgentSkill};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentId;
 use systemprompt_models::Config;
+use systemprompt_models::services::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
@@ -11,7 +12,7 @@ pub struct AgentInfo {
     pub card: AgentCard,
     pub enabled: bool,
     pub skills: Option<Vec<AgentSkill>>,
-    pub mcp_servers: Option<Vec<String>>,
+    pub mcp_servers: Option<PluginComponentRef>,
 }
 
 impl AgentInfo {
@@ -69,7 +70,7 @@ impl AgentInfo {
         self
     }
 
-    pub fn with_mcp_servers(mut self, servers: Vec<String>) -> Self {
+    pub fn with_mcp_servers(mut self, servers: PluginComponentRef) -> Self {
         self.mcp_servers = Some(servers);
         self
     }
@@ -79,6 +80,6 @@ impl AgentInfo {
     }
 
     pub fn mcp_count(&self) -> usize {
-        self.mcp_servers.as_ref().map_or(0, Vec::len)
+        self.mcp_servers.as_ref().map_or(0, |r| r.include.len())
     }
 }

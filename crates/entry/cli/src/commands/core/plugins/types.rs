@@ -19,7 +19,7 @@ pub struct PluginDetailOutput {
     pub enabled: bool,
     pub skills: PluginComponentRef,
     pub agents: PluginComponentRef,
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     pub scripts: Vec<String>,
     pub keywords: Vec<String>,
     pub category: String,

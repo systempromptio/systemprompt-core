@@ -116,8 +116,14 @@ pub(super) fn execute(
         },
         metadata: AgentMetadataConfig {
             system_prompt,
-            mcp_servers: args.agent.mcp_servers,
-            skills: args.agent.skills,
+            mcp_servers: systemprompt_models::services::PluginComponentRef {
+                include: args.agent.mcp_servers,
+                ..Default::default()
+            },
+            skills: systemprompt_models::services::PluginComponentRef {
+                include: args.agent.skills,
+                ..Default::default()
+            },
             provider: Some(
                 args.agent
                     .provider

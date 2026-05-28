@@ -96,7 +96,7 @@ impl DomainConfig for AgentConfigValidator {
             // against the on-disk `services/skills/` catalog. Only
             // `metadata.skills` is validated here.
 
-            for skill_id in &agent.metadata.skills {
+            for skill_id in &agent.metadata.skills.include {
                 let skill_path = Path::new(skills_path).join(skill_id);
                 if !skill_path.exists() {
                     report.add_error(
@@ -110,7 +110,7 @@ impl DomainConfig for AgentConfigValidator {
                 }
             }
 
-            for mcp_server in &agent.metadata.mcp_servers {
+            for mcp_server in &agent.metadata.mcp_servers.include {
                 if !config.mcp_servers.contains_key(mcp_server) {
                     report.add_error(
                         ValidationError::new(

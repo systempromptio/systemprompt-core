@@ -142,7 +142,7 @@ pub(super) fn apply_mcp_server_changes(
     changes: &mut Vec<String>,
 ) -> Result<()> {
     for mcp_server in &args.agent.mcp_servers {
-        if agent.metadata.mcp_servers.contains(mcp_server) {
+        if agent.metadata.mcp_servers.include.contains(mcp_server) {
             continue;
         }
         if !services_config.mcp_servers.contains_key(mcp_server) {
@@ -157,17 +157,18 @@ pub(super) fn apply_mcp_server_changes(
                     .join(", ")
             ));
         }
-        agent.metadata.mcp_servers.push(mcp_server.clone());
+        agent.metadata.mcp_servers.include.push(mcp_server.clone());
         changes.push(format!("added mcp_server: {}", mcp_server));
     }
     for mcp_server in &args.remove_mcp_servers {
         if let Some(pos) = agent
             .metadata
             .mcp_servers
+            .include
             .iter()
             .position(|s| s == mcp_server)
         {
-            agent.metadata.mcp_servers.remove(pos);
+            agent.metadata.mcp_servers.include.remove(pos);
             changes.push(format!("removed mcp_server: {}", mcp_server));
         } else {
             CliService::warning(&format!(
@@ -185,14 +186,14 @@ pub(super) fn apply_skill_changes(
     changes: &mut Vec<String>,
 ) {
     for skill in &args.agent.skills {
-        if !agent.metadata.skills.contains(skill) {
-            agent.metadata.skills.push(skill.clone());
+        if !agent.metadata.skills.include.contains(skill) {
+            agent.metadata.skills.include.push(skill.clone());
             changes.push(format!("added skill: {}", skill));
         }
     }
     for skill in &args.remove_skills {
-        if let Some(pos) = agent.metadata.skills.iter().position(|s| s == skill) {
-            let removed = agent.metadata.skills.remove(pos);
+        if let Some(pos) = agent.metadata.skills.include.iter().position(|s| s == skill) {
+            let removed = agent.metadata.skills.include.remove(pos);
             changes.push(format!("removed skill: {}", removed));
         } else {
             CliService::warning(&format!(

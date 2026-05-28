@@ -132,7 +132,7 @@ pub(super) fn execute(
             }
         }
 
-        for mcp_server in &agent.metadata.mcp_servers {
+        for mcp_server in &agent.metadata.mcp_servers.include {
             if !services_config.mcp_servers.contains_key(mcp_server) {
                 errors.push(ValidationIssue {
                     source: name.clone(),

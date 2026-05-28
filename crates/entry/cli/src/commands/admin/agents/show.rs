@@ -50,8 +50,8 @@ pub(super) fn execute(
         enabled: agent.enabled,
         provider,
         model,
-        mcp_servers: agent.metadata.mcp_servers.clone(),
-        skills_count: agent.metadata.skills.len(),
+        mcp_servers: agent.metadata.mcp_servers.include.clone(),
+        skills_count: agent.metadata.skills.include.len(),
     };
 
     Ok(CommandResult::card(output).with_title(format!("Agent: {}", name)))

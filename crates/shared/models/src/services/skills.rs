@@ -5,6 +5,7 @@ use systemprompt_identifiers::SkillId;
 
 use super::IncludableString;
 use super::ai::ToolModelConfig;
+use super::plugin::PluginComponentRef;
 
 const fn default_true() -> bool {
     true
@@ -44,10 +45,10 @@ pub struct SkillConfig {
     pub instructions: Option<IncludableString>,
 
     #[serde(default)]
-    pub assigned_agents: Vec<String>,
+    pub assigned_agents: PluginComponentRef,
 
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_config: Option<ToolModelConfig>,
