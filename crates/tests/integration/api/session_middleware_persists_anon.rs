@@ -32,7 +32,8 @@ async fn app_with_session_mw() -> Result<Router> {
 
 #[tokio::test]
 async fn skip_tracked_request_persists_anonymous_user() -> Result<()> {
-    let (pool, _ctx) = setup_ctx().await?;
+    let (db, _ctx) = setup_ctx().await?;
+    let pool = db.pool_arc()?;
 
     let users_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(pool.as_ref())
@@ -60,7 +61,8 @@ async fn skip_tracked_request_persists_anonymous_user() -> Result<()> {
 
 #[tokio::test]
 async fn bot_user_agent_request_persists_anonymous_user() -> Result<()> {
-    let (pool, _ctx) = setup_ctx().await?;
+    let (db, _ctx) = setup_ctx().await?;
+    let pool = db.pool_arc()?;
 
     let users_before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(pool.as_ref())
