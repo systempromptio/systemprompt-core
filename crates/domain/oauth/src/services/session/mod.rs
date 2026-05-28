@@ -109,6 +109,30 @@ impl SessionCreationService {
         }
     }
 
+    /// Resolves the persisted users row for an unauthenticated caller without
+    /// creating a `user_sessions` row. The fingerprint derives from the
+    /// request analytics; repeated calls with the same fingerprint return the
+    /// same row by virtue of `UserProvider::create_anonymous`'s
+    /// `ON CONFLICT (email) DO UPDATE` upsert.
+    ///
+    /// Used by the session middleware for skip-tracked and bot-classified
+    /// traffic, where the analytics/session-row write is intentionally
+    /// suppressed but downstream handlers still need an FK-valid `user_id`.
+    pub async fn ensure_anonymous_user(
+        &self,
+        headers: &HeaderMap,
+        uri: Option<&Uri>,
+    ) -> OauthResult<(UserId, String)> {
+        let analytics = self.analytics_provider.extract_analytics(headers, uri);
+        let fingerprint = analytics.compute_fingerprint();
+        let user = self
+            .user_provider
+            .create_anonymous(&fingerprint)
+            .await
+            .map_err(|e| crate::error::OauthError::Session(e.to_string()))?;
+        Ok((user.id, fingerprint))
+    }
+
     pub async fn create_anonymous_session(
         &self,
         input: CreateAnonymousSessionInput<'_>,
