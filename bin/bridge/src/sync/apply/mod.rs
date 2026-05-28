@@ -87,8 +87,18 @@ fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> 
     let Ok(gateway_url) = Url::parse(gateway.as_str()) else {
         return servers.to_vec();
     };
-    let (Some(gw_host), gw_scheme) = (gateway_url.host_str(), gateway_url.scheme()) else {
+    let (Some(raw_gw_host), gw_scheme) = (gateway_url.host_str(), gateway_url.scheme()) else {
         return servers.to_vec();
+    };
+    // Why: Cowork's MCP URL validator rejects the literal `localhost` for
+    // non-HTTPS connectors — only `127.0.0.1` passes. Canonicalize once here so
+    // both the explicit-loopback gateway case (operator configured
+    // `http://localhost:48217`) and rewritten loopback MCP URLs end up
+    // emitting `127.0.0.1`.
+    let gw_host = if raw_gw_host.eq_ignore_ascii_case("localhost") {
+        "127.0.0.1"
+    } else {
+        raw_gw_host
     };
     let gw_port = gateway_url.port();
     servers

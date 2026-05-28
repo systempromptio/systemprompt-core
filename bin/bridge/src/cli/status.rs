@@ -68,29 +68,22 @@ fn print_cowork_status() {
     match target {
         Some(t) => {
             status_line("cowork session", t.session_org_dir.display());
-            let known = t
-                .cowork_plugins_dir
-                .join(crate::integration::cowork_plugins::KNOWN_MARKETPLACES_FILE);
+            let settings = t
+                .session_org_dir
+                .join(crate::integration::cowork_plugins::COWORK_SETTINGS_FILE);
             status_indent(
-                "known_marketplaces.json",
-                if known.exists() {
-                    known.display().to_string()
+                "cowork_settings.json",
+                if settings.exists() {
+                    settings.display().to_string()
                 } else {
                     "(not written)".into()
                 },
             );
-            let mp_dir = t
-                .cowork_plugins_dir
-                .join("marketplaces")
-                .join(paths::BRIDGE_MARKETPLACE_NAME);
-            status_indent(
-                "bridge marketplace",
-                if mp_dir.is_dir() {
-                    mp_dir.display().to_string()
-                } else {
-                    "(not registered)".into()
-                },
+            let key = crate::integration::cowork_plugins::enabled_plugins_key(
+                paths::SYNTHETIC_PLUGIN_NAME,
+                "org-provisioned",
             );
+            status_indent("enable key", key);
         },
         None => {
             status_line("cowork session", "(not detected)");

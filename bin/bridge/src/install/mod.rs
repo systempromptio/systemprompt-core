@@ -129,9 +129,9 @@ pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
 
     if let Some(target) = crate::integration::cowork_plugins::resolve_target()
         && let Err(e) =
-            crate::integration::cowork_plugins::unpublish(&target, paths::SYNTHETIC_PLUGIN_NAME)
+            crate::integration::cowork_plugins::clear_all(&target, paths::SYNTHETIC_PLUGIN_NAME)
     {
-        diag(&format!("warning: Cowork marketplace cleanup failed: {e}"));
+        diag(&format!("warning: Cowork enable-key cleanup failed: {e}"));
     }
 
     let managed_profile = remove_managed_profile();

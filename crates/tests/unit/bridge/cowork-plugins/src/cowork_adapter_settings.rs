@@ -10,8 +10,8 @@ use systemprompt_bridge::integration::cowork_plugins::{
 #[test]
 fn key_uses_plugin_at_marketplace_order() {
     assert_eq!(
-        enabled_plugins_key("systemprompt-managed", "systemprompt-bridge-managed"),
-        "systemprompt-managed@systemprompt-bridge-managed"
+        enabled_plugins_key("systemprompt-managed", "org-provisioned"),
+        "systemprompt-managed@org-provisioned"
     );
 }
 

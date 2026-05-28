@@ -74,7 +74,7 @@ async fn run_checks() -> (Vec<Check>, bool) {
     check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(check_loopback_secret());
     checks.push(check_pinned_pubkey());
-    checks.push(check_cowork_marketplace());
+    checks.push(check_cowork_enable());
     checks.push(check_plugin_installation_preference());
     checks.push(check_hook_token_mint(&client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
@@ -195,50 +195,52 @@ fn check_loopback_secret() -> Check {
     }
 }
 
-// Why: catches "publish() got far enough to copy plugin files but errored before
-// registering the marketplace" — the exact silent-half-publish state that an NTFS
-// path-segment error in cache_dir produced on Windows. If the bridge marketplace
-// folder exists but known_marketplaces.json does not list it, Cowork's Directory
-// UI shows "no plugins" with no other signal.
-fn check_cowork_marketplace() -> Check {
+// Why: catches the silent "plugin is on disk but Cowork never picked it up"
+// state. With the org-provisioned filesystem path, the bridge's only Cowork-
+// side write is the enable key in cowork_settings.json — if that line is
+// missing, the auto-installed plugin stays disabled and the operator gets no
+// other signal from the bridge logs that the sync was effectively a no-op.
+fn check_cowork_enable() -> Check {
     use crate::config::paths;
     use crate::integration::cowork_plugins::{
-        KNOWN_MARKETPLACES_FILE, KnownMarketplacesFile, resolve_target,
+        COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,
     };
+    const ORG_PROVISIONED: &str = "org-provisioned";
     let Some(target) = resolve_target() else {
         return Check::warn(
-            "cowork marketplace",
+            "cowork enable",
             "no active Cowork session detected — open Claude Cowork at least once before sync",
         );
     };
-    let mp_dir = target
-        .cowork_plugins_dir
-        .join("marketplaces")
-        .join(paths::BRIDGE_MARKETPLACE_NAME);
-    let known = target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE);
-    let mp_dir_exists = mp_dir.is_dir();
-    let registered = std::fs::read_to_string(&known).is_ok_and(|text| {
-        serde_json::from_str::<KnownMarketplacesFile>(&text)
-            .is_ok_and(|f| f.contains(paths::BRIDGE_MARKETPLACE_NAME))
-    });
-    match (mp_dir_exists, registered) {
-        (true, true) => Check::ok(
-            "cowork marketplace",
-            format!("{} registered in {}", paths::BRIDGE_MARKETPLACE_NAME, known.display()),
-        ),
-        (true, false) => Check::fail(
-            "cowork marketplace",
+    let settings = target.session_org_dir.join(COWORK_SETTINGS_FILE);
+    let key = enabled_plugins_key(paths::SYNTHETIC_PLUGIN_NAME, ORG_PROVISIONED);
+    let Ok(text) = std::fs::read_to_string(&settings) else {
+        return Check::warn(
+            "cowork enable",
             format!(
-                "publish partial — {} exists but {} does not list it; see bridge.log for the \
-                 underlying host-sync error (likely an emit IO failure)",
-                mp_dir.display(),
-                known.display(),
+                "{} not yet written — run `systemprompt-bridge sync`",
+                settings.display()
             ),
-        ),
-        (false, _) => Check::warn(
-            "cowork marketplace",
-            "marketplace dir not yet written — run `systemprompt-bridge sync`",
-        ),
+        );
+    };
+    let enabled = serde_json::from_str::<serde_json::Value>(&text)
+        .ok()
+        .and_then(|v| v.get("enabledPlugins").cloned())
+        .and_then(|v| v.get(&key).cloned())
+        == Some(serde_json::Value::Bool(true));
+    if enabled {
+        Check::ok(
+            "cowork enable",
+            format!("{key} = true in {}", settings.display()),
+        )
+    } else {
+        Check::fail(
+            "cowork enable",
+            format!(
+                "{key} not set in {} — Cowork will not load the synced plugin",
+                settings.display()
+            ),
+        )
     }
 }
 

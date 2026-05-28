@@ -1,40 +1,32 @@
-//! Cowork desktop marketplace + plugin store integration.
+//! Cowork desktop plugin integration.
 //!
-//! Cowork loads plugins via a per-session marketplace registry under
-//! `<session>/<org>/cowork_plugins/`. The bridge registers a single
-//! `systemprompt-bridge-managed` marketplace there with `source: "local"`,
-//! pointing at on-disk plugin content the bridge controls. This is the proper
-//! marketplace mechanism (survives restart) — not a manifest patch.
+//! Cowork's filesystem plugin scanner discovers any plugin under
+//! `%ProgramFiles%\Claude\org-plugins\<name>\` (and the equivalent per-OS path
+//! resolved by [`crate::config::paths::org_plugins_effective`]) and attributes
+//! it to the hard-coded `org-provisioned` marketplace. The bridge therefore
+//! only owes Cowork one write per session: setting
+//! `enabledPlugins["<plugin>@org-provisioned"] = true` in the per-session
+//! `cowork_settings.json`. Everything else — copying the plugin tree, writing
+//! `plugin.json` with `installationPreference: "auto_install"`, materialising
+//! hooks — happens earlier in the `sync::apply::synthetic_plugin` flow that
+//! populates the org-plugins root itself.
 //!
-//! Pure data manipulation lives in the `registry`, `settings` and
-//! `marketplace` submodules; IO (`emit`) and per-file upsert plumbing layer
-//! on top.
+//! Pure data manipulation lives in the `settings` submodule; IO (`emit`) and
+//! the per-file upsert plumbing layer on top.
 
 pub(crate) mod emit;
-pub(crate) mod marketplace;
-pub(crate) mod registry;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{pick_target, publish, resolve_target, sanitize_path_segment, unpublish};
+pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all, pick_target, resolve_target};
 
-pub use marketplace::{
-    MARKETPLACE_SCHEMA_URL, MarketplaceFile, MarketplaceMetadata, MarketplaceOwner,
-    MarketplacePluginEntry, render_marketplace,
-};
-pub use registry::{
-    InstalledPluginEntry, InstalledPluginInstall, InstalledPluginsFile, KnownMarketplaceEntry,
-    KnownMarketplaceValue, KnownMarketplacesFile, LocalSource, MergeReport, installed_plugin_key,
-    parse_root, retain_installed_plugin, retain_known_marketplaces, upsert_installed_plugin,
-    upsert_known_marketplace,
-};
 pub use settings::{
     SettingsReport, disable_plugin, enable_plugin, enabled_plugins_key, parse_settings,
     render_settings,
 };
 
 // Lives outside `cowork_plugins/` (in `<session>/<org>/`) — Cowork resolves
-// `enabledPlugins` from there, not from inside the registry tree.
+// `enabledPlugins` from there, not from inside any registry tree.
 pub(crate) const COWORK_SETTINGS_FILE: &str = "cowork_settings.json";
 
 use thiserror::Error;
@@ -58,31 +50,20 @@ impl HostSync for CoworkSync {
         let Some(target) = resolve_target() else {
             tracing::info!(
                 target: "bridge::cowork",
-                "no Cowork install detected; skipping marketplace emit"
+                "no Cowork install detected; skipping enable"
             );
             return Ok(());
         };
         let plugin_name = paths::SYNTHETIC_PLUGIN_NAME;
-        let version = ctx.manifest.manifest_version.as_str();
-        let report = publish(
-            &target,
-            ctx.org_plugins_root,
-            plugin_name,
-            version,
-            Some("Skills, agents, and MCP servers managed by your organization."),
-        )
-        .map_err(|e| ApplyError::Io {
-            context: format!("cowork publish: {e}"),
+        let report = apply_enable(&target, plugin_name).map_err(|e| ApplyError::Io {
+            context: format!("cowork enable: {e}"),
             source: std::io::Error::other(e.to_string()),
         })?;
         tracing::info!(
             target: "bridge::cowork",
             session_org = ?report.target,
-            copied = report.plugin_copied,
-            registered_marketplace = report.marketplace_registered,
-            registered_plugin = report.plugin_installed_registered,
             enabled = report.enabled,
-            "Cowork marketplace emit complete"
+            "Cowork enable complete"
         );
         Ok(())
     }
@@ -91,23 +72,19 @@ impl HostSync for CoworkSync {
         let Some(target) = resolve_target() else {
             return Ok(());
         };
-        unpublish(&target, paths::SYNTHETIC_PLUGIN_NAME).map_err(|e| ApplyError::Io {
-            context: format!("cowork unpublish: {e}"),
+        clear_all(&target, paths::SYNTHETIC_PLUGIN_NAME).map_err(|e| ApplyError::Io {
+            context: format!("cowork clear: {e}"),
             source: std::io::Error::other(e.to_string()),
         })
     }
 }
 
-pub const KNOWN_MARKETPLACES_FILE: &str = "known_marketplaces.json";
-
-pub(crate) const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";
-
 #[derive(Debug, Error)]
 pub enum CoworkPluginsError {
     #[error("json parse failed: {0}")]
     JsonParse(#[from] serde_json::Error),
-    #[error("registry root must be a JSON object")]
+    #[error("cowork_settings.json root must be a JSON object")]
     RootShape,
-    #[error("registry items at key `{key}` must be a JSON array")]
+    #[error("cowork_settings.json `{key}` must be a JSON object")]
     ItemsShape { key: &'static str },
 }

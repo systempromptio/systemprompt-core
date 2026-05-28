@@ -42,11 +42,15 @@ pub fn org_plugins_user() -> Option<PathBuf> {
     })
 }
 
+// Why: Cowork's filesystem plugin scanner (NF() in app.asar) reads
+// %ProgramFiles%\Claude\org-plugins only — writing under %ProgramData% leaves
+// the plugin invisible to Cowork even when the manifest and enable key are
+// otherwise correct.
 #[cfg(target_os = "windows")]
 pub fn org_plugins_system() -> Option<PathBuf> {
-    std::env::var_os("ProgramData")
+    std::env::var_os("ProgramFiles")
         .map(|p| PathBuf::from(p).join("Claude").join("org-plugins"))
-        .or_else(|| Some(PathBuf::from(r"C:\ProgramData\Claude\org-plugins")))
+        .or_else(|| Some(PathBuf::from(r"C:\Program Files\Claude\org-plugins")))
 }
 
 #[cfg(target_os = "windows")]
@@ -138,8 +142,6 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
 }
 
 pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
-
-pub const BRIDGE_MARKETPLACE_NAME: &str = "systemprompt-bridge-managed";
 
 #[must_use]
 pub fn metadata_dir(org_plugins: &std::path::Path) -> PathBuf {
