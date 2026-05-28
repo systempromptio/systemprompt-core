@@ -45,6 +45,10 @@ mod routes_gateway;
 mod routes_gateway_authed;
 
 #[cfg(test)]
+#[path = "routes_gateway_manifest_skills.rs"]
+mod routes_gateway_manifest_skills;
+
+#[cfg(test)]
 #[path = "routes_oauth_discovery.rs"]
 mod routes_oauth_discovery;
 

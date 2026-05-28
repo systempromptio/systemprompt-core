@@ -1,4 +1,5 @@
 use axum::extract::Request;
+use axum::http::{HeaderValue, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
@@ -15,6 +16,7 @@ use systemprompt_models::execution::context::{ContextExtractionError, RequestCon
 pub struct ContextMiddleware<E> {
     extractor: Arc<E>,
     auth_level: ContextRequirement,
+    mcp_metadata_base: Option<Arc<str>>,
 }
 
 impl<E> ContextMiddleware<E> {
@@ -22,6 +24,7 @@ impl<E> ContextMiddleware<E> {
         Self {
             extractor: Arc::new(extractor),
             auth_level: ContextRequirement::default(),
+            mcp_metadata_base: None,
         }
     }
 
@@ -29,6 +32,7 @@ impl<E> ContextMiddleware<E> {
         Self {
             extractor: Arc::new(extractor),
             auth_level: ContextRequirement::None,
+            mcp_metadata_base: None,
         }
     }
 
@@ -36,6 +40,7 @@ impl<E> ContextMiddleware<E> {
         Self {
             extractor: Arc::new(extractor),
             auth_level: ContextRequirement::UserOnly,
+            mcp_metadata_base: None,
         }
     }
 
@@ -43,13 +48,15 @@ impl<E> ContextMiddleware<E> {
         Self {
             extractor: Arc::new(extractor),
             auth_level: ContextRequirement::UserWithContext,
+            mcp_metadata_base: None,
         }
     }
 
-    pub fn mcp(extractor: E) -> Self {
+    pub fn mcp(extractor: E, api_external_url: impl Into<Arc<str>>) -> Self {
         Self {
             extractor: Arc::new(extractor),
             auth_level: ContextRequirement::McpWithHeaders,
+            mcp_metadata_base: Some(api_external_url.into()),
         }
     }
 
@@ -252,6 +259,15 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
             },
+            Err(ContextExtractionError::MissingAuthHeader) => {
+                tracing::debug!(
+                    trace_id = %trace_id,
+                    path = %path,
+                    method = %method,
+                    "MCP request without Authorization header — emitting RFC 9728 challenge"
+                );
+                self.build_mcp_unauthorized_challenge(&trace_id, &path)
+            },
             Err(e) => {
                 if let Some(ctx) = request.extensions().get::<RequestContext>().cloned() {
                     tracing::debug!(
@@ -275,5 +291,38 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 }
             },
         }
+    }
+
+    fn build_mcp_unauthorized_challenge(&self, trace_id: &TraceId, path: &str) -> Response {
+        let metadata_url = mcp_resource_metadata_url(self.mcp_metadata_base.as_deref(), path);
+        let challenge = format!(
+            "Bearer resource_metadata=\"{metadata_url}\", error=\"invalid_token\", \
+             error_description=\"Missing Authorization header\""
+        );
+
+        let body = ApiError::unauthorized("Missing Authorization header")
+            .with_trace_id(trace_id.as_str())
+            .with_path(path);
+
+        let (parts, body) = body.into_response().into_parts();
+        let mut response = Response::from_parts(parts, body);
+        *response.status_mut() = StatusCode::UNAUTHORIZED;
+        if let Ok(value) = HeaderValue::from_str(&challenge) {
+            response
+                .headers_mut()
+                .insert(header::WWW_AUTHENTICATE, value);
+        }
+        response
+    }
+}
+
+fn mcp_resource_metadata_url(base: Option<&str>, request_path: &str) -> String {
+    let suffix = format!("/.well-known/oauth-protected-resource{request_path}");
+    match base {
+        Some(b) => {
+            let trimmed = b.trim_end_matches('/');
+            format!("{trimmed}{suffix}")
+        },
+        None => suffix,
     }
 }

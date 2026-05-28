@@ -90,6 +90,26 @@ fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadR
     Ok(())
 }
 
+/// Logs a deprecation warning for every agent that still authors
+/// `card.skills` in its YAML. The A2A endpoint and the bridge marketplace now
+/// derive `card.skills` from `metadata.skills` joined against the on-disk
+/// `services/skills/` catalog, so authored `card.skills` entries are silently
+/// ignored. Downstream repos should strip the `card.skills:` array.
+pub(super) fn warn_on_authored_card_skills(config: &ServicesConfig) {
+    for (name, agent) in &config.agents {
+        if !agent.card.skills.is_empty() {
+            tracing::warn!(
+                agent = %name,
+                count = agent.card.skills.len(),
+                "deprecated: agent YAML authors card.skills; this field is ignored. \
+                 A2A card.skills is now derived from metadata.skills against the \
+                 services/skills/ catalog. Remove the card.skills: array from this \
+                 agent's config.yaml."
+            );
+        }
+    }
+}
+
 pub(super) fn resolve_system_prompt_includes(
     base_path: &Path,
     config: &mut ServicesConfig,

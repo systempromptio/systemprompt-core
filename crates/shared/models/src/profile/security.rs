@@ -3,6 +3,18 @@ use std::path::PathBuf;
 use crate::auth::JwtAudience;
 use serde::{Deserialize, Serialize};
 
+/// Audiences the gateway's grant paths require to be present in
+/// [`SecurityConfig::allowed_resource_audiences`].
+///
+/// These are not RFC 8707 external resource URIs — they are the gateway's own
+/// internal protocol audiences that hardcoded scope guards depend on. The
+/// `client_credentials` grant rejects any `hook:*` scope that is not paired
+/// with `audience=hook`, so a profile that does not opt into the `"hook"`
+/// audience cannot mint plugin hook tokens for the bridge. Profile validation
+/// rejects bootstrap if any entry here is missing, so the error surfaces at
+/// the operator's YAML edit rather than at a downstream tenant's first call.
+pub const GATEWAY_REQUIRED_RESOURCE_AUDIENCES: &[&str] = &["hook"];
+
 const fn default_allow_registration() -> bool {
     true
 }

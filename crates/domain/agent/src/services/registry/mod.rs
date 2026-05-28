@@ -204,26 +204,40 @@ fn build_extensions(
 }
 
 fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill> {
-    let mut all_skills = Vec::new();
-
     let skills_path = ProfileBootstrap::get().map_or_else(|_| String::new(), |p| p.paths.skills());
+    if skills_path.is_empty() {
+        return Vec::new();
+    }
+    load_agent_skills_from_dir(agent, Path::new(&skills_path))
+}
 
-    if !skills_path.is_empty() {
-        let skills_dir = Path::new(&skills_path);
-        for skill_id in &agent.metadata.skills {
-            let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
-            match load_skill_from_disk(skills_dir, &skill_id_typed) {
-                Ok(skill) => all_skills.push(skill),
-                Err(e) => {
-                    tracing::warn!(
-                        skill_id = %skill_id,
-                        error = %e,
-                        "Failed to load skill for agent card, skipping"
-                    );
-                },
-            }
+/// Computes the A2A `card.skills` list for `agent` by resolving each id in
+/// `agent.metadata.skills` against the on-disk skill catalog under
+/// `skills_dir`. Authored `agent.card.skills` is intentionally ignored — that
+/// field is deprecated and exists only to tolerate stale YAML during the
+/// migration window.
+///
+/// Skills that fail to resolve (missing directory, malformed config, etc.)
+/// are dropped with a `tracing::warn!`. This is the pure, dependency-injected
+/// variant of `load_agent_skills` for tests.
+#[doc(hidden)]
+pub fn load_agent_skills_from_dir(
+    agent: &AgentConfig,
+    skills_dir: &Path,
+) -> Vec<crate::models::a2a::AgentSkill> {
+    let mut all_skills = Vec::new();
+    for skill_id in &agent.metadata.skills {
+        let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
+        match load_skill_from_disk(skills_dir, &skill_id_typed) {
+            Ok(skill) => all_skills.push(skill),
+            Err(e) => {
+                tracing::warn!(
+                    skill_id = %skill_id,
+                    error = %e,
+                    "Failed to load skill for agent card, skipping"
+                );
+            },
         }
     }
-
     all_skills
 }

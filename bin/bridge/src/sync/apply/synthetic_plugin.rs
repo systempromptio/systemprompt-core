@@ -56,14 +56,14 @@ pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "auto_install";
 // Pure JSON renderer for the synthetic plugin's `plugin.json`. Separated from
 // the IO path so unit tests can pin the wire shape without needing a tempdir
 // or a runtime.
-pub fn render_plugin_json(manifest_version: &str) -> Vec<u8> {
+pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json::Error> {
     let pj = PluginJson {
         name: paths::SYNTHETIC_PLUGIN_NAME,
         description: "Skills, agents, and MCP servers managed by your organization.",
         version: manifest_version,
         installation_preference: PLUGIN_INSTALLATION_PREFERENCE,
     };
-    serde_json::to_vec_pretty(&pj).expect("PluginJson serialization is infallible")
+    serde_json::to_vec_pretty(&pj)
 }
 
 #[derive(Serialize)]
@@ -144,7 +144,12 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
         context: format!("create {}", dir.display()),
         source: e,
     })?;
-    let bytes = render_plugin_json(manifest.manifest_version.as_str());
+    let bytes = render_plugin_json(manifest.manifest_version.as_str()).map_err(|e| {
+        super::ApplyError::Serialize {
+            what: "plugin.json".into(),
+            source: e,
+        }
+    })?;
     let path = dir.join("plugin.json");
     fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
         context: format!("write {}", path.display()),

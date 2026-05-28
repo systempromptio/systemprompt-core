@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Changed
+
+- `AgentCardConfig::skills` is now `#[serde(default, skip_serializing)]` and deprecated. The A2A `card.skills` view is computed at serve time by joining `agent.metadata.skills` against the on-disk `services/skills/` catalog; authored `card.skills:` arrays in agent YAML are tolerated for one release (so downstream repos can land their YAML cleanup separately) but are ignored. `AgentConfigValidator` no longer requires `card.skills[].id` to resolve on disk — only `metadata.skills` ids are validated. See root CHANGELOG.
+
+### Added
+
+- `profile::GATEWAY_REQUIRED_RESOURCE_AUDIENCES` (currently `["hook"]`) names the audience strings the gateway's grant paths hard-require to appear in `security.allowed_resource_audiences`. `Profile::validate` now rejects bootstrap with a one-line error per missing entry, so deployments whose profiles haven't opted into the internal `hook` audience fail at startup instead of returning 400 `invalid_target` on the first bridge `client_credentials` hook-scope request.
+
 ## [0.12.0] - 2026-05-27
 
 ### Breaking

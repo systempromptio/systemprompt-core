@@ -4,9 +4,11 @@
 //! managed MCP servers a bridge host is entitled to, applies the marketplace
 //! filter, and signs the canonical view.
 
-mod agents;
+#[doc(hidden)]
+pub mod agents;
 mod hooks;
-mod skills;
+#[doc(hidden)]
+pub mod skills;
 
 use std::sync::Arc;
 

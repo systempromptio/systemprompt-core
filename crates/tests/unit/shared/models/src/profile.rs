@@ -722,3 +722,33 @@ fn profile_field_access() {
     assert_eq!(profile.database.db_type, "postgres");
     assert!(!profile.database.external_db_access);
 }
+
+#[test]
+fn validate_rejects_profile_without_hook_resource_audience() {
+    let profile = make_profile("missing-hook");
+    let err = profile
+        .validate()
+        .expect_err("empty allowed_resource_audiences must fail validation");
+    let msg = format!("{err}");
+    assert!(
+        msg.contains("allowed_resource_audiences")
+            && msg.contains("\"hook\"")
+            && msg.contains("hook:govern"),
+        "validator must name the missing audience and the scopes that depend on it; got: {msg}"
+    );
+}
+
+#[test]
+fn validate_does_not_flag_audience_when_hook_present() {
+    let mut profile = make_profile("with-hook");
+    profile.security.allowed_resource_audiences = vec!["hook".to_string()];
+    let msg = profile
+        .validate()
+        .err()
+        .map(|e| format!("{e}"))
+        .unwrap_or_default();
+    assert!(
+        !msg.contains("allowed_resource_audiences"),
+        "validator must not flag allowed_resource_audiences when \"hook\" is present; got: {msg}"
+    );
+}

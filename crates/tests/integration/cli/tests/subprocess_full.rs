@@ -147,7 +147,8 @@ security:
   jwt_refresh_token_expiration: 86400
   jwt_audiences:
     - api
-  allowed_resource_audiences: []
+  allowed_resource_audiences:
+    - hook
   allow_registration: true
   signing_key_path: signing_key.pem
 rate_limits:

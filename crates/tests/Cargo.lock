@@ -6904,6 +6904,7 @@ dependencies = [
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "systemprompt-users",
+ "tempfile",
  "tokio",
  "tower",
  "tower-http",
@@ -7023,6 +7024,7 @@ version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-bridge",
+ "tempfile",
 ]
 
 [[package]]

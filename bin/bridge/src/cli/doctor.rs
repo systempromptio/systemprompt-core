@@ -217,7 +217,7 @@ fn check_cowork_marketplace() -> Check {
         .join(paths::BRIDGE_MARKETPLACE_NAME);
     let known = target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE);
     let mp_dir_exists = mp_dir.is_dir();
-    let registered = std::fs::read_to_string(&known).map_or(false, |text| {
+    let registered = std::fs::read_to_string(&known).is_ok_and(|text| {
         serde_json::from_str::<KnownMarketplacesFile>(&text)
             .is_ok_and(|f| f.contains(paths::BRIDGE_MARKETPLACE_NAME))
     });

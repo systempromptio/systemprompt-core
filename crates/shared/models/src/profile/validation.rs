@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
 use super::{Profile, ProfileError, ProfileResult};
 
 impl Profile {
@@ -142,6 +143,21 @@ impl Profile {
 
         if self.security.refresh_token_expiration <= 0 {
             errors.push("Security refresh_token_expiration must be positive".to_owned());
+        }
+
+        for required in GATEWAY_REQUIRED_RESOURCE_AUDIENCES {
+            if !self
+                .security
+                .allowed_resource_audiences
+                .iter()
+                .any(|allowed| allowed == required)
+            {
+                errors.push(format!(
+                    "security.allowed_resource_audiences must include \"{required}\" — the \
+                     gateway issues tokens bound to audience=\"{required}\" for internal protocol \
+                     scopes (hook:govern, hook:track). Add it to the profile YAML and restart."
+                ));
+            }
         }
     }
 

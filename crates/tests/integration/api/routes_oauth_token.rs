@@ -324,13 +324,16 @@ async fn token_client_credentials_with_unknown_client_does_not_return_500() -> a
 async fn seed_client_with_scopes(scopes: Vec<&str>) -> anyhow::Result<OAuthClientFixture> {
     let b = ensure_test_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
-    let user = UserId::new(format!("oauth-token-cc-{}", Uuid::new_v4()));
+    let user = UserId::new(Uuid::new_v4().to_string());
     let p = pool.pool_arc().expect("read pool");
-    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
-        .bind(user.as_str())
-        .bind(format!("{}@oauth.invalid", user.as_str()))
-        .execute(p.as_ref())
-        .await?;
+    sqlx::query(
+        "INSERT INTO users (id, name, email, roles) VALUES ($1, $1, $2, '{}'::TEXT[]) \
+         ON CONFLICT DO NOTHING",
+    )
+    .bind(user.as_str())
+    .bind(format!("{}@oauth.invalid", user.as_str()))
+    .execute(p.as_ref())
+    .await?;
     let client_id = ClientId::new(format!("test-client-cc-{}", Uuid::new_v4().simple()));
     let secret_hash = hash_client_secret(TEST_CLIENT_SECRET)
         .map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;

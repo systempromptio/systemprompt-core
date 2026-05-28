@@ -145,23 +145,25 @@ pub fn resolve_target() -> Option<CoworkTarget> {
 // An org dir is only usable if its `cowork_plugins` subdir exists; a half-
 // initialised org dir would otherwise win on mtime and silently route writes
 // nowhere Cowork actually reads.
+fn org_uuid_of(p: &Path) -> Option<String> {
+    p.file_name()
+        .and_then(|s| s.to_str())
+        .map(str::to_ascii_lowercase)
+}
+
+fn usable_org_dir(p: &Path) -> bool {
+    p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir()
+}
+
 #[must_use]
 pub fn pick_target(candidates: &[(SystemTime, PathBuf)]) -> Option<PathBuf> {
     if candidates.is_empty() {
         return None;
     }
 
-    fn org_uuid_of(p: &Path) -> Option<String> {
-        p.file_name()
-            .and_then(|s| s.to_str())
-            .map(str::to_ascii_lowercase)
-    }
-    fn usable(p: &Path) -> bool {
-        p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir()
-    }
-
     if let Some((_, path)) = candidates.iter().find(|(_, p)| {
-        org_uuid_of(p.as_path()).as_deref() == Some(PERSONAL_SESSION_UUID) && usable(p.as_path())
+        org_uuid_of(p.as_path()).as_deref() == Some(PERSONAL_SESSION_UUID)
+            && usable_org_dir(p.as_path())
     }) {
         return Some(path.clone());
     }

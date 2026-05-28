@@ -13,6 +13,10 @@
 use serde_json::Value;
 use systemprompt_bridge::sync::{PLUGIN_INSTALLATION_PREFERENCE, render_plugin_json};
 
+fn render_plugin_json_test(version: &str) -> Vec<u8> {
+    render_plugin_json(version).expect("render plugin.json")
+}
+
 #[test]
 fn constant_is_one_of_documented_auto_install_values() {
     // The bridge's emitted value must always be one of the two auto-install
@@ -26,7 +30,7 @@ fn constant_is_one_of_documented_auto_install_values() {
 
 #[test]
 fn plugin_json_has_installation_preference_field() {
-    let bytes = render_plugin_json("2026-01-01T00:00:00Z-deadbeef");
+    let bytes = render_plugin_json_test("2026-01-01T00:00:00Z-deadbeef");
     let v: Value = serde_json::from_slice(&bytes).expect("plugin.json must be valid JSON");
     let pref = v
         .get("installationPreference")
@@ -40,7 +44,7 @@ fn plugin_json_field_name_is_camelCase() {
     // Cowork reads `installationPreference` (camelCase). If a future refactor
     // renames the serde rename and emits `installation_preference` (snake_case),
     // Cowork silently defaults to `"available"` and the install button locks.
-    let bytes = render_plugin_json("v1");
+    let bytes = render_plugin_json_test("v1");
     let text = std::str::from_utf8(&bytes).unwrap();
     assert!(
         text.contains("\"installationPreference\""),
@@ -54,7 +58,7 @@ fn plugin_json_field_name_is_camelCase() {
 
 #[test]
 fn plugin_json_preserves_other_required_fields() {
-    let bytes = render_plugin_json("v1.2.3");
+    let bytes = render_plugin_json_test("v1.2.3");
     let v: Value = serde_json::from_slice(&bytes).unwrap();
     // Adding the new field must not have removed any of the previously
     // required keys.
@@ -65,7 +69,7 @@ fn plugin_json_preserves_other_required_fields() {
 
 #[test]
 fn render_is_deterministic() {
-    let a = render_plugin_json("v1");
-    let b = render_plugin_json("v1");
+    let a = render_plugin_json_test("v1");
+    let b = render_plugin_json_test("v1");
     assert_eq!(a, b);
 }

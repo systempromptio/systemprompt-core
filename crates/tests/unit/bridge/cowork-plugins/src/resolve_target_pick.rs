@@ -70,12 +70,12 @@ fn empty_candidates_returns_none() {
 }
 
 #[test]
-fn half_initialised_personal_dir_falls_through_to_mtime() {
+fn half_initialised_personal_dir_is_skipped_for_personal_match() {
     let s = Sessions::new();
     let half_init = s.add("acct", PERSONAL, false);
     let real = s.add("acct", REAL_ORG, true);
 
-    let candidates = vec![(t(2_000), half_init), (t(1_000), real.clone())];
+    let candidates = vec![(t(1_000), half_init), (t(9_000), real.clone())];
 
     let picked = pick_target(&candidates);
     assert_eq!(picked.as_deref(), Some(real.as_path()));

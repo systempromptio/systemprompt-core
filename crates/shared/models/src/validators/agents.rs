@@ -90,20 +90,11 @@ impl DomainConfig for AgentConfigValidator {
                 ));
             }
 
-            for skill in &agent.card.skills {
-                let skill_id = &skill.id;
-                let skill_path = Path::new(skills_path).join(skill_id.as_str());
-                if !skill_path.exists() {
-                    report.add_error(
-                        ValidationError::new(
-                            format!("agents.{}.skills", name),
-                            format!("Skill '{}' directory not found", skill_id),
-                        )
-                        .with_path(&skill_path)
-                        .with_suggestion("Create the skill directory or remove it from the agent"),
-                    );
-                }
-            }
+            // NOTE: `agent.card.skills` is deprecated and no longer the source
+            // of truth — the A2A endpoint and the bridge marketplace derive
+            // the card's skills list from `agent.metadata.skills` joined
+            // against the on-disk `services/skills/` catalog. Only
+            // `metadata.skills` is validated here.
 
             for skill_id in &agent.metadata.skills {
                 let skill_path = Path::new(skills_path).join(skill_id);
