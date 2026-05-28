@@ -1,11 +1,13 @@
 # Changelog
 
-## [0.12.2] - 2026-05-27
+## [0.12.2] - 2026-05-28
 
 ### Fixed
 
 - `SessionMiddleware`'s skip-tracked and bot-classified branches persist a real anonymous users row via `UserProvider::create_anonymous` before constructing `Actor`. Previously these paths returned a sentinel `user_id` (`"anonymous"` / `"bot"`) that violated the documented `Actor` invariant and caused `POST /oauth/register` to fail with a foreign-key violation on freshly-migrated databases.
 - Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
+- Bridge cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
+- `client_credentials` grant rejections log the underlying validation error via `tracing::warn!` (client_id + cause) without changing the opaque `invalid_client` response surface, so operators can distinguish "client not found" from "secret mismatch".
 
 ### Removed
 
@@ -18,6 +20,13 @@
 
 - `TaskContextInfo.user_id` is now `Option<UserId>`, exposing the database's existing NULL semantics rather than masking them with a sentinel string.
 - `ImageGenerationRequest.user_id` is now non-optional. Callers that cannot supply a `UserId` were never authorised to generate images.
+- Bridge `marketplace.json` shape matches the current Cowork (Claude 1.5354) reader: top-level `$schema`, `description`, `metadata { description, version, pluginRoot }`, `owner`, and per-plugin `author` / `category` fields; `plugins[].source` is now a plain string path.
+- Bridge `known_marketplaces.json` and `installed_plugins.json` carry `installLocation`, `installPath`, `scope`, and `lastUpdated` fields. Foreign sibling entries continue to be preserved verbatim.
+
+### Added
+
+- `bridge doctor` command groups the bridge-side self-checks (paths, gateway, credentials, loopback secret, pinned pubkey) into a single one-line-per-check diagnostic surface.
+- Unit-test coverage expanded across `domain/agent` (a2a_server processing helpers), `domain/oauth` (bridge/jwt/providers/validation modules), `shared/models` (a2a artifact + task metadata, bridge ids), `domain/ai` (gemini/openai image provider HTTP, resilient provider), and `app/scheduler` (process_cleanup).
 
 ## [0.12.1] - 2026-05-27
 
