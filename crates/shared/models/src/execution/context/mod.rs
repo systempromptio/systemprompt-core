@@ -44,7 +44,7 @@ impl RequestContext {
         Self {
             auth: AuthContext {
                 auth_token: JwtToken::new(""),
-                actor: Actor::user(UserId::anonymous()),
+                actor: Actor::user(UserId::new("unset")),
                 user_type: UserType::Anon,
                 act_chain: Vec::new(),
                 jti: String::new(),
@@ -262,11 +262,11 @@ impl RequestContext {
     }
 
     pub fn is_system(&self) -> bool {
-        self.auth.actor.user_id.is_system()
+        matches!(self.auth.user_type, UserType::Service)
     }
 
     pub fn is_anonymous(&self) -> bool {
-        self.auth.actor.user_id.is_anonymous()
+        matches!(self.auth.user_type, UserType::Anon)
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -284,7 +284,7 @@ impl RequestContext {
         if self.auth.auth_token.as_str().is_empty() {
             return Err("Missing authentication token".to_owned());
         }
-        if self.auth.actor.user_id.is_anonymous() {
+        if matches!(self.auth.user_type, UserType::Anon) {
             return Err("User is not authenticated".to_owned());
         }
         Ok(())

@@ -46,6 +46,24 @@ pub struct ExecutionMetadata {
     pub execution_id: Option<String>,
 }
 
+impl Default for ExecutionMetadata {
+    fn default() -> Self {
+        Self {
+            context_id: ContextId::generate(),
+            trace_id: TraceId::new("unset"),
+            session_id: SessionId::new("unset"),
+            user_id: UserId::new("unset"),
+            agent_name: AgentName::new("unset"),
+            timestamp: Utc::now(),
+            task_id: None,
+            tool_name: None,
+            skill_id: None,
+            skill_name: None,
+            execution_id: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ExecutionMetadataBuilder {
     context_id: ContextId,

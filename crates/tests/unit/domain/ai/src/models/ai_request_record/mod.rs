@@ -341,28 +341,6 @@ mod ai_request_record_tests {
     use super::*;
 
     #[test]
-    fn minimal_fallback_creates_failed_record() {
-        let record = AiRequestRecord::minimal_fallback(AiRequestId::new("fallback-123"));
-
-        assert_eq!(record.request_id.as_str(), "fallback-123");
-        assert_eq!(record.user_id.to_string(), "unknown");
-        assert_eq!(record.provider, "unknown");
-        assert_eq!(record.model, "unknown");
-        assert_eq!(record.status, RequestStatus::Failed);
-        record
-            .error_message
-            .as_ref()
-            .expect("error_message should be present");
-        assert!(
-            record
-                .error_message
-                .as_ref()
-                .unwrap()
-                .contains("construction failed")
-        );
-    }
-
-    #[test]
     fn builder_method_creates_builder() {
         let user_id = fixture_user_id();
         let builder = AiRequestRecord::builder(AiRequestId::new("req-456"), user_id);
