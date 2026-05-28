@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use axum::extract::{MatchedPath, Request};
@@ -17,21 +17,31 @@ const HTTP_REQUEST_DURATION_SECONDS: &str = "http_request_duration_seconds";
 const HTTP_REQUESTS_IN_FLIGHT: &str = "http_requests_in_flight";
 const SSE_CONNECTIONS: &str = "sse_active_connections";
 
-// The Prometheus recorder is a process global: `install_recorder` panics in
+// The Prometheus recorder is a process global: `install_recorder` errors in
 // `metrics::set_global_recorder` if called twice. Cache our handle so repeat
 // callers (test binaries that boot multiple `ApiServer`s, or any future
 // hot-reload path) get a clone of the original instead of a hard error.
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
+// Serialises concurrent installers so the first writer wins the global recorder
+// race outright; without it a parallel test runner with two `setup_api_server`
+// calls both observe an empty `RECORDER`, both call `install_recorder`, and the
+// loser surfaces "attempted to set a recorder after the metrics system was
+// already initialized" instead of getting the cached handle.
+static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
 pub fn install_recorder() -> anyhow::Result<PrometheusHandle> {
+    if let Some(handle) = RECORDER.get() {
+        return Ok(handle.clone());
+    }
+    let _guard = RECORDER_INIT
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
     let handle = PrometheusBuilder::new()
         .install_recorder()
         .map_err(|e| anyhow::anyhow!("failed to install Prometheus recorder: {e}"))?;
-    // If another thread won the race and stored its handle first, drop ours
-    // and keep the existing one — both refer to the same global recorder.
     drop(RECORDER.set(handle.clone()));
     Ok(handle)
 }

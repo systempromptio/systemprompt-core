@@ -7,7 +7,7 @@ use systemprompt_traits::{AppContext as _, StartupEvent, StartupEventExt, Startu
 use super::routes::configure_routes;
 use crate::models::ServerConfig;
 use crate::services::middleware::{
-    AnalyticsMiddleware, ContextMiddleware, CorsMiddleware, JwtContextExtractor, SessionMiddleware,
+    AnalyticsMiddleware, CorsMiddleware, PublicContextMiddleware, SessionMiddleware,
     inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
@@ -105,14 +105,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         }
     }));
 
-    let analytics = ctx
-        .analytics_provider()
-        .ok_or_else(|| anyhow::anyhow!("AnalyticsProvider required for JWT middleware"))?;
-    let user_provider = ctx
-        .user_provider()
-        .ok_or_else(|| anyhow::anyhow!("UserProvider required for JWT middleware"))?;
-    let jwt_extractor = JwtContextExtractor::new(analytics, user_provider);
-    let global_context_middleware = ContextMiddleware::public(jwt_extractor);
+    let global_context_middleware = PublicContextMiddleware::new();
     router = router.layer(axum::middleware::from_fn({
         let middleware = global_context_middleware;
         move |req, next| {

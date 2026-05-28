@@ -6,7 +6,9 @@
 
 use crate::services::middleware::authz::{AuthzPolicy, authz_gate};
 use crate::services::middleware::client_addr::resolve_client_ip;
-use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
+use crate::services::middleware::context::{
+    A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
+};
 use crate::services::middleware::jti_revocation::{JtiRevocationState, jti_revocation_middleware};
 use axum::Router;
 use axum::extract::{ConnectInfo, Request};
@@ -26,12 +28,48 @@ use systemprompt_models::config::RateLimitConfig;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
 
+/// A middleware layer that builds a [`systemprompt_models::RequestContext`]
+/// for a route group. Implemented by each of the four sibling context
+/// middlewares ([`PublicContextMiddleware`], [`UserOnlyContextMiddleware`],
+/// [`A2AContextMiddleware`], [`McpContextMiddleware`]). Sealed to those four
+/// — third parties cannot stand up a new flavour outside this crate, which
+/// keeps the route-mount surface auditable.
+pub trait ContextLayer: Clone + Send + Sync + 'static {
+    fn handle(
+        self,
+        req: Request,
+        next: Next,
+    ) -> impl std::future::Future<Output = Response> + Send;
+}
+
+impl ContextLayer for PublicContextMiddleware {
+    async fn handle(self, req: Request, next: Next) -> Response {
+        PublicContextMiddleware::handle(&self, req, next).await
+    }
+}
+
+impl ContextLayer for UserOnlyContextMiddleware {
+    async fn handle(self, req: Request, next: Next) -> Response {
+        UserOnlyContextMiddleware::handle(&self, req, next).await
+    }
+}
+
+impl ContextLayer for A2AContextMiddleware {
+    async fn handle(self, req: Request, next: Next) -> Response {
+        A2AContextMiddleware::handle(&self, req, next).await
+    }
+}
+
+impl ContextLayer for McpContextMiddleware {
+    async fn handle(self, req: Request, next: Next) -> Response {
+        McpContextMiddleware::handle(&self, req, next).await
+    }
+}
+
 pub trait RouterExt<S> {
     fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self;
 
-    fn with_auth<E>(self, auth: ContextMiddleware<E>, policy: AuthzPolicy) -> Self
-    where
-        E: ContextExtractor + Clone + Send + Sync + 'static;
+    fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self;
 
     fn with_jti_check(self, jti_state: JtiRevocationState) -> Self;
 }
@@ -60,10 +98,7 @@ where
         }
     }
 
-    fn with_auth<E>(self, auth: ContextMiddleware<E>, policy: AuthzPolicy) -> Self
-    where
-        E: ContextExtractor + Clone + Send + Sync + 'static,
-    {
+    fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self {
         self.layer(axum::middleware::from_fn(move |req, next| async move {
             authz_gate(policy, req, next).await
         }))

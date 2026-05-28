@@ -8,14 +8,15 @@
 //! - Security headers config defaults
 //! - Rate limit config construction and tier multipliers
 //! - Session tracking skip logic
-//! - Context requirement display and defaults
+//! - Per-flavour context middleware admission contracts
 //! - CORS error variants
 
+mod authz_policy;
 mod bot_detection_functions;
 mod bot_detector;
 mod client_addr;
 mod content_negotiation;
-mod context_requirement;
+mod context_flavours;
 mod cors_config;
 mod rate_limit_config;
 mod security_headers;

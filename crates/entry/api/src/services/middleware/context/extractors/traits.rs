@@ -19,11 +19,4 @@ pub trait ContextExtractor: Send + Sync {
         let context = self.extract_from_headers(&headers).await?;
         Ok((context, request))
     }
-
-    async fn extract_user_only(
-        &self,
-        headers: &HeaderMap,
-    ) -> Result<RequestContext, ContextExtractionError> {
-        self.extract_from_headers(headers).await
-    }
 }

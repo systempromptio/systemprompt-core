@@ -1,7 +1,8 @@
 //! JTI revocation tower layer.
 //!
-//! Runs after [`crate::services::middleware::context::ContextMiddleware`] has
-//! built the [`RequestContext`] and attached it to request extensions. The
+//! Runs after a context middleware (see
+//! [`crate::services::middleware::context`]) has built the [`RequestContext`]
+//! and attached it to request extensions. The
 //! JWT itself was already validated upstream (signature, audience, expiry);
 //! this layer adds the one stateful check JWT validation cannot do — has the
 //! token been explicitly revoked?

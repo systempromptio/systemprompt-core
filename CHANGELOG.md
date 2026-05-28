@@ -2,8 +2,18 @@
 
 ## [0.12.2] - 2026-05-28
 
+### Changed
+
+- The route-mount context middleware is now four typed sibling layers — `PublicContextMiddleware`, `UserOnlyContextMiddleware`, `A2AContextMiddleware`, `McpContextMiddleware` — instead of a single `ContextMiddleware<E>` with four named constructors that branched internally on a `ContextRequirement` enum. Each flavour's caller-admission contract (Anon admission, session-context fallback, body-rebuild) is now expressed at the type level, so mounting a route under the wrong flavour is a type error rather than a runtime behaviour nobody re-verified.
+
+### Removed
+
+- `ContextMiddleware`, `ContextMiddleware::{public, user_only, full, mcp}`, and the `ContextRequirement` enum are deleted. Callers construct the new sibling middlewares directly.
+- The `ContextExtractor::extract_user_only` method is folded into `extract_from_headers`. The single implementor (`JwtContextExtractor`) had identical bodies for both.
+
 ### Fixed
 
+- `/api/v1/mcp/*` answers unauthenticated requests with the proxy handler's RFC 9728 `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge again. v0.11.0 wrapped the MCP route in a coarse `AuthzPolicy::restricted_to([User, Admin, Mcp, Service])` gate above the proxy; the proxy already enforces auth and emits the spec-compliant challenge, so the extra gate only collapsed the response to a generic 403 and broke MCP clients (Cowork, Claude Code) that only start their OAuth discovery on a 401.
 - `SessionMiddleware`'s skip-tracked and bot-classified branches persist a real anonymous users row via `UserProvider::create_anonymous` before constructing `Actor`. Previously these paths returned a sentinel `user_id` (`"anonymous"` / `"bot"`) that violated the documented `Actor` invariant and caused `POST /oauth/register` to fail with a foreign-key violation on freshly-migrated databases.
 - Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
 - Bridge cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.

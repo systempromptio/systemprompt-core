@@ -135,3 +135,7 @@ mod oauth_register_owner_fk_present;
 #[cfg(test)]
 #[path = "session_middleware_persists_anon.rs"]
 mod session_middleware_persists_anon;
+
+#[cfg(test)]
+#[path = "routes_mcp_unauth_challenge.rs"]
+mod routes_mcp_unauth_challenge;

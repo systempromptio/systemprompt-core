@@ -6916,6 +6916,7 @@ name = "systemprompt-api-tests"
 version = "0.0.11"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "base64 0.22.1",
  "bytes",

@@ -4,7 +4,7 @@
 //! grant handlers themselves execute and produce wire-format responses
 //! (or wire-format errors). The router is built with a synthetic
 //! `RequestContext` extension layered in, which is what production gets
-//! from `ContextMiddleware`.
+//! from the route-mount context middleware.
 
 use std::sync::{Arc, Once};
 

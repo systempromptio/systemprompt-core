@@ -42,6 +42,8 @@ security:
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
+  allowed_resource_audiences:
+    - hook
 
 rate_limits:
   disabled: true
@@ -111,6 +113,8 @@ security:
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
+  allowed_resource_audiences:
+    - hook
 
 rate_limits:
   disabled: true
@@ -183,6 +187,8 @@ security:
   jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
+  allowed_resource_audiences:
+    - hook
 
 rate_limits:
   disabled: true

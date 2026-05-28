@@ -27,6 +27,7 @@ anyhow = { workspace = true }
 sqlx = { workspace = true }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 jsonwebtoken = { workspace = true }

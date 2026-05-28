@@ -12,7 +12,8 @@ use systemprompt_users::BannedIpRepository;
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::client_addr::parse_trusted_proxies;
 use crate::services::middleware::{
-    ContextMiddleware, JtiRevocationState, JwtContextExtractor, RouterExt, ip_ban_middleware,
+    A2AContextMiddleware, JtiRevocationState, JwtContextExtractor, McpContextMiddleware,
+    PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware, ip_ban_middleware,
     jti_revocation_middleware,
 };
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
@@ -31,10 +32,10 @@ pub(super) fn configure_routes(
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
 
-    let public_middleware = ContextMiddleware::public(jwt_extractor.clone());
-    let user_middleware = ContextMiddleware::user_only(jwt_extractor.clone());
-    let full_middleware = ContextMiddleware::full(jwt_extractor.clone());
-    let mcp_middleware = ContextMiddleware::mcp(jwt_extractor);
+    let public_middleware = PublicContextMiddleware::new();
+    let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
+    let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
+    let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
     router = protocol::mount_oauth(router, ctx, &public_middleware, &user_middleware);
     router = protocol::mount_agent(
@@ -42,7 +43,7 @@ pub(super) fn configure_routes(
         ctx,
         &public_middleware,
         &user_middleware,
-        full_middleware,
+        a2a_middleware,
     );
     router = protocol::mount_mcp_and_stream(
         router,

@@ -5,16 +5,14 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::services::middleware::authz::AuthzPolicy;
-use crate::services::middleware::{
-    ContextMiddleware, JwtContextExtractor, RouterExt, site_auth_gate,
-};
+use crate::services::middleware::{PublicContextMiddleware, RouterExt, site_auth_gate};
 use crate::services::static_content::{
     StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
 };
 
 pub(super) fn build_static_router(
     ctx: &AppContext,
-    public_middleware: ContextMiddleware<JwtContextExtractor>,
+    public_middleware: PublicContextMiddleware,
     events: Option<&StartupEventSender>,
 ) -> Router {
     let path = ctx.app_paths().system().content_config().to_path_buf();

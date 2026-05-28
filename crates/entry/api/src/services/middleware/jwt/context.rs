@@ -196,11 +196,4 @@ impl ContextExtractor for JwtContextExtractor {
     ) -> Result<(RequestContext, Request<Body>), ContextExtractionError> {
         self.extract_from_request_impl(request).await
     }
-
-    async fn extract_user_only(
-        &self,
-        headers: &HeaderMap,
-    ) -> Result<RequestContext, ContextExtractionError> {
-        self.extract_standard(headers).await
-    }
 }

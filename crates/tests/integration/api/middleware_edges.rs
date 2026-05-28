@@ -96,7 +96,7 @@ async fn malformed_jwt_returns_unauthorized_on_protected_route() {
     let resp = app.oneshot(req).await.expect("oneshot");
     let s = resp.status().as_u16();
     // Accepts 5xx as well: the test boot stack returns 500 ("SessionMiddleware
-    // must run before ContextMiddleware") when a malformed Bearer is present,
+    // must run before context middleware") when a malformed Bearer is present,
     // because the harness skips the session middleware layer. The point of
     // the test is "request is rejected, not served"; the precise status code
     // for this path is tracked separately.
@@ -117,7 +117,7 @@ async fn missing_auth_on_protected_route_returns_unauthorized() {
     let resp = app.oneshot(req).await.expect("oneshot");
     let s = resp.status().as_u16();
     // 401/403/400 in prod; the test boot stack returns 500 because
-    // SessionMiddleware isn't wired ahead of ContextMiddleware. Both are
+    // SessionMiddleware isn't wired ahead of the context middleware. Both are
     // valid rejections — what matters is "request is not served".
     assert!(
         (400..600).contains(&s) && s != 404,

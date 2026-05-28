@@ -4,6 +4,20 @@
 
 ### Changed
 
+- Route-mount context middleware is now four typed sibling layers — `PublicContextMiddleware`, `UserOnlyContextMiddleware`, `A2AContextMiddleware`, `McpContextMiddleware` — each implementing the new sealed `ContextLayer` trait that `RouterExt::with_auth` accepts. Each flavour's contract (Anon admission, optional-header merge, body-rebuild, MCP session-context fallback) is expressed at the type level rather than via a runtime `ContextRequirement` enum branch.
+- `extraction_error_to_api_error` is now a module-level free function in `services::middleware::context::middleware`. It does not depend on the middleware instance.
+
+### Removed
+
+- `ContextMiddleware`, its `public` / `user_only` / `full` / `mcp` constructors, and the `ContextRequirement` enum are deleted.
+- `ContextExtractor::extract_user_only` is folded into `extract_from_headers`. The single implementor had identical bodies for both.
+
+### Fixed
+
+- `/api/v1/mcp/*` mounts under `AuthzPolicy::public()` so the proxy handler (`services/proxy/auth.rs::AccessValidator`) can answer unauthenticated requests with the RFC 9728 `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge it already builds. v0.11.0 inserted a redundant `AuthzPolicy::restricted_to([User, Admin, Mcp, Service])` gate above the proxy, which short-circuited the request to a generic 403 (`caller type 'anon' is not authorized for this route`) and prevented spec-compliant MCP clients from starting their OAuth discovery handshake. Regression coverage: unit tests on `AuthzPolicy`/`authz_gate` in `crates/tests/unit/entry/api/src/middleware/authz_policy.rs` and an integration test driving the full mounted router in `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
+
+### Changed
+
 - `client_credentials` no longer intersects service-tier scopes (`hook:govern`, `hook:track`, `service`, `a2a`, `mcp`) with the OAuth client owner's roles. RFC 6749 §4.4 has no resource owner in the loop; service-tier scopes are statically granted to the client at registration and the `owner_user_id` is retained for audit attribution only. User-tier scopes (`admin`, `user`, `anonymous`) continue to require both the client grant and the owner's roles, matching the on-behalf-of delegation contract. `ClientCredentialsError::InvalidScope` now names the actual deficit — `requested scopes not in client grant: …` or `delegated scopes not held by owner: …` — instead of the generic `scopes not allowed for both client and owner`.
 
 ## [0.12.1] - 2026-05-27

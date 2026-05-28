@@ -20,7 +20,10 @@ pub mod trailing_slash;
 pub use analytics::*;
 pub use authz::{AuthzPolicy, authz_gate};
 pub use bot_detector::*;
-pub use context::{ContextExtractor, ContextMiddleware, ContextRequirement};
+pub use context::{
+    A2AContextMiddleware, ContextExtractor, McpContextMiddleware, PublicContextMiddleware,
+    UserOnlyContextMiddleware,
+};
 pub use cors::*;
 pub use ip_ban::*;
 pub use jti_revocation::{JtiRevocationState, jti_revocation_middleware};

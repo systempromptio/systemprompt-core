@@ -9,7 +9,10 @@ use systemprompt_traits::AppContext as AppContextTrait;
 use systemprompt_models::auth::UserType;
 
 use crate::services::middleware::authz::AuthzPolicy;
-use crate::services::middleware::{ContextMiddleware, JwtContextExtractor, RouterExt};
+use crate::services::middleware::{
+    A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, RouterExt,
+    UserOnlyContextMiddleware,
+};
 
 fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let analytics = ctx.analytics_provider()?;
@@ -24,8 +27,8 @@ fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
 pub(super) fn mount_oauth(
     mut router: Router,
     ctx: &AppContext,
-    public_middleware: &ContextMiddleware<JwtContextExtractor>,
-    user_middleware: &ContextMiddleware<JwtContextExtractor>,
+    public_middleware: &PublicContextMiddleware,
+    user_middleware: &UserOnlyContextMiddleware,
 ) -> Router {
     let rate_config = &ctx.config().rate_limits;
     if let Some(oauth_state) = create_oauth_state(ctx) {
@@ -47,9 +50,9 @@ pub(super) fn mount_oauth(
 pub(super) fn mount_agent(
     mut router: Router,
     ctx: &AppContext,
-    public_middleware: &ContextMiddleware<JwtContextExtractor>,
-    user_middleware: &ContextMiddleware<JwtContextExtractor>,
-    full_middleware: ContextMiddleware<JwtContextExtractor>,
+    public_middleware: &PublicContextMiddleware,
+    user_middleware: &UserOnlyContextMiddleware,
+    a2a_middleware: A2AContextMiddleware,
 ) -> Router {
     let rate_config = &ctx.config().rate_limits;
 
@@ -95,7 +98,7 @@ pub(super) fn mount_agent(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
             .with_rate_limit(rate_config, rate_config.agents_per_second)
-            .with_auth(full_middleware, AuthzPolicy::authenticated()),
+            .with_auth(a2a_middleware, AuthzPolicy::authenticated()),
     );
 
     router
@@ -104,9 +107,9 @@ pub(super) fn mount_agent(
 pub(super) fn mount_mcp_and_stream(
     mut router: Router,
     ctx: &AppContext,
-    public_middleware: &ContextMiddleware<JwtContextExtractor>,
-    user_middleware: &ContextMiddleware<JwtContextExtractor>,
-    mcp_middleware: ContextMiddleware<JwtContextExtractor>,
+    public_middleware: &PublicContextMiddleware,
+    user_middleware: &UserOnlyContextMiddleware,
+    mcp_middleware: McpContextMiddleware,
 ) -> Result<Router, LoaderError> {
     let rate_config = &ctx.config().rate_limits;
 
@@ -117,19 +120,19 @@ pub(super) fn mount_mcp_and_stream(
             .with_auth(public_middleware.clone(), AuthzPolicy::public()),
     );
 
+    // Why: MCP routes admit Anon at the route gate so the proxy handler
+    // (services/proxy/auth.rs) can emit an RFC 9728-compliant
+    // `WWW-Authenticate: Bearer resource_metadata="…"` challenge with the
+    // path-scoped resource URL. A coarser `restricted_to([User, Admin, Mcp,
+    // Service])` gate here collapses the response to a generic 403 and breaks
+    // spec-compliant MCP clients (Cowork, Claude Code, etc.), which only
+    // start their OAuth discovery handshake on a 401 carrying the challenge.
+    // The proxy is the single auth boundary for `/api/v1/mcp/*`.
     router = router.nest(
         ApiPaths::MCP_BASE,
         crate::routes::proxy::mcp::router(ctx)
             .with_rate_limit(rate_config, rate_config.mcp_per_second)
-            .with_auth(
-                mcp_middleware,
-                AuthzPolicy::restricted_to(&[
-                    UserType::User,
-                    UserType::Admin,
-                    UserType::Mcp,
-                    UserType::Service,
-                ]),
-            ),
+            .with_auth(mcp_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
@@ -149,8 +152,8 @@ pub(super) fn mount_mcp_and_stream(
 pub(super) fn mount_content_and_misc(
     mut router: Router,
     ctx: &AppContext,
-    public_middleware: &ContextMiddleware<JwtContextExtractor>,
-    user_middleware: &ContextMiddleware<JwtContextExtractor>,
+    public_middleware: &PublicContextMiddleware,
+    user_middleware: &UserOnlyContextMiddleware,
 ) -> Result<Router, LoaderError> {
     let rate_config = &ctx.config().rate_limits;
 

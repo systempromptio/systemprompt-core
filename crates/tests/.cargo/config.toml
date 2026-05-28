@@ -15,6 +15,13 @@
 
 [env]
 DATABASE_URL = "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web"
+# Cap libtest parallelism so the shared `systemprompt_test` Postgres database
+# isn't overwhelmed on workstations with 16-32 logical cores. Above ~8 parallel
+# tokio runtimes, the per-test DbPool fans out enough connections to exhaust
+# the server's `max_connections` budget and libtest surfaces the cascade as a
+# SIGTERM on the test binary. CI runs with 2 cores and is naturally below the
+# threshold, so this is a no-op there.
+RUST_TEST_THREADS = "8"
 
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"

@@ -4,12 +4,12 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 use crate::services::middleware::authz::AuthzPolicy;
-use crate::services::middleware::{ContextMiddleware, JwtContextExtractor, RouterExt};
+use crate::services::middleware::{RouterExt, UserOnlyContextMiddleware};
 
 pub(super) fn mount_extension_routes(
     mut router: Router,
     ctx: &AppContext,
-    user_middleware: &ContextMiddleware<JwtContextExtractor>,
+    user_middleware: &UserOnlyContextMiddleware,
     events: Option<&StartupEventSender>,
 ) -> Result<Router, LoaderError> {
     let api_extensions = ctx.extension_registry().api_extensions(ctx);
