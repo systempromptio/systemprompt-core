@@ -73,7 +73,7 @@ async fn whoami_for_seeded_admin_returns_envelope() -> anyhow::Result<()> {
     assert_eq!(resp.status(), StatusCode::OK);
     let body = read_body(resp).await?;
     assert_eq!(body["user_id"], cred.user_id.as_str());
-    assert_eq!(body["email"], "whoami@example.invalid");
+    assert_eq!(body["email"].as_str(), Some(cred.email.as_str()));
     assert!(body["roles"].as_array().is_some());
     Ok(())
 }

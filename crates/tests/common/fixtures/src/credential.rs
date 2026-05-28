@@ -111,15 +111,16 @@ fn mint_jwt_internal(
     JwtToken::new(token)
 }
 
-pub async fn seed_admin_credential(pool: &DbPool, email: &str) -> Result<AuthedFixture> {
+pub async fn seed_admin_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {
     let user_id = UserId::new(format!("admin-{}", Uuid::new_v4()));
     let session_id = SessionId::generate();
-    seed_user_row(pool, &user_id, email).await?;
+    let email = unique_email(email_base, &user_id);
+    seed_user_row(pool, &user_id, &email).await?;
     seed_user_session(pool, &user_id, &session_id).await?;
     let jwt = mint_jwt_internal(
         &user_id,
         &session_id,
-        email,
+        &email,
         "test-admin",
         UserType::Admin,
         vec![Permission::Admin],
@@ -129,20 +130,21 @@ pub async fn seed_admin_credential(pool: &DbPool, email: &str) -> Result<AuthedF
     Ok(AuthedFixture {
         user_id,
         session_id,
-        email: email.to_owned(),
+        email,
         jwt,
     })
 }
 
-pub async fn seed_bridge_credential(pool: &DbPool, email: &str) -> Result<AuthedFixture> {
+pub async fn seed_bridge_credential(pool: &DbPool, email_base: &str) -> Result<AuthedFixture> {
     let user_id = UserId::new(format!("bridge-{}", Uuid::new_v4()));
     let session_id = SessionId::generate();
-    seed_user_row(pool, &user_id, email).await?;
+    let email = unique_email(email_base, &user_id);
+    seed_user_row(pool, &user_id, &email).await?;
     seed_user_session(pool, &user_id, &session_id).await?;
     let jwt = mint_jwt_internal(
         &user_id,
         &session_id,
-        email,
+        &email,
         "test-bridge",
         UserType::User,
         vec![Permission::User],
@@ -152,7 +154,12 @@ pub async fn seed_bridge_credential(pool: &DbPool, email: &str) -> Result<Authed
     Ok(AuthedFixture {
         user_id,
         session_id,
-        email: email.to_owned(),
+        email,
         jwt,
     })
+}
+
+fn unique_email(base: &str, user_id: &UserId) -> String {
+    let (local, domain) = base.split_once('@').unwrap_or((base, "example.invalid"));
+    format!("{local}+{}@{domain}", user_id.as_str())
 }

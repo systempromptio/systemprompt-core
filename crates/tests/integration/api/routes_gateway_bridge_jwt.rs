@@ -53,7 +53,7 @@ async fn whoami_for_seeded_bridge_user_returns_envelope() -> anyhow::Result<()> 
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     let body: serde_json::Value = serde_json::from_slice(&bytes)?;
     assert_eq!(body["user_id"], cred.user_id.as_str());
-    assert_eq!(body["email"], "bridge-ok@example.invalid");
+    assert_eq!(body["email"].as_str(), Some(cred.email.as_str()));
     Ok(())
 }
 

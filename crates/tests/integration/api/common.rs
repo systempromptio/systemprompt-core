@@ -10,12 +10,12 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_db_pool, fixture_database_url};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context, fixture_db_pool};
 
 pub async fn setup_ctx() -> Result<(DbPool, Arc<AppContext>)> {
-    let url = fixture_database_url()?;
-    let pool = fixture_db_pool(&url).await?;
-    let ctx = fixture_app_context(&pool, &url)?;
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let ctx = fixture_app_context(&pool, &b.database_url)?;
     Ok((pool, ctx))
 }
 
