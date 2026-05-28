@@ -123,3 +123,11 @@ mod routes_oauth_token;
 #[cfg(test)]
 #[path = "common.rs"]
 mod common;
+
+#[cfg(test)]
+#[path = "oauth_register_owner_fk_present.rs"]
+mod oauth_register_owner_fk_present;
+
+#[cfg(test)]
+#[path = "session_middleware_persists_anon.rs"]
+mod session_middleware_persists_anon;
