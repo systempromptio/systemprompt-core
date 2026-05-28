@@ -8,6 +8,7 @@
 - Cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
 - `sync` propagates per-host emit failures into `SyncSummary::host_failures` and the one-line summary now reads `sync PARTIAL (…) — N host(s) failed: …`, so a silently half-published marketplace surfaces in the GUI Activity panel instead of being reported as `sync ok`.
 - 403 "bad loopback secret" rejections log the resolved secret path, and `tracing` lines on empty / missing / freshly minted secret files include the file path, giving operators a single line to follow when Claude Desktop has cached a stale loopback secret.
+- `GatewayError::HookTokenRejected { status, body }` replaces the bare `HttpStatus` mapping for `mint_plugin_hook_token` non-2xx responses; the gateway's error body is preserved so `bridge sync` PARTIAL lines carry the underlying RFC 6749 §5.2 reason instead of an opaque status code.
 
 ### Added
 
