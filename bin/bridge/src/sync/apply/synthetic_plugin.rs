@@ -79,6 +79,11 @@ struct McpServerEntry<'a> {
     url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     headers: Option<BTreeMap<&'a str, String>>,
+    // `oauth: true` is the documented "dynamic client registration" value per
+    // claude.com/docs/cowork/3p/configuration. Mutually exclusive with `headers`;
+    // when the server config carries explicit `headers`, this is left absent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    oauth: Option<bool>,
 }
 
 #[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
@@ -170,12 +175,14 @@ fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), super
                 .headers
                 .as_ref()
                 .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.clone())).collect());
+            let oauth = if headers.is_none() { Some(true) } else { None };
             (
                 slug.clone(),
                 McpServerEntry {
                     transport: s.transport.as_deref().unwrap_or("http"),
                     url: s.url.as_str().to_string(),
                     headers,
+                    oauth,
                 },
             )
         })

@@ -4,6 +4,7 @@ mod resource;
 use super::AuthorizeQuery;
 use anyhow::Result;
 use systemprompt_oauth::repository::OAuthRepository;
+use url::Origin;
 
 pub async fn validate_authorize_request(
     state: &systemprompt_oauth::OAuthState,
@@ -58,7 +59,10 @@ pub async fn validate_authorize_request(
     Ok(scope)
 }
 
-pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> {
+pub fn validate_oauth_parameters(
+    params: &AuthorizeQuery,
+    self_origin: &Origin,
+) -> Result<(), String> {
     if params.response_type != "code" {
         return Err(format!(
             "Unsupported response_type '{}'. Only 'code' is supported.",
@@ -84,7 +88,7 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
     }
 
     if let Some(resource) = &params.resource {
-        resource::validate_resource_uri(resource)?;
+        resource::validate_resource_uri(resource, self_origin)?;
     }
 
     Ok(())

@@ -13,12 +13,12 @@
 //!   extraction failure the request fails. Used for non-A2A authenticated
 //!   routes.
 //! - [`A2AContextMiddleware`] — extracts a real user AND parses the JSON-RPC
-//!   body to recover `contextId` (the A2A wire spec carries it in the body,
-//!   not headers). Rebuilds the body for downstream handlers.
-//! - [`McpContextMiddleware`] — headers-only extraction; on extraction
-//!   failure, forwards the session-derived `RequestContext` (Anon) so the
-//!   downstream MCP proxy handler can answer with an RFC 9728
-//!   `WWW-Authenticate` 401 challenge. The fallback is load-bearing — see
+//!   body to recover `contextId` (the A2A wire spec carries it in the body, not
+//!   headers). Rebuilds the body for downstream handlers.
+//! - [`McpContextMiddleware`] — headers-only extraction; on extraction failure,
+//!   forwards the session-derived `RequestContext` (Anon) so the downstream MCP
+//!   proxy handler can answer with an RFC 9728 `WWW-Authenticate` 401
+//!   challenge. The fallback is load-bearing — see
 //!   `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
 //!
 //! All four share the same `Arc<dyn ContextExtractor>` and the same error
@@ -47,9 +47,7 @@ pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> A
         ContextExtractionError::InvalidToken(_) => {
             ApiError::unauthorized("Invalid or expired JWT token")
         },
-        ContextExtractionError::UserNotFound(_) => {
-            ApiError::unauthorized("User no longer exists")
-        },
+        ContextExtractionError::UserNotFound(_) => ApiError::unauthorized("User no longer exists"),
         ContextExtractionError::MissingSessionId => {
             ApiError::bad_request("JWT missing required 'session_id' claim")
         },
@@ -57,8 +55,8 @@ pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> A
             ApiError::bad_request("JWT missing required 'sub' claim")
         },
         ContextExtractionError::MissingContextId => ApiError::bad_request(
-            "Missing required 'x-context-id' header (for MCP routes) or contextId in body \
-             (for A2A routes)",
+            "Missing required 'x-context-id' header (for MCP routes) or contextId in body (for \
+             A2A routes)",
         ),
         ContextExtractionError::MissingHeader(header) => {
             ApiError::bad_request(format!("Missing required header: {header}"))
@@ -72,11 +70,9 @@ pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> A
         ContextExtractionError::DatabaseError(_) => {
             ApiError::internal_error("Internal server error")
         },
-        ContextExtractionError::ForbiddenHeader { header, reason } => {
-            ApiError::bad_request(format!(
-                "Header '{header}' is not allowed: {reason}. Use JWT authentication instead."
-            ))
-        },
+        ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
+            format!("Header '{header}' is not allowed: {reason}. Use JWT authentication instead."),
+        ),
     }
 }
 
@@ -141,11 +137,7 @@ fn create_request_span(ctx: &RequestContext) -> tracing::Span {
     )
 }
 
-fn session_context_required_error(
-    trace_id: &TraceId,
-    path: &str,
-    method: &str,
-) -> Response {
+fn session_context_required_error(trace_id: &TraceId, path: &str, method: &str) -> Response {
     tracing::error!(
         trace_id = %trace_id,
         path = %path,

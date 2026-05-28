@@ -59,7 +59,10 @@ pub fn fixture_config(database_url: &str) -> Config {
         trusted_issuers: vec![],
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
-        rate_limits: RateLimitConfig::default(),
+        rate_limits: RateLimitConfig {
+            disabled: true,
+            ..RateLimitConfig::default()
+        },
         cors_allowed_origins: vec![],
         trusted_proxies: vec![],
         is_cloud: false,

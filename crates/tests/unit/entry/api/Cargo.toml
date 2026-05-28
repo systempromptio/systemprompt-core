@@ -25,6 +25,7 @@ ipnet = "2.10"
 systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

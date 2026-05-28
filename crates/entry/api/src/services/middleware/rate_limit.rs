@@ -35,11 +35,8 @@ use tracing::warn;
 /// — third parties cannot stand up a new flavour outside this crate, which
 /// keeps the route-mount surface auditable.
 pub trait ContextLayer: Clone + Send + Sync + 'static {
-    fn handle(
-        self,
-        req: Request,
-        next: Next,
-    ) -> impl std::future::Future<Output = Response> + Send;
+    fn handle(self, req: Request, next: Next)
+    -> impl std::future::Future<Output = Response> + Send;
 }
 
 impl ContextLayer for PublicContextMiddleware {

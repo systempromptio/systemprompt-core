@@ -1,6 +1,7 @@
 use systemprompt_models::net::OutboundUrlError;
+use url::Origin;
 
-pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
+pub(super) fn validate_resource_uri(resource: &str, self_origin: &Origin) -> Result<(), String> {
     let url = reqwest::Url::parse(resource)
         .map_err(|_e| format!("Invalid resource URI: '{resource}' is not a valid absolute URI"))?;
 
@@ -13,6 +14,16 @@ pub(super) fn validate_resource_uri(resource: &str) -> Result<(), String> {
 
     if url.fragment().is_some() {
         return Err("Resource URI must not contain a fragment".to_owned());
+    }
+
+    // Self-origin carve-out: OAuth clients are permitted to target the gateway
+    // itself, even when its `api_external_url` is a loopback dev URL. The
+    // managed-MCP resource URI is synthesised from `api_external_url` (see
+    // routes/proxy/mcp.rs), so rejecting it here would make the gateway refuse
+    // resource indicators it produced. Any other host still falls through to
+    // the stricter rules below.
+    if url.origin() == *self_origin {
+        return Ok(());
     }
 
     // SSRF guard for OAuth resource indicators. The OAuth surface is stricter

@@ -96,7 +96,9 @@ fn print_mcp_section(mcp_servers: &HashMap<String, Deployment>) {
         ));
         CliService::key_value(
             "    endpoint",
-            mcp.endpoint.as_deref().unwrap_or("<derived from api_external_url>"),
+            mcp.endpoint
+                .as_deref()
+                .unwrap_or("<derived from api_external_url>"),
         );
         CliService::key_value("    binary", &mcp.binary);
     }

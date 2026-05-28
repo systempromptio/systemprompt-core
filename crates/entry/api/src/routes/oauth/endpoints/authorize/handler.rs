@@ -7,7 +7,7 @@ use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
 use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
-use systemprompt_models::RequestContext;
+use systemprompt_models::{Config, RequestContext};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
 use systemprompt_oauth::services::generate_secure_token;
@@ -93,7 +93,25 @@ pub async fn handle_authorize_get(
         ));
     }
 
-    if let Err(validation_error) = validate_oauth_parameters(&params) {
+    let self_origin = Config::get()
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to load config for OAuth self-origin");
+            OAuthHttpError::server_error("Configuration unavailable")
+        })
+        .and_then(|c| {
+            reqwest::Url::parse(&c.api_external_url)
+                .map(|u| u.origin())
+                .map_err(|e| {
+                    tracing::error!(
+                        error = %e,
+                        api_external_url = %c.api_external_url,
+                        "api_external_url is not a valid URL — bootstrap validation should have caught this"
+                    );
+                    OAuthHttpError::server_error("Configuration invalid")
+                })
+        })?;
+
+    if let Err(validation_error) = validate_oauth_parameters(&params, &self_origin) {
         return Err(with_redirect_if_set(
             OAuthHttpError::invalid_request(validation_error),
             &params,

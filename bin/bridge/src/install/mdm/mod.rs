@@ -148,9 +148,12 @@ pub(crate) fn windows_policy_values(
     values
 }
 
-// `oauth: {}` (empty object) MUST be emitted — it signals "needs OAuth,
-// do well-known discovery" to Cowork. The bridge does NOT inject a bearer
-// token here; Cowork performs the MCP-spec OAuth dance itself.
+// `"oauth": true` is the documented value for "dynamic client registration"
+// in claude.com/docs/cowork/3p/configuration. Cowork's bundle schema
+// (`$Qr.oauth`) is a union of `boolean` or an object with required `clientId`
+// — an empty object `{}` satisfies neither and is silently dropped, which is
+// why an earlier version of this code produced MCP servers that surfaced in
+// the UI but never triggered the OAuth flow on Connect.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub(crate) fn managed_mcp_servers_json() -> Option<String> {
@@ -168,7 +171,7 @@ pub(crate) fn managed_mcp_servers_json() -> Option<String> {
                 "name": slug,
                 "url": upstream.url.as_str(),
                 "transport": "http",
-                "oauth": {},
+                "oauth": true,
             }))
         })
         .collect();
