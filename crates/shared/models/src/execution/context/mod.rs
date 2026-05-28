@@ -261,11 +261,11 @@ impl RequestContext {
         self.user.is_some()
     }
 
-    pub fn is_system(&self) -> bool {
+    pub const fn is_system(&self) -> bool {
         matches!(self.auth.user_type, UserType::Service)
     }
 
-    pub fn is_anonymous(&self) -> bool {
+    pub const fn is_anonymous(&self) -> bool {
         matches!(self.auth.user_type, UserType::Anon)
     }
 
