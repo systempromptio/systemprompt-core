@@ -7041,6 +7041,8 @@ dependencies = [
  "systemprompt-identifiers",
  "temp-env",
  "tempfile",
+ "tokio",
+ "wiremock",
 ]
 
 [[package]]

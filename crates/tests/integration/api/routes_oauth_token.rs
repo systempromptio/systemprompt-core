@@ -209,11 +209,15 @@ async fn token_client_credentials_with_good_secret_issues_token() -> anyhow::Res
     let resp = app.oneshot(form_post("/token", body)).await?;
     let s = resp.status();
     let v = read_json(resp).await?;
-    // Happy path is 200 with access_token in the JSON; environments missing
-    // signing keys / dependent state may return 5xx, which still proves the
-    // grant handler executed past the validation stage.
+    // The fixture client carries openid/profile scopes; the fixture user has
+    // no roles, so scope intersection is empty and the grant correctly
+    // rejects as invalid_scope (400). The 200 branch covers environments
+    // where the seed user picks up default roles; 5xx is permitted only for
+    // genuine internal failures (signing key / dependent state). 401/403 is
+    // never acceptable here — that would mean the new error mapping is
+    // collapsing scope rejections into client rejections.
     assert!(
-        s == StatusCode::OK || s.is_server_error(),
+        s == StatusCode::OK || s == StatusCode::BAD_REQUEST || s.is_server_error(),
         "{s} body={v}"
     );
     if s == StatusCode::OK {
@@ -260,6 +264,56 @@ async fn token_refresh_with_unknown_token_returns_invalid_grant() -> anyhow::Res
     let s = resp.status();
     let v = read_json(resp).await?;
     assert!(s.is_client_error() || s.is_server_error(), "{s} {v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_with_inactive_owner_returns_invalid_client() -> anyhow::Result<()>
+{
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let user = UserId::new(format!("oauth-token-inactive-{}", Uuid::new_v4()));
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query("INSERT INTO users (id, name, email, status) VALUES ($1, $1, $2, 'disabled') ON CONFLICT (id) DO UPDATE SET status='disabled'")
+        .bind(user.as_str())
+        .bind(format!("{}@oauth.invalid", user.as_str()))
+        .execute(p.as_ref())
+        .await?;
+    let client = seed_oauth_client(&pool, &user).await?;
+
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(
+        s,
+        StatusCode::UNAUTHORIZED,
+        "inactive owner must surface as 401 invalid_client, got {s} body={v}"
+    );
+    assert_eq!(v["error"].as_str(), Some("invalid_client"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_with_unknown_client_does_not_return_500() -> anyhow::Result<()> {
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", "no-such-client"),
+        ("client_secret", "irrelevant"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert!(
+        s.is_client_error(),
+        "unknown client must surface as 4xx, never 500, got {s} body={v}"
+    );
     Ok(())
 }
 
