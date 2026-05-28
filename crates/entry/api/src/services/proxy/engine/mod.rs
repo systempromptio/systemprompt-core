@@ -11,11 +11,24 @@ use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use tokio::sync::RwLock;
 
-use super::auth::AccessValidator;
+use super::auth::{AccessValidator, build_mcp_unknown_service_challenge};
 use super::backend::{HeaderInjector, ProxyError, RequestBuilder, ResponseHandler, UrlResolver};
 use super::client::ClientPool;
 use super::resolver::ServiceResolver;
 use mcp_session::SessionCache;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProxyKind {
+    Mcp,
+    Agent,
+}
+
+#[derive(Debug)]
+pub struct ProxyTarget<'a> {
+    pub service_name: &'a str,
+    pub path: &'a str,
+    pub kind: ProxyKind,
+}
 
 #[derive(Debug, Clone)]
 pub struct ProxyEngine {
@@ -39,16 +52,37 @@ impl ProxyEngine {
 
     pub async fn proxy_request(
         &self,
-        service_name: &str,
-        path: &str,
+        target: ProxyTarget<'_>,
         request: Request<Body>,
         ctx: AppContext,
     ) -> Result<Response<Body>, ProxyError> {
+        let ProxyTarget {
+            service_name,
+            path,
+            kind: proxy_kind,
+        } = target;
         if request.extensions().get::<RequestContext>().is_none() {
             tracing::warn!("RequestContext missing from request extensions");
         }
 
-        let service = ServiceResolver::resolve(service_name, &ctx).await?;
+        let service = match ServiceResolver::resolve(service_name, &ctx).await {
+            Ok(svc) => svc,
+            Err(err) => {
+                if proxy_kind == ProxyKind::Mcp && matches!(err, ProxyError::ServiceNotFound { .. })
+                {
+                    let req_ctx = request.extensions().get::<RequestContext>().cloned();
+                    if let Some(challenge) = build_mcp_unknown_service_challenge(
+                        service_name,
+                        request.headers(),
+                        &ctx,
+                        req_ctx.as_ref(),
+                    ) {
+                        return Err(challenge);
+                    }
+                }
+                return Err(err);
+            },
+        };
 
         let req_ctx = request.extensions().get::<RequestContext>().cloned();
         let authenticated_user = AccessValidator::validate(
@@ -157,7 +191,12 @@ impl ProxyEngine {
         request: Request<Body>,
     ) -> Response<Body> {
         let Path((service_name,)) = path_params;
-        match self.proxy_request(&service_name, "", request, ctx).await {
+        let target = ProxyTarget {
+            service_name: &service_name,
+            path: "",
+            kind: ProxyKind::Mcp,
+        };
+        match self.proxy_request(target, request, ctx).await {
             Ok(response) => response,
             Err(e) => e.into_response(),
         }
@@ -170,7 +209,12 @@ impl ProxyEngine {
         request: Request<Body>,
     ) -> Response<Body> {
         let Path((service_name, path)) = path_params;
-        match self.proxy_request(&service_name, &path, request, ctx).await {
+        let target = ProxyTarget {
+            service_name: &service_name,
+            path: &path,
+            kind: ProxyKind::Mcp,
+        };
+        match self.proxy_request(target, request, ctx).await {
             Ok(response) => response,
             Err(e) => e.into_response(),
         }
@@ -183,7 +227,12 @@ impl ProxyEngine {
         request: Request<Body>,
     ) -> Result<Response<Body>, StatusCode> {
         let Path((service_name,)) = path_params;
-        self.proxy_request(&service_name, "", request, ctx)
+        let target = ProxyTarget {
+            service_name: &service_name,
+            path: "",
+            kind: ProxyKind::Agent,
+        };
+        self.proxy_request(target, request, ctx)
             .await
             .map_err(|e| e.to_status_code())
     }
@@ -195,7 +244,12 @@ impl ProxyEngine {
         request: Request<Body>,
     ) -> Result<Response<Body>, StatusCode> {
         let Path((service_name, path)) = path_params;
-        self.proxy_request(&service_name, &path, request, ctx)
+        let target = ProxyTarget {
+            service_name: &service_name,
+            path: &path,
+            kind: ProxyKind::Agent,
+        };
+        self.proxy_request(target, request, ctx)
             .await
             .map_err(|e| e.to_status_code())
     }

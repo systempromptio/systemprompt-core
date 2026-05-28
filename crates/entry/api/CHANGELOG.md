@@ -20,6 +20,7 @@
 ### Fixed
 
 - `/api/v1/mcp/*` mounts under `AuthzPolicy::public()` so the proxy handler (`services/proxy/auth.rs::AccessValidator`) can answer unauthenticated requests with the RFC 9728 `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge it already builds. v0.11.0 inserted a redundant `AuthzPolicy::restricted_to([User, Admin, Mcp, Service])` gate above the proxy, which short-circuited the request to a generic 403 (`caller type 'anon' is not authorized for this route`) and prevented spec-compliant MCP clients from starting their OAuth discovery handshake. Regression coverage: unit tests on `AuthzPolicy`/`authz_gate` in `crates/tests/unit/entry/api/src/middleware/authz_policy.rs` and an integration test driving the full mounted router in `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
+- Unauthenticated or malformed-bearer requests to `/api/v1/mcp/<unknown>/…` now receive the RFC 9728 401 challenge instead of `404 Service not found`. `services::proxy::engine::proxy_request` intercepts `ServiceNotFound` on the MCP branch and promotes it to the existing `OAuthChallengeBuilder` challenge whenever the request was not properly authenticated; authenticated callers continue to receive 404 for a genuinely unknown service. Required so spec-compliant MCP clients can begin OAuth discovery against any `/api/v1/mcp/*` path.
 
 ## [0.12.1] - 2026-05-27
 

@@ -137,6 +137,26 @@ impl OAuthChallengeBuilder {
     }
 }
 
+pub(super) fn build_mcp_unknown_service_challenge(
+    service_name: &str,
+    headers: &HeaderMap,
+    ctx: &AppContext,
+    req_context: Option<&RequestContext>,
+) -> Option<ProxyError> {
+    let status_code =
+        AuthValidator::validate_service_access(headers, service_name, req_context).err()?;
+    let resource_path = ApiPaths::mcp_server_endpoint(service_name);
+    let has_authorization = headers.get(AUTHORIZATION).is_some();
+    Some(challenge_or_error(&ChallengeRequest {
+        service_name,
+        resource_path: &resource_path,
+        headers,
+        ctx,
+        status_code,
+        has_authorization,
+    }))
+}
+
 pub(super) struct AccessValidator;
 
 impl AccessValidator {
