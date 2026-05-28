@@ -90,5 +90,8 @@ fn clone_token_error(err: &TokenError) -> TokenError {
         TokenError::InvalidTarget { message } => TokenError::InvalidTarget {
             message: message.clone(),
         },
+        TokenError::InvalidScope { message } => TokenError::InvalidScope {
+            message: message.clone(),
+        },
     }
 }

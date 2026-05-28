@@ -7,8 +7,8 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 
 use super::super::generation::{
-    ClientTokenOptions, TokenExchangeRequest, TokenGenerationParams, generate_client_tokens,
-    generate_tokens_by_user_id, handle_token_exchange,
+    ClientCredentialsError, ClientTokenOptions, TokenExchangeRequest, TokenGenerationParams,
+    generate_client_tokens, generate_tokens_by_user_id, handle_token_exchange,
 };
 use super::super::validation::{
     AuthCodeValidationParams, extract_required_field, validate_authorization_code,
@@ -248,9 +248,7 @@ pub(super) async fn handle_client_credentials_grant(
     };
     let token_response = generate_client_tokens(&repo, &client_id, headers, state, options)
         .await
-        .map_err(|e| TokenError::ServerError {
-            message: e.to_string(),
-        })?;
+        .map_err(|e| map_client_credentials_error(&client_id, e))?;
 
     tracing::info!(
         grant_type = "client_credentials",
@@ -262,4 +260,29 @@ pub(super) async fn handle_client_credentials_grant(
     );
 
     Ok(token_response)
+}
+
+fn map_client_credentials_error(client_id: &ClientId, error: ClientCredentialsError) -> TokenError {
+    tracing::warn!(
+        client_id = %client_id,
+        error = %error,
+        "client_credentials token generation failed"
+    );
+    match error {
+        ClientCredentialsError::ClientNotFound
+        | ClientCredentialsError::OwnerNotFound
+        | ClientCredentialsError::OwnerInactive => TokenError::InvalidClient,
+        ClientCredentialsError::InvalidScope(message) => TokenError::InvalidScope { message },
+        ClientCredentialsError::HookScopeRequiresHookAudience => TokenError::InvalidScope {
+            message: "hook scopes require audience=hook on the token request".to_owned(),
+        },
+        ClientCredentialsError::InvalidAudience(message) => TokenError::InvalidTarget { message },
+        err @ (ClientCredentialsError::OwnerIdMalformed(_)
+        | ClientCredentialsError::UserProviderUnavailable(_)
+        | ClientCredentialsError::SessionCreate(_)
+        | ClientCredentialsError::JwtSign(_)
+        | ClientCredentialsError::ConfigUnavailable(_)) => TokenError::ServerError {
+            message: err.to_string(),
+        },
+    }
 }

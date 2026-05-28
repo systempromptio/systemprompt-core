@@ -1,7 +1,7 @@
 mod client_credentials;
 mod token_exchange;
 
-pub use client_credentials::{ClientTokenOptions, generate_client_tokens};
+pub use client_credentials::{ClientCredentialsError, ClientTokenOptions, generate_client_tokens};
 pub use token_exchange::{
     TokenExchangeRequest, build_act_chain, handle_token_exchange, intersect_scopes, peek_issuer,
 };

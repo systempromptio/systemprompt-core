@@ -76,6 +76,9 @@ pub enum TokenError {
 
     #[error("Invalid target resource: {message}")]
     InvalidTarget { message: String },
+
+    #[error("Invalid scope: {message}")]
+    InvalidScope { message: String },
 }
 
 impl From<TokenError> for OAuthHttpError {
@@ -97,6 +100,7 @@ impl From<TokenError> for OAuthHttpError {
             TokenError::ExpiredCode => Self::invalid_grant("Authorization code expired"),
             TokenError::ServerError { message } => Self::server_error(message),
             TokenError::InvalidTarget { message } => Self::invalid_target(message),
+            TokenError::InvalidScope { message } => Self::invalid_scope(message),
         }
     }
 }
