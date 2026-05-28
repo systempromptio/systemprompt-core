@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.4] - 2026-05-28
+
+### Changed
+
+- Bridge no longer emits the `deploymentOrganizationUuid` policy key into the Claude Desktop managed-prefs plist (macOS) or `HKCU\…\Policies\Claude` registry hive (Windows). Cowork's 3P custom-gateway contract is inference-only (`POST /v1/messages` + optional `GET /v1/models`, per docs/cowork/3p/gateway and gateway-sso); a custom gateway has no spec surface to assert the `integrations:manage` permission that this key flips Cowork into checking. Emitting it locked the Install button under the "Contact an organization owner to install connectors" tooltip without recourse. Cowork now resolves through `manageFromPersonal = true` and the Install button is live — MCP installation and use over the bridge proxy are unchanged.
+- `pick_target` no longer takes a `policy_uuid` argument and `resolve_target` no longer reads the now-absent `deploymentOrganizationUuid` policy key; Cowork plugin sync resolves the personal-session org dir directly, falling back to newest-mtime when the personal dir is missing.
+
+### Added
+
+- `bridge doctor` adds a `hook token mint` check that exchanges the cached OAuth client credentials for a hook token against the gateway's token endpoint with `plugin_id=__doctor__`. Failures surface the gateway's `error_description` verbatim on a single line instead of waiting for the next `sync` PARTIAL output.
+
 ## [0.9.3] - 2026-05-28
 
 ### Changed

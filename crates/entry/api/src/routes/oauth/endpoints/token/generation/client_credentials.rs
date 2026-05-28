@@ -2,7 +2,9 @@ use axum::http::HeaderMap;
 use std::str::FromStr;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource};
 use systemprompt_models::Config;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission, parse_permissions};
+use systemprompt_models::auth::{
+    AuthenticatedUser, JwtAudience, Permission, parse_permissions, permissions_to_string,
+};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
@@ -69,9 +71,8 @@ pub async fn generate_client_tokens(
         .ok_or(ClientCredentialsError::ClientNotFound)?;
 
     let requested_permissions = match options.scope {
-        Some(scope_str) => {
-            parse_permissions(scope_str).map_err(|e| ClientCredentialsError::InvalidScope(e.to_string()))?
-        },
+        Some(scope_str) => parse_permissions(scope_str)
+            .map_err(|e| ClientCredentialsError::InvalidScope(e.to_string()))?,
         None => client_scope_permissions(&client.scopes),
     };
 
@@ -91,7 +92,7 @@ pub async fn generate_client_tokens(
         .collect();
 
     let permissions =
-        intersect_permissions(&requested_permissions, &client.scopes, &owner_permissions)?;
+        authorize_client_grant(&requested_permissions, &client.scopes, &owner_permissions)?;
 
     let audience = resolve_audience(options.audience, global_config)?;
 
@@ -172,26 +173,81 @@ fn client_scope_permissions(client_scopes: &[String]) -> Vec<Permission> {
         .collect()
 }
 
-fn intersect_permissions(
+/// Decide which of the requested scopes a `client_credentials` token may carry.
+///
+/// `client_credentials` (RFC 6749 §4.4) is the grant where the client acts as
+/// itself, with no resource owner in the loop. systemprompt-oauth still records
+/// an `owner_user_id` on every client for *audit attribution* — the JWT's
+/// `sub` resolves back to a human so downstream events trace to a person —
+/// but ownership does not authorize the grant by itself.
+///
+/// Scopes split into two tiers, already encoded on [`Permission`]:
+///
+/// * **Service-tier** ([`Permission::is_service_scope`]: `hook:govern`,
+///   `hook:track`, `service`, `a2a`, `mcp`). The client is provisioned with
+///   these statically at registration; the owner is irrelevant. Granted iff the
+///   client holds the scope.
+/// * **User-tier** ([`Permission::is_user_role`]: `admin`, `user`,
+///   `anonymous`). These represent delegated authority — the machine acting on
+///   behalf of the owner — so they require both the client *and* the owner to
+///   hold the permission.
+///
+/// If the result is empty the error names the actual deficit (client grant vs.
+/// owner roles) so operator logs and the bridge `sync` PARTIAL body point at
+/// the right misconfiguration instead of a generic "not allowed".
+fn authorize_client_grant(
     requested: &[Permission],
     client_scopes: &[String],
     owner_permissions: &[Permission],
 ) -> Result<Vec<Permission>, ClientCredentialsError> {
-    let client_allowed: Vec<Permission> = client_scope_permissions(client_scopes);
+    let client_allowed = client_scope_permissions(client_scopes);
 
-    let allowed: Vec<Permission> = requested
-        .iter()
-        .filter(|p| client_allowed.contains(p) && owner_permissions.contains(p))
-        .copied()
-        .collect();
+    let mut granted: Vec<Permission> = Vec::with_capacity(requested.len());
+    let mut missing_from_client: Vec<Permission> = Vec::new();
+    let mut missing_from_owner: Vec<Permission> = Vec::new();
 
-    if allowed.is_empty() {
-        return Err(ClientCredentialsError::InvalidScope(
-            "scopes not allowed for both client and owner".to_owned(),
-        ));
+    for &perm in requested {
+        if !client_allowed.contains(&perm) {
+            missing_from_client.push(perm);
+            continue;
+        }
+        match perm {
+            Permission::HookGovern
+            | Permission::HookTrack
+            | Permission::Service
+            | Permission::A2a
+            | Permission::Mcp => granted.push(perm),
+            Permission::Admin | Permission::User | Permission::Anonymous => {
+                if owner_permissions.contains(&perm) {
+                    granted.push(perm);
+                } else {
+                    missing_from_owner.push(perm);
+                }
+            },
+        }
     }
 
-    Ok(allowed)
+    granted.sort_by_key(|p| std::cmp::Reverse(p.hierarchy_level()));
+    granted.dedup();
+
+    if granted.is_empty() {
+        let reason = if !missing_from_client.is_empty() {
+            format!(
+                "requested scopes not in client grant: {}",
+                permissions_to_string(&missing_from_client)
+            )
+        } else if !missing_from_owner.is_empty() {
+            format!(
+                "delegated scopes not held by owner: {}",
+                permissions_to_string(&missing_from_owner)
+            )
+        } else {
+            "no scopes requested".to_owned()
+        };
+        return Err(ClientCredentialsError::InvalidScope(reason));
+    }
+
+    Ok(granted)
 }
 
 fn resolve_audience(

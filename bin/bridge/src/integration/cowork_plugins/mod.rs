@@ -16,7 +16,7 @@ pub(crate) mod registry;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{publish, resolve_target, sanitize_path_segment, unpublish};
+pub use emit::{pick_target, publish, resolve_target, sanitize_path_segment, unpublish};
 
 pub use marketplace::{
     MARKETPLACE_SCHEMA_URL, MarketplaceFile, MarketplaceMetadata, MarketplaceOwner,

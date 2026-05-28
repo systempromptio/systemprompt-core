@@ -17,7 +17,6 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceGatewayAuthScheme",
     "inferenceGatewayHeaders",
     "inferenceModels",
-    "deploymentOrganizationUuid",
 ];
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

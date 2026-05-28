@@ -6,6 +6,7 @@ use crate::integration::host_app::{
     GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProfileGenInputs, ProfileState,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct StubHost;
 
 pub static STUB_HOST: StubHost = StubHost;
@@ -39,8 +40,7 @@ impl HostApp for StubHost {
             host_processes: Vec::new(),
             probed_at_unix: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
+                .map_or(0, |d| d.as_secs()),
         }
     }
 

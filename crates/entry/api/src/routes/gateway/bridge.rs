@@ -123,10 +123,11 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
     }))
 }
 
-// Why: Cowork rejects arbitrary strings (e.g. `local_198abcdef`) for its
-// `deploymentOrganizationUuid` policy key — local-trial tenants need a valid
-// v4/v5 UUID on the wire. Internal state keeps the `local_` prefix; only the
-// Cowork-facing handler peels it.
+// Why: Codex CLI threads this value into the `x-tenant` HTTP header on
+// outbound inference requests, and downstream tenant-attribution consumers
+// expect a canonical RFC-4122 UUID rather than the internal `local_`-
+// prefixed form. Internal state keeps the prefix; only the bridge-facing
+// handler peels it.
 fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {
     let raw = tenant_id.as_str();
     let suffix = raw.strip_prefix("local_").unwrap_or(raw);

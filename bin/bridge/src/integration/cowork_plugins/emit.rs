@@ -18,6 +18,8 @@ use serde_json::Value;
 use crate::config::paths;
 use crate::fsutil;
 
+const PERSONAL_SESSION_UUID: &str = "00000000-0000-0000-0000-000000000000";
+
 use super::upsert::{
     atomic_write, current_iso8601, inject_hooks_field, read_optional_bytes, retain_installed,
     retain_marketplaces, upsert_enabled, upsert_installed, upsert_known,
@@ -95,6 +97,13 @@ pub struct EmitReport {
 
 // `None` means no Cowork install detected — callers must treat as no-op,
 // not as an error (Cowork is optional).
+//
+// Resolution order: (1) the personal-session UUID `00000000-…`, (2) fall
+// back to the newest-mtime org dir. Mtime alone is not reliable — any Cowork
+// interaction with a non-target org bumps its mtime past the one the user
+// actually has the Connectors panel pointed at — but personal mode is the
+// only mode this gateway can attest to under the 3P spec, so it's the
+// preferred target whenever Cowork has materialised it.
 #[must_use]
 pub fn resolve_target() -> Option<CoworkTarget> {
     let sessions_root = paths::cowork3p_sessions_root()?;
@@ -120,14 +129,54 @@ pub fn resolve_target() -> Option<CoworkTarget> {
             candidates.push((mtime, path));
         }
     }
-    candidates.sort_by_key(|(t, _)| std::cmp::Reverse(*t));
-    candidates.into_iter().next().map(|(_, session_org_dir)| {
-        let cowork_plugins_dir = session_org_dir.join(paths::COWORK_PLUGINS_SUBDIR);
-        CoworkTarget {
-            session_org_dir,
-            cowork_plugins_dir,
-        }
+
+    let session_org_dir = pick_target(&candidates)?;
+    let cowork_plugins_dir = session_org_dir.join(paths::COWORK_PLUGINS_SUBDIR);
+    Some(CoworkTarget {
+        session_org_dir,
+        cowork_plugins_dir,
     })
+}
+
+// Why: extracted as a pure helper so the resolution rules can be unit-tested
+// without staging a real sessions tree on disk. The IO (read_dir) is in
+// `resolve_target`; the *choice* between candidates is here.
+//
+// An org dir is only usable if its `cowork_plugins` subdir exists; a half-
+// initialised org dir would otherwise win on mtime and silently route writes
+// nowhere Cowork actually reads.
+#[must_use]
+pub fn pick_target(candidates: &[(SystemTime, PathBuf)]) -> Option<PathBuf> {
+    if candidates.is_empty() {
+        return None;
+    }
+
+    fn org_uuid_of(p: &Path) -> Option<String> {
+        p.file_name()
+            .and_then(|s| s.to_str())
+            .map(str::to_ascii_lowercase)
+    }
+    fn usable(p: &Path) -> bool {
+        p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir()
+    }
+
+    if let Some((_, path)) = candidates.iter().find(|(_, p)| {
+        org_uuid_of(p.as_path()).as_deref() == Some(PERSONAL_SESSION_UUID) && usable(p.as_path())
+    }) {
+        return Some(path.clone());
+    }
+
+    let mut by_mtime: Vec<&(SystemTime, PathBuf)> = candidates.iter().collect();
+    by_mtime.sort_by_key(|(t, _)| std::cmp::Reverse(*t));
+    let fallback = by_mtime.into_iter().next().map(|(_, p)| p.clone());
+    if let Some(ref path) = fallback {
+        tracing::warn!(
+            target: "bridge::cowork",
+            path = %path.display(),
+            "resolve_target: personal-session dir missing; falling back to newest-mtime org dir"
+        );
+    }
+    fallback
 }
 
 pub fn publish(

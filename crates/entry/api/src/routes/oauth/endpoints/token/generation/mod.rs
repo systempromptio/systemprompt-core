@@ -1,3 +1,22 @@
+//! Token generation for `/oauth/token` grants.
+//!
+//! Two grant families share this module: `client_credentials`
+//! (machine-as-itself per RFC 6749 §4.4) and
+//! `urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693). They share
+//! scope-parsing and JWT-signing infrastructure, but the two grants model the
+//! resource owner differently:
+//!
+//! * `client_credentials` (`client_credentials.rs`) has no resource owner in
+//!   the loop. The `owner_user_id` on the OAuth client is retained for *audit
+//!   attribution* — the JWT's `sub` resolves back to a human so downstream
+//!   events trace to a person — but ownership does not authorize the grant. See
+//!   [`client_credentials::ClientCredentialsError`] and the doc on the private
+//!   `authorize_client_grant` helper for the two-tier scope policy
+//!   (service-tier vs. user-tier) that this implies.
+//! * `token_exchange` (`token_exchange.rs`) is the on-behalf-of grant where the
+//!   actor and subject differ; scopes are intersected against the subject's
+//!   permissions as part of the delegation contract.
+
 mod client_credentials;
 mod token_exchange;
 

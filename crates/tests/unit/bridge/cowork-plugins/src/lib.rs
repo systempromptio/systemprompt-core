@@ -10,3 +10,7 @@ mod cowork_adapter_installed_plugins;
 mod cowork_adapter_settings;
 #[cfg(test)]
 mod cowork_path_sanitiser;
+#[cfg(test)]
+mod resolve_target_pick;
+#[cfg(test)]
+mod synthetic_plugin_installation_preference;

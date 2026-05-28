@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Changed
+
+- `client_credentials` no longer intersects service-tier scopes (`hook:govern`, `hook:track`, `service`, `a2a`, `mcp`) with the OAuth client owner's roles. RFC 6749 §4.4 has no resource owner in the loop; service-tier scopes are statically granted to the client at registration and the `owner_user_id` is retained for audit attribution only. User-tier scopes (`admin`, `user`, `anonymous`) continue to require both the client grant and the owner's roles, matching the on-behalf-of delegation contract. `ClientCredentialsError::InvalidScope` now names the actual deficit — `requested scopes not in client grant: …` or `delegated scopes not held by owner: …` — instead of the generic `scopes not allowed for both client and owner`.
+
 ## [0.12.1] - 2026-05-27
 
 ### Fixed

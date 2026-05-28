@@ -8,8 +8,6 @@ pub(super) fn find_pid_by_port_proc(port: u16) -> Option<u32> {
         return None;
     };
 
-    let port_hex = format!("{port:X}");
-
     for line in tcp_content.lines().skip(1) {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 10 {
@@ -17,7 +15,19 @@ pub(super) fn find_pid_by_port_proc(port: u16) -> Option<u32> {
         }
 
         let local_addr = parts.get(1).copied().unwrap_or("");
-        if !local_addr.contains(&port_hex) {
+        // Why: `/proc/net/tcp` formats local_address as `<IP-hex>:<PORT-hex>` —
+        // a `contains(&port_hex)` substring match also matches when the port
+        // digits appear inside the IP-hex portion (e.g. port 0xFFF0 matches any
+        // local IP containing "FFF0"). Callers act on the returned PID with
+        // SIGTERM, so a false positive kills an unrelated process. Match the
+        // port field exactly.
+        let Some((_, port_str)) = local_addr.rsplit_once(':') else {
+            continue;
+        };
+        let Ok(parsed) = u16::from_str_radix(port_str, 16) else {
+            continue;
+        };
+        if parsed != port {
             continue;
         }
 

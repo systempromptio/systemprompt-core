@@ -42,6 +42,28 @@ struct PluginJson<'a> {
     name: &'a str,
     description: &'a str,
     version: &'a str,
+    // Why: under MDM + custom inference gateway, the default `"available"`
+    // surfaces Cowork's "Contact an organization owner to install connectors"
+    // tooltip — the user cannot install. `"auto_install"` auto-installs the
+    // plugin on first session-load while still allowing user-initiated uninstall.
+    // Docs: https://claude.com/docs/cowork/3p/extensions
+    #[serde(rename = "installationPreference")]
+    installation_preference: &'a str,
+}
+
+pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "auto_install";
+
+// Pure JSON renderer for the synthetic plugin's `plugin.json`. Separated from
+// the IO path so unit tests can pin the wire shape without needing a tempdir
+// or a runtime.
+pub fn render_plugin_json(manifest_version: &str) -> Vec<u8> {
+    let pj = PluginJson {
+        name: paths::SYNTHETIC_PLUGIN_NAME,
+        description: "Skills, agents, and MCP servers managed by your organization.",
+        version: manifest_version,
+        installation_preference: PLUGIN_INSTALLATION_PREFERENCE,
+    };
+    serde_json::to_vec_pretty(&pj).expect("PluginJson serialization is infallible")
 }
 
 #[derive(Serialize)]
@@ -122,15 +144,7 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
         context: format!("create {}", dir.display()),
         source: e,
     })?;
-    let pj = PluginJson {
-        name: paths::SYNTHETIC_PLUGIN_NAME,
-        description: "Skills, agents, and MCP servers managed by your organization.",
-        version: manifest.manifest_version.as_str(),
-    };
-    let bytes = serde_json::to_vec_pretty(&pj).map_err(|e| super::ApplyError::Serialize {
-        what: "synthetic plugin.json".into(),
-        source: e,
-    })?;
+    let bytes = render_plugin_json(manifest.manifest_version.as_str());
     let path = dir.join("plugin.json");
     fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
         context: format!("write {}", path.display()),

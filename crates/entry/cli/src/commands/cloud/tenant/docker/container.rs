@@ -235,8 +235,9 @@ pub(in crate::commands::cloud) fn nanoid() -> String {
 }
 
 // `local_` prefix preserved so `is_local_trial()` predicates keep matching;
-// suffix is a real RFC-4122 v4 UUID because Cowork's
-// `deploymentOrganizationUuid` rejects non-UUID strings.
+// suffix is a real RFC-4122 v4 UUID so the canonicalised form (peeled by
+// the gateway's bridge-profile handler) is a valid UUID for downstream
+// tenant-attribution consumers (e.g. Codex CLI's `x-tenant` header).
 #[must_use]
 pub(in crate::commands::cloud) fn new_local_tenant_id() -> String {
     format!("local_{}", uuid::Uuid::new_v4())

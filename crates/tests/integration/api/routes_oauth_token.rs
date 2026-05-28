@@ -19,8 +19,12 @@ use systemprompt_models::Config;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
+use systemprompt_oauth::services::hash_client_secret;
+use systemprompt_identifiers::ClientId;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, seed_oauth_client,
+    OAuthClientFixture, TEST_CLIENT_SECRET, TEST_REDIRECT_URI, ensure_test_bootstrap,
+    fixture_db_pool, seed_oauth_client,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -60,7 +64,7 @@ fn ensure_config() {
             jwt_access_token_expiration: 3600,
             jwt_refresh_token_expiration: 86_400,
             jwt_audiences: vec![],
-            allowed_resource_audiences: vec![],
+            allowed_resource_audiences: vec!["hook".to_owned()],
             trusted_issuers: vec![],
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
@@ -274,7 +278,7 @@ async fn token_client_credentials_with_inactive_owner_returns_invalid_client() -
     let pool = fixture_db_pool(&b.database_url).await?;
     let user = UserId::new(format!("oauth-token-inactive-{}", Uuid::new_v4()));
     let p = pool.pool_arc().expect("read pool");
-    sqlx::query("INSERT INTO users (id, name, email, status) VALUES ($1, $1, $2, 'disabled') ON CONFLICT (id) DO UPDATE SET status='disabled'")
+    sqlx::query("INSERT INTO users (id, name, email, status) VALUES ($1, $1, $2, 'inactive') ON CONFLICT (id) DO UPDATE SET status='inactive'")
         .bind(user.as_str())
         .bind(format!("{}@oauth.invalid", user.as_str()))
         .execute(p.as_ref())
@@ -313,6 +317,126 @@ async fn token_client_credentials_with_unknown_client_does_not_return_500() -> a
     assert!(
         s.is_client_error(),
         "unknown client must surface as 4xx, never 500, got {s} body={v}"
+    );
+    Ok(())
+}
+
+async fn seed_client_with_scopes(scopes: Vec<&str>) -> anyhow::Result<OAuthClientFixture> {
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let user = UserId::new(format!("oauth-token-cc-{}", Uuid::new_v4()));
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(user.as_str())
+        .bind(format!("{}@oauth.invalid", user.as_str()))
+        .execute(p.as_ref())
+        .await?;
+    let client_id = ClientId::new(format!("test-client-cc-{}", Uuid::new_v4().simple()));
+    let secret_hash = hash_client_secret(TEST_CLIENT_SECRET)
+        .map_err(|e| anyhow::anyhow!("hash secret: {e}"))?;
+    let repo = ClientRepository::new(&pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
+    repo.create(CreateClientParams {
+        client_id: client_id.clone(),
+        owner_user_id: user.clone(),
+        client_secret_hash: secret_hash,
+        client_name: "test-client-cc".to_owned(),
+        redirect_uris: vec![TEST_REDIRECT_URI.to_owned()],
+        grant_types: Some(vec!["client_credentials".to_owned()]),
+        response_types: Some(vec![]),
+        scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
+        token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
+        client_uri: None,
+        logo_uri: None,
+        contacts: None,
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("create client: {e}"))?;
+    Ok(OAuthClientFixture {
+        client_id,
+        client_secret: TEST_CLIENT_SECRET.to_owned(),
+        redirect_uri: TEST_REDIRECT_URI.to_owned(),
+    })
+}
+
+#[tokio::test]
+async fn token_client_credentials_service_scope_does_not_require_owner_role() -> anyhow::Result<()>
+{
+    let client = seed_client_with_scopes(vec!["hook:govern", "hook:track"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "hook:govern hook:track"),
+        ("audience", "hook"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    let err = v["error"].as_str().unwrap_or("");
+    let desc = v["error_description"].as_str().unwrap_or("");
+    assert_ne!(
+        err, "invalid_scope",
+        "service-tier hook:* scopes must not require owner role; got {s} {v}"
+    );
+    assert!(
+        !desc.contains("delegated scopes not held by owner"),
+        "service-tier scopes wrongly classified as delegated; got {desc}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_user_scope_requires_owner_role() -> anyhow::Result<()> {
+    let client = seed_client_with_scopes(vec!["user"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "user"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(
+        s,
+        StatusCode::BAD_REQUEST,
+        "user-tier scope without owner role must be 400; got {s} {v}"
+    );
+    assert_eq!(v["error"].as_str(), Some("invalid_scope"), "{v}");
+    let desc = v["error_description"].as_str().unwrap_or("");
+    assert!(
+        desc.contains("delegated scopes not held by owner"),
+        "expected 'delegated scopes not held by owner' deficit message; got {desc}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn token_client_credentials_unknown_scope_names_client_deficit() -> anyhow::Result<()> {
+    let client = seed_client_with_scopes(vec!["hook:govern"]).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "client_credentials"),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+        ("scope", "hook:track"),
+        ("audience", "hook"),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let s = resp.status();
+    let v = read_json(resp).await?;
+    assert_eq!(
+        s,
+        StatusCode::BAD_REQUEST,
+        "scope not in client grant must be 400 invalid_scope; got {s} {v}"
+    );
+    assert_eq!(v["error"].as_str(), Some("invalid_scope"), "{v}");
+    let desc = v["error_description"].as_str().unwrap_or("");
+    assert!(
+        desc.contains("requested scopes not in client grant"),
+        "expected 'requested scopes not in client grant' deficit message; got {desc}"
     );
     Ok(())
 }

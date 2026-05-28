@@ -1,8 +1,9 @@
 use std::process::ExitCode;
 
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{PluginId, SessionId};
 
 use crate::auth::ChainError;
+use crate::auth::plugin_oauth;
 use crate::cli::output;
 use crate::gateway::GatewayClient;
 use crate::gateway::errors::GatewayError;
@@ -74,6 +75,8 @@ async fn run_checks() -> (Vec<Check>, bool) {
     checks.push(check_loopback_secret());
     checks.push(check_pinned_pubkey());
     checks.push(check_cowork_marketplace());
+    checks.push(check_plugin_installation_preference());
+    checks.push(check_hook_token_mint(&client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
     (checks, any_fail)
 }
@@ -214,12 +217,10 @@ fn check_cowork_marketplace() -> Check {
         .join(paths::BRIDGE_MARKETPLACE_NAME);
     let known = target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE);
     let mp_dir_exists = mp_dir.is_dir();
-    let registered = match std::fs::read_to_string(&known) {
-        Ok(text) => serde_json::from_str::<KnownMarketplacesFile>(&text)
-            .map(|f| f.contains(paths::BRIDGE_MARKETPLACE_NAME))
-            .unwrap_or(false),
-        Err(_) => false,
-    };
+    let registered = std::fs::read_to_string(&known).map_or(false, |text| {
+        serde_json::from_str::<KnownMarketplacesFile>(&text)
+            .is_ok_and(|f| f.contains(paths::BRIDGE_MARKETPLACE_NAME))
+    });
     match (mp_dir_exists, registered) {
         (true, true) => Check::ok(
             "cowork marketplace",
@@ -238,6 +239,123 @@ fn check_cowork_marketplace() -> Check {
             "cowork marketplace",
             "marketplace dir not yet written — run `systemprompt-bridge sync`",
         ),
+    }
+}
+
+// Why: a synced plugin whose `plugin.json` lacks (or defaults) `installationPreference`
+// produces Cowork's "Contact an organization owner to install connectors" tooltip
+// under MDM + custom-gateway deployment. We always emit `"auto_install"` from the
+// bridge (see write_synthetic_plugin); this check fails loudly if a future refactor
+// drops it.
+// Docs: https://claude.com/docs/cowork/3p/extensions
+fn check_plugin_installation_preference() -> Check {
+    use crate::config::paths;
+    let Some(location) = paths::org_plugins_effective() else {
+        return Check::warn(
+            "plugin auto-install",
+            "no org-plugins location resolvable",
+        );
+    };
+    let plugin_json = location
+        .path
+        .join(paths::SYNTHETIC_PLUGIN_NAME)
+        .join(".claude-plugin")
+        .join("plugin.json");
+    let Ok(text) = std::fs::read_to_string(&plugin_json) else {
+        return Check::warn(
+            "plugin auto-install",
+            format!(
+                "{} not present — run `systemprompt-bridge sync`",
+                plugin_json.display()
+            ),
+        );
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return Check::fail(
+            "plugin auto-install",
+            format!("{}: invalid JSON", plugin_json.display()),
+        );
+    };
+    let pref = value.get("installationPreference").and_then(|v| v.as_str());
+    match pref {
+        Some("required" | "auto_install") => Check::ok(
+            "plugin auto-install",
+            format!(
+                "{} has installationPreference={}",
+                plugin_json.display(),
+                pref.unwrap_or(""),
+            ),
+        ),
+        Some("available") => Check::fail(
+            "plugin auto-install",
+            format!(
+                "{}: installationPreference=available — Cowork will require a manual install \
+                 click, which surfaces \"Contact an organization owner\" under MDM",
+                plugin_json.display(),
+            ),
+        ),
+        Some(other) => Check::fail(
+            "plugin auto-install",
+            format!(
+                "{}: installationPreference={other} is not one of required|auto_install|available",
+                plugin_json.display(),
+            ),
+        ),
+        None => Check::fail(
+            "plugin auto-install",
+            format!(
+                "{}: installationPreference is missing — Cowork will default to \"available\" \
+                 (manual install, owner-gated)",
+                plugin_json.display(),
+            ),
+        ),
+    }
+}
+
+// Why: hook-token mint is the gateway-side step that fails silently as a
+// host_failures row and only surfaces in `sync` PARTIAL output. Exercising it
+// here turns the OAuth scope / policy errors into a single doctor line with the
+// gateway's `error_description` verbatim, instead of waiting for the next sync.
+async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
+    let creds = match plugin_oauth::load_creds() {
+        Ok(Some(c)) => c,
+        Ok(None) => {
+            return Check::warn(
+                "hook token mint",
+                "no bridge OAuth client provisioned yet — runs on first sync after login",
+            );
+        },
+        Err(e) => {
+            return Check::fail("hook token mint", format!("load OAuth client creds: {e}"));
+        },
+    };
+    let plugin_id = PluginId::new("__doctor__");
+    match gateway
+        .mint_plugin_hook_token(
+            &creds.token_endpoint,
+            &creds.client_id,
+            &creds.client_secret,
+            &plugin_id,
+        )
+        .await
+    {
+        Ok(_) => Check::ok(
+            "hook token mint",
+            format!(
+                "{} accepted hook:govern hook:track for client {}",
+                creds.token_endpoint,
+                creds.client_id.as_str()
+            ),
+        ),
+        Err(GatewayError::HookTokenRejected { status, body }) => Check::fail(
+            "hook token mint",
+            format!(
+                "gateway rejected hook token: status={status} body={body} — operator action: \
+                 confirm the bridge OAuth client grants `hook:govern hook:track` and that \
+                 service-tier scopes are not being intersected with owner roles",
+            ),
+        ),
+        Err(e) => Check::fail("hook token mint", format!("mint failed: {e}")),
     }
 }
 

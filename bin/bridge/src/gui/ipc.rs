@@ -103,7 +103,7 @@ pub struct IpcReplyPayload {
 }
 
 impl IpcReplyPayload {
-    pub fn ok(value: Value) -> Self {
+    pub const fn ok(value: Value) -> Self {
         Self {
             ok: true,
             value: Some(value),
@@ -111,7 +111,7 @@ impl IpcReplyPayload {
         }
     }
 
-    pub fn err(error: BridgeError) -> Self {
+    pub const fn err(error: BridgeError) -> Self {
         Self {
             ok: false,
             value: None,

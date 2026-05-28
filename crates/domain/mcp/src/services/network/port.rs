@@ -26,12 +26,13 @@ pub async fn prepare_port(port: u16) -> McpDomainResult<()> {
     Ok(())
 }
 
-/// Returns `true` only if a TCP handshake to `127.0.0.1:port` completes within ~1s.
+/// Returns `true` only if a TCP handshake to `127.0.0.1:port` completes within
+/// ~1s.
 ///
-/// A refused connection (the listener really isn't there) returns `false` quickly;
-/// a kernel-level hang (no SYN/ACK, no RST) returns `false` after the probe timeout
-/// with a `warn!` so the operator sees *why* the next startup step decided the port
-/// was free.
+/// A refused connection (the listener really isn't there) returns `false`
+/// quickly; a kernel-level hang (no SYN/ACK, no RST) returns `false` after the
+/// probe timeout with a `warn!` so the operator sees *why* the next startup
+/// step decided the port was free.
 #[must_use]
 pub fn is_port_in_use(port: u16) -> bool {
     let addr: SocketAddr = match format!("127.0.0.1:{port}").parse() {

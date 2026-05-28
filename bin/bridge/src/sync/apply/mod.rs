@@ -6,7 +6,7 @@ pub(super) mod synthetic_plugin;
 
 pub use error::{ApplyError, TomlError};
 pub use plugin::HostFailure;
-pub use synthetic_plugin::write_synthetic_plugin;
+pub use synthetic_plugin::{PLUGIN_INSTALLATION_PREFERENCE, render_plugin_json, write_synthetic_plugin};
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::config::{self as config};
@@ -65,7 +65,7 @@ pub(crate) async fn apply_manifest(
             emitter.clear()
         };
         if let Err(e) = &outcome {
-            report.host_failures.push(plugin::HostFailure {
+            report.host_failures.push(HostFailure {
                 host_id: host_id.to_string(),
                 error: format!("{e:#}"),
             });

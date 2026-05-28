@@ -174,19 +174,10 @@ fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &
         .collect::<Vec<_>>()
         .join("\n");
 
-    let org_xml = match inputs.organization_uuid.as_deref() {
-        Some(uuid) if !uuid.is_empty() => format!(
-            "        <key>deploymentOrganizationUuid</key>\n        <string>{}</string>\n",
-            escape(uuid)
-        ),
-        _ => String::new(),
-    };
-
     PROFILE_TMPL
         .replace("{profile_uuid}", &escape(profile_uuid))
         .replace("{payload_uuid}", &escape(payload_uuid))
         .replace("{base_url}", &escape(&inputs.gateway_base_url))
         .replace("{api_key}", &escape(&inputs.api_key))
         .replace("{models_xml}", &models_xml)
-        .replace("{org_xml}", &org_xml)
 }
