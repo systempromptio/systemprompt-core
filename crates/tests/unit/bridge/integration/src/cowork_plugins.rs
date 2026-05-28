@@ -9,7 +9,8 @@ fn known(name: &str, path: &str) -> KnownMarketplaceEntry {
     KnownMarketplaceEntry {
         name: name.into(),
         source: LocalSource::local(path.into()),
-        installed_at: Some("2026-05-06T00:00:00Z".into()),
+        install_location: path.into(),
+        last_updated: "2026-05-06T00:00:00Z".into(),
     }
 }
 
@@ -17,8 +18,11 @@ fn installed(marketplace: &str, name: &str) -> InstalledPluginEntry {
     InstalledPluginEntry {
         marketplace: marketplace.into(),
         name: name.into(),
+        scope: "user".into(),
+        install_path: format!("/tmp/{marketplace}/{name}"),
         version: "1.0.0".into(),
-        installed_at: Some("2026-05-06T00:00:00Z".into()),
+        installed_at: "2026-05-06T00:00:00Z".into(),
+        last_updated: "2026-05-06T00:00:00Z".into(),
     }
 }
 
@@ -145,16 +149,21 @@ fn disable_plugin_when_no_enabled_plugins_key_is_noop() {
 #[test]
 fn render_marketplace_emits_local_source_shape() {
     let mp = MarketplaceFile {
+        schema: None,
         name: "systemprompt-bridge-managed".into(),
+        description: None,
+        metadata: None,
         owner: MarketplaceOwner {
             name: "systemprompt.io".into(),
             email: Some("support@systemprompt.io".into()),
         },
         plugins: vec![MarketplacePluginEntry {
             name: "systemprompt-managed".into(),
-            source: LocalSource::local("./plugins/systemprompt-managed".into()),
+            source: "./plugins/systemprompt-managed".into(),
             version: "1.0.0".into(),
             description: Some("Managed plugin from systemprompt.io".into()),
+            author: None,
+            category: None,
         }],
     };
     let bytes = render_marketplace(&mp).unwrap();
@@ -162,7 +171,6 @@ fn render_marketplace_emits_local_source_shape() {
     assert_eq!(parsed["name"], "systemprompt-bridge-managed");
     let plugin = &parsed["plugins"][0];
     assert_eq!(plugin["name"], "systemprompt-managed");
-    assert_eq!(plugin["source"]["type"], "local");
-    assert_eq!(plugin["source"]["path"], "./plugins/systemprompt-managed");
+    assert_eq!(plugin["source"], "./plugins/systemprompt-managed");
     assert_eq!(plugin["version"], "1.0.0");
 }

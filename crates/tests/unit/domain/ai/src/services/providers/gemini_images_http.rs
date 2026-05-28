@@ -108,6 +108,115 @@ async fn batch_aggregates_responses() {
 }
 
 #[tokio::test]
+async fn generate_image_rejects_empty_candidates() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": []
+        })))
+        .mount(&server)
+        .await;
+    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let err = p
+        .generate_image(&make_request("hi"))
+        .await
+        .expect_err("empty");
+    let _ = format!("{err}");
+}
+
+#[tokio::test]
+async fn generate_image_rejects_missing_content() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{ "finishReason": "SAFETY", "index": 0 }]
+        })))
+        .mount(&server)
+        .await;
+    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let err = p
+        .generate_image(&make_request("hi"))
+        .await
+        .expect_err("no content");
+    let _ = format!("{err}");
+}
+
+#[tokio::test]
+async fn generate_image_rejects_no_inline_data_part() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": { "role": "model", "parts": [ { "text": "not an image" } ] },
+                "finishReason": "STOP",
+                "index": 0
+            }]
+        })))
+        .mount(&server)
+        .await;
+    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let err = p
+        .generate_image(&make_request("hi"))
+        .await
+        .expect_err("no inline");
+    let _ = format!("{err}");
+}
+
+#[tokio::test]
+async fn generate_image_rejects_malformed_json() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+        .mount(&server)
+        .await;
+    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let err = p
+        .generate_image(&make_request("hi"))
+        .await
+        .expect_err("parse");
+    let _ = format!("{err}");
+}
+
+#[tokio::test]
+async fn generate_image_uses_reference_images_and_grounding() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path_regex(r".*/models/.+:generateContent"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": { "role": "model", "parts": [
+                    { "inlineData": { "mimeType": "image/png", "data": "YY" } }
+                ]},
+                "finishReason": "STOP",
+                "index": 0
+            }]
+        })))
+        .mount(&server)
+        .await;
+    let p = GeminiImageProvider::with_endpoint("k".to_owned(), server.uri());
+    let mut req = make_request("with refs");
+    req.enable_search_grounding = true;
+    req.reference_images = vec![
+        systemprompt_ai::models::image_generation::ReferenceImage {
+            data: "ZZZ".to_owned(),
+            mime_type: "image/png".to_owned(),
+            description: Some("ref".to_owned()),
+        },
+        systemprompt_ai::models::image_generation::ReferenceImage {
+            data: "AAA".to_owned(),
+            mime_type: "image/jpeg".to_owned(),
+            description: None,
+        },
+    ];
+    let resp = p.generate_image(&req).await.expect("ok");
+    assert_eq!(resp.image_data, "YY");
+}
+
+#[tokio::test]
 async fn provider_metadata_is_consistent() {
     let p = GeminiImageProvider::new("k".to_owned())
         .with_default_model("gemini-2.5-flash-image".to_owned())
