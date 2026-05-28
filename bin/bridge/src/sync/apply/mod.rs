@@ -5,6 +5,7 @@ mod plugin;
 pub(super) mod synthetic_plugin;
 
 pub use error::{ApplyError, TomlError};
+pub use plugin::HostFailure;
 pub use synthetic_plugin::write_synthetic_plugin;
 
 use crate::config::paths::{self, OrgPluginsLocation};
@@ -36,7 +37,7 @@ pub(crate) async fn apply_manifest(
         return Err(ApplyError::ReservedPluginId(reserved.id.clone()));
     }
 
-    let report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
+    let mut report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
 
     _ = fs::remove_dir_all(&staging_root);
 
@@ -63,6 +64,12 @@ pub(crate) async fn apply_manifest(
         } else {
             emitter.clear()
         };
+        if let Err(e) = &outcome {
+            report.host_failures.push(plugin::HostFailure {
+                host_id: host_id.to_string(),
+                error: format!("{e:#}"),
+            });
+        }
         host_sync::log_outcome(host_id, enabled, outcome);
     }
 

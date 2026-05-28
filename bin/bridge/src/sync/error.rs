@@ -4,6 +4,12 @@ use std::process::ExitCode;
 pub enum SyncError {
     #[error("no valid credential available; run `systemprompt-bridge login` first")]
     NoCredential,
+    #[error(
+        "gateway rejected credentials ({endpoint}, HTTP {status}). The cached token is invalid or \
+         revoked. Run `systemprompt-bridge login <sp-live-...>` with a fresh PAT, then \
+         `systemprompt-bridge whoami` to confirm."
+    )]
+    GatewayUnauthorized { endpoint: &'static str, status: u16 },
     #[error("{0}")]
     Network(String),
     #[error("manifest signature verification failed: {0}")]
@@ -36,6 +42,7 @@ impl SyncError {
     pub fn exit_code(&self) -> ExitCode {
         match self {
             Self::NoCredential => ExitCode::from(5),
+            Self::GatewayUnauthorized { .. } => ExitCode::from(10),
             Self::Network(_) => ExitCode::from(3),
             Self::SignatureFailed(_) => ExitCode::from(4),
             Self::PathUnresolvable | Self::PathMissing { .. } | Self::ApplyFailed(_) => {

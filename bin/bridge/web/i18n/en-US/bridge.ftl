@@ -26,6 +26,8 @@ sync-in-flight = syncing
 sync-cancel = Cancel
 sync-cancelled = Sync cancelled.
 sync-failure = Sync failed: { $error }
+sync-no-credentials = Sync failed: no credentials configured. Run `systemprompt-bridge login <sp-live-...>` with a PAT, then try again.
+sync-gateway-unauthorized = Sync failed: gateway rejected the cached credentials (HTTP { $status } from { $endpoint }). Run `systemprompt-bridge login` with a fresh PAT.
 
 # Gateway ---------------------------------------------------------------------
 gateway-unreachable = offline

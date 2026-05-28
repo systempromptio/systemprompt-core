@@ -14,6 +14,13 @@ pub(crate) struct PluginApplyOutcome {
     pub updated: Vec<String>,
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
+    pub host_failures: Vec<HostFailure>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HostFailure {
+    pub host_id: String,
+    pub error: String,
 }
 
 #[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
@@ -63,6 +70,7 @@ pub(super) async fn apply_plugins(
         updated,
         removed,
         malformed,
+        host_failures: Vec::new(),
     })
 }
 

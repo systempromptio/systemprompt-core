@@ -23,12 +23,22 @@ pub fn load(path: &std::path::Path) -> std::io::Result<Option<LoopbackSecret>> {
         Ok(bytes) => {
             let s = String::from_utf8_lossy(&bytes).trim().to_string();
             if s.is_empty() {
+                tracing::warn!(
+                    path = %path.display(),
+                    "loopback secret file exists but is empty; treating as missing",
+                );
                 Ok(None)
             } else {
                 Ok(Some(LoopbackSecret::new(s)))
             }
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tracing::info!(
+                path = %path.display(),
+                "loopback secret file not present; will mint on proxy_init",
+            );
+            Ok(None)
+        },
         Err(e) => Err(e),
     }
 }
@@ -61,9 +71,16 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
     }
     let path = secret_path()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no config dir"))?;
-    let secret = match load(&path)? {
-        Some(s) => s,
-        None => mint(&path)?,
+    let secret = if let Some(s) = load(&path)? {
+        s
+    } else {
+        let s = mint(&path)?;
+        tracing::info!(
+            path = %path.display(),
+            fp = %crate::proxy::dispatch::sha256_8(s.as_str()),
+            "minted fresh loopback secret; restart Claude Desktop to pick it up",
+        );
+        s
     };
     _ = SECRET.set(secret.clone());
     Ok(secret)

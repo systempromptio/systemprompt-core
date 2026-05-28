@@ -2,6 +2,7 @@ pub(crate) mod args;
 mod clean;
 mod credential_helper;
 pub mod diagnostics;
+mod doctor;
 mod gui;
 mod install;
 mod login;
@@ -39,6 +40,7 @@ pub fn run() -> ExitCode {
         Some("uninstall") => uninstall::cmd_uninstall(&args),
         Some("credential-helper") => credential_helper::cmd_credential_helper(&args),
         Some("diagnostics") => diagnostics::cmd_diagnostics(),
+        Some("doctor") => doctor::cmd_doctor(),
         Some("gui") => gui::cmd_gui(),
         Some("--version" | "-V" | "version") => {
             output::print_str(&format!(

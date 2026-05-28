@@ -55,6 +55,10 @@ pub(super) fn verify_loopback_secret(
     }
     let presented_fp = sha256_8(&presented);
     let expected_fp = sha256_8(ctx.secret.as_ref().as_str());
+    let secret_path = secret::secret_path().map_or_else(
+        || "<no config dir>".to_string(),
+        |p| p.display().to_string(),
+    );
     tracing::warn!(
         target: "systemprompt_bridge::proxy",
         req_id = %req_id,
@@ -65,11 +69,12 @@ pub(super) fn verify_loopback_secret(
         presented_len = presented.len(),
         presented_fp = %presented_fp,
         expected_fp = %expected_fp,
-        "reject: bad loopback secret"
+        secret_path = %secret_path,
+        "reject: bad loopback secret — restart Claude Desktop to pick up the current secret"
     );
     crate::activity::activity_log().append(format!(
         "proxy: {method} {path} → 403 (bad secret; presented_fp={presented_fp} \
-         expected_fp={expected_fp}) [{req_id}]"
+         expected_fp={expected_fp}; secret_path={secret_path}; restart Claude Desktop) [{req_id}]"
     ));
     Some(simple_response(
         StatusCode::FORBIDDEN,

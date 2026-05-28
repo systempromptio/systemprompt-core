@@ -2,8 +2,21 @@ use super::error::SyncError;
 use crate::auth::secret::Secret;
 use crate::config;
 use crate::gateway::GatewayClient;
+use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::{SignedManifest, SignedManifestVerify};
 use crate::ids::PinnedPubKey;
+
+fn map_gateway_error(err: GatewayError, endpoint: &'static str) -> SyncError {
+    match err {
+        GatewayError::HttpStatus { status, .. } if matches!(status.as_u16(), 401 | 403) => {
+            SyncError::GatewayUnauthorized {
+                endpoint,
+                status: status.as_u16(),
+            }
+        },
+        other => SyncError::Network(other.to_string()),
+    }
+}
 
 pub(super) struct ManifestFetch {
     pub client: GatewayClient,
@@ -24,7 +37,7 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
     let manifest = client
         .fetch_manifest(bearer.expose())
         .await
-        .map_err(|e| SyncError::Network(e.to_string()))?;
+        .map_err(|e| map_gateway_error(e, "manifest"))?;
 
     Ok(ManifestFetch {
         client,
@@ -62,7 +75,7 @@ async fn resolve_pubkey(
     let fetched = client
         .fetch_pubkey()
         .await
-        .map_err(|e| SyncError::Network(e.to_string()))?;
+        .map_err(|e| map_gateway_error(e, "pubkey"))?;
     if let Err(e) = config::persist_pinned_pubkey(&fetched) {
         tracing::warn!(error = %e, "failed to persist pinned pubkey; next run will re-trust on first use");
     }
@@ -83,6 +96,8 @@ async fn fetch_fresh_token() -> Option<Secret> {
         Box::new(crate::auth::providers::session::SessionProvider::new(&cfg)),
         Box::new(crate::auth::providers::pat::PatProvider::new(&cfg)),
     ];
+    let mut not_configured: Vec<&'static str> = Vec::new();
+    let mut had_failure = false;
     for p in &chain {
         match p.authenticate(&session_id).await {
             Ok(out) => {
@@ -91,11 +106,26 @@ async fn fetch_fresh_token() -> Option<Secret> {
                 }
                 return Some(out.token);
             },
-            Err(AuthError::NotConfigured) => {},
+            Err(AuthError::NotConfigured) => {
+                not_configured.push(p.name());
+            },
             Err(e @ AuthError::Failed { .. }) => {
+                had_failure = true;
                 crate::obs::output::diag(&format!("{}: {e}", p.name()));
             },
         }
+    }
+    if !had_failure {
+        let tried = not_configured.join(", ");
+        tracing::warn!(
+            providers = %tried,
+            "no auth provider is configured; run `systemprompt-bridge login <sp-live-...>` \
+             to register a PAT before syncing",
+        );
+        crate::obs::output::diag(&format!(
+            "no auth provider configured (tried: {tried}); run `systemprompt-bridge login \
+             <sp-live-...>`"
+        ));
     }
     None
 }

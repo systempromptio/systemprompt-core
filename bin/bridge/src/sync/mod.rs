@@ -5,7 +5,7 @@ pub mod host_sync;
 mod manifest;
 mod replay;
 
-pub use apply::{ApplyError, TomlError, write_synthetic_plugin};
+pub use apply::{ApplyError, HostFailure, TomlError, write_synthetic_plugin};
 pub use error::SyncError;
 pub(crate) use hash::safe_id_segment;
 pub use host_sync::{HostSync, HostSyncCtx};
@@ -33,11 +33,17 @@ pub struct SyncSummary {
     pub updated: Vec<String>,
     pub removed: Vec<String>,
     pub malformed: Vec<String>,
+    pub host_failures: Vec<HostFailure>,
 }
 
 impl SyncSummary {
     #[must_use]
     pub fn one_line(&self) -> String {
+        let status = if self.host_failures.is_empty() {
+            "sync ok"
+        } else {
+            "sync PARTIAL"
+        };
         let malformed_suffix = if self.malformed.is_empty() {
             String::new()
         } else {
@@ -47,9 +53,28 @@ impl SyncSummary {
                 self.malformed.join(", "),
             )
         };
+        // Why: per-host failure summary must be visible in the single line the GUI
+        // Activity panel renders. Without this, a cowork-emit IO error (e.g. NTFS-illegal
+        // path segment) silently produces "sync ok" while the marketplace is in fact
+        // half-published, and the user has no signal to investigate the bridge log.
+        let host_suffix = if self.host_failures.is_empty() {
+            String::new()
+        } else {
+            let detail = self
+                .host_failures
+                .iter()
+                .map(|f| format!("{} ({})", f.host_id, first_line(&f.error)))
+                .collect::<Vec<_>>()
+                .join("; ");
+            format!(
+                " — {} host(s) failed: {} — see bridge.log",
+                self.host_failures.len(),
+                detail,
+            )
+        };
         format!(
-            "sync ok ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} \
-             hooks, {} MCP — manifest {}{}",
+            "{status} ({}): {} plugins ({} new, {} updated, {} removed), {} skills, {} agents, {} \
+             hooks, {} MCP — manifest {}{}{}",
             self.identity,
             self.plugin_count,
             self.installed.len(),
@@ -61,8 +86,13 @@ impl SyncSummary {
             self.mcp_count,
             self.manifest_version,
             malformed_suffix,
+            host_suffix,
         )
     }
+}
+
+fn first_line(s: &str) -> String {
+    s.lines().next().unwrap_or(s).to_string()
 }
 
 pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) {
@@ -181,6 +211,7 @@ fn build_summary(manifest: &SignedManifest, report: apply::ApplyReport) -> SyncS
         updated: report.updated,
         removed: report.removed,
         malformed: report.malformed,
+        host_failures: report.host_failures,
     }
 }
 

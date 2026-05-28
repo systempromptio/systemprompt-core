@@ -19,11 +19,13 @@ mod upsert;
 pub use emit::{publish, resolve_target, unpublish};
 
 pub use marketplace::{
-    MarketplaceFile, MarketplaceOwner, MarketplacePluginEntry, render_marketplace,
+    MARKETPLACE_SCHEMA_URL, MarketplaceFile, MarketplaceMetadata, MarketplaceOwner,
+    MarketplacePluginEntry, render_marketplace,
 };
 pub use registry::{
-    InstalledPluginEntry, KnownMarketplaceEntry, LocalSource, MergeReport, parse_root,
-    upsert_installed_plugin, upsert_known_marketplace,
+    InstalledPluginEntry, KnownMarketplaceEntry, LocalSource, MergeReport, installed_plugin_key,
+    parse_root, retain_installed_plugin, retain_known_marketplaces, upsert_installed_plugin,
+    upsert_known_marketplace,
 };
 pub use settings::{
     SettingsReport, disable_plugin, enable_plugin, enabled_plugins_key, parse_settings,

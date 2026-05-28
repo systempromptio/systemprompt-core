@@ -59,12 +59,12 @@ pub fn log_outcome(host_id: &str, enabled: bool, outcome: Result<(), ApplyError>
             action,
             "host sync ok"
         ),
-        Err(e) => tracing::warn!(
+        Err(e) => tracing::error!(
             target: "bridge::sync::host",
             host = host_id,
             action,
             error = %e,
-            "host sync failed (non-fatal)"
+            "host sync failed — partial sync; see SyncSummary.host_failures"
         ),
     }
 }

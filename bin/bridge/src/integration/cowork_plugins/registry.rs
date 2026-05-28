@@ -1,24 +1,50 @@
 //! Pure JSON manipulation for the two registry files Cowork reads:
 //! `known_marketplaces.json` and `installed_plugins.json`.
 //!
-//! Each file is a JSON object with one known array key (`marketplaces`,
-//! `installedPlugins`). All other keys are foreign and preserved verbatim.
-//! Foreign entries inside the array (other marketplaces / other installed
-//! plugins) are preserved; entries we own are upserted by name (or by the
-//! `(marketplace, name)` pair for installed plugins).
+//! Shapes match the current Cowork (Claude 1.5354.0.0) reader, which calls
+//! `Object.entries(...)` on the value at `installedPlugins` / on the root
+//! object of `known_marketplaces.json`. Foreign sibling entries (other
+//! marketplaces, other plugins) MUST be preserved — Cowork users may have
+//! registered their own marketplaces alongside ours.
+//!
+//! `known_marketplaces.json` shape:
+//! ```json
+//! {
+//!   "<marketplace-name>": {
+//!     "source":         { "source": "local", "path": "<abs>" },
+//!     "installLocation": "<abs>",
+//!     "lastUpdated":     "<ISO8601>"
+//!   }
+//! }
+//! ```
+//!
+//! `installed_plugins.json` shape:
+//! ```json
+//! {
+//!   "version": 2,
+//!   "plugins": {
+//!     "<plugin>@<marketplace>": [
+//!       {
+//!         "scope":       "user",
+//!         "installPath": "<abs>",
+//!         "version":     "<v>",
+//!         "installedAt": "<ISO8601>",
+//!         "lastUpdated": "<ISO8601>"
+//!       }
+//!     ]
+//!   }
+//! }
+//! ```
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::CoworkPluginsError;
 
-const KEY_MARKETPLACES: &str = "marketplaces";
-const KEY_INSTALLED: &str = "installedPlugins";
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LocalSource {
-    #[serde(rename = "type")]
-    pub kind: String,
+    // Cowork uses the field name `source` as the discriminator (not `type`).
+    pub source: String,
     pub path: String,
 }
 
@@ -26,29 +52,31 @@ impl LocalSource {
     #[must_use]
     pub fn local(path: String) -> Self {
         Self {
-            kind: "local".into(),
+            source: "local".into(),
             path,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KnownMarketplaceEntry {
+    // `name` is the JSON object key, not a field on the value.
     pub name: String,
     pub source: LocalSource,
-    #[serde(rename = "installedAt", skip_serializing_if = "Option::is_none")]
-    pub installed_at: Option<String>,
+    pub install_location: String,
+    pub last_updated: String,
 }
 
-// Visibility is governed by `cowork_settings.json::enabledPlugins`, not by a
-// field on this struct.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstalledPluginEntry {
+    // `marketplace` + `name` together form the JSON object key `<plugin>@<marketplace>`.
     pub marketplace: String,
     pub name: String,
+    pub scope: String,
+    pub install_path: String,
     pub version: String,
-    #[serde(rename = "installedAt", skip_serializing_if = "Option::is_none")]
-    pub installed_at: Option<String>,
+    pub installed_at: String,
+    pub last_updated: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -68,83 +96,88 @@ pub fn parse_root(bytes: &[u8]) -> Result<Map<String, Value>, CoworkPluginsError
     }
 }
 
-// Foreign entries (other marketplaces) MUST be preserved — Cowork users may
-// have registered their own marketplaces alongside ours.
 pub fn upsert_known_marketplace(
     root: &mut Map<String, Value>,
     entry: &KnownMarketplaceEntry,
 ) -> Result<MergeReport, CoworkPluginsError> {
-    let new_value = serde_json::to_value(entry)?;
-    upsert_by_name(root, KEY_MARKETPLACES, &entry.name, new_value)
+    let new_value = json!({
+        "source": &entry.source,
+        "installLocation": &entry.install_location,
+        "lastUpdated": &entry.last_updated,
+    });
+    let mut report = MergeReport::default();
+    match root.get(&entry.name) {
+        Some(existing) if existing == &new_value => report.unchanged.push(entry.name.clone()),
+        Some(_) => {
+            root.insert(entry.name.clone(), new_value);
+            report.replaced.push(entry.name.clone());
+        },
+        None => {
+            root.insert(entry.name.clone(), new_value);
+            report.inserted.push(entry.name.clone());
+        },
+    }
+    Ok(report)
 }
 
-// Identity is the `(marketplace, name)` pair, not name alone — same plugin
-// name can exist in multiple marketplaces. Foreign entries preserved.
+pub fn retain_known_marketplaces(root: &mut Map<String, Value>, drop_name: &str) {
+    root.remove(drop_name);
+}
+
+const INSTALLED_VERSION: i64 = 2;
+const INSTALLED_PLUGINS_KEY: &str = "plugins";
+const INSTALLED_VERSION_KEY: &str = "version";
+
+pub fn installed_plugin_key(entry: &InstalledPluginEntry) -> String {
+    format!("{}@{}", entry.name, entry.marketplace)
+}
+
 pub fn upsert_installed_plugin(
     root: &mut Map<String, Value>,
     entry: &InstalledPluginEntry,
 ) -> Result<MergeReport, CoworkPluginsError> {
-    let next_value = serde_json::to_value(entry)?;
-    let array = ensure_array(root, KEY_INSTALLED)?;
-
-    let target_index = array.iter().position(|v| {
-        matches_str(v, "marketplace", &entry.marketplace) && matches_str(v, "name", &entry.name)
+    root.insert(INSTALLED_VERSION_KEY.into(), json!(INSTALLED_VERSION));
+    let plugins = ensure_object(root, INSTALLED_PLUGINS_KEY)?;
+    let key = installed_plugin_key(entry);
+    let new_install = json!({
+        "scope": &entry.scope,
+        "installPath": &entry.install_path,
+        "version": &entry.version,
+        "installedAt": &entry.installed_at,
+        "lastUpdated": &entry.last_updated,
     });
-
-    let key = format!("{}::{}", entry.marketplace, entry.name);
+    let new_array = Value::Array(vec![new_install]);
     let mut report = MergeReport::default();
-    if let Some(i) = target_index {
-        if array[i] == next_value {
-            report.unchanged.push(key);
-        } else {
-            array[i] = next_value;
+    match plugins.get(&key) {
+        Some(existing) if existing == &new_array => report.unchanged.push(key),
+        Some(_) => {
+            plugins.insert(key.clone(), new_array);
             report.replaced.push(key);
-        }
-    } else {
-        array.push(next_value);
-        report.inserted.push(key);
+        },
+        None => {
+            plugins.insert(key.clone(), new_array);
+            report.inserted.push(key);
+        },
     }
     Ok(report)
 }
 
-fn upsert_by_name(
-    root: &mut Map<String, Value>,
-    items_key: &'static str,
-    name: &str,
-    new_value: Value,
-) -> Result<MergeReport, CoworkPluginsError> {
-    let array = ensure_array(root, items_key)?;
-    let mut report = MergeReport::default();
-    if let Some(existing) = array.iter_mut().find(|v| matches_str(v, "name", name)) {
-        if existing == &new_value {
-            report.unchanged.push(name.to_string());
-        } else {
-            *existing = new_value;
-            report.replaced.push(name.to_string());
-        }
-    } else {
-        array.push(new_value);
-        report.inserted.push(name.to_string());
+pub fn retain_installed_plugin(root: &mut Map<String, Value>, plugin_key: &str) {
+    if let Some(Value::Object(plugins)) = root.get_mut(INSTALLED_PLUGINS_KEY) {
+        plugins.remove(plugin_key);
     }
-    Ok(report)
 }
 
-fn ensure_array<'a>(
+fn ensure_object<'a>(
     root: &'a mut Map<String, Value>,
     key: &'static str,
-) -> Result<&'a mut Vec<Value>, CoworkPluginsError> {
+) -> Result<&'a mut Map<String, Value>, CoworkPluginsError> {
     match root
         .entry(key.to_string())
-        .or_insert_with(|| Value::Array(Vec::new()))
+        .or_insert_with(|| Value::Object(Map::new()))
     {
-        Value::Array(v) => Ok(v),
+        Value::Object(m) => Ok(m),
         _ => Err(CoworkPluginsError::ItemsShape { key }),
     }
 }
 
-fn matches_str(v: &Value, key: &str, expected: &str) -> bool {
-    v.as_object()
-        .and_then(|o| o.get(key))
-        .and_then(Value::as_str)
-        == Some(expected)
-}

@@ -26,10 +26,12 @@ pub(super) fn upsert_known(
     let path = target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE);
     let mut root = parse_root_at(&path)?;
     let mp_path = target.marketplace_dir(mp_name);
+    let mp_path_str = mp_path.to_string_lossy().into_owned();
     let entry = KnownMarketplaceEntry {
         name: mp_name.to_string(),
-        source: LocalSource::local(mp_path.to_string_lossy().into_owned()),
-        installed_at: Some(now.to_string()),
+        source: LocalSource::local(mp_path_str.clone()),
+        install_location: mp_path_str,
+        last_updated: now.to_string(),
     };
     let report = upsert_known_marketplace(&mut root, &entry)?;
     write_root(&path, &root)?;
@@ -41,6 +43,7 @@ pub(super) fn upsert_installed(
     mp_name: &str,
     plugin_name: &str,
     version: &str,
+    install_path: &str,
     now: &str,
 ) -> Result<MergeReport, EmitError> {
     let path = target.cowork_plugins_dir.join(INSTALLED_PLUGINS_FILE);
@@ -48,8 +51,11 @@ pub(super) fn upsert_installed(
     let entry = InstalledPluginEntry {
         marketplace: mp_name.to_string(),
         name: plugin_name.to_string(),
+        scope: "user".into(),
+        install_path: install_path.to_string(),
         version: version.to_string(),
-        installed_at: Some(now.to_string()),
+        installed_at: now.to_string(),
+        last_updated: now.to_string(),
     };
     let report = upsert_installed_plugin(&mut root, &entry)?;
     write_root(&path, &root)?;
@@ -70,9 +76,7 @@ pub(super) fn upsert_enabled(
 }
 
 pub(super) fn retain_marketplaces(root: &mut serde_json::Map<String, Value>, drop_name: &str) {
-    if let Some(Value::Array(arr)) = root.get_mut("marketplaces") {
-        arr.retain(|v| v.get("name").and_then(Value::as_str) != Some(drop_name));
-    }
+    super::retain_known_marketplaces(root, drop_name);
 }
 
 pub(super) fn retain_installed(
@@ -80,12 +84,8 @@ pub(super) fn retain_installed(
     drop_marketplace: &str,
     drop_name: &str,
 ) {
-    if let Some(Value::Array(arr)) = root.get_mut("installedPlugins") {
-        arr.retain(|v| {
-            !(v.get("marketplace").and_then(Value::as_str) == Some(drop_marketplace)
-                && v.get("name").and_then(Value::as_str) == Some(drop_name))
-        });
-    }
+    let key = format!("{drop_name}@{drop_marketplace}");
+    super::retain_installed_plugin(root, &key);
 }
 
 pub(super) fn inject_hooks_field(plugin_dir: &Path) -> Result<(), EmitError> {

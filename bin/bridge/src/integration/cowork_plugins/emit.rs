@@ -24,8 +24,8 @@ use super::upsert::{
 };
 use super::{
     COWORK_SETTINGS_FILE, CoworkPluginsError, INSTALLED_PLUGINS_FILE, KNOWN_MARKETPLACES_FILE,
-    LocalSource, MarketplaceFile, MarketplaceOwner, MarketplacePluginEntry, parse_root,
-    parse_settings, render_marketplace, render_settings,
+    MARKETPLACE_SCHEMA_URL, MarketplaceFile, MarketplaceMetadata, MarketplaceOwner,
+    MarketplacePluginEntry, parse_root, parse_settings, render_marketplace, render_settings,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -58,10 +58,26 @@ impl CoworkTarget {
     fn cache_dir(&self, mp_name: &str, plugin_name: &str, version: &str) -> PathBuf {
         self.cowork_plugins_dir
             .join("cache")
-            .join(mp_name)
-            .join(plugin_name)
-            .join(version)
+            .join(sanitize_path_segment(mp_name))
+            .join(sanitize_path_segment(plugin_name))
+            .join(sanitize_path_segment(version))
     }
+}
+
+// Why: manifest version strings are RFC3339-ish (`2026-05-28T09:56:34Z-...`) and
+// the `:` is reserved on NTFS (alternate data streams), so using the raw string
+// as a path segment trips ERROR_INVALID_NAME (Win os error 123). Sanitize at
+// the filesystem boundary; the manifest format itself stays untouched.
+pub(super) fn sanitize_path_segment(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-') {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect()
 }
 
 #[expect(
@@ -146,16 +162,27 @@ pub fn publish(
 
     let mp_meta = target.marketplace_dir(mp_name).join(".claude-plugin");
     let mp_file = MarketplaceFile {
+        schema: Some(MARKETPLACE_SCHEMA_URL.into()),
         name: mp_name.to_string(),
+        description: Some("Skills and agents synced by the Systemprompt Bridge".into()),
+        metadata: Some(MarketplaceMetadata {
+            description: Some(
+                "Bridge-managed marketplace; contents come from org-plugins".into(),
+            ),
+            version: "1.0.0".into(),
+            plugin_root: Some("./plugins".into()),
+        }),
         owner: MarketplaceOwner {
             name: "systemprompt.io".into(),
             email: None,
         },
         plugins: vec![MarketplacePluginEntry {
             name: plugin_name.to_string(),
-            source: LocalSource::local(format!("./plugins/{plugin_name}")),
+            source: format!("./plugins/{plugin_name}"),
             version: version.to_string(),
             description: description.map(str::to_string),
+            author: None,
+            category: None,
         }],
     };
     let bytes = render_marketplace(&mp_file)?;
@@ -164,7 +191,9 @@ pub fn publish(
 
     let now = current_iso8601();
     upsert_known(target, mp_name, &now)?;
-    let installed_report = upsert_installed(target, mp_name, plugin_name, version, &now)?;
+    let install_path = cache_plugin_dir.to_string_lossy().into_owned();
+    let installed_report =
+        upsert_installed(target, mp_name, plugin_name, version, &install_path, &now)?;
     report.plugin_installed_registered = !installed_report
         .unchanged
         .contains(&format!("{mp_name}::{plugin_name}"));

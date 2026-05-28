@@ -240,7 +240,7 @@ fn mint_req_id() -> String {
     )
 }
 
-fn sha256_8(s: &str) -> String {
+pub(crate) fn sha256_8(s: &str) -> String {
     use sha2::{Digest, Sha256};
     if s.is_empty() {
         return "<empty>".to_string();

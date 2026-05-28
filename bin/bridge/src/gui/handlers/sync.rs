@@ -66,12 +66,36 @@ pub(crate) fn on_sync_finished(
             let raw = format!("{:#}", msg);
             tracing::error!(error = %raw, "sync failed");
             let cancelled = raw.contains("sync cancelled");
+            let sync_err = match msg.as_ref() {
+                GuiError::Sync(e) => Some(e),
+                _ => None,
+            };
             let (phase, line, scope, code) = if cancelled {
                 (
                     "cancelled",
                     i18n::t("sync-cancelled"),
                     ErrorScope::Marketplace,
                     ErrorCode::Conflict,
+                )
+            } else if matches!(sync_err, Some(crate::sync::SyncError::NoCredential)) {
+                (
+                    "failed",
+                    i18n::t("sync-no-credentials"),
+                    ErrorScope::Marketplace,
+                    ErrorCode::Unauthorized,
+                )
+            } else if let Some(crate::sync::SyncError::GatewayUnauthorized { endpoint, status }) =
+                sync_err
+            {
+                let status_s = status.to_string();
+                (
+                    "failed",
+                    i18n::t_args(
+                        "sync-gateway-unauthorized",
+                        &[("endpoint", *endpoint), ("status", &status_s)],
+                    ),
+                    ErrorScope::Marketplace,
+                    ErrorCode::Unauthorized,
                 )
             } else {
                 (

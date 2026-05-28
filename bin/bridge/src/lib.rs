@@ -82,6 +82,8 @@ Commands (plugin + MCP sync):
     status                              Show locally-stashed creds (no secret echo)
     rotate                              Force re-provision; new client_secret minted
   validate                   End-to-end self-check (paths, gateway, creds, signatures)
+  doctor                     Diagnose common bridge failure modes (config, creds, gateway,
+                             loopback secret, pinned pubkey) with one line per check
   uninstall                  Reverse install (metadata + staging)
     [--purge]                             Also remove stored PAT/credentials
   gui                        Launch the native settings UI (Windows + macOS)
