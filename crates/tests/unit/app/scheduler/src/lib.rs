@@ -18,6 +18,8 @@ mod models;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]
+mod process_cleanup;
+#[cfg(test)]
 mod state_transitions;
 #[cfg(test)]
 mod unit_tests;
