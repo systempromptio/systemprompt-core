@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
+use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
@@ -44,11 +44,6 @@ pub(super) async fn execute(
     if !has_session {
         CliService::info("No active session for this profile, logging in...");
 
-        let email = CredentialsBootstrap::require()
-            .context("Cloud credentials required for auto-login")?
-            .user_email
-            .clone();
-
         let secrets_path = ProfilePath::Secrets.resolve(&target_dir);
         let secrets = systemprompt_config::load_secrets_from_path(&secrets_path)?;
         let profile_path_str = profile_config_path
@@ -56,7 +51,7 @@ pub(super) async fn execute(
             .context("Invalid profile path")?;
 
         let args = LoginArgs {
-            email: Some(email),
+            email: None,
             duration_hours: 24,
             token_only: false,
             force_new: false,

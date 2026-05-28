@@ -18,6 +18,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{Profile, Secrets};
 use systemprompt_security::{SessionGenerator, SessionParams};
+use systemprompt_users::UserService;
 
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
@@ -57,16 +58,12 @@ pub struct LoginOutput {
 }
 
 pub async fn execute(
-    mut args: LoginArgs,
+    args: LoginArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<LoginOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
-
-    if args.email.is_none() {
-        args.email = Some(resolve_email().await?);
-    }
 
     login_for_profile(profile, profile_path, secrets, &args).await
 }
@@ -80,10 +77,6 @@ pub async fn login_for_profile(
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
-    let email = args
-        .email
-        .as_deref()
-        .context("Email is required for login")?;
     let database_url = secrets.effective_database_url(profile.database.external_db_access);
 
     let db = Database::new_postgres(database_url)
@@ -99,10 +92,15 @@ pub async fn login_for_profile(
         }
     }
 
+    let email = match args.email.as_deref() {
+        Some(e) => e.to_owned(),
+        None => resolve_email_for_profile(profile, &db_pool).await?,
+    };
+
     if !args.token_only {
         CliService::info(&format!("Fetching admin user: {}", email));
     }
-    let admin_user = fetch_admin_user(&db_pool, email, profile.target.is_cloud()).await?;
+    let admin_user = fetch_admin_user(&db_pool, &email, profile.target.is_cloud()).await?;
 
     if !args.token_only {
         CliService::info("Creating session...");
@@ -187,11 +185,27 @@ fn session_key_for_profile(profile: &Profile) -> SessionKey {
     }
 }
 
-async fn resolve_email() -> Result<String> {
+async fn resolve_email_for_profile(profile: &Profile, db_pool: &DbPool) -> Result<String> {
+    if profile.target.is_local() {
+        let user_service = UserService::new(db_pool)?;
+        let username = profile.system_admin.username.as_str();
+        let user = user_service
+            .find_by_name(username)
+            .await
+            .with_context(|| format!("Failed to look up system admin user '{}'", username))?
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Local admin user '{}' not found. Run 'systemprompt admin bootstrap \
+                     --email <email>' to create it.",
+                    username
+                )
+            })?;
+        return Ok(user.email);
+    }
+
     CredentialsBootstrap::try_init()
         .await
         .context("Failed to initialize credentials")?;
-
     let creds = CredentialsBootstrap::require().map_err(|_e| {
         anyhow::anyhow!(
             "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."

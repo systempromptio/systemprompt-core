@@ -38,6 +38,18 @@ impl AuthValidator {
     }
 }
 
+/// Cross-cutting state threaded through the WWW-Authenticate / challenge build
+/// path. Bundles the per-request inputs so the builder and the dispatcher
+/// don't each take six positional arguments.
+pub(super) struct ChallengeRequest<'a> {
+    pub service_name: &'a str,
+    pub resource_path: &'a str,
+    pub headers: &'a HeaderMap,
+    pub ctx: &'a AppContext,
+    pub status_code: StatusCode,
+    pub has_authorization: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct OAuthChallengeBuilder;
 
@@ -62,13 +74,16 @@ impl OAuthChallengeBuilder {
     }
 
     pub(super) fn build_challenge_response(
-        service_name: &str,
-        resource_path: &str,
-        headers: &HeaderMap,
-        ctx: &AppContext,
-        status_code: StatusCode,
-        has_authorization: bool,
+        req: &ChallengeRequest<'_>,
     ) -> Result<Response<Body>, StatusCode> {
+        let ChallengeRequest {
+            service_name,
+            resource_path,
+            headers,
+            ctx,
+            status_code,
+            has_authorization,
+        } = *req;
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
         let resource_metadata_url =
@@ -151,14 +166,14 @@ impl AccessValidator {
                     {
                         return outcome;
                     }
-                    return Err(challenge_or_error(
+                    return Err(challenge_or_error(&ChallengeRequest {
                         service_name,
-                        &resource_path,
+                        resource_path: &resource_path,
                         headers,
                         ctx,
                         status_code,
                         has_authorization,
-                    ));
+                    }));
                 },
             };
         ensure_required_scopes(service_name, &required_scopes, &authenticated_user)?;
@@ -248,28 +263,14 @@ fn mcp_session_fallback(
     Some(Ok(None))
 }
 
-fn challenge_or_error(
-    service_name: &str,
-    resource_path: &str,
-    headers: &HeaderMap,
-    ctx: &AppContext,
-    status_code: StatusCode,
-    has_authorization: bool,
-) -> ProxyError {
-    match OAuthChallengeBuilder::build_challenge_response(
-        service_name,
-        resource_path,
-        headers,
-        ctx,
-        status_code,
-        has_authorization,
-    ) {
+fn challenge_or_error(req: &ChallengeRequest<'_>) -> ProxyError {
+    match OAuthChallengeBuilder::build_challenge_response(req) {
         Ok(challenge_response) => ProxyError::AuthChallenge(Box::new(challenge_response)),
         Err(status) if status == StatusCode::UNAUTHORIZED => ProxyError::AuthenticationRequired {
-            service: service_name.to_owned(),
+            service: req.service_name.to_owned(),
         },
         Err(_) => ProxyError::Forbidden {
-            service: service_name.to_owned(),
+            service: req.service_name.to_owned(),
         },
     }
 }
