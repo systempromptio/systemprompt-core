@@ -29,6 +29,8 @@ mod cloud_tenant_validation;
 #[cfg(test)]
 mod presentation_renderer;
 #[cfg(test)]
+mod session_login_local;
+#[cfg(test)]
 mod session_store;
 #[cfg(test)]
 mod shared_profile;

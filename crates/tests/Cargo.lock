@@ -7173,13 +7173,18 @@ dependencies = [
  "predicates",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-cli",
+ "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
+ "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "systemprompt-users",
  "tempfile",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

@@ -184,20 +184,7 @@ fn session_key_for_profile(profile: &Profile) -> SessionKey {
 
 async fn resolve_email_for_profile(profile: &Profile, db_pool: &DbPool) -> Result<String> {
     if profile.target.is_local() {
-        let user_service = UserService::new(db_pool)?;
-        let username = profile.system_admin.username.as_str();
-        let user = user_service
-            .find_by_name(username)
-            .await
-            .with_context(|| format!("Failed to look up system admin user '{}'", username))?
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Local admin user '{}' not found. Run 'systemprompt admin bootstrap --email \
-                     <email>' to create it.",
-                    username
-                )
-            })?;
-        return Ok(user.email);
+        return resolve_local_admin_email(&profile.system_admin.username, db_pool).await;
     }
 
     CredentialsBootstrap::try_init()
@@ -209,4 +196,20 @@ async fn resolve_email_for_profile(profile: &Profile, db_pool: &DbPool) -> Resul
         )
     })?;
     Ok(creds.user_email.clone())
+}
+
+pub async fn resolve_local_admin_email(username: &str, db_pool: &DbPool) -> Result<String> {
+    let user_service = UserService::new(db_pool)?;
+    let user = user_service
+        .find_by_name(username)
+        .await
+        .with_context(|| format!("Failed to look up system admin user '{}'", username))?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Local admin user '{}' not found. Run 'systemprompt admin bootstrap --email \
+                 <email>' to create it.",
+                username
+            )
+        })?;
+    Ok(user.email)
 }

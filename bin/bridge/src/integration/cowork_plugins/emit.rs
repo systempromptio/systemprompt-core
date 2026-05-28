@@ -35,8 +35,22 @@ pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 // the filesystem org-plugins root; see `NF()` in Claude Cowork's `app.asar`.
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 
+// Earlier bridge builds (before the filesystem-scan architecture) published
+// the synthetic plugin under this custom marketplace name in
+// `cowork_plugins/marketplaces/` + `cowork_plugins/cache/`. Cowork's
+// SkillsPlugin loader still prefers session-marketplace state over the
+// org-provisioned filesystem scan, so leftover entries here SHADOW the fresh
+// content in `%ProgramFiles%\Claude\org-plugins\` and the user sees stale
+// skills. Every `apply_enable` actively purges this legacy state.
+const LEGACY_MARKETPLACE_TO_PURGE: &str = "systemprompt-bridge-managed";
+
+const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";
+const KNOWN_MARKETPLACES_FILE: &str = "known_marketplaces.json";
+
 use super::CoworkPluginsError;
 use super::upsert::{clear_enabled, upsert_enabled};
+use crate::fsutil;
+use serde_json::Value;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EmitError {
@@ -148,6 +162,7 @@ pub fn pick_target(candidates: &[(SystemTime, PathBuf)]) -> Option<PathBuf> {
 }
 
 pub fn apply_enable(target: &CoworkTarget, plugin_name: &str) -> Result<EmitReport, EmitError> {
+    purge_legacy_marketplace(target, plugin_name, LEGACY_MARKETPLACE_TO_PURGE)?;
     let enabled = upsert_enabled(target, plugin_name, ORG_PROVISIONED_MARKETPLACE)?;
     tracing::info!(
         target: "bridge::cowork",
@@ -164,5 +179,111 @@ pub fn apply_enable(target: &CoworkTarget, plugin_name: &str) -> Result<EmitRepo
 
 pub fn clear_all(target: &CoworkTarget, plugin_name: &str) -> Result<(), EmitError> {
     clear_enabled(target, plugin_name, ORG_PROVISIONED_MARKETPLACE)?;
+    purge_legacy_marketplace(target, plugin_name, LEGACY_MARKETPLACE_TO_PURGE)?;
     Ok(())
+}
+
+// Removes any artefacts an earlier bridge build wrote under the named
+// marketplace: the marketplace + cache dirs, its row in
+// `installed_plugins.json` (keyed `<plugin>@<marketplace>`), its entry in
+// `known_marketplaces.json`, and the matching enable key in
+// `cowork_settings.json`. Missing files/dirs are not an error — this runs on
+// every sync and is a no-op on a clean session.
+pub(super) fn purge_legacy_marketplace(
+    target: &CoworkTarget,
+    plugin_name: &str,
+    marketplace: &str,
+) -> Result<(), EmitError> {
+    let removed_mp_dir = remove_tree(&target.cowork_plugins_dir.join("marketplaces").join(marketplace))?;
+    let removed_cache_dir = remove_tree(&target.cowork_plugins_dir.join("cache").join(marketplace))?;
+    let installed_key = format!("{plugin_name}@{marketplace}");
+    let removed_installed = strip_nested_object_key(
+        &target.cowork_plugins_dir.join(INSTALLED_PLUGINS_FILE),
+        "plugins",
+        &installed_key,
+    )?;
+    let removed_known = strip_top_level_key(
+        &target.cowork_plugins_dir.join(KNOWN_MARKETPLACES_FILE),
+        marketplace,
+    )?;
+    clear_enabled(target, plugin_name, marketplace)?;
+
+    if removed_mp_dir || removed_cache_dir || removed_installed || removed_known {
+        tracing::info!(
+            target: "bridge::cowork",
+            marketplace,
+            plugin = plugin_name,
+            removed_mp_dir,
+            removed_cache_dir,
+            removed_installed,
+            removed_known,
+            "purged legacy session marketplace state"
+        );
+    }
+    Ok(())
+}
+
+fn remove_tree(path: &std::path::Path) -> Result<bool, EmitError> {
+    match fs::remove_dir_all(path) {
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(EmitError::Io {
+            context: format!("remove_dir_all {}", path.display()),
+            source: e,
+        }),
+    }
+}
+
+fn strip_top_level_key(path: &std::path::Path, key: &str) -> Result<bool, EmitError> {
+    let Some(text) = fsutil::read_optional(path).map_err(|e| EmitError::Io {
+        context: format!("read {}", path.display()),
+        source: e,
+    })?
+    else {
+        return Ok(false);
+    };
+    let mut root: Value = serde_json::from_str(&text).map_err(CoworkPluginsError::from)?;
+    let Some(obj) = root.as_object_mut() else {
+        return Ok(false);
+    };
+    if obj.remove(key).is_none() {
+        return Ok(false);
+    }
+    let bytes = serde_json::to_vec_pretty(&root).map_err(CoworkPluginsError::from)?;
+    fsutil::atomic_write_0600(path, &bytes).map_err(|e| EmitError::Io {
+        context: format!("atomic_write {}", path.display()),
+        source: e,
+    })?;
+    Ok(true)
+}
+
+fn strip_nested_object_key(
+    path: &std::path::Path,
+    parent: &str,
+    key: &str,
+) -> Result<bool, EmitError> {
+    let Some(text) = fsutil::read_optional(path).map_err(|e| EmitError::Io {
+        context: format!("read {}", path.display()),
+        source: e,
+    })?
+    else {
+        return Ok(false);
+    };
+    let mut root: Value = serde_json::from_str(&text).map_err(CoworkPluginsError::from)?;
+    let Some(inner) = root
+        .as_object_mut()
+        .and_then(|m| m.get_mut(parent))
+        .and_then(Value::as_object_mut)
+    else {
+        return Ok(false);
+    };
+    if inner.remove(key).is_none() {
+        return Ok(false);
+    }
+    let bytes = serde_json::to_vec_pretty(&root).map_err(CoworkPluginsError::from)?;
+    fsutil::atomic_write_0600(path, &bytes).map_err(|e| EmitError::Io {
+        context: format!("atomic_write {}", path.display()),
+        source: e,
+    })?;
+    Ok(true)
 }
