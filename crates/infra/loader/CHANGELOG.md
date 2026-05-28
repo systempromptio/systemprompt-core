@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Added
+
+- Services-config loader auto-discovers `<services>/skills/<id>/config.yaml` and `<services>/plugins/<id>/config.yaml` and inserts them into `ServicesConfig.skills.skills` / `ServicesConfig.plugins.plugins` at load time. Marketplace / plugin `skills.include` and `mcp_servers.include` references resolve against the on-disk catalogue without each tenant duplicating every skill or plugin id under `services/config/config.yaml`.
+
+### Changed
+
+- `config_loader::mod` reads `PluginComponentRef` explicitly when materialising `SkillConfig` defaults rather than depending on the type-inferred sequence shape, matching the unified entity-id reference list shape now used across the services config.
+- Marketplace validation resolves `mcp_servers.include` ids against the top-level `services.mcp_servers` catalogue at load time, matching the existing `skills` / `agents` / `plugins` shape on `MarketplaceConfig`.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

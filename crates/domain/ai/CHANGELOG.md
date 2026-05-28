@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Removed
+
+- `AiRequestRecord::minimal_fallback` is deleted. Construction failures propagate to the caller, which logs and skips persistence rather than writing a record with a fabricated `user_id`.
+
+### Changed
+
+- `ImageGenerationRequest.user_id` is now non-optional. Callers that cannot supply a `UserId` were never authorised to generate images.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

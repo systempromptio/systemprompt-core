@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Changed
+
+- `mcp::Deployment.endpoint` is now `Option<String>`. For `internal` servers it must be a relative path (e.g. `/api/v1/mcp/<name>/mcp`) or omitted; absolute URLs are rejected at config-load time. The gateway derives the public URL from `server.api_external_url + endpoint`. `external` MCP servers continue to accept absolute upstream URLs.
+- `Deployment.mcp_servers` and related catalog lists adopt `PluginComponentRef { source, include, exclude }` for uniformity with the rest of the services config; flat-list YAML is rejected.
+- `port_probe::is_port_in_use` is now bound by a 1 s connect timeout; previously a stuck SYN could hang the bootstrap probe indefinitely.
+- `BridgeHookError::HookTokenRejected { status, body }` is now a typed variant on the bridge hook path, replacing the prior stringly-typed wrapping; lets the API gateway surface the upstream rejection body to clients.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

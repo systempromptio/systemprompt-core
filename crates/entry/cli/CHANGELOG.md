@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Changed
+
+- `admin profile show` formats the rendered profile through the new typed `PluginComponentRef` projections so marketplace `mcp_servers`, `skills`, `agents`, and `plugins` lists display as the unified `{ source, include, exclude }` object rather than the legacy flat sequence.
+- Bootstrap DDL paths (`commands/admin/setup/**`) widened to write the per-tenant `governance.authz` block expected by 0.12.2 routers when provisioning a fresh database.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

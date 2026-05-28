@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Removed
+
+- `systemprompt_identifiers::bootstrap::{anonymous, bot, unknown, default, empty_sentinel}` are deleted, along with `UserId::{anonymous, system, bootstrap, is_anonymous, is_system}`. `UserId` values must originate from a row in the `users` table; the middleware persists one before constructing a request context.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

@@ -100,7 +100,7 @@ All functions handle authorization headers and error response parsing uniformly.
 
 ```toml
 [dependencies]
-systemprompt-client = "0.12.0"
+systemprompt-client = "0.12.2"
 ```
 
 ```rust

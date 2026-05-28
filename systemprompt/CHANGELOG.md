@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+The `systemprompt` facade tracks the workspace version. This release re-exports the 0.12.2 surface of every member crate; consult the root `CHANGELOG.md` and per-crate changelogs for behavioural changes. Notable highlights surfaced through the facade:
+
+- `systemprompt::oauth::DynamicRegistrationRequest::{get_grant_types, get_response_types}` now apply the RFC 7591 §2 server defaults (`["authorization_code"]` / `["code"]`) when the dynamic-client-registration payload omits the field, returning `Vec<String>` infallibly. Spec-compliant MCP clients (Cowork, Claude Code DCR, MCP Inspector) no longer hit `400 invalid_client_metadata` on minimal registration payloads.
+- `systemprompt::mcp::Deployment.endpoint` is now `Option<String>` and, for `internal` servers, must be relative; the gateway derives the public URL from `api_external_url`.
+- `systemprompt::models::PluginComponentRef` is now the uniform shape for every entity-id reference list across `MarketplaceConfig`, `PluginConfig`, `SkillConfig`, `DiskAgentConfig`, `AgentMetadataConfig`, and bridge manifest entries. Flat-list YAML is rejected.
+- `systemprompt::api::services::proxy::auth::OAuthChallengeBuilder` derives the `WWW-Authenticate: Bearer resource_metadata="…"` URL from the incoming `Host` header, closing the host-of-truth gap on RFC 9728 dual-self-identity gateways.
+- `systemprompt::security::AuthMode` is removed; `AuthValidationService::validate_request` takes only the headers. Anonymous routes wire the public middleware flavour.
+- `systemprompt::identifiers::bootstrap::{anonymous, bot, unknown, default, empty_sentinel}` and the `UserId::{anonymous, system, bootstrap}` constructors are deleted. `UserId` values must originate from a row in the `users` table.
+
+Feature flags are unchanged: `core` (default), `database`, `api`, `cli`, `full`.
+
 ## [0.12.1] - 2026-05-27
 
 ### Fixed

@@ -5,6 +5,14 @@ All notable changes to `systemprompt-agent` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] - 2026-05-28
+
+### Changed
+
+- `AgentMetadataConfig.mcp_servers`, `AgentMetadataConfig.skills`, `DiskAgentConfig.mcp_servers`, `DiskAgentConfig.skills`, and `AgentRuntimeInfo.{skills,mcp_servers}` are now `PluginComponentRef { source, include, exclude }` instead of `Vec<String>`. Authoring YAML moves from `mcp_servers: [a, b]` to `mcp_servers: { include: [a, b] }`; the flat-list form is rejected at deserialisation. `AgentInfo::with_mcp_servers` and `AgentRegistry::get_mcp_servers` callers thread the `.include` list explicitly when projecting back to `Vec<String>`.
+- `AgentCardConfig.skills` is deprecated. A2A `card.skills` is now derived at serve time by joining `agent.metadata.skills` against the on-disk `services/skills/` catalog. Authored values continue to deserialise (`#[serde(default, skip_serializing)]`) and emit a `tracing::warn!` at config-load time when non-empty. Validation no longer requires `card.skills[].id` to resolve on disk — only `metadata.skills` is checked.
+- `a2a_server` processing helpers are now `pub` so the test crate can drive them directly.
+
 ## [0.12.0] - 2026-05-27
 
 ### Changed

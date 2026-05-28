@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.2] - 2026-05-28
+
+### Removed
+
+- `AuthMode` enum and the `AuthMode::Optional` A2A optional-auth anonymous context path. `AuthValidationService::validate_request` now takes only the headers — there is no longer a "optional auth that quietly returns an anonymous principal" mode. Callers requiring anonymous access wire the public/no-auth route flavour instead.
+
 ## [0.12.0] - 2026-05-27
 
 ### Breaking

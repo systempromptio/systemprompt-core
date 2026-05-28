@@ -229,10 +229,6 @@ async fn register_client_runs_handler() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Regression guard for RFC 7591 §2 spec defaults: a minimal registration that
-/// omits `grant_types` and `response_types` must succeed (201 Created) and the
-/// response body must echo the spec-mandated defaults
-/// (`["authorization_code"]` / `["code"]`) — not 400 invalid_client_metadata.
 #[tokio::test]
 async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_omitted()
 -> anyhow::Result<()> {

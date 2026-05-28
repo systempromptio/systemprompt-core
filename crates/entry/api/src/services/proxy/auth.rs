@@ -38,9 +38,6 @@ impl AuthValidator {
     }
 }
 
-/// Cross-cutting state threaded through the WWW-Authenticate / challenge build
-/// path. Bundles the per-request inputs so the builder and the dispatcher
-/// don't each take six positional arguments.
 pub(super) struct ChallengeRequest<'a> {
     pub service_name: &'a str,
     pub resource_path: &'a str,
