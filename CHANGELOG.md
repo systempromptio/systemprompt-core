@@ -8,31 +8,6 @@
 - `/api/v1/mcp/*` 401 responses omit `error=` from `WWW-Authenticate: Bearer` when no `Authorization` header was sent, per RFC 6750 §3. Bad-credentials responses keep the `error="invalid_token"` form. Spec-compliant MCP clients (Cowork, Claude Code) rely on the no-error variant to start their OAuth discovery handshake.
 - See `bin/bridge/CHANGELOG.md` 0.9.4: `deploymentOrganizationUuid` policy key is no longer written; the `cowork enable` doctor check replaces the `cowork marketplace` check; the cowork-plugins integration adapter is consolidated around `emit`/`upsert` with the legacy `marketplace.rs` / `registry.rs` surfaces removed.
 - The route-mount context middleware is now four typed sibling layers — `PublicContextMiddleware`, `UserOnlyContextMiddleware`, `A2AContextMiddleware`, `McpContextMiddleware` — instead of a single `ContextMiddleware<E>` with four named constructors that branched internally on a `ContextRequirement` enum. Each flavour's caller-admission contract (Anon admission, session-context fallback, body-rebuild) is now expressed at the type level, so mounting a route under the wrong flavour is a type error rather than a runtime behaviour nobody re-verified.
-
-### Removed
-
-- `ContextMiddleware`, `ContextMiddleware::{public, user_only, full, mcp}`, and the `ContextRequirement` enum are deleted. Callers construct the new sibling middlewares directly.
-- The `ContextExtractor::extract_user_only` method is folded into `extract_from_headers`. The single implementor (`JwtContextExtractor`) had identical bodies for both.
-
-### Fixed
-
-- `/api/v1/mcp/*` answers unauthenticated requests with the proxy handler's RFC 9728 `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge again. v0.11.0 wrapped the MCP route in a coarse `AuthzPolicy::restricted_to([User, Admin, Mcp, Service])` gate above the proxy; the proxy already enforces auth and emits the spec-compliant challenge, so the extra gate only collapsed the response to a generic 403 and broke MCP clients (Cowork, Claude Code) that only start their OAuth discovery on a 401.
-- `SessionMiddleware`'s skip-tracked and bot-classified branches persist a real anonymous users row via `UserProvider::create_anonymous` before constructing `Actor`. Previously these paths returned a sentinel `user_id` (`"anonymous"` / `"bot"`) that violated the documented `Actor` invariant and caused `POST /oauth/register` to fail with a foreign-key violation on freshly-migrated databases.
-- Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
-- Bridge cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
-- Bridge `sync` propagates per-host emit failures into `SyncSummary::host_failures` and the one-line summary now reads `sync PARTIAL (…) — N host(s) failed: …`, so a silently half-published marketplace surfaces in the GUI Activity panel instead of being reported as `sync ok`.
-- `client_credentials` grant rejections log the underlying validation error via `tracing::warn!` (client_id + cause) without changing the opaque `invalid_client` response surface, so operators can distinguish "client not found" from "secret mismatch".
-- `is_port_in_use` (MCP) is bounded by a 1-second `TcpStream::connect_timeout`. A SYN_SENT hang on the loopback probe (WSL2 / firewall pathologies) previously blocked the MCP startup worker indefinitely with no log line; refused / timed-out / errored connects each map to "port free" with a distinct tracing line.
-
-### Removed
-
-- `systemprompt_identifiers::bootstrap::{anonymous, bot, unknown, default, empty_sentinel}` are deleted, along with `UserId::{anonymous, system, bootstrap, is_anonymous, is_system}`. `UserId` values must originate from a row in the `users` table; the middleware persists one before constructing a request context.
-- `AiRequestRecord::minimal_fallback` is deleted. Construction failures propagate to the caller, which logs and skips persistence rather than writing a record with a fabricated `user_id`.
-- `ExecutionMetadata::default()` is deleted (no production callers).
-- `AuthValidationService::validate_request` no longer takes an `AuthMode`; the `AuthMode` enum, the anonymous-context fallback, and `AgentOAuthState::auth_mode` are deleted. The A2A server middleware consequently requires a Bearer token; unauthenticated A2A traffic returns 401.
-
-### Changed
-
 - `TaskContextInfo.user_id` is now `Option<UserId>`, exposing the database's existing NULL semantics rather than masking them with a sentinel string.
 - `ImageGenerationRequest.user_id` is now non-optional. Callers that cannot supply a `UserId` were never authorised to generate images.
 - Bridge `marketplace.json` shape matches the current Cowork (Claude 1.5354) reader: top-level `$schema`, `description`, `metadata { description, version, pluginRoot }`, `owner`, and per-plugin `author` / `category` fields; `plugins[].source` is now a plain string path.
@@ -46,6 +21,25 @@
 - `SyncError::GatewayUnauthorized { endpoint, status }` represents gateway 401/403 from `/manifest` and `/pubkey` as a distinct error with exit code 10 and an actionable "run `systemprompt-bridge login <sp-live-...>`" message. The GUI surfaces it via the new `sync-gateway-unauthorized` Fluent string.
 - `bridge doctor` command groups the bridge-side self-checks (paths, gateway, credentials, loopback secret, pinned pubkey) into a single one-line-per-check diagnostic surface.
 - Unit-test coverage expanded across `domain/agent` (a2a_server processing helpers), `domain/oauth` (bridge/jwt/providers/validation modules), `shared/models` (a2a artifact + task metadata, bridge ids), `domain/ai` (gemini/openai image provider HTTP, resilient provider), and `app/scheduler` (process_cleanup).
+
+### Removed
+
+- `ContextMiddleware`, `ContextMiddleware::{public, user_only, full, mcp}`, and the `ContextRequirement` enum are deleted. Callers construct the new sibling middlewares directly.
+- The `ContextExtractor::extract_user_only` method is folded into `extract_from_headers`. The single implementor (`JwtContextExtractor`) had identical bodies for both.
+- `systemprompt_identifiers::bootstrap::{anonymous, bot, unknown, default, empty_sentinel}` are deleted, along with `UserId::{anonymous, system, bootstrap, is_anonymous, is_system}`. `UserId` values must originate from a row in the `users` table; the middleware persists one before constructing a request context.
+- `AiRequestRecord::minimal_fallback` is deleted. Construction failures propagate to the caller, which logs and skips persistence rather than writing a record with a fabricated `user_id`.
+- `ExecutionMetadata::default()` is deleted (no production callers).
+- `AuthValidationService::validate_request` no longer takes an `AuthMode`; the `AuthMode` enum, the anonymous-context fallback, and `AgentOAuthState::auth_mode` are deleted. The A2A server middleware consequently requires a Bearer token; unauthenticated A2A traffic returns 401.
+
+### Fixed
+
+- `/api/v1/mcp/*` answers unauthenticated requests with the proxy handler's RFC 9728 `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge again. v0.11.0 wrapped the MCP route in a coarse `AuthzPolicy::restricted_to([User, Admin, Mcp, Service])` gate above the proxy; the proxy already enforces auth and emits the spec-compliant challenge, so the extra gate only collapsed the response to a generic 403 and broke MCP clients (Cowork, Claude Code) that only start their OAuth discovery on a 401.
+- `SessionMiddleware`'s skip-tracked and bot-classified branches persist a real anonymous users row via `UserProvider::create_anonymous` before constructing `Actor`. Previously these paths returned a sentinel `user_id` (`"anonymous"` / `"bot"`) that violated the documented `Actor` invariant and caused `POST /oauth/register` to fail with a foreign-key violation on freshly-migrated databases.
+- Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
+- Bridge cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
+- Bridge `sync` propagates per-host emit failures into `SyncSummary::host_failures` and the one-line summary now reads `sync PARTIAL (…) — N host(s) failed: …`, so a silently half-published marketplace surfaces in the GUI Activity panel instead of being reported as `sync ok`.
+- `client_credentials` grant rejections log the underlying validation error via `tracing::warn!` (client_id + cause) without changing the opaque `invalid_client` response surface, so operators can distinguish "client not found" from "secret mismatch".
+- `is_port_in_use` (MCP) is bounded by a 1-second `TcpStream::connect_timeout`. A SYN_SENT hang on the loopback probe (WSL2 / firewall pathologies) previously blocked the MCP startup worker indefinitely with no log line; refused / timed-out / errored connects each map to "port free" with a distinct tracing line.
 
 ## [0.12.1] - 2026-05-27
 

@@ -10,6 +10,7 @@
 ### Added
 
 - `bridge doctor` adds a `hook token mint` check that exchanges the cached OAuth client credentials for a hook token against the gateway's token endpoint with `plugin_id=__doctor__`. Failures surface the gateway's `error_description` verbatim on a single line instead of waiting for the next `sync` PARTIAL output.
+- `bridge doctor` adds a `personal-session sentinel` check that scans Cowork's sessions root for an org dir matching `PERSONAL_SESSION_UUID` (`00000000-0000-4000-8000-000000000001`). If Cowork sessions exist but none matches, the constant has drifted from Cowork's source of truth and `pick_target` will silently fall through to its mtime fallback — the check fails loud so the operator updates the bridge before sync misroutes plugins into the wrong session.
 
 ## [0.9.3] - 2026-05-28
 

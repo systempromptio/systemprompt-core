@@ -18,7 +18,10 @@ pub(crate) mod emit;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all, pick_target, resolve_target};
+pub use emit::{
+    CoworkTarget, EmitReport, PERSONAL_SESSION_UUID, apply_enable, clear_all, pick_target,
+    resolve_target,
+};
 
 pub use settings::{
     SettingsReport, disable_plugin, enable_plugin, enabled_plugins_key, parse_settings,

@@ -22,7 +22,14 @@ use crate::config::paths;
 // Cowork creates its "personal" org-session dir under a fixed v4-shaped UUID
 // (version=4, variant=DCE, otherwise all zeros with a trailing 1). NOT the
 // nil UUID — that's a different sentinel Cowork doesn't use here.
-const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
+//
+// Source of truth in Cowork's app.asar:
+//   const ehr = "00000000-0000-4000-8000-000000000001"
+//
+// If a future Cowork release bumps this string, `pick_target` will silently
+// fall through to its mtime fallback. `doctor`'s
+// `personal-session sentinel` check is the early-warning that this happened.
+pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
 // Cowork hard-codes this marketplace identifier for plugins discovered under
 // the filesystem org-plugins root; see `NF()` in Claude Cowork's `app.asar`.

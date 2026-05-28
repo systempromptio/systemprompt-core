@@ -76,6 +76,7 @@ async fn run_checks() -> (Vec<Check>, bool) {
     checks.push(check_pinned_pubkey());
     checks.push(check_cowork_enable());
     checks.push(check_plugin_installation_preference());
+    checks.push(check_personal_session_sentinel());
     checks.push(check_hook_token_mint(&client).await);
     let any_fail = checks.iter().any(|c| matches!(c.status, Status::Fail));
     (checks, any_fail)
@@ -358,6 +359,82 @@ async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
             ),
         ),
         Err(e) => Check::fail("hook token mint", format!("mint failed: {e}")),
+    }
+}
+
+// Why: the bridge's `pick_target` resolver matches Cowork's personal-session
+// org dir by a hard-coded UUID that Cowork itself hard-codes (see `ehr` in
+// `app.asar`). If a future Cowork release bumps the constant, the resolver
+// silently falls through to its newest-mtime fallback — and the bridge starts
+// publishing into the wrong session whenever any other org dir is fresher.
+// This check is the early-warning: if Cowork sessions exist on disk but none
+// matches our PERSONAL_SESSION_UUID constant, the constant has drifted from
+// Cowork's source of truth and needs updating in the bridge.
+fn check_personal_session_sentinel() -> Check {
+    use crate::config::paths;
+    use crate::integration::cowork_plugins::PERSONAL_SESSION_UUID;
+
+    let Some(root) = paths::cowork3p_sessions_root() else {
+        return Check::warn(
+            "personal-session sentinel",
+            "no Cowork sessions root resolvable (Cowork not installed?)",
+        );
+    };
+    if !root.is_dir() {
+        return Check::warn(
+            "personal-session sentinel",
+            format!("{} not present — open Cowork at least once", root.display()),
+        );
+    }
+    let mut total_orgs = 0usize;
+    let mut matched = false;
+    if let Ok(accounts) = std::fs::read_dir(&root) {
+        for account in accounts.flatten() {
+            if !account.file_type().is_ok_and(|t| t.is_dir()) {
+                continue;
+            }
+            let Ok(orgs) = std::fs::read_dir(account.path()) else {
+                continue;
+            };
+            for org in orgs.flatten() {
+                if !org.file_type().is_ok_and(|t| t.is_dir()) {
+                    continue;
+                }
+                total_orgs += 1;
+                let name = org.file_name();
+                if name.to_str().is_some_and(|s| s.eq_ignore_ascii_case(PERSONAL_SESSION_UUID))
+                {
+                    matched = true;
+                }
+            }
+        }
+    }
+    match (total_orgs, matched) {
+        (0, _) => Check::warn(
+            "personal-session sentinel",
+            format!(
+                "{} has no org session dirs yet — open Cowork to bootstrap",
+                root.display()
+            ),
+        ),
+        (_, true) => Check::ok(
+            "personal-session sentinel",
+            format!(
+                "{PERSONAL_SESSION_UUID} present under {} — bridge resolver matches Cowork's \
+                 hard-coded constant",
+                root.display()
+            ),
+        ),
+        (n, false) => Check::fail(
+            "personal-session sentinel",
+            format!(
+                "{n} Cowork org dir(s) under {} but none matches PERSONAL_SESSION_UUID \
+                 ({PERSONAL_SESSION_UUID}) — Cowork may have bumped the constant; update \
+                 bin/bridge/src/integration/cowork_plugins/emit.rs to whatever literal Cowork \
+                 now hard-codes (search app.asar for the new value)",
+                root.display()
+            ),
+        ),
     }
 }
 
