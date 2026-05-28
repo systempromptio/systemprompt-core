@@ -8,6 +8,8 @@
 - Migration `010_backfill_oauth_client_owner_fk.sql` removes orphan `oauth_clients` rows and installs the `oauth_clients_owner_user_id_fkey` foreign key on databases where migration 004's `ADD COLUMN IF NOT EXISTS` silently skipped the constraint. Fresh installs are unaffected; legacy installs upgrade in place.
 - Bridge cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
 - Bridge `sync` propagates per-host emit failures into `SyncSummary::host_failures` and the one-line summary now reads `sync PARTIAL (…) — N host(s) failed: …`, so a silently half-published marketplace surfaces in the GUI Activity panel instead of being reported as `sync ok`.
+- `client_credentials` grant rejections log the underlying validation error via `tracing::warn!` (client_id + cause) without changing the opaque `invalid_client` response surface, so operators can distinguish "client not found" from "secret mismatch".
+- `is_port_in_use` (MCP) is bounded by a 1-second `TcpStream::connect_timeout`. A SYN_SENT hang on the loopback probe (WSL2 / firewall pathologies) previously blocked the MCP startup worker indefinitely with no log line; refused / timed-out / errored connects each map to "port free" with a distinct tracing line.
 
 ### Removed
 
@@ -23,6 +25,7 @@
 - Bridge `marketplace.json` shape matches the current Cowork (Claude 1.5354) reader: top-level `$schema`, `description`, `metadata { description, version, pluginRoot }`, `owner`, and per-plugin `author` / `category` fields; `plugins[].source` is now a plain string path.
 - Bridge `known_marketplaces.json` and `installed_plugins.json` carry `installLocation`, `installPath`, `scope`, and `lastUpdated` fields. Foreign sibling entries continue to be preserved verbatim.
 - `RequestContext::is_system` and `RequestContext::is_anonymous` are now `const fn`, callable in const contexts.
+- `generate_client_tokens` returns a typed `ClientCredentialsError` enum (ClientNotFound, OwnerNotFound, OwnerInactive, OwnerIdMalformed, InvalidScope, InvalidAudience, HookScopeRequiresHookAudience, UserProviderUnavailable, SessionCreate, JwtSign, ConfigUnavailable) instead of `anyhow::Error`. The route handler maps each variant onto the right RFC 6749 §5.2 status — 4xx for recoverable client mistakes, 5xx only for genuine server faults.
 
 ### Added
 
