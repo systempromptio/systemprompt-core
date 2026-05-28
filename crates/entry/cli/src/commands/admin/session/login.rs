@@ -57,10 +57,7 @@ pub struct LoginOutput {
     pub expires_in_hours: i64,
 }
 
-pub async fn execute(
-    args: LoginArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<LoginOutput>> {
+pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
@@ -195,8 +192,8 @@ async fn resolve_email_for_profile(profile: &Profile, db_pool: &DbPool) -> Resul
             .with_context(|| format!("Failed to look up system admin user '{}'", username))?
             .ok_or_else(|| {
                 anyhow::anyhow!(
-                    "Local admin user '{}' not found. Run 'systemprompt admin bootstrap \
-                     --email <email>' to create it.",
+                    "Local admin user '{}' not found. Run 'systemprompt admin bootstrap --email \
+                     <email>' to create it.",
                     username
                 )
             })?;
