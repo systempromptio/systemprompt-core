@@ -43,7 +43,7 @@ pub struct MarketplaceConfig {
     #[serde(default)]
     pub skills: PluginComponentRef,
     #[serde(default)]
-    pub mcp_servers: Vec<String>,
+    pub mcp_servers: PluginComponentRef,
     #[serde(default)]
     pub agents: PluginComponentRef,
 }

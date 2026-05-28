@@ -18,6 +18,7 @@ use governor::clock::DefaultClock;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
 use ipnet::IpNet;
+use std::future::Future;
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::sync::Arc;
@@ -28,38 +29,38 @@ use systemprompt_models::config::RateLimitConfig;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
 
-/// A middleware layer that builds a [`systemprompt_models::RequestContext`]
-/// for a route group. Implemented by each of the four sibling context
-/// middlewares ([`PublicContextMiddleware`], [`UserOnlyContextMiddleware`],
-/// [`A2AContextMiddleware`], [`McpContextMiddleware`]). Sealed to those four
-/// — third parties cannot stand up a new flavour outside this crate, which
-/// keeps the route-mount surface auditable.
+/// Builds a [`systemprompt_models::RequestContext`] for a route group.
+///
+/// Implemented by each of the four sibling context middlewares
+/// ([`PublicContextMiddleware`], [`UserOnlyContextMiddleware`],
+/// [`A2AContextMiddleware`], [`McpContextMiddleware`]). Sealed to those four —
+/// third parties cannot stand up a new flavour outside this crate, which keeps
+/// the route-mount surface auditable.
 pub trait ContextLayer: Clone + Send + Sync + 'static {
-    fn handle(self, req: Request, next: Next)
-    -> impl std::future::Future<Output = Response> + Send;
+    fn handle(self, req: Request, next: Next) -> impl Future<Output = Response> + Send;
 }
 
 impl ContextLayer for PublicContextMiddleware {
     async fn handle(self, req: Request, next: Next) -> Response {
-        PublicContextMiddleware::handle(&self, req, next).await
+        Self::handle(&self, req, next).await
     }
 }
 
 impl ContextLayer for UserOnlyContextMiddleware {
     async fn handle(self, req: Request, next: Next) -> Response {
-        UserOnlyContextMiddleware::handle(&self, req, next).await
+        Self::handle(&self, req, next).await
     }
 }
 
 impl ContextLayer for A2AContextMiddleware {
     async fn handle(self, req: Request, next: Next) -> Response {
-        A2AContextMiddleware::handle(&self, req, next).await
+        Self::handle(&self, req, next).await
     }
 }
 
 impl ContextLayer for McpContextMiddleware {
     async fn handle(self, req: Request, next: Next) -> Response {
-        McpContextMiddleware::handle(&self, req, next).await
+        Self::handle(&self, req, next).await
     }
 }
 

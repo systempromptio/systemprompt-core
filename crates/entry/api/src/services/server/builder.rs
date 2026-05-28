@@ -2,7 +2,7 @@ use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AppContext as _, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::routes::configure_routes;
 use crate::models::ServerConfig;
@@ -108,10 +108,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let global_context_middleware = PublicContextMiddleware::new();
     router = router.layer(axum::middleware::from_fn({
         let middleware = global_context_middleware;
-        move |req, next| {
-            let middleware = middleware.clone();
-            async move { middleware.handle(req, next).await }
-        }
+        move |req, next| async move { middleware.handle(req, next).await }
     }));
 
     let session_middleware = SessionMiddleware::new(ctx)?;

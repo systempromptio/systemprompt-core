@@ -1,7 +1,8 @@
-//! Per-flavour context middleware: typed sibling middlewares that build a
-//! [`RequestContext`] for a route group, with each type encoding its own
-//! caller-admission contract at the type level rather than via a runtime
-//! `ContextRequirement` enum.
+//! Per-flavour context middleware.
+//!
+//! Typed sibling middlewares that build a [`RequestContext`] for a route group,
+//! with each type encoding its own caller-admission contract at the type level
+//! rather than via a runtime `ContextRequirement` enum.
 //!
 //! Four flavours exist:
 //!
@@ -150,12 +151,13 @@ fn session_context_required_error(trace_id: &TraceId, path: &str, method: &str) 
         .into_response()
 }
 
-/// Public route flavour. Admits `UserType::Anon` and forwards the
-/// session-derived [`RequestContext`] minted by `POST /oauth/session`,
-/// merging optional `x-context-id` / `x-agent-name` headers on top. Never
-/// touches the request body, and never invokes the extractor — the public
-/// gate has nothing to extract from anonymous traffic.
-#[derive(Clone, Debug, Default)]
+/// Public route flavour: admits `UserType::Anon`.
+///
+/// Forwards the session-derived [`RequestContext`] minted by
+/// `POST /oauth/session`, merging optional `x-context-id` / `x-agent-name`
+/// headers on top. Never touches the request body, and never invokes the
+/// extractor — the public gate has nothing to extract from anonymous traffic.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PublicContextMiddleware;
 
 impl PublicContextMiddleware {
@@ -165,14 +167,11 @@ impl PublicContextMiddleware {
     }
 
     pub async fn handle(&self, mut request: Request, next: Next) -> Response {
-        let mut req_ctx = match request.extensions().get::<RequestContext>() {
-            Some(ctx) => ctx.clone(),
-            None => {
-                let trace_id = HeaderExtractor::extract_trace_id(request.headers());
-                let path = request.uri().path().to_owned();
-                let method = request.method().to_string();
-                return session_context_required_error(&trace_id, &path, &method);
-            },
+        let Some(mut req_ctx) = request.extensions().get::<RequestContext>().cloned() else {
+            let trace_id = HeaderExtractor::extract_trace_id(request.headers());
+            let path = request.uri().path().to_owned();
+            let method = request.method().to_string();
+            return session_context_required_error(&trace_id, &path, &method);
         };
 
         let headers = request.headers();
@@ -234,9 +233,11 @@ impl UserOnlyContextMiddleware {
     }
 }
 
-/// A2A flavour. Requires a real user and parses the JSON-RPC body to recover
-/// `contextId` (the A2A wire spec carries it in the body, not headers). The
-/// body is read and rebuilt so downstream handlers can deserialise it again.
+/// A2A flavour: requires a real user.
+///
+/// Parses the JSON-RPC body to recover `contextId` (the A2A wire spec carries
+/// it in the body, not headers). The body is read and rebuilt so downstream
+/// handlers can deserialise it again.
 #[derive(Clone)]
 pub struct A2AContextMiddleware {
     extractor: DynExtractor,
@@ -275,10 +276,12 @@ impl A2AContextMiddleware {
     }
 }
 
-/// MCP flavour. Extracts a real user from headers when an `Authorization`
-/// header is present; otherwise forwards the session-derived
-/// [`RequestContext`] (Anon) so the downstream MCP proxy handler can emit an
-/// RFC 9728 `WWW-Authenticate` 401 challenge to start the OAuth dance.
+/// MCP flavour: headers-only extraction with session fallback.
+///
+/// Extracts a real user from headers when an `Authorization` header is present;
+/// otherwise forwards the session-derived [`RequestContext`] (Anon) so the
+/// downstream MCP proxy handler can emit an RFC 9728 `WWW-Authenticate` 401
+/// challenge to start the OAuth dance.
 ///
 /// The session-context fallback is load-bearing: MCP clients (Cowork,
 /// Claude Code, etc.) only begin OAuth discovery on a 401 carrying the

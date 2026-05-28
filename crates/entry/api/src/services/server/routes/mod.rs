@@ -57,15 +57,14 @@ pub(super) fn configure_routes(
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
     router = router.merge(
-        discovery_router(ctx, metrics_handle)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
+        discovery_router(ctx, metrics_handle).with_auth(public_middleware, AuthzPolicy::public()),
     );
     router = router.merge(
         authenticated_discovery_router(ctx)
             .with_auth(user_middleware, AuthzPolicy::authenticated()),
     );
-    router = router
-        .merge(wellknown_router(ctx).with_auth(public_middleware.clone(), AuthzPolicy::public()));
+    router =
+        router.merge(wellknown_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
 
     router = router.route(
         "/auth/link-passkey",

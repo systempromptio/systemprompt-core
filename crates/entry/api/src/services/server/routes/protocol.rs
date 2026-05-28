@@ -35,7 +35,7 @@ pub(super) fn mount_oauth(
         let oauth = crate::routes::oauth::public_router()
             .with_state(oauth_state.clone())
             .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public())
+            .with_auth(*public_middleware, AuthzPolicy::public())
             .merge(
                 crate::routes::oauth::authenticated_router()
                     .with_state(oauth_state)
@@ -91,7 +91,7 @@ pub(super) fn mount_agent(
         ApiPaths::AGENTS_REGISTRY,
         crate::routes::agent::registry_router(ctx)
             .with_rate_limit(rate_config, rate_config.agent_registry_per_second)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
+            .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
@@ -117,7 +117,7 @@ pub(super) fn mount_mcp_and_stream(
         ApiPaths::MCP_REGISTRY,
         crate::routes::mcp::registry_router(ctx)
             .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
+            .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     // Why: MCP routes admit Anon at the route gate so the proxy handler
@@ -159,7 +159,7 @@ pub(super) fn mount_content_and_misc(
 
     let content = crate::routes::content::public_router(ctx)
         .with_rate_limit(rate_config, rate_config.content_per_second)
-        .with_auth(public_middleware.clone(), AuthzPolicy::public())
+        .with_auth(*public_middleware, AuthzPolicy::public())
         .merge(
             crate::routes::content::authenticated_router(ctx)
                 .with_rate_limit(rate_config, rate_config.content_per_second)
@@ -170,7 +170,7 @@ pub(super) fn mount_content_and_misc(
     router = router.merge(
         crate::routes::content::redirect_router(ctx.db_pool())
             .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
+            .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
@@ -187,7 +187,7 @@ pub(super) fn mount_content_and_misc(
         ApiPaths::MARKETPLACE_BASE,
         crate::routes::marketplace::router()
             .with_state(ctx.clone())
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
+            .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(
@@ -209,7 +209,7 @@ pub(super) fn mount_content_and_misc(
                 message: e.to_string(),
             })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth(public_middleware.clone(), AuthzPolicy::public()),
+            .with_auth(*public_middleware, AuthzPolicy::public()),
     );
 
     router = router.nest(

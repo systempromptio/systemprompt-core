@@ -8,6 +8,8 @@
 pub mod agents;
 mod hooks;
 #[doc(hidden)]
+pub mod scope;
+#[doc(hidden)]
 pub mod skills;
 
 use std::sync::Arc;
@@ -29,6 +31,7 @@ use systemprompt_security::manifest_signing;
 
 use self::agents::load_agents;
 use self::hooks::load_hooks;
+use self::scope::{active_marketplace, scope_to_marketplace};
 use self::skills::load_skills;
 use super::bridge::KNOWN_HOSTS;
 use super::bridge_data;
@@ -132,6 +135,22 @@ pub async fn manifest(
             );
             default_enabled_hosts()
         },
+    };
+
+    // Scope catalogue lists to the active marketplace's include lists BEFORE
+    // RBAC narrowing. Empty `include:` preserves the global-list fallback.
+    // All four catalogues are sourced from `PluginComponentRef`s authored on
+    // disk.
+    let (skills, agents, plugins, managed_mcp_servers) = match active_marketplace(&services) {
+        Some(mp) => (
+            scope_to_marketplace(skills, &mp.skills.include, |s| s.id.as_str()),
+            scope_to_marketplace(agents, &mp.agents.include, |a| a.id.as_str()),
+            scope_to_marketplace(plugins, &mp.plugins.include, |p| p.id.as_str()),
+            scope_to_marketplace(managed_mcp_servers, &mp.mcp_servers.include, |m| {
+                m.name.as_str()
+            }),
+        ),
+        None => (skills, agents, plugins, managed_mcp_servers),
     };
 
     let filtered = ctx

@@ -19,6 +19,7 @@
 use std::fs;
 
 use systemprompt_api::routes::gateway::bridge_manifest::agents::load_agents;
+use systemprompt_api::routes::gateway::bridge_manifest::scope::scope_to_marketplace;
 use systemprompt_api::routes::gateway::bridge_manifest::skills::load_skills;
 use systemprompt_identifiers::SkillId;
 use systemprompt_models::services::{
@@ -149,4 +150,73 @@ fn manifest_agent_entry_skills_mirror_metadata_skills() {
         !entry.skills.iter().any(|s| s == "bar"),
         "AgentEntry.skills must not leak card.skills ids"
     );
+}
+
+// --- Marketplace scoping (0.12.2) -------------------------------------------
+//
+// These tests cover the spec contract documented in
+// `bridge_manifest::scope::scope_to_marketplace`: when an active marketplace
+// is resolved, its `<entity>.include` list intersects the on-disk catalogue
+// (empty list = global fallback, unknown ids are dropped silently, disk
+// order is preserved). They exercise the helper directly against the
+// `load_skills` output rather than driving the HTTP endpoint — the shared
+// `OnceLock` bootstrap fixture cannot be reconfigured per test, and the
+// helper is the unit that this PR introduces.
+
+fn write_skill(services_root: &std::path::Path, id: &str) {
+    let dir = services_root.join("skills").join(id);
+    std::fs::create_dir_all(&dir).expect("create skill dir");
+    std::fs::write(
+        dir.join("config.yaml"),
+        format!("id: {id}\nname: {id}\ndescription: scoping fixture.\nenabled: true\ntags: []\n"),
+    )
+    .expect("write skill config");
+    std::fs::write(dir.join("SKILL.md"), format!("{id} body.\n")).expect("write skill md");
+}
+
+#[test]
+fn marketplace_include_filters_skills() {
+    let tmp = TempDir::new().expect("tempdir");
+    for id in ["foo", "bar", "baz"] {
+        write_skill(tmp.path(), id);
+    }
+
+    let skills = load_skills(tmp.path()).expect("load_skills");
+    // load_skills sorts directory entries by name; baseline is [bar, baz, foo].
+    let baseline: Vec<String> = skills.iter().map(|s| s.id.as_str().to_owned()).collect();
+    assert_eq!(baseline, vec!["bar", "baz", "foo"]);
+
+    let include = vec!["foo".to_owned(), "baz".to_owned()];
+    let scoped = scope_to_marketplace(skills, &include, |s| s.id.as_str());
+    let ids: Vec<String> = scoped.iter().map(|s| s.id.as_str().to_owned()).collect();
+
+    // Disk order preserved: baz comes before foo in the loader's sorted output.
+    assert_eq!(ids, vec!["baz", "foo"]);
+}
+
+#[test]
+fn empty_marketplace_include_serves_all() {
+    let tmp = TempDir::new().expect("tempdir");
+    for id in ["foo", "bar", "baz"] {
+        write_skill(tmp.path(), id);
+    }
+
+    let skills = load_skills(tmp.path()).expect("load_skills");
+    let scoped = scope_to_marketplace(skills, &[], |s| s.id.as_str());
+    let ids: Vec<String> = scoped.iter().map(|s| s.id.as_str().to_owned()).collect();
+    assert_eq!(ids, vec!["bar", "baz", "foo"]);
+}
+
+#[test]
+fn nonexistent_id_in_include_is_dropped() {
+    let tmp = TempDir::new().expect("tempdir");
+    for id in ["foo", "bar", "baz"] {
+        write_skill(tmp.path(), id);
+    }
+
+    let skills = load_skills(tmp.path()).expect("load_skills");
+    let include = vec!["foo".to_owned(), "nonexistent".to_owned()];
+    let scoped = scope_to_marketplace(skills, &include, |s| s.id.as_str());
+    let ids: Vec<String> = scoped.iter().map(|s| s.id.as_str().to_owned()).collect();
+    assert_eq!(ids, vec!["foo"]);
 }

@@ -24,7 +24,7 @@ fn marketplace(id: &str, refs: PluginComponentRef) -> MarketplaceConfig {
         visibility: MarketplaceVisibility::Public,
         plugins: refs,
         skills: PluginComponentRef::default(),
-        mcp_servers: vec![],
+        mcp_servers: PluginComponentRef::default(),
         agents: PluginComponentRef::default(),
     }
 }
@@ -108,7 +108,7 @@ fn services_config_rejects_marketplace_with_unknown_mcp_server() {
     let mut services = ServicesConfig::default();
     let mp_id = MarketplaceId::new("enterprise");
     let mut m = marketplace("enterprise", PluginComponentRef::default());
-    m.mcp_servers = vec!["ghost-mcp".to_string()];
+    m.mcp_servers.include = vec!["ghost-mcp".to_string()];
     services.marketplaces.insert(mp_id, m);
 
     let err = services.validate().expect_err("should fail");
@@ -161,6 +161,63 @@ marketplace:
     assert_eq!(parsed.marketplace.id.as_str(), "enterprise-demo");
     assert_eq!(parsed.marketplace.plugins.include, vec!["enterprise-demo"]);
     assert_eq!(parsed.marketplace.visibility, MarketplaceVisibility::Public);
+}
+
+#[test]
+fn marketplace_rejects_flat_mcp_servers_list() {
+    // Breaking change (0.12.2): `mcp_servers` is now a `PluginComponentRef`
+    // (`{ source, include, exclude }`) instead of a flat `Vec<String>`. The
+    // legacy flat-list form must be rejected at load time. We do not pin the
+    // exact serde error wording — only that deserialisation fails.
+    let yaml = r#"
+marketplace:
+  id: enterprise-demo
+  name: Enterprise Demo
+  description: demo
+  version: "1.0.0"
+  enabled: true
+  author:
+    name: systemprompt.io
+    email: support@systemprompt.io
+  license: MIT
+  visibility: public
+  mcp_servers:
+    - mcp-a
+    - mcp-b
+"#;
+    let parsed: Result<systemprompt_models::services::MarketplaceConfigFile, _> =
+        serde_yaml::from_str(yaml);
+    assert!(
+        parsed.is_err(),
+        "flat mcp_servers list must be rejected; got {parsed:?}"
+    );
+}
+
+#[test]
+fn marketplace_accepts_object_mcp_servers() {
+    let yaml = r#"
+marketplace:
+  id: enterprise-demo
+  name: Enterprise Demo
+  description: demo
+  version: "1.0.0"
+  enabled: true
+  author:
+    name: systemprompt.io
+    email: support@systemprompt.io
+  license: MIT
+  visibility: public
+  mcp_servers:
+    source: explicit
+    include: [mcp-a, mcp-b]
+    exclude: []
+"#;
+    let parsed: systemprompt_models::services::MarketplaceConfigFile =
+        serde_yaml::from_str(yaml).expect("object form should parse");
+    assert_eq!(
+        parsed.marketplace.mcp_servers.include,
+        vec!["mcp-a".to_string(), "mcp-b".to_string()]
+    );
 }
 
 // Silence unused warning for the imports re-used across helpers above.

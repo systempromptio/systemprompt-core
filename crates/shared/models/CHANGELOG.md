@@ -2,7 +2,13 @@
 
 ## [0.12.2] - 2026-05-28
 
+### Breaking
+
+- `MarketplaceConfig.mcp_servers` is now `PluginComponentRef { source, include, exclude }` instead of a flat `Vec<String>`. Tenants must rewrite YAML from `mcp_servers: [a, b]` to `mcp_servers: { source: explicit, include: [a, b], exclude: [] }`. The flat-list form is rejected at config-load time with a serde "expected struct, found sequence" error. `ServicesConfig::validate_marketplace_bindings` now reads `marketplace.mcp_servers.include` and resolves each id against the top-level `services.mcp_servers` catalogue. `PluginConfig.mcp_servers` and `PluginConfig.content_sources` remain `Vec<String>` in this release.
+
 ### Changed
+
+- `bridge_manifest::manifest()` now scopes the manifest's skills, agents, mcp_servers, and plugins to the active marketplace's `MarketplaceConfig.<entity>.include` lists before RBAC filtering. `MarketplaceConfig` was previously parsed but unused at manifest time. Empty `include:` preserves the global-list fallback for backwards compatibility. All four catalogues are now uniformly authored as `PluginComponentRef` on `MarketplaceConfig`.
 
 - `mcp::Deployment.endpoint` is now `Option<String>`. The struct gains a `validate(name)` method that rejects absolute URLs for `internal` servers; `ServicesConfig::validate` invokes it for every entry in `mcp_servers`. `external` servers continue to accept absolute upstream URLs.
 - `AgentCardConfig::skills` is now `#[serde(default, skip_serializing)]` and deprecated. The A2A `card.skills` view is computed at serve time by joining `agent.metadata.skills` against the on-disk `services/skills/` catalog; authored `card.skills:` arrays in agent YAML are tolerated for one release (so downstream repos can land their YAML cleanup separately) but are ignored. `AgentConfigValidator` no longer requires `card.skills[].id` to resolve on disk — only `metadata.skills` ids are validated. See root CHANGELOG.

@@ -6937,6 +6937,7 @@ dependencies = [
  "systemprompt-traits",
  "tokio",
  "tower",
+ "url",
  "wiremock",
 ]
 

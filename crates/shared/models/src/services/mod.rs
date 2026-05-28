@@ -137,10 +137,11 @@ impl ServicesConfig {
             }
         }
 
-        for mcp_ref in &marketplace.mcp_servers {
+        for mcp_ref in &marketplace.mcp_servers.include {
             if !self.mcp_servers.contains_key(mcp_ref) {
                 return Err(ConfigValidationError::unknown_reference(format!(
-                    "Marketplace '{name}': mcp_servers references unknown mcp_server '{mcp_ref}'"
+                    "Marketplace '{name}': mcp_servers.include references unknown mcp_server \
+                     '{mcp_ref}'"
                 )));
             }
         }
