@@ -192,7 +192,13 @@ pub(super) fn apply_skill_changes(
         }
     }
     for skill in &args.remove_skills {
-        if let Some(pos) = agent.metadata.skills.include.iter().position(|s| s == skill) {
+        if let Some(pos) = agent
+            .metadata
+            .skills
+            .include
+            .iter()
+            .position(|s| s == skill)
+        {
             let removed = agent.metadata.skills.include.remove(pos);
             changes.push(format!("removed skill: {}", removed));
         } else {

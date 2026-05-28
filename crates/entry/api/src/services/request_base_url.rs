@@ -85,10 +85,7 @@ pub fn resolve(raw_host: Option<&str>, configured: &url::Url) -> RequestBaseUrl 
     fallback_from_url(configured)
 }
 
-fn build_from_host(
-    raw_host: &str,
-    configured: &url::Url,
-) -> Result<RequestBaseUrl, &'static str> {
+fn build_from_host(raw_host: &str, configured: &url::Url) -> Result<RequestBaseUrl, &'static str> {
     if raw_host.is_empty() || raw_host.contains('/') || raw_host.contains(' ') {
         return Err("invalid host header");
     }
@@ -135,7 +132,10 @@ impl<S: Send + Sync> FromRequestParts<S> for RequestBaseUrl {
             )
         })?;
 
-        let raw_host = parts.headers.get(header::HOST).and_then(|v| v.to_str().ok());
+        let raw_host = parts
+            .headers
+            .get(header::HOST)
+            .and_then(|v| v.to_str().ok());
         Ok(resolve(raw_host, &configured))
     }
 }
