@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.3] - 2026-05-28
+
+### Changed
+
+- `marketplace.json`, `known_marketplaces.json`, and `installed_plugins.json` are written in the shape the current Cowork (Claude 1.5354) reader expects: `marketplace.json` gains `$schema`, `description`, `metadata { description, version, pluginRoot }`, and per-plugin `author`/`category`, with `plugins[].source` flattened to a plain string path; `known_marketplaces.json` is a top-level object keyed by marketplace name with `source`, `installLocation`, and `lastUpdated` per entry; `installed_plugins.json` is `{ "version": 2, "plugins": { "<plugin>@<marketplace>": [{ "scope", "installPath", "version", "installedAt", "lastUpdated" }] } }`. Foreign sibling entries continue to be preserved verbatim.
+- Cache and marketplace path joins sanitise version strings before writing to the filesystem; RFC3339-shaped versions containing `:` no longer trip Windows ERROR_INVALID_NAME during `bridge sync`.
+- `sync` propagates per-host emit failures into `SyncSummary::host_failures` and the one-line summary now reads `sync PARTIAL (…) — N host(s) failed: …`, so a silently half-published marketplace surfaces in the GUI Activity panel instead of being reported as `sync ok`.
+- 403 "bad loopback secret" rejections log the resolved secret path, and `tracing` lines on empty / missing / freshly minted secret files include the file path, giving operators a single line to follow when Claude Desktop has cached a stale loopback secret.
+
+### Added
+
+- `bridge doctor` command groups the bridge-side self-checks (config, credential source, mint JWT, gateway reachable, authenticated whoami, loopback secret, pinned pubkey, cowork marketplace registration) into a single one-line-per-check diagnostic surface; exits 11 on any failure.
+- `SyncError::GatewayUnauthorized { endpoint, status }` represents gateway 401/403 from `/manifest` and `/pubkey` as a distinct error with exit code 10 and an actionable "run `systemprompt-bridge login <sp-live-...>`" message; the GUI surfaces it via the new `sync-gateway-unauthorized` Fluent string, and the `sync-no-credentials` string handles the no-PAT-configured case.
+- Typed wire-shape structs for the Cowork host adapter: `KnownMarketplacesFile`, `KnownMarketplaceValue`, `InstalledPluginsFile`, `InstalledPluginInstall`, and `MarketplaceMetadata`, replacing the ad-hoc `serde_json::Value` traversals.
+- Unit test coverage for the Cowork host adapter (`crates/tests/unit/bridge/cowork-plugins`): canonical marketplace shape, known-marketplaces / installed-plugins / settings upsert behaviour, and path sanitisation.
+
 ## [0.9.2] - 2026-05-27
 
 ### Changed
