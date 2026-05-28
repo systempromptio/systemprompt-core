@@ -1,9 +1,18 @@
 use crate::error::McpDomainResult;
+use std::net::{SocketAddr, TcpStream};
 use std::process::Command;
+use std::time::Duration;
 
 pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
 pub const PORT_BACKOFF_BASE_MS: u64 = 200;
 pub const POST_KILL_DELAY_MS: u64 = 500;
+
+/// Hard cap on a single localhost TCP connect probe. Without a timeout,
+/// a stuck `SYN_SENT` (WSL2 / firewall / SYN-blackhole pathologies)
+/// blocks the runtime worker indefinitely and the entire MCP startup
+/// hangs silently with no log line to show why. 1s is generous for
+/// loopback while still failing fast and loud.
+const PORT_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub async fn prepare_port(port: u16) -> McpDomainResult<()> {
     tracing::debug!(port = port, "Preparing port");
@@ -17,10 +26,41 @@ pub async fn prepare_port(port: u16) -> McpDomainResult<()> {
     Ok(())
 }
 
+/// Returns `true` only if a TCP handshake completes within
+/// [`PORT_PROBE_TIMEOUT`]. A refused connection (the listener really
+/// isn't there) returns `false` quickly; a kernel-level hang (no SYN/ACK,
+/// no RST) returns `false` after one second with a `warn!` so the
+/// operator sees *why* the next startup step decided the port was free.
+#[must_use]
 pub fn is_port_in_use(port: u16) -> bool {
-    std::net::TcpStream::connect(format!("127.0.0.1:{port}")).is_ok()
+    let addr: SocketAddr = match format!("127.0.0.1:{port}").parse() {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::error!(port = port, error = %e, "BUG: failed to parse loopback addr for probe");
+            return false;
+        },
+    };
+    match TcpStream::connect_timeout(&addr, PORT_PROBE_TIMEOUT) {
+        Ok(_) => true,
+        Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => false,
+        Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+            tracing::warn!(
+                port = port,
+                timeout_ms = PORT_PROBE_TIMEOUT.as_millis() as u64,
+                "Port probe timed out — no listener accepted, no RST sent. Treating port as free. \
+                 If MCP server then fails to bind, a stale half-open socket on this port is the \
+                 likely cause."
+            );
+            false
+        },
+        Err(e) => {
+            tracing::warn!(port = port, error = %e, "Port probe failed; treating port as free");
+            false
+        },
+    }
 }
 
+#[must_use]
 pub fn is_port_responsive(port: u16) -> bool {
     is_port_in_use(port)
 }
@@ -49,7 +89,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
                     tracing::warn!(pid = pid, error = %e, "Failed to send SIGTERM to port process");
                 }
 
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
 
                 if let Err(e) = signal::kill(Pid::from_raw(pid), Signal::SIGKILL) {
                     tracing::warn!(pid = pid, error = %e, "Failed to send SIGKILL to port process");
@@ -57,7 +97,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
             }
         }
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(Duration::from_millis(200)).await;
     }
 
     Ok(())
@@ -88,7 +128,7 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
                         tracing::warn!(pid = %pid_str, error = %e, "Failed to send taskkill to port process");
                     }
 
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(Duration::from_millis(100)).await;
 
                     if let Err(e) = Command::new("taskkill")
                         .args(["/PID", pid_str, "/F"])
@@ -101,14 +141,14 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
         }
     }
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
 
     Ok(())
 }
 
 pub async fn wait_for_port_release(port: u16) -> McpDomainResult<()> {
     let max_attempts = 10;
-    let delay = std::time::Duration::from_millis(100);
+    let delay = Duration::from_millis(100);
 
     for attempt in 1..=max_attempts {
         if !is_port_in_use(port) {
@@ -146,9 +186,8 @@ pub async fn wait_for_port_release_with_retry(
         match wait_for_port_release(port).await {
             Ok(()) => return Ok(()),
             Err(_) if cleanup_attempt < max_cleanup_attempts => {
-                let backoff = std::time::Duration::from_millis(
-                    PORT_BACKOFF_BASE_MS * u64::from(cleanup_attempt),
-                );
+                let backoff =
+                    Duration::from_millis(PORT_BACKOFF_BASE_MS * u64::from(cleanup_attempt));
                 tokio::time::sleep(backoff).await;
             },
             Err(e) => return Err(e),
