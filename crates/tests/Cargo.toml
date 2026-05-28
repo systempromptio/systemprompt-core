@@ -170,7 +170,7 @@ rmcp = { version = "1.6", features = ["server", "client", "transport-io", "trans
 
 # Security
 rand = "0.9"
-bcrypt = "0.18"
+bcrypt = "0.19"
 base64 = "0.22"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 rsa = { version = "0.9", features = ["pem", "sha2"] }

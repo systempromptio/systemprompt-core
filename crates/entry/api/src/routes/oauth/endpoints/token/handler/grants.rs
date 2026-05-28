@@ -232,7 +232,14 @@ pub(super) async fn handle_client_credentials_grant(
 
     validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
         .await
-        .map_err(|_e| TokenError::InvalidClientSecret)?;
+        .map_err(|e| {
+            tracing::warn!(
+                client_id = %client_id,
+                error = %e,
+                "client_credentials grant rejected"
+            );
+            TokenError::InvalidClientSecret
+        })?;
 
     let options = ClientTokenOptions {
         scope: request.scope.as_deref(),

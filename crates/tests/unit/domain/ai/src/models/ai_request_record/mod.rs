@@ -4,7 +4,10 @@ use systemprompt_ai::models::{
     AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, CacheInfo, RequestStatus,
     TokenInfo,
 };
-use systemprompt_identifiers::{AiRequestId, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, ActorKind, AiRequestId, ContextId, GatewayConversationId, McpExecutionId,
+    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_test_fixtures::fixture_user_id;
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
@@ -334,6 +337,79 @@ mod ai_request_record_builder_tests {
         assert_eq!(record.cost_microdollars, 500);
         assert_eq!(record.latency_ms, 1500);
         assert_eq!(record.status, RequestStatus::Completed);
+    }
+}
+
+mod builder_optional_ids_tests {
+    use super::*;
+
+    #[test]
+    fn builder_sets_actor() {
+        let user = fixture_user_id();
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-actor"), user.clone())
+            .provider("openai")
+            .model("gpt-4")
+            .actor(Actor::agent(user, "claude-code"))
+            .build()
+            .unwrap();
+        assert!(matches!(record.actor.kind, ActorKind::Agent { .. }));
+    }
+
+    #[test]
+    fn builder_defaults_actor_to_user() {
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-d"), fixture_user_id())
+            .provider("openai")
+            .model("gpt-4")
+            .build()
+            .unwrap();
+        assert!(matches!(record.actor.kind, ActorKind::User));
+    }
+
+    #[test]
+    fn builder_sets_gateway_conversation_id() {
+        let gw = GatewayConversationId::new("ctx_0123456789abcdef");
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-g"), fixture_user_id())
+            .provider("openai")
+            .model("gpt-4")
+            .gateway_conversation_id(gw.clone())
+            .build()
+            .unwrap();
+        assert_eq!(record.gateway_conversation_id, Some(gw));
+    }
+
+    #[test]
+    fn builder_sets_provider_request_id() {
+        let prid = ProviderRequestId::new("prov-1");
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-p"), fixture_user_id())
+            .provider("openai")
+            .model("gpt-4")
+            .provider_request_id(prid.clone())
+            .build()
+            .unwrap();
+        assert_eq!(record.provider_request_id, Some(prid));
+    }
+
+    #[test]
+    fn builder_sets_mcp_execution_id() {
+        let mid = McpExecutionId::new("mcp-1");
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-m"), fixture_user_id())
+            .provider("openai")
+            .model("gpt-4")
+            .mcp_execution_id(mid.clone())
+            .build()
+            .unwrap();
+        assert_eq!(record.mcp_execution_id, Some(mid));
+    }
+
+    #[test]
+    fn builder_tokens_with_no_values() {
+        let record = AiRequestRecordBuilder::new(AiRequestId::new("req-n"), fixture_user_id())
+            .provider("openai")
+            .model("gpt-4")
+            .tokens(None, None)
+            .build()
+            .unwrap();
+        assert!(record.tokens.tokens_used.is_none());
     }
 }
 
