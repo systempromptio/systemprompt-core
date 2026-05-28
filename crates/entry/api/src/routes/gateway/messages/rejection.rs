@@ -24,7 +24,9 @@ pub(super) async fn persist_rejection(
         },
     };
 
-    let record = build_rejection_record(ai_request_id, partial);
+    let Some(record) = build_rejection_record(ai_request_id, partial) else {
+        return;
+    };
     write_rejection_record(&repo, ai_request_id, &record, status, message).await;
 
     if let Some(body) = partial.body.as_ref() {
@@ -35,11 +37,14 @@ pub(super) async fn persist_rejection(
 fn build_rejection_record(
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
-) -> AiRequestRecord {
-    let user_id = partial
-        .user_id
-        .clone()
-        .unwrap_or_else(systemprompt_identifiers::bootstrap::anonymous);
+) -> Option<AiRequestRecord> {
+    let Some(user_id) = partial.user_id.clone() else {
+        tracing::warn!(
+            ai_request_id = %ai_request_id,
+            "Skipping rejection record: caller user_id unknown"
+        );
+        return None;
+    };
     let provider = partial
         .provider
         .clone()
@@ -65,10 +70,17 @@ fn build_rejection_record(
     if let Some(mt) = partial.max_tokens {
         builder = builder.max_tokens(mt);
     }
-    builder.build().unwrap_or_else(|e| {
-        tracing::warn!(error = %e, "rejection audit: build failed");
-        AiRequestRecord::minimal_fallback(ai_request_id.clone())
-    })
+    match builder.build() {
+        Ok(record) => Some(record),
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                ai_request_id = %ai_request_id,
+                "Skipping rejection record: builder failed"
+            );
+            None
+        },
+    }
 }
 
 async fn write_rejection_record(

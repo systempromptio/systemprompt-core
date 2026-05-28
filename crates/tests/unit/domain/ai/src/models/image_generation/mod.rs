@@ -84,7 +84,7 @@ mod image_generation_request_tests {
             aspect_ratio: AspectRatio::default(),
             reference_images: Vec::new(),
             enable_search_grounding: false,
-            user_id: None,
+            user_id: fixture_user_id(),
             session_id: None,
             trace_id: None,
             mcp_execution_id: None,
@@ -113,7 +113,7 @@ mod image_generation_request_tests {
             aspect_ratio: AspectRatio::Landscape169,
             reference_images: vec![reference],
             enable_search_grounding: true,
-            user_id: Some(fixture_user_id()),
+            user_id: fixture_user_id(),
             session_id: Some(SessionId::new("session-456")),
             trace_id: Some("trace-789".to_string()),
             mcp_execution_id: None,
@@ -125,7 +125,7 @@ mod image_generation_request_tests {
         assert_eq!(request.aspect_ratio, AspectRatio::Landscape169);
         assert_eq!(request.reference_images.len(), 1);
         assert!(request.enable_search_grounding);
-        assert_eq!(request.user_id, Some(fixture_user_id()));
+        assert_eq!(request.user_id, fixture_user_id());
     }
 }
 

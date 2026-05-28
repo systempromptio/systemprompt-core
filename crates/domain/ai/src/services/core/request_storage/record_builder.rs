@@ -1,5 +1,5 @@
 use crate::models::ai::{AiRequest, AiResponse, MessageRole};
-use crate::models::{AiRequestRecord, AiRequestRecordBuilder, RequestStatus};
+use crate::models::{AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, RequestStatus};
 use systemprompt_identifiers::{
     AiRequestId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
@@ -28,7 +28,9 @@ pub(super) struct BuildRecordParams<'a> {
     pub cost_microdollars: i64,
 }
 
-pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
+pub(super) fn build_record(
+    params: &BuildRecordParams<'_>,
+) -> Result<AiRequestRecord, AiRequestRecordError> {
     let user_id = UserId::new(params.context.user_id().as_str());
 
     let mut builder = AiRequestRecordBuilder::new(
@@ -90,20 +92,7 @@ pub(super) fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
         RequestStatus::Pending => builder,
     };
 
-    builder.build().unwrap_or_else(|_| {
-        AiRequestRecordBuilder::new(
-            AiRequestId::new(params.response.request_id.to_string()),
-            systemprompt_identifiers::bootstrap::unknown(),
-        )
-        .provider("unknown")
-        .model("unknown")
-        .build()
-        .unwrap_or_else(|_| {
-            AiRequestRecord::minimal_fallback(AiRequestId::new(
-                params.response.request_id.to_string(),
-            ))
-        })
-    })
+    builder.build()
 }
 
 pub(super) fn extract_messages(

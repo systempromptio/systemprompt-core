@@ -62,32 +62,6 @@ impl AiRequestRecord {
     pub fn builder(request_id: AiRequestId, user_id: UserId) -> AiRequestRecordBuilder {
         AiRequestRecordBuilder::new(request_id, user_id)
     }
-
-    pub fn minimal_fallback(request_id: AiRequestId) -> Self {
-        let user_id = systemprompt_identifiers::bootstrap::unknown();
-        Self {
-            request_id,
-            user_id: user_id.clone(),
-            actor: Actor::user(user_id),
-            session_id: None,
-            task_id: None,
-            context_id: None,
-            gateway_conversation_id: None,
-            provider_request_id: None,
-            trace_id: None,
-            mcp_execution_id: None,
-            provider: "unknown".to_owned(),
-            model: "unknown".to_owned(),
-            max_tokens: None,
-            tokens: TokenInfo::default(),
-            cache: CacheInfo::default(),
-            is_streaming: false,
-            cost_microdollars: 0,
-            latency_ms: 0,
-            status: RequestStatus::Failed,
-            error_message: Some("Record construction failed".to_owned()),
-        }
-    }
 }
 
 #[derive(Debug)]

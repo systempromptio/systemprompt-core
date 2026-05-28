@@ -65,8 +65,7 @@ pub struct ImageGenerationRequest {
     pub reference_images: Vec<ReferenceImage>,
     #[serde(default)]
     pub enable_search_grounding: bool,
-    #[serde(default)]
-    pub user_id: Option<UserId>,
+    pub user_id: UserId,
     #[serde(default)]
     pub session_id: Option<SessionId>,
     #[serde(default)]

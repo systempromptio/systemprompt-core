@@ -37,12 +37,7 @@ async fn persist_ai_request(
     request: &ImageGenerationRequest,
     response: &ImageGenerationResponse,
 ) -> Result<()> {
-    let user_id = request
-        .user_id
-        .clone()
-        .unwrap_or_else(systemprompt_identifiers::bootstrap::anonymous);
-
-    let mut builder = AiRequestRecordBuilder::new(response.request_id.clone(), user_id)
+    let mut builder = AiRequestRecordBuilder::new(response.request_id.clone(), request.user_id.clone())
         .provider(&response.provider)
         .model(&response.model)
         .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))
@@ -104,7 +99,7 @@ async fn persist_file_record(
         mime_type: response.mime_type.clone(),
         size_bytes: response.file_size_bytes.map(|s| s as i64),
         metadata,
-        user_id: request.user_id.clone(),
+        user_id: Some(request.user_id.clone()),
         session_id: request.session_id.clone(),
         trace_id: request.trace_id.as_ref().map(TraceId::new),
         context_id: None,

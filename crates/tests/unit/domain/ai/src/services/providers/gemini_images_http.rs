@@ -2,6 +2,7 @@ use serde_json::json;
 use systemprompt_ai::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageResolution,
 };
+use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_ai::services::providers::gemini_images::GeminiImageProvider;
 use systemprompt_ai::services::providers::image_provider_trait::ImageProvider;
 use wiremock::matchers::{method, path_regex};
@@ -15,7 +16,7 @@ fn make_request(prompt: &str) -> ImageGenerationRequest {
         aspect_ratio: AspectRatio::Square,
         reference_images: vec![],
         enable_search_grounding: false,
-        user_id: None,
+        user_id: fixture_user_id(),
         session_id: None,
         trace_id: None,
         mcp_execution_id: None,

@@ -65,14 +65,24 @@ impl RequestStorage {
     }
 
     pub async fn store(&self, params: &StoreParams<'_>) -> Result<(), AiError> {
-        let record = build_record(&BuildRecordParams {
+        let record = match build_record(&BuildRecordParams {
             request: params.request,
             response: params.response,
             context: params.context,
             status: params.status,
             error_message: params.error_message,
             cost_microdollars: params.cost_microdollars,
-        });
+        }) {
+            Ok(record) => record,
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    request_id = %params.response.request_id,
+                    "Skipping ai_requests persistence: record construction failed"
+                );
+                return Ok(());
+            },
+        };
         let messages = extract_messages(params.request, params.response, params.status);
         let tool_calls = extract_tool_calls(params.response);
 
