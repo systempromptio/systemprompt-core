@@ -2,7 +2,7 @@ use std::sync::Arc;
 use systemprompt_database::Database;
 pub use systemprompt_models::AgentOAuthConfig;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_security::{AuthMode, AuthValidationService};
+use systemprompt_security::AuthValidationService;
 use systemprompt_traits::{DynJwtValidationProvider, DynUserProvider};
 
 #[derive(Clone)]
@@ -54,11 +54,4 @@ impl AgentOAuthState {
         self
     }
 
-    pub const fn auth_mode(&self) -> AuthMode {
-        if self.config.required {
-            AuthMode::Required
-        } else {
-            AuthMode::Optional
-        }
-    }
 }

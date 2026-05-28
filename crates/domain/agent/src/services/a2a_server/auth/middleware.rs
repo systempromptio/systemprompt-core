@@ -17,11 +17,10 @@ pub async fn agent_oauth_middleware(
 
     let context = state
         .auth_service
-        .validate_request(headers, state.auth_mode())
+        .validate_request(headers)
         .map_err(|e| {
             tracing::warn!(
                 has_auth_header = has_auth_header,
-                auth_mode = ?state.auth_mode(),
                 error = %e,
                 "Agent auth validation failed"
             );

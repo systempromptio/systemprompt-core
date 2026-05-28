@@ -1,8 +1,6 @@
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
-use systemprompt_models::auth::{
-    JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, UserType,
-};
+use systemprompt_models::auth::{JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
 use crate::error::{AuthError, AuthResult};
@@ -10,19 +8,12 @@ use crate::extraction::HeaderExtractor;
 use crate::keys::authority;
 use crate::session::ValidatedSessionClaims;
 
-const ANONYMOUS_SESSION_ID: &str = "anonymous";
 const BEARER_PREFIX: &str = "Bearer ";
 
 /// Maximum clock-skew tolerance (seconds) for `exp`, `nbf`, and `iat`
 /// validation. Pinned explicitly so deployments see this value in code
 /// review rather than inheriting the `jsonwebtoken` default.
 pub(super) const JWT_LEEWAY_SECONDS: u64 = 30;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AuthMode {
-    Required,
-    Optional,
-}
 
 #[derive(Debug)]
 pub struct AuthValidationService {
@@ -36,39 +27,10 @@ impl AuthValidationService {
         Self { issuer, audiences }
     }
 
-    pub fn validate_request(
-        &self,
-        headers: &HeaderMap,
-        mode: AuthMode,
-    ) -> AuthResult<RequestContext> {
-        match mode {
-            AuthMode::Required => self.validate_and_fail_fast(headers),
-            AuthMode::Optional => Ok(self.try_validate_or_anonymous(headers)),
-        }
-    }
-
-    fn validate_and_fail_fast(&self, headers: &HeaderMap) -> AuthResult<RequestContext> {
+    pub fn validate_request(&self, headers: &HeaderMap) -> AuthResult<RequestContext> {
         let token = Self::extract_token(headers).ok_or(AuthError::MissingAuthorization)?;
-
         let claims = self.validate_token(token)?;
         Ok(Self::create_context_from_claims(&claims, token, headers))
-    }
-
-    fn try_validate_or_anonymous(&self, headers: &HeaderMap) -> RequestContext {
-        Self::extract_token(headers).map_or_else(
-            || Self::create_anonymous_context(headers),
-            |token| {
-                self.validate_token(token)
-                    .map_err(|e| {
-                        tracing::debug!(error = %e, "Token validation failed, falling back to anonymous");
-                        e
-                    })
-                    .map_or_else(
-                        |_| Self::create_anonymous_context(headers),
-                        |claims| Self::create_context_from_claims(&claims, token, headers),
-                    )
-            },
-        )
     }
 
     fn extract_token(headers: &HeaderMap) -> Option<&str> {
@@ -160,16 +122,4 @@ impl AuthValidationService {
         .with_token_exp(claims.exp)
     }
 
-    fn create_anonymous_context(headers: &HeaderMap) -> RequestContext {
-        RequestContext::new(
-            SessionId::new(ANONYMOUS_SESSION_ID.to_owned()),
-            HeaderExtractor::extract_trace_id(headers),
-            HeaderExtractor::extract_context_id(headers).unwrap_or_else(ContextId::generate),
-            HeaderExtractor::extract_agent_name(headers),
-        )
-        .with_actor(Actor::anonymous(
-            systemprompt_identifiers::bootstrap::anonymous(),
-        ))
-        .with_user_type(UserType::Anon)
-    }
 }

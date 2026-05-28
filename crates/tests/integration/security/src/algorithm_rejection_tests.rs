@@ -8,7 +8,7 @@ use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::keys::{RsaSigningKey, authority};
-use systemprompt_security::{AuthError, AuthMode, AuthValidationService};
+use systemprompt_security::{AuthError, AuthValidationService};
 
 static INSTALL: Once = Once::new();
 
@@ -68,7 +68,7 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
 
     let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
     let err = svc
-        .validate_request(&auth_header(&token), AuthMode::Required)
+        .validate_request(&auth_header(&token))
         .expect_err("hs256 must be rejected");
     assert!(
         matches!(err, AuthError::UnsupportedAlgorithm),
@@ -87,7 +87,7 @@ async fn rs256_token_without_kid_is_rejected_with_missing_kid_error() {
 
     let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
     let err = svc
-        .validate_request(&auth_header(&token), AuthMode::Required)
+        .validate_request(&auth_header(&token))
         .expect_err("missing kid must be rejected");
     assert!(
         matches!(err, AuthError::MissingKid),
@@ -107,7 +107,7 @@ async fn rs256_token_with_unknown_kid_is_rejected_with_unknown_kid_error() {
 
     let svc = AuthValidationService::new("integration-issuer".to_string(), vec![JwtAudience::Api]);
     let err = svc
-        .validate_request(&auth_header(&token), AuthMode::Required)
+        .validate_request(&auth_header(&token))
         .expect_err("foreign kid must be rejected");
     assert!(
         matches!(err, AuthError::UnknownKid(ref k) if k == foreign.kid()),

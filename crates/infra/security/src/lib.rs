@@ -36,12 +36,12 @@
 //!
 //! ```no_run
 //! use systemprompt_models::auth::JwtAudience;
-//! use systemprompt_security::{AuthMode, AuthValidationService};
+//! use systemprompt_security::AuthValidationService;
 //!
 //! # fn demo(headers: &axum::http::HeaderMap) -> systemprompt_security::AuthResult<()> {
 //! let svc =
 //!     AuthValidationService::new("systemprompt.io".to_string(), vec![JwtAudience::standard()]);
-//! let _ctx = svc.validate_request(headers, AuthMode::Required)?;
+//! let _ctx = svc.validate_request(headers)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -60,7 +60,7 @@ pub mod session;
 
 pub use at_rest::{hmac_sha256, hmac_sha256_hex};
 
-pub use auth::{AuthMode, AuthValidationService, HookTokenValidator, ValidatedHookClaims};
+pub use auth::{AuthValidationService, HookTokenValidator, ValidatedHookClaims};
 pub use authz::CompositeAuthzHook;
 pub use error::{
     AuthError, AuthResult, JwtError, JwtResult, ManifestSigningError, ManifestSigningResult,

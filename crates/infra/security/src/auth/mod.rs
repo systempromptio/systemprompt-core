@@ -6,4 +6,4 @@ mod hook_token;
 mod validation;
 
 pub use hook_token::{HookTokenValidator, ValidatedHookClaims};
-pub use validation::{AuthMode, AuthValidationService};
+pub use validation::AuthValidationService;
