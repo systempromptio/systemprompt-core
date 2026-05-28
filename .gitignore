@@ -3,6 +3,7 @@ target/
 **/target/
 **/*.rs.bk
 **/*.profraw
+**/*.cov-bak
 docs
 docs/
 docs/*
