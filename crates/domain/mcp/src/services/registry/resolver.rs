@@ -78,7 +78,7 @@ impl RegistryResolver {
                 host: "0.0.0.0".to_owned(),
                 module_name: "mcp".to_owned(),
                 protocol: "mcp".to_owned(),
-                remote_endpoint: deployment.endpoint.clone(),
+                remote_endpoint: deployment.endpoint.clone().unwrap_or_default(),
             };
             enabled.push(config);
         }

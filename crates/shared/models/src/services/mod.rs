@@ -97,6 +97,10 @@ impl ServicesConfig {
             agent.validate(name)?;
         }
 
+        for (name, mcp) in &self.mcp_servers {
+            mcp.validate(name)?;
+        }
+
         for (name, plugin) in &self.plugins {
             plugin.validate(name)?;
             self.validate_plugin_bindings(name, plugin)?;

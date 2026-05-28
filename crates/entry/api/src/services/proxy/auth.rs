@@ -1,4 +1,5 @@
 use axum::body::Body;
+use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
 use serde_json::json;
@@ -44,6 +45,7 @@ impl OAuthChallengeBuilder {
         resource_path: &str,
         ctx: &AppContext,
         status_code: StatusCode,
+        has_authorization: bool,
     ) -> Result<Response<Body>, StatusCode> {
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
@@ -52,17 +54,27 @@ impl OAuthChallengeBuilder {
             format!("{oauth_base_url}/.well-known/oauth-protected-resource{resource_path}");
 
         let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
-            let header = format!(
-                "Bearer realm=\"{service_name}\", resource_metadata=\"{resource_metadata_url}\", \
-                 error=\"invalid_token\""
-            );
-            let body = json!({
-                "error": "invalid_token",
-                "error_description": "The access token is missing or invalid",
-                "server": service_name,
-                "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server")
-            });
-            (header, body)
+            if has_authorization {
+                let header = format!(
+                    "Bearer realm=\"{service_name}\", \
+                     resource_metadata=\"{resource_metadata_url}\", error=\"invalid_token\", \
+                     error_description=\"The access token is missing or invalid\""
+                );
+                let body = json!({
+                    "error": "invalid_token",
+                    "error_description": "The access token is missing or invalid",
+                    "server": service_name
+                });
+                (header, body)
+            } else {
+                // RFC 6750 §3: omit `error` on the no-credentials challenge so clients
+                // know to start the OAuth flow rather than treat the request as rejected.
+                let header = format!(
+                    "Bearer realm=\"{service_name}\", \
+                     resource_metadata=\"{resource_metadata_url}\""
+                );
+                (header, json!({}))
+            }
         } else {
             let header = format!(
                 "Bearer realm=\"{service_name}\", error=\"insufficient_scope\", \
@@ -104,6 +116,7 @@ impl AccessValidator {
             return Ok(None);
         }
         let resource_path = resource_path_for(service, service_name);
+        let has_authorization = headers.get(AUTHORIZATION).is_some();
         let authenticated_user =
             match AuthValidator::validate_service_access(headers, service_name, req_context) {
                 Ok(user) => user,
@@ -118,6 +131,7 @@ impl AccessValidator {
                         &resource_path,
                         ctx,
                         status_code,
+                        has_authorization,
                     ));
                 },
             };
@@ -213,12 +227,14 @@ fn challenge_or_error(
     resource_path: &str,
     ctx: &AppContext,
     status_code: StatusCode,
+    has_authorization: bool,
 ) -> ProxyError {
     match OAuthChallengeBuilder::build_challenge_response(
         service_name,
         resource_path,
         ctx,
         status_code,
+        has_authorization,
     ) {
         Ok(challenge_response) => ProxyError::AuthChallenge(Box::new(challenge_response)),
         Err(status) if status == StatusCode::UNAUTHORIZED => ProxyError::AuthenticationRequired {

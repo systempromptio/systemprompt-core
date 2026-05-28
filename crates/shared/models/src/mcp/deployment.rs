@@ -1,5 +1,6 @@
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
+use crate::errors::ConfigValidationError;
 use crate::mcp::capabilities::ToolVisibility;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -92,7 +93,8 @@ pub struct Deployment {
     pub binary: String,
     pub package: Option<String>,
     pub port: u16,
-    pub endpoint: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
     pub enabled: bool,
     pub display_in_web: bool,
     #[serde(default)]
@@ -106,6 +108,23 @@ pub struct Deployment {
     pub model_config: Option<ToolModelConfig>,
     #[serde(default)]
     pub env_vars: Vec<String>,
+}
+
+impl Deployment {
+    pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
+        if matches!(self.server_type, McpServerType::Internal) {
+            if let Some(ep) = self.endpoint.as_deref() {
+                if ep.starts_with("http://") || ep.starts_with("https://") {
+                    return Err(ConfigValidationError::invalid_field(format!(
+                        "MCP server '{name}': endpoint must be a relative path (e.g. \
+                         /api/v1/mcp/{name}/mcp) or omitted; the host is derived from \
+                         server.api_external_url. Remove the scheme+host prefix."
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -159,18 +159,19 @@ async fn public_merges_optional_context_id_and_agent_name_headers() {
         },
         Some(anon_session_context()),
     );
+    let header_context_id = "11111111-1111-4111-8111-111111111111";
     let (status, body) = drive(
         app,
         Method::GET,
         &[
-            ("x-context-id", "ctx-from-header"),
+            ("x-context-id", header_context_id),
             ("x-agent-name", "claude-code"),
         ],
     )
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body.contains("context_id=ctx-from-header"),
+        body.contains(&format!("context_id={header_context_id}")),
         "x-context-id header must override session context_id, got {body}"
     );
     assert!(

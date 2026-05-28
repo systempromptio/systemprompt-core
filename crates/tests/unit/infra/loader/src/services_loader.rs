@@ -526,7 +526,6 @@ mcp_servers:
     binary: fixture-mcp-binary
     package: fixture
     port: 5100
-    endpoint: http://localhost:8080/api/v1/mcp/fixture/mcp
     enabled: true
     display_in_web: true
     oauth:
@@ -781,5 +780,37 @@ plugins:
             && msg.contains("agents.include references unknown agent")
             && msg.contains("ghost_agent"),
         "expected plugin binding validation error, got: {msg}"
+    );
+}
+
+#[test]
+fn rejects_absolute_internal_mcp_endpoint() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let config_path = temp_dir.path().join("services.yaml");
+    let content = r#"
+mcp_servers:
+  fixture:
+    type: internal
+    binary: fixture-bin
+    port: 5100
+    endpoint: http://localhost:8080/api/v1/mcp/fixture/mcp
+    enabled: true
+    display_in_web: false
+    oauth:
+      required: false
+      scopes: []
+      audience: mcp
+      client_id: null
+settings:
+  agent_port_range: [9000, 9999]
+  mcp_port_range: [5000, 5999]
+"#;
+    std::fs::write(&config_path, content).expect("Failed to write config");
+    let err = ConfigLoader::load_from_path(&config_path)
+        .expect_err("absolute internal endpoint should be rejected");
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("fixture") && msg.contains("relative path"),
+        "expected validator error mentioning server name and 'relative path', got: {msg}"
     );
 }

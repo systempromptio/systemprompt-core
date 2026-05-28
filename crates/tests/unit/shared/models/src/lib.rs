@@ -132,3 +132,6 @@ mod bridge_ids;
 
 #[cfg(test)]
 mod bridge_manifest_version;
+
+#[cfg(test)]
+mod mcp_deployment;

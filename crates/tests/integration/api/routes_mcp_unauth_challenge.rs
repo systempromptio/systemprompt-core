@@ -114,6 +114,120 @@ async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Res
     Ok(())
 }
 
+/// RFC 6750 §3 / RFC 9728: when the client sends NO `Authorization` header,
+/// the 401 challenge must be the spec-compliant "no credentials" form — bare
+/// `WWW-Authenticate: Bearer realm="…", resource_metadata="…"` with no
+/// `error=` parameter, and an empty JSON body. Cowork / Claude Code only start
+/// the OAuth discovery dance on this exact shape; an `error="invalid_token"`
+/// on the same response makes the client report "token rejected" and abort.
+/// This pins the 12.x fix and would have caught the 11.0–12.2 regression.
+#[tokio::test]
+async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyhow::Result<()> {
+    let app = boot_full_router().await?;
+    let req = Request::builder()
+        .method(Method::POST)
+        .uri("/api/v1/mcp/__regression__/mcp")
+        .header(header::HOST, "127.0.0.1")
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(Body::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#,
+        ))?;
+    let resp = app.oneshot(req).await?;
+    let status = resp.status();
+    let www_auth = resp
+        .headers()
+        .get(header::WWW_AUTHENTICATE)
+        .map(|v| v.to_str().unwrap_or_default().to_owned());
+    let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "expected 401 challenge, got {status} body={body}"
+    );
+    let www_auth = www_auth.expect("WWW-Authenticate header present on 401");
+    assert!(
+        www_auth.starts_with("Bearer "),
+        "WWW-Authenticate must be a Bearer challenge, got: {www_auth}"
+    );
+    assert!(
+        www_auth.contains("resource_metadata="),
+        "WWW-Authenticate must carry resource_metadata link (RFC 9728), got: {www_auth}"
+    );
+    assert!(
+        !www_auth.contains("error="),
+        "RFC 6750 §3 violation: no-credentials challenge must omit error= so \
+         clients begin OAuth discovery rather than treat the request as \
+         rejected. WWW-Authenticate={www_auth}"
+    );
+    assert!(
+        !body.contains("\"error\""),
+        "no-credentials 401 body must not advertise an OAuth error code; got: {body}"
+    );
+    assert!(
+        !body.contains("authorization_url"),
+        "non-standard `authorization_url` field must not appear in the 401 \
+         body — authorization servers are advertised via the \
+         `authorization_servers` array in oauth-protected-resource metadata. \
+         body={body}"
+    );
+    Ok(())
+}
+
+/// Companion to the above: when the client DOES present a bearer token and it
+/// is rejected, the challenge must carry `error="invalid_token"` in both the
+/// `WWW-Authenticate` header and the JSON body. This pins the other branch of
+/// the 12.x split so future refactors can't collapse both cases back together.
+#[tokio::test]
+async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Result<()> {
+    let app = boot_full_router().await?;
+    let req = Request::builder()
+        .method(Method::POST)
+        .uri("/api/v1/mcp/__regression__/mcp")
+        .header(header::HOST, "127.0.0.1")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::AUTHORIZATION, "Bearer not-a-real-token")
+        .body(Body::from(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize"}"#,
+        ))?;
+    let resp = app.oneshot(req).await?;
+    let status = resp.status();
+    let www_auth = resp
+        .headers()
+        .get(header::WWW_AUTHENTICATE)
+        .map(|v| v.to_str().unwrap_or_default().to_owned());
+    let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "expected 401, got {status} body={body}"
+    );
+    let www_auth = www_auth.expect("WWW-Authenticate header present on 401");
+    assert!(
+        www_auth.contains("error=\"invalid_token\""),
+        "bad-token challenge must advertise error=invalid_token per RFC 6750 \
+         §3.1, got: {www_auth}"
+    );
+    assert!(
+        www_auth.contains("resource_metadata="),
+        "WWW-Authenticate must still carry resource_metadata for client \
+         recovery, got: {www_auth}"
+    );
+    assert!(
+        body.contains("\"error\":\"invalid_token\""),
+        "bad-token 401 body must include OAuth error code, got: {body}"
+    );
+    assert!(
+        !body.contains("authorization_url"),
+        "non-standard `authorization_url` field must not appear in the 401 \
+         body; body={body}"
+    );
+    Ok(())
+}
+
 /// Companion assertion: the same unauthenticated GET to a `/mcp` sub-path
 /// must also bypass the generic anon-denial. Catches re-introduction of the
 /// gate at any HTTP method on the MCP nest.

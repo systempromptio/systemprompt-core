@@ -67,12 +67,14 @@ pub fn load_managed_mcp_servers(
 
     let mut out = Vec::with_capacity(entries.len());
     for (name, deployment) in entries {
-        let url_str = if deployment.endpoint.starts_with("http://")
-            || deployment.endpoint.starts_with("https://")
-        {
-            deployment.endpoint.clone()
-        } else {
-            format!("{base}/api/v1/mcp/{name}/mcp")
+        let url_str = match deployment.endpoint.as_deref() {
+            Some(ep)
+                if ep.starts_with("http://") || ep.starts_with("https://") =>
+            {
+                ep.to_owned()
+            },
+            Some(rel) if !rel.is_empty() => format!("{base}{rel}"),
+            _ => format!("{base}/api/v1/mcp/{name}/mcp"),
         };
         let url = ValidatedUrl::try_new(url_str)?;
         let mcp_name = ManagedMcpServerName::try_new(name.clone())?;

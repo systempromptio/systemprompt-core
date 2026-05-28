@@ -88,3 +88,44 @@ async fn load_managed_mcp_servers_strips_trailing_slash_from_url() {
     let result = load_managed_mcp_servers(&services, "http://127.0.0.1/");
     assert!(result.is_ok());
 }
+
+#[tokio::test]
+async fn load_managed_mcp_servers_synthesises_url_from_api_external_url() {
+    use std::collections::HashMap;
+    use systemprompt_models::auth::JwtAudience;
+    use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement};
+
+    let mut services = ServicesConfig::default();
+    services.mcp_servers.insert(
+        "sharepoint-sim".to_owned(),
+        Deployment {
+            server_type: McpServerType::Internal,
+            binary: "sharepoint-sim".to_owned(),
+            package: None,
+            port: 5101,
+            endpoint: None,
+            enabled: true,
+            display_in_web: true,
+            dev_only: false,
+            schemas: vec![],
+            oauth: OAuthRequirement {
+                required: true,
+                scopes: vec![],
+                audience: JwtAudience::Mcp,
+                client_id: None,
+            },
+            tools: HashMap::new(),
+            model_config: None,
+            env_vars: vec![],
+        },
+    );
+
+    let entries = load_managed_mcp_servers(&services, "http://localhost:8080")
+        .expect("synthesis must succeed");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        entries[0].url.as_str(),
+        "http://localhost:8080/api/v1/mcp/sharepoint-sim/mcp"
+    );
+}
+
