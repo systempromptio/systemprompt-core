@@ -34,7 +34,20 @@ pub fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
             status.code().unwrap_or(-1)
         ));
     }
-    Ok(format!("{key} ← managedMcpServers"))
+    // Single source of truth: a server left in the other hive (e.g. a stale
+    // value an earlier non-elevated run wrote to HKCU) would be a second,
+    // possibly out-of-date `managedMcpServers` definition Cowork might read.
+    // Best-effort delete from the hive we did NOT write (clearing HKLM needs
+    // elevation, so a non-elevated run may not succeed — that's acceptable).
+    let other = if elevated {
+        r"HKCU\SOFTWARE\Policies\Claude"
+    } else {
+        r"HKLM\SOFTWARE\Policies\Claude"
+    };
+    _ = crate::winproc::reg_command()
+        .args(["delete", other, "/v", "managedMcpServers", "/f"])
+        .status();
+    Ok(format!("{key} ← managedMcpServers (cleared {other})"))
 }
 
 pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String> {

@@ -71,7 +71,11 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
     }
 }
 
-fn access(roles: &[&str], default_included: bool, justification: Option<&str>) -> MarketplaceAccess {
+fn access(
+    roles: &[&str],
+    default_included: bool,
+    justification: Option<&str>,
+) -> MarketplaceAccess {
     MarketplaceAccess {
         default_included,
         roles: roles.iter().map(|r| (*r).to_owned()).collect(),
@@ -88,9 +92,8 @@ fn one(id: &MarketplaceId, access: MarketplaceAccess) -> HashMap<MarketplaceId, 
 
 async fn role_values(pg: &PgPool, id: &MarketplaceId) -> Vec<String> {
     sqlx::query_scalar::<_, String>(
-        "SELECT rule_value FROM access_control_rules \
-         WHERE entity_type='marketplace' AND entity_id=$1 AND rule_type='role' \
-         ORDER BY rule_value",
+        "SELECT rule_value FROM access_control_rules WHERE entity_type='marketplace' AND \
+         entity_id=$1 AND rule_type='role' ORDER BY rule_value",
     )
     .bind(id.as_str())
     .fetch_all(pg)
@@ -105,7 +108,10 @@ async fn happy_path_projects_entity_and_rules() {
 
     let report = service
         .ingest_marketplace_access(
-            &one(&f.id, access(&["engineer", "admin"], true, Some("governance"))),
+            &one(
+                &f.id,
+                access(&["engineer", "admin"], true, Some("governance")),
+            ),
             IngestOptions::default(),
         )
         .await
@@ -114,8 +120,8 @@ async fn happy_path_projects_entity_and_rules() {
     assert_eq!(report.inserted, 2, "two role rules inserted");
 
     let default_included: bool = sqlx::query_scalar(
-        "SELECT default_included FROM access_control_entities \
-         WHERE entity_type='marketplace' AND entity_id=$1",
+        "SELECT default_included FROM access_control_entities WHERE entity_type='marketplace' AND \
+         entity_id=$1",
     )
     .bind(f.id.as_str())
     .fetch_one(f.pg.as_ref())
@@ -126,14 +132,16 @@ async fn happy_path_projects_entity_and_rules() {
     assert_eq!(role_values(&f.pg, &f.id).await, vec!["admin", "engineer"]);
 
     let accesses: Vec<String> = sqlx::query_scalar(
-        "SELECT access FROM access_control_rules \
-         WHERE entity_type='marketplace' AND entity_id=$1",
+        "SELECT access FROM access_control_rules WHERE entity_type='marketplace' AND entity_id=$1",
     )
     .bind(f.id.as_str())
     .fetch_all(f.pg.as_ref())
     .await
     .expect("query access");
-    assert!(accesses.iter().all(|a| a == "allow"), "role grants are allow");
+    assert!(
+        accesses.iter().all(|a| a == "allow"),
+        "role grants are allow"
+    );
 
     cleanup(&f.pg, &f.id).await;
 }
@@ -150,7 +158,10 @@ async fn delete_orphans_drops_roles_absent_from_the_new_pass() {
         )
         .await
         .expect("first ingest");
-    assert_eq!(role_values(&f.pg, &f.id).await, vec!["contractor", "engineer"]);
+    assert_eq!(
+        role_values(&f.pg, &f.id).await,
+        vec!["contractor", "engineer"]
+    );
 
     let report = service
         .ingest_marketplace_access(
@@ -205,8 +216,8 @@ async fn override_existing_updates_justification() {
     assert_eq!(updated.updated, 1, "override rewrites the changed rule");
 
     let justification: Option<String> = sqlx::query_scalar(
-        "SELECT justification FROM access_control_rules \
-         WHERE entity_type='marketplace' AND entity_id=$1 AND rule_value='engineer'",
+        "SELECT justification FROM access_control_rules WHERE entity_type='marketplace' AND \
+         entity_id=$1 AND rule_value='engineer'",
     )
     .bind(f.id.as_str())
     .fetch_one(f.pg.as_ref())

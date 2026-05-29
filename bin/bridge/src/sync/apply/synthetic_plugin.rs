@@ -2,11 +2,10 @@ use super::super::hash::safe_id_segment;
 use super::hooks::{ensure_plugin_json_hooks_field, materialize_hook_token, write_hooks_json};
 use crate::config::paths;
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::{AgentEntry, ManagedMcpServer, SignedManifest, SkillEntry};
+use crate::gateway::manifest::{AgentEntry, SignedManifest, SkillEntry};
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 use async_trait::async_trait;
 use serde::Serialize;
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -66,26 +65,6 @@ pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json:
     serde_json::to_vec_pretty(&pj)
 }
 
-#[derive(Serialize)]
-struct McpJson<'a> {
-    #[serde(rename = "mcpServers")]
-    mcp_servers: BTreeMap<String, McpServerEntry<'a>>,
-}
-
-#[derive(Serialize)]
-struct McpServerEntry<'a> {
-    #[serde(rename = "type")]
-    transport: &'a str,
-    // Loopback proxy URL, not the upstream gateway. Cowork connects here with
-    // the static loopback-secret header below; the bridge proxy strips it and
-    // injects the rotating gateway JWT before forwarding to the upstream
-    // registered in `mcp_registry`. This sidesteps Cowork's OAuth flow (which
-    // hard-rejects the gateway's non-HTTPS authorize URL) while keeping a live,
-    // auto-refreshed token on every request.
-    url: String,
-    headers: BTreeMap<&'a str, String>,
-}
-
 #[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
 pub async fn write_synthetic_plugin(
     client: &GatewayClient,
@@ -95,10 +74,16 @@ pub async fn write_synthetic_plugin(
 ) -> Result<(), super::ApplyError> {
     let root = org_plugins_root.join(paths::SYNTHETIC_PLUGIN_NAME);
 
-    let has_content = !manifest.skills.is_empty()
-        || !manifest.agents.is_empty()
-        || !manifest.managed_mcp_servers.is_empty()
-        || !manifest.hooks.is_empty();
+    // MCP servers are intentionally NOT emitted here. Per the Cowork 3P docs,
+    // remote org-provisioned MCP servers belong in the `managedMcpServers`
+    // policy ("deploy remote MCP servers to every device"), not bundled in a
+    // plugin's `.mcp.json`. Declaring a server in both makes Cowork drop the
+    // plugin copy on the name collision (managedMcpServers wins), leaving a
+    // ghost "not connected" connector in the plugin panel. The MDM emitter
+    // (`install::mdm`) owns the MCP channel; this plugin carries skills,
+    // agents, and hooks only.
+    let has_content =
+        !manifest.skills.is_empty() || !manifest.agents.is_empty() || !manifest.hooks.is_empty();
 
     if !has_content {
         if root.exists() {
@@ -122,10 +107,6 @@ pub async fn write_synthetic_plugin(
     })?;
 
     write_plugin_json(&root, manifest)?;
-
-    if !manifest.managed_mcp_servers.is_empty() {
-        write_mcp_json(&root, &manifest.managed_mcp_servers)?;
-    }
 
     for skill in &manifest.skills {
         write_skill(&root, skill)?;
@@ -156,43 +137,6 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
         }
     })?;
     let path = dir.join("plugin.json");
-    fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
-        context: format!("write {}", path.display()),
-        source: e,
-    })
-}
-
-fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), super::ApplyError> {
-    // The bearer the host presents to the loopback proxy. The manifest's own
-    // `s.headers` are NOT written here — they are upstream extra-headers that
-    // travel into `mcp_registry` and get added by the proxy server-side.
-    let bearer = crate::proxy::loopback_bearer().map_err(|e| super::ApplyError::Io {
-        context: "read loopback secret for synthetic .mcp.json".into(),
-        source: e,
-    })?;
-    let mcp_servers: BTreeMap<String, McpServerEntry<'_>> = servers
-        .iter()
-        .map(|s| {
-            let slug = crate::mcp_registry::normalize_key(s.name.as_str());
-            let url = crate::proxy::mcp_url(&slug);
-            let mut headers = BTreeMap::new();
-            headers.insert("Authorization", bearer.clone());
-            (
-                slug,
-                McpServerEntry {
-                    transport: s.transport.as_deref().unwrap_or("http"),
-                    url,
-                    headers,
-                },
-            )
-        })
-        .collect();
-    let payload = McpJson { mcp_servers };
-    let bytes = serde_json::to_vec_pretty(&payload).map_err(|e| super::ApplyError::Serialize {
-        what: "synthetic .mcp.json".into(),
-        source: e,
-    })?;
-    let path = root.join(".mcp.json");
     fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
         context: format!("write {}", path.display()),
         source: e,

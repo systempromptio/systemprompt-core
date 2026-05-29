@@ -68,6 +68,10 @@ pub async fn seed_user_session(
     Ok(())
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "test JWT minter threads each claim explicitly"
+)]
 fn mint_jwt_internal(
     user_id: &UserId,
     session_id: &SessionId,

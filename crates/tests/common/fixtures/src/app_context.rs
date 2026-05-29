@@ -88,6 +88,18 @@ pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppC
     fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
 }
 
+/// `/tmp` paths suitable for tests that never read the on-disk catalogue.
+fn tmp_paths() -> PathsConfig {
+    PathsConfig {
+        system: "/tmp".to_string(),
+        services: "/tmp".to_string(),
+        bin: "/tmp".to_string(),
+        web_path: Some("/tmp".to_string()),
+        storage: Some("/tmp".to_string()),
+        geoip_database: None,
+    }
+}
+
 /// As [`fixture_app_context`] but with an injectable marketplace filter, so a
 /// test can drive the real cascade-filtering path (e.g. the bridge manifest
 /// E2E) instead of the permissive allow-all default.
@@ -96,14 +108,21 @@ pub fn fixture_app_context_with_filter(
     database_url: &str,
     marketplace_filter: Arc<dyn MarketplaceFilter>,
 ) -> Result<Arc<AppContext>> {
-    let paths = PathsConfig {
-        system: "/tmp".to_string(),
-        services: "/tmp".to_string(),
-        bin: "/tmp".to_string(),
-        web_path: Some("/tmp".to_string()),
-        storage: Some("/tmp".to_string()),
-        geoip_database: None,
-    };
+    fixture_app_context_with(pool, database_url, tmp_paths(), marketplace_filter)
+}
+
+/// Full control over both the on-disk paths and the marketplace filter.
+///
+/// The bridge-manifest E2E points `paths.services` at a real services tree so
+/// `ctx.app_paths().system().services()` resolves the on-disk catalogue, and
+/// injects the deployment's real [`MarketplaceFilter`] to exercise the full
+/// scope → cascade → sign path through the route.
+pub fn fixture_app_context_with(
+    pool: &DbPool,
+    database_url: &str,
+    paths: PathsConfig,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+) -> Result<Arc<AppContext>> {
     let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
 
     let ctx = AppContext::from_parts(

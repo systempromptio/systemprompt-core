@@ -32,7 +32,8 @@ fn preserves_typed_payload_alongside_floor() {
 
     assert_eq!(ctx.marketplace_floor(), Some(floor()));
     assert_eq!(
-        ctx.gateway_invocation_model().map(|m| m.as_str().to_owned()),
+        ctx.gateway_invocation_model()
+            .map(|m| m.as_str().to_owned()),
         Some("claude".to_owned()),
         "floor injection leaves the typed model payload intact",
     );

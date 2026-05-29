@@ -140,7 +140,9 @@ fn active_selects_default_when_many() {
     config.settings.default_marketplace_id = Some(MarketplaceId::new("beta"));
     let service = MarketplaceService::new(&config);
 
-    let active = service.active().expect("default names the active marketplace");
+    let active = service
+        .active()
+        .expect("default names the active marketplace");
     assert_eq!(active.id.as_str(), "beta");
 }
 

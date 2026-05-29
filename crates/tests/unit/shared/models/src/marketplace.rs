@@ -94,12 +94,15 @@ fn services_config_validates_marketplace_with_known_plugin() {
 fn services_config_rejects_multiple_marketplaces_without_default() {
     let mut services = ServicesConfig::default();
     for id in ["alpha", "beta"] {
-        services
-            .marketplaces
-            .insert(MarketplaceId::new(id), marketplace(id, PluginComponentRef::default()));
+        services.marketplaces.insert(
+            MarketplaceId::new(id),
+            marketplace(id, PluginComponentRef::default()),
+        );
     }
 
-    let err = services.validate().expect_err("ambiguous selector must fail bootstrap");
+    let err = services
+        .validate()
+        .expect_err("ambiguous selector must fail bootstrap");
     assert!(err.to_string().contains("default_marketplace_id"));
 }
 
@@ -107,21 +110,25 @@ fn services_config_rejects_multiple_marketplaces_without_default() {
 fn services_config_accepts_multiple_marketplaces_with_valid_default() {
     let mut services = ServicesConfig::default();
     for id in ["alpha", "beta"] {
-        services
-            .marketplaces
-            .insert(MarketplaceId::new(id), marketplace(id, PluginComponentRef::default()));
+        services.marketplaces.insert(
+            MarketplaceId::new(id),
+            marketplace(id, PluginComponentRef::default()),
+        );
     }
     services.settings.default_marketplace_id = Some(MarketplaceId::new("beta"));
 
-    services.validate().expect("explicit default resolves the ambiguity");
+    services
+        .validate()
+        .expect("explicit default resolves the ambiguity");
 }
 
 #[test]
 fn services_config_rejects_default_marketplace_id_with_no_match() {
     let mut services = ServicesConfig::default();
-    services
-        .marketplaces
-        .insert(MarketplaceId::new("alpha"), marketplace("alpha", PluginComponentRef::default()));
+    services.marketplaces.insert(
+        MarketplaceId::new("alpha"),
+        marketplace("alpha", PluginComponentRef::default()),
+    );
     services.settings.default_marketplace_id = Some(MarketplaceId::new("ghost"));
 
     let err = services.validate().expect_err("dangling default must fail");
