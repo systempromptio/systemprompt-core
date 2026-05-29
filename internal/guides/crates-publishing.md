@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.12.1` (May 27, 2026)
+**Current Version:** `0.13.0` (May 29, 2026)
 
 All **31 crates** have been published to crates.io.
 
@@ -177,11 +177,11 @@ git commit -m "chore: update SQLx cache for release"
 
 ### Crates Requiring SQLx Cache
 
-14 crates use SQLx query macros:
+16 crates use SQLx query macros — this list must stay in sync with the loop in `just sqlx-prepare-publish` / `just sqlx-verify-offline`:
 
 | Layer | Crates |
 |-------|--------|
-| Infra | `systemprompt-database`, `systemprompt-logging` |
+| Infra | `systemprompt-database`, `systemprompt-events`, `systemprompt-logging`, `systemprompt-security` |
 | Domain | `systemprompt-analytics`, `systemprompt-agent`, `systemprompt-oauth`, `systemprompt-users`, `systemprompt-content`, `systemprompt-files`, `systemprompt-ai`, `systemprompt-mcp` |
 | App | `systemprompt-scheduler`, `systemprompt-sync` |
 | Entry | `systemprompt-cli`, `systemprompt-api` |
@@ -266,7 +266,9 @@ Equivalent direct invocation: `./scripts/release.sh patch`. `scripts/release.sh`
 7. Amends the cargo-ws bump commit with the pin + lockfile fixups so history stays as one atomic commit.
 8. Creates the `vX.Y.Z` tag on the amended commit.
 9. **Pushes `main` + only the semver tag** (never `git push --tags`).
-10. `cargo ws publish --no-verify --publish-as-is --yes --from-git`.
+10. `cargo ws publish --no-verify --publish-as-is --yes` (no `--from-git` — recent cargo-workspaces rejects it as a duplicate of `--publish-as-is`).
+
+> **Pre-bumped releases:** when the in-tree `[workspace.package].version` already equals the target you are about to publish (e.g. it was bumped in an earlier prep commit), do **NOT** run `just release` / `scripts/release.sh` — its `cargo ws version` step would bump *again*. Instead run the pre-publish gates, then publish the current version directly: `git tag vX.Y.Z && git push origin main vX.Y.Z` (push branch and the single semver tag) followed by `cargo ws publish --no-verify --publish-as-is --yes`.
 
 ### Version Types
 
@@ -346,6 +348,68 @@ cargo init
 echo 'systemprompt = "0.0.1"' >> Cargo.toml
 cargo build
 ```
+
+---
+
+## Release Smoke Test (template)
+
+**MANDATORY launch gate.** A crates.io publish is not "done" until the public template
+(`../systemprompt-template`) builds and runs against the *real published* crates — not a
+local `[patch.crates-io]` checkout. Run this after the facade `systemprompt` version is
+visible on the sparse index and the template has been repointed and pushed.
+
+### 1. Repoint the template at the published version
+
+In `../systemprompt-template/Cargo.toml`:
+
+- Bump `[workspace.package].version` and the `systemprompt` / `systemprompt-security`
+  dependency pins to the new release.
+- **Delete the `[patch.crates-io]` block** so the template resolves real published crates.
+
+```bash
+cd ../systemprompt-template
+cargo update -p systemprompt -p systemprompt-security
+git add Cargo.toml Cargo.lock
+git commit -m "chore: upgrade to systemprompt X.Y.Z"
+git push origin main
+```
+
+### 2. Smoke-test from a FRESH clone
+
+Always clone fresh — testing the working copy hides path-dep / patch leakage and
+uncommitted `.sqlx` drift.
+
+```bash
+TMP=$(mktemp -d)
+git clone https://github.com/systempromptio/systemprompt-template "$TMP/tmpl"
+cd "$TMP/tmpl"
+
+# Build offline against the published crates (committed .sqlx cache, no DB needed)
+SQLX_OFFLINE=true cargo build --workspace
+
+# Full README setup on a FRESH DB + dedicated ports (never the shared dev DB)
+just setup-local <ANTHROPIC_KEY> "" "" 8099 5499
+just start
+
+# README demos — must all pass
+./demo/00-preflight.sh           # health + admin + writes demo/.token
+./demo/01-seed-data.sh
+./demo/governance/01-happy-path.sh
+# ...plus the remaining free governance / analytics / infrastructure demos
+```
+
+### 3. Acceptance criteria
+
+- Fresh clone builds offline with **no** `[patch.crates-io]` and no path deps resolved.
+- `cargo tree -p systemprompt` shows the new version pulled from crates.io.
+- `just setup-local` completes (profile + secrets + Docker Postgres + migrations + admin
+  + JWT signing key + publish pipeline).
+- `just start` serves; `00-preflight.sh` writes `demo/.token`; seed + happy-path + the
+  remaining free demos report pass.
+- Tear down: `just db-down`, stop the server, `rm -rf "$TMP"`.
+
+> Use a freshly-migrated DB on dedicated ports — the `systemprompt-web` dev DB carries
+> web-project triggers that break core/template behaviour.
 
 ---
 
