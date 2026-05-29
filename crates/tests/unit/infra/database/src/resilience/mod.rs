@@ -15,6 +15,12 @@ mod breaker;
 #[cfg(test)]
 mod bulkhead;
 #[cfg(test)]
+mod classify;
+#[cfg(test)]
+mod config;
+#[cfg(test)]
+mod error;
+#[cfg(test)]
 mod guard;
 #[cfg(test)]
 mod retry;
