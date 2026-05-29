@@ -17,3 +17,6 @@ mod services;
 
 #[cfg(test)]
 mod manifest;
+
+#[cfg(test)]
+mod path_validation;

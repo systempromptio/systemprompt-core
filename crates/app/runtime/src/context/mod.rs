@@ -24,38 +24,65 @@ use crate::builder::AppContextBuilder;
 use crate::error::RuntimeResult;
 use crate::registry::ModuleApiRegistry;
 
+/// Database pool and the data-access services layered on it.
+///
+/// `fingerprint_repo` and `user_service` are `None` when the corresponding
+/// resource failed to initialise; callers must degrade gracefully.
+#[derive(Clone)]
+pub struct DataPlane {
+    pub database: DbPool,
+    pub analytics_service: Arc<AnalyticsService>,
+    pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
+    pub user_service: Option<Arc<UserService>>,
+}
+
+/// Resolved configuration, on-disk paths, and the routing derived from them.
+///
+/// `content_config` is `None` when no content configuration is present.
+#[derive(Clone)]
+pub struct ConfigPlane {
+    pub config: Arc<Config>,
+    pub app_paths: Arc<AppPaths>,
+    pub content_config: Option<Arc<ContentConfigRaw>>,
+    pub route_classifier: Arc<RouteClassifier>,
+}
+
+/// Extension, module-API, MCP, and marketplace registries.
+#[derive(Clone)]
+pub struct Plugins {
+    pub extension_registry: Arc<ExtensionRegistry>,
+    pub api_registry: Arc<ModuleApiRegistry>,
+    pub mcp_registry: RegistryService,
+    pub marketplace_filter: Arc<dyn MarketplaceFilter>,
+}
+
+/// Cross-cutting runtime subsystems: admin identity, authz hook, the event
+/// bridge handle, and the optional `GeoIP` reader.
+#[derive(Clone)]
+pub struct Subsystems {
+    pub system_admin: Arc<SystemAdmin>,
+    pub authz_hook: SharedAuthzHook,
+    pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
+    pub geoip_reader: Option<GeoIpReader>,
+}
+
 /// Application-wide runtime container shared across the HTTP server, the
 /// scheduler, and CLI commands.
 ///
-/// Every field is an [`Arc`] (or an `Arc`-internal handle such as [`DbPool`]),
-/// so `clone` is a reference-count bump rather than a deep copy; the type is
-/// designed to be cloned freely into request handlers, jobs, and spawned
-/// tasks. Construct it via [`AppContext::builder`] (or [`AppContext::new`] for
-/// the default build); [`AppContext::from_parts`] bypasses the bootstrap and
-/// is intended for tests and embedders that assemble the parts themselves.
-///
-/// Some handles are optional: [`geoip_reader`](Self::geoip_reader),
-/// `content_config`, `fingerprint_repo`, and `user_service` are `None` when
-/// the corresponding resource is absent or failed to initialise, and callers
-/// must degrade gracefully rather than assume presence.
+/// Handles are grouped into four cohesive planes ([`DataPlane`],
+/// [`ConfigPlane`], [`Plugins`], [`Subsystems`]); each field is an [`Arc`] (or
+/// an `Arc`-internal handle such as [`DbPool`]), so `clone` is a
+/// reference-count bump rather than a deep copy. Construct it via
+/// [`AppContext::builder`] (or [`AppContext::new`] for the default build);
+/// [`AppContext::from_parts`] bypasses the bootstrap and is intended for tests
+/// and embedders that assemble the planes themselves. Read individual handles
+/// through the accessor methods.
 #[derive(Clone)]
 pub struct AppContext {
-    pub(crate) config: Arc<Config>,
-    pub(crate) database: DbPool,
-    pub(crate) api_registry: Arc<ModuleApiRegistry>,
-    pub(crate) extension_registry: Arc<ExtensionRegistry>,
-    pub(crate) geoip_reader: Option<GeoIpReader>,
-    pub(crate) content_config: Option<Arc<ContentConfigRaw>>,
-    pub(crate) route_classifier: Arc<RouteClassifier>,
-    pub(crate) analytics_service: Arc<AnalyticsService>,
-    pub(crate) fingerprint_repo: Option<Arc<FingerprintRepository>>,
-    pub(crate) user_service: Option<Arc<UserService>>,
-    pub(crate) app_paths: Arc<AppPaths>,
-    pub(crate) marketplace_filter: Arc<dyn MarketplaceFilter>,
-    pub(crate) event_bridge: Arc<OnceLock<JoinHandle<()>>>,
-    pub(crate) system_admin: Arc<SystemAdmin>,
-    pub(crate) mcp_registry: RegistryService,
-    pub(crate) authz_hook: SharedAuthzHook,
+    pub(crate) data: DataPlane,
+    pub(crate) cfg: ConfigPlane,
+    pub(crate) plugins: Plugins,
+    pub(crate) subsystems: Subsystems,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -64,46 +91,68 @@ impl std::fmt::Debug for AppContext {
             .field("config", &"Config")
             .field("database", &"DbPool")
             .field("api_registry", &"ModuleApiRegistry")
-            .field("extension_registry", &self.extension_registry)
-            .field("geoip_reader", &self.geoip_reader.is_some())
-            .field("content_config", &self.content_config.is_some())
+            .field("extension_registry", &self.plugins.extension_registry)
+            .field("geoip_reader", &self.subsystems.geoip_reader.is_some())
+            .field("content_config", &self.cfg.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
             .field("analytics_service", &"AnalyticsService")
-            .field("fingerprint_repo", &self.fingerprint_repo.is_some())
-            .field("user_service", &self.user_service.is_some())
+            .field("fingerprint_repo", &self.data.fingerprint_repo.is_some())
+            .field("user_service", &self.data.user_service.is_some())
             .field("app_paths", &"AppPaths")
-            .field("marketplace_filter", &self.marketplace_filter)
-            .field("event_bridge", &self.event_bridge.get().is_some())
-            .field("system_admin", &self.system_admin.username())
+            .field("marketplace_filter", &self.plugins.marketplace_filter)
+            .field(
+                "event_bridge",
+                &self.subsystems.event_bridge.get().is_some(),
+            )
+            .field("system_admin", &self.subsystems.system_admin.username())
             .field("mcp_registry", &"RegistryService")
             .field("authz_hook", &"SharedAuthzHook")
             .finish()
     }
 }
 
-/// Owned constructor inputs for [`AppContext::from_parts`].
-///
-/// Exposes every field of [`AppContext`] as a public, movable value so an
-/// embedder or test can assemble a context without running the full
-/// [`AppContextBuilder`] bootstrap.
-#[derive(Debug)]
-pub struct AppContextParts {
-    pub config: Arc<Config>,
-    pub database: DbPool,
-    pub api_registry: Arc<ModuleApiRegistry>,
-    pub extension_registry: Arc<ExtensionRegistry>,
-    pub geoip_reader: Option<GeoIpReader>,
-    pub content_config: Option<Arc<ContentConfigRaw>>,
-    pub route_classifier: Arc<RouteClassifier>,
-    pub analytics_service: Arc<AnalyticsService>,
-    pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
-    pub user_service: Option<Arc<UserService>>,
-    pub app_paths: Arc<AppPaths>,
-    pub marketplace_filter: Arc<dyn MarketplaceFilter>,
-    pub event_bridge: Arc<OnceLock<JoinHandle<()>>>,
-    pub system_admin: Arc<SystemAdmin>,
-    pub mcp_registry: RegistryService,
-    pub authz_hook: SharedAuthzHook,
+impl std::fmt::Debug for DataPlane {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DataPlane")
+            .field("database", &"DbPool")
+            .field("analytics_service", &"AnalyticsService")
+            .field("fingerprint_repo", &self.fingerprint_repo.is_some())
+            .field("user_service", &self.user_service.is_some())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for ConfigPlane {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConfigPlane")
+            .field("config", &"Config")
+            .field("app_paths", &"AppPaths")
+            .field("content_config", &self.content_config.is_some())
+            .field("route_classifier", &"RouteClassifier")
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for Plugins {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Plugins")
+            .field("extension_registry", &self.extension_registry)
+            .field("api_registry", &"ModuleApiRegistry")
+            .field("mcp_registry", &"RegistryService")
+            .field("marketplace_filter", &self.marketplace_filter)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for Subsystems {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Subsystems")
+            .field("system_admin", &self.system_admin.username())
+            .field("authz_hook", &"SharedAuthzHook")
+            .field("event_bridge", &self.event_bridge.get().is_some())
+            .field("geoip_reader", &self.geoip_reader.is_some())
+            .finish()
+    }
 }
 
 impl AppContext {
@@ -119,27 +168,21 @@ impl AppContext {
         AppContextBuilder::new()
     }
 
-    /// Assembles a context directly from pre-built parts, bypassing the
+    /// Assembles a context directly from pre-built planes, bypassing the
     /// [`AppContextBuilder`] bootstrap. Intended for tests and embedders that
     /// own the construction of the individual handles.
-    pub fn from_parts(parts: AppContextParts) -> Self {
+    #[must_use]
+    pub const fn from_parts(
+        data: DataPlane,
+        cfg: ConfigPlane,
+        plugins: Plugins,
+        subsystems: Subsystems,
+    ) -> Self {
         Self {
-            config: parts.config,
-            database: parts.database,
-            api_registry: parts.api_registry,
-            extension_registry: parts.extension_registry,
-            geoip_reader: parts.geoip_reader,
-            content_config: parts.content_config,
-            route_classifier: parts.route_classifier,
-            analytics_service: parts.analytics_service,
-            fingerprint_repo: parts.fingerprint_repo,
-            user_service: parts.user_service,
-            app_paths: parts.app_paths,
-            marketplace_filter: parts.marketplace_filter,
-            event_bridge: parts.event_bridge,
-            system_admin: parts.system_admin,
-            mcp_registry: parts.mcp_registry,
-            authz_hook: parts.authz_hook,
+            data,
+            cfg,
+            plugins,
+            subsystems,
         }
     }
 
@@ -155,72 +198,72 @@ impl AppContext {
     }
 
     pub fn config(&self) -> &Config {
-        &self.config
+        &self.cfg.config
     }
 
     pub fn content_config(&self) -> Option<&ContentConfigRaw> {
-        self.content_config.as_ref().map(AsRef::as_ref)
+        self.cfg.content_config.as_ref().map(AsRef::as_ref)
     }
 
     pub fn content_routing(&self) -> Option<Arc<dyn ContentRouting>> {
-        let concrete = Arc::clone(self.content_config.as_ref()?);
+        let concrete = Arc::clone(self.cfg.content_config.as_ref()?);
         let routing: Arc<dyn ContentRouting> = concrete;
         Some(routing)
     }
 
     pub const fn db_pool(&self) -> &DbPool {
-        &self.database
+        &self.data.database
     }
 
     pub fn api_registry(&self) -> &ModuleApiRegistry {
-        &self.api_registry
+        &self.plugins.api_registry
     }
 
     pub fn extension_registry(&self) -> &ExtensionRegistry {
-        &self.extension_registry
+        &self.plugins.extension_registry
     }
 
     pub fn server_address(&self) -> String {
-        format!("{}:{}", self.config.host, self.config.port)
+        format!("{}:{}", self.cfg.config.host, self.cfg.config.port)
     }
 
     pub const fn geoip_reader(&self) -> Option<&GeoIpReader> {
-        self.geoip_reader.as_ref()
+        self.subsystems.geoip_reader.as_ref()
     }
 
     pub const fn analytics_service(&self) -> &Arc<AnalyticsService> {
-        &self.analytics_service
+        &self.data.analytics_service
     }
 
     pub const fn route_classifier(&self) -> &Arc<RouteClassifier> {
-        &self.route_classifier
+        &self.cfg.route_classifier
     }
 
     pub fn app_paths(&self) -> &AppPaths {
-        &self.app_paths
+        &self.cfg.app_paths
     }
 
     pub const fn app_paths_arc(&self) -> &Arc<AppPaths> {
-        &self.app_paths
+        &self.cfg.app_paths
     }
 
     pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
-        &self.marketplace_filter
+        &self.plugins.marketplace_filter
     }
 
     pub const fn event_bridge(&self) -> &Arc<OnceLock<JoinHandle<()>>> {
-        &self.event_bridge
+        &self.subsystems.event_bridge
     }
 
     pub fn system_admin(&self) -> &SystemAdmin {
-        &self.system_admin
+        &self.subsystems.system_admin
     }
 
     pub const fn mcp_registry(&self) -> &RegistryService {
-        &self.mcp_registry
+        &self.plugins.mcp_registry
     }
 
     pub const fn authz_hook(&self) -> &SharedAuthzHook {
-        &self.authz_hook
+        &self.subsystems.authz_hook
     }
 }

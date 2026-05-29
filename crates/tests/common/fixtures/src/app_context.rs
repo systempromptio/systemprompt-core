@@ -18,7 +18,9 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
 use systemprompt_models::{AppPaths, Config, RouteClassifier};
-use systemprompt_runtime::{AppContext, AppContextParts, ModuleApiRegistry};
+use systemprompt_runtime::{
+    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
+};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_users::UserService;
 
@@ -93,24 +95,32 @@ pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppC
     };
     let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
 
-    let parts = AppContextParts {
-        config: Arc::new(fixture_config(database_url)),
-        database: Arc::clone(pool),
-        api_registry: Arc::new(ModuleApiRegistry::new()),
-        extension_registry: Arc::new(ExtensionRegistry::new()),
-        geoip_reader: None,
-        content_config: None,
-        route_classifier: Arc::new(RouteClassifier::new(None)),
-        analytics_service: Arc::new(AnalyticsService::new(pool, None, None)?),
-        fingerprint_repo: Some(Arc::new(FingerprintRepository::new(pool)?)),
-        user_service: Some(Arc::new(UserService::new(pool)?)),
-        app_paths,
-        marketplace_filter: Arc::new(AllowAllFilter),
-        event_bridge: Arc::new(OnceLock::new()),
-        system_admin: Arc::new(fixture_system_admin("admin")),
-        mcp_registry: RegistryService::new(fixture_user_id()),
-        authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
-    };
+    let ctx = AppContext::from_parts(
+        DataPlane {
+            database: Arc::clone(pool),
+            analytics_service: Arc::new(AnalyticsService::new(pool, None, None)?),
+            fingerprint_repo: Some(Arc::new(FingerprintRepository::new(pool)?)),
+            user_service: Some(Arc::new(UserService::new(pool)?)),
+        },
+        ConfigPlane {
+            config: Arc::new(fixture_config(database_url)),
+            app_paths,
+            content_config: None,
+            route_classifier: Arc::new(RouteClassifier::new(None)),
+        },
+        Plugins {
+            extension_registry: Arc::new(ExtensionRegistry::new()),
+            api_registry: Arc::new(ModuleApiRegistry::new()),
+            mcp_registry: RegistryService::new(fixture_user_id()),
+            marketplace_filter: Arc::new(AllowAllFilter),
+        },
+        Subsystems {
+            system_admin: Arc::new(fixture_system_admin("admin")),
+            authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+            event_bridge: Arc::new(OnceLock::new()),
+            geoip_reader: None,
+        },
+    );
 
-    Ok(Arc::new(AppContext::from_parts(parts)))
+    Ok(Arc::new(ctx))
 }

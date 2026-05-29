@@ -18,7 +18,7 @@ use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_users::UserService;
 
-use crate::context::{AppContext, AppContextParts};
+use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use crate::error::{RuntimeError, RuntimeResult};
 use crate::registry::ModuleApiRegistry;
 
@@ -121,9 +121,16 @@ impl AppContextBuilder {
     }
 
     pub async fn build(self) -> RuntimeResult<AppContext> {
+        // The builder owns paths/files/config initialisation so it is
+        // self-sufficient: a non-CLI entry (API, tests) can build a context
+        // without a prior bootstrap step having installed the globals. All
+        // three inits are idempotent OnceLock guards, so a CLI that already
+        // ran them is a no-op here.
         let profile = ProfileBootstrap::get()?;
         let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);
         systemprompt_files::FilesConfig::init(&app_paths)?;
+        systemprompt_config::try_init_config()
+            .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
         let config = Arc::new(Config::get()?.clone());
 
         let database = Arc::new(
@@ -200,24 +207,32 @@ impl AppContextBuilder {
 
         let event_bridge = Arc::new(OnceLock::new());
 
-        Ok(AppContext::from_parts(AppContextParts {
-            config,
-            database,
-            api_registry,
-            extension_registry,
-            geoip_reader,
-            content_config,
-            route_classifier,
-            analytics_service,
-            fingerprint_repo,
-            user_service: Some(user_service),
-            app_paths,
-            marketplace_filter,
-            event_bridge,
-            system_admin,
-            mcp_registry,
-            authz_hook,
-        }))
+        Ok(AppContext::from_parts(
+            DataPlane {
+                database,
+                analytics_service,
+                fingerprint_repo,
+                user_service: Some(user_service),
+            },
+            ConfigPlane {
+                config,
+                app_paths,
+                content_config,
+                route_classifier,
+            },
+            Plugins {
+                extension_registry,
+                api_registry,
+                mcp_registry,
+                marketplace_filter,
+            },
+            Subsystems {
+                system_admin,
+                authz_hook,
+                event_bridge,
+                geoip_reader,
+            },
+        ))
     }
 }
 

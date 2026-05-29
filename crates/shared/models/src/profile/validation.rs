@@ -3,8 +3,6 @@
 //! This module contains all validation logic for Profile configurations,
 //! including path validation, security settings, CORS, and rate limits.
 
-use std::path::Path;
-
 use super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
 use super::{Profile, ProfileError, ProfileResult};
 
@@ -76,36 +74,9 @@ impl Profile {
     }
 
     pub(super) fn validate_local_paths(&self, errors: &mut Vec<String>) {
-        Self::validate_local_required_path(errors, "system", &self.paths.system);
-        Self::validate_local_required_path(errors, "services", &self.paths.services);
-        Self::validate_local_required_path(errors, "bin", &self.paths.bin);
-
-        Self::validate_local_optional_path(errors, "storage", self.paths.storage.as_ref());
-        Self::validate_local_optional_path(
-            errors,
-            "geoip_database",
-            self.paths.geoip_database.as_ref(),
-        );
-        Self::validate_local_optional_path(errors, "web_path", self.paths.web_path.as_ref());
-    }
-
-    fn validate_local_required_path(errors: &mut Vec<String>, name: &str, path: &str) {
-        if path.is_empty() {
-            errors.push(format!("Paths {} is required", name));
-            return;
-        }
-
-        if !Path::new(path).exists() {
-            errors.push(format!("{} path does not exist: {}", name, path));
-        }
-    }
-
-    fn validate_local_optional_path(errors: &mut Vec<String>, name: &str, path: Option<&String>) {
-        if let Some(p) = path {
-            if !p.is_empty() && !Path::new(p).exists() {
-                errors.push(format!("paths.{} does not exist: {}", name, p));
-            }
-        }
+        Self::require_non_empty(errors, &self.paths.system, "Paths system");
+        Self::require_non_empty(errors, &self.paths.services, "Paths services");
+        Self::require_non_empty(errors, &self.paths.bin, "Paths bin");
     }
 
     pub(super) fn validate_required_fields(&self, errors: &mut Vec<String>) {

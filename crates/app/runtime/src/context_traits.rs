@@ -20,31 +20,31 @@ use crate::AppContext;
 
 impl AppContextTrait for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let concrete = Arc::clone(&self.config);
+        let concrete = Arc::clone(&self.cfg.config);
         let provider: Arc<dyn ConfigProvider> = concrete;
         provider
     }
 
     fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
-        let concrete = Arc::clone(&self.database);
+        let concrete = Arc::clone(&self.data.database);
         let handle: Arc<dyn DatabaseHandle> = concrete;
         handle
     }
 
     fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {
-        let concrete = Arc::clone(&self.analytics_service);
+        let concrete = Arc::clone(&self.data.analytics_service);
         let provider: Arc<dyn AnalyticsProvider> = concrete;
         Some(provider)
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
-        let concrete = Arc::clone(self.fingerprint_repo.as_ref()?);
+        let concrete = Arc::clone(self.data.fingerprint_repo.as_ref()?);
         let provider: Arc<dyn FingerprintProvider> = concrete;
         Some(provider)
     }
 
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
-        let concrete = Arc::clone(self.user_service.as_ref()?);
+        let concrete = Arc::clone(self.data.user_service.as_ref()?);
         let provider: Arc<dyn UserProvider> = concrete;
         Some(provider)
     }
@@ -52,19 +52,19 @@ impl AppContextTrait for AppContext {
 
 impl ExtensionContext for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let concrete = Arc::clone(&self.config);
+        let concrete = Arc::clone(&self.cfg.config);
         let provider: Arc<dyn ConfigProvider> = concrete;
         provider
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {
-        let concrete = Arc::clone(&self.database);
+        let concrete = Arc::clone(&self.data.database);
         let handle: Arc<dyn DatabaseHandle> = concrete;
         handle
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
-        self.extension_registry.get(id).cloned()
+        self.plugins.extension_registry.get(id).cloned()
     }
 }
 
@@ -72,7 +72,7 @@ impl HasAnalytics for AppContext {
     type Analytics = Arc<AnalyticsService>;
 
     fn analytics(&self) -> &Self::Analytics {
-        &self.analytics_service
+        &self.data.analytics_service
     }
 }
 
@@ -80,7 +80,7 @@ impl HasFingerprint for AppContext {
     type Fingerprint = Arc<FingerprintRepository>;
 
     fn fingerprint(&self) -> Option<&Self::Fingerprint> {
-        self.fingerprint_repo.as_ref()
+        self.data.fingerprint_repo.as_ref()
     }
 }
 
@@ -88,7 +88,7 @@ impl HasUserService for AppContext {
     type UserService = Arc<UserService>;
 
     fn user_service(&self) -> Option<&Self::UserService> {
-        self.user_service.as_ref()
+        self.data.user_service.as_ref()
     }
 }
 
@@ -96,6 +96,6 @@ impl HasRouteClassifier for AppContext {
     type RouteClassifier = Arc<RouteClassifier>;
 
     fn route_classifier(&self) -> &Self::RouteClassifier {
-        &self.route_classifier
+        &self.cfg.route_classifier
     }
 }

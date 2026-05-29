@@ -2,7 +2,7 @@
 //!
 //! [`Config`] is the resolved, flat configuration installed once at
 //! startup into a process-wide `OnceLock` and read via [`Config::get`].
-//! Submodules cover environment classification, path/postgres-URL
+//! Submodules cover environment classification, postgres-URL
 //! validation, rate-limit shapes, and verbosity levels.
 //! Accessors return [`crate::errors::ConfigError`] when not initialized.
 
@@ -22,10 +22,7 @@ mod verbosity;
 pub use environment::Environment;
 pub use paths::PathNotConfiguredError;
 pub use rate_limits::RateLimitConfig;
-pub use validation::{
-    format_path_errors, validate_optional_path, validate_postgres_url, validate_profile_paths,
-    validate_required_optional_path, validate_required_path,
-};
+pub use validation::validate_postgres_url;
 pub use verbosity::VerbosityLevel;
 
 static CONFIG: OnceLock<Config> = OnceLock::new();

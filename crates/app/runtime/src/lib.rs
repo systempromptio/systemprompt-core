@@ -31,7 +31,7 @@ mod validation;
 mod wellknown;
 
 pub use builder::AppContextBuilder;
-pub use context::{AppContext, AppContextParts};
+pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleType, WellKnownRoute};

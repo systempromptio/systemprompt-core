@@ -35,6 +35,7 @@
 pub mod bootstrap;
 pub(crate) mod config_loader;
 pub mod error;
+pub mod path_validation;
 pub mod profile_gateway;
 pub(crate) mod profile_loader;
 pub(crate) mod services;

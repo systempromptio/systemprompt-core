@@ -8,13 +8,12 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_models::Config;
-use systemprompt_models::config::{
-    format_path_errors, validate_postgres_url, validate_profile_paths,
-};
+use systemprompt_models::config::validate_postgres_url;
 use systemprompt_models::profile::Profile;
 
 use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
 use crate::error::{ConfigError, ConfigResult};
+use crate::path_validation::{format_path_errors, validate_profile_paths};
 
 struct BuildConfigPaths {
     system: String,

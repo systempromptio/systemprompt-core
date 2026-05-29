@@ -25,6 +25,27 @@ pub struct ServiceConfig {
     pub enabled: bool,
 }
 
+impl ServiceConfig {
+    /// Projects a loaded services manifest into the flat agent + MCP service
+    /// list the state verifier operates on.
+    #[must_use]
+    pub fn list_from_manifest(services: &systemprompt_models::ServicesConfig) -> Vec<Self> {
+        let agents = services.agents.iter().map(|(name, agent)| Self {
+            name: name.clone(),
+            service_type: ServiceType::Agent,
+            port: agent.port,
+            enabled: agent.enabled,
+        });
+        let mcp_servers = services.mcp_servers.iter().map(|(name, mcp)| Self {
+            name: name.clone(),
+            service_type: ServiceType::Mcp,
+            port: mcp.port,
+            enabled: mcp.enabled,
+        });
+        agents.chain(mcp_servers).collect()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DbServiceRecord {
     pub name: String,

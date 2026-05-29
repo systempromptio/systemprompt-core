@@ -74,7 +74,7 @@ mod marketplace;
 mod gateway_hash;
 
 #[cfg(test)]
-mod config_paths;
+mod config_postgres;
 
 #[cfg(test)]
 mod permission;

@@ -1,9 +1,8 @@
-//! Unit tests for the free-function path-validation API on
-//! `systemprompt_models::config`.
+//! Unit tests for the filesystem path-existence validators on
+//! `systemprompt_config::path_validation`.
 
-use systemprompt_models::config::{
-    format_path_errors, validate_optional_path, validate_required_optional_path,
-    validate_required_path,
+use systemprompt_config::path_validation::{
+    format_path_errors, validate_optional_path, validate_required_path,
 };
 use systemprompt_traits::validation_report::{
     ValidationError, ValidationReport, ValidationWarning,
@@ -42,49 +41,6 @@ fn validate_required_path_empty() {
 }
 
 #[test]
-fn validate_required_optional_path_exists() {
-    let temp = TempDir::new().unwrap();
-    let path = temp.path().to_string_lossy().to_string();
-
-    let mut report = ValidationReport::new("test");
-    validate_required_optional_path(&mut report, "skills", Some(&path));
-
-    assert!(!report.has_errors());
-}
-
-#[test]
-fn validate_required_optional_path_none() {
-    let mut report = ValidationReport::new("test");
-    validate_required_optional_path(&mut report, "skills", None);
-
-    assert!(report.has_errors());
-    assert_eq!(report.errors[0].field, "paths.skills");
-    assert!(report.errors[0].message.contains("not configured"));
-}
-
-#[test]
-fn validate_required_optional_path_empty() {
-    let empty = String::new();
-    let mut report = ValidationReport::new("test");
-    validate_required_optional_path(&mut report, "skills", Some(&empty));
-
-    assert!(report.has_errors());
-    assert_eq!(report.errors[0].field, "paths.skills");
-    assert!(report.errors[0].message.contains("empty"));
-}
-
-#[test]
-fn validate_required_optional_path_missing() {
-    let path = "/nonexistent/path".to_string();
-    let mut report = ValidationReport::new("test");
-    validate_required_optional_path(&mut report, "skills", Some(&path));
-
-    assert!(report.has_errors());
-    assert_eq!(report.errors[0].field, "paths.skills");
-    assert!(report.errors[0].message.contains("does not exist"));
-}
-
-#[test]
 fn validate_optional_path_warns_on_missing() {
     let path = "/nonexistent/path".to_string();
     let mut report = ValidationReport::new("test");
@@ -105,6 +61,14 @@ fn validate_optional_path_none_no_warning() {
 }
 
 #[test]
+fn validate_optional_path_empty_no_warning() {
+    let mut report = ValidationReport::new("test");
+    validate_optional_path(&mut report, "storage", Some(&String::new()));
+
+    assert!(!report.has_warnings());
+}
+
+#[test]
 fn validate_optional_path_exists_no_warning() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().to_string_lossy().to_string();
@@ -117,7 +81,7 @@ fn validate_optional_path_exists_no_warning() {
 }
 
 #[test]
-fn format_path_errors_includes_profile() {
+fn format_path_errors_includes_profile_and_error_detail() {
     let mut report = ValidationReport::new("paths");
     report.add_error(
         ValidationError::new("paths.system", "Path does not exist")
@@ -129,10 +93,12 @@ fn format_path_errors_includes_profile() {
 
     assert!(formatted.contains("Profile Path Validation Failed"));
     assert!(formatted.contains("/path/to/profile.yaml"));
+    assert!(formatted.contains("[paths]"));
     assert!(formatted.contains("paths.system"));
     assert!(formatted.contains("Path does not exist"));
+    assert!(formatted.contains("Path:"));
+    assert!(formatted.contains("To fix:"));
     assert!(formatted.contains("/var/test"));
-    assert!(formatted.contains("Create the path"));
 }
 
 #[test]
@@ -141,7 +107,7 @@ fn format_path_errors_includes_warnings() {
     report.add_error(ValidationError::new("paths.system", "Missing"));
     report.add_warning(
         ValidationWarning::new("paths.geoip", "Path does not exist: /var/geoip")
-            .with_suggestion("Create the path"),
+            .with_suggestion("Download the database"),
     );
 
     let formatted = format_path_errors(&report, "/profile.yaml");
@@ -149,4 +115,5 @@ fn format_path_errors_includes_warnings() {
     assert!(formatted.contains("ERRORS:"));
     assert!(formatted.contains("WARNINGS:"));
     assert!(formatted.contains("paths.geoip"));
+    assert!(formatted.contains("To enable:"));
 }

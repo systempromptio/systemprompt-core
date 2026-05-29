@@ -53,8 +53,7 @@ pub fn interpolate(input: &str, lookup: &impl Fn(&str) -> Option<String>) -> Str
             let full = caps[0].to_owned();
             let var_name = &caps[1];
             let default_value = caps.get(2).map(|m| m.as_str());
-            lookup(var_name)
-                .unwrap_or_else(|| default_value.map_or(full, str::to_owned))
+            lookup(var_name).unwrap_or_else(|| default_value.map_or(full, str::to_owned))
         })
         .into_owned()
 }

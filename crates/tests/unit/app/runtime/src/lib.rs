@@ -15,8 +15,6 @@
 #[cfg(test)]
 mod builder_extra;
 #[cfg(test)]
-mod config_validation;
-#[cfg(test)]
 mod context;
 #[cfg(test)]
 mod context_loaders_extra;

@@ -173,29 +173,8 @@ async fn execute_restart(
 }
 
 pub fn load_service_configs() -> Result<Vec<systemprompt_scheduler::ServiceConfig>> {
-    use systemprompt_loader::ConfigLoader;
-    use systemprompt_scheduler::{ServiceConfig, ServiceType};
-
-    let services_config = ConfigLoader::load()?;
-    let mut configs = Vec::new();
-
-    for (name, agent) in &services_config.agents {
-        configs.push(ServiceConfig {
-            name: name.clone(),
-            service_type: ServiceType::Agent,
-            port: agent.port,
-            enabled: agent.enabled,
-        });
-    }
-
-    for (name, mcp) in &services_config.mcp_servers {
-        configs.push(ServiceConfig {
-            name: name.clone(),
-            service_type: ServiceType::Mcp,
-            port: mcp.port,
-            enabled: mcp.enabled,
-        });
-    }
-
-    Ok(configs)
+    let services_config = systemprompt_loader::ConfigLoader::load()?;
+    Ok(systemprompt_scheduler::ServiceConfig::list_from_manifest(
+        &services_config,
+    ))
 }

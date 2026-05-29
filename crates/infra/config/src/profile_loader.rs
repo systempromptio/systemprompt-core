@@ -20,20 +20,13 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
     let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut spec = state.into_spec();
 
-    if profile_gateway::backfill_route_ids(&mut spec) {
-        profile.gateway = Some(GatewayState::Spec(spec.clone()));
-        persist_profile(path, &profile)?;
-    }
+    // Route ids are synthesized deterministically from (pattern, provider), so
+    // this in-memory backfill yields identical ids on every load. Loading never
+    // writes back to disk — that avoids both the concurrent-invocation write
+    // race and the risk of baking interpolated `${VAR}` values into the source.
+    profile_gateway::backfill_route_ids(&mut spec);
 
     let resolved = spec.resolve(profile_dir)?;
     profile.gateway = Some(GatewayState::Resolved(resolved));
     Ok(profile)
-}
-
-fn persist_profile(path: &Path, profile: &Profile) -> ProfileResult<()> {
-    let yaml = profile.to_yaml()?;
-    std::fs::write(path, yaml).map_err(|source| ProfileError::WriteFile {
-        path: path.to_path_buf(),
-        source,
-    })
 }
