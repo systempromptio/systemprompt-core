@@ -84,6 +84,7 @@ impl AuthzDecisionHook for RuleBasedHook {
             user_id: &req.user_id,
             user_roles: &req.roles,
             default_included: entity.map(|e| e.default_included),
+            parents: &[],
         });
 
         let policy = AuthzSource::RuleBased.policy().to_owned();
