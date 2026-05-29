@@ -1,4 +1,4 @@
-//! Per-tenant database operations inside the shared PostgreSQL container.
+//! Per-tenant database operations inside the shared `PostgreSQL` container.
 //!
 //! Creates, drops, and authorises tenant databases by running `psql` via
 //! `docker exec`, sanitising identifiers before they reach the SQL text.

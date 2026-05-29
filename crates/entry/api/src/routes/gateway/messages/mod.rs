@@ -1,9 +1,9 @@
 //! Gateway message-dispatch entry point.
 //!
 //! [`handle`] is the shared handler behind the `/messages` and `/responses`
-//! routes: it builds a [`RequestContext`], extracts and authorizes the request
-//! ([`extract`]), then dispatches to the resolved provider ([`dispatch`]),
-//! persisting a rejection record ([`rejection`]) on any early failure. Inbound
+//! routes: it builds a `RequestContext`, extracts and authorizes the request
+//! (`extract`), then dispatches to the resolved provider (`dispatch`),
+//! persisting a rejection record (`rejection`) on any early failure. Inbound
 //! wire format is selected by the [`InboundAdapter`] passed in by the router.
 
 mod auth;

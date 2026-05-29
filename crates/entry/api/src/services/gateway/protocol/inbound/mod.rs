@@ -3,7 +3,7 @@
 //! The [`InboundAdapter`] trait parses a request body into a
 //! [`CanonicalRequest`] and renders canonical responses, streaming events, and
 //! errors back in the caller's protocol. Implementations cover the Anthropic
-//! Messages and OpenAI Responses surfaces; [`InboundParseError`] reports
+//! Messages and `OpenAI` Responses surfaces; [`InboundParseError`] reports
 //! malformed or unsupported inputs.
 
 pub mod anthropic_messages;

@@ -1,7 +1,7 @@
 //! `admin config paths` command: show and validate the configured filesystem
 //! paths.
 //!
-//! [`PathsCommands`] reports the system, services, bin, web, storage, and GeoIP
+//! [`PathsCommands`] reports the system, services, bin, web, storage, and `GeoIP`
 //! paths from the active profile and checks whether each required path exists.
 
 use anyhow::Result;

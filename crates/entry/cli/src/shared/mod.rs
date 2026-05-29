@@ -3,7 +3,7 @@
 //! Aggregates the [`CommandResult`] artifact model and its output types,
 //! profile resolution ([`resolve_profile_path`],
 //! [`resolve_profile_with_data`]), argument parsers, and text helpers. Also
-//! defines the [`define_pool_command`] macro used by the log commands to
+//! defines the `define_pool_command!` macro used by the log commands to
 //! generate pooled execution entry points.
 
 pub mod command_result;

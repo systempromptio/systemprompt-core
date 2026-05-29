@@ -1,4 +1,4 @@
-//! WebAuthn credential-management subcommands.
+//! `WebAuthn` credential-management subcommands.
 //!
 //! [`WebauthnCommands`] generates a setup token that links a passkey credential
 //! to an existing user, dispatched by [`execute`].

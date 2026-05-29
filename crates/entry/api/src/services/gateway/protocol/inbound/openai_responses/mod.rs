@@ -1,4 +1,4 @@
-//! Inbound adapter for the OpenAI Responses wire protocol.
+//! Inbound adapter for the `OpenAI` Responses wire protocol.
 //!
 //! [`OpenAiResponsesInbound`] parses Responses-format request bodies into the
 //! canonical request model and renders canonical responses, streaming events,

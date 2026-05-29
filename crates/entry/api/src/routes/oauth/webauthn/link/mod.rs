@@ -1,4 +1,4 @@
-//! WebAuthn passkey-linking flow for an already-authenticated user.
+//! `WebAuthn` passkey-linking flow for an already-authenticated user.
 //!
 //! Serves the link page ([`link_passkey_page`]) and the
 //! [`start_link`]/[`finish_link`] ceremony that attaches a new credential to an

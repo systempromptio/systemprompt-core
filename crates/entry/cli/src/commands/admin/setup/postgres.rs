@@ -1,4 +1,4 @@
-//! PostgreSQL provisioning steps for the setup wizard.
+//! `PostgreSQL` provisioning steps for the setup wizard.
 //!
 //! Resolves connection parameters from [`SetupArgs`], reaches an existing
 //! server or starts one via Docker, and—when given superuser

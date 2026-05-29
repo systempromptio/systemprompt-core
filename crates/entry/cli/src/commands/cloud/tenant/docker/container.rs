@@ -1,4 +1,4 @@
-//! Lifecycle of the shared Docker PostgreSQL container for local tenants.
+//! Lifecycle of the shared Docker `PostgreSQL` container for local tenants.
 //!
 //! Wraps `docker` invocations to inspect, start, health-check, and tear down
 //! the shared container and its volume, and generates the compose file and

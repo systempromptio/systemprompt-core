@@ -25,7 +25,8 @@ pub enum MarketplaceVisibility {
 /// against `access_control_rules` for the core RBAC check, mirroring
 /// [`JwtClaims::roles`](crate::auth::JwtClaims). `attributes` is an opaque,
 /// dotted-namespace bag core never interprets — it is forwarded verbatim to
-/// extension authz/ABAC hooks, exactly as [`JwtClaims::attributes`](crate::auth::JwtClaims) is.
+/// extension authz/ABAC hooks, exactly as
+/// [`JwtClaims::attributes`](crate::auth::JwtClaims) is.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct MarketplaceAccess {
     #[serde(default)]

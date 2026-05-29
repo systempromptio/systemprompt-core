@@ -1,4 +1,4 @@
-//! WebAuthn passkey registration flow.
+//! `WebAuthn` passkey registration flow.
 //!
 //! Exposes the paired [`start_register`]/[`finish_register`] ceremony that
 //! enrols a new user's first credential.

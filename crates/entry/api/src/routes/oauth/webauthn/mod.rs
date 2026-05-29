@@ -1,4 +1,4 @@
-//! WebAuthn passkey ceremonies.
+//! `WebAuthn` passkey ceremonies.
 //!
 //! Groups the three credential flows: [`authenticate`] (login), [`register`]
 //! (first-time enrolment), and [`link`] (adding a passkey to an existing

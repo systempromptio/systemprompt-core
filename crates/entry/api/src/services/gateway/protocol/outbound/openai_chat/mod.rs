@@ -1,4 +1,4 @@
-//! Outbound adapter targeting the OpenAI Chat Completions API.
+//! Outbound adapter targeting the `OpenAI` Chat Completions API.
 //!
 //! [`OpenAiChatOutbound`] builds a Chat Completions request from the canonical
 //! model, sends it upstream, and returns either a buffered response or a stream

@@ -1,4 +1,4 @@
-//! Local Docker-backed PostgreSQL provisioning for local tenants.
+//! Local Docker-backed `PostgreSQL` provisioning for local tenants.
 //!
 //! Manages the shared `systemprompt-postgres` container and its volume, and
 //! creates, drops, and authorises per-tenant databases inside it via

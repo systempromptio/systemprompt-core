@@ -1,4 +1,4 @@
-//! OpenID Connect dynamic client-configuration endpoint (RFC 7592).
+//! `OpenID` Connect dynamic client-configuration endpoint (RFC 7592).
 //!
 //! Exposes the read, update, and delete operations a registered client uses to
 //! manage its own configuration via its registration access token.

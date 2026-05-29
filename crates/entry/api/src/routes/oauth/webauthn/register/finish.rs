@@ -1,4 +1,4 @@
-//! Finish step of the WebAuthn registration ceremony.
+//! Finish step of the `WebAuthn` registration ceremony.
 //!
 //! Validates the submitted credential, creates the user, optionally migrates an
 //! anonymous session onto the new identity, and issues a short-lived

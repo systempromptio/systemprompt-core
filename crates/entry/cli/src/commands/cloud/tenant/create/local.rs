@@ -1,7 +1,7 @@
 //! Local tenant creation flows.
 //!
 //! [`create_local_tenant`] provisions a database inside the shared Docker
-//! PostgreSQL container (starting it if needed); [`create_external_tenant`]
+//! `PostgreSQL` container (starting it if needed); [`create_external_tenant`]
 //! registers a user-supplied database after validating the connection. Both
 //! then scaffold a local profile.
 

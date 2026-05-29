@@ -1,4 +1,4 @@
-//! Outbound adapter targeting the OpenAI Responses API.
+//! Outbound adapter targeting the `OpenAI` Responses API.
 //!
 //! [`OpenAiResponsesOutbound`] builds a Responses request from the canonical
 //! model, sends it upstream, and returns either a buffered response or a stream

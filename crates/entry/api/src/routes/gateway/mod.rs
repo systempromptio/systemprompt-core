@@ -6,7 +6,7 @@
 //! manifest and heartbeat routes, the unauthenticated `/otel` ingest
 //! ([`otel`]), and `/models`. The router is gated on the availability of the
 //! analytics, user, and JTI-revocation providers; if any is missing it returns
-//! `None` and the gateway stays unmounted. [`log_gateway_request`] is the
+//! `None` and the gateway stays unmounted. `log_gateway_request` is the
 //! middleware that records every request to the logging repository.
 
 pub mod auth;

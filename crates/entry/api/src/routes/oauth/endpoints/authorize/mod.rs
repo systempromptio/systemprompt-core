@@ -2,7 +2,7 @@
 //!
 //! Hosts the GET/POST `/authorize` handlers and the request types
 //! [`AuthorizeQuery`] and [`AuthorizeRequest`] they bind. The flow validates
-//! the inbound request ([`validation`]), then renders the WebAuthn challenge
+//! the inbound request ([`validation`]), then renders the `WebAuthn` challenge
 //! page ([`response_builder`]) rather than supporting password auth.
 
 mod handler;
