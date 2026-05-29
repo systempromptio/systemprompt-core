@@ -1,6 +1,7 @@
 //! Unit tests for logging services
 
 mod cli;
+mod cli_service_extended;
 mod cli_service_smoke;
 mod db_services;
 mod display_smoke;

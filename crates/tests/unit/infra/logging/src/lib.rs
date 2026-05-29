@@ -20,6 +20,8 @@ mod extension;
 #[cfg(test)]
 mod layer;
 #[cfg(test)]
+mod log_actor;
+#[cfg(test)]
 mod models;
 #[cfg(test)]
 mod repository;
