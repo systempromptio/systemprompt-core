@@ -4,8 +4,11 @@
 //! marketplace lookups, the default-marketplace fallback, and referential
 //! integrity without owning or cloning the config.
 
+use std::collections::BTreeMap;
+
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
+use systemprompt_models::services::{MarketplaceAccess, MarketplaceConfig, ServicesConfig};
+use systemprompt_security::authz::EntityKind;
 
 use crate::error::MarketplaceError;
 
@@ -24,7 +27,7 @@ impl<'a> MarketplaceService<'a> {
     }
 
     #[must_use]
-    pub fn list(&self) -> &'a std::collections::HashMap<MarketplaceId, MarketplaceConfig> {
+    pub const fn list(&self) -> &'a std::collections::HashMap<MarketplaceId, MarketplaceConfig> {
         &self.services.marketplaces
     }
 
@@ -80,6 +83,39 @@ impl<'a> MarketplaceService<'a> {
                 self.services.marketplaces.values().next()
             },
         }
+    }
+
+    /// Map every member of the active marketplace to its owning marketplace id.
+    ///
+    /// Keyed by `(EntityKind, member id)` over the active marketplace's
+    /// `skills`/`agents`/`mcp_servers`/`plugins` include lists. An RBAC filter
+    /// uses this to attribute a member to the marketplace whose grant governs
+    /// it. With no active marketplace the map is empty.
+    #[must_use]
+    pub fn membership(&self) -> BTreeMap<(EntityKind, String), MarketplaceId> {
+        let mut members = BTreeMap::new();
+        let Some(config) = self.active() else {
+            return members;
+        };
+
+        let kinds = [
+            (EntityKind::Skill, &config.skills.include),
+            (EntityKind::Agent, &config.agents.include),
+            (EntityKind::McpServer, &config.mcp_servers.include),
+            (EntityKind::Plugin, &config.plugins.include),
+        ];
+        for (kind, include) in kinds {
+            for member in include {
+                members.insert((kind, member.clone()), config.id.clone());
+            }
+        }
+        members
+    }
+
+    /// Access block of the active marketplace, or `None` when none is active.
+    #[must_use]
+    pub fn active_access(&self) -> Option<&'a MarketplaceAccess> {
+        self.active().map(|config| &config.access)
     }
 
     pub fn validate_referential_integrity(&self) -> Result<(), MarketplaceError> {

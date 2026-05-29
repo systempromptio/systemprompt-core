@@ -67,6 +67,9 @@ pub async fn manifest(
         agents,
         hooks,
         managed_mcp_servers,
+        // Why: marketplace_id/access are filter context, deliberately excluded
+        // from CanonicalView so the signed payload stays byte-identical.
+        ..
     } = candidate;
 
     let user = match bridge_data::load_user(&ctx, &claims.user_id).await {

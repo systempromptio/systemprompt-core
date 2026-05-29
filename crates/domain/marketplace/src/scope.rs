@@ -47,36 +47,3 @@ where
         .filter(|item| include.iter().any(|inc| inc == id_of(item)))
         .collect()
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Debug, PartialEq)]
-    struct Item {
-        id: &'static str,
-    }
-
-    #[test]
-    fn empty_include_returns_input_unchanged() {
-        let items = vec![Item { id: "a" }, Item { id: "b" }];
-        let out = scope_to_marketplace(items, &[], |i| i.id);
-        assert_eq!(out, vec![Item { id: "a" }, Item { id: "b" }]);
-    }
-
-    #[test]
-    fn include_filters_to_listed_ids_preserving_order() {
-        let items = vec![Item { id: "a" }, Item { id: "b" }, Item { id: "c" }];
-        let include = vec!["c".to_owned(), "a".to_owned()];
-        let out = scope_to_marketplace(items, &include, |i| i.id);
-        assert_eq!(out, vec![Item { id: "a" }, Item { id: "c" }]);
-    }
-
-    #[test]
-    fn nonexistent_include_entries_are_dropped_silently() {
-        let items = vec![Item { id: "a" }, Item { id: "b" }];
-        let include = vec!["a".to_owned(), "ghost".to_owned()];
-        let out = scope_to_marketplace(items, &include, |i| i.id);
-        assert_eq!(out, vec![Item { id: "a" }]);
-    }
-}

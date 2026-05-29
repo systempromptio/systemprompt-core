@@ -63,7 +63,8 @@ impl ManifestService {
         let plugins = load_plugins(services_root, services);
         let managed_mcp_servers = load_managed_mcp_servers(services, api_external_url)?;
 
-        let (skills, agents, plugins, managed_mcp_servers) = match active_marketplace(services) {
+        let active = active_marketplace(services);
+        let (skills, agents, plugins, managed_mcp_servers) = match active {
             Some(mp) => (
                 scope_to_marketplace(skills, &mp.skills.include, |s| s.id.as_str()),
                 scope_to_marketplace(agents, &mp.agents.include, |a| a.id.as_str()),
@@ -75,8 +76,11 @@ impl ManifestService {
             None => (skills, agents, plugins, managed_mcp_servers),
         };
 
-        let candidate =
+        let mut candidate =
             MarketplaceCandidate::new(plugins, skills, agents, hooks, managed_mcp_servers);
+        if let Some(mp) = active {
+            candidate = candidate.with_marketplace(mp.id.clone(), Some(mp.access.clone()));
+        }
         Ok(filter.filter(user_id, candidate).await?)
     }
 

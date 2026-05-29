@@ -1,6 +1,8 @@
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
+use systemprompt_models::services::MarketplaceAccess;
 
 /// Bundle of marketplace items handed to a [`crate::MarketplaceFilter`].
 ///
@@ -14,6 +16,17 @@ pub struct MarketplaceCandidate {
     pub agents: Vec<AgentEntry>,
     pub hooks: Vec<HookEntry>,
     pub managed_mcp_servers: Vec<ManagedMcpServer>,
+    /// Owning marketplace of these entries, when assembly was scoped to one.
+    ///
+    /// Carried so an RBAC filter can resolve the marketplace-level grant and
+    /// cascade it to members without re-reading the config; `None` under the
+    /// unscoped global fallback (no active marketplace).
+    pub marketplace_id: Option<MarketplaceId>,
+    /// Access block of the owning marketplace, paired with `marketplace_id`.
+    ///
+    /// Lets a filter decide a marketplace-wide allow/deny once and apply it to
+    /// every member entry rather than evaluating each id independently.
+    pub access: Option<MarketplaceAccess>,
 }
 
 impl MarketplaceCandidate {
@@ -31,7 +44,25 @@ impl MarketplaceCandidate {
             agents,
             hooks,
             managed_mcp_servers,
+            marketplace_id: None,
+            access: None,
         }
+    }
+
+    /// Attach the owning marketplace's id and access block to the candidate.
+    ///
+    /// Exists so an RBAC filter can resolve the marketplace-level grant and
+    /// cascade it to member entries; the manifest assembler calls this after
+    /// scoping to the active marketplace.
+    #[must_use]
+    pub fn with_marketplace(
+        mut self,
+        id: MarketplaceId,
+        access: Option<MarketplaceAccess>,
+    ) -> Self {
+        self.marketplace_id = Some(id);
+        self.access = access;
+        self
     }
 
     #[must_use]
