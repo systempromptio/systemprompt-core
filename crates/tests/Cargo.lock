@@ -6943,7 +6943,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -7337,6 +7337,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-config",
+ "systemprompt-traits",
  "tempfile",
  "tokio",
 ]
@@ -7846,10 +7847,15 @@ name = "systemprompt-marketplace-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
+ "ed25519-dalek",
+ "systemprompt-config",
  "systemprompt-identifiers",
  "systemprompt-marketplace",
  "systemprompt-models",
+ "systemprompt-security",
  "systemprompt-test-fixtures",
+ "tempfile",
  "tokio",
 ]
 
@@ -8361,6 +8367,7 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
