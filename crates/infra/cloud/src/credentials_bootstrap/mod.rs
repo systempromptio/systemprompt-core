@@ -6,6 +6,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
+use systemprompt_models::read_env_optional;
 
 pub use error::CredentialsBootstrapError;
 
@@ -213,12 +214,5 @@ impl CredentialsBootstrap {
         );
 
         Ok(creds)
-    }
-}
-
-fn read_env_optional(name: &str) -> Option<String> {
-    match std::env::var(name) {
-        Ok(v) if !v.is_empty() => Some(v),
-        Ok(_) | Err(_) => None,
     }
 }
