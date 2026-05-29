@@ -57,8 +57,10 @@ fn build_plugin_entry(
         hasher.update(file.sha256.as_str().as_bytes());
     }
     let aggregate = hex::encode(hasher.finalize());
-    let sha256 = Sha256Digest::try_new(aggregate).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
-    let id = PluginId::try_new(config.id.as_str()).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let sha256 =
+        Sha256Digest::try_new(aggregate).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let id = PluginId::try_new(config.id.as_str())
+        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     Ok(Some(PluginEntry {
         id,
         version: config.version.clone(),
@@ -76,7 +78,9 @@ fn collect_files(
     for entry in read {
         let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         let path = entry.path();
-        let file_type = entry.file_type().map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         if file_type.is_dir() {
             collect_files(root, &path, out)?;
             continue;
@@ -101,7 +105,8 @@ fn collect_files(
         let mut hasher = Sha256::new();
         hasher.update(&bytes);
         let digest = hex::encode(hasher.finalize());
-        let sha256 = Sha256Digest::try_new(digest).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let sha256 =
+            Sha256Digest::try_new(digest).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         out.insert(
             normalized.clone(),
             PluginFile {

@@ -14,7 +14,8 @@ pub fn load_skills(services_root: &Path) -> Result<Vec<SkillEntry>, MarketplaceE
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read = std::fs::read_dir(&skills_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read =
+        std::fs::read_dir(&skills_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     for entry in read {
         let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         let path = entry.path();
@@ -54,8 +55,8 @@ fn build_skill_entry(
     skill_dir: &Path,
 ) -> Result<Option<SkillEntry>, MarketplaceError> {
     let config_path = skill_dir.join(SKILL_CONFIG_FILENAME);
-    let config_text =
-        std::fs::read_to_string(&config_path).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let config_text = std::fs::read_to_string(&config_path)
+        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     let config: DiskSkillConfig = serde_yaml::from_str(&config_text)
         .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
 
@@ -67,14 +68,16 @@ fn build_skill_entry(
         SkillId::try_new(dir_name.replace('-', "_"))
             .map_err(|e| MarketplaceError::Catalog(e.to_string()))?
     } else {
-        SkillId::try_new(config.id.as_str()).map_err(|e| MarketplaceError::Catalog(e.to_string()))?
+        SkillId::try_new(config.id.as_str())
+            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?
     };
     let display_name = if config.name.is_empty() {
         dir_name.replace('_', " ")
     } else {
         config.name.clone()
     };
-    let name = SkillName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let name =
+        SkillName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     let content_path = skill_dir.join(config.content_file());
     let instructions = if content_path.exists() {

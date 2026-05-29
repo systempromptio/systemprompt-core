@@ -38,7 +38,8 @@ fn build_agent_entry(
     base: &str,
 ) -> Result<AgentEntry, MarketplaceError> {
     let id = AgentId::new(key);
-    let name = AgentName::try_new(cfg.name.clone()).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let name = AgentName::try_new(cfg.name.clone())
+        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     let endpoint = if cfg.endpoint.starts_with("http://") || cfg.endpoint.starts_with("https://") {
         cfg.endpoint.clone()
     } else if cfg.endpoint.is_empty() {

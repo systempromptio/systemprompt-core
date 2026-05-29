@@ -11,8 +11,11 @@ pub fn load_managed_mcp_servers(
     api_external_url: &str,
 ) -> Result<Vec<ManagedMcpServer>, MarketplaceError> {
     let base = api_external_url.trim_end_matches('/');
-    let mut entries: Vec<(&String, &Deployment)> =
-        services.mcp_servers.iter().filter(|(_, d)| d.enabled).collect();
+    let mut entries: Vec<(&String, &Deployment)> = services
+        .mcp_servers
+        .iter()
+        .filter(|(_, d)| d.enabled)
+        .collect();
     entries.sort_by(|a, b| a.0.cmp(b.0));
 
     let mut out = Vec::with_capacity(entries.len());
@@ -22,9 +25,10 @@ pub fn load_managed_mcp_servers(
             Some(rel) if !rel.is_empty() => format!("{base}{rel}"),
             _ => format!("{base}/api/v1/mcp/{name}/mcp"),
         };
-        let url = ValidatedUrl::try_new(url_str).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
-        let mcp_name =
-            ManagedMcpServerName::try_new(name.clone()).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let url =
+            ValidatedUrl::try_new(url_str).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let mcp_name = ManagedMcpServerName::try_new(name.clone())
+            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         out.push(ManagedMcpServer {
             name: mcp_name,
             url,

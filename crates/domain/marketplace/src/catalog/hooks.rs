@@ -16,7 +16,8 @@ pub fn load_hooks(services_root: &Path) -> Result<Vec<HookEntry>, MarketplaceErr
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read = std::fs::read_dir(&hooks_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read =
+        std::fs::read_dir(&hooks_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     for entry in read {
         let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         let path = entry.path();
@@ -55,8 +56,8 @@ fn build_hook_entry(
     dir_name: &str,
     config_path: &Path,
 ) -> Result<Option<HookEntry>, MarketplaceError> {
-    let config_text =
-        std::fs::read_to_string(config_path).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let config_text = std::fs::read_to_string(config_path)
+        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     let config: DiskHookConfig = serde_yaml::from_str(&config_text)
         .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
 
