@@ -1,6 +1,6 @@
-//! Read queries for `user_sessions` — finders, existence checks, throttle
-//! lookups, and global session-volume counters. Behavioural-detector queries
-//! live in [`super::behavioral_queries`].
+//! Read queries for `user_sessions` — finders, existence checks, and global
+//! session-volume counters. Behavioural-detector queries live in
+//! [`super::behavioral_queries`].
 
 use crate::Result;
 use chrono::{Duration, Utc};
