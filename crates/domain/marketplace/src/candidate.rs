@@ -2,14 +2,11 @@ use systemprompt_models::bridge::manifest::{
     AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SkillEntry,
 };
 
-/// Mutable bundle of marketplace items presented to a
-/// [`crate::MarketplaceFilter`].
+/// Bundle of marketplace items handed to a [`crate::MarketplaceFilter`].
 ///
-/// The filter receives ownership and returns the (possibly reduced) set
-/// the gateway should sign and emit. Filters may shrink the vectors,
-/// reorder them, or remove individual files from a `PluginEntry` — they
-/// must not synthesise items that did not exist in the candidate, since
-/// the gateway has already content-hashed them.
+/// Filters may shrink, reorder, or drop entries, but must not synthesise
+/// items absent from the candidate: the gateway has already content-hashed
+/// every entry, so an unknown item would fail signature verification.
 #[derive(Debug, Clone, Default)]
 pub struct MarketplaceCandidate {
     pub plugins: Vec<PluginEntry>,

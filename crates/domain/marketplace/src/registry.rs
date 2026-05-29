@@ -44,8 +44,8 @@ pub fn discover_filters() -> Vec<&'static MarketplaceFilterRegistration> {
 
 /// Register a [`crate::MarketplaceFilter`] implementation with the runtime.
 ///
-/// Pairs with the `inventory` collection slot in this crate. Higher
-/// `priority` values win when multiple filters are registered.
+/// Highest `priority` wins; ties resolve by submission order; with no
+/// registration the runtime falls back to [`crate::AllowAllFilter`].
 ///
 /// ```ignore
 /// use systemprompt_marketplace::register_marketplace_filter;

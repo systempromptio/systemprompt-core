@@ -4,12 +4,12 @@ use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
 use std::path::PathBuf;
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_marketplace::{MarketplaceError, MarketplaceService, render_marketplace_json, render_marketplace_list};
 use systemprompt_models::api::ApiError;
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
+use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
-
-const DEFAULT_MARKETPLACE_FALLBACK: &str = "default";
 
 pub fn router() -> Router<AppContext> {
     Router::new()
@@ -21,6 +21,25 @@ pub fn router() -> Router<AppContext> {
             get(get_marketplace_yaml),
         )
         .route("/plugins/{plugin_id}/{*path}", get(serve_plugin_file))
+}
+
+// Why: orphan rule forbids `impl From<MarketplaceError> for ApiError` here —
+// both types are foreign to this crate — so the variant mapping is a free fn.
+#[expect(
+    clippy::result_large_err,
+    reason = "ApiError carries response context that is intentionally large; boxing here would \
+              propagate to every caller for negligible gain"
+)]
+fn map_marketplace_error(error: MarketplaceError) -> ApiError {
+    match error {
+        MarketplaceError::NotFound(_) | MarketplaceError::NoDefault => {
+            ApiError::not_found(error.to_string())
+        },
+        MarketplaceError::Validation(_) => ApiError::bad_request(error.to_string()),
+        MarketplaceError::Catalog(_)
+        | MarketplaceError::Signing(_)
+        | MarketplaceError::Filter(_) => ApiError::internal_error(error.to_string()),
+    }
 }
 
 fn plugins_path(ctx: &AppContext) -> PathBuf {
@@ -52,68 +71,15 @@ fn load_services_config() -> Result<ServicesConfig, ApiError> {
         .map_err(|e| ApiError::internal_error(format!("Failed to load services config: {e}")))
 }
 
-fn resolve_default_id(services: &ServicesConfig) -> Option<String> {
-    services
-        .settings
-        .default_marketplace_id
-        .clone()
-        .or_else(|| {
-            if services
-                .marketplaces
-                .keys()
-                .any(|k| k.as_str() == DEFAULT_MARKETPLACE_FALLBACK)
-            {
-                Some(DEFAULT_MARKETPLACE_FALLBACK.to_owned())
-            } else {
-                None
-            }
-        })
-}
-
-fn render_marketplace_json(id: &str, marketplace: &MarketplaceConfig) -> serde_json::Value {
-    let plugin_entries: Vec<serde_json::Value> = marketplace
-        .plugins
-        .include
-        .iter()
-        .map(|plugin_id| {
-            serde_json::json!({
-                "name": plugin_id,
-                "source": format!("./storage/files/plugins/{plugin_id}"),
-            })
-        })
-        .collect();
-
-    serde_json::json!({
-        "name": id,
-        "owner": { "name": marketplace.author.name.clone() },
-        "metadata": {
-            "description": marketplace.description.clone(),
-            "version": marketplace.version.clone(),
-        },
-        "plugins": plugin_entries,
-    })
-}
-
 async fn serve_default_marketplace_json(
     State(_ctx): State<AppContext>,
 ) -> Result<impl IntoResponse, ApiError> {
     let services = load_services_config()?;
+    let service = MarketplaceService::new(&services);
 
-    let id = resolve_default_id(&services).ok_or_else(|| {
-        ApiError::not_found(
-            "No default marketplace configured. Set settings.default_marketplace_id or define a \
-             marketplace with id 'default'.",
-        )
-    })?;
+    let (id, marketplace) = service.resolve_default().map_err(map_marketplace_error)?;
 
-    let marketplace = services
-        .marketplaces
-        .iter()
-        .find(|(k, _)| k.as_str() == id)
-        .map(|(_, v)| v)
-        .ok_or_else(|| ApiError::not_found(format!("Default marketplace '{id}' is not defined")))?;
-
-    let body = serde_json::to_vec_pretty(&render_marketplace_json(&id, marketplace))
+    let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
     Ok((
@@ -128,23 +94,9 @@ async fn serve_default_marketplace_json(
 
 async fn list_marketplaces(State(_ctx): State<AppContext>) -> Result<impl IntoResponse, ApiError> {
     let services = load_services_config()?;
+    let service = MarketplaceService::new(&services);
 
-    let entries: Vec<serde_json::Value> = services
-        .marketplaces
-        .iter()
-        .map(|(id, m)| {
-            serde_json::json!({
-                "id": id.as_str(),
-                "name": m.name,
-                "description": m.description,
-                "version": m.version,
-                "visibility": m.visibility,
-                "enabled": m.enabled,
-            })
-        })
-        .collect();
-
-    let body = serde_json::to_vec_pretty(&serde_json::json!({ "marketplaces": entries }))
+    let body = serde_json::to_vec_pretty(&render_marketplace_list(service.list()))
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
     Ok((
@@ -162,15 +114,12 @@ async fn get_marketplace(
     AxumPath(id): AxumPath<String>,
 ) -> Result<impl IntoResponse, ApiError> {
     let services = load_services_config()?;
+    let service = MarketplaceService::new(&services);
 
-    let marketplace = services
-        .marketplaces
-        .iter()
-        .find(|(k, _)| k.as_str() == id)
-        .map(|(_, v)| v)
-        .ok_or_else(|| ApiError::not_found(format!("Marketplace '{id}' not found")))?;
+    let id = MarketplaceId::new(id);
+    let marketplace = service.get(&id).map_err(map_marketplace_error)?;
 
-    let body = serde_json::to_vec_pretty(&render_marketplace_json(&id, marketplace))
+    let body = serde_json::to_vec_pretty(&render_marketplace_json(id.as_str(), marketplace))
         .map_err(|e| ApiError::internal_error(e.to_string()))?;
 
     Ok((

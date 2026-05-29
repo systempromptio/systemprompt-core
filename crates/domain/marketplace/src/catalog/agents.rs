@@ -1,13 +1,10 @@
-//! Agent discovery for the bridge manifest.
-//!
-//! Projects enabled `AgentConfig` entries from the services config into
-//! `AgentEntry` records, resolving endpoints against the API external URL.
-
 use systemprompt_identifiers::{AgentId, AgentName};
 use systemprompt_models::bridge::manifest::AgentEntry;
 use systemprompt_models::services::{AgentConfig, ServicesConfig};
 
-#[doc(hidden)]
+use crate::error::MarketplaceError;
+
+#[must_use]
 pub fn load_agents(services: &ServicesConfig, api_external_url: &str) -> Vec<AgentEntry> {
     let base = api_external_url.trim_end_matches('/');
     let mut keys: Vec<&String> = services
@@ -35,9 +32,13 @@ pub fn load_agents(services: &ServicesConfig, api_external_url: &str) -> Vec<Age
     out
 }
 
-fn build_agent_entry(key: &str, cfg: &AgentConfig, base: &str) -> anyhow::Result<AgentEntry> {
+fn build_agent_entry(
+    key: &str,
+    cfg: &AgentConfig,
+    base: &str,
+) -> Result<AgentEntry, MarketplaceError> {
     let id = AgentId::new(key);
-    let name = AgentName::try_new(cfg.name.clone())?;
+    let name = AgentName::try_new(cfg.name.clone()).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     let endpoint = if cfg.endpoint.starts_with("http://") || cfg.endpoint.starts_with("https://") {
         cfg.endpoint.clone()
     } else if cfg.endpoint.is_empty() {

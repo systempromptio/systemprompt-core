@@ -1,0 +1,20 @@
+//! On-disk catalogue loaders for the bridge manifest.
+//!
+//! Each loader scans the services tree (or projects the [`ServicesConfig`])
+//! into the signed `*Entry` records the manifest carries. Loaders take a
+//! services-root [`std::path::Path`], the [`ServicesConfig`], and the API
+//! external URL where endpoints must be resolved — never an `AppContext` or a
+//! database handle. Disk and parse failures surface as
+//! [`MarketplaceError::Catalog`].
+
+mod agents;
+mod hooks;
+mod mcp;
+mod plugins;
+mod skills;
+
+pub use agents::load_agents;
+pub use hooks::load_hooks;
+pub use mcp::load_managed_mcp_servers;
+pub use plugins::load_plugins;
+pub use skills::load_skills;

@@ -5095,11 +5095,18 @@ name = "systemprompt-marketplace"
 version = "0.12.2"
 dependencies = [
  "async-trait",
+ "hex",
  "inventory",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.0",
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-security",
  "thiserror 2.0.18",
+ "tracing",
 ]
 
 [[package]]

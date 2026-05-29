@@ -1,40 +1,56 @@
 //! # systemprompt-marketplace
 //!
-//! Per-user marketplace filtering for the bridge manifest.
+//! The marketplace bounded context: resolving which marketplace is active,
+//! loading the on-disk catalogue, scoping and per-user filtering it, and
+//! assembling the canonical signed bridge manifest.
 //!
 //! ## Public surface
 //!
-//! - [`MarketplaceFilter`]: the trait that gateway handlers invoke to restrict
-//!   what a given user sees in `GET /v1/bridge/manifest`.
-//! - [`MarketplaceCandidate`]: the bundle of plugins, skills, agents, hooks,
-//!   and managed MCP servers a filter may keep, drop, or rewrite.
-//! - [`AllowAllFilter`]: passthrough default used when no extension registers a
-//!   policy.
-//! - [`MarketplaceFilterError`]: error type returned by fallible
-//!   implementations.
+//! - [`MarketplaceService`]: read-only resolution over a borrowed
+//!   `ServicesConfig` (lookup, default fallback, active marketplace,
+//!   referential-integrity check).
+//! - [`catalog`]: on-disk loaders projecting the services tree into the signed
+//!   `*Entry` records the manifest carries.
+//! - [`scope_to_marketplace`] / [`active_marketplace`]: marketplace scoping of
+//!   the catalogue lists.
+//! - [`ManifestService`] / [`CanonicalView`]: assemble a scoped, filtered
+//!   [`MarketplaceCandidate`] and sign the canonical view.
+//! - [`MarketplaceFilter`] / [`MarketplaceCandidate`] / [`AllowAllFilter`]: the
+//!   per-user filtering contract applied before signing.
+//! - [`render_marketplace_json`] / [`render_marketplace_list`]: JSON
+//!   projections for the HTTP catalogue endpoints.
 //! - [`MarketplaceFilterRegistration`] / [`discover_filters`]: the inventory
 //!   slot and lookup used to wire an extension-supplied filter.
+//!
+//! ## Error model
+//!
+//! [`MarketplaceError`] is the crate-wide error for fallible services
+//! (lookup, catalogue load, signing); [`MarketplaceFilterError`] is the
+//! narrower error a filter implementation returns and folds into it.
 //!
 //! ## Layer
 //!
 //! Domain crate. Depends on `systemprompt-models` (wire types),
-//! `systemprompt-identifiers` (typed IDs), and `systemprompt-database`
-//! (the `DbPool` handle passed to filter factories). No HTTP and no
-//! async runtime hooks beyond `async-trait`.
-//!
-//! ## Wiring
-//!
-//! `AppContext` holds an `Arc<dyn MarketplaceFilter>`. The bridge
-//! manifest handler in `crates/entry/api` reads it and applies the
-//! filter before assembling the canonical signed view. Deployments
-//! plug their own implementation in via the runtime builder.
+//! `systemprompt-identifiers` (typed IDs), `systemprompt-database` (the
+//! `DbPool` handle passed to filter factories), and `systemprompt-security`
+//! (manifest signing). No HTTP and no database queries: loaders take a
+//! services-root path, never an `AppContext`.
 
 mod candidate;
+pub mod catalog;
 mod error;
 mod filter;
+mod manifest;
 mod registry;
+mod scope;
+mod service;
+mod view;
 
 pub use candidate::MarketplaceCandidate;
-pub use error::MarketplaceFilterError;
+pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};
+pub use manifest::{CanonicalView, ManifestService};
 pub use registry::{MarketplaceFilterRegistration, discover_filters};
+pub use scope::{active_marketplace, scope_to_marketplace};
+pub use service::MarketplaceService;
+pub use view::{render_marketplace_json, render_marketplace_list};

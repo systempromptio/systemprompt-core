@@ -9,7 +9,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Per-user marketplace filtering for systemprompt.io. Defines the MarketplaceFilter trait that decides which plugins, skills, agents, and managed MCP servers a given user is permitted to see in the bridge manifest."
+description = "Marketplace bounded context for systemprompt.io. Resolves the active marketplace, loads the on-disk catalogue (plugins, skills, agents, hooks, managed MCP servers), scopes and per-user filters it, and assembles the canonical signed bridge manifest."
 readme = "README.md"
 
 [package.metadata.docs.rs]
@@ -22,6 +22,13 @@ workspace = true
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
+systemprompt-security = { workspace = true }

@@ -1,62 +1,25 @@
 //! Bridge manifest endpoint.
 //!
-//! Assembles the signed manifest of plugins, skills, agents, hooks, and
-//! managed MCP servers a bridge host is entitled to, applies the marketplace
-//! filter, and signs the canonical view.
-
-#[doc(hidden)]
-pub mod agents;
-mod hooks;
-#[doc(hidden)]
-pub mod scope;
-#[doc(hidden)]
-pub mod skills;
+//! Loads auth, version, tenant, and per-user context, then delegates catalogue
+//! assembly, marketplace scoping, per-user filtering, and signing to
+//! `systemprompt_marketplace`.
 
 use std::sync::Arc;
 
 use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
-use serde::Serialize;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{JwtToken, TenantId, UserId};
-use systemprompt_marketplace::MarketplaceCandidate;
-use systemprompt_models::bridge::ids::ManifestSignature;
-use systemprompt_models::bridge::manifest::{
-    AgentEntry, HookEntry, ManagedMcpServer, PluginEntry, SignedManifest, SkillEntry, UserInfo,
-};
+use systemprompt_identifiers::JwtToken;
+use systemprompt_marketplace::{CanonicalView, ManifestService, MarketplaceCandidate};
+use systemprompt_models::bridge::manifest::SignedManifest;
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::manifest_signing;
 
-use self::agents::load_agents;
-use self::hooks::load_hooks;
-use self::scope::{active_marketplace, scope_to_marketplace};
-use self::skills::load_skills;
 use super::bridge::KNOWN_HOSTS;
 use super::bridge_data;
 use super::messages::extract_credential;
 use crate::services::middleware::JwtContextExtractor;
-
-// Why: must mirror the field set and order (alphabetical, after JCS sort) of
-// the verifier-side `CanonicalView` in `bin/bridge/src/gateway/manifest.rs` so
-// signer + verifier produce identical canonical bytes.
-#[derive(Serialize)]
-struct CanonicalView<'a> {
-    manifest_version: &'a ManifestVersion,
-    issued_at: &'a str,
-    not_before: &'a str,
-    user_id: &'a UserId,
-    tenant_id: Option<&'a TenantId>,
-    user: Option<&'a UserInfo>,
-    plugins: &'a [PluginEntry],
-    skills: &'a [SkillEntry],
-    agents: &'a [AgentEntry],
-    hooks: &'a [HookEntry],
-    managed_mcp_servers: &'a [ManagedMcpServer],
-    revocations: &'a [String],
-    enabled_hosts: &'a [String],
-}
 
 fn default_enabled_hosts() -> Vec<String> {
     KNOWN_HOSTS.iter().map(|s| (*s).to_owned()).collect()
@@ -85,29 +48,26 @@ pub async fn manifest(
 
     let services_root = ctx.app_paths().system().services();
 
-    let skills = load_skills(services_root).map_err(|e| {
-        tracing::warn!(error = %e, "manifest: skill load failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("skills: {e}"))
+    let filter = ctx.marketplace_filter();
+    let candidate = ManifestService::assemble_candidate(
+        &services,
+        services_root,
+        &profile.server.api_external_url,
+        filter.as_ref(),
+        &claims.user_id,
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!(error = %e, "manifest: candidate assembly failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
     })?;
-
-    let agents = load_agents(&services, &profile.server.api_external_url);
-
-    let hooks = load_hooks(services_root).map_err(|e| {
-        tracing::warn!(error = %e, "manifest: hook load failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("hooks: {e}"))
-    })?;
-
-    let plugins = bridge_data::load_plugins(&ctx, &services);
-
-    let managed_mcp_servers =
-        bridge_data::load_managed_mcp_servers(&services, &profile.server.api_external_url)
-            .map_err(|e| {
-                tracing::warn!(error = %e, "manifest: managed mcp load failed");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("managed mcp: {e}"),
-                )
-            })?;
+    let MarketplaceCandidate {
+        plugins,
+        skills,
+        agents,
+        hooks,
+        managed_mcp_servers,
+    } = candidate;
 
     let user = match bridge_data::load_user(&ctx, &claims.user_id).await {
         Ok(u) => u,
@@ -137,41 +97,6 @@ pub async fn manifest(
         },
     };
 
-    // Scope catalogue lists to the active marketplace's include lists BEFORE
-    // RBAC narrowing. Empty `include:` preserves the global-list fallback.
-    // All four catalogues are sourced from `PluginComponentRef`s authored on
-    // disk.
-    let (skills, agents, plugins, managed_mcp_servers) = match active_marketplace(&services) {
-        Some(mp) => (
-            scope_to_marketplace(skills, &mp.skills.include, |s| s.id.as_str()),
-            scope_to_marketplace(agents, &mp.agents.include, |a| a.id.as_str()),
-            scope_to_marketplace(plugins, &mp.plugins.include, |p| p.id.as_str()),
-            scope_to_marketplace(managed_mcp_servers, &mp.mcp_servers.include, |m| {
-                m.name.as_str()
-            }),
-        ),
-        None => (skills, agents, plugins, managed_mcp_servers),
-    };
-
-    let filtered = ctx
-        .marketplace_filter()
-        .filter(
-            &claims.user_id,
-            MarketplaceCandidate::new(plugins, skills, agents, hooks, managed_mcp_servers),
-        )
-        .await
-        .map_err(|e| {
-            tracing::warn!(error = %e, "manifest: marketplace filter rejected request");
-            (StatusCode::FORBIDDEN, format!("marketplace filter: {e}"))
-        })?;
-    let MarketplaceCandidate {
-        plugins,
-        skills,
-        agents,
-        hooks,
-        managed_mcp_servers,
-    } = filtered;
-
     let canonical = CanonicalView {
         manifest_version: &manifest_version,
         issued_at: &issued_at,
@@ -188,7 +113,7 @@ pub async fn manifest(
         enabled_hosts: &enabled_hosts,
     };
 
-    let signature = manifest_signing::sign_value(&canonical).map_err(|e| {
+    let signature = ManifestService::sign(&canonical).map_err(|e| {
         tracing::error!(error = %e, "manifest signing failed");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -210,7 +135,7 @@ pub async fn manifest(
         managed_mcp_servers,
         revocations,
         enabled_hosts,
-        signature: ManifestSignature::new(signature),
+        signature,
     }))
 }
 

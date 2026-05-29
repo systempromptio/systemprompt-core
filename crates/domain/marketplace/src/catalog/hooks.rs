@@ -1,8 +1,3 @@
-//! Hook discovery for the bridge manifest.
-//!
-//! Scans the services `hooks/` directory, parses each enabled hook config,
-//! and builds signed `HookEntry` records with content hashes.
-
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
@@ -12,15 +7,18 @@ use systemprompt_models::bridge::manifest::HookEntry;
 use systemprompt_models::services::DiskHookConfig;
 use systemprompt_models::services::hooks::HOOK_CONFIG_FILENAME;
 
-pub(super) fn load_hooks(services_root: &Path) -> anyhow::Result<Vec<HookEntry>> {
+use crate::error::MarketplaceError;
+
+pub fn load_hooks(services_root: &Path) -> Result<Vec<HookEntry>, MarketplaceError> {
     let hooks_dir = services_root.join("hooks");
     if !hooks_dir.is_dir() {
         return Ok(Vec::new());
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    for entry in std::fs::read_dir(&hooks_dir)? {
-        let entry = entry?;
+    let read = std::fs::read_dir(&hooks_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    for entry in read {
+        let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -53,10 +51,14 @@ pub(super) fn load_hooks(services_root: &Path) -> anyhow::Result<Vec<HookEntry>>
     Ok(out)
 }
 
-fn build_hook_entry(dir_name: &str, config_path: &Path) -> anyhow::Result<Option<HookEntry>> {
-    let config_text = std::fs::read_to_string(config_path)?;
+fn build_hook_entry(
+    dir_name: &str,
+    config_path: &Path,
+) -> Result<Option<HookEntry>, MarketplaceError> {
+    let config_text =
+        std::fs::read_to_string(config_path).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
     let config: DiskHookConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| anyhow::anyhow!("parse {}: {e}", config_path.display()))?;
+        .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
 
     if !config.enabled {
         return Ok(None);
@@ -75,7 +77,8 @@ fn build_hook_entry(dir_name: &str, config_path: &Path) -> anyhow::Result<Option
 
     let mut hasher = Sha256::new();
     hasher.update(config_text.as_bytes());
-    let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))?;
+    let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))
+        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
 
     Ok(Some(HookEntry {
         id,
