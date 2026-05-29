@@ -20,3 +20,15 @@ mod manifest;
 
 #[cfg(test)]
 mod path_validation;
+
+#[cfg(test)]
+mod error_display;
+
+#[cfg(test)]
+mod secrets_io;
+
+#[cfg(test)]
+mod secrets_logging;
+
+#[cfg(test)]
+mod skill_validator;
