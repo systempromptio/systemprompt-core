@@ -3,4 +3,5 @@
 mod errors_requests;
 mod extensions;
 mod file_category;
+mod upload_error_types;
 mod validator;
