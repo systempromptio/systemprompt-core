@@ -55,3 +55,5 @@ mod retry;
 mod sync_service_lib;
 #[cfg(test)]
 mod token_exchange;
+#[cfg(test)]
+mod coverage_boost;
