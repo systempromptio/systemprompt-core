@@ -132,9 +132,11 @@ async fn get_marketplace_yaml(
     let marketplaces_root = marketplaces_path(&ctx);
     let requested = marketplaces_root.join(&id).join("config.yaml");
 
+    // A missing marketplaces root means no marketplace can resolve — that is a
+    // not-found for the requested id, not a server fault.
     let canonical_root = marketplaces_root
         .canonicalize()
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|_e| ApiHttpError::not_found(format!("Marketplace '{id}' not found")))?;
     let canonical_requested = requested
         .canonicalize()
         .map_err(|_e| ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml")))?;
