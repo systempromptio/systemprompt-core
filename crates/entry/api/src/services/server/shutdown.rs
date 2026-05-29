@@ -46,6 +46,11 @@ async fn wait_for_signal() {
 /// second signal or the grace window forces an immediate exit; on the clean
 /// path drain finishes first and this detached task is abandoned at runtime
 /// teardown without delaying it.
+#[expect(
+    clippy::exit,
+    reason = "forced process exit is the explicit purpose of this guard when graceful drain \
+              wedges on a long-lived connection"
+)]
 fn arm_forced_exit() {
     tokio::spawn(async {
         tokio::select! {
