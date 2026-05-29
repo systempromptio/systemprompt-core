@@ -135,3 +135,45 @@ mod bridge_manifest_version;
 
 #[cfg(test)]
 mod mcp_deployment;
+
+#[cfg(test)]
+mod errors_models;
+
+#[cfg(test)]
+mod env_interpolation;
+
+#[cfg(test)]
+mod time_format_tests;
+
+#[cfg(test)]
+mod users_summary;
+
+#[cfg(test)]
+mod oauth_models;
+
+#[cfg(test)]
+mod repository_tests;
+
+#[cfg(test)]
+mod modules_tests;
+
+#[cfg(test)]
+mod ai_sampling;
+
+#[cfg(test)]
+mod ai_media_types;
+
+#[cfg(test)]
+mod config_environment;
+
+#[cfg(test)]
+mod config_rate_limits;
+
+#[cfg(test)]
+mod content_models;
+
+#[cfg(test)]
+mod services_includable;
+
+#[cfg(test)]
+mod paths_tests;
