@@ -87,7 +87,10 @@ async fn assemble_candidate_unscoped_without_marketplace() {
     assert!(candidate.access.is_none());
 }
 
-fn sample_view<'a>(version: &'a ManifestVersion, user_id: &'a systemprompt_identifiers::UserId) -> CanonicalView<'a> {
+fn sample_view<'a>(
+    version: &'a ManifestVersion,
+    user_id: &'a systemprompt_identifiers::UserId,
+) -> CanonicalView<'a> {
     CanonicalView {
         manifest_version: version,
         issued_at: "2026-05-29T00:00:00Z",

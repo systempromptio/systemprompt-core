@@ -10,7 +10,9 @@ fn resolve_default_uses_explicit_id() {
     config.settings.default_marketplace_id = Some("secondary".into());
     let service = MarketplaceService::new(&config);
 
-    let (id, mp) = service.resolve_default().expect("explicit default resolves");
+    let (id, mp) = service
+        .resolve_default()
+        .expect("explicit default resolves");
     assert_eq!(id.as_str(), "secondary");
     assert_eq!(mp.id.as_str(), "secondary");
 }
@@ -111,7 +113,9 @@ fn active_access_returns_block_of_active() {
     let config = config_with(vec![mp]);
     let service = MarketplaceService::new(&config);
 
-    let block = service.active_access().expect("active marketplace has access");
+    let block = service
+        .active_access()
+        .expect("active marketplace has access");
     assert!(block.default_included);
     assert_eq!(block.roles, vec!["eng".to_owned()]);
 }
