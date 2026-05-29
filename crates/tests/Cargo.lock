@@ -8438,6 +8438,7 @@ dependencies = [
 name = "systemprompt-template-provider-tests"
 version = "0.0.11"
 dependencies = [
+ "serde_json",
  "systemprompt-provider-contracts",
  "systemprompt-template-provider",
  "tempfile",

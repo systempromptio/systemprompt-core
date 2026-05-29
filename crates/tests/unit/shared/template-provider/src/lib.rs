@@ -8,6 +8,10 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod components;
+#[cfg(test)]
 mod error;
 #[cfg(test)]
 mod loader;
+#[cfg(test)]
+mod template_definition;
