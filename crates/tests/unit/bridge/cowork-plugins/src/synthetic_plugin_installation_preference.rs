@@ -41,6 +41,7 @@ fn plugin_json_has_installation_preference_field() {
 }
 
 #[test]
+#[allow(non_snake_case, reason = "test name mirrors the camelCase JSON field under assertion")]
 fn plugin_json_field_name_is_camelCase() {
     // Cowork reads `installationPreference` (camelCase). If a future refactor
     // renames the serde rename and emits `installation_preference` (snake_case),
