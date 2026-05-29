@@ -5,6 +5,7 @@ pub mod mock_http;
 mod anthropic;
 mod gemini;
 mod gemini_images_http;
+mod gemini_params;
 mod image_provider_factory;
 mod image_provider_trait;
 mod openai;
