@@ -12,10 +12,19 @@
 //! - Audience validation
 
 #[cfg(test)]
+mod constants;
+
+#[cfg(test)]
 mod error;
 
 #[cfg(test)]
 mod models;
+
+#[cfg(test)]
+mod oauth_parse_error;
+
+#[cfg(test)]
+mod pagination;
 
 #[cfg(test)]
 mod services;
