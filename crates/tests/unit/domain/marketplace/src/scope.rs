@@ -1,3 +1,4 @@
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_marketplace::{active_marketplace, scope_to_marketplace};
 
 use crate::helpers::{config_with, marketplace};
@@ -16,10 +17,20 @@ fn active_marketplace_some_when_single() {
 }
 
 #[test]
-fn active_marketplace_picks_one_when_many() {
+fn active_marketplace_none_when_ambiguous_without_default() {
     let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
-    let active = active_marketplace(&config).expect("fail-open picks a marketplace");
-    assert!(matches!(active.id.as_str(), "alpha" | "beta"));
+    assert!(
+        active_marketplace(&config).is_none(),
+        "fail closed without a default selector",
+    );
+}
+
+#[test]
+fn active_marketplace_selects_default_when_many() {
+    let mut config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+    config.settings.default_marketplace_id = Some(MarketplaceId::new("beta"));
+    let active = active_marketplace(&config).expect("default selects the active marketplace");
+    assert_eq!(active.id.as_str(), "beta");
 }
 
 #[test]

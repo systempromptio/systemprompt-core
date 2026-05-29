@@ -1,8 +1,10 @@
-//! Integration tests for the federated JWKS plane in
-//! `systemprompt-security` — kid-rotation, TTL expiry, LRU eviction,
-//! algorithm enforcement, and the unknown-kid DoS guard. These tests
-//! stand up a real `wiremock` HTTP JWKS endpoint, so they exercise the
-//! cache + network paths that unit tests cannot.
+//! Integration tests for `systemprompt-security`.
+//!
+//! The federated JWKS plane (kid-rotation, TTL expiry, LRU eviction,
+//! algorithm enforcement, the unknown-kid DoS guard) stands up a real
+//! `wiremock` HTTP JWKS endpoint. The marketplace-access ingestion suite
+//! projects declarative `access` blocks into the two-table authz schema
+//! against a real Postgres instance via `DATABASE_URL`.
 
 #[cfg(test)]
 mod support;
@@ -27,3 +29,6 @@ mod dos_guard_tests;
 
 #[cfg(test)]
 mod authz_extension_path_tests;
+
+#[cfg(test)]
+mod marketplace_ingestion_tests;

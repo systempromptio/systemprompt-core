@@ -18,9 +18,9 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::bridge::ids::{
-    ManagedMcpServerName, ManifestSignature, PluginId, Sha256Digest, SkillId, SkillName, ToolName,
-    ToolPolicy,
+    ManagedMcpServerName, PluginId, Sha256Digest, SkillId, SkillName, ToolName, ToolPolicy,
 };
+pub use crate::bridge::ids::ManifestSignature;
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::services::hooks::{HookCategory, HookEvent};
 use crate::services::plugin::PluginComponentRef;

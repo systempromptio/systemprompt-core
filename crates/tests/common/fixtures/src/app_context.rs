@@ -13,7 +13,7 @@ use anyhow::Result;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::AllowAllFilter;
+use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, PathsConfig, SecurityHeadersConfig};
@@ -85,6 +85,17 @@ pub fn fixture_config(database_url: &str) -> Config {
 /// instances so the api server's middleware stack (which hard-requires both)
 /// can be assembled against the fixture context.
 pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>> {
+    fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
+}
+
+/// As [`fixture_app_context`] but with an injectable marketplace filter, so a
+/// test can drive the real cascade-filtering path (e.g. the bridge manifest
+/// E2E) instead of the permissive allow-all default.
+pub fn fixture_app_context_with_filter(
+    pool: &DbPool,
+    database_url: &str,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+) -> Result<Arc<AppContext>> {
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -112,7 +123,7 @@ pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppC
             extension_registry: Arc::new(ExtensionRegistry::new()),
             api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
-            marketplace_filter: Arc::new(AllowAllFilter),
+            marketplace_filter,
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),

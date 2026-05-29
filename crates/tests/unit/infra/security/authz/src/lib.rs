@@ -13,6 +13,8 @@ mod decision_schema;
 #[cfg(test)]
 mod entity_row;
 #[cfg(test)]
+mod marketplace_floor;
+#[cfg(test)]
 mod hook_runtime;
 #[cfg(test)]
 mod profile_governance;

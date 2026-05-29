@@ -23,7 +23,11 @@ pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path
     let marketplace_dir = system_path.join(".claude-plugin");
     std::fs::create_dir_all(&marketplace_dir)?;
 
-    let default_id = services.settings.default_marketplace_id.as_deref();
+    let default_id = services
+        .settings
+        .default_marketplace_id
+        .as_ref()
+        .map(systemprompt_identifiers::MarketplaceId::as_str);
 
     for (id, marketplace) in &services.marketplaces {
         if !marketplace.enabled {

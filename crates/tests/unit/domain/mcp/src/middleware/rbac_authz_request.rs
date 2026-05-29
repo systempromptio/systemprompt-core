@@ -10,7 +10,7 @@ use systemprompt_mcp::middleware::rbac::build_mcp_authz_request;
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
-use systemprompt_security::authz::EntityRef;
+use systemprompt_security::authz::{AuthzContext, EntityRef};
 
 fn claims_with(
     roles: Vec<String>,
@@ -51,7 +51,7 @@ fn forwards_roles_and_attributes_from_claims() {
     );
     let act_chain: Vec<Actor> = vec![Actor::user(UserId::new("user_42"))];
 
-    let req = build_mcp_authz_request("server-x", &claims, act_chain.clone());
+    let req = build_mcp_authz_request("server-x", &claims, act_chain.clone(), None);
 
     assert_eq!(req.user_id.as_str(), "user_42");
     assert_eq!(req.roles, vec!["eng".to_owned(), "platform".to_owned()]);
@@ -63,6 +63,29 @@ fn forwards_roles_and_attributes_from_claims() {
 #[test]
 fn empty_attributes_round_trip() {
     let claims = claims_with(vec![], BTreeMap::new());
-    let req = build_mcp_authz_request("server-x", &claims, Vec::new());
+    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), None);
     assert!(req.attributes.is_empty());
+}
+
+#[test]
+fn no_floor_yields_plain_none_context() {
+    let claims = claims_with(vec![], BTreeMap::new());
+    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), None);
+    assert!(req.context.is_none());
+    assert!(req.context.marketplace_floor().is_none());
+}
+
+#[test]
+fn carries_marketplace_floor_when_present() {
+    let claims = claims_with(vec![], BTreeMap::new());
+    let mut floor = BTreeMap::new();
+    floor.insert(
+        "boeing.clearance".to_owned(),
+        serde_json::json!(["Internal", "CUI"]),
+    );
+
+    let req = build_mcp_authz_request("server-x", &claims, Vec::new(), Some(&floor));
+
+    assert_eq!(req.context.kind, AuthzContext::NONE_KIND);
+    assert_eq!(req.context.marketplace_floor(), Some(floor));
 }

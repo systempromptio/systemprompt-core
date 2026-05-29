@@ -7,7 +7,7 @@ use crate::helpers::{access, config_with, include, marketplace};
 #[test]
 fn resolve_default_uses_explicit_id() {
     let mut config = config_with(vec![marketplace("primary"), marketplace("secondary")]);
-    config.settings.default_marketplace_id = Some("secondary".into());
+    config.settings.default_marketplace_id = Some(MarketplaceId::new("secondary"));
     let service = MarketplaceService::new(&config);
 
     let (id, mp) = service
@@ -125,4 +125,73 @@ fn active_access_none_without_active() {
     let config = config_with(vec![]);
     let service = MarketplaceService::new(&config);
     assert!(service.active_access().is_none());
+}
+
+#[test]
+fn active_none_when_ambiguous_without_default() {
+    let config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+    let service = MarketplaceService::new(&config);
+    assert!(service.active().is_none());
+}
+
+#[test]
+fn active_selects_default_when_many() {
+    let mut config = config_with(vec![marketplace("alpha"), marketplace("beta")]);
+    config.settings.default_marketplace_id = Some(MarketplaceId::new("beta"));
+    let service = MarketplaceService::new(&config);
+
+    let active = service.active().expect("default names the active marketplace");
+    assert_eq!(active.id.as_str(), "beta");
+}
+
+#[test]
+fn member_attribute_floor_returns_block_for_member() {
+    let mut mp = marketplace("market");
+    mp.mcp_servers = include(&["sharepoint-sim"]);
+    mp.access.attributes.insert(
+        "boeing.clearance".to_owned(),
+        serde_json::json!(["Internal", "CUI"]),
+    );
+    let config = config_with(vec![mp]);
+    let service = MarketplaceService::new(&config);
+
+    let floor = service
+        .member_attribute_floor(EntityKind::McpServer, "sharepoint-sim")
+        .expect("member inherits the marketplace floor");
+    assert_eq!(
+        floor.get("boeing.clearance"),
+        Some(&serde_json::json!(["Internal", "CUI"]))
+    );
+}
+
+#[test]
+fn member_attribute_floor_none_for_non_member() {
+    let mut mp = marketplace("market");
+    mp.mcp_servers = include(&["sharepoint-sim"]);
+    mp.access.attributes.insert(
+        "boeing.clearance".to_owned(),
+        serde_json::json!(["Internal"]),
+    );
+    let config = config_with(vec![mp]);
+    let service = MarketplaceService::new(&config);
+
+    assert!(
+        service
+            .member_attribute_floor(EntityKind::McpServer, "other-server")
+            .is_none()
+    );
+}
+
+#[test]
+fn member_attribute_floor_none_when_attributes_empty() {
+    let mut mp = marketplace("market");
+    mp.mcp_servers = include(&["sharepoint-sim"]);
+    let config = config_with(vec![mp]);
+    let service = MarketplaceService::new(&config);
+
+    assert!(
+        service
+            .member_attribute_floor(EntityKind::McpServer, "sharepoint-sim")
+            .is_none()
+    );
 }

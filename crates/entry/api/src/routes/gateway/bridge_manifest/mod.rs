@@ -12,7 +12,8 @@ use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_marketplace::{CanonicalView, ManifestService, MarketplaceCandidate};
-use systemprompt_models::bridge::manifest::{ManifestSignature, SignedManifest, UserInfo};
+use systemprompt_models::bridge::ids::ManifestSignature;
+use systemprompt_models::bridge::manifest::{SignedManifest, UserInfo};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
 

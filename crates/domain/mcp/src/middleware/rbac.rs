@@ -182,7 +182,11 @@ pub fn build_mcp_authz_request(
     server_name: &str,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
+    floor: Option<&BTreeMap<String, serde_json::Value>>,
 ) -> AuthzRequest {
+    let context = floor.map_or_else(AuthzContext::none, |floor| {
+        AuthzContext::none().with_marketplace_floor(floor)
+    });
     AuthzRequest {
         entity: EntityRef::McpServer(McpServerId::new(server_name)),
         user_id: UserId::new(claims.sub.clone()),
@@ -190,7 +194,7 @@ pub fn build_mcp_authz_request(
         attributes: claims.attributes.clone(),
         trace_id: TraceId::generate(),
         session_id: None,
-        context: AuthzContext::none(),
+        context,
         act_chain,
     }
 }
@@ -199,9 +203,12 @@ async fn enforce_authz_for_server(
     server_name: &str,
     claims: &JwtClaims,
     act_chain: Vec<Actor>,
+    services_config: &ServicesConfig,
     hook: &SharedAuthzHook,
 ) -> Result<(), McpError> {
-    let req = build_mcp_authz_request(server_name, claims, act_chain);
+    let floor = MarketplaceService::new(services_config)
+        .member_attribute_floor(EntityKind::McpServer, server_name);
+    let req = build_mcp_authz_request(server_name, claims, act_chain, floor);
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
         AuthzDecision::Deny { reason, policy } => {
