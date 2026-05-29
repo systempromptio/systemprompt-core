@@ -54,9 +54,6 @@ pub enum ConfigError {
     #[error(transparent)]
     Yaml(#[from] serde_yaml::Error),
 
-    #[error(transparent)]
-    Regex(#[from] regex::Error),
-
     #[error("Missing required path: paths.{field}")]
     MissingProfilePath { field: String },
 
@@ -100,9 +97,6 @@ pub enum ConfigError {
 
     #[error("Required config file missing: {path}")]
     EnvironmentConfigMissing { path: PathBuf },
-
-    #[error("Regex capture group {index} missing")]
-    MissingCaptureGroup { index: usize },
 
     #[error(
         "Profile is missing required `system_admin.username` and `SYSTEMPROMPT_SYSTEM_ADMIN` is \

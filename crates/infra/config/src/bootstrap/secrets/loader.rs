@@ -8,6 +8,7 @@ use std::path::Path;
 
 use systemprompt_models::paths::constants::env_vars;
 use systemprompt_models::profile::{SecretsSource, resolve_with_home};
+use systemprompt_models::read_env_optional;
 use systemprompt_models::secrets::Secrets;
 
 use systemprompt_models::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
@@ -136,12 +137,5 @@ fn read_env_required(name: &str, missing: SecretsBootstrapError) -> ConfigResult
     match std::env::var(name) {
         Ok(v) if !v.is_empty() => Ok(v),
         Ok(_) | Err(_) => Err(missing.into()),
-    }
-}
-
-fn read_env_optional(name: &str) -> Option<String> {
-    match std::env::var(name) {
-        Ok(v) if !v.is_empty() => Some(v),
-        Ok(_) | Err(_) => None,
     }
 }
