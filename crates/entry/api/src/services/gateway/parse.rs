@@ -1,3 +1,5 @@
+use systemprompt_identifiers::AiToolCallId;
+
 use super::captures::{CapturedToolUse, CapturedUsage};
 use super::protocol::canonical::CanonicalContent;
 use super::protocol::canonical_response::CanonicalResponse;
@@ -13,7 +15,7 @@ pub fn extract_from_canonical(
     for part in &response.content {
         if let CanonicalContent::ToolUse { id, name, input } = part {
             tool_calls.push(CapturedToolUse {
-                ai_tool_call_id: id.clone(),
+                ai_tool_call_id: AiToolCallId::new(id.clone()),
                 tool_name: name.clone(),
                 tool_input: serde_json::to_string(input).unwrap_or_else(|e| {
                     tracing::warn!(error = %e, tool = %name, "failed to serialise tool_input");

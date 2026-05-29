@@ -2,6 +2,7 @@
 //! and extracts a finalized `Summary` for the audit sink.
 
 use bytes::{Bytes, BytesMut};
+use systemprompt_identifiers::AiToolCallId;
 
 use super::super::captures::{CapturedToolUse, CapturedUsage};
 use super::super::protocol::canonical::CanonicalContent;
@@ -57,7 +58,7 @@ pub(super) fn extract_summary(state: &mut TapState) -> Summary {
         .filter_map(|c| {
             if let CanonicalContent::ToolUse { id, name, input } = c {
                 Some(CapturedToolUse {
-                    ai_tool_call_id: id.clone(),
+                    ai_tool_call_id: AiToolCallId::new(id.clone()),
                     tool_name: name.clone(),
                     tool_input: serde_json::to_string(input).unwrap_or_else(|e| {
                         tracing::warn!(error = %e, tool = %name, "failed to serialise tool_input");

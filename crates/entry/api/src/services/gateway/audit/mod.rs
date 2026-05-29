@@ -261,7 +261,7 @@ impl GatewayAudit {
                 .requests
                 .insert_tool_call(InsertToolCallParams {
                     request_id: &self.ctx.ai_request_id,
-                    ai_tool_call_id: &tool.ai_tool_call_id,
+                    ai_tool_call_id: tool.ai_tool_call_id.as_str(),
                     tool_name: &tool.tool_name,
                     tool_input: &trimmed,
                     sequence_number: seq,

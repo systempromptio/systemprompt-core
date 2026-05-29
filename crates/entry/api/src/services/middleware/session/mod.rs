@@ -15,7 +15,9 @@ use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::{HeaderExtractor, TokenExtractor, extract_user_context};
+use systemprompt_security::{
+    CookieExtractor, HeaderExtractor, TokenExtractor, extract_user_context,
+};
 use systemprompt_traits::AnalyticsProvider;
 use systemprompt_users::{UserProviderImpl, UserService};
 use uuid::Uuid;
@@ -79,8 +81,10 @@ impl SessionMiddleware {
         let mut response = next.run(request).await;
 
         if let Some(token) = jwt_cookie {
-            let cookie =
-                format!("access_token={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800");
+            let cookie = format!(
+                "{}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800",
+                CookieExtractor::DEFAULT_COOKIE_NAME
+            );
             if let Ok(cookie_value) = cookie.parse() {
                 response
                     .headers_mut()

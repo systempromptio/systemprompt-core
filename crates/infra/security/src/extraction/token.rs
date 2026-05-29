@@ -4,7 +4,6 @@ use std::fmt;
 
 use super::cookie::{CookieExtractionError, CookieExtractor};
 
-const DEFAULT_COOKIE_NAME: &str = "access_token";
 const DEFAULT_MCP_HEADER_NAME: &str = "x-mcp-proxy-auth";
 const BEARER_PREFIX: &str = "Bearer ";
 
@@ -37,7 +36,7 @@ impl TokenExtractor {
     pub fn new(fallback_chain: Vec<ExtractionMethod>) -> Self {
         Self {
             fallback_chain,
-            cookie_name: DEFAULT_COOKIE_NAME.to_owned(),
+            cookie_name: CookieExtractor::DEFAULT_COOKIE_NAME.to_owned(),
             mcp_header_name: DEFAULT_MCP_HEADER_NAME.to_owned(),
         }
     }

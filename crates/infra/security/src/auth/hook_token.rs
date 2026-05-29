@@ -16,6 +16,7 @@
 //!    the request, so a token issued for plugin A can't drive an event into
 //!    plugin B.
 
+use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_models::auth::{JwtAudience, Permission};
 
 use crate::error::{AuthError, AuthResult};
@@ -25,8 +26,8 @@ use crate::jwt::{ValidationPolicy, decode_rs256_claims};
 /// caller needs to dispatch a govern/track decision.
 #[derive(Debug, Clone)]
 pub struct ValidatedHookClaims {
-    pub plugin_id: String,
-    pub subject: String,
+    pub plugin_id: PluginId,
+    pub subject: UserId,
     pub scopes: Vec<Permission>,
 }
 
@@ -87,7 +88,7 @@ impl HookTokenValidator {
             .clone()
             .ok_or(AuthError::HookPluginIdMissing)?;
         if let Some(expected) = request_plugin_id
-            && expected != plugin_id
+            && expected != plugin_id.as_str()
         {
             return Err(AuthError::HookPluginIdMismatch {
                 expected: expected.to_owned(),
@@ -96,8 +97,8 @@ impl HookTokenValidator {
         }
 
         Ok(ValidatedHookClaims {
-            plugin_id,
-            subject: claims.sub,
+            plugin_id: PluginId::new(plugin_id),
+            subject: UserId::new(claims.sub),
             scopes: claims.scope,
         })
     }

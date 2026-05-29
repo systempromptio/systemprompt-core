@@ -1,17 +1,18 @@
 use axum::http::{HeaderMap, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_models::auth::{AuthenticatedUser, Permission, UserType};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub(super) struct ProxySessionIdentity {
-    pub user: String,
-    pub user_type: String,
+    pub user: Uuid,
+    pub user_type: UserType,
     pub permissions: Vec<Permission>,
-    pub auth_token: String,
+    pub auth_token: JwtToken,
 }
 
 pub(super) type SessionCache = Arc<RwLock<HashMap<String, ProxySessionIdentity>>>;
@@ -36,25 +37,14 @@ pub(super) async fn enrich_with_cached_identity(
             user_id = %identity.user,
             "Enriching session-only request with cached identity"
         );
-        let user_type = identity.user_type.parse().unwrap_or_else(|_| {
-            tracing::warn!(
-                user_type = %identity.user_type,
-                "Unrecognised cached user type, defaulting to Unknown"
-            );
-            systemprompt_models::auth::UserType::Unknown
-        });
-        let user_uuid = identity.user.parse().unwrap_or_else(|_| {
-            tracing::warn!(user = %identity.user, "Cached user id is not a valid UUID");
-            uuid::Uuid::nil()
-        });
         req_context = req_context
             .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-                identity.user.clone(),
+                identity.user.to_string(),
             )))
-            .with_user_type(user_type)
-            .with_auth_token(identity.auth_token.clone())
+            .with_user_type(identity.user_type)
+            .with_auth_token(identity.auth_token.as_str().to_owned())
             .with_user(AuthenticatedUser::new(
-                user_uuid,
+                identity.user,
                 String::new(),
                 String::new(),
                 identity.permissions.clone(),
@@ -141,10 +131,10 @@ pub(super) async fn handle_mcp_response(args: McpResponseCtx<'_>) {
             cache.write().await.insert(
                 session_id.to_owned(),
                 ProxySessionIdentity {
-                    user: user.id.to_string(),
-                    user_type: req_context.user_type().to_string(),
+                    user: user.id,
+                    user_type: req_context.user_type(),
                     permissions: user.permissions.clone(),
-                    auth_token: req_context.auth_token().as_str().to_owned(),
+                    auth_token: req_context.auth_token().clone(),
                 },
             );
             tracing::info!(

@@ -1,3 +1,5 @@
+use systemprompt_identifiers::AiToolCallId;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CapturedUsage {
     pub input_tokens: u32,
@@ -6,7 +8,7 @@ pub struct CapturedUsage {
 
 #[derive(Debug, Clone)]
 pub struct CapturedToolUse {
-    pub ai_tool_call_id: String,
+    pub ai_tool_call_id: AiToolCallId,
     pub tool_name: String,
     pub tool_input: String,
 }
