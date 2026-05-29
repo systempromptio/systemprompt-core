@@ -513,8 +513,8 @@ agents:
           tags: [help]
       supportsAuthenticatedExtendedCard: false
     metadata:
-      mcpServers: [fixture_mcp]
-      skills: [general_assistance]
+      mcpServers: { include: [fixture_mcp] }
+      skills: { include: [general_assistance] }
       toolModelOverrides: {}
     oauth:
       required: false
@@ -746,8 +746,8 @@ skills:
       enabled: true
       tags: []
       instructions: "hello"
-      assigned_agents: []
-      mcp_servers: []
+      assigned_agents: { include: [] }
+      mcp_servers: { include: [] }
 plugins:
   broken-plugin:
     id: broken-plugin
@@ -769,8 +769,8 @@ plugins:
       source: explicit
       include:
         - ghost_agent
-    mcp_servers: []
-    content_sources: []
+    mcp_servers: { include: [] }
+    content_sources: {}
     scripts: []
 "#;
     std::fs::write(&config_path, content).expect("Failed to write config");
