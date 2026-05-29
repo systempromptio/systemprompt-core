@@ -55,8 +55,12 @@ jobs:
     runs-on: ubuntu-latest
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
+    # Drop debuginfo and incremental artifacts: a cold rebuild of the whole
+    # test workspace otherwise exhausts the 2-core runner's disk/RAM.
     env:
       RUSTFLAGS: ""
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
     services:
       postgres:
         image: postgres:16

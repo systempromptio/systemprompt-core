@@ -20,6 +20,11 @@ env:
   CARGO_TERM_COLOR: always
   RUSTC_WRAPPER: ""
   SQLX_OFFLINE: "true"
+  # Keep only line tables (coverage needs line mapping, not full debuginfo) and
+  # disable incremental artifacts: the instrumented cold rebuild of the whole
+  # test workspace otherwise exhausts the 2-core runner's disk/RAM.
+  CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   coverage:
