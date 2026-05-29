@@ -57,6 +57,7 @@ pub mod bridge;
 pub mod config;
 pub mod content;
 pub mod content_config;
+pub mod env;
 pub mod errors;
 pub mod events;
 pub mod execution;
@@ -136,6 +137,7 @@ pub use content_config::{
     ContentRouting, ContentSourceConfigRaw, IndexingConfig, Metadata, OrganizationData,
     ParentRoute, SitemapConfig, SourceBranding, StructuredData,
 };
+pub use env::{contains_placeholder, interpolate, read_env_optional};
 pub use errors::{RepositoryError, ServiceError};
 pub use events::{
     A2AEvent, A2AEventBuilder, A2AEventType, AnalyticsEvent, AnalyticsEventBuilder, ContextEvent,

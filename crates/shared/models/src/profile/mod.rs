@@ -49,10 +49,10 @@ pub use server::{ContentNegotiationConfig, SecurityHeadersConfig, ServerConfig};
 pub use site::SiteConfig;
 pub use style::ProfileStyle;
 
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::sync::LazyLock;
+
+use crate::env::{interpolate, read_env_optional};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -65,28 +65,6 @@ impl ExtensionsConfig {
     pub fn is_disabled(&self, extension_id: &str) -> bool {
         self.disabled.iter().any(|id| id == extension_id)
     }
-}
-
-#[expect(
-    clippy::expect_used,
-    reason = "compile-time-constant regex; failure is a programmer bug, not runtime input"
-)]
-static ENV_VAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\$\{(\w+)\}")
-        .expect("ENV_VAR_REGEX is a valid regex - this is a compile-time constant")
-});
-
-fn env_var_regex() -> &'static Regex {
-    &ENV_VAR_REGEX
-}
-
-fn substitute_env_vars(content: &str) -> String {
-    env_var_regex()
-        .replace_all(content, |caps: &regex::Captures| {
-            let var_name = &caps[1];
-            std::env::var(var_name).unwrap_or_else(|_| caps[0].to_string())
-        })
-        .to_string()
 }
 
 #[derive(
@@ -159,7 +137,7 @@ impl Profile {
     }
 
     pub fn from_yaml(content: &str, profile_path: &Path) -> ProfileResult<Self> {
-        let content = substitute_env_vars(content);
+        let content = interpolate(content, &|name| read_env_optional(name));
 
         let mut profile: Self =
             serde_yaml::from_str(&content).map_err(|source| ProfileError::ParseYaml {
