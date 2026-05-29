@@ -143,7 +143,10 @@ fn mcp_lands_in_plugin_bundle_mcp_json() {
         let body = fs::read_to_string(&mcp_path).expect("mcp.json exists");
         assert!(body.contains("\"mcpServers\""), "got: {body}");
         assert!(body.contains("\"primary\""), "got: {body}");
-        assert!(body.contains("https://mcp.example.invalid/api"));
+        // Servers route through the bridge loopback proxy (with an injected
+        // Authorization header), not the upstream URL directly.
+        assert!(body.contains("/mcp/primary"), "got: {body}");
+        assert!(body.contains("Authorization"), "got: {body}");
     });
 }
 

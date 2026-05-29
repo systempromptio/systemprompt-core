@@ -135,12 +135,12 @@ format-check:
     cargo +nightly fmt --all -- --check
     cd crates/tests && cargo +nightly fmt --all -- --check
 
-# Run clippy linter with strict settings (main + test workspace).
-# `--workspace` does not reach `crates/tests`; lint it explicitly so test-only
-# breakage is caught locally rather than in CI.
+# Run clippy linter with strict settings (main workspace).
+# The separate `crates/tests` workspace is clippied by `just style-check` (it
+# needs a live database for its `query!` fixtures, which CI's lint job lacks);
+# CI compiles it in the dedicated Test job instead.
 lint:
     cargo clippy --workspace --all-targets --all-features -- -D warnings
-    cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:

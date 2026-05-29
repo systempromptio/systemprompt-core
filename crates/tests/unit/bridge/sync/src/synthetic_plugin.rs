@@ -187,11 +187,15 @@ async fn writes_agent_as_md_file_with_frontmatter() {
 }
 
 #[tokio::test]
-async fn writes_mcp_json_with_mcp_servers_object() {
+async fn synthetic_plugin_does_not_write_mcp_json() {
     prime_token_cache().await;
     let root = tempdir();
+    // The MDM emitter owns the MCP channel; the synthetic plugin carries only
+    // skills, agents, and hooks. MCP servers in the manifest must NOT produce a
+    // plugin-level .mcp.json, which would surface a ghost "not connected"
+    // connector alongside the managed one.
     let m = manifest_with(
-        vec![],
+        vec![skill("doc", "# x\n")],
         vec![],
         vec![mcp("primary", "https://mcp.example.invalid/api")],
     );
@@ -200,13 +204,14 @@ async fn writes_mcp_json_with_mcp_servers_object() {
         .await
         .unwrap();
 
-    let mcp_json = synthetic_root(&root).join(".mcp.json");
-    let raw = fs::read_to_string(&mcp_json).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&raw).unwrap();
-    let servers = parsed.get("mcpServers").unwrap().as_object().unwrap();
-    let entry = servers.get("primary").unwrap();
-    assert_eq!(entry["type"], "http");
-    assert_eq!(entry["url"], "https://mcp.example.invalid/api");
+    assert!(
+        synthetic_root(&root).is_dir(),
+        "plugin with a skill should be written"
+    );
+    assert!(
+        !synthetic_root(&root).join(".mcp.json").exists(),
+        "synthetic plugin must not write .mcp.json"
+    );
 }
 
 #[tokio::test]

@@ -25,26 +25,6 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - uses: extractions/setup-just@v2
-      - name: Strip dev-only cargo config (codegen-backend, sccache, mold)
-        run: |
-          python3 - <<'PY'
-          import re, pathlib
-          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
-              p = pathlib.Path(path)
-              if not p.exists():
-                  continue
-              s = p.read_text()
-              # `just lint` clippies the test workspace, which pins the unstable
-              # codegen-backend, sccache, and `linker = clang` + `-fuse-ld=mold`.
-              # The stable CI runner has none of these — drop them.
-              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
-              # Match to the next section header, not the '[' inside the
-              # `rustflags = ["-C", ...]` array, or the array line is stranded.
-              s = re.sub(r'\n\[target\.[^\]]*\].*?(?=\n\[|\Z)', '', s, flags=re.S)
-              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
-              p.write_text(s)
-          PY
       - run: just lint
 
   deny:
