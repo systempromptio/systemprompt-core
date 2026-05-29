@@ -124,6 +124,29 @@ pub fn handle() -> Option<&'static ProxyHandle> {
     HANDLE.get()
 }
 
+/// Loopback URL a host config (`.mcp.json`, MDM registry value) should target
+/// for the managed MCP server identified by `slug`. The proxy verifies the
+/// loopback secret, strips it, and injects the rotating gateway JWT before
+/// forwarding to the upstream registered under `slug` in `mcp_registry`.
+///
+/// Uses the live bound port when the proxy is running, else the default — the
+/// proxy always binds the default unless it was taken, so the fallback is
+/// correct for the config-write-before-proxy-start ordering.
+#[must_use]
+pub fn mcp_url(slug: &str) -> String {
+    let port = handle().map_or(DEFAULT_PROXY_PORT, |h| h.port);
+    format!("http://127.0.0.1:{port}/mcp/{slug}")
+}
+
+/// The `Authorization` header value a host presents to the loopback proxy.
+///
+/// Read-or-mint via [`secret::proxy_init`] so a config write that happens
+/// before the proxy has started still emits a header that matches the secret
+/// the proxy will load (both go through the same on-disk file + `OnceLock`).
+pub fn loopback_bearer() -> std::io::Result<String> {
+    secret::proxy_init().map(|s| format!("Bearer {}", s.as_str()))
+}
+
 async fn refresh_loop(cache: Arc<TokenCache>) {
     let mut interval = tokio::time::interval(REFRESH_TICK);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);

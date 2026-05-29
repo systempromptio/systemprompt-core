@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.5] - 2026-05-29
+
+### Changed
+
+- Managed MCP servers are registered with Cowork through the bridge's loopback proxy rather than the upstream gateway. Each entry points Cowork at the proxy's loopback URL with a static loopback-secret `Authorization` header instead of carrying `oauth: true`; the proxy strips that header and injects the rotating, auto-refreshed gateway JWT before forwarding to the registered upstream. This sidesteps Cowork's OAuth flow entirely — it hard-rejects the gateway's non-HTTPS authorize URL on Connect — while every request still carries a live token. Applies to both the MDM managed-prefs writer (`install::mdm`) and the synthetic-plugin writer (`sync::apply::synthetic_plugin`); when the loopback secret is unavailable the managed server list is emitted empty rather than half-configured.
+
 ## [0.9.4] - 2026-05-28
 
 ### Breaking

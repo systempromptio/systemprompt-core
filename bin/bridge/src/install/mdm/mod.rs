@@ -148,12 +148,13 @@ pub(crate) fn windows_policy_values(
     values
 }
 
-// `"oauth": true` is the documented value for "dynamic client registration"
-// in claude.com/docs/cowork/3p/configuration. Cowork's bundle schema
-// (`$Qr.oauth`) is a union of `boolean` or an object with required `clientId`
-// — an empty object `{}` satisfies neither and is silently dropped, which is
-// why an earlier version of this code produced MCP servers that surfaced in
-// the UI but never triggered the OAuth flow on Connect.
+// Each entry points Cowork at the bridge's loopback proxy with a static
+// loopback-secret header rather than at the upstream gateway with
+// `oauth: true`. The proxy strips that header and injects the rotating gateway
+// JWT before forwarding. We avoid Cowork's OAuth flow entirely — it
+// hard-rejects the gateway's non-HTTPS authorize URL on Connect — while every
+// request still carries a live, auto-refreshed token. `headers` is the same
+// union member Cowork's bundle schema accepts alongside `oauth`.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub(crate) fn managed_mcp_servers_json() -> Option<String> {
@@ -161,18 +162,28 @@ pub(crate) fn managed_mcp_servers_json() -> Option<String> {
     if registry.is_empty() {
         return Some("[]".to_string());
     }
+    let bearer = match crate::proxy::loopback_bearer() {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::install::mdm",
+                error = %e,
+                "loopback secret unavailable; emitting empty managed MCP server list"
+            );
+            return None;
+        },
+    };
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
     let entries: Vec<serde_json::Value> = slugs
         .iter()
-        .filter_map(|slug| {
-            let upstream = registry.get(*slug)?;
-            Some(serde_json::json!({
+        .map(|slug| {
+            serde_json::json!({
                 "name": slug,
-                "url": upstream.url.as_str(),
+                "url": crate::proxy::mcp_url(slug.as_str()),
                 "transport": "http",
-                "oauth": true,
-            }))
+                "headers": { "Authorization": bearer.clone() },
+            })
         })
         .collect();
     serde_json::to_string(&entries).ok()

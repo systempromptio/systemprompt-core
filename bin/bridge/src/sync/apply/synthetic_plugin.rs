@@ -76,14 +76,14 @@ struct McpJson<'a> {
 struct McpServerEntry<'a> {
     #[serde(rename = "type")]
     transport: &'a str,
+    // Loopback proxy URL, not the upstream gateway. Cowork connects here with
+    // the static loopback-secret header below; the bridge proxy strips it and
+    // injects the rotating gateway JWT before forwarding to the upstream
+    // registered in `mcp_registry`. This sidesteps Cowork's OAuth flow (which
+    // hard-rejects the gateway's non-HTTPS authorize URL) while keeping a live,
+    // auto-refreshed token on every request.
     url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    headers: Option<BTreeMap<&'a str, String>>,
-    // `oauth: true` is the documented "dynamic client registration" value per
-    // claude.com/docs/cowork/3p/configuration. Mutually exclusive with `headers`;
-    // when the server config carries explicit `headers`, this is left absent.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    oauth: Option<bool>,
+    headers: BTreeMap<&'a str, String>,
 }
 
 #[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
@@ -163,26 +163,26 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
 }
 
 fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), super::ApplyError> {
-    let slugs: Vec<String> = servers
-        .iter()
-        .map(|s| crate::mcp_registry::normalize_key(s.name.as_str()))
-        .collect();
+    // The bearer the host presents to the loopback proxy. The manifest's own
+    // `s.headers` are NOT written here — they are upstream extra-headers that
+    // travel into `mcp_registry` and get added by the proxy server-side.
+    let bearer = crate::proxy::loopback_bearer().map_err(|e| super::ApplyError::Io {
+        context: "read loopback secret for synthetic .mcp.json".into(),
+        source: e,
+    })?;
     let mcp_servers: BTreeMap<String, McpServerEntry<'_>> = servers
         .iter()
-        .zip(slugs.iter())
-        .map(|(s, slug)| {
-            let headers = s
-                .headers
-                .as_ref()
-                .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.clone())).collect());
-            let oauth = if headers.is_none() { Some(true) } else { None };
+        .map(|s| {
+            let slug = crate::mcp_registry::normalize_key(s.name.as_str());
+            let url = crate::proxy::mcp_url(&slug);
+            let mut headers = BTreeMap::new();
+            headers.insert("Authorization", bearer.clone());
             (
-                slug.clone(),
+                slug,
                 McpServerEntry {
                     transport: s.transport.as_deref().unwrap_or("http"),
-                    url: s.url.as_str().to_string(),
+                    url,
                     headers,
-                    oauth,
                 },
             )
         })

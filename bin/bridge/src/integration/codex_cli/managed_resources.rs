@@ -151,25 +151,30 @@ struct McpJson<'a> {
 struct McpServerEntry<'a> {
     #[serde(rename = "type")]
     transport: &'a str,
+    // Loopback proxy URL — see the synthetic-plugin writer for the full
+    // rationale. The proxy strips the loopback-secret header below and injects
+    // the rotating gateway JWT before forwarding to the registered upstream.
     url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    headers: Option<BTreeMap<&'a str, String>>,
+    headers: BTreeMap<&'a str, String>,
 }
 
 fn write_mcp_json(root: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+    let bearer = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+        context: "read loopback secret for codex .mcp.json".into(),
+        source: e,
+    })?;
     let mcp_servers: BTreeMap<String, McpServerEntry<'_>> = servers
         .iter()
         .map(|s| {
             let slug = crate::mcp_registry::normalize_key(s.name.as_str());
-            let headers = s
-                .headers
-                .as_ref()
-                .map(|m| m.iter().map(|(k, v)| (k.as_str(), v.clone())).collect());
+            let url = crate::proxy::mcp_url(&slug);
+            let mut headers = BTreeMap::new();
+            headers.insert("Authorization", bearer.clone());
             (
                 slug,
                 McpServerEntry {
                     transport: s.transport.as_deref().unwrap_or("http"),
-                    url: s.url.as_str().to_string(),
+                    url,
                     headers,
                 },
             )

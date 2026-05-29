@@ -4061,7 +4061,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.9.4"
+version = "0.9.5"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -4171,6 +4171,7 @@ dependencies = [
  "url",
  "uuid",
  "validator",
+ "zeroize",
 ]
 
 [[package]]
