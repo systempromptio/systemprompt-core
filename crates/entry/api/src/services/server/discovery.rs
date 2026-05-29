@@ -1,3 +1,10 @@
+//! Hypermedia discovery and health-routing endpoints.
+//!
+//! Serves the root, core, agents, and MCP discovery documents that advertise
+//! the gateway's endpoint topology (URLs derived from the configured external
+//! base), and assembles the public [`discovery_router`] and the
+//! [`authenticated_discovery_router`] for the detailed health surface.
+
 use axum::routing::get;
 use axum::{Json, Router};
 use metrics_exporter_prometheus::PrometheusHandle;

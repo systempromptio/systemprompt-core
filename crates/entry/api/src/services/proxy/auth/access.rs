@@ -1,3 +1,11 @@
+//! Access enforcement for proxied MCP and agent requests.
+//!
+//! [`AccessValidator`] resolves whether a service requires OAuth, validates the
+//! caller's bearer token and scopes, and either returns the authenticated user
+//! or converts the failure into an RFC 9728 challenge. For MCP it permits a
+//! session-only fallback when a prior authenticated initialize established the
+//! identity in the proxy cache.
+
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;

@@ -1,3 +1,10 @@
+//! Agent performance analytics: stats, listing, trends, and per-agent deep
+//! dives.
+//!
+//! Defines the [`AgentsCommands`] subcommand tree and the typed output rows
+//! ([`AgentStatsOutput`], [`AgentListOutput`], [`AgentTrendsOutput`],
+//! [`AgentShowOutput`]) rendered by the `analytics agents` commands.
+
 mod list;
 mod show;
 mod stats;

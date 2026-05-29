@@ -1,3 +1,9 @@
+//! `jobs` CLI command group: list, inspect, run, and manage scheduled jobs.
+//!
+//! [`JobsCommands`] enumerates the subcommands; [`execute`] dispatches each to
+//! its submodule and renders the result. Includes manual job runs, history,
+//! enable/disable toggles, and the session/log cleanup helpers.
+
 pub mod types;
 
 mod cleanup_logs;

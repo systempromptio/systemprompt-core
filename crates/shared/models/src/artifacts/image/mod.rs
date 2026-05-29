@@ -1,3 +1,9 @@
+//! Image artifact.
+//!
+//! An [`ImageArtifact`] carries an image source URI with optional alt text,
+//! caption, and pixel dimensions. It implements [`Artifact`] and emits its own
+//! JSON schema for tool output.
+
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;

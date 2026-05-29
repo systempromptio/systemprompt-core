@@ -1,3 +1,10 @@
+//! Process termination and port reclamation for MCP servers.
+//!
+//! Cross-platform helpers to gracefully terminate ([`terminate_gracefully`])
+//! then force-kill ([`force_kill`]) a process by PID, and to discover and clear
+//! every process holding a given port. All operations are idempotent against an
+//! already-dead PID.
+
 use crate::error::McpDomainResult;
 use std::process::Command;
 

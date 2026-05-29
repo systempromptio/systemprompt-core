@@ -1,3 +1,10 @@
+//! Gateway configuration: on-disk spec and resolved runtime form.
+//!
+//! [`GatewayConfigSpec`] is the serde shape accepted under `gateway:` in a
+//! profile; [`GatewayConfig`] is its post-resolution runtime projection with
+//! any external catalog fully loaded. [`GatewayConfigSpec::resolve`] performs
+//! the projection and catalog validation.
+
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};

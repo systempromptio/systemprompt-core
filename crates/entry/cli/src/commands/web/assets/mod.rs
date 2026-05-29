@@ -1,3 +1,8 @@
+//! Read-only inspection of web assets (CSS, fonts, images, favicons).
+//!
+//! Dispatches the `web assets` subcommands ([`AssetsCommands`]) to list the
+//! asset inventory or show details for a single asset.
+
 mod asset_type;
 mod list;
 mod show;

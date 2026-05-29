@@ -1,3 +1,10 @@
+//! Streaming execution pipeline for inbound messages.
+//!
+//! [`StreamProcessor`] extracts content from an A2A message (including
+//! supported file parts decoded into [`AiContentPart`]s), then spawns the
+//! strategy-driven pipeline that streams text, tool, and completion events back
+//! to the caller.
+
 mod helpers;
 mod processing;
 

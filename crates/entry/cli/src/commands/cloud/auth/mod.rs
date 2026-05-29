@@ -1,3 +1,8 @@
+//! `cloud auth` subcommands: login, logout, and whoami.
+//!
+//! Dispatches the [`AuthCommands`] enum to the per-command modules that manage
+//! the locally stored cloud credentials and authenticated-user state.
+
 mod login;
 mod logout;
 mod whoami;

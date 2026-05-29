@@ -1,3 +1,9 @@
+//! Inbound adapter for the Anthropic Messages wire protocol.
+//!
+//! [`AnthropicMessagesInbound`] parses Messages-format request bodies into the
+//! canonical request model and renders canonical responses, streaming events,
+//! and errors back in Messages format.
+
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;

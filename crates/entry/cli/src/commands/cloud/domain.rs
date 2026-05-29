@@ -1,3 +1,8 @@
+//! `cloud domain` subcommands for managing a tenant's custom domain.
+//!
+//! Dispatches [`DomainCommands`] to set, inspect, or remove the custom domain
+//! via the cloud API, surfacing the DNS records the operator must configure.
+
 use anyhow::{Result, bail};
 use clap::Subcommand;
 use dialoguer::Confirm;

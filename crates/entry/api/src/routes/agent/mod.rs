@@ -1,3 +1,8 @@
+//! Agent (A2A) HTTP surface.
+//!
+//! Assembles the routers for the agent registry, contexts, tasks, artifacts,
+//! responses, and webhook broadcasts that make up the agent-facing API.
+
 pub mod artifacts;
 pub mod contexts;
 pub mod registry;

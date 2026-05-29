@@ -1,3 +1,10 @@
+//! WebAuthn-completion bridge into the authorization-code flow.
+//!
+//! Consumes a verified-authentication token, confirms it matches the claimed
+//! user, mints an authorization code bound to the request's PKCE/resource
+//! parameters, and returns it as a browser redirect or JSON depending on the
+//! caller.
+
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;

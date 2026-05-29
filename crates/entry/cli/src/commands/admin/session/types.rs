@@ -1,3 +1,8 @@
+//! Serializable output types for the `admin session` command tree.
+//!
+//! These DTOs back the rendered show, list, logout, and switch results,
+//! describing cached sessions, profile routing, and per-command outcomes.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, SessionId};

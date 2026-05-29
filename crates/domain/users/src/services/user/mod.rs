@@ -1,3 +1,10 @@
+//! User account service.
+//!
+//! [`UserService`] is the primary entry point for the users domain, delegating
+//! to [`UserRepository`] for lookups, listing and search, session management,
+//! account creation (including anonymous and federated identities), field
+//! updates, bulk operations, statistics, and account merging.
+
 mod provider;
 
 use std::collections::HashMap;

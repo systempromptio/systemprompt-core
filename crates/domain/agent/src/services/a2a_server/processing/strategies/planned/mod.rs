@@ -1,3 +1,10 @@
+//! The planned agentic execution strategy.
+//!
+//! [`PlannedAgenticStrategy`] runs a plan → execute → respond flow: it asks the
+//! AI to produce a [`PlanningResult`],
+//! then either returns a direct response or executes the planned tool calls and
+//! synthesizes a final answer, tracking each step as an execution step.
+
 mod direct_response;
 mod helpers;
 mod tool_execution;

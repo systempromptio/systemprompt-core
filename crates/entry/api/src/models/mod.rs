@@ -1,3 +1,8 @@
+//! HTTP server request/response models for the API entry point.
+//!
+//! Holds the bind-address configuration ([`ServerConfig`]) consumed when
+//! standing up the axum listener.
+
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub host: String,

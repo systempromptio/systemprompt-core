@@ -1,3 +1,9 @@
+//! `OpenAI` image-generation provider.
+//!
+//! [`OpenAiImageProvider`] implements the `ImageProvider` trait against the
+//! `OpenAI` `images/generations` endpoint (gpt-image / DALL·E models), mapping
+//! the platform's aspect ratios onto the API's fixed size options.
+
 use crate::error::{AiError, Result};
 use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,

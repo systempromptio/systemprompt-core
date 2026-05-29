@@ -1,3 +1,9 @@
+//! Content repository.
+//!
+//! [`ContentRepository`] is the data-access surface for the `markdown_content`
+//! table, splitting read paths (queries) from write paths (mutations) and
+//! routing each to the read or write pool accordingly.
+
 mod mutations;
 mod queries;
 

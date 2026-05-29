@@ -1,3 +1,9 @@
+//! Generation and validation of the per-profile deployment Dockerfile.
+//!
+//! [`DockerfileBuilder`] renders a Dockerfile from the discovered extensions
+//! and services config; the validation helpers assert a profile's Dockerfile
+//! copies the expected MCP binaries and carries no stale ones.
+
 mod builder;
 mod validation;
 

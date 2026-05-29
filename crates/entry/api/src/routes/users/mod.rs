@@ -1,3 +1,7 @@
+//! Self-service user account routes scoped to the authenticated caller.
+//!
+//! Hosts the `/me` endpoints, including session revocation in [`sessions`].
+
 pub mod sessions;
 
 use axum::Router;

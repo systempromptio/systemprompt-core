@@ -1,3 +1,9 @@
+//! `core content link` command group: trackable campaign links.
+//!
+//! Dispatches the [`LinkCommands`] subcommands (generate, show, list,
+//! performance, delete) for creating short codes and reading their click
+//! metrics.
+
 pub mod delete;
 pub mod generate;
 pub mod list;

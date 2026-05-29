@@ -1,3 +1,8 @@
+//! `admin config runtime` command: show and edit profile runtime settings.
+//!
+//! [`RuntimeCommands`] reports and updates the environment, log level, output
+//! format, and colour settings, persisting changes to the active profile.
+
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;

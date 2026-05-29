@@ -1,3 +1,13 @@
+//! Proxy-side identity cache for MCP sessions.
+//!
+//! MCP clients authenticate on the `initialize` call but may omit the bearer
+//! token on subsequent session-only requests. This module caches the
+//! authenticated identity keyed by `mcp-session-id` so those follow-ups can be
+//! enriched ([`enrich_with_cached_identity`]), and evicts the entry on session
+//! teardown or a stale-session backend response ([`handle_mcp_response`]). The
+//! cache is the trust anchor for session-based MCP auth — entries are only
+//! written for a verified [`AuthenticatedUser`].
+
 use axum::http::{HeaderMap, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;

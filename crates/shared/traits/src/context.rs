@@ -1,7 +1,8 @@
 //! Application context, module registry, and request-context propagation.
 //!
 //! The async traits here are dispatched as trait objects (`dyn _`), so they
-//! use `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
+//! use `#[async_trait]`; native `async fn` in traits is not yet
+//! `dyn`-compatible.
 //!
 //! The traits in this module are the runtime entry points other crates use
 //! to discover configuration, the database handle, and the registered

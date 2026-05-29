@@ -1,3 +1,10 @@
+//! Provenance metadata attached to A2A artifacts.
+//!
+//! [`ArtifactMetadata`] records where an artifact came from — the originating
+//! context and task, the MCP tool or skill that produced it, and rendering
+//! hints — and carries the [`Validate`]/[`MetadataValidation`] contract that
+//! rejects artifacts missing their required identity fields.
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, SkillId, TaskId};

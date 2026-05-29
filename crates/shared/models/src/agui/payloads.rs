@@ -1,3 +1,11 @@
+//! Event payload types for the AG-UI streaming protocol.
+//!
+//! Each struct here is the body of one AG-UI event — run lifecycle
+//! (`RunStarted`/`RunFinished`/`RunError`), step boundaries, streaming text and
+//! tool-call deltas, state snapshots/deltas, and the [`CustomPayload`] envelope
+//! for application-defined events (artifacts, execution steps, loaded skills).
+//! Field casing follows the wire format via `rename_all = "camelCase"`.
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};

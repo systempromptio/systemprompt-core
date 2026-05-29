@@ -1,3 +1,12 @@
+//! Conversion between the internal MCP tool model and the `systemprompt_traits`
+//! and `rmcp` tool types.
+//!
+//! These free functions bridge the three representations a tool flows through:
+//! the crate's `McpTool`/`ToolCall`/`CallToolResult`, the provider-facing
+//! `ToolDefinition`/`ToolCallRequest`/`ToolCallResult` traits, and `rmcp`'s
+//! wire types, plus building a `ToolContext` from a `RequestContext` for an
+//! outbound tool call.
+
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};

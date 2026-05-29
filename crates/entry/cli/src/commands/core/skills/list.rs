@@ -1,3 +1,9 @@
+//! `skills list` subcommand.
+//!
+//! Scans the profile's skills directory for skill configs, rendering either a
+//! filtered summary table or, when a skill name is given, a single-skill detail
+//! card with an instructions preview.
+
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;

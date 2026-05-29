@@ -1,3 +1,10 @@
+//! Health checking and continuous monitoring for MCP servers.
+//!
+//! Defines [`HealthStatus`] and [`HealthCheckResult`], maps a connection probe
+//! into a health verdict (latency-aware, with OAuth-gated servers treated as
+//! healthy when reachable), and runs a long-lived monitor that logs degradation
+//! and recovery transitions on a fixed interval.
+
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::models::ValidationResultType;

@@ -1,3 +1,8 @@
+//! MCP registry routes.
+//!
+//! [`registry_router`] mounts the read-only MCP server registry endpoint backed
+//! by [`registry::handle_mcp_registry`].
+
 pub mod registry;
 
 use axum::Router;

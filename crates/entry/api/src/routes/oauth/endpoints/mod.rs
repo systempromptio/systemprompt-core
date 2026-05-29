@@ -1,3 +1,10 @@
+//! OAuth 2.0 / OIDC protocol endpoints.
+//!
+//! Collects every handler that backs the OAuth surface: [`authorize`],
+//! [`token`], [`callback`], [`consent`], dynamic registration ([`register`],
+//! [`client_config`]), introspection and revocation, [`userinfo`], [`logout`],
+//! the [`anonymous`] grant, and the [`webauthn_complete`] step.
+
 pub mod anonymous;
 pub mod authorize;
 pub mod callback;

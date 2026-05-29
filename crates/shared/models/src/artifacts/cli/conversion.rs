@@ -1,3 +1,10 @@
+//! Conversion from a raw command result into a typed CLI artifact.
+//!
+//! These impls turn a loosely-typed [`CommandResultRaw`] (data plus a declared
+//! [`CliArtifactType`] and rendering hints) into a concrete [`CliArtifact`],
+//! mapping each artifact type to its builder and reporting shape mismatches as
+//! [`ConversionError`].
+
 use serde_json::Value as JsonValue;
 
 use super::{CliArtifact, CliArtifactType, CommandResultRaw, ConversionError};

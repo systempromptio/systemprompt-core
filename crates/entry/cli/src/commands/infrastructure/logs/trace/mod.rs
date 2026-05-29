@@ -1,3 +1,12 @@
+//! `infra logs trace` subcommands for reconstructing execution traces.
+//!
+//! Exposes [`TraceCommands`] (list, show) and the family of serializable rows
+//! that describe a trace: per-event timeline ([`TraceEventRow`]), the AI / MCP
+//! / step summaries, and the assembled [`TraceViewOutput`] and
+//! [`AiTraceOutput`]. A trace is resolved either from log events or from an AI
+//! task, with the display split across the sibling `display`, `ai_*`,
+//! `summary`, and `json` modules.
+
 mod ai_artifacts;
 mod ai_display;
 mod ai_mcp;

@@ -1,3 +1,11 @@
+//! Validated content configuration.
+//!
+//! [`ContentConfigValidated`] is the verified form of the raw config: category
+//! references are resolved, source paths are canonicalised against the base
+//! path, and the [`systemprompt_models::ContentRouting`] implementation answers
+//! URL routing questions (HTML-page detection, source resolution, slug
+//! extraction) from each source's sitemap pattern.
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{CategoryId, SourceId};

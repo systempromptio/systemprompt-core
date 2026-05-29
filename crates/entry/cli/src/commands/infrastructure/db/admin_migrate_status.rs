@@ -1,3 +1,9 @@
+//! `db migrate-status` subcommand.
+//!
+//! Reports applied, pending, and checksum-drifted migrations per extension,
+//! rendering either a JSON table or a formatted text summary. Provides both the
+//! full-context and standalone (`DatabaseContext`-only) entry points.
+
 use anyhow::{Result, anyhow};
 use systemprompt_database::MigrationService;
 use systemprompt_database::services::DatabaseProvider;

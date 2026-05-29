@@ -1,3 +1,8 @@
+//! Shared state for A2A OAuth authentication.
+//!
+//! [`AgentOAuthState`] bundles the auth config, validation service, database
+//! handle, and optional JWT/user providers carried through the auth middleware.
+
 use std::sync::Arc;
 use systemprompt_database::Database;
 pub use systemprompt_models::AgentOAuthConfig;

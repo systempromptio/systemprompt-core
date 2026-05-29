@@ -1,3 +1,10 @@
+//! `plugins` command group: discover and inspect compiled extensions.
+//!
+//! Covers listing and showing extensions, running CLI extension commands,
+//! validating dependencies and configuration, dumping config, summarising
+//! [`PluginsCommands::Capabilities`], and the [`mcp`] server-management
+//! subtree. [`types`] holds the shared serialisable output shapes.
+
 pub mod types;
 
 mod capabilities;

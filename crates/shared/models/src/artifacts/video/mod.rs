@@ -1,3 +1,8 @@
+//! Video artifact: a playable video reference with playback options.
+//!
+//! [`VideoArtifact`] is the builder-style producer carrying source, poster,
+//! caption, and playback flags (controls, autoplay, loop, muted).
+
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;

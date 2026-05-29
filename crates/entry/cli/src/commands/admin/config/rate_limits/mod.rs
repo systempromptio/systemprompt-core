@@ -1,3 +1,11 @@
+//! `admin config rate-limits` command tree: inspect, edit, and compare rate
+//! limits.
+//!
+//! [`RateLimitsCommands`] covers showing effective limits per tier, setting
+//! endpoint rates and tier multipliers, validating the configuration, applying
+//! presets, and importing/exporting/diffing against files or defaults. The
+//! editing paths persist changes to the active profile YAML.
+
 mod diff;
 mod helpers;
 mod import_export;

@@ -1,3 +1,9 @@
+//! `cloud profile create`: scaffold a profile for a chosen tenant.
+//!
+//! Selects or resolves the tenant, collects API keys, writes the secrets,
+//! profile, and Docker artifacts, then validates the result and runs
+//! local-tenant setup where applicable.
+
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{
     CloudPath, ProfilePath, ProjectContext, TenantStore, TenantType, get_cloud_paths,

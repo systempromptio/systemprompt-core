@@ -1,3 +1,9 @@
+//! `cloud deploy` orchestration: build, push, and release a tenant image.
+//!
+//! Resolves the active cloud profile and tenant, runs the pre-deploy sync,
+//! builds and pushes the Docker image to the tenant registry, triggers the
+//! deploy, and syncs secrets, cloud credentials, and the profile path.
+
 mod config;
 mod deploy_steps;
 mod pre_sync;

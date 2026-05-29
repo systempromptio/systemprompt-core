@@ -1,3 +1,9 @@
+//! Fingerprint-reputation read queries for `FingerprintRepository`.
+//!
+//! Looks up a fingerprint by hash, counts and finds reusable active sessions,
+//! and lists recent or high-risk fingerprints for the abuse-analysis job. All
+//! reads go to the read pool.
+
 use crate::Result;
 
 use super::FingerprintRepository;

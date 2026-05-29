@@ -1,3 +1,11 @@
+//! Finish step of the WebAuthn registration ceremony.
+//!
+//! Validates the submitted credential, creates the user, optionally migrates an
+//! anonymous session onto the new identity, and issues a short-lived
+//! verified-authentication token for the [`webauthn_complete`] bridge.
+//!
+//! [`webauthn_complete`]: crate::routes::oauth::endpoints::webauthn_complete
+
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;

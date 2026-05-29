@@ -1,3 +1,9 @@
+//! Management of content-source definitions in the web content config.
+//!
+//! Dispatches the `web content-types` subcommands ([`ContentTypesCommands`]) to
+//! list, show, create, edit, and delete the content sources that drive
+//! indexing and sitemap generation.
+
 mod create;
 mod delete;
 mod edit;

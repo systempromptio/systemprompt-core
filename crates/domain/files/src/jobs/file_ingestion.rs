@@ -1,3 +1,9 @@
+//! [`FileIngestionJob`]: discovery of image files into the database.
+//!
+//! Walks the configured storage directory on a schedule, registering any
+//! image file not already tracked in the `files` table and reporting found /
+//! inserted / skipped / error counts in the job result.
+
 use async_trait::async_trait;
 use chrono::Utc;
 use std::path::Path;

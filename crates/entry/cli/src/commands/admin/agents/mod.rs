@@ -1,3 +1,11 @@
+//! `admin agents` command group: manage A2A agent configurations and runtime.
+//!
+//! Exposes [`AgentsCommands`] covering the agent lifecycle — list, show,
+//! validate, create, edit, delete, status, logs — plus A2A interaction
+//! (registry discovery, message, task, tools) and direct `run`. Each variant
+//! dispatches to a sibling module that returns a
+//! [`crate::shared::CommandResult`].
+
 pub mod types;
 
 mod client;

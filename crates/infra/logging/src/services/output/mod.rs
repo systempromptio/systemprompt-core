@@ -1,3 +1,10 @@
+//! Process-global log-event publishing.
+//!
+//! Holds the once-initialised [`LogEventPublisher`] and a startup-mode flag,
+//! letting any crate emit a [`LogEventData`] via [`publish_log`] without
+//! threading the publisher through call sites. Before a publisher is installed
+//! (e.g. early boot), `publish_log` is a no-op.
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 

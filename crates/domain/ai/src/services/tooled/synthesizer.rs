@@ -1,3 +1,11 @@
+//! Synthesis of a natural-language reply from tool-execution results.
+//!
+//! [`ResponseSynthesizer`] asks the provider to turn raw tool results into a
+//! user-facing answer, first via `generate_with_tool_results` and then via an
+//! explicit guidance prompt built by [`SynthesisPromptBuilder`]. When both
+//! yield empty content or error, [`FallbackGenerator`] emits a deterministic
+//! summary so the caller always gets a reply.
+
 use crate::models::ai::{AiMessage, MessageRole, SamplingParams};
 use crate::models::tools::{CallToolResult, ToolCall};
 use crate::services::providers::{AiProvider, GenerationParams, ToolResultsParams};

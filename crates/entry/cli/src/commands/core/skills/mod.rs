@@ -1,3 +1,9 @@
+//! `skills` CLI command group: list and show configured skills.
+//!
+//! [`SkillsCommands`] enumerates the subcommands; [`execute`] resolves the
+//! global config and dispatches via [`execute_with_config`]. Output payload
+//! types live in [`types`].
+
 pub mod types;
 
 mod list;

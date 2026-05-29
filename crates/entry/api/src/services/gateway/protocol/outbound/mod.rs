@@ -1,3 +1,12 @@
+//! Outbound protocol adapters: canonical model to upstream provider.
+//!
+//! The [`OutboundAdapter`] trait sends a [`CanonicalRequest`] to an upstream
+//! provider and yields an [`OutboundOutcome`] — a buffered response or a stream
+//! of canonical events. Adapters register themselves via
+//! [`OutboundAdapterRegistration`] (collected by `inventory`) so the upstream
+//! registry can resolve one by provider tag. Implementations cover Anthropic,
+//! OpenAI Chat Completions, and OpenAI Responses.
+
 pub mod anthropic;
 pub mod openai_chat;
 pub mod openai_responses;

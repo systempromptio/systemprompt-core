@@ -1,3 +1,9 @@
+//! Tenant creation flows for the `cloud tenant create` command.
+//!
+//! Routes to the cloud-subscription flow ([`create_cloud_tenant`]) or one of
+//! the local flows ([`create_local_tenant`] for a managed Docker container,
+//! [`create_external_tenant`] for a user-supplied database).
+
 mod cloud;
 mod local;
 

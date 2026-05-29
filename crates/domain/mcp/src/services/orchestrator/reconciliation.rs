@@ -1,3 +1,11 @@
+//! Startup reconciliation workflow for the MCP orchestrator.
+//!
+//! [`reconcile`] is the single entry point the orchestrator runs at boot: it
+//! prunes stale, crashed, and disabled services, validates schemas, kills any
+//! surviving processes from a prior run, then starts every enabled server from
+//! a clean slate. Helpers here own the cleanup-and-notify steps that feed
+//! [`StartupEventSender`] progress events.
+
 use crate::error::McpDomainResult;
 use std::collections::HashSet;
 use std::sync::Arc;

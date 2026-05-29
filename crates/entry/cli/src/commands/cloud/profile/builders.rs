@@ -1,3 +1,9 @@
+//! Builders that assemble a [`Profile`] for local and cloud deployments.
+//!
+//! [`LocalProfileBuilder`] and [`CloudProfileBuilder`] encode the differing
+//! defaults for each target (host, URLs, paths, security, runtime, and
+//! validation modes) so callers only supply the tenant-specific fields.
+
 use std::path::Path;
 
 use systemprompt_cloud::ProjectContext;

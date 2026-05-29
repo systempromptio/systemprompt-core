@@ -1,3 +1,11 @@
+//! Transformation of MCP tool results into renderable A2A [`Artifact`]s.
+//!
+//! [`McpToA2aTransformer`] parses a tool's `structured_content` (or raw JSON),
+//! infers the [`ArtifactType`], builds parts and rendering metadata, and
+//! computes a stable fingerprint over the tool name and arguments. The
+//! `metadata_builder`, `parts_builder`, and `type_inference` submodules supply
+//! the metadata, part, and type-inference logic.
+
 pub mod metadata_builder;
 pub mod parts_builder;
 mod type_inference;

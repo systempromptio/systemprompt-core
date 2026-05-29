@@ -1,3 +1,9 @@
+//! Per-user cost queries for `CostAnalyticsRepository`.
+//!
+//! Scopes spend, token, and conversation reads from `ai_requests` to a single
+//! [`UserId`], including model/agent breakdowns and recent-context summaries
+//! used for per-user billing and usage views.
+
 use super::CostAnalyticsRepository;
 use crate::Result;
 use chrono::{DateTime, Utc};

@@ -1,3 +1,10 @@
+//! AI service configuration loaded from profile YAML.
+//!
+//! [`AiConfig`] is the top-level block: default provider, providers, per-tool
+//! model settings, sampling, MCP discovery, and history retention. The nested
+//! [`ResilienceSettings`] is the per-dependency timeout/retry/circuit-breaker
+//! policy applied to outbound provider and MCP calls.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

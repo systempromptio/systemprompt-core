@@ -1,3 +1,11 @@
+//! Cross-command CLI utilities shared across command modules.
+//!
+//! Aggregates the [`CommandResult`] artifact model and its output types,
+//! profile resolution ([`resolve_profile_path`],
+//! [`resolve_profile_with_data`]), argument parsers, and text helpers. Also
+//! defines the [`define_pool_command`] macro used by the log commands to
+//! generate pooled execution entry points.
+
 pub mod command_result;
 pub mod docker;
 pub mod parsers;

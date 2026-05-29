@@ -1,3 +1,9 @@
+//! Session analytics: aggregate stats, trends, and a real-time live view.
+//!
+//! Defines the [`SessionsCommands`] subcommand tree and the typed output shapes
+//! ([`SessionStatsOutput`], [`SessionTrendsOutput`], [`LiveSessionsOutput`])
+//! rendered by the `analytics sessions` commands.
+
 mod live;
 mod stats;
 mod trends;

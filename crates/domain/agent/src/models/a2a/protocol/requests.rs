@@ -1,3 +1,10 @@
+//! A2A JSON-RPC request and response envelopes.
+//!
+//! Defines the typed parameter shapes for each A2A method, the
+//! [`A2aJsonRpcRequest`] wire envelope and its
+//! [`A2aJsonRpcRequest::parse_request`] dispatcher into [`A2aRequestParams`],
+//! the [`A2aResponse`] result variants, and the protocol error payloads.
+
 use super::push_notification::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
     ListTaskPushNotificationConfigRequest, PushNotificationConfig,

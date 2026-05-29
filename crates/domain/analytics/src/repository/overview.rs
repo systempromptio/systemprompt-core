@@ -1,3 +1,9 @@
+//! Top-line dashboard metrics across all analytics domains.
+//!
+//! [`OverviewAnalyticsRepository`] reads the headline counts shown on the
+//! analytics overview — conversations, agent/task activity, AI requests,
+//! tool executions, sessions, and cost — each scoped to a time window.
+
 use crate::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

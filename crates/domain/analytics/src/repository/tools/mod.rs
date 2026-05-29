@@ -1,3 +1,10 @@
+//! MCP tool-execution analytics over `mcp_tool_executions`.
+//!
+//! [`ToolAnalyticsRepository`] reports tool success/failure/timeout rates,
+//! latency percentiles, error and per-agent breakdowns, and trend series.
+//! Cross-tool listing lives in `list_queries`, single-tool drill-down in
+//! `detail_queries`.
+
 mod detail_queries;
 pub(super) mod list_queries;
 

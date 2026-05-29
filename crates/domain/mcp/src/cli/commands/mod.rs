@@ -1,3 +1,9 @@
+//! CLI command entry points for MCP service management.
+//!
+//! Thin async wrappers that delegate to [`McpOrchestrator`] for starting,
+//! stopping, and reporting on managed MCP servers from the `systemprompt`
+//! CLI surface.
+
 use crate::error::McpDomainResult;
 use crate::services::McpOrchestrator;
 

@@ -1,3 +1,9 @@
+//! Content delivery routes for source-scoped documents.
+//!
+//! Serves content by source and slug as JSON or Markdown, honouring the
+//! configured content-negotiation suffix and advertising the Markdown
+//! alternate via a `Link` header when negotiation is enabled.
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::header::LINK;

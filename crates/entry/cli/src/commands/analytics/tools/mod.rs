@@ -1,3 +1,10 @@
+//! Tool usage analytics: aggregate stats, listings, trends, and per-tool deep
+//! dives.
+//!
+//! Defines the [`ToolsCommands`] subcommand tree and the typed output shapes
+//! ([`ToolStatsOutput`], [`ToolListOutput`], [`ToolTrendsOutput`],
+//! [`ToolShowOutput`]) rendered by the `analytics tools` commands.
+
 mod list;
 mod show;
 mod stats;

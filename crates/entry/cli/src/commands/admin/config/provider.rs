@@ -1,3 +1,9 @@
+//! `admin config provider` command: manage AI providers in the
+//! `ai/config.yaml`.
+//!
+//! [`ProviderCommands`] lists providers, sets the default, and toggles a
+//! provider's enabled flag, editing the AI config YAML in place.
+
 use anyhow::Result;
 use clap::{Args, Subcommand};
 

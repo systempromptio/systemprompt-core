@@ -1,3 +1,10 @@
+//! OAuth 2.0 / OIDC HTTP surface.
+//!
+//! Assembles the OAuth router ([`core`]) over the protocol [`endpoints`],
+//! dynamic client management ([`client`], [`clients`]), [`discovery`] and
+//! [`wellknown`] metadata, [`webauthn`] passkey flows, and the shared
+//! [`OAuthHttpError`] response model ([`error`]).
+
 pub mod client;
 pub mod clients;
 pub mod core;

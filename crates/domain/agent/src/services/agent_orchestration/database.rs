@@ -1,3 +1,12 @@
+//! Database-backed view of agent service state, reconciled against live
+//! processes.
+//!
+//! [`AgentDatabaseService`] wraps the agent-service repository and the
+//! config-driven [`AgentRegistry`], translating stored rows into
+//! [`AgentStatus`] while verifying that recorded PIDs still correspond to
+//! running processes. It is the single source of truth the lifecycle, monitor,
+//! and reconciler services query and mutate.
+
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{
     AgentStatus, OrchestrationError, OrchestrationResult, process,

@@ -1,3 +1,9 @@
+//! Bulk user operations applied by filter.
+//!
+//! [`BulkCommands`] exposes filter-driven delete and status-update commands,
+//! dispatched by [`execute`]. Both are write operations requiring full profile
+//! context.
+
 mod delete;
 mod update;
 

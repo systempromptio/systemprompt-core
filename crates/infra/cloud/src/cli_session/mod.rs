@@ -1,3 +1,9 @@
+//! Persisted CLI authentication sessions, keyed per local or per tenant.
+//!
+//! Exposes [`SessionKey`] (the local-or-tenant discriminator used as a storage
+//! key), the [`CliSession`] record and its [`CliSessionBuilder`], and the
+//! [`SessionStore`] that loads and saves sessions on disk.
+
 mod session;
 mod store;
 

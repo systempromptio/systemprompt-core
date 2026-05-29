@@ -1,3 +1,9 @@
+//! Authenticated-principal and OAuth request types.
+//!
+//! [`AuthenticatedUser`] is the resolved principal carried through a request;
+//! [`AuthError`] is the crate's authentication/OAuth error enum. [`PkceMethod`]
+//! and [`ResponseType`] model the OAuth authorization-request parameters.
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::ClientId;

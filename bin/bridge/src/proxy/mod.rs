@@ -124,14 +124,13 @@ pub fn handle() -> Option<&'static ProxyHandle> {
     HANDLE.get()
 }
 
-/// Loopback URL a host config (`.mcp.json`, MDM registry value) should target
-/// for the managed MCP server identified by `slug`. The proxy verifies the
-/// loopback secret, strips it, and injects the rotating gateway JWT before
-/// forwarding to the upstream registered under `slug` in `mcp_registry`.
+/// Loopback URL a host config should target for the managed MCP server `slug`.
 ///
-/// Uses the live bound port when the proxy is running, else the default — the
-/// proxy always binds the default unless it was taken, so the fallback is
-/// correct for the config-write-before-proxy-start ordering.
+/// The proxy verifies the loopback secret, strips it, and injects the rotating
+/// gateway JWT before forwarding to the upstream registered under `slug` in
+/// `mcp_registry`. Uses the live bound port when the proxy is running, else the
+/// default — the proxy always binds the default unless it was taken, so the
+/// fallback is correct for the config-write-before-proxy-start ordering.
 #[must_use]
 pub fn mcp_url(slug: &str) -> String {
     let port = handle().map_or(DEFAULT_PROXY_PORT, |h| h.port);

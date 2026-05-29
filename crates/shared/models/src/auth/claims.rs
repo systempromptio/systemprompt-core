@@ -1,3 +1,10 @@
+//! Self-issued JWT claim shapes and the RFC 8693 delegation chain.
+//!
+//! [`JwtClaims`] is the canonical token payload; its scope/roles/attributes
+//! fields are the transport for the platform's three authorization layers
+//! (PBAC, RBAC, ABAC). [`ActClaim`] models the recursive `act` delegation
+//! chain, capped at [`MAX_ACT_CHAIN_DEPTH`].
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::str::FromStr;

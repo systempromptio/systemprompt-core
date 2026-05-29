@@ -1,3 +1,9 @@
+//! Protocol-surface route mounting.
+//!
+//! Mounts the OAuth, agent (A2A), MCP, stream, and content/admin/marketplace
+//! route groups onto the server router, each nested under its `ApiPaths` base
+//! with the correct context middleware, rate limit, and `AuthzPolicy` gate.
+
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;

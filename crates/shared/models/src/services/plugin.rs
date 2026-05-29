@@ -1,3 +1,11 @@
+//! Plugin configuration and component-reference model.
+//!
+//! [`PluginConfig`] is the manifest shape loaded from a plugin's config file;
+//! its skill/agent/MCP/content references are [`PluginComponentRef`]s resolved
+//! against the instance ([`ComponentSource`]). [`PluginSummary`] is the
+//! list-view projection; [`PluginConfig::validate`] enforces id and reference
+//! rules.
+
 use std::fmt;
 
 use schemars::JsonSchema;

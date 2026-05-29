@@ -1,3 +1,11 @@
+//! In-memory webhook endpoint registry with HMAC-SHA256 signing and delivery.
+//!
+//! [`WebhookService`] registers [`WebhookEndpoint`]s, dispatches inbound
+//! requests after constant-time signature verification, and generates the
+//! `sha256=` HMAC signatures used for outbound delivery. The `delivery` and
+//! `types` submodules hold the retry/delivery logic and the public config and
+//! result types.
+
 mod delivery;
 mod types;
 

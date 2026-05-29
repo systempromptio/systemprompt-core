@@ -1,3 +1,11 @@
+//! Persistence for A2A messages and their constituent parts.
+//!
+//! [`MessageRepository`] reads message history by task or context and writes
+//! messages within a transaction. The submodules split the work: `queries`
+//! handles reads and sequence-number allocation, `persistence` writes the
+//! message row, and `parts` handles the typed text/file/data parts (including
+//! optional file-upload offloading via [`FileUploadContext`]).
+
 mod parts;
 mod persistence;
 mod queries;

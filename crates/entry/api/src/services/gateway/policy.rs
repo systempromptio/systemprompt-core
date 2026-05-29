@@ -1,3 +1,10 @@
+//! Resolution and caching of the effective gateway policy.
+//!
+//! [`PolicyResolver`] loads the global policy rows, merges them into a single
+//! [`GatewayPolicySpec`], and caches the result for a short TTL; a DB error or
+//! a malformed spec degrades to a permissive policy rather than failing the
+//! request.
+
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 

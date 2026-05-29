@@ -1,3 +1,11 @@
+//! Typed MCP tool definition and execution wrapper.
+//!
+//! [`McpToolHandler`] is the contract a tool implements — typed input and
+//! output with derived JSON schemas plus an async `handle` — and
+//! [`McpToolExecutor`] runs a handler against a [`CallToolRequestParams`],
+//! recording execution start/completion in the tool-usage repository and
+//! building the [`CallToolResult`] (including any artifact) from the output.
+
 use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::{McpArtifactRepository, ToolUsageRepository};
 use crate::response::McpResponseBuilder;

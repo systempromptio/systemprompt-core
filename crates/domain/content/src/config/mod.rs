@@ -1,3 +1,10 @@
+//! Content configuration lifecycle.
+//!
+//! Models the two-stage transition from raw config to a queryable content
+//! index: [`ContentConfigValidated`] verifies sources and categories against
+//! the filesystem, and [`ContentReady`] scans the validated sources to produce
+//! parsed content keyed by slug and source, alongside [`LoadStats`].
+
 mod ready;
 mod validated;
 

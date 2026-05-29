@@ -1,3 +1,9 @@
+//! Anthropic Messages API wire types.
+//!
+//! Re-exports the request, response, web-search, and streaming-event structs
+//! that mirror Anthropic's JSON shape, plus [`AnthropicModels`] — the default
+//! Opus/Sonnet/Haiku catalogue with per-model token limits and pricing.
+
 mod request;
 mod response;
 mod search;

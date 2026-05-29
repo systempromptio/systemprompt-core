@@ -1,3 +1,11 @@
+//! Static-file request handling with caching and content fallback.
+//!
+//! [`serve_static_content`] routes an incoming URI to a static asset,
+//! prerendered HTML page, metadata file, or the content-repository fallback,
+//! applying the appropriate cache policy and ETag for each.
+//! [`StaticContentState`] carries the app context, matcher, and route
+//! classifier into the handler.
+
 mod cache;
 mod responses;
 

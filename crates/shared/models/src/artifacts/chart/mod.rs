@@ -1,3 +1,10 @@
+//! Chart artifact.
+//!
+//! A [`ChartArtifact`] carries labelled axes and one or more [`ChartDataset`]s
+//! for a given [`ChartType`]. Axis configuration and presentation hints are
+//! serialized into the emitted JSON schema; the artifact implements
+//! [`Artifact`].
+
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::{ArtifactType, AxisType, ChartType};

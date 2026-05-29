@@ -1,3 +1,10 @@
+//! Campaign-link and click-tracking data types.
+//!
+//! Defines the stored [`CampaignLink`] and [`LinkClick`] rows, the
+//! [`LinkType`] / [`DestinationType`] classifiers, [`UtmParams`] with its query
+//! serialisation, and the aggregate views [`LinkPerformance`],
+//! [`CampaignPerformance`], and [`ContentJourneyNode`].
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;

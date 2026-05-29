@@ -1,3 +1,11 @@
+//! `core content` command group: manage and inspect published content.
+//!
+//! Dispatches the [`ContentCommands`] subcommands — list/show/search,
+//! edit/delete, ingest verification and status, plus the `link`, `analytics`,
+//! and `files` sub-groups. The reduced [`execute_with_db`] path serves the
+//! read-only commands that can run with only a [`DatabaseContext`]; the
+//! mutating commands require a full profile context.
+
 pub mod analytics;
 pub mod delete;
 pub mod delete_source;

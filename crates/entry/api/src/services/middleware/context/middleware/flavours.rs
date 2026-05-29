@@ -1,3 +1,12 @@
+//! Route-specific context middleware flavours.
+//!
+//! Each flavour decides how a `RequestContext` is established for a class of
+//! route: [`PublicContextMiddleware`] admits anonymous traffic,
+//! [`UserOnlyContextMiddleware`] requires a real user from headers,
+//! [`A2AContextMiddleware`] recovers the context id from the JSON-RPC body, and
+//! [`McpContextMiddleware`] falls back to the session context so the MCP proxy
+//! can issue an OAuth challenge.
+
 use std::sync::Arc;
 
 use axum::extract::Request;

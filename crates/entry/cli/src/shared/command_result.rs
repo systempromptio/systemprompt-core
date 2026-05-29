@@ -1,3 +1,12 @@
+//! Structured command output and its terminal/JSON rendering.
+//!
+//! [`CommandResult`] wraps a command's typed payload with an [`ArtifactType`]
+//! and optional [`RenderingHints`], decoupling what a command produces from how
+//! it is displayed. [`render_result`] dispatches on the active output format
+//! (table, JSON, YAML). The reusable payload shapes [`TextOutput`],
+//! [`SuccessOutput`], [`KeyValueOutput`], and [`TableOutput`] cover common
+//! cases.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

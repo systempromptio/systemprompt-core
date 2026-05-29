@@ -1,3 +1,9 @@
+//! Serializable output types for the `web` command group.
+//!
+//! These structs and enums are the rendered payloads (JSON/YAML/table) for the
+//! content-type, template, asset, and sitemap subcommands, plus the shared
+//! validation output re-exported here.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::CategoryId;

@@ -1,3 +1,11 @@
+//! `admin config validate` command: validate config files against their
+//! schemas.
+//!
+//! Resolves a target to a single file, a [`ConfigSection`], or the full set of
+//! sections, parses each as YAML, and validates a full profile document against
+//! the [`systemprompt_models::profile::Profile`] schema. Also prints the
+//! generated `Profile` JSON schema on demand.
+
 use anyhow::{Result, anyhow};
 use clap::Args;
 

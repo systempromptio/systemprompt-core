@@ -1,3 +1,9 @@
+//! Outbound adapter targeting the Anthropic Messages API.
+//!
+//! [`AnthropicOutbound`] builds a Messages request from the canonical model,
+//! sends it upstream, and returns either a buffered [`CanonicalResponse`] or a
+//! stream of canonical events translated from the Anthropic SSE format.
+
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;

@@ -1,3 +1,10 @@
+//! Context-propagating HTTP client for the MCP streamable-HTTP transport.
+//!
+//! [`HttpClientWithContext`] implements rmcp's `StreamableHttpClient`,
+//! injecting the active [`RequestContext`] headers and bearer token onto every
+//! GET/POST/ DELETE so authentication and trace context flow through to
+//! downstream MCP servers.
+
 use futures::StreamExt;
 use futures::stream::BoxStream;
 use http::header::WWW_AUTHENTICATE;

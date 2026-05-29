@@ -1,3 +1,10 @@
+//! Cross-domain helpers shared by every analytics command.
+//!
+//! Re-exports CSV export utilities ([`export`]), reusable output/formatting
+//! types and number formatters ([`output`]), and time-range parsing and
+//! bucketing ([`time`]) so the per-domain command modules draw from one
+//! surface.
+
 pub mod export;
 pub mod output;
 pub mod time;

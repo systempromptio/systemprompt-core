@@ -1,3 +1,11 @@
+//! API server construction and the global middleware stack.
+//!
+//! [`setup_api_server`] composes the route tree and applies the global layers
+//! (body limit, analytics, context, session, CORS, trailing-slash, trace and
+//! served-by headers, content negotiation, security headers) in the order they
+//! must run, producing an [`ApiServer`] that binds and serves with graceful
+//! shutdown.
+
 use anyhow::Result;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;

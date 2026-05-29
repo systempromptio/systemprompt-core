@@ -1,3 +1,10 @@
+//! Compile-time constants for the cloud layer: container paths, callback ports
+//! and timeouts, API endpoints, deploy regions, and on-disk file/profile names.
+//!
+//! Grouped into submodules by concern (`oauth`, `checkout`, `credentials`,
+//! `docker`, `api`, `regions`, `paths`, `profile`, `env_vars`); path-name and
+//! storage constants are re-exported from `systemprompt_models`.
+
 pub use systemprompt_models::paths::constants::{build, dir_names, file_names, storage};
 
 pub mod container {

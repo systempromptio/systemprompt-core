@@ -1,3 +1,9 @@
+//! Validation of the web configuration across config, templates, assets, and
+//! sitemap.
+//!
+//! Runs the per-category validators (selectable via [`ValidationCategory`]) and
+//! aggregates their errors and warnings into a single report.
+
 mod asset_validation;
 mod config_validation;
 mod sitemap_validation;

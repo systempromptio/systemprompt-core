@@ -1,3 +1,11 @@
+//! The [`CliService`] facade over CLI output.
+//!
+//! Aggregates the display, prompt, table, and progress helpers into a single
+//! entry point for command code: levelled messages (which also publish a log
+//! event), structured output (`json`/`yaml`), spinners and progress bars, and
+//! module install/update prompts. Output is the sanctioned stderr/stdout sink,
+//! not `tracing`.
+
 use std::io::Write;
 use std::time::Duration;
 

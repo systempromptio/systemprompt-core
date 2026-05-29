@@ -1,3 +1,12 @@
+//! Schema validation and auto-migration for MCP service tables.
+//!
+//! [`SchemaValidator`] reconciles a service's declared [`SchemaDefinition`]s
+//! against the live database: it verifies existing tables carry the required
+//! columns and, in [`SchemaValidationMode::AutoMigrate`], creates missing
+//! tables from the service's schema files. [`SchemaValidationMode`] selects
+//! whether a mismatch is auto-healed, treated as fatal, or skipped, and
+//! [`SchemaValidationReport`] aggregates the per-table outcome.
+
 use crate::error::McpDomainResult;
 use serde::{Deserialize, Serialize};
 use std::path::Path;

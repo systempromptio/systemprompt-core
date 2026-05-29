@@ -1,3 +1,11 @@
+//! Message processing for the A2A server.
+//!
+//! [`MessageProcessor`] owns the repositories and services needed to handle an
+//! inbound message and persist the resulting task. [`StreamProcessor`] drives
+//! the streaming execution pipeline, reporting progress as [`StreamEvent`]s
+//! over an mpsc channel. Both the streaming and non-streaming entry points live
+//! in the submodules.
+
 mod message_handler;
 mod persistence;
 mod stream_processor;

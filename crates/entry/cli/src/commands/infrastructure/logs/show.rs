@@ -1,3 +1,6 @@
+//! `infra logs show`: resolve an id to either a single log entry or all entries
+//! sharing a trace id, falling back to a partial-id match.
+
 use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;

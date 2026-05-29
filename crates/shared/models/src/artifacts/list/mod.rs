@@ -1,3 +1,10 @@
+//! List artifact.
+//!
+//! A [`ListArtifact`] is an ordered collection of [`ListItem`]s, each a
+//! title/summary/link triple plus optional addressing fields (uri, slug,
+//! source id) that let downstream tools resolve the underlying resource. It
+//! implements [`Artifact`].
+
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;

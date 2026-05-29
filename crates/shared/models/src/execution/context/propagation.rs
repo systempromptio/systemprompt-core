@@ -1,3 +1,11 @@
+//! HTTP-header propagation of [`RequestContext`] across service hops.
+//!
+//! Implements [`InjectContextHeaders`] and [`ContextPropagation`] for
+//! [`RequestContext`]: serializing identity, trace, and execution fields into
+//! outbound headers and reconstructing them inbound. The proxy-verified path
+//! reconstructs the [`AuthenticatedUser`](crate::auth::AuthenticatedUser) only
+//! when an upstream proxy has asserted trust via the `proxy-verified` header.
+
 use super::{CallSource, RequestContext};
 use http::{HeaderMap, HeaderValue};
 use std::str::FromStr;

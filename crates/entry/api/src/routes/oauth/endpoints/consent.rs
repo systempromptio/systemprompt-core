@@ -1,3 +1,9 @@
+//! OAuth consent endpoint.
+//!
+//! Serves the scope-consent page (GET) and records the user's allow/deny
+//! decision (POST), validating requested scopes against the client's
+//! registered grant.
+
 use axum::Json;
 use axum::extract::Query;
 use axum::http::StatusCode;

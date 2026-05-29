@@ -1,3 +1,9 @@
+//! Tabular artifact: columnar data records returned by skills and tools.
+//!
+//! [`TableArtifact`] is the builder-style producer; [`TableResponse`] is the
+//! serialized wire shape. Column definitions live in [`mod@column`] and display
+//! hints in [`hints`].
+
 pub mod column;
 pub mod hints;
 

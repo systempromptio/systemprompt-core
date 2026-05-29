@@ -1,3 +1,9 @@
+//! Shared steps for building a profile from a stored tenant.
+//!
+//! Provides [`create_profile_for_tenant`] and the helpers that resolve a
+//! tenant from CLI args and refresh masked cloud database credentials before a
+//! profile is written.
+
 use anyhow::{Context, Result, bail};
 use dialoguer::Input;
 use dialoguer::theme::ColorfulTheme;

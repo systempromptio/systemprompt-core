@@ -1,3 +1,9 @@
+//! Role-management subcommands for users.
+//!
+//! [`RoleCommands`] covers assigning arbitrary roles plus the built-in admin
+//! promote/demote shortcuts. All operations require full profile context, so
+//! [`execute_with_pool`] rejects the bare-pool path.
+
 mod assign;
 mod demote;
 mod promote;

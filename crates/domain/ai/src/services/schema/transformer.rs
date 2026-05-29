@@ -1,3 +1,11 @@
+//! Tool-schema transformation into provider-callable function definitions.
+//!
+//! [`SchemaTransformer`] turns an `McpTool` into one or more
+//! [`TransformedTool`]s: schemas that a provider can consume as-is pass through
+//! (sanitised), while a discriminated union is auto-split into one function per
+//! variant with merged base/variant properties and a sanitised, provider-safe
+//! function name.
+
 use super::analyzer::DiscriminatedUnion;
 use super::capabilities::ProviderCapabilities;
 use super::sanitizer::SchemaSanitizer;

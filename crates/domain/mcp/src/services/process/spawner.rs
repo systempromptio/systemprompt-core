@@ -1,3 +1,11 @@
+//! Detached spawning and binary management for MCP server processes.
+//!
+//! [`spawn_server`] launches an MCP server binary in its own process group with
+//! a sanitised environment (profile, secrets, per-server config, and the SSRF
+//! trust allowlist), redirecting output to a size-rotated log file and
+//! detaching the child so it outlives this call. Also covers binary
+//! verification and an on-demand debug build path.
+
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use std::fs;

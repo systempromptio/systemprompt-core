@@ -1,3 +1,11 @@
+//! Agent process lifecycle: start, enable, disable, restart, and crash cleanup.
+//!
+//! [`AgentLifecycle`] owns the transitions for a single agent's worker process,
+//! coordinating the database service, optional event bus, and configured
+//! [`AppPaths`]. The free functions are thin entry points that build a
+//! lifecycle for one operation; the `operations` and `verification` submodules
+//! hold the spawn/teardown logic and startup health-check probing.
+
 mod operations;
 mod verification;
 

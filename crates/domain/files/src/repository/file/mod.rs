@@ -1,3 +1,10 @@
+//! Core [`FileRepository`] type and its primary file-row queries.
+//!
+//! Defines the repository over the `files` table — insert/upsert, lookup by id
+//! or path, listing, soft handling, metadata updates, and path search — and
+//! re-exports the [`InsertFileRequest`] builder and [`FileStats`] aggregate.
+//! AI-image and content-association queries live in sibling modules.
+
 mod request;
 mod stats;
 

@@ -1,3 +1,10 @@
+//! Presentation-card artifact.
+//!
+//! A [`PresentationCardArtifact`] renders a titled card composed of
+//! [`CardSection`]s and optional [`CardCta`] action buttons under a named
+//! theme. [`PresentationCardResponse`] is the matching deserialization shape
+//! for tool output.
+
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;

@@ -1,3 +1,10 @@
+//! Authorization-endpoint request handlers.
+//!
+//! Implements the GET and POST `/authorize` flow: CSRF/state handling,
+//! parameter validation, open-redirect-safe server-state issuance, and
+//! rendering the WebAuthn challenge form. Password authentication is rejected
+//! in favour of the WebAuthn flow.
+
 use super::response_builder::{
     convert_form_to_query, generate_webauthn_form, is_user_consent_granted,
 };

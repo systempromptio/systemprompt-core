@@ -1,3 +1,10 @@
+//! Static validation of the MCP server registry configuration.
+//!
+//! [`validate_registry`] runs the full suite of pre-flight checks — port
+//! conflicts, per-server field requirements, OAuth scope coherence, and
+//! internal-vs-external type constraints — before any server is brought up,
+//! surfacing every failure together rather than aborting on the first.
+
 use std::collections::HashSet;
 use systemprompt_models::mcp::{McpServerType, RegistryConfig};
 

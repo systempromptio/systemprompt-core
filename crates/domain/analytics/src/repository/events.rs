@@ -1,3 +1,11 @@
+//! Persistence for raw analytics events.
+//!
+//! [`AnalyticsEventsRepository`] writes individual and batched
+//! `analytics_events` rows (the batch path uses `UNNEST` for a single
+//! round-trip) and reads them back per session or content as
+//! [`StoredAnalyticsEvent`]. Writes target the write pool; reads the read
+//! pool.
+
 use std::sync::Arc;
 
 use crate::Result;

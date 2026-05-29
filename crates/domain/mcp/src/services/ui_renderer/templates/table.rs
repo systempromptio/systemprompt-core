@@ -1,3 +1,10 @@
+//! Table artifact renderer.
+//!
+//! [`TableRenderer`] renders a tabular [`Artifact`] into an HTML
+//! [`UiResource`], inferring columns and rows from row-object arrays or
+//! explicit column/row definitions and wiring client-side sorting,
+//! filtering, and pagination from the artifact's rendering hints.
+
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };

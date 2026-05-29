@@ -1,3 +1,9 @@
+//! Text artifact: a titled block of free-form text returned by skills and
+//! tools.
+//!
+//! [`TextArtifact`] is the builder-style producer carrying optional title and
+//! execution metadata.
+
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;

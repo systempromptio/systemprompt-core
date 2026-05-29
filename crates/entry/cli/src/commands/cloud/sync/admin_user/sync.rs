@@ -1,3 +1,9 @@
+//! Admin-user synchronisation against profile databases.
+//!
+//! Connects to each profile's database and either promotes an existing user or
+//! creates and promotes the cloud user to admin, reporting outcomes as
+//! [`SyncResult`] values.
+
 use std::sync::Arc;
 use systemprompt_database::Database;
 use systemprompt_logging::CliService;

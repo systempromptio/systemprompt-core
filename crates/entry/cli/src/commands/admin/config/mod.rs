@@ -1,3 +1,10 @@
+//! `admin config` command tree: inspect and edit profile/service configuration.
+//!
+//! [`ConfigCommands`] dispatches to the show, list, and validate handlers plus
+//! the rate-limit, server, runtime, security, paths, and provider sub-trees.
+//! Each sub-module owns its clap surface and renders results through
+//! [`crate::shared::render_result`].
+
 pub mod config_section;
 pub mod list;
 pub mod paths;

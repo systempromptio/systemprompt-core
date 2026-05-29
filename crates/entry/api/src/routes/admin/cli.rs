@@ -1,3 +1,9 @@
+//! Admin CLI gateway route: streams `systemprompt` subprocess output over SSE.
+//!
+//! Exposes a single authenticated endpoint that validates and forwards an argv
+//! to the CLI binary, propagating the caller's session/context/auth into the
+//! child's environment and relaying stdout/stderr as [`CliOutputEvent`] frames.
+
 use axum::extract::Extension;
 use axum::response::IntoResponse;
 use axum::response::sse::{Event, KeepAlive, Sse};

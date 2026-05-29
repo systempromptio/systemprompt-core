@@ -1,3 +1,10 @@
+//! Environment-variable construction of a cloud [`Profile`].
+//!
+//! Provides [`Profile::from_env`], the sanctioned cloud/subprocess boot path
+//! that assembles a profile from environment variables rather than profile
+//! YAML. Each `*_from_env` helper maps a config section; `require_env` fails
+//! loud on a missing mandatory variable.
+
 use super::{
     ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile, ProfileError,
     ProfileResult, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,

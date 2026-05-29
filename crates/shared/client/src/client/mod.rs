@@ -1,3 +1,12 @@
+//! HTTP API client for a systemprompt.io server.
+//!
+//! [`SystempromptClient`] wraps a `reqwest::Client` with the API's base URL and
+//! an optional bearer [`JwtToken`], exposing typed calls for agents, contexts,
+//! tasks, artifacts, A2A message sends, and the admin read endpoints. A2A and
+//! artifact payloads cross the wire as raw JSON so this crate stays free of the
+//! agent-domain dependency; callers deserialize into the matching
+//! `systemprompt_models` types.
+
 use crate::error::{ClientError, ClientResult};
 
 mod http;

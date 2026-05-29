@@ -1,3 +1,10 @@
+//! Content-safety scanning of gateway requests and responses.
+//!
+//! The [`SafetyScanner`] trait inspects a canonical request or final response
+//! and returns [`Finding`]s graded by [`Severity`]. Scanners are selected by
+//! policy: [`HeuristicScanner`] applies pattern-based checks, [`NullScanner`]
+//! is the no-op used when scanning is disabled.
+
 pub mod heuristic;
 pub mod null;
 

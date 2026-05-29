@@ -1,3 +1,9 @@
+//! `plugins validate` subcommand.
+//!
+//! Checks one or all plugin `config.yaml` files for parse errors, id/directory
+//! mismatches, missing skill references, and missing script sources, returning
+//! a per-plugin pass/fail report.
+
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;

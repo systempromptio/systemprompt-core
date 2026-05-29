@@ -1,3 +1,10 @@
+//! Conversation analytics: aggregate stats, time-series trends, and listings.
+//!
+//! Defines the [`ConversationsCommands`] subcommand tree and the typed output
+//! shapes ([`ConversationStatsOutput`], [`ConversationTrendsOutput`],
+//! [`ConversationListOutput`]) rendered by the `analytics conversations`
+//! commands.
+
 mod list;
 mod stats;
 mod trends;

@@ -1,3 +1,9 @@
+//! `cloud tenant` subcommand: manage local and cloud tenants.
+//!
+//! Exposes [`TenantCommands`] (create, list, show, delete, edit, rotate
+//! credentials, cancel) with an interactive operation menu when no subcommand
+//! is supplied. Persists tenant records through the cloud `TenantStore`.
+
 mod cancel;
 mod create;
 pub(super) mod delete;

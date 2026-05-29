@@ -1,3 +1,8 @@
+//! Trackable-link routes for content campaigns.
+//!
+//! Re-exports the redirect, generation, and analytics handlers along with their
+//! request/response types.
+
 mod handlers;
 mod types;
 

@@ -1,3 +1,10 @@
+//! OAuth2/JWT authentication for the A2A server surface.
+//!
+//! Wires the Axum middleware ([`agent_oauth_middleware`]) to the token
+//! validation routines ([`validate_agent_token`],
+//! [`validate_oauth_for_request`]) and the shared [`AgentOAuthState`] /
+//! [`AgentOAuthConfig`] carried on requests.
+
 pub mod middleware;
 pub mod types;
 pub mod validation;

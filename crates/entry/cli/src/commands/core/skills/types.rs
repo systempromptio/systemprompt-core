@@ -1,3 +1,9 @@
+//! Output payloads and config parsing for the `skills` command group.
+//!
+//! Defines the list/detail response shapes and [`parse_skill_from_config`],
+//! which loads a skill's YAML config plus its frontmatter-stripped instruction
+//! body from disk.
+
 use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

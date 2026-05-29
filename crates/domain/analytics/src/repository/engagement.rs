@@ -1,3 +1,10 @@
+//! Persistence for page-level engagement telemetry.
+//!
+//! [`EngagementRepository`] records [`EngagementEvent`]s (scroll, click,
+//! focus, and reading-pattern metrics) and reads them back per session or
+//! user, plus the aggregated [`SessionEngagementSummary`]. Writes go to the
+//! write pool; reads to the read pool.
+
 use std::sync::Arc;
 
 use crate::Result;

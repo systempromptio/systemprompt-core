@@ -1,3 +1,11 @@
+//! API server assembly, lifecycle, and readiness.
+//!
+//! Builds the axum router and global middleware stack ([`builder`]), runs the
+//! startup reconciliation and serving loop ([`runner`]), and exposes the
+//! readiness signalling surface ([`is_ready`], [`signal_ready`],
+//! [`wait_for_ready`]) used by external health probes. Discovery, health,
+//! metrics, and route configuration live in the private submodules.
+
 pub mod builder;
 mod discovery;
 mod health;

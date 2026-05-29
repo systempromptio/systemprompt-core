@@ -1,3 +1,8 @@
+//! The `web` command group: configuration management for the static-site layer.
+//!
+//! Routes [`WebCommands`] to the content-type, template, asset, sitemap, and
+//! validation subcommands, each operating on the on-disk web content config.
+
 pub mod assets;
 pub mod content_types;
 pub mod paths;

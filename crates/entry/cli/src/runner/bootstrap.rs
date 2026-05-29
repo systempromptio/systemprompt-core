@@ -1,3 +1,9 @@
+//! Profile resolution and the staged bootstrap of CLI runtime state.
+//!
+//! Resolves the active profile (CLI override, active session, or path), then
+//! initialises secrets, credentials, paths, and config in order, and runs
+//! startup validation before a command executes.
+
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 

@@ -1,3 +1,10 @@
+//! Cloud tenant creation via subscription checkout.
+//!
+//! Validates a release build, drives the plan/region selection and Paddle
+//! checkout callback, waits for provisioning, retrieves database credentials,
+//! optionally enables external database access, and writes a profile for the
+//! new tenant.
+
 use anyhow::{Context, Result, anyhow, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};

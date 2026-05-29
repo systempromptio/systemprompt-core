@@ -1,3 +1,11 @@
+//! Cloud-sync file-transfer handlers for the `services/` tree.
+//!
+//! Exposes manifest, download, and upload endpoints that move the allow-listed
+//! service directories ([`ALLOWED_DIRS`]) as a gzipped tarball. Extraction
+//! enforces path-traversal guards: every entry must be a regular file or
+//! directory, relative, rooted under an allowed directory, and resolve inside
+//! the canonical target — anything else aborts the unpack.
+
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{Query, State};

@@ -1,3 +1,9 @@
+//! `admin bridge` subcommand: operator tools for the bridge helper.
+//!
+//! Exposes [`BridgeCommands`] for enrolling device-certificate fingerprints,
+//! issuing one-shot session exchange codes, listing active bridge sessions,
+//! and rotating the ed25519 manifest signing seed.
+
 mod enroll_cert;
 mod issue_code;
 mod list;

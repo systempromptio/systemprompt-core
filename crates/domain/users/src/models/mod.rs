@@ -1,3 +1,12 @@
+//! Data types for the users domain.
+//!
+//! Defines the persisted [`User`] record and its projections
+//! ([`UserActivity`], [`UserWithSessions`], [`UserStats`],
+//! [`UserCountBreakdown`], [`UserExport`]), session rows
+//! ([`UserSession`], [`UserSessionRow`]), and the credential records
+//! [`UserApiKey`] / [`NewApiKey`] and [`UserDeviceCert`]. Role and status
+//! enums are re-exported from `systemprompt_models::auth`.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;

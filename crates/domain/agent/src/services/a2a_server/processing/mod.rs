@@ -1,3 +1,12 @@
+//! Request-processing pipeline for the A2A server.
+//!
+//! Turns an inbound A2A [`Message`](crate::models::a2a::Message) into a
+//! persisted [`Task`](crate::models::a2a::Task): validation,
+//! conversation-history assembly, LLM execution (via [`ExecutionStrategy`]),
+//! artifact construction, response synthesis, and persistence. The entry point
+//! is [`MessageProcessor`]; [`StreamProcessor`] drives the streaming variant
+//! and emits [`StreamEvent`]s.
+
 pub mod ai_executor;
 pub mod artifact;
 pub mod conversation_service;

@@ -1,3 +1,8 @@
+//! Cloud-sync routes for transferring the `services/` configuration tree.
+//!
+//! Mounts the file manifest, download, and upload handlers from [`files`] used
+//! to push and pull agent, skill, content, and config definitions.
+
 use axum::Router;
 use axum::routing::get;
 use systemprompt_runtime::AppContext;

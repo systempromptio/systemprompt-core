@@ -1,3 +1,10 @@
+//! Top-level clap argument definitions and the command tree.
+//!
+//! Defines the global option groups, the [`Cli`] parser, and the [`Commands`]
+//! subcommand tree, along with the mapping from each command to its bootstrap
+//! [`CommandDescriptor`] and the argument-reconstruction used when forwarding
+//! to a remote tenant.
+
 use clap::{Parser, Subcommand};
 
 use crate::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};

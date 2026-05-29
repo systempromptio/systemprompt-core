@@ -1,3 +1,13 @@
+//! Supervision of agent worker processes: lifecycle, monitoring, and
+//! reconciliation.
+//!
+//! This module groups the services that keep the database's view of running
+//! agents consistent with the OS process table. [`AgentOrchestrator`] is the
+//! top-level facade; the submodules cover process lifecycle, health
+//! monitoring, drift reconciliation, port allocation, the event bus, and the
+//! low-level process primitives. [`AgentStatus`] is the shared status model and
+//! [`OrchestrationError`] the unified error type.
+
 pub mod database;
 pub mod event_bus;
 pub mod events;

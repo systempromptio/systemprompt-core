@@ -1,3 +1,10 @@
+//! Gemini image-generation provider.
+//!
+//! [`GeminiImageProvider`] implements the `ImageProvider` trait against
+//! Google's `generateContent` image models, validating prompt length,
+//! resolution, and aspect ratio against its declared capabilities before
+//! dispatching the request.
+
 use crate::error::{AiError, Result};
 use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,

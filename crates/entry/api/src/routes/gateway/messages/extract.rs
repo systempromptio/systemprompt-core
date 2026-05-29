@@ -1,3 +1,13 @@
+//! Gateway request extraction and pre-dispatch authorization.
+//!
+//! Turns an inbound HTTP request into a validated [`PreparedRequest`]:
+//! extracts the credential and required headers, authenticates the principal,
+//! enforces session binding, parses the canonical body, resolves the gateway
+//! route, and runs the pre-dispatch authz check.
+//! [`build_gateway_authz_request`] and [`GatewayAuthzRequestInput`] are public
+//! so the JWT-claims forwarding contract can be exercised directly from unit
+//! tests.
+
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};

@@ -1,3 +1,8 @@
+//! Admin-only routes mounted under the gateway's authenticated admin scope.
+//!
+//! Composes the CLI gateway (`cli`) and API-key management (`keys`)
+//! sub-routers.
+
 mod cli;
 mod keys;
 

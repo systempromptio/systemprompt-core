@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+// JSON: the GUI IPC channel carries opaque, command-specific payloads to and
+// from the JavaScript front-end; `Value` is the protocol boundary type.
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Serialize)]

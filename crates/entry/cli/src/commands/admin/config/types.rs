@@ -1,3 +1,10 @@
+//! Serializable output types for the `admin config` command tree.
+//!
+//! These DTOs back the rendered overview, server, runtime, security, paths, and
+//! provider results, and re-export the [`super::config_section`] and
+//! [`super::rate_limit_types`] surfaces so handlers import from a single
+//! module.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

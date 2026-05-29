@@ -1,3 +1,7 @@
+//! `infra logs search`: pattern-match log messages and (optionally) MCP tool
+//! executions, returning a combined result set filtered by level, module, and
+//! time.
+
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;

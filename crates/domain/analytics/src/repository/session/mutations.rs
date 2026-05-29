@@ -1,3 +1,10 @@
+//! Write operations against the `user_sessions` table.
+//!
+//! Free functions covering the full session lifecycle: create/upsert, per-kind
+//! activity and counter increments, session end and cleanup, scanner and
+//! conversion marking, revocation, and user-id migration. Each takes an
+//! explicit pool so callers route writes to the write pool.
+
 use crate::Result;
 use chrono::{Duration, Utc};
 use sqlx::PgPool;

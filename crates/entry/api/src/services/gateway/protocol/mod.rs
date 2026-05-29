@@ -1,3 +1,11 @@
+//! Protocol translation between caller and upstream LLM wire formats.
+//!
+//! The [`canonical`] model is the hub: [`inbound`] adapters parse caller
+//! requests into it and render responses back out, while [`outbound`] adapters
+//! send it to upstream providers and convert their replies and streams into
+//! [`canonical_response`] events. This indirection lets any supported inbound
+//! protocol target any supported upstream provider.
+
 pub mod canonical;
 pub mod canonical_response;
 pub mod inbound;

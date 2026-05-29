@@ -1,3 +1,9 @@
+//! Types describing admin-user sync inputs, outcomes, and profile discovery.
+//!
+//! Defines [`CloudUser`] (the account being synced), [`SyncResult`]
+//! (per-profile outcome), and the [`ProfileSkipReason`] /
+//! [`ProfileDiscoveryResult`] pair used when enumerating local profiles.
+
 use anyhow::Result;
 use std::path::PathBuf;
 use systemprompt_cloud::{CloudCredentials, CloudPath, get_cloud_paths};

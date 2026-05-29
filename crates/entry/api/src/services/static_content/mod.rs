@@ -1,3 +1,11 @@
+//! Static and prerendered content serving.
+//!
+//! Serves prerendered HTML, static assets, homepage, and metadata files from
+//! the web dist directory, falling back to the content repository when a page
+//! is known but not prerendered. Re-exports the matcher
+//! ([`StaticContentMatcher`]), the serving state ([`StaticContentState`]), and
+//! the session helpers ([`SessionInfo`], [`ensure_session`]).
+
 pub mod config;
 pub mod fallback;
 pub mod homepage;

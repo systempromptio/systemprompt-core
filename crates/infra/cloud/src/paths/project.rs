@@ -1,3 +1,10 @@
+//! Typed project- and profile-relative paths and the [`ProjectContext`] that
+//! resolves them against a discovered project root.
+//!
+//! [`ProjectPath`] and [`ProfilePath`] enumerate the well-known files and
+//! directories so resolution stays a single source of truth; root discovery
+//! walks upward looking for a `.systemprompt` directory.
+
 use std::path::{Path, PathBuf};
 
 use crate::constants::{dir_names, paths};

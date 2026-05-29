@@ -1,3 +1,8 @@
+//! Serializable output types for the user administration commands.
+//!
+//! Each `*Output` struct is the typed payload a user subcommand renders as text
+//! or JSON, alongside the `BanSummary` row used by the IP-ban listings.
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

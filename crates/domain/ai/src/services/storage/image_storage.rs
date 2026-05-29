@@ -1,3 +1,10 @@
+//! Filesystem storage for generated images.
+//!
+//! [`ImageStorage`] persists decoded image bytes under a configured base path,
+//! optionally sharding by capture date, and returns both the on-disk path and
+//! the public URL. [`StorageConfig`] holds the base path, URL prefix, size cap,
+//! and date-organisation flag and validates them before any write.
+
 use crate::error::AiError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;

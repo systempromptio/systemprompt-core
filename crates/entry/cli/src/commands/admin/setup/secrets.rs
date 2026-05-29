@@ -1,3 +1,10 @@
+//! Secret collection and persistence for the setup wizard.
+//!
+//! [`SecretsData`] holds the generated OAuth at-rest pepper, database URL, and
+//! AI-provider keys. The `collect_*` functions gather these interactively or
+//! from flags, [`validate_secrets`] enforces that at least one provider key is
+//! present, and [`save`] writes the file with `0600` permissions on Unix.
+
 use anyhow::{Context, Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};

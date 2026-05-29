@@ -1,3 +1,11 @@
+//! Webhook broadcasts for task and artifact lifecycle events.
+//!
+//! Posts `task_created`, `task_completed`, and `artifact_created` events to the
+//! internal broadcast webhook so other surfaces (SSE, AG-UI) can observe agent
+//! progress. The task-event broadcasts log and swallow transport failures;
+//! [`broadcast_artifact_created`] surfaces them as an
+//! [`AgentError`](crate::error::AgentError).
+
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, TaskId, UserId};
 use systemprompt_models::{Config, TaskMetadata};

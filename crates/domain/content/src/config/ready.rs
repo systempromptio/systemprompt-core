@@ -1,3 +1,10 @@
+//! Loaded content index built from a validated configuration.
+//!
+//! [`ContentReady`] scans every enabled source's directory, parses each
+//! markdown file's frontmatter into [`ParsedContent`], and indexes the results
+//! by slug and by [`SourceId`]. [`LoadStats`] records per-source scan and parse
+//! outcomes for diagnostics.
+
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;

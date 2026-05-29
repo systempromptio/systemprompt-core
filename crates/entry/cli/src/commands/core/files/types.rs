@@ -1,3 +1,8 @@
+//! Serializable output shapes for the `core files` commands.
+//!
+//! Defines the JSON surface for file listing, detail, upload, validation,
+//! configuration, statistics, and the content-link and AI-image views.
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

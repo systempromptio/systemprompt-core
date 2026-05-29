@@ -1,3 +1,10 @@
+//! Session-establishment middleware.
+//!
+//! [`SessionMiddleware`] resolves or mints the per-request session: it skips
+//! untracked paths, short-circuits detected bots into anonymous contexts,
+//! validates an existing JWT session, and refreshes or recreates the session
+//! when the token is stale, issuing a `Set-Cookie` for newly minted tokens.
+
 mod lifecycle;
 mod skip;
 

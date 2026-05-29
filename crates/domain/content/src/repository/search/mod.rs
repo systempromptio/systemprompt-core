@@ -1,3 +1,9 @@
+//! Content search repository.
+//!
+//! [`SearchRepository`] runs read-only content lookups by category or keyword,
+//! joining `markdown_content` against `content_performance_metrics` so results
+//! can be ordered by view count.
+
 use crate::error::ContentError;
 use crate::models::SearchResult;
 use sqlx::PgPool;

@@ -1,3 +1,9 @@
+//! Decides whether a command runs locally or is forwarded to a remote tenant.
+//!
+//! [`determine_execution_target`] resolves the active profile and tenant store
+//! into an [`ExecutionTarget`]; the `remote` submodule carries the forwarding
+//! transport.
+
 pub(super) mod remote;
 
 use anyhow::{Context, Result};

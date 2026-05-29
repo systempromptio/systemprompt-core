@@ -1,3 +1,10 @@
+//! Content ingestion job.
+//!
+//! [`execute_content_ingestion`] walks every enabled content source, resolves
+//! each source path against [`systemprompt_models::AppPaths`], and drives the
+//! [`IngestionService`] over it, aggregating processed-file and error counts
+//! into a [`systemprompt_traits::JobResult`].
+
 use std::path::{Path, PathBuf};
 use systemprompt_database::DbPool;
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};

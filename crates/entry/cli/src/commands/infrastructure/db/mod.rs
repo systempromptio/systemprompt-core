@@ -1,3 +1,10 @@
+//! `db` CLI command group: schema inspection, queries, and migration tooling.
+//!
+//! [`execute`] runs commands against a freshly opened [`AppContext`], while
+//! [`execute_with_db`] reuses a caller-supplied [`DatabaseContext`] for the
+//! standalone (profile-less) path. Subcommands cover ad-hoc queries, schema
+//! introspection, migration apply/down/repair/squash, and the schema doctor.
+
 mod admin;
 mod admin_migrate;
 mod admin_migrate_down;

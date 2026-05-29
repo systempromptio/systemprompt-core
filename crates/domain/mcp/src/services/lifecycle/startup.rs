@@ -1,3 +1,10 @@
+//! Startup sequencing for a single MCP server.
+//!
+//! Drives the [`LifecycleOrchestrator`] through binary verification, port
+//! preparation, spawn, and a bounded health-check poll loop before registering
+//! the running service. Emits [`StartupEventSender`] progress events and treats
+//! a degraded-but-listening server as ready once attempts are nearly exhausted.
+
 use super::LifecycleOrchestrator;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;

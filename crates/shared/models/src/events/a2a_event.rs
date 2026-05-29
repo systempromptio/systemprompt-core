@@ -1,3 +1,10 @@
+//! A2A protocol events emitted over the event bus and SSE streams.
+//!
+//! [`A2AEvent`] is the timestamped, tagged union of every agent-to-agent
+//! lifecycle event (task submission, status updates, artifacts, agent
+//! messages, input/auth prompts, JSON-RPC responses). [`A2AEventBuilder`]
+//! stamps each variant with the current time at construction.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};

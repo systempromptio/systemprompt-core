@@ -1,3 +1,10 @@
+//! The per-agent A2A HTTP server.
+//!
+//! [`Server`] loads an agent's configuration, wires OAuth state and the AI
+//! provider, and builds the axum [`Router`] exposing the agent card and the A2A
+//! request endpoint. It runs the listener with optional graceful shutdown and
+//! supports live configuration reloads.
+
 use axum::routing::{get, post};
 use axum::{Router, middleware};
 use std::pin::Pin;

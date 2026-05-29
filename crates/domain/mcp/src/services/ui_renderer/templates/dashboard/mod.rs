@@ -1,3 +1,10 @@
+//! Dashboard artifact renderer.
+//!
+//! [`DashboardRenderer`] composes a multi-section dashboard [`Artifact`] into
+//! a single HTML [`UiResource`], supporting vertical, grid, and tabbed
+//! layouts and embedding Chart.js configurations for any chart sections.
+//! Individual section rendering lives in the `section` submodule.
+
 mod section;
 
 use super::html::{

@@ -1,3 +1,10 @@
+//! Aggregate result summaries for CLI output.
+//!
+//! [`ValidationSummary`] accumulates module-validation outcomes (valid,
+//! installed, updated, schemas/seeds applied, disabled) and renders them as a
+//! grouped report; [`OperationResult`] and [`ProgressSummary`] report single
+//! operations and batch progress through the [`Display`] trait.
+
 use std::io::Write;
 
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, StatusDisplay};

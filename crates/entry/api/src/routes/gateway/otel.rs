@@ -1,9 +1,14 @@
-// OTel ingest endpoint.
-//
-// Trust boundary: this route is unauthenticated by design. Codex starts
-// emitting telemetry before any auth handshake completes, and the bridge proxy
-// already gates `/otel` to loopback origin (bin/bridge/src/proxy/server.rs). Do
-// not add JWT/API-key auth here without coordinating with the bridge.
+//! OTLP telemetry ingest endpoint.
+//!
+//! [`handle`] decodes a protobuf OTLP envelope (traces, logs, or metrics) and
+//! persists spans and log records to the logging repository; metrics are only
+//! summarised. It always responds `202 Accepted`, swallowing decode and persist
+//! failures so a misbehaving emitter cannot stall.
+//!
+//! Trust boundary: this route is unauthenticated by design. Codex starts
+//! emitting telemetry before any auth handshake completes, and the bridge proxy
+//! already gates `/otel` to loopback origin (bin/bridge/src/proxy/server.rs).
+//! Do not add JWT/API-key auth here without coordinating with the bridge.
 
 use axum::body::Body;
 use axum::extract::Request;

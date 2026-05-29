@@ -1,3 +1,10 @@
+//! Content-negotiation middleware.
+//!
+//! Parses the `Accept` header into an [`AcceptedFormat`] (one of
+//! [`AcceptedMediaType`]) honouring `q=` quality weights, and stores it in the
+//! request extensions so handlers can serve JSON, Markdown, or HTML from a
+//! single route.
+
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;

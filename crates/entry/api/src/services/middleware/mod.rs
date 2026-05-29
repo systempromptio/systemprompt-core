@@ -1,3 +1,10 @@
+//! HTTP middleware layers for the API server.
+//!
+//! Collects the request-pipeline concerns mounted by the router: client-address
+//! resolution, CORS and security headers, bot detection and IP banning, rate
+//! limiting, JWT and session context establishment, request-context flavours,
+//! content negotiation, authorization gating, analytics, and tracing.
+
 pub mod analytics;
 pub mod authz;
 pub mod bot_detector;

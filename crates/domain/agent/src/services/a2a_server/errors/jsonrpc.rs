@@ -1,3 +1,10 @@
+//! JSON-RPC 2.0 error envelope construction.
+//!
+//! [`JsonRpcErrorBuilder`] assembles spec-coded error responses with optional
+//! data payloads and structured logging; [`unauthorized_response`] and
+//! [`forbidden_response`] are the auth-failure shortcuts, and
+//! [`classify_database_error`] maps repository errors to user-facing messages.
+
 use crate::models::a2a::jsonrpc::NumberOrString;
 use axum::http::StatusCode;
 use serde_json::{Value, json};

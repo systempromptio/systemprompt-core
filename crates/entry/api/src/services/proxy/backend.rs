@@ -1,3 +1,11 @@
+//! HTTP plumbing for forwarding a proxied request to a local backend.
+//!
+//! Splits the forwarding pipeline into focused helpers: [`HeaderInjector`]
+//! propagates request-context headers, [`UrlResolver`] builds the backend URL,
+//! [`RequestBuilder`] constructs the outbound `reqwest` request (filtering
+//! hop-by-hop and invalid auth headers), and [`ResponseHandler`] streams the
+//! response back, wrapping SSE bodies in a keep-alive stream.
+
 use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;

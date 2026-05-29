@@ -1,3 +1,10 @@
+//! Queries assembling an AI task trace from the database.
+//!
+//! Fetches the components of a single agent task — task info, user input and
+//! agent response, execution steps, AI requests with their system prompt and
+//! conversation messages — and re-exports the MCP-execution query counterparts.
+//! `resolve_task_id` expands a partial task id to the most recent full match.
+
 use crate::models::LoggingError;
 pub(super) type Result<T> = std::result::Result<T, LoggingError>;
 use sqlx::PgPool;

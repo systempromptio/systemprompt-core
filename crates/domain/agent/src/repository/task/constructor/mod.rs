@@ -1,3 +1,10 @@
+//! Reassembly of persisted A2A [`Task`] aggregates from their relational rows.
+//!
+//! [`TaskConstructor`] fans out across the task, message, message-part,
+//! artifact, and execution-step tables and rebuilds the nested [`Task`] graph,
+//! offering both a single-task path and a batched path that amortises the
+//! per-table round trips across many task ids.
+
 mod batch;
 mod batch_builders;
 pub(in crate::repository) mod batch_queries;

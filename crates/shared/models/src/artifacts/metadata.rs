@@ -1,3 +1,11 @@
+//! Execution provenance carried on every artifact.
+//!
+//! [`ExecutionMetadata`] captures the full identity of the run that produced an
+//! artifact — context, trace, session, user, agent, and the optional tool/skill
+//! that emitted it — and is derived from a [`RequestContext`] via
+//! [`ExecutionMetadataBuilder`]. [`ToolResponse`] wraps an artifact with this
+//! metadata and its persisted ids for return across the MCP boundary.
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

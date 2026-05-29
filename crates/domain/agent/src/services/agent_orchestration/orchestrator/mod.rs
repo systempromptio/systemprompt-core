@@ -1,3 +1,13 @@
+//! The agent supervision facade tying lifecycle, monitoring, and reconciliation
+//! together.
+//!
+//! [`AgentOrchestrator`] is constructed once with shared [`AgentState`] and
+//! [`AppPaths`], runs startup reconciliation, and exposes the operator-facing
+//! verbs (start/stop/restart, status, health checks, bulk start/disable) by
+//! delegating to the owned lifecycle, monitor, and reconciler services. The
+//! `cleanup`, `daemon`, and `status` submodules carry orphan-process cleanup,
+//! the background monitoring loop, and status aggregation respectively.
+
 mod cleanup;
 mod daemon;
 mod status;

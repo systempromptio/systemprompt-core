@@ -1,3 +1,10 @@
+//! Skill configuration and disk-descriptor model.
+//!
+//! [`SkillsConfig`] is the top-level block (discovery, path, per-skill map);
+//! [`SkillConfig`] is the in-profile definition and [`DiskSkillConfig`] the
+//! per-skill on-disk descriptor. [`SkillSummary`] and [`SkillDetail`] are the
+//! list- and detail-view projections.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

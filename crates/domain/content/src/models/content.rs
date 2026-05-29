@@ -1,3 +1,10 @@
+//! Core content data types.
+//!
+//! Defines the stored [`Content`] row and its lighter [`ContentSummary`], the
+//! frontmatter-parsed [`ContentMetadata`] and [`ContentLinkMetadata`], the
+//! [`ContentKind`] classifier, and the ingestion-side [`IngestionReport`],
+//! [`IngestionOptions`], and [`IngestionSource`] types.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

@@ -177,4 +177,3 @@ pub fn bridge_staging_dir() -> Option<PathBuf> {
 pub fn bridge_metadata_dir() -> Option<PathBuf> {
     bridge_working_dir().map(|p| p.join("metadata"))
 }
-

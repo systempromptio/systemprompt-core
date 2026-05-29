@@ -1,3 +1,10 @@
+//! Agent reconciliation during server startup.
+//!
+//! [`reconcile_agents`] starts every enabled agent into a known-clean state,
+//! retrying failed agents once after cleanup, and fails server startup if any
+//! required agent cannot be brought up — agents are a hard dependency of the
+//! API.
+
 use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;

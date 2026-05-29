@@ -1,3 +1,10 @@
+//! The [`CliSession`] record, its [`CliSessionBuilder`], and on-disk load/save.
+//!
+//! A session bundles the authenticated [`SessionIdentity`] with its token,
+//! profile binding, and expiry. Persistence writes a `0600` file under a
+//! `.gitignore`-protected directory and rejects on-disk versions outside the
+//! supported range.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 

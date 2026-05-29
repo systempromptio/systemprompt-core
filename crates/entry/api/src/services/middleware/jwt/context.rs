@@ -1,3 +1,11 @@
+//! JWT-backed request-context extractor.
+//!
+//! [`JwtContextExtractor`] implements [`ContextExtractor`] by validating the
+//! bearer token (signature, session existence, user existence, and JTI
+//! revocation) and building a `RequestContext`. It resolves the context id from
+//! the `x-context-id` header on standard routes and from the JSON-RPC body on
+//! A2A routes, and exposes a gateway decode path for pre-authenticated tokens.
+
 use async_trait::async_trait;
 use axum::body::Body;
 use axum::extract::Request;

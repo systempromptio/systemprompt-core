@@ -1,3 +1,11 @@
+//! Typed tracing-span constructors carrying request attribution.
+//!
+//! [`RequestSpan`] and [`SystemSpan`] wrap a `tracing::Span` seeded with the
+//! identifier fields (`user_id`, `session_id`, `trace_id`, and optional
+//! `context_id`/`task_id`/`client_id`) that the database log layer extracts to
+//! attribute each emitted log row. [`RequestSpanBuilder`] assembles a span with
+//! the optional fields populated.
+
 use systemprompt_identifiers::{ClientId, ContextId, SessionId, TaskId, TraceId, UserId};
 use tracing::Span;
 

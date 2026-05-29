@@ -1,3 +1,10 @@
+//! Permission-aware loading of MCP tools across managed servers.
+//!
+//! [`McpToolLoader`] resolves which servers a request may reach (from the
+//! deployment config and the caller's JWT permissions), then fetches each
+//! server's tool list with per-server timeouts and DB-lag retry, and assembles
+//! [`McpServerMetadata`] for gateway responses.
+
 use std::collections::HashMap;
 
 use crate::error::McpDomainResult;

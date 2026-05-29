@@ -1,3 +1,13 @@
+//! Bridges this crate's analytics services to the `systemprompt_traits`
+//! provider contracts.
+//!
+//! Implements [`AnalyticsProvider`] for `AnalyticsService`,
+//! [`FingerprintProvider`] for `FingerprintRepository`, and
+//! [`SessionAnalyticsProvider`] for `SessionRepository`, translating between
+//! the crate-local types and the trait-level types and mapping every error
+//! into the providers' error enums. `#[async_trait]` is required because
+//! these provider traits are consumed as `dyn`.
+
 use async_trait::async_trait;
 use chrono::Utc;
 use http::{HeaderMap, Uri};

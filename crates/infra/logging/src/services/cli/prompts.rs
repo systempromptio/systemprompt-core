@@ -1,3 +1,10 @@
+//! Interactive confirmation prompts for CLI flows.
+//!
+//! [`Prompts`] wraps `dialoguer` confirmations, including the schema/seed/
+//! install/update prompts that render context before asking; [`PromptBuilder`]
+//! composes a titled prompt with arbitrary [`Display`] context items, and
+//! [`QuickPrompts`] offers the common yes/no and dangerous-action shortcuts.
+
 use std::io::Write;
 
 use crate::models::LoggingError;

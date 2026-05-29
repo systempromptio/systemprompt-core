@@ -1,3 +1,11 @@
+//! Service restart handlers shared by the single-target and batch restart
+//! paths.
+//!
+//! Re-exports the per-target entry points ([`execute_api`], [`execute_agent`],
+//! [`execute_mcp`]) and the batch entry points ([`execute_all_agents`],
+//! [`execute_all_mcp`], [`execute_failed`]), plus the orchestrator/state
+//! construction helpers they both rely on.
+
 mod batch;
 mod single;
 

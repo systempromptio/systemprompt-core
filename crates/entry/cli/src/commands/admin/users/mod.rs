@@ -1,3 +1,11 @@
+//! User administration command tree.
+//!
+//! [`UsersCommands`] groups the user CRUD, search, export, stats, merge, and
+//! the `bulk`, `role`, `session`, `ban`, and `webauthn` subcommand trees.
+//! [`execute`] runs against a full profile; [`execute_with_db`] serves the
+//! read-only subset that needs only a database pool and rejects write
+//! operations.
+
 mod ban;
 mod bulk;
 mod count;

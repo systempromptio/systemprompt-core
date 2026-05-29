@@ -1,3 +1,11 @@
+//! Tracing field visitors for the database log layer.
+//!
+//! [`FieldVisitor`] collects event fields into a JSON metadata blob, redacting
+//! a fixed set of sensitive field names so secrets never reach the log store.
+//! [`SpanVisitor`]/[`SpanContext`]/[`SpanFields`] capture the identifier fields
+//! attached to spans, and [`extract_span_context`] walks a span's ancestors to
+//! resolve the full attribution context for an event.
+
 use tracing::Subscriber;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::registry::LookupSpan;

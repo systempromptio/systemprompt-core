@@ -1,3 +1,9 @@
+//! Persistence for per-task push-notification delivery configuration.
+//!
+//! [`PushNotificationConfigRepository`] stores, retrieves, and deletes the
+//! webhook [`PushNotificationConfig`] entries attached to a task, mapping the
+//! stored row's JSON header/auth columns back into the typed config.
+
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;

@@ -1,3 +1,11 @@
+//! Reusable analytics output shapes and human-readable formatters.
+//!
+//! Provides the domain-agnostic render structs ([`TrendData`],
+//! [`StatsSummary`], [`BreakdownData`], [`MetricCard`]) plus the formatting
+//! functions ([`format_number`], [`format_cost`], [`format_percent`],
+//! [`format_change`], [`format_tokens`]) that turn raw metrics into the strings
+//! shown in tables.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

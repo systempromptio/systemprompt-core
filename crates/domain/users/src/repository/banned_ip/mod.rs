@@ -1,3 +1,10 @@
+//! Persistence for IP bans.
+//!
+//! [`BannedIpRepository`] reads and writes the `banned_ips` table, supporting
+//! temporary and permanent bans with offense metadata. Ban inputs are carried
+//! by [`BanIpParams`] / [`BanIpWithMetadataParams`] with a [`BanDuration`], and
+//! lookups return [`BannedIp`].
+
 mod listing;
 mod queries;
 mod types;

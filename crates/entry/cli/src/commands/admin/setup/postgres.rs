@@ -1,3 +1,11 @@
+//! PostgreSQL provisioning steps for the setup wizard.
+//!
+//! Resolves connection parameters from [`SetupArgs`], reaches an existing
+//! server or starts one via Docker, and—when given superuser
+//! credentials—creates the role, database, and grants. The bootstrap `CREATE
+//! USER`/`CREATE DATABASE`/ `GRANT` statements use dynamic SQL because they run
+//! before the target database exists and cannot bind parameters.
+
 use anyhow::{Context, Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};

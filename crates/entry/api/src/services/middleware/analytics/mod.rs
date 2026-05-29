@@ -1,3 +1,10 @@
+//! Request analytics middleware.
+//!
+//! [`AnalyticsMiddleware`] records tracked requests after the response is
+//! produced, spawning detached tasks for session activity, velocity-based
+//! scanner detection, behavioural bot scoring, and analytics-event capture so
+//! the request path is never blocked on persistence.
+
 mod detection;
 mod events;
 

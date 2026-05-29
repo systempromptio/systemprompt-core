@@ -1,3 +1,9 @@
+//! Per-event handlers for the A2A streaming pipeline.
+//!
+//! Routes incoming stream events to their handlers: `completion` for terminal
+//! completion and error events, `text` for incremental text accumulation via
+//! [`TextStreamState`].
+
 mod completion;
 mod text;
 

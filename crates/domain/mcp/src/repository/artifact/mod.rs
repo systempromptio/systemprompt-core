@@ -1,3 +1,11 @@
+//! Persistence for MCP tool-call artifacts.
+//!
+//! Defines [`McpArtifactRepository`] and its row/insert models
+//! ([`McpArtifactRecord`], [`CreateMcpArtifact`]), backing the `mcp_artifacts`
+//! table. Reads go through the read pool and writes through the write pool;
+//! expired artifacts are filtered on read and reaped via
+//! [`McpArtifactRepository::cleanup_expired`].
+
 use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

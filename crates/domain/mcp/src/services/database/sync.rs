@@ -1,3 +1,10 @@
+//! Reconciliation between recorded MCP service state and live processes.
+//!
+//! Functions here compare the `mcp_services` table against actual port
+//! liveness and process existence, marking crashed services, pruning disabled
+//! or duplicate rows, and reporting discrepancies so the orchestrator can
+//! converge the database on reality at startup.
+
 use crate::error::McpDomainResult;
 use crate::services::process::utils;
 use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};

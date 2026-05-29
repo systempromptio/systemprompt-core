@@ -1,3 +1,10 @@
+//! Router assembly for the API server.
+//!
+//! [`configure_routes`] composes the full route tree: protocol surfaces (OAuth,
+//! agent, MCP, stream, content), extension-mounted routes, discovery and
+//! well-known endpoints, static content, and the global IP-ban and metrics
+//! layers. Each surface is gated with its `AuthzPolicy` at mount time.
+
 mod extension_mount;
 mod protocol;
 mod static_setup;

@@ -1,3 +1,12 @@
+//! Bridge authentication handlers for the gateway router.
+//!
+//! Exposes the credential-exchange endpoints a bridge uses to obtain a
+//! short-lived access token: [`pat`] (personal access token), [`session`]
+//! (one-time exchange code), [`mtls`] (enrolled device certificate), and
+//! [`provision_oauth_client`] (dynamic OAuth client registration), plus
+//! [`capabilities`] advertising the supported modes. All token-minting paths
+//! funnel through `systemprompt_oauth`'s `issue_bridge_access`.
+
 use axum::Json;
 use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};

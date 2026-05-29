@@ -1,3 +1,9 @@
+//! OAuth callback endpoint for the server's own browser client.
+//!
+//! Exchanges the returned authorization code for tokens, establishes an
+//! authenticated session, sets the access-token cookie, and redirects to the
+//! origin-validated `return_to` recovered from the consumed state binding.
+
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect};

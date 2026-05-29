@@ -1,3 +1,9 @@
+//! Server startup reconciliation and lifecycle wiring.
+//!
+//! Reconciles enabled agents and system MCP services into a running state,
+//! bridges runtime startup events, and initializes the scheduler before the
+//! server begins accepting traffic.
+
 mod agents;
 mod event_bridge;
 mod reconciliation;

@@ -1,3 +1,11 @@
+//! Session resolution: pick a profile and produce an authenticated session.
+//!
+//! [`get_or_create_session`] is the entry point. It resolves the active
+//! profile (CLI override, `SYSTEMPROMPT_PROFILE`, the stored active key, or
+//! bootstrap), reuses a valid cached session when present, and otherwise mints
+//! a new local or tenant session. The [`helpers`] submodule holds the
+//! per-strategy resolution steps.
+
 mod helpers;
 
 use std::path::{Path, PathBuf};

@@ -1,3 +1,9 @@
+//! `cloud init` project scaffolding.
+//!
+//! Creates the `.systemprompt/` directory with its ignore files, Dockerfile,
+//! and entrypoint, and generates the default `services/` boilerplate for a new
+//! project.
+
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;

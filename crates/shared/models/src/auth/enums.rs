@@ -1,3 +1,10 @@
+//! Authentication and authorization enumerations.
+//!
+//! Defines the closed sets the platform reasons over: [`JwtAudience`],
+//! [`UserType`], [`TokenType`], [`RateLimitTier`], [`UserRole`], and
+//! [`UserStatus`]. [`UserType::from_permissions`] is the single source of
+//! truth for the permission-to-type mapping.
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;

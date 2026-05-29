@@ -1,3 +1,10 @@
+//! Well-known path, file-name, and directory-name constants.
+//!
+//! Grouped by purpose: [`dir_names`] and [`file_names`] for the
+//! `.systemprompt` profile layout, [`cloud_container`] for fixed in-container
+//! paths, [`storage`] for the file-storage tree, [`build`] for build outputs,
+//! and [`env_vars`] for sanctioned environment-variable names.
+
 pub mod dir_names {
     pub const SYSTEMPROMPT: &str = ".systemprompt";
     pub const PROFILES: &str = "profiles";

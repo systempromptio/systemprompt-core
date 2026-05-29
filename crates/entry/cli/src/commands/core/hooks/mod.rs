@@ -1,3 +1,8 @@
+//! `core hooks` command group: list and validate plugin hook definitions.
+//!
+//! Dispatches the [`HooksCommands`] subcommands (list, validate) that enumerate
+//! hooks across installed plugins and check their definitions.
+
 pub mod types;
 
 mod list;

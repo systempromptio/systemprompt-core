@@ -1,3 +1,10 @@
+//! [`FileUploadService`]: decode, validate, store, and record uploads.
+//!
+//! Decodes base64 payloads, enforces upload policy via [`FileValidator`],
+//! writes bytes to a traversal-checked storage path derived from the
+//! persistence mode, and records the file through [`FileRepository`], cleaning
+//! up the on-disk artefact if the database write fails.
+
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use sha2::{Digest, Sha256};

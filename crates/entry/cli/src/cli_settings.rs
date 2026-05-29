@@ -1,3 +1,13 @@
+//! CLI-wide runtime settings: output format, verbosity, colour, and
+//! interactivity.
+//!
+//! [`CliConfig`] holds the resolved presentation options for a CLI invocation,
+//! seeded from defaults and overridden by environment variables. The
+//! [`OutputFormat`], [`VerbosityLevel`], and [`ColorMode`] enums express the
+//! individual axes. A thread-local instance is published via
+//! [`set_global_config`] / [`get_global_config`] so command handlers can read
+//! the active settings without threading them through every call.
+
 use std::env;
 use std::io::IsTerminal;
 

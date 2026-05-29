@@ -1,3 +1,9 @@
+//! Session analytics over the `user_sessions` table.
+//!
+//! [`CliSessionAnalyticsRepository`] reads session counts, durations, live
+//! activity, and conversion stats for human (non-bot) sessions; every query
+//! filters out bot, behavioural-bot, and scanner traffic.
+
 use crate::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

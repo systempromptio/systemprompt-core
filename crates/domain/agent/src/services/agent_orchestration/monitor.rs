@@ -1,3 +1,11 @@
+//! Health monitoring of running agents via process and TCP probes.
+//!
+//! [`AgentMonitor`] performs per-agent and fleet-wide health checks, confirming
+//! the process exists and the agent's port accepts connections, and cleans up
+//! unresponsive agents. Results are reported through [`HealthCheckResult`] and
+//! [`MonitoringReport`]; the free `check_*` functions offer standalone TCP and
+//! A2A agent-card probes.
+
 use crate::services::shared::Result;
 use std::time::Duration;
 use systemprompt_database::DbPool;

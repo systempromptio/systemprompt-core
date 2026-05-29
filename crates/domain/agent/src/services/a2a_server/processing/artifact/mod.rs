@@ -1,3 +1,9 @@
+//! Construction of A2A [`Artifact`]s from MCP tool results.
+//!
+//! [`ArtifactBuilder`] pairs each tool call with its structured result and
+//! transforms it into an A2A artifact via [`McpToA2aTransformer`], skipping
+//! results without structured content.
+
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{CallToolResult, McpTool, ToolCall};

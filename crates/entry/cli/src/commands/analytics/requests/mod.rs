@@ -1,3 +1,10 @@
+//! AI request analytics: aggregate stats, individual listings, trends, and
+//! model usage.
+//!
+//! Defines the [`RequestsCommands`] subcommand tree and the typed output shapes
+//! ([`RequestStatsOutput`], [`RequestTrendsOutput`], [`ModelsOutput`]) rendered
+//! by the `analytics requests` commands.
+
 mod list;
 mod models;
 mod stats;

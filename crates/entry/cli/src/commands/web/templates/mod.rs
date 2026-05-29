@@ -1,3 +1,8 @@
+//! Management of HTML templates and their content-type bindings.
+//!
+//! Dispatches the `web templates` subcommands ([`TemplatesCommands`]) to list,
+//! show, create, edit, and delete templates in the web templates config.
+
 mod create;
 mod delete;
 mod edit;

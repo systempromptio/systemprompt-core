@@ -1,3 +1,8 @@
+//! Handlers for task push-notification configuration.
+//!
+//! Implements the A2A set/get/list/delete operations for a task's push
+//! notification configs, backed by [`PushNotificationConfigRepository`].
+
 use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;

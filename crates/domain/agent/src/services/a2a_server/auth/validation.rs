@@ -1,3 +1,9 @@
+//! Token extraction and validation for A2A requests.
+//!
+//! [`extract_bearer_token`] pulls the bearer credential from request headers;
+//! [`validate_agent_token`] and [`validate_oauth_for_request`] verify the JWT,
+//! confirm the `a2a` audience, and enforce the required permission scopes.
+
 use crate::services::shared::{AgentServiceError, Result};
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;

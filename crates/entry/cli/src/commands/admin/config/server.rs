@@ -1,3 +1,9 @@
+//! `admin config server` command: show and edit profile server settings.
+//!
+//! [`ServerCommands`] reports and updates host, port, URLs, and HTTPS settings,
+//! and manages the CORS allowed-origins list, persisting changes to the active
+//! profile.
+
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;

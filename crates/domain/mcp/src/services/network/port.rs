@@ -1,3 +1,11 @@
+//! Port liveness probing and reclamation for MCP servers.
+//!
+//! Provides timeout-bounded loopback probes ([`is_port_in_use`]),
+//! cross-platform cleanup of processes holding a port, and retry/backoff
+//! helpers that wait for a port to free up before a server binds. The probe
+//! timeout guards against kernel-level connect hangs that would otherwise stall
+//! startup silently.
+
 use crate::error::McpDomainResult;
 use std::net::{SocketAddr, TcpStream};
 use std::process::Command;

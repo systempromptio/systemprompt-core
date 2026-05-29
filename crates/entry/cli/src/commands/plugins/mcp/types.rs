@@ -1,3 +1,10 @@
+//! Output types for the `plugins mcp` command group.
+//!
+//! These structs are the serialisable shapes rendered by the list, status,
+//! validate, tools, call, and logs subcommands. They carry no behaviour beyond
+//! `serde`/`JsonSchema` derivation and exist to give each subcommand a typed,
+//! schema-backed result the shared renderer can format.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

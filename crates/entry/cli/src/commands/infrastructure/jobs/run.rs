@@ -1,3 +1,10 @@
+//! `jobs run` subcommand.
+//!
+//! Runs one or more jobs on demand, selected by name, `--all`, or `--tag`,
+//! resolving both registry-declared and inventory-registered jobs. Each job
+//! executes under a [`JobContext`] actored to the admin owner, collecting
+//! per-job success/failure into a batch result.
+
 use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;

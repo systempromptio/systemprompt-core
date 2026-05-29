@@ -1,3 +1,9 @@
+//! Agent analytics queries over `agent_tasks` and joined `ai_requests`.
+//!
+//! [`AgentAnalyticsRepository`] aggregates per-agent task counts, success
+//! rates, execution time, and cost, exposing list, detail, and summary-stat
+//! reads split across the sibling query submodules.
+
 mod detail_queries;
 mod list_queries;
 mod stats_queries;

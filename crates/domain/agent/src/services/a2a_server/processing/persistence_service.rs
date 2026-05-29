@@ -1,3 +1,10 @@
+//! Task persistence for the processing pipeline.
+//!
+//! [`PersistenceService`] wraps [`TaskRepository`] to create tasks, update
+//! their state, and persist a completed task together with its messages —
+//! publishing any attached artifacts unless they were already published
+//! upstream.
+
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TaskId, TraceId, UserId};

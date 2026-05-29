@@ -1,3 +1,10 @@
+//! Analytics-event persistence for the logging subsystem.
+//!
+//! [`AnalyticsRepository`] writes structured [`AnalyticsEvent`] rows to the
+//! `analytics_events` table on the database write pool, carrying typed actor,
+//! session, and task identifiers alongside the request-level metrics
+//! (endpoint, error code, response time) the platform aggregates downstream.
+
 use chrono::Utc;
 use serde_json::Value;
 use sqlx::PgPool;

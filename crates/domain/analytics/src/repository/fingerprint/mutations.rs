@@ -1,3 +1,9 @@
+//! Fingerprint-reputation state changes for `FingerprintRepository`.
+//!
+//! Upserts a fingerprint on each session, updates velocity and session-count
+//! metrics, raises and clears abuse flags, and adjusts the reputation score.
+//! All writes go to the write pool.
+
 use crate::Result;
 use systemprompt_identifiers::UserId;
 

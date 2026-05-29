@@ -1,3 +1,10 @@
+//! Terminal stream-event handlers: task completion and failure.
+//!
+//! [`handle_complete`] persists the finished task and broadcasts the success
+//! events; [`handle_error`] records the failure. [`send_a2a_status_event`] is
+//! the shared helper for emitting an A2A `TaskStatusUpdate` over the SSE
+//! channel.
+
 mod complete;
 mod error;
 

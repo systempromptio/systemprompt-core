@@ -1,3 +1,9 @@
+//! Writes the default `services/` directory tree for a new project.
+//!
+//! Creates the config, agent, MCP, content, web, and scheduler files from the
+//! [`super::templates`] strings and clones the bundled systemprompt-admin MCP
+//! server.
+
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;

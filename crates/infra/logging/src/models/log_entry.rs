@@ -1,3 +1,11 @@
+//! Core log-record types.
+//!
+//! [`LogEntry`] is the persisted log row; [`LogActor`] bundles the mandatory
+//! attribution triple (user, session, trace) every entry must carry, with
+//! [`LogActor::platform`] resolving the system owner for originator-less
+//! platform telemetry. Optional task/context/client identifiers are layered on
+//! via the builder methods.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};

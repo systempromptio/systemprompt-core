@@ -1,3 +1,9 @@
+//! Per-tool detail queries for `ToolAnalyticsRepository`.
+//!
+//! Drills into a single MCP tool (matched by name substring): summary stats,
+//! status breakdown, top error messages, usage by agent, and the execution
+//! series for trend charts, all over `mcp_tool_executions`.
+
 use crate::Result;
 use chrono::{DateTime, Utc};
 

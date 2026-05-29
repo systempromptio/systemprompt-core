@@ -1,3 +1,9 @@
+//! `infra` command group: services, database, jobs, and logs administration.
+//!
+//! Routes [`InfraCommands`] to the per-domain subcommand modules. [`execute`]
+//! is the standalone entry point; [`execute_with_db`] reuses an open
+//! [`DatabaseContext`] for the db and logs subtrees that only need a pool.
+
 pub mod db;
 pub mod jobs;
 pub mod logs;

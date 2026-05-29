@@ -1,3 +1,8 @@
+//! Output shapes for content list, detail, search, ingest, and status commands.
+//!
+//! These structs are the JSON surface for `core content` reads and mutations:
+//! summaries and detail rows, ingest/delete results, and per-source health.
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

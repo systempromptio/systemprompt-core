@@ -1,3 +1,11 @@
+//! Traffic-source, geography, device, and bot analytics.
+//!
+//! [`TrafficAnalyticsRepository`] reads `user_sessions` to break sessions
+//! down by referrer source, country, and device, and to classify human
+//! versus bot traffic (including a user-agent-driven bot taxonomy). An
+//! `engaged_only` flag restricts the human-facing breakdowns to sessions with
+//! a landing page and at least one request.
+
 use crate::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

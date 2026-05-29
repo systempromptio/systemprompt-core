@@ -1,3 +1,9 @@
+//! `db migrate-repair` subcommand.
+//!
+//! Detects and, with `--apply`, repairs checksum drift between stored migration
+//! rows and the current migration sources for one or all extensions. Provides
+//! both the full-context and standalone (`DatabaseContext`-only) entry points.
+
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;

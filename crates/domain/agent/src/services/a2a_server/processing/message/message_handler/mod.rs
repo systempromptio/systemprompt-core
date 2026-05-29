@@ -1,3 +1,10 @@
+//! Non-streaming message handling for [`MessageProcessor`].
+//!
+//! Implements [`MessageProcessor::handle_message`]: it validates the context,
+//! persists a submitted task, runs the stream pipeline to completion, builds
+//! the finished [`Task`](crate::models::a2a::Task), persists it, and broadcasts
+//! the completion and AG-UI lifecycle events.
+
 mod helpers;
 
 use std::sync::Arc;

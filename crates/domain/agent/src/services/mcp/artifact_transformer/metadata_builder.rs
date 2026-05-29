@@ -1,3 +1,11 @@
+//! Construction of [`ArtifactMetadata`] and per-type rendering hints from tool
+//! schemas.
+//!
+//! [`build_metadata`] assembles validated artifact metadata for a transformed
+//! MCP tool result, deriving rendering hints (table columns, form fields, chart
+//! and dashboard layouts) from the tool's output schema and honouring any
+//! explicit `x-*-hints` overrides.
+
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
 use systemprompt_models::artifacts::types::ArtifactType;

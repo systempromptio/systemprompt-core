@@ -1,3 +1,10 @@
+//! Health probe and system-statistics endpoints.
+//!
+//! [`handle_health`] is the lightweight liveness probe (a single `SELECT 1`).
+//! [`get_system_stats`] gathers database, disk, and audit-log statistics for
+//! the detailed health surface, with platform-specific process-memory and
+//! disk-usage helpers.
+
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::DatabaseQuery;

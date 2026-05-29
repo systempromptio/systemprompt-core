@@ -1,3 +1,9 @@
+//! Outbound adapter targeting the OpenAI Responses API.
+//!
+//! [`OpenAiResponsesOutbound`] builds a Responses request from the canonical
+//! model, sends it upstream, and returns either a buffered response or a stream
+//! of canonical events translated from the Responses SSE format.
+
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;

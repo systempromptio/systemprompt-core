@@ -1,3 +1,11 @@
+//! Provider-agnostic inference request types.
+//!
+//! [`AiRequest`] is the unified request shape passed to any LLM provider: a
+//! sequence of [`AiMessage`]s (each optionally carrying multimodal
+//! [`AiContentPart`]s), the provider/model config, sampling params, available
+//! tools, and structured-output options. Build via [`AiRequestBuilder`] for the
+//! optional fields.
+
 use super::response_format::StructuredOutputOptions;
 use super::sampling::{ProviderConfig, SamplingParams};
 use super::tools::McpTool;

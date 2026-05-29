@@ -1,3 +1,10 @@
+//! Tool invocation and execution-record types.
+//!
+//! [`ToolCall`] is a requested invocation (id, name, arguments);
+//! [`ToolExecution`] is the persisted record of a completed run, including
+//! timing, status, and output. [`ToolExecution::from_json_row`] reconstructs a
+//! record from a database row map.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

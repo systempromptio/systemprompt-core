@@ -1,3 +1,11 @@
+//! Multi-step tool-execution planning and result tracking.
+//!
+//! A [`PlanningResult`] is either a direct response or a sequence of
+//! [`PlannedToolCall`]s. As calls run, [`ExecutionState`] accumulates
+//! [`ToolCallResult`]s and halts on the first failure. [`TemplateRef`] parses
+//! the `$N.output.field` references that let a later call consume an earlier
+//! call's output.
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

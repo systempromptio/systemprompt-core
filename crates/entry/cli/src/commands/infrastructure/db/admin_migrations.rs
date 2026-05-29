@@ -1,3 +1,10 @@
+//! `db migrations` subcommand group: aggregate status and per-extension
+//! history.
+//!
+//! Dispatches the [`MigrationsCommands`] variants, summarising defined vs.
+//! applied vs. pending migrations across registered extensions. Provides both
+//! the full-context and standalone (`DatabaseContext`-only) entry points.
+
 use anyhow::{Result, anyhow};
 use systemprompt_database::MigrationService;
 use systemprompt_extension::ExtensionRegistry;

@@ -1,3 +1,8 @@
+//! `infra logs tools` subcommands for listing MCP tool executions.
+//!
+//! Exposes [`ToolsCommands`] and the [`ToolExecutionRow`] / [`ToolsListOutput`]
+//! shapes rendered for each execution record.
+
 mod list;
 
 use anyhow::Result;

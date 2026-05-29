@@ -1,3 +1,12 @@
+//! JSON-Schema sanitisation for provider compatibility.
+//!
+//! [`SchemaSanitizer`] rewrites a tool/output schema so it only uses constructs
+//! the target provider supports: it folds nullable type-arrays into a
+//! `nullable` flag, strips unsupported composition keywords
+//! (`allOf`/`anyOf`/`oneOf`/`not`, `$ref`, definitions) per the provider's
+//! [`ProviderCapabilities`], drops metadata and `x-` extension fields, and
+//! recurses through nested schemas.
+
 use super::capabilities::ProviderCapabilities;
 use serde_json::{Map, Value, json};
 

@@ -1,3 +1,10 @@
+//! Connection validation for MCP servers.
+//!
+//! Probes a server over the streamable-HTTP transport to confirm it speaks the
+//! MCP protocol and exposes tools, producing a [`McpConnectionResult`]. Covers
+//! the OAuth-gated case (port reachability only) and internal/external URL
+//! rewriting for loopback access.
+
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};

@@ -1,3 +1,9 @@
+//! `cloud tenant delete` command.
+//!
+//! Removes a tenant from the store, cancelling its cloud subscription via the
+//! API or dropping its shared-container database for local tenants, and tears
+//! down the shared PostgreSQL container once the last local tenant is gone.
+
 use anyhow::{Result, anyhow, bail};
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;

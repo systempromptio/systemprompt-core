@@ -1,3 +1,10 @@
+//! The spawned streaming pipeline run.
+//!
+//! Implements [`StreamProcessor::process_message_stream`] and the background
+//! task it spawns: it assembles AI messages, selects an execution strategy,
+//! runs it, builds artifacts, synthesizes a final response, and emits a
+//! `Complete` event.
+
 mod messages;
 
 use std::sync::Arc;

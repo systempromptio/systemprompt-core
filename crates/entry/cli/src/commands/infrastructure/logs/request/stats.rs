@@ -1,3 +1,6 @@
+//! `infra logs request stats`: aggregate AI request counts, token usage, cost,
+//! and latency, broken down by provider and model.
+
 use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;

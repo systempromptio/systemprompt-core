@@ -1,3 +1,9 @@
+//! Google Gemini `generateContent` API wire types.
+//!
+//! Re-exports the request and response structs matching Gemini's JSON shape,
+//! plus [`GeminiModels`] — the default Flash/Flash-Lite catalogue with
+//! per-model token limits and pricing.
+
 mod request;
 mod response;
 

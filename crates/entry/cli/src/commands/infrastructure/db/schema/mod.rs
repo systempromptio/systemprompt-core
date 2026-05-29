@@ -1,3 +1,9 @@
+//! Schema-inspection handlers for the `db` command group.
+//!
+//! Implements the `tables`, `describe`, `info`, and `count` subcommands over a
+//! [`DatabaseAdminService`], rendering JSON or formatted text. Schema
+//! validation lives in the `validate` submodule and is re-exported here.
+
 mod validate;
 
 pub(super) use validate::execute_validate;

@@ -1,3 +1,11 @@
+//! In-memory threshold and spike detection for live metrics.
+//!
+//! [`AnomalyDetectionService`] tracks per-metric warning/critical thresholds
+//! and a rolling one-hour event window, classifying each value as
+//! [`AnomalyLevel::Normal`], `Warning`, or `Critical` and detecting trend
+//! spikes relative to the recent average. State is held in memory behind
+//! `RwLock`s, not persisted.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

@@ -1,3 +1,10 @@
+//! SQL operations backing the log repository.
+//!
+//! Splits read paths ([`queries`]) from write paths ([`mutations`]) over the
+//! `logs` table and re-exports the crate-internal entry points the repository
+//! facade composes (fetch, list, paginate, create, update, delete, retention
+//! cleanup).
+
 mod mutations;
 mod queries;
 

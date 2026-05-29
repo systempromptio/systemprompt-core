@@ -1,3 +1,10 @@
+//! HTTP route modules for the API server.
+//!
+//! Each submodule owns one functional area (admin, agent, analytics, content,
+//! engagement, gateway, marketplace, mcp, oauth, proxy, stream, sync, users,
+//! wellknown) and exposes a `Router` builder. The re-exports here surface the
+//! router constructors the API assembler composes into the top-level service.
+
 pub mod admin;
 pub mod agent;
 pub mod analytics;

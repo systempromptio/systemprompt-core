@@ -1,3 +1,11 @@
+//! Profile discovery and resolution shared across CLI commands.
+//!
+//! Resolves a profile to its on-disk path and loaded [`Profile`] from a CLI
+//! override, an environment variable, a stored session, or directory
+//! discovery, reporting failures via [`ProfileResolutionError`]. Also provides
+//! profile-authoring helpers ([`save_profile_yaml`], display-name and pepper
+//! generation) used by the profile-creation flows.
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};

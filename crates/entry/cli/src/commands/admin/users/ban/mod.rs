@@ -1,3 +1,10 @@
+//! IP-ban management subcommands.
+//!
+//! [`BanCommands`] covers listing, adding, removing, checking, and cleaning up
+//! IP bans. Read-only commands run against a bare pool via
+//! [`execute_with_pool`]; write operations require full profile context and are
+//! dispatched by [`execute`].
+
 mod add;
 mod check;
 mod cleanup;

@@ -1,3 +1,10 @@
+//! Batch startup of pending MCP servers during reconciliation.
+//!
+//! [`start_pending_servers`] iterates the enabled set, starting any server not
+//! already running and aggregating failures into a single error, then publishes
+//! per-server success/failure and overall reconciliation-complete events to the
+//! [`EventBus`] and [`StartupEventSender`].
+
 use crate::error::McpDomainResult;
 use std::collections::HashSet;
 use std::sync::Arc;

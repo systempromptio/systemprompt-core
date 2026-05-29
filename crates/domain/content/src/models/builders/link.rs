@@ -1,3 +1,10 @@
+//! Parameter builders for link and click mutations.
+//!
+//! [`CreateLinkParams`] describes a trackable campaign link, while
+//! [`RecordClickParams`] and [`TrackClickParams`] carry the click-event fields
+//! captured on redirect — the former for a fully-resolved click row, the latter
+//! for the inbound tracking request before the click id is minted.
+
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{
     CampaignId, ContentId, ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId,

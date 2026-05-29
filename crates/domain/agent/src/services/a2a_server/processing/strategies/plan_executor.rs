@@ -1,3 +1,11 @@
+//! Sequential tool-execution primitives shared by the strategies.
+//!
+//! [`ToolExecutorTrait`] abstracts a single tool call;
+//! [`execute_tools_sequentially`] and [`execute_tools_with_templates`] run a
+//! planned batch (the latter resolving inter-tool argument templates), and the
+//! conversion helpers turn the resulting [`ExecutionState`] into A2A tool calls
+//! and results.
+
 use crate::services::shared::Result;
 use async_trait::async_trait;
 use rmcp::model::Content;

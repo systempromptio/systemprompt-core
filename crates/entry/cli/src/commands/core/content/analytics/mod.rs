@@ -1,3 +1,8 @@
+//! `core content analytics` command group: link, campaign, and journey metrics.
+//!
+//! Dispatches the [`AnalyticsCommands`] subcommands (clicks, campaign, journey)
+//! either through a fresh `AppContext` or against a supplied [`DbPool`].
+
 pub mod campaign;
 pub mod clicks;
 pub mod journey;

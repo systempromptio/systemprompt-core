@@ -1,3 +1,8 @@
+//! Engagement-event ingestion routes.
+//!
+//! Builds the router for single and batch engagement records, wiring the
+//! engagement, session, and content repositories into the shared handler state.
+
 use anyhow::Result;
 use axum::Router;
 use axum::routing::post;

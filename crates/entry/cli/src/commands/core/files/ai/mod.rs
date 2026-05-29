@@ -1,3 +1,8 @@
+//! `core files ai` command group: inspect AI-generated image files.
+//!
+//! Dispatches the [`AiCommands`] subcommands (list, show, count) over files
+//! flagged as AI-generated content.
+
 mod count;
 mod list;
 mod show;

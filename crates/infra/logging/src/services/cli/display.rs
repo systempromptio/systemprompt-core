@@ -1,3 +1,10 @@
+//! Display traits and primitives for CLI output.
+//!
+//! Defines the [`Display`]/[`DetailedDisplay`] traits and the [`DisplayUtils`]
+//! helpers (messages, section headers, items, relationships) plus reusable
+//! renderers ([`StatusDisplay`], [`ModuleItemDisplay`], [`CollectionDisplay`]).
+//! All output goes to stderr via this sanctioned display sink.
+
 use std::io::Write;
 
 use crate::services::cli::theme::{

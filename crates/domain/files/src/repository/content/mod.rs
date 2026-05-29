@@ -1,3 +1,8 @@
+//! [`FileRepository`] queries for file/content associations.
+//!
+//! Linking and unlinking files to content, listing the files for a piece of
+//! content (and vice versa), and managing the single featured-image role.
+
 use chrono::Utc;
 use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 

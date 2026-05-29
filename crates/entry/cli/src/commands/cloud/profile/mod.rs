@@ -1,3 +1,9 @@
+//! `cloud profile` subcommands for managing deployment profiles.
+//!
+//! Dispatches [`ProfileCommands`] to create, list, show, edit, and delete
+//! profiles, and drives the interactive operation picker when no subcommand is
+//! given.
+
 mod api_keys;
 mod builders;
 mod create;

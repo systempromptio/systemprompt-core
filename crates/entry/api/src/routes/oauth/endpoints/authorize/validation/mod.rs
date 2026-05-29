@@ -1,3 +1,10 @@
+//! Authorization-request validation.
+//!
+//! Enforces the supported OAuth parameter set: `response_type`, PKCE, display
+//! and prompt values, and the RFC 9728 `resource` self-origin carve-out
+//! ([`SelfOrigins`]). [`validate_authorize_request`] resolves and checks the
+//! effective scope against the registered client.
+
 mod entropy;
 mod resource;
 

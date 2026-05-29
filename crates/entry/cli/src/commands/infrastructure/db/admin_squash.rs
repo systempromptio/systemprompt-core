@@ -1,3 +1,10 @@
+//! `db migrate-squash` subcommand.
+//!
+//! Collapses an extension's migrations `1..=through` into a single `000`
+//! baseline file, optionally rewriting the recorded migration rows with
+//! `--apply`. Computes the baseline target path inside the extension's source
+//! crate and emits the manual follow-up steps the operator must complete.
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

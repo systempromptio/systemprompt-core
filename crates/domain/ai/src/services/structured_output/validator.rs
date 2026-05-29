@@ -1,3 +1,10 @@
+//! JSON-Schema validation of model structured output.
+//!
+//! [`SchemaValidator`] checks a value against a JSON Schema, enforcing type,
+//! `enum`, object `required`/`additionalProperties`, array bounds, string
+//! length/pattern, and numeric range constraints. In strict mode unexpected
+//! object properties are rejected.
+
 use crate::error::Result;
 use serde_json::Value as JsonValue;
 

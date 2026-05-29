@@ -1,3 +1,9 @@
+//! Serializable view types for `cloud profile show`.
+//!
+//! [`FullConfig`] aggregates the per-section outputs; [`build_env_config`]
+//! projects the resolved [`systemprompt_models::Config`] into an
+//! [`EnvironmentConfig`] with secrets and credentials redacted.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use systemprompt_models::{

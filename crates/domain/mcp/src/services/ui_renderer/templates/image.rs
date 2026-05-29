@@ -1,3 +1,10 @@
+//! Image artifact renderer.
+//!
+//! [`ImageRenderer`] renders an image [`Artifact`] — sourced from inline
+//! base64 file parts, a remote URI, or data-part metadata — into an HTML
+//! [`UiResource`] with caption and zoom controls, widening the CSP `img-src`
+//! to permit `https:` and `blob:` sources.
+
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};

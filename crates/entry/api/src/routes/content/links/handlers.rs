@@ -1,3 +1,9 @@
+//! Trackable-link route handlers.
+//!
+//! Resolves short-code redirects (tracking the click for non-bot sessions),
+//! generates redirect/UTM links, and serves link, campaign, and content-journey
+//! performance queries.
+
 use super::types::{AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery};
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect};

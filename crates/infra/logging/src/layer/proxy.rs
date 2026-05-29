@@ -1,3 +1,12 @@
+//! Deferred database-logging tracing layer.
+//!
+//! [`ProxyDatabaseLayer`] is installed in the subscriber stack before a
+//! database pool exists, buffering span attribution into span extensions. Once
+//! [`ProxyDatabaseLayer::attach`] supplies a pool it delegates to the real
+//! `DatabaseLayer`; until then span fields are recorded so attribution is not
+//! lost across the boot window. The free functions build the [`LogEntry`]
+//! actor triple by walking the span tree.
+
 use std::io::Write;
 use std::sync::{Arc, OnceLock};
 

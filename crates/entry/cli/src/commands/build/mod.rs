@@ -1,3 +1,8 @@
+//! The `build` command group for compiling the workspace and MCP extensions.
+//!
+//! [`BuildCommands`] dispatches to the core workspace build and the MCP
+//! extension build; [`types`] holds the shared result rows surfaced by both.
+
 mod core;
 mod mcp;
 pub mod types;

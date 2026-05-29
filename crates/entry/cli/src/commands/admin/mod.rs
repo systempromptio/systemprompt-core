@@ -1,3 +1,11 @@
+//! `admin` command tree: privileged platform administration.
+//!
+//! [`AdminCommands`] groups user, agent, configuration, session, bridge,
+//! access-control, and signing-key management plus the setup and bootstrap
+//! flows. [`execute`] dispatches commands that resolve their own context;
+//! [`execute_with_db`] serves the subset that requires a shared
+//! [`systemprompt_runtime::DatabaseContext`].
+
 pub mod access_control;
 pub mod agents;
 pub mod bootstrap;

@@ -1,3 +1,10 @@
+//! Generation of Claude Code plugin output from `config.yaml` definitions.
+//!
+//! [`execute`] reads one or all plugin configs under the profile's plugins
+//! path and materialises skill, agent, MCP, script, and marketplace artifacts
+//! into the plugins storage directory. The per-component generators live in the
+//! `agents`, `mcp`, `skills`, and `marketplace` submodules.
+
 mod agents;
 mod marketplace;
 mod mcp;

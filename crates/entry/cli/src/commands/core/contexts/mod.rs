@@ -1,3 +1,8 @@
+//! `core contexts` command group: manage conversation contexts.
+//!
+//! Dispatches the [`ContextsCommands`] subcommands (list, show, create, edit,
+//! delete, use, new) that create contexts and set the session's active one.
+
 mod create;
 pub(crate) mod delete;
 mod edit;

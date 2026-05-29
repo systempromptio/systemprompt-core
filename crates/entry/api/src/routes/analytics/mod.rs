@@ -1,3 +1,8 @@
+//! Analytics HTTP surface.
+//!
+//! Builds the router for event ingestion (single and batch) and the live
+//! analytics SSE stream, wiring the shared [`AnalyticsState`] repositories.
+
 mod events;
 mod stream;
 

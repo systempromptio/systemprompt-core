@@ -1,3 +1,9 @@
+//! Synchronise the authenticated cloud user as an admin across local profiles.
+//!
+//! Discovers profile databases, then creates or promotes the cloud user to
+//! admin in each. Public surface: [`CloudUser`], [`SyncResult`], the discovery
+//! helpers, and the per-database / all-profiles sync entry points.
+
 mod discovery;
 mod sync;
 mod types;

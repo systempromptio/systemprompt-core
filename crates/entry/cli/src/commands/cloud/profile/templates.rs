@@ -1,3 +1,9 @@
+//! Writers for the on-disk artifacts of a created profile.
+//!
+//! Persists the profile YAML, Dockerfile, entrypoint, dockerignore, and
+//! secrets file (with restrictive permissions), and updates the AI config's
+//! default provider.
+
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::path::Path;

@@ -1,3 +1,10 @@
+//! Per-section data payloads for dashboard sections.
+//!
+//! Each struct here is the typed body of one dashboard section kind: metric
+//! cards ([`MetricsCardsData`]/[`MetricCard`]), charts ([`ChartSectionData`]),
+//! tables ([`TableSectionData`]), service/database status
+//! ([`StatusSectionData`]), and ranked lists ([`ListSectionData`]).
+
 use super::super::chart::ChartDataset;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

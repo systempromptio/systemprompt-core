@@ -1,3 +1,12 @@
+//! Persistence for A2A tasks, their messages, parts, and execution state.
+//!
+//! [`TaskRepository`] is the repository facade over the `agent_tasks` table and
+//! its satellites (`task_messages`, `message_parts`, `task_execution_steps`).
+//! It splits reads and writes across separate pools, optionally drives session
+//! analytics and file-upload providers, and delegates aggregate reassembly to
+//! [`TaskConstructor`]. Query, mutation, and state-transition helpers live in
+//! the sibling submodules and are re-exported here.
+
 pub mod constructor;
 mod mutations;
 mod queries;

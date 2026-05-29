@@ -1,3 +1,12 @@
+//! Top-level `analytics` command group spanning all metric domains.
+//!
+//! [`AnalyticsCommands`] routes to the per-domain subcommand trees (overview,
+//! conversations, agents, tools, requests, sessions, content, traffic, costs).
+//! Each variant dispatches to its module's `execute`; the `_with_db` path
+//! reuses a shared [`DatabaseContext`] pool instead of opening a new
+//! `AppContext` per command. The [`shared`] module holds the time-range and
+//! output formatting helpers used across all domains.
+
 pub mod agents;
 pub mod content;
 pub mod conversations;

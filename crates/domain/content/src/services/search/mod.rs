@@ -1,3 +1,9 @@
+//! Content search service.
+//!
+//! [`SearchService`] resolves a [`SearchRequest`] into a [`SearchResponse`],
+//! dispatching category-filtered queries to the search repository and falling
+//! back to a recency-ordered content listing when no filter is supplied.
+
 use crate::error::ContentError;
 use crate::models::{SearchRequest, SearchResponse, SearchResult};
 use crate::repository::{ContentRepository, SearchRepository};

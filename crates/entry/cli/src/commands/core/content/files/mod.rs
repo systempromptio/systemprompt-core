@@ -1,3 +1,9 @@
+//! `core content files` command group: associate stored files with content.
+//!
+//! Dispatches the [`ContentFilesCommands`] subcommands (link, unlink, list,
+//! featured) that manage the content-to-file relationships and the featured
+//! image for a content item.
+
 mod featured;
 mod link;
 mod list;

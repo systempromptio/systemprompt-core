@@ -1,3 +1,10 @@
+//! `cloud sync` subcommand: move services state between local profiles and the
+//! cloud.
+//!
+//! Exposes [`SyncCommands`] for push, pull, and admin-user sync, plus an
+//! interactive menu when no subcommand is supplied. Resolves the active tenant
+//! and credentials, then drives the [`SyncService`] for file synchronisation.
+
 pub mod admin_user;
 mod interactive;
 

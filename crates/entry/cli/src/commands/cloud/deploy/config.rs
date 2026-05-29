@@ -1,3 +1,9 @@
+//! Pre-deploy validation of the project's build artifacts.
+//!
+//! [`DeployConfig`] locates the release binary and profile Dockerfile, then
+//! asserts that required extension assets, storage, and template directories
+//! exist inside the Docker build context before a cloud deploy proceeds.
+
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow, bail};

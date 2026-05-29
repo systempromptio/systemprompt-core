@@ -1,3 +1,9 @@
+//! Action handlers for the `cloud secrets` subcommands.
+//!
+//! Implements sync (from the profile's `secrets.json`), set, unset, and cleanup
+//! against the cloud secrets API, filtering out system-managed environment
+//! variables so they are never pushed.
+
 use anyhow::{Result, bail};
 use std::collections::HashMap;
 use systemprompt_cloud::CloudApiClient;

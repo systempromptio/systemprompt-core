@@ -1,3 +1,6 @@
+//! `infra logs request show`: render one AI request with optional messages and
+//! linked MCP tool calls.
+
 use std::sync::Arc;
 
 use anyhow::Result;

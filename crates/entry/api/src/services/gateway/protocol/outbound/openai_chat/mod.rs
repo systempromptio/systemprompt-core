@@ -1,3 +1,10 @@
+//! Outbound adapter targeting the OpenAI Chat Completions API.
+//!
+//! [`OpenAiChatOutbound`] builds a Chat Completions request from the canonical
+//! model, sends it upstream, and returns either a buffered response or a stream
+//! of canonical events translated from the Chat Completions SSE format. Also
+//! serves OpenAI-compatible providers exposing the same surface.
+
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;

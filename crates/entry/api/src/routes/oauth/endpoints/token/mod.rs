@@ -1,3 +1,10 @@
+//! OAuth 2.0 token endpoint.
+//!
+//! Hosts the `/token` handler and the request/response types
+//! ([`TokenRequest`], [`TokenResponse`]) it binds. Per-grant token minting
+//! lives in [`generation`]; [`TokenError`] partitions failures by RFC 6749
+//! error code and maps onto the HTTP error surface.
+
 pub mod generation;
 mod handler;
 pub mod validation;

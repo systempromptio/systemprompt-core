@@ -1,3 +1,12 @@
+//! Execution strategies for turning AI messages into a response.
+//!
+//! [`ExecutionStrategy`] is the runtime-selected behaviour that consumes an
+//! [`ExecutionContext`] and produces an [`ExecutionResult`].
+//! [`ExecutionStrategySelector`] chooses between [`StandardExecutionStrategy`]
+//! (no tools) and [`PlannedAgenticStrategy`] (plan → execute → respond). The
+//! `plan_executor` and `tool_executor` submodules provide the shared
+//! tool-running primitives.
+
 use crate::services::shared::Result;
 use async_trait::async_trait;
 use std::sync::Arc;

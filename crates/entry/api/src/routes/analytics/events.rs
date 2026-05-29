@@ -1,3 +1,9 @@
+//! Analytics event ingestion routes.
+//!
+//! Records single and batched client analytics events, resolving the owning
+//! content id via slug/URL routing and fanning `page_exit` events out into the
+//! engagement store. Shared handler state lives in [`AnalyticsState`].
+
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;

@@ -1,3 +1,10 @@
+//! The provider-neutral request model the gateway translates to and from.
+//!
+//! Inbound adapters parse a wire request into a [`CanonicalRequest`] of
+//! [`CanonicalMessage`]s carrying [`CanonicalContent`] parts; outbound adapters
+//! render it back out. The flattening helpers derive plain-text views and a
+//! stable [`GatewayConversationId`] from the leading message.
+
 use serde_json::Value;
 use systemprompt_identifiers::GatewayConversationId;
 use systemprompt_models::gateway_hash::conversation_prefix_hash;

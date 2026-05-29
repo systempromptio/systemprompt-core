@@ -1,3 +1,11 @@
+//! Tool-call execution and post-response strategy selection.
+//!
+//! [`TooledExecutor`] runs a batch of model-requested [`ToolCall`]s against the
+//! configured `ToolProvider`, applying per-tool model overrides and capturing
+//! each result (including structured error results for unknown or failing
+//! tools). [`ResponseStrategy`] then classifies the combined output into the
+//! text, artifact, or tools-only path the caller should follow.
+
 use serde_json::json;
 use std::sync::Arc;
 

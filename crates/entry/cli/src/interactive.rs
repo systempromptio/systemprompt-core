@@ -1,3 +1,10 @@
+//! Interactive prompting helpers shared across commands.
+//!
+//! Each helper bridges flag-driven and interactive input: in interactive mode
+//! it prompts the operator, and in non-interactive mode it falls back to a
+//! default or fails with a "flag required" error. Used to resolve missing
+//! arguments, confirmations, and selections uniformly.
+
 use crate::CliConfig;
 use anyhow::{Result, anyhow};
 use dialoguer::theme::ColorfulTheme;

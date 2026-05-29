@@ -1,3 +1,10 @@
+//! Wire-format string constants for event and protocol names.
+//!
+//! Grouped by protocol surface: [`agui`] (AG-UI streaming events), [`a2a`]
+//! (agent-to-agent events), [`system`] (context/connection events),
+//! [`jsonrpc`] (A2A JSON-RPC method names), and [`protocol`] (protocol
+//! discriminators).
+
 pub mod agui {
     pub const RUN_STARTED: &str = "RUN_STARTED";
     pub const RUN_FINISHED: &str = "RUN_FINISHED";

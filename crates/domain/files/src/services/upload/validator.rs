@@ -1,3 +1,10 @@
+//! Upload type and size policy.
+//!
+//! [`FileValidator`] enforces the configured size limit, rejects a blocklist of
+//! executable/script MIME types, and maps allowed types to a [`FileCategory`]
+//! used for storage layout and extension resolution. [`FileValidationError`]
+//! reports each rejection reason.
+
 use crate::config::FileUploadConfig;
 use thiserror::Error;
 

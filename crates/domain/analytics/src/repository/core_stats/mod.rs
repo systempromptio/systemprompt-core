@@ -1,3 +1,9 @@
+//! Core platform statistics aggregated from analytics tables.
+//!
+//! [`CoreStatsRepository`] backs the dashboard overview, activity trends,
+//! categorical breakdowns, and leaderboards, with the read queries split
+//! across the sibling submodules.
+
 mod activity;
 mod breakdowns;
 mod leaderboards;

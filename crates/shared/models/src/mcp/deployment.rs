@@ -1,3 +1,11 @@
+//! MCP server deployment configuration.
+//!
+//! [`DeploymentConfig`] is the top-level shape loaded from MCP service YAML:
+//! a map of named [`Deployment`]s plus global [`Settings`]. Each deployment
+//! declares its [`McpServerType`], OAuth requirement, schemas, and per-tool
+//! [`ToolMetadata`]. Internal-server endpoints are validated relative by
+//! [`Deployment::validate`].
+
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
 use crate::errors::ConfigValidationError;

@@ -1,3 +1,10 @@
+//! HTTP server implementation of the A2A (agent-to-agent) protocol.
+//!
+//! Hosts the JSON-RPC endpoint and agent-card discovery via [`Server`] (or the
+//! [`run_standalone`] entry point), with submodules for authentication
+//! ([`auth`]), error envelopes ([`errors`]), request [`handlers`], and the
+//! streaming and processing pipelines.
+
 pub mod auth;
 pub mod errors;
 pub mod handlers;

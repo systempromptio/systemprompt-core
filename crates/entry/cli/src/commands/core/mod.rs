@@ -1,3 +1,10 @@
+//! `core` command group: the platform's primary domain commands.
+//!
+//! Dispatches the [`CoreCommands`] subgroups — artifacts, content, files,
+//! contexts, skills, plugins, and hooks. The reduced [`execute_with_db`] path
+//! serves the content and files subgroups that can run with only a
+//! [`DatabaseContext`]; the rest require a full profile context.
+
 pub mod artifacts;
 pub mod content;
 pub mod contexts;

@@ -1,3 +1,10 @@
+//! Conversation-history assembly for AI requests.
+//!
+//! [`ConversationService`] reads prior tasks for a context and flattens their
+//! messages and artifacts into a `Vec<AiMessage>`, decoding supported file
+//! parts into [`AiContentPart`]s and serializing artifacts back into textual
+//! context.
+
 use crate::services::shared::{AgentServiceError, Result};
 use base64::Engine;
 use systemprompt_database::DbPool;

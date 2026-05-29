@@ -1,3 +1,9 @@
+//! Assembly of A2A [`Task`] values for the various completion paths.
+//!
+//! [`TaskBuilder`] is the general builder; the free functions cover the common
+//! shapes (completed, canceled, mock, submitted, multi-turn) used across the
+//! processing pipeline.
+
 mod builders;
 pub mod helpers;
 

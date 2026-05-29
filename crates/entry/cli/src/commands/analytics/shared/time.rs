@@ -1,3 +1,10 @@
+//! Time-range parsing and period bucketing for analytics queries.
+//!
+//! Parses the `--since` / `--until` flag forms (relative durations like `24h`,
+//! calendar dates, and RFC-3339 timestamps) into a UTC range via
+//! [`parse_time_range`], and snaps timestamps to hour/day/week/month boundaries
+//! with [`truncate_to_period`] for trend grouping.
+
 use anyhow::{Result, anyhow};
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Timelike, Utc};
 

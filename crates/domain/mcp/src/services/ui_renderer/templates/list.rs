@@ -1,3 +1,9 @@
+//! List artifact renderer.
+//!
+//! [`ListRenderer`] renders a list [`Artifact`] into an HTML [`UiResource`],
+//! coercing string or object list items (title, description, icon, link)
+//! into ordered, unordered, or unstyled markup per the artifact's style hint.
+
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};

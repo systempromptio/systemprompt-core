@@ -1,3 +1,13 @@
+//! The [`AiProvider`] abstraction and its request parameter types.
+//!
+//! Every LLM backend implements [`AiProvider`], a `dyn`-dispatched trait
+//! covering plain generation, tool calling, structured/schema output, search
+//! grounding, and streaming. The borrowed parameter structs
+//! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
+//! [`StructuredGenerationParams`], [`SearchGenerationParams`],
+//! [`ToolResultsParams`]) keep large call signatures readable, and
+//! [`ModelPricing`] carries per-model cost rates for usage accounting.
+
 use crate::error::Result;
 use crate::models::ai::{
     AiMessage, AiResponse, ResponseFormat, SamplingParams, SearchGroundedResponse, StreamChunk,

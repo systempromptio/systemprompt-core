@@ -1,3 +1,9 @@
+//! Serializable output DTOs for the `cloud` command group.
+//!
+//! Each type is the structured payload a cloud subcommand returns (status,
+//! login, tenant list/detail/create, secrets, deploy, sync, and related), used
+//! for both human rendering and `--json` output.
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

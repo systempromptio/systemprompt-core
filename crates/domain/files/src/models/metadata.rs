@@ -1,3 +1,11 @@
+//! Structured metadata stored alongside file rows.
+//!
+//! [`FileMetadata`] is the top-level container, carrying optional
+//! [`FileChecksums`] and a [`TypeSpecificMetadata`] variant
+//! ([`DocumentMetadata`], [`AudioMetadata`], or [`VideoMetadata`]; image detail
+//! lives in the sibling `image_metadata` module). Each type offers a builder
+//! API for incremental construction.
+
 use serde::{Deserialize, Serialize};
 
 pub(super) use super::image_metadata::ImageMetadata;

@@ -1,3 +1,9 @@
+//! `cloud profile list`: enumerate the profiles under the project.
+//!
+//! Scans the profiles directory, marks the active profile and secret
+//! presence, and either renders a table or drives an interactive
+//! profile-picker that drills into [`show`].
+
 use anyhow::Result;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;

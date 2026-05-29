@@ -1,3 +1,11 @@
+//! `core files` command group: manage stored file uploads.
+//!
+//! Dispatches the [`FilesCommands`] subcommands — list/show/search/stats,
+//! upload/delete, validate/config, and the `ai` sub-group. The reduced
+//! [`execute_with_db`] path serves the read-only commands that need only a
+//! [`DatabaseContext`]; upload, delete, validate, config, and ai require a full
+//! profile context.
+
 pub mod types;
 
 mod config;

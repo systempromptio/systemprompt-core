@@ -1,3 +1,9 @@
+//! Artifact retrieval routes for the agent surface.
+//!
+//! Handlers list artifacts by context, task, or user, fetch a single artifact,
+//! and render an artifact as MCP App UI. Every accessor enforces ownership
+//! against the authenticated [`RequestContext`] before returning data.
+
 use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};

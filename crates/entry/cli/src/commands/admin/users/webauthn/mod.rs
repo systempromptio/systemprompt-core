@@ -1,3 +1,8 @@
+//! WebAuthn credential-management subcommands.
+//!
+//! [`WebauthnCommands`] generates a setup token that links a passkey credential
+//! to an existing user, dispatched by [`execute`].
+
 mod generate_setup_token;
 
 use crate::cli_settings::CliConfig;

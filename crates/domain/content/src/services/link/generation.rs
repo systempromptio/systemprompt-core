@@ -1,3 +1,10 @@
+//! Trackable link generation service.
+//!
+//! [`LinkGenerationService`] mints campaign links for the supported channels
+//! (social, internal navigation, external CTA, external share), assembling the
+//! UTM parameters and short code for each, and resolves destination type and
+//! the public trackable URL.
+
 use crate::error::ContentError;
 use crate::models::{CampaignLink, CreateLinkParams, DestinationType, LinkType, UtmParams};
 use crate::repository::LinkRepository;

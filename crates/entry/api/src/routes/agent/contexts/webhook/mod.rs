@@ -1,3 +1,8 @@
+//! Webhook broadcast surface for context events.
+//!
+//! Receives A2A and AG-UI webhook payloads, loads the referenced entities, and
+//! fans the resulting events out to subscribed context streams.
+
 mod broadcast_handlers;
 mod context_broadcast;
 mod event_loader;

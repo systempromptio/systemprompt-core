@@ -1,3 +1,9 @@
+//! Serializable output shapes for the `core artifacts` commands.
+//!
+//! Defines [`ArtifactListOutput`] and [`ArtifactPartOutput`] (and re-exports
+//! the shared [`ArtifactSummary`]) so list/show renderers emit a stable JSON
+//! schema.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

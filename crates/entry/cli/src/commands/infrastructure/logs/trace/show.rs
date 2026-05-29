@@ -1,3 +1,9 @@
+//! `infra logs trace show`: assemble and render a full execution trace.
+//!
+//! Defines the [`ShowArgs`] / [`TraceSections`] CLI surface, resolves the id to
+//! either an AI task trace or a log-event trace, and merges log, AI, MCP, and
+//! step events into a single time-ordered view.
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;

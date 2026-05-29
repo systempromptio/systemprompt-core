@@ -1,3 +1,11 @@
+//! Config-section model and YAML helpers shared across the `admin config` tree.
+//!
+//! [`ConfigSection`] enumerates the profile and per-service config locations
+//! and resolves them to filesystem paths, while [`read_yaml_file`] and
+//! [`write_yaml_file`] back the editing commands. The remaining types are the
+//! serializable outputs rendered by the list, validate, and import/export
+//! flows.
+
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};

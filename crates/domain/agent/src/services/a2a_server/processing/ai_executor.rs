@@ -1,3 +1,11 @@
+//! Direct AI-provider calls for the processing pipeline.
+//!
+//! [`process_without_tools`] streams a plain generation, and
+//! [`synthesize_tool_results_with_artifacts`] asks the model for a brief
+//! conversational summary after tools have run. Both resolve
+//! provider/model/token settings from the request context and agent runtime
+//! before calling the provider.
+
 use futures::StreamExt;
 use std::sync::Arc;
 use tokio::sync::mpsc;

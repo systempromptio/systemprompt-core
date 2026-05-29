@@ -1,3 +1,10 @@
+//! Analytics events emitted over the event bus and SSE streams.
+//!
+//! [`AnalyticsEvent`] is the timestamped, tagged union of session, page-view,
+//! engagement, and real-time-stats events; each carries a typed payload
+//! struct. [`AnalyticsEventBuilder`] stamps each variant with the current
+//! time at construction.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContentId, SessionId, UserId};

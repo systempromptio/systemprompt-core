@@ -1,3 +1,11 @@
+//! Dashboard overview rolling up every analytics domain into one snapshot.
+//!
+//! [`OverviewArgs`] selects the time range; [`OverviewOutput`] aggregates the
+//! per-domain metric cards (conversations, agents, requests, tools, sessions,
+//! costs), comparing each against the immediately preceding period of equal
+//! length to derive change percentages. Supports CSV export of the rolled-up
+//! row.
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;

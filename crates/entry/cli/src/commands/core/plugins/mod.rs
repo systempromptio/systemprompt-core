@@ -1,3 +1,9 @@
+//! `plugins` CLI command group: list, show, validate, and generate plugins.
+//!
+//! [`PluginsCommands`] enumerates the subcommands; [`execute`] dispatches each
+//! to its submodule and renders the result. Output payload types live in
+//! [`types`].
+
 pub mod types;
 
 mod generate;

@@ -1,3 +1,9 @@
+//! Background process monitor for managed services.
+//!
+//! [`ProcessMonitor`] spawns a polling loop that checks each running service's
+//! PID against the live process table, marks vanished processes as crashed, and
+//! reports aggregate state via [`HealthSummary`] and [`ModuleHealth`].
+
 use anyhow::Result;
 use std::time::Duration;
 use systemprompt_database::{DbPool, ServiceRepository};

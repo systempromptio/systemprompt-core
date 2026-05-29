@@ -1,3 +1,10 @@
+//! Content metadata validation.
+//!
+//! [`validate_content_metadata`] enforces the frontmatter contract before
+//! ingestion: required title, author, and published date, a `YYYY-MM-DD` date
+//! format, and a slug constrained to lowercase alphanumeric segments separated
+//! by single slashes.
+
 use crate::error::ContentError;
 use crate::models::ContentMetadata;
 

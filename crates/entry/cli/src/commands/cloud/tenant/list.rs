@@ -1,3 +1,9 @@
+//! `cloud tenant list` command.
+//!
+//! Reconciles the local tenant store with the cloud account, then renders the
+//! merged set as a [`TenantListOutput`] table, with an interactive drill-down
+//! into per-tenant details when running interactively.
+
 use anyhow::Result;
 use chrono::Utc;
 use dialoguer::Select;

@@ -1,3 +1,9 @@
+//! MCP reverse-proxy routes and discovery metadata.
+//!
+//! Builds the router that forwards requests to managed MCP backends, serves the
+//! RFC 9728 protected-resource and authorization-server metadata per service,
+//! and exposes tool-execution lookups.
+
 use crate::services::proxy::ProxyEngine;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;

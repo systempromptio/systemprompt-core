@@ -1,3 +1,10 @@
+//! Serializable output payloads for the `admin agents` command group.
+//!
+//! Each command renders through one of these types — listings, per-agent
+//! detail and status, create/edit/delete results, log views, registry
+//! discovery, A2A message output, and MCP tool summaries — so that table, JSON,
+//! and YAML rendering share a single typed contract.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::a2a::Task;

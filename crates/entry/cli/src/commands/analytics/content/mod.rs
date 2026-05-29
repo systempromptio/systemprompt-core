@@ -1,3 +1,9 @@
+//! Content performance analytics: engagement stats, top content, and trends.
+//!
+//! Defines the [`ContentCommands`] subcommand tree and the typed output shapes
+//! ([`ContentStatsOutput`], [`TopContentOutput`], [`ContentTrendsOutput`])
+//! rendered by the `analytics content` commands.
+
 mod stats;
 mod top;
 mod trends;

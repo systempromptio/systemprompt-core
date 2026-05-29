@@ -1,3 +1,10 @@
+//! Data types for stored files and their metadata.
+//!
+//! Re-exports the [`File`] row type, the content-association types
+//! [`ContentFile`] and [`FileRole`], and the structured-metadata family
+//! ([`FileMetadata`], [`TypeSpecificMetadata`], and the per-kind detail
+//! structs).
+
 mod content_file;
 mod file;
 mod image_metadata;

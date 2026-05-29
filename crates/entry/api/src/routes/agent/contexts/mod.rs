@@ -1,3 +1,9 @@
+//! Context resource routes for the agent surface.
+//!
+//! Wires the CRUD handlers for A2A contexts plus their nested tasks, artifacts,
+//! events, and notification endpoints, and exposes the webhook broadcast router
+//! used to fan A2A/AG-UI events out to subscribed streams.
+
 pub mod create_context;
 pub mod delete_context;
 pub mod events;

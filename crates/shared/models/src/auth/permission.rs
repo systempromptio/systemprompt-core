@@ -1,3 +1,11 @@
+//! The [`Permission`] scope set and its hierarchy.
+//!
+//! [`Permission`] is the PBAC grant carried in a token's `scope`. The
+//! privilege ordering ([`Permission::hierarchy_level`],
+//! [`Permission::implies`]) drives every route-level access check, and
+//! [`parse_permissions`] / [`permissions_to_string`] are the space-delimited
+//! wire codec.
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;

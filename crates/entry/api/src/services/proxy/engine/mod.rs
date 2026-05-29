@@ -1,3 +1,11 @@
+//! Reverse-proxy engine for MCP and agent backends.
+//!
+//! [`ProxyEngine`] resolves a service by name, enforces access via the proxy
+//! auth boundary, forwards the request to the local backend port, and streams
+//! the response back (with SSE keep-alive). For MCP it also maintains the
+//! session-identity cache so a session-only follow-up request can be enriched
+//! with the identity established on the authenticated initialize call.
+
 mod mcp_session;
 
 use axum::body::Body;

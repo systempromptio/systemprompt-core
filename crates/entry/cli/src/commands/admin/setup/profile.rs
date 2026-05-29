@@ -1,3 +1,9 @@
+//! Profile assembly, persistence, and migration for the setup wizard.
+//!
+//! [`build`] constructs a `Profile` for the chosen environment, [`save`]
+//! writes it as YAML with a credential warning header, and [`run_migrations`]
+//! re-invokes the CLI against the new profile to apply the schema.
+
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;

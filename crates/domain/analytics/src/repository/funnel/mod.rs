@@ -1,3 +1,10 @@
+//! Conversion-funnel definitions and per-session progress tracking.
+//!
+//! [`FunnelRepository`] manages `funnels` and their ordered `funnel_steps`,
+//! records `funnel_progress` as sessions advance, and computes drop-off
+//! statistics. Mutations live in `mutations`, reads in `finders` and `stats`,
+//! and shared row types in `types`.
+
 mod finders;
 mod mutations;
 mod stats;

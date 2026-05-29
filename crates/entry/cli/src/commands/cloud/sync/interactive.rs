@@ -1,3 +1,8 @@
+//! Interactive menu for `cloud sync` when no subcommand is given.
+//!
+//! Prompts for push/pull direction and a source profile, then drives the
+//! [`SyncService`] to synchronise files for the profile's configured tenant.
+
 use anyhow::{Context, Result, bail};
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;

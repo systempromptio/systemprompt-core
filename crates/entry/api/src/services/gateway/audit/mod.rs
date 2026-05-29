@@ -1,3 +1,11 @@
+//! Persistence of gateway request lifecycle to the AI-request audit trail.
+//!
+//! [`GatewayAudit`] opens a record when a request arrives, records the
+//! canonical messages and request payload, then closes it on completion with
+//! token usage, resolved cost, latency, captured tool calls, and the response
+//! payload — or marks it failed. [`GatewayRequestContext`] carries the
+//! identifiers and routing metadata bound to a single request.
+
 mod message_text;
 pub mod payload;
 

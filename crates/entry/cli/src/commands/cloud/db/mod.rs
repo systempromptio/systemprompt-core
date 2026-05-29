@@ -1,3 +1,9 @@
+//! `cloud db` subcommands operating on a remote tenant database.
+//!
+//! Resolves a profile's database URL from its secrets, then routes most
+//! commands through the shared infrastructure [`db`] handlers; backup and
+//! restore are handled locally via `pg_dump`/`pg_restore`.
+
 mod backup;
 mod restore;
 

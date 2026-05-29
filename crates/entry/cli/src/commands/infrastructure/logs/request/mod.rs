@@ -1,3 +1,8 @@
+//! `infra logs request` subcommands for inspecting AI provider requests.
+//!
+//! Exposes [`RequestCommands`] (list, show, stats) and the row types
+//! ([`RequestListOutput`], [`RequestShowOutput`]) returned to the renderer.
+
 mod list;
 mod show;
 mod stats;

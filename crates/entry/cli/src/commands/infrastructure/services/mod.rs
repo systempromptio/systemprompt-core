@@ -1,3 +1,10 @@
+//! `infra services` command group: start, stop, restart, status, cleanup, and
+//! serve.
+//!
+//! Defines the [`ServicesCommands`] clap subcommand tree and the individual
+//! target enums ([`StartTarget`], [`StopTarget`], [`RestartTarget`]); dispatch
+//! is delegated to the sibling implementation modules via [`execute`].
+
 mod cleanup;
 mod dispatch;
 pub mod restart;

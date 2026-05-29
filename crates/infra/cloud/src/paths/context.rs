@@ -1,3 +1,10 @@
+//! [`UnifiedContext`]: resolves credential, tenant, and session file locations
+//! from a discovered project, falling back to configured cloud paths.
+//!
+//! Precedence is explicit cloud paths first, then the discovered project, then
+//! a `.systemprompt`-relative default, so the same accessor works whether
+//! running in a local checkout or a deployed container.
+
 use std::path::{Path, PathBuf};
 
 use super::{CloudPath, CloudPaths, DiscoveredProject};

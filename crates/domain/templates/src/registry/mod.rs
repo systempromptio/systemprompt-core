@@ -1,3 +1,12 @@
+//! Handlebars-backed template registry.
+//!
+//! [`TemplateRegistry`] aggregates the extension-provided template surface —
+//! providers, loaders, data extenders, component renderers, page-data
+//! providers, and page prerenderers — resolves templates by priority, and
+//! compiles them into a shared Handlebars instance. Registration lives here;
+//! initialization and rendering live in the `lifecycle` and `queries`
+//! submodules, with aggregate counts exposed via [`RegistryStats`].
+
 mod lifecycle;
 mod queries;
 mod stats;

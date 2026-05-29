@@ -1,3 +1,9 @@
+//! `db doctor` subcommand.
+//!
+//! Reconciles the live database schema against the tables and required columns
+//! declared by registered extensions, reporting missing tables, missing
+//! columns, and live tables that no extension declares.
+
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};

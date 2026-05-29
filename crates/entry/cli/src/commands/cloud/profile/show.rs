@@ -1,3 +1,8 @@
+//! `cloud profile show`: render a profile's effective configuration.
+//!
+//! Loads the profile and services config, assembles a [`FullConfig`] scoped to
+//! the requested [`ShowFilter`], and emits it as text, JSON, or YAML.
+
 use anyhow::Result;
 use std::collections::HashMap;
 use systemprompt_config::ProfileBootstrap;

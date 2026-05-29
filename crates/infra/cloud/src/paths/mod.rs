@@ -1,3 +1,10 @@
+//! Filesystem path resolution for the cloud layer.
+//!
+//! Covers project discovery ([`DiscoveredProject`]), the typed project/profile
+//! path enums ([`ProjectPath`], [`ProfilePath`], [`ProjectContext`]), the
+//! container-side [`CloudPaths`], and the [`UnifiedContext`] that ties them
+//! together for credential, tenant, and session lookups.
+
 mod cloud;
 mod context;
 mod discovery;

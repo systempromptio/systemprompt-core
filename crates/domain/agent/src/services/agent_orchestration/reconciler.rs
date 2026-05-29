@@ -1,3 +1,9 @@
+//! Reconciliation of recorded agent state against the actual process table.
+//!
+//! [`AgentReconciler`] detects drift — agents marked running whose process has
+//! died, and orphaned processes — produces a [`ConsistencyReport`], and repairs
+//! the discrepancies by marking affected agents failed.
+
 use systemprompt_database::DbPool;
 
 use crate::services::agent_orchestration::database::AgentDatabaseService;

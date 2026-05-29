@@ -1,3 +1,9 @@
+//! Session-management subcommands for users.
+//!
+//! [`SessionCommands`] lists active sessions, ends a session, and cleans up old
+//! anonymous users. Listing runs against a bare pool via [`execute_with_pool`];
+//! the write operations require full profile context.
+
 mod cleanup;
 mod end;
 mod list;

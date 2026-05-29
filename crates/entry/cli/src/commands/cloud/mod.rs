@@ -1,3 +1,9 @@
+//! `cloud` command tree for systemprompt.io Cloud.
+//!
+//! Routes [`CloudCommands`] to the auth, init, tenant, profile, deploy,
+//! status, restart, sync, secrets, dockerfile, db, and domain subcommands, and
+//! declares each command's profile/secret requirements via [`DescribeCommand`].
+
 pub mod auth;
 pub mod db;
 mod deploy;

@@ -1,3 +1,10 @@
+//! Hook configuration: lifecycle events, matchers, and actions.
+//!
+//! [`HookEvent`] enumerates the agent lifecycle points a hook can bind to;
+//! [`HookEventsConfig`] groups the [`HookMatcher`]/[`HookAction`] bindings per
+//! event and validates them via [`HookEventsConfig::validate`].
+//! [`DiskHookConfig`] is the per-hook on-disk descriptor.
+
 use std::fmt;
 use std::str::FromStr;
 

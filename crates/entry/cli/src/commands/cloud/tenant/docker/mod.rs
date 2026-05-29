@@ -1,3 +1,10 @@
+//! Local Docker-backed PostgreSQL provisioning for local tenants.
+//!
+//! Manages the shared `systemprompt-postgres` container and its volume, and
+//! creates, drops, and authorises per-tenant databases inside it via
+//! `docker exec psql`. Public surface: the shared-config types and the
+//! container/database lifecycle helpers consumed by the create/delete flows.
+
 mod config;
 mod container;
 mod database;

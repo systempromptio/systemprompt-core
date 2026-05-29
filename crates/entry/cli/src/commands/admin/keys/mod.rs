@@ -1,3 +1,8 @@
+//! `admin keys` command tree: RSA signing-key management for the JWT plane.
+//!
+//! [`KeysCommands`] generates fresh RS256 keypairs and mints long-lived
+//! `aud=plugin` tokens used for hook and governance authentication.
+
 mod generate;
 mod issue_plugin_token;
 

@@ -1,3 +1,11 @@
+//! Browser-fingerprint reputation tracking for abuse detection.
+//!
+//! [`FingerprintRepository`] upserts and scores `fingerprint_reputation`
+//! rows — session counts, request velocity, flags, and reputation score —
+//! used to detect and ban abusive clients. Read queries live in `queries`,
+//! state changes in `mutations`; the threshold constants here define the
+//! abuse-detection policy.
+
 mod mutations;
 mod queries;
 

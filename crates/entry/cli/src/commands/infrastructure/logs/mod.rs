@@ -1,3 +1,12 @@
+//! `infra logs` command surface: querying, searching, and tracing the log
+//! store.
+//!
+//! Dispatches the [`LogsCommands`] subcommands (view, search, stream, export,
+//! cleanup, delete, summary, show, trace, request, tools, audit) and defines
+//! the serializable output rows shared across them. Two dispatch paths exist:
+//! [`execute`] boots its own context, while [`execute_with_db`] reuses an
+//! already-open [`DatabaseContext`] for the read-only subcommands.
+
 mod audit;
 mod audit_display;
 mod cleanup;

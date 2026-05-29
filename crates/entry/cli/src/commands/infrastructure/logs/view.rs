@@ -1,3 +1,6 @@
+//! `infra logs view`: list recent log entries with level, module, tail-count,
+//! and since filters applied.
+
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::models::LogEntry;

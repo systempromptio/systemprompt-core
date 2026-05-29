@@ -1,3 +1,9 @@
+//! `admin access-control` subcommand: inspect and promote live RBAC rules.
+//!
+//! Exposes [`AccessControlCommands`] for exporting the current role rules as a
+//! committable YAML baseline and linting the live access-control tables for
+//! unknown entities or unreachable rules.
+
 mod export;
 mod lint;
 

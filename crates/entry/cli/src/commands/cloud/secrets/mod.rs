@@ -1,3 +1,9 @@
+//! `cloud secrets` subcommand: manage tenant environment secrets in the cloud.
+//!
+//! Exposes [`SecretsCommands`] (sync, set, unset, cleanup) and dispatches each
+//! to the corresponding action in the `commands` submodule, rejecting
+//! system-managed keys before they reach the cloud API.
+
 mod commands;
 mod helpers;
 

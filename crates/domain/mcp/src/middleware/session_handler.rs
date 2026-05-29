@@ -1,3 +1,12 @@
+//! Database-backed MCP session manager.
+//!
+//! [`DatabaseSessionHandler`] implements the rmcp [`SessionManager`] trait,
+//! wrapping rmcp's in-memory `LocalSessionManager` while mirroring session
+//! lifecycle (create, activity, close) into the `mcp_sessions` table for
+//! cross-restart visibility. [`DatabaseSessionManagerError`] models the local,
+//! database, and reconnect-signalling failure cases; database persistence is
+//! best-effort and never fails an in-memory operation.
+
 use std::fmt;
 use std::sync::Arc;
 

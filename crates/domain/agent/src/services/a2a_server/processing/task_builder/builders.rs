@@ -1,3 +1,9 @@
+//! Concrete [`Task`] builders for each completion path.
+//!
+//! Thin constructors over [`TaskBuilder`] (completed, canceled, mock,
+//! submitted) plus [`build_multiturn_task`], which reconstructs the full
+//! message history and per-tool artifacts for a multi-turn agentic run.
+
 use super::TaskBuilder;
 use super::helpers::{content_to_json, extract_text_from_content};
 use crate::models::a2a::{

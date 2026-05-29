@@ -1,3 +1,11 @@
+//! Terminal-display layer for CLI output.
+//!
+//! Renders human-facing status, prompts, tables, and progress to stderr/stdout
+//! through [`CliService`] and the [`Display`]/[`display::DetailedDisplay`] traits. This
+//! is one of the sanctioned `println!`/`write!`-to-stdio sinks; it deliberately
+//! does not route through `tracing`. Themed colour and iconography live in
+//! [`theme`].
+
 mod banners;
 pub mod display;
 mod macros;

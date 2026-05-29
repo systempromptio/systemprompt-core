@@ -1,3 +1,9 @@
+//! The update-agent request type and its card normalization.
+//!
+//! [`UpdateAgentRequestRaw`] is the wire shape; [`UpdateAgentRequest`] derives
+//! a fully-populated [`AgentCard`](crate::models::a2a::AgentCard) from it and
+//! validates the result before it is applied to an existing agent.
+
 use crate::models::a2a::{AgentCard, AgentInterface, TransportProtocol};
 use serde::{Deserialize, Serialize};
 

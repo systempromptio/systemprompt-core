@@ -1,3 +1,8 @@
+//! Serializable output payloads for the `plugins` command group.
+//!
+//! These structures back the list, detail, validation, and generation
+//! responses rendered by the plugin subcommands in both text and JSON modes.
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::PluginId;

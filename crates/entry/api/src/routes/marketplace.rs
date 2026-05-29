@@ -1,3 +1,10 @@
+//! Public marketplace and plugin-file routes.
+//!
+//! [`router`] serves the default `marketplace.json`, lists and renders
+//! individual marketplaces (JSON and raw `config.yaml`), and streams plugin
+//! files. File-serving handlers canonicalize the requested path and reject
+//! traversal outside the plugin directory and access to configuration files.
+
 use axum::Router;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::{StatusCode, header};

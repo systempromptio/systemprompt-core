@@ -1,3 +1,9 @@
+//! Renders the deployment Dockerfile from discovered extensions and config.
+//!
+//! [`DockerfileBuilder`] composes the runtime image: storage directories,
+//! MCP binary copies, extension asset copies, and the profile-aware
+//! environment block.
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 

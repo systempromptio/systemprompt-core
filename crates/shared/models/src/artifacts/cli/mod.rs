@@ -1,3 +1,12 @@
+//! CLI artifact envelope and raw-result conversion.
+//!
+//! [`CliArtifact`] is the tagged union of every renderable artifact a CLI
+//! command can emit (table, list, text, dashboard, chart, media, card).
+//! [`CommandResultRaw`] is the untyped intake shape — data plus a declared
+//! [`CliArtifactType`] and [`RenderingHints`] — converted into a
+//! [`CliArtifact`] by the [`conversion`] submodule. [`ConversionError`] covers
+//! the failure modes.
+
 pub mod conversion;
 
 use schemars::JsonSchema;

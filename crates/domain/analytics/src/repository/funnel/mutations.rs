@@ -1,3 +1,9 @@
+//! Funnel and funnel-progress mutations for `FunnelRepository`.
+//!
+//! Creates funnels with their ordered steps, deactivates and deletes them,
+//! and advances or completes per-session progress. All writes go to the write
+//! pool; `record_progress` only moves a session forward, never backward.
+
 use crate::Result;
 use chrono::Utc;
 use systemprompt_identifiers::{FunnelId, FunnelProgressId, SessionId};

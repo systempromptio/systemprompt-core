@@ -1,3 +1,10 @@
+//! Early bot-classification middleware.
+//!
+//! [`detect_bots_early`] inspects the user agent, client IP, and request path
+//! before routing, attaching a [`BotMarker`] (with its [`BotType`]) to the
+//! request extensions so downstream layers can branch on known bots, scanners,
+//! and suspicious traffic without re-parsing headers.
+
 use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;
 use axum::response::Response;

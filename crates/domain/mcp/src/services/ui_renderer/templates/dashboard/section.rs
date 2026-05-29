@@ -1,3 +1,10 @@
+//! Per-section parsing and HTML rendering for the dashboard renderer.
+//!
+//! `DashboardSection` parses one section of a dashboard artifact and renders
+//! its body according to its `SectionType` (metrics, chart, table, status,
+//! list, or free text), producing the inner markup the dashboard renderer
+//! assembles into the full page.
+
 use super::super::html::html_escape;
 use super::rand_id;
 use serde_json::Value as JsonValue;

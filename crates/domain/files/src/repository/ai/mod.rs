@@ -1,3 +1,8 @@
+//! [`FileRepository`] queries for AI-generated files.
+//!
+//! Listing and counting of files flagged with `ai_content`, both globally and
+//! scoped to an owning user.
+
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
 
 use super::file::FileRepository;

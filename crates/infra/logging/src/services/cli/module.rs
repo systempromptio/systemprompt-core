@@ -1,3 +1,10 @@
+//! Module install/update display and prompts for CLI flows.
+//!
+//! [`ModuleDisplay`] renders and prompts on missing schemas/seeds for a module;
+//! [`ModuleUpdate`] and [`ModuleInstall`] are displayable descriptors, and
+//! [`BatchModuleOperations`] presents multi-module install/update
+//! confirmations.
+
 use std::io::Write;
 
 use crate::models::LoggingError;

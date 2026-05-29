@@ -1,3 +1,11 @@
+//! Static validation of cross-tool template references in an execution plan.
+//!
+//! [`TemplateValidator`] walks each [`PlannedToolCall`]'s arguments for
+//! `$N.output.field` templates and checks them against the referenced tools'
+//! output schemas, surfacing each problem as a [`PlanValidationError`] tagged
+//! with a [`ValidationErrorKind`] (bad syntax, self/forward reference,
+//! out-of-bounds index, or a field absent from the target schema).
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

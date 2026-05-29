@@ -1,3 +1,14 @@
+//! LLM gateway router and its access log.
+//!
+//! [`gateway_router`] assembles the bridge-facing surface: the `/messages` and
+//! `/responses` proxy endpoints (each bound to an [`InboundAdapter`]), the
+//! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
+//! manifest and heartbeat routes, the unauthenticated `/otel` ingest
+//! ([`otel`]), and `/models`. The router is gated on the availability of the
+//! analytics, user, and JTI-revocation providers; if any is missing it returns
+//! `None` and the gateway stays unmounted. [`log_gateway_request`] is the
+//! middleware that records every request to the logging repository.
+
 pub mod auth;
 pub mod bridge;
 pub mod bridge_data;

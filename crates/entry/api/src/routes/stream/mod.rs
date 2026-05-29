@@ -1,3 +1,10 @@
+//! Server-sent event stream routes for live A2A, AgUI, and context-state feeds.
+//!
+//! Each route opens a per-user SSE connection backed by a broadcaster from
+//! `systemprompt_events`. [`create_sse_stream`] registers the connection (with
+//! a per-user cap), wraps the receiver in a [`StreamWithGuard`] so the
+//! [`ConnectionGuard`] deregisters it on drop, and emits keep-alive frames.
+
 use axum::Router;
 use axum::extract::Extension;
 use axum::response::IntoResponse;

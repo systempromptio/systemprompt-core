@@ -1,3 +1,10 @@
+//! MCP capability and UI-resource metadata types.
+//!
+//! Covers the MCP Apps UI extension ([`McpExtensionId`], [`McpAppsUiConfig`]),
+//! tool visibility ([`ToolVisibility`]), and the content-security-policy and
+//! resource UI metadata ([`McpCspDomains`], [`McpResourceUiMeta`]) attached to
+//! MCP resources.
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

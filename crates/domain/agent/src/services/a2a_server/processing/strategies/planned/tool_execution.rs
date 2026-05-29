@@ -1,3 +1,10 @@
+//! Tool-call handling for the planned agentic strategy.
+//!
+//! [`handle_tool_calls`] validates the plan's argument templates, executes the
+//! tools, records execution status, and synthesizes the final response;
+//! validation failures are funneled back through the model for a user-facing
+//! explanation.
+
 use crate::services::shared::{AgentServiceError, Result};
 use serde_json::Value;
 use systemprompt_identifiers::TaskId;

@@ -1,3 +1,11 @@
+//! Lifecycle and accounting metadata for A2A tasks.
+//!
+//! [`TaskMetadata`] distinguishes the two [`TaskType`] flavours (MCP tool
+//! execution versus agent message), tracks timing and token usage, and carries
+//! an open-ended `extensions` map flattened into the serialized form. The
+//! `new_validated_*` constructors enforce the required-field contract before a
+//! task is recorded.
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use systemprompt_traits::validation::{

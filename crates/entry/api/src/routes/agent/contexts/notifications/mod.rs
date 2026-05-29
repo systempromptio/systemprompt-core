@@ -1,3 +1,8 @@
+//! Inbound A2A notification handling for a context.
+//!
+//! Validates the JSON-RPC envelope, resolves the owning user, then persists,
+//! processes, and broadcasts the notification to the context's live streams.
+
 mod handlers;
 
 use std::sync::Arc;

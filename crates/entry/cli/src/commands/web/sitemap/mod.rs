@@ -1,3 +1,8 @@
+//! Sitemap inspection and generation for the web content config.
+//!
+//! Dispatches the `web sitemap` subcommands ([`SitemapCommands`]) to show the
+//! configured routes or generate a `sitemap.xml`.
+
 mod generate;
 mod show;
 

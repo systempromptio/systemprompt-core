@@ -1,3 +1,9 @@
+//! Interactive OAuth login against systemprompt.io Cloud.
+//!
+//! Runs the provider-selection prompt and browser OAuth flow, persists the
+//! returned credentials and tenant list to the local cloud config paths, and
+//! syncs the authenticated admin user into all profiles.
+
 use anyhow::{Result, anyhow};
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;

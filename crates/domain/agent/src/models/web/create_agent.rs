@@ -1,3 +1,10 @@
+//! The create-agent request type and its card normalization.
+//!
+//! [`CreateAgentRequestRaw`] is the wire shape; [`CreateAgentRequest`] derives
+//! a fully-populated [`AgentCard`](crate::models::a2a::AgentCard) from it
+//! (filling interface URL, transport, and default modes) and validates the
+//! result.
+
 use crate::models::a2a::{AgentCapabilities, AgentCard, AgentInterface, TransportProtocol};
 use serde::{Deserialize, Serialize};
 

@@ -1,3 +1,9 @@
+//! Content HTTP surface.
+//!
+//! Splits content delivery into a public router (read/query, Markdown
+//! negotiation, link analytics), an authenticated router (link generation), and
+//! the bare short-code redirect router.
+
 pub mod blog;
 pub mod links;
 pub mod query;

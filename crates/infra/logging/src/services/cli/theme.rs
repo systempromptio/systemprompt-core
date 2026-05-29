@@ -1,3 +1,9 @@
+//! Colour, icon, and styling primitives for CLI output.
+//!
+//! [`Theme`] resolves an [`IconType`]/[`ColorType`] to a styled object;
+//! [`BrandColors`], [`Colors`], and [`Icons`] supply the underlying palette and
+//! glyphs, with terminal-fallback variants for status and message levels.
+
 use console::{Emoji, StyledObject, style};
 
 pub use super::types::{

@@ -1,3 +1,10 @@
+//! The task-completion stream handler.
+//!
+//! [`handle_complete`] marks the task completed, builds and validates the final
+//! [`Task`], persists it with its messages, and broadcasts the A2A, AG-UI, and
+//! webhook success events; failures along the way are recorded and reported as
+//! AG-UI `RUN_ERROR` events.
+
 use std::sync::Arc;
 
 use axum::response::sse::Event;

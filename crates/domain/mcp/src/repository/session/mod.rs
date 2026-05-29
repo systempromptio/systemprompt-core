@@ -1,3 +1,9 @@
+//! Persistence for MCP transport sessions.
+//!
+//! Defines [`McpSessionRepository`] and the [`McpSessionRecord`] row model over
+//! the `mcp_sessions` table, tracking session lifecycle (active → expired →
+//! closed), activity timestamps, and last-event-id for SSE resumption.
+
 use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

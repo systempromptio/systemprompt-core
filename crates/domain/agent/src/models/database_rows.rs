@@ -1,3 +1,10 @@
+//! `FromRow` structs mirroring the agent crate's database tables.
+//!
+//! Each struct maps one query result shape (contexts, tasks, messages, message
+//! parts, artifacts, execution steps, push-notification configs) onto typed
+//! identifiers, with `From` conversions to the public domain types where the
+//! row is exposed beyond the repository layer.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;

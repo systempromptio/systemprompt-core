@@ -1,3 +1,9 @@
+//! Platform-wide cost queries for `CostAnalyticsRepository`.
+//!
+//! Aggregates spend, tokens, and request counts across all users from
+//! `ai_requests`, with breakdowns by model, provider, and agent and a trend
+//! series for the platform cost dashboard.
+
 use super::CostAnalyticsRepository;
 use crate::Result;
 use chrono::{DateTime, Utc};

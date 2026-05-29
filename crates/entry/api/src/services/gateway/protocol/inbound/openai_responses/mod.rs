@@ -1,3 +1,9 @@
+//! Inbound adapter for the OpenAI Responses wire protocol.
+//!
+//! [`OpenAiResponsesInbound`] parses Responses-format request bodies into the
+//! canonical request model and renders canonical responses, streaming events,
+//! and errors back in Responses format.
+
 use bytes::Bytes;
 use http::StatusCode;
 use serde_json::Value;

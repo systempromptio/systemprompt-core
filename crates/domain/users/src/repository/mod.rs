@@ -1,3 +1,11 @@
+//! Database access layer for the users domain.
+//!
+//! [`UserRepository`] holds the read and write pools and implements user CRUD,
+//! sessions, and federated identity across the `user` submodule; the API-key,
+//! device-cert, and banned-IP repositories live alongside it. Mutating
+//! operations take typed parameter structs ([`UpdateUserParams`],
+//! [`CreateApiKeyParams`], [`EnrollDeviceCertParams`], [`BanIpParams`]).
+
 mod api_key;
 mod banned_ip;
 mod device_cert;

@@ -1,3 +1,9 @@
+//! Formatting helpers shared across the `infra logs` subcommands.
+//!
+//! Re-exports the timestamp/duration formatters from `systemprompt_models` and
+//! provides [`display_log_row`] and [`cost_microdollars_to_dollars`] used by
+//! the view, search, and trace renderers.
+
 use systemprompt_logging::CliService;
 use systemprompt_models::text::truncate_with_ellipsis;
 

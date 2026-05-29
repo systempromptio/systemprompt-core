@@ -1,3 +1,10 @@
+//! `client_credentials` grant token generation (RFC 6749 §4.4).
+//!
+//! Mints an access token for a client acting as itself, intersecting the
+//! requested scopes with both the client's static grant and (for delegated
+//! user-tier roles) the owner's permissions. [`ClientCredentialsError`]
+//! partitions failures so the route maps recoverable client mistakes to 4xx.
+
 use axum::http::HeaderMap;
 use std::str::FromStr;
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource};

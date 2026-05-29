@@ -1,3 +1,11 @@
+//! OAuth challenge construction for the proxy auth boundary.
+//!
+//! [`OAuthChallengeBuilder`] builds the `WWW-Authenticate: Bearer` 401/403
+//! responses (per RFC 6750 and RFC 9728) that drive MCP and agent clients into
+//! their OAuth discovery handshake, deriving the advertised `resource_metadata`
+//! URL from the incoming request host. [`AuthValidator`] performs the bearer
+//! check and [`challenge_or_error`] maps a failed check onto a [`ProxyError`].
+
 use axum::body::Body;
 use axum::http::header::{AUTHORIZATION, HOST};
 use axum::http::{HeaderMap, StatusCode};

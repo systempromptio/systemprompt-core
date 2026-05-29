@@ -1,3 +1,11 @@
+//! Parameter builders for content mutations.
+//!
+//! [`CreateContentParams`] and [`UpdateContentParams`] carry the field set for
+//! creating and updating content rows. [`CategoryIdUpdate`] distinguishes the
+//! three update intents for an optional category — leave unchanged, clear, or
+//! set — so a partial update can express "do not touch" separately from "set to
+//! null".
+
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 

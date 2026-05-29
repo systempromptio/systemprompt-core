@@ -1,3 +1,10 @@
+//! Chart artifact renderer.
+//!
+//! [`ChartRenderer`] turns a chart [`Artifact`] into a self-contained HTML
+//! [`UiResource`] backed by Chart.js, mapping the artifact's rendering hints
+//! and dataset parts into a Chart.js configuration and emitting a CSP that
+//! permits the Chart.js CDN.
+
 use super::html::{
     HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };

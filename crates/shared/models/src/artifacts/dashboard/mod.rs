@@ -1,3 +1,10 @@
+//! Dashboard artifact and its composable sections.
+//!
+//! A [`DashboardArtifact`] is a titled collection of [`DashboardSection`]s laid
+//! out per its [`DashboardHints`]. The submodules supply the section model
+//! ([`section`]), per-section data shapes ([`section_data`]), section/layout
+//! taxonomy ([`section_types`]), and layout hints ([`hints`]).
+
 pub mod hints;
 pub mod section;
 pub mod section_data;

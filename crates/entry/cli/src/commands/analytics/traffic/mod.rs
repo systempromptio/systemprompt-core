@@ -1,3 +1,9 @@
+//! Traffic analytics: source, geographic, device, and bot-traffic breakdowns.
+//!
+//! Defines the [`TrafficCommands`] subcommand tree and the typed output shapes
+//! ([`TrafficSourcesOutput`], [`GeoOutput`], [`DevicesOutput`], [`BotsOutput`])
+//! rendered by the `analytics traffic` commands.
+
 mod bots;
 mod devices;
 mod geo;

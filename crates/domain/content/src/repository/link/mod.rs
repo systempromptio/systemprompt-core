@@ -1,3 +1,10 @@
+//! Campaign-link repository.
+//!
+//! [`LinkRepository`] manages `campaign_links` rows — creation (upsert by short
+//! code), lookup by short code, id, campaign, or source content, and deletion.
+//! Click recording and analytics live in the [`analytics`] submodule via
+//! [`LinkAnalyticsRepository`].
+
 pub mod analytics;
 
 pub use analytics::LinkAnalyticsRepository;

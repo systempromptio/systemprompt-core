@@ -1,3 +1,13 @@
+//! Read-side query facade over the tracing and audit tables.
+//!
+//! [`TraceQueryService`] is the single entry point for reconstructing a trace
+//! from its constituent rows (logs, AI requests, MCP tool executions, task
+//! execution steps) and for the log/audit browsing surfaces. Each public method
+//! delegates to a focused query module in this directory;
+//! [`get_all_trace_data`] fans the per-source fetches out concurrently.
+//!
+//! [`get_all_trace_data`]: TraceQueryService::get_all_trace_data
+
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;

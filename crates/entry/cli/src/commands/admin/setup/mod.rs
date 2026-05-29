@@ -1,3 +1,10 @@
+//! Interactive and non-interactive setup wizard for a local environment.
+//!
+//! Drives PostgreSQL provisioning, secret collection, profile generation, and
+//! optional migrations. [`SetupArgs`] captures the CLI flags and environment
+//! overrides; [`execute`] dispatches to the wizard, which writes a profile and
+//! secrets file under `.systemprompt/`.
+
 mod common;
 mod docker;
 mod docker_compose;

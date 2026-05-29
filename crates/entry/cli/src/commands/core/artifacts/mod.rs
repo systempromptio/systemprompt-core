@@ -1,3 +1,10 @@
+//! `core artifacts` command group: inspect A2A task artifacts.
+//!
+//! Dispatches the [`ArtifactsCommands`] subcommands (list, show) against either
+//! a freshly bootstrapped [`AppContext`](systemprompt_runtime::AppContext) or a
+//! supplied [`DbPool`], rendering each command's `CommandResult` to the
+//! configured output sink.
+
 mod list;
 mod show;
 mod types;

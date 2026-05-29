@@ -1,3 +1,9 @@
+//! Link click and analytics repository.
+//!
+//! [`LinkAnalyticsRepository`] records click events and serves the aggregate
+//! click/conversion views over `link_clicks` and `campaign_links`, maintaining
+//! the denormalised counters on the link row as clicks arrive.
+
 use crate::error::ContentError;
 use crate::models::{
     CampaignPerformance, ContentJourneyNode, LinkClick, LinkPerformance, RecordClickParams,

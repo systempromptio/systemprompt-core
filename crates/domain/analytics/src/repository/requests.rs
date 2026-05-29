@@ -1,3 +1,9 @@
+//! AI-request analytics over the `ai_requests` table.
+//!
+//! [`RequestAnalyticsRepository`] reports token, cost, latency, and
+//! cache-hit stats, per-model usage breakdowns, trend series, and a request
+//! list, each optionally filtered by a model substring.
+
 use crate::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

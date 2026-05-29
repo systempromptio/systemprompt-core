@@ -1,3 +1,10 @@
+//! Cost analytics: spend summary, trends over time, and breakdown by model or
+//! agent.
+//!
+//! Defines the [`CostsCommands`] subcommand tree and the typed output shapes
+//! ([`CostSummaryOutput`], [`CostTrendsOutput`], [`CostBreakdownOutput`])
+//! rendered by the `analytics costs` commands.
+
 mod breakdown;
 mod summary;
 mod trends;

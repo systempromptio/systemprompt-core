@@ -1,3 +1,9 @@
+//! Static HTML pages served by the local callback server during cloud flows.
+//!
+//! Re-exports the checkout pages (waiting, success, error) and the OAuth
+//! login pages (success, error) rendered in the user's browser while the CLI
+//! waits on a redirect from the cloud backend.
+
 mod checkout;
 mod oauth;
 

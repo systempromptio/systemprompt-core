@@ -1,3 +1,10 @@
+//! Content-Security-Policy modelling for rendered MCP UI resources.
+//!
+//! [`CspPolicy`] holds the per-directive source lists and serialises to a
+//! header value, while [`CspBuilder`] assembles a policy fluently from a
+//! strict baseline. The strict baseline locks rendered artifacts down to
+//! `'self'` plus any explicitly added CDN or scheme sources.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
