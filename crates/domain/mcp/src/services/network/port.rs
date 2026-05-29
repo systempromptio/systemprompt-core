@@ -91,8 +91,14 @@ pub async fn cleanup_port_processes(port: u16) -> McpDomainResult<()> {
 
     if !output.stdout.is_empty() {
         let pids = String::from_utf8_lossy(&output.stdout);
+        let self_pid = std::process::id() as i32;
         for pid_str in pids.lines() {
             if let Ok(pid) = pid_str.trim().parse::<i32>() {
+                // Never signal ourselves: `lsof` can return this process when it
+                // holds the port, and killing the caller is never the intent.
+                if pid <= 0 || pid == self_pid {
+                    continue;
+                }
                 tracing::debug!(port = port, pid = pid, "Stopping process on port");
 
                 if let Err(e) = signal::kill(Pid::from_raw(pid), Signal::SIGTERM) {
