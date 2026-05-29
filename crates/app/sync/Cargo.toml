@@ -53,6 +53,7 @@ systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-loader = { workspace = true }
 
 # Async trait
 async-trait = { workspace = true }

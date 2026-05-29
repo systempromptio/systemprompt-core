@@ -5358,6 +5358,7 @@ dependencies = [
  "systemprompt-content",
  "systemprompt-database",
  "systemprompt-identifiers",
+ "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
