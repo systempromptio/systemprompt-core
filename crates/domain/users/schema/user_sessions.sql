@@ -86,7 +86,6 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_bot_activity ON user_sessions(is_bo
 CREATE INDEX IF NOT EXISTS idx_user_sessions_human_sessions ON user_sessions(is_bot, started_at, user_id) WHERE is_bot = false;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_is_scanner ON user_sessions(is_scanner);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_is_behavioral_bot ON user_sessions(is_behavioral_bot);
-CREATE INDEX IF NOT EXISTS idx_user_sessions_throttle_level ON user_sessions(throttle_level) WHERE throttle_level > 0;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_behavioral_score ON user_sessions(behavioral_bot_score) WHERE behavioral_bot_score >= 50;
 CREATE INDEX IF NOT EXISTS idx_user_sessions_clean_traffic ON user_sessions(started_at) WHERE is_bot = false AND is_scanner = false AND is_behavioral_bot = false;
 CREATE INDEX IF NOT EXISTS idx_sessions_referrer ON user_sessions(referrer_source, started_at) WHERE is_bot = false;
@@ -194,8 +193,7 @@ SELECT * FROM user_sessions
 WHERE is_bot = false
   AND is_ai_crawler = false
   AND is_scanner = false
-  AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false)
-  AND throttle_level < 3;
+  AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false);
 
 CREATE OR REPLACE VIEW v_ai_crawler_activity AS
 SELECT
@@ -213,14 +211,13 @@ ORDER BY date DESC, session_count DESC;
 
 COMMENT ON VIEW v_ai_crawler_activity IS 'AI agent / crawler citations per day. Tracked separately from human traffic and from generic bots so SEO can measure agent surface presence.';
 
-COMMENT ON VIEW v_clean_human_traffic IS 'Consolidated view of verified human traffic excluding all bot types and blocked sessions';
+COMMENT ON VIEW v_clean_human_traffic IS 'Consolidated view of verified human traffic excluding all bot types';
 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_clean_human_traffic
 ON user_sessions(started_at)
 WHERE is_bot = false
   AND is_scanner = false
-  AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false)
-  AND throttle_level < 3;
+  AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false);
 
 CREATE OR REPLACE VIEW v_engaged_traffic AS
 SELECT * FROM user_sessions
