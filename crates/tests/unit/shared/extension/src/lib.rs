@@ -26,3 +26,9 @@ mod typed_extensions;
 mod typed_registry;
 #[cfg(test)]
 mod types;
+#[cfg(test)]
+mod seed;
+#[cfg(test)]
+mod extension_trait;
+#[cfg(test)]
+mod injected;
