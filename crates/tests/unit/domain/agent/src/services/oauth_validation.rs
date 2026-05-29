@@ -9,22 +9,17 @@ use systemprompt_traits::{
 
 struct StubJwtProvider {
     claims: Option<AgentJwtClaims>,
-    error: Option<JwtProviderError>,
 }
 
 impl StubJwtProvider {
     fn ok(claims: AgentJwtClaims) -> Arc<dyn JwtValidationProvider> {
         Arc::new(Self {
             claims: Some(claims),
-            error: None,
         })
     }
 
-    fn err(error: JwtProviderError) -> Arc<dyn JwtValidationProvider> {
-        Arc::new(Self {
-            claims: None,
-            error: Some(error),
-        })
+    fn err() -> Arc<dyn JwtValidationProvider> {
+        Arc::new(Self { claims: None })
     }
 }
 
@@ -32,8 +27,6 @@ impl JwtValidationProvider for StubJwtProvider {
     fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
         if let Some(c) = self.claims.clone() {
             Ok(c)
-        } else if self.error.is_some() {
-            Err(JwtProviderError::InvalidToken)
         } else {
             Err(JwtProviderError::InvalidToken)
         }
@@ -118,7 +111,7 @@ async fn validate_oauth_no_provider_returns_unauthorized() {
 async fn validate_oauth_invalid_token_returns_unauthorized() {
     let headers = bearer("bad");
     let id = NumberOrString::Number(1);
-    let provider = StubJwtProvider::err(JwtProviderError::InvalidToken);
+    let provider = StubJwtProvider::err();
     let err = validate_oauth_for_request(&headers, &id, &[], Some(&provider))
         .await
         .expect_err("invalid");
