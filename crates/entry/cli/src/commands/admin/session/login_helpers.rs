@@ -167,6 +167,6 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
     store.set_active_with_profile(session_key, profile_name_str);
     store.save(sessions_dir)?;
 
-    tracing::debug!("Session saved to {}/index.json", sessions_dir.display());
+    tracing::debug!(sessions_dir = %sessions_dir.display(), "session saved to index.json");
     Ok(())
 }

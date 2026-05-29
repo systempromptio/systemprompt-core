@@ -13,7 +13,7 @@ pub(super) async fn validate_schemas(
     report_schema_errors(&schema_report)?;
 
     if schema_report.created > 0 {
-        tracing::debug!("Created {} missing tables", schema_report.created);
+        tracing::debug!(created = schema_report.created, "created missing tables");
     }
 
     Ok(())

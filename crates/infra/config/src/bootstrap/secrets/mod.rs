@@ -226,6 +226,6 @@ impl SecretsBootstrap {
 
     fn log_loaded_secrets(secrets: &Secrets) {
         let message = build_loaded_secrets_message(secrets);
-        tracing::debug!("{}", message);
+        tracing::debug!("{message}");
     }
 }

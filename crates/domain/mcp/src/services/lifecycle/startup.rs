@@ -13,7 +13,7 @@ pub async fn start_server(
     config: &McpServerConfig,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
-    tracing::debug!("Starting MCP server: {} :{}", config.name, config.port);
+    tracing::debug!(server = %config.name, port = config.port, "starting MCP server");
 
     if let Some(tx) = events {
         tx.mcp_starting(&config.name, config.port);
@@ -34,7 +34,7 @@ pub async fn start_server(
 
     manager.database().register_service(config, pid).await?;
 
-    tracing::info!("MCP started: {} :{}", config.name, config.port);
+    tracing::info!(server = %config.name, port = config.port, "MCP server started");
 
     Ok(())
 }

@@ -89,7 +89,7 @@ fn load_from_file(path: &Path) -> ConfigResult<Secrets> {
             message: e.to_string(),
         })?;
 
-    tracing::debug!("Loaded secrets from {}", path.display());
+    tracing::debug!(path = %path.display(), "loaded secrets");
 
     Ok(secrets)
 }

@@ -14,11 +14,11 @@ pub fn log_secrets_issue(e: &ConfigError, mode: SecretsValidationMode) {
 }
 
 pub fn log_secrets_warn(e: &ConfigError) {
-    tracing::warn!("Secrets file issue: {}", e);
+    tracing::warn!(error = %e, "secrets file issue");
 }
 
 pub fn log_secrets_skip(e: &ConfigError) {
-    tracing::debug!("Skipping secrets file: {}", e);
+    tracing::debug!(error = %e, "skipping secrets file");
 }
 
 #[must_use]

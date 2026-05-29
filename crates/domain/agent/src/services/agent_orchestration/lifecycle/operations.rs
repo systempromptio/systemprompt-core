@@ -53,7 +53,7 @@ impl AgentLifecycle {
 
             self.db_service.mark_running(agent_name).await?;
 
-            tracing::debug!("Agent started: {} :{}", agent_config.name, agent_config.port);
+            tracing::debug!(agent = %agent_config.name, port = agent_config.port, "agent started");
 
             self.publish_event(AgentEvent::AgentStarted {
                 agent_id: AgentId::new(agent_name),
@@ -86,7 +86,7 @@ impl AgentLifecycle {
     }
 
     pub async fn disable_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
-        tracing::debug!("Disabling agent: {}", agent_name);
+        tracing::debug!(agent_name = %agent_name, "disabling agent");
 
         let status = self.db_service.get_status(agent_name).await?;
 
@@ -108,7 +108,7 @@ impl AgentLifecycle {
             agent_id: AgentId::new(agent_name),
         });
 
-        tracing::debug!("Agent disabled: {}", agent_name);
+        tracing::debug!(agent_name = %agent_name, "agent disabled");
         Ok(())
     }
 
@@ -117,7 +117,7 @@ impl AgentLifecycle {
         agent_name: &str,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
-        tracing::debug!("Enabling agent: {}", agent_name);
+        tracing::debug!(agent_name = %agent_name, "enabling agent");
         self.start_agent(agent_name, events).await
     }
 
