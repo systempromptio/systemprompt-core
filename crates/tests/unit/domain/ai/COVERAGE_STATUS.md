@@ -12,7 +12,10 @@
 | `models/image_generation` | ✅ Complete | 30 | Resolution, aspect ratio, requests, responses |
 | `models/message_converters` | ✅ Complete | 16 | Anthropic, OpenAI, Gemini role mappings |
 | `models/providers/anthropic` | ✅ Complete | 27 | Content blocks, messages, requests, responses |
+| `models/providers/anthropic/streaming` | ✅ Complete | 11 | AnthropicStreamEvent all variants |
+| `models/providers/anthropic/search` | ✅ Complete | 18 | AnthropicSearchRequest/Response, content blocks |
 | `models/providers/gemini` | ✅ Complete | 16 | Content, parts, models |
+| `models/providers/gemini (extended)` | ✅ Complete | 33 | GeminiPart all variants, GenerationConfig, ToolConfig, Response, GroundingMetadata |
 | `models/providers/openai` | ✅ Complete | 20 | Messages, requests, response formats |
 | `services/config/validator` | ✅ Complete | 36 | Config validation, MCP, history settings |
 | `services/schema/analyzer` | ✅ Complete | 14 | DiscriminatedUnion detection |
@@ -37,6 +40,8 @@
 | `services/providers/gemini/*` | ✅ Complete | 24 | Converters, tool conversion |
 | `services/providers/openai/*` | ✅ Complete | 20 | Converters, reasoning, response builder |
 | `services/providers/shared/*` | ✅ Complete | 8 | Response builder |
+| `services/providers/gemini/params` | ✅ Complete | 9 | ToolRequestParams/ToolResultParams builders |
+| `services/gateway/ingestion (structs)` | ✅ Complete | 10 | IngestOptions, IngestReport fields/defaults |
 
 ## Coverage Gaps
 
@@ -76,6 +81,15 @@ cargo llvm-cov --manifest-path crates/tests/Cargo.toml -p systemprompt-ai-tests 
 ```
 
 ## Recent Changes
+
+### 2026-05-29
+- Added 363 new tests (638 → 1001)
+- New test modules:
+  - `models/providers/anthropic_streaming.rs` - 11 tests (AnthropicStreamEvent all variants)
+  - `models/providers/anthropic_search.rs` - 18 tests (search request/response/content blocks)
+  - `models/providers/gemini_extended.rs` - 33 tests (GeminiPart variants, GenerationConfig, ToolConfig, Response, GroundingMetadata)
+  - `services/gateway/ingestion.rs` - 10 tests (IngestOptions, IngestReport)
+  - `services/providers/gemini_params.rs` - 9 tests (ToolRequestParams, ToolResultParams builders)
 
 ### 2026-01-22
 - Added 90 new tests (548 → 638)
