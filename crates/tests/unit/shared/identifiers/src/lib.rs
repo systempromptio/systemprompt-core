@@ -22,6 +22,12 @@ mod content_tests;
 mod context_tests;
 
 #[cfg(test)]
+mod coverage_extra_tests;
+
+#[cfg(test)]
+mod locale_tests;
+
+#[cfg(test)]
 mod email_tests;
 
 #[cfg(test)]
