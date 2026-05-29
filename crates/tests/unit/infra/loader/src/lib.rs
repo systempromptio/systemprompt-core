@@ -3,9 +3,17 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod config_loader_discovery;
+#[cfg(test)]
+mod config_loader_errors;
+#[cfg(test)]
 mod config_writer;
 #[cfg(test)]
+mod error_display;
+#[cfg(test)]
 mod extension_loader;
+#[cfg(test)]
+mod extension_loader_extra;
 #[cfg(test)]
 mod extension_registry;
 #[cfg(test)]
