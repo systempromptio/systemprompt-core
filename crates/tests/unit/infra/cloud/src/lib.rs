@@ -7,7 +7,13 @@ mod cli_session;
 #[cfg(test)]
 mod constants;
 #[cfg(test)]
+mod constants_extra;
+#[cfg(test)]
+mod context;
+#[cfg(test)]
 mod credentials;
+#[cfg(test)]
+mod credentials_bootstrap_error;
 #[cfg(test)]
 mod discovered_project;
 #[cfg(test)]
@@ -26,6 +32,8 @@ mod project_paths;
 mod session_key;
 #[cfg(test)]
 mod session_store;
+#[cfg(test)]
+mod stored_tenant_extra;
 #[cfg(test)]
 mod tenant_api_tests;
 #[cfg(test)]
