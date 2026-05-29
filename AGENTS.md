@@ -10,7 +10,7 @@ This is a library, not a framework. You compile it into your binary and extend i
 
 ## Crate Architecture
 
-30-crate Rust workspace, published to crates.io as `systemprompt` with feature flags:
+31-crate Rust workspace, published to crates.io as `systemprompt` with feature flags:
 
 ```
 Shared (7)     identifiers, provider-contracts, traits, extension,
@@ -18,7 +18,8 @@ Shared (7)     identifiers, provider-contracts, traits, extension,
 
 Infra (7)      database, logging, config, events, security, cloud, loader
 
-Domain (9)     users, oauth, files, analytics, content, mcp, ai, agent, templates
+Domain (10)    users, oauth, files, analytics, content, mcp, ai, agent,
+               templates, marketplace
 
 App (4)        runtime, scheduler, generator, sync
 
@@ -32,10 +33,10 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.2", features = ["full"] }
+systemprompt = { version = "0.12", features = ["full"] }
 
 # Selective (pick what you need)
-systemprompt = { version = "0.2", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.12", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.

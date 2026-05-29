@@ -82,13 +82,13 @@ When adding docs: external-consumer material → `documentation/`; anything abou
 | `internal/guides/architecture.md` | Full crate taxonomy, extension framework, paths |
 | `internal/guides/boundaries.md` | Module boundary rules, acceptable patterns |
 | `internal/guides/cloud.md` | Cloud deployment and tenant management |
-| `internal/guides/rust.md` | Rust coding standards (canonical) |
+| `internal/guides/rust.md` | Rust coding standards (mirrors the `rust-coding-standards` skill) |
 | `internal/guides/bridge/` | Bridge build, release, versioning, per-OS reference |
 | `documentation/` | External evaluation pack (security, compliance, stability, RFI) |
 
 ## Rust Standards
 
-**MANDATORY**: `internal/guides/rust.md` is the canonical source. The marketplace skill `rust-coding-standards` mirrors it. Key rules:
+**MANDATORY**: the marketplace skill `rust-coding-standards` is the canonical source of truth. `internal/guides/rust.md` and this file mirror it — when they diverge, the skill wins. Key rules:
 
 - **Inline `//` comments**: banned for WHAT-comments. Permitted ONLY when encoding a non-obvious *why* (hidden constraint, subtle invariant, bug-workaround). Never narrate "what we just changed" or reference past callers/issues.
 - **`///` rustdoc**: one uniform rule across **all** production crates incl. `entry/*` (entry is not special). NOT applied mechanically per pub item. Real `//!` blocks live on `lib.rs` and significant `pub mod` files (purpose, public surface, feature matrix, error model) everywhere. Per-item `///` is added only where it captures non-obvious value — paraphrasing the function name and signature is a code smell. `///` is banned only inside `crates/tests/**`.
