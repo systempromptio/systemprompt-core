@@ -3,13 +3,13 @@ use std::sync::Arc;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
-use systemprompt_scheduler::services::SchedulerService;
+use systemprompt_scheduler::services::{SchedulerHandle, SchedulerService};
 use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
 
 pub(in crate::services::server) async fn initialize_scheduler(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
-) -> Result<()> {
+) -> Result<Option<SchedulerHandle>> {
     events.scheduler_initializing();
 
     let admin = ctx.system_admin();
@@ -28,8 +28,8 @@ pub(in crate::services::server) async fn initialize_scheduler(
         SchedulerService::new(config, Arc::clone(ctx.db_pool()), Arc::new(ctx.clone()))?;
 
     let job_count = scheduler.run_bootstrap_jobs(events).await?;
-    scheduler.start().await?;
+    let handle = scheduler.start().await?;
 
     events.scheduler_ready(job_count);
-    Ok(())
+    Ok(handle)
 }

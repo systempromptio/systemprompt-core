@@ -7,10 +7,9 @@
 //!
 //! ## Public surface
 //!
-//! - [`BootstrapSequence`] / [`presets`] — type-state-driven startup helper
-//!   that enforces *profile before secrets* at compile time.
 //! - [`ProfileBootstrap`] / [`SecretsBootstrap`] — process-wide cells for the
-//!   active profile and secrets document.
+//!   active profile and secrets document, initialised in that order by the
+//!   entry-crate boot sequence.
 //! - [`init_config`] / [`build_from_profile`] — build a runtime
 //!   [`systemprompt_models::Config`] from the active profile.
 //! - [`ConfigService`], [`ConfigValidator`] — utilities used by the
@@ -42,11 +41,9 @@ pub(crate) mod services;
 pub(crate) mod skill_validator;
 
 pub use bootstrap::{
-    BootstrapComplete, BootstrapSequence, BootstrapState, MANIFEST_SIGNING_SEED_BYTES,
-    ProfileBootstrap, ProfileBootstrapError, ProfileInitialized, SecretsBootstrap,
-    SecretsBootstrapError, SecretsInitialized, Uninitialized, build_loaded_secrets_message,
-    decode_seed, generate_seed, load_secrets_from_path, log_secrets_issue, log_secrets_skip,
-    log_secrets_warn, persist_seed, presets,
+    MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap, ProfileBootstrapError, SecretsBootstrap,
+    SecretsBootstrapError, build_loaded_secrets_message, decode_seed, generate_seed,
+    load_secrets_from_path, log_secrets_issue, log_secrets_skip, log_secrets_warn, persist_seed,
 };
 pub use config_loader::{
     build_from_profile, init_config, init_config_from_profile, try_init_config,

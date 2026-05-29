@@ -9,9 +9,9 @@ use systemprompt_models::auth::JwtAudience;
 #[test]
 fn rejects_malformed_token() {
     let err = validate_jwt_token("not-a-jwt", "issuer", &[JwtAudience::Mcp]).unwrap_err();
-    let msg = err.to_string();
+    let msg = err.to_string().to_lowercase();
     assert!(
-        msg.contains("JWT header decode failed") || msg.contains("header"),
+        msg.contains("token") || msg.contains("header"),
         "unexpected: {msg}"
     );
 }

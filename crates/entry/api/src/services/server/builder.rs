@@ -42,7 +42,10 @@ impl ApiServer {
         self.router
     }
 
-    pub async fn serve(self, addr: &str) -> Result<()> {
+    pub async fn serve<F>(self, addr: &str, shutdown: F) -> Result<()>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
         if let Some(ref tx) = self.events {
             if tx
                 .unbounded_send(StartupEvent::ServerBinding {
@@ -65,6 +68,7 @@ impl ApiServer {
             self.router
                 .into_make_service_with_connect_info::<std::net::SocketAddr>(),
         )
+        .with_graceful_shutdown(shutdown)
         .await?;
         Ok(())
     }

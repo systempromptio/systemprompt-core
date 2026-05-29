@@ -27,6 +27,9 @@ indexmap = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 
+# Secret hygiene: wipe credential material from memory on drop
+zeroize = { workspace = true }
+
 # Logging
 tracing = { workspace = true }
 

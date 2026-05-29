@@ -24,7 +24,7 @@ use systemprompt_traits::AppContext as _;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
-use crate::services::middleware::JwtContextExtractor;
+use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
 async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Next) -> Response {
     let method = req.method().clone();
@@ -84,7 +84,7 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
     resp
 }
 
-pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
+fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
     let Some(analytics) = ctx.analytics_provider() else {
         tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
         return None;
@@ -93,7 +93,22 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
         tracing::warn!("Gateway router: user provider unavailable — gateway disabled");
         return None;
     };
-    let jwt_extractor = Arc::new(JwtContextExtractor::new(analytics, user_provider));
+    let jti_revocation = match JtiRevocationChecker::from_pool(ctx.db_pool()) {
+        Ok(checker) => checker,
+        Err(e) => {
+            tracing::warn!(error = %e, "Gateway router: JTI revocation unavailable — gateway disabled");
+            return None;
+        },
+    };
+    Some(Arc::new(JwtContextExtractor::new(
+        analytics,
+        user_provider,
+        jti_revocation,
+    )))
+}
+
+pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
+    let jwt_extractor = build_jwt_extractor(ctx)?;
 
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();

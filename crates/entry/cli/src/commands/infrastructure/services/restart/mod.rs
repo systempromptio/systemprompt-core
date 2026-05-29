@@ -6,15 +6,14 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 
+use super::get_api_port;
+
 pub use batch::{execute_all_agents, execute_all_mcp, execute_failed};
 pub use single::{execute_agent, execute_api, execute_mcp};
-
-const DEFAULT_API_PORT: u16 = 8080;
 
 pub(super) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
     let jwt_provider = Arc::new(
@@ -25,10 +24,6 @@ pub(super) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
         Arc::new(ctx.config().clone()),
         jwt_provider,
     )))
-}
-
-pub(super) fn get_api_port() -> u16 {
-    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
 pub(super) async fn resolve_name(agent_identifier: &str) -> Result<String> {

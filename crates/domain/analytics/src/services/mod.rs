@@ -1,8 +1,8 @@
 //! Service layer.
 //!
 //! Orchestrators on top of the repository layer. Hosts the
-//! [`AnalyticsService`], throttle/anomaly/behavioural detectors, request
-//! extractors, and provider integrations consumed by the API and CLI.
+//! [`AnalyticsService`], anomaly/behavioural detectors, request extractors,
+//! and provider integrations consumed by the API and CLI.
 
 pub mod ai_crawler_keywords;
 mod ai_provider;
@@ -14,7 +14,6 @@ mod extractor;
 mod providers;
 mod service;
 mod session_cleanup;
-mod throttle;
 mod user_agent;
 
 pub use ai_provider::AnalyticsAiSessionProvider;
@@ -28,4 +27,3 @@ pub use behavioral_detector::{
 pub use extractor::SessionAnalytics;
 pub use service::{AnalyticsService, CreateAnalyticsSessionInput};
 pub use session_cleanup::SessionCleanupService;
-pub use throttle::{EscalationCriteria, ThrottleLevel, ThrottleService};

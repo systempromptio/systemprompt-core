@@ -58,7 +58,11 @@ impl SessionMiddleware {
         let trace_id = HeaderExtractor::extract_trace_id(headers);
 
         let (req_ctx, jwt_cookie) = if should_skip {
-            (self.untracked_context(trace_id, headers, &uri).await?, None)
+            (
+                self.anonymous_context("untracked", trace_id, headers, &uri)
+                    .await?,
+                None,
+            )
         } else {
             self.tracked_context(trace_id, headers, &uri, &method)
                 .await?
@@ -87,8 +91,13 @@ impl SessionMiddleware {
         Ok(response)
     }
 
-    async fn untracked_context(
+    /// Builds an untracked anonymous context. `session_prefix` distinguishes
+    /// the synthetic session id (`untracked_*` for skip-tracking paths,
+    /// `bot_*` for detected crawlers) so the two cases stay legible in logs
+    /// and analytics without two near-identical constructors.
+    async fn anonymous_context(
         &self,
+        session_prefix: &str,
         trace_id: systemprompt_identifiers::TraceId,
         headers: &http::HeaderMap,
         uri: &http::Uri,
@@ -98,39 +107,12 @@ impl SessionMiddleware {
             .ensure_anonymous_user(headers, Some(uri))
             .await
             .map_err(|e| {
-                tracing::error!(error = %e, "Failed to ensure anonymous user for untracked request");
+                tracing::error!(error = %e, session_prefix, "Failed to ensure anonymous user");
                 ApiError::internal_error("Service temporarily unavailable")
             })?;
 
         Ok(RequestContext::new(
-            SessionId::new(format!("untracked_{}", Uuid::new_v4())),
-            trace_id,
-            ContextId::generate(),
-            AgentName::system(),
-        )
-        .with_actor(systemprompt_identifiers::Actor::anonymous(user_id))
-        .with_user_type(UserType::Anon)
-        .with_tracked(false)
-        .with_fingerprint_hash(fingerprint))
-    }
-
-    async fn bot_context(
-        &self,
-        trace_id: systemprompt_identifiers::TraceId,
-        headers: &http::HeaderMap,
-        uri: &http::Uri,
-    ) -> Result<RequestContext, ApiError> {
-        let (user_id, fingerprint) = self
-            .session_creation_service
-            .ensure_anonymous_user(headers, Some(uri))
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "Failed to ensure anonymous user for bot request");
-                ApiError::internal_error("Service temporarily unavailable")
-            })?;
-
-        Ok(RequestContext::new(
-            SessionId::new(format!("bot_{}", Uuid::new_v4())),
+            SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4())),
             trace_id,
             ContextId::generate(),
             AgentName::system(),
@@ -159,7 +141,11 @@ impl SessionMiddleware {
         );
 
         if is_bot {
-            return Ok((self.bot_context(trace_id, headers, uri).await?, None));
+            return Ok((
+                self.anonymous_context("bot", trace_id, headers, uri)
+                    .await?,
+                None,
+            ));
         }
 
         let token_result = TokenExtractor::browser_only().extract(headers).ok();

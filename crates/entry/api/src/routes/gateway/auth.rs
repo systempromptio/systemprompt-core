@@ -128,7 +128,7 @@ pub async fn provision_oauth_client(
         )
     })?;
 
-    let claims = jwt_extractor
+    let (claims, _user) = jwt_extractor
         .decode_for_gateway(&JwtToken::new(bearer))
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;

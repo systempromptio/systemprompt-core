@@ -117,5 +117,23 @@ pub(super) fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Comman
         command.env("FLY_APP_NAME", fly_app);
     }
 
+    place_in_own_process_group(&mut command);
+
     command
+}
+
+#[cfg(unix)]
+fn place_in_own_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    // pgid 0 makes the child its own group leader (pgid == pid), so the
+    // supervisor can signal the whole group on shutdown and reach any a2a
+    // children the agent spawns, not just the agent itself.
+    command.process_group(0);
+}
+
+#[cfg(windows)]
+fn place_in_own_process_group(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    command.creation_flags(CREATE_NEW_PROCESS_GROUP);
 }

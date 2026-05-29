@@ -60,6 +60,28 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
     }
 }
 
+pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
+    use nix::sys::signal::{self, Signal};
+    use nix::unistd::Pid;
+
+    // A negative target signals the whole process group, reaching any children
+    // the leader spawned (e.g. an agent's own a2a server). The leader's PID
+    // equals its PGID because it was placed in a fresh group via `setsid`.
+    let group = Pid::from_raw(-(pgid as i32));
+
+    if signal::kill(group, Signal::SIGTERM).is_err() {
+        return terminate_gracefully(pgid, grace_period_ms).await;
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(grace_period_ms)).await;
+
+    if process_exists(pgid) {
+        signal::kill(group, Signal::SIGKILL).is_ok()
+    } else {
+        true
+    }
+}
+
 pub(super) fn process_exists(pid: u32) -> bool {
     use nix::sys::signal;
     use nix::unistd::Pid;

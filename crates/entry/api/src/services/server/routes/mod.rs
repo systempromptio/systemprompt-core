@@ -12,11 +12,9 @@ use systemprompt_users::BannedIpRepository;
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::client_addr::parse_trusted_proxies;
 use crate::services::middleware::{
-    A2AContextMiddleware, JtiRevocationState, JwtContextExtractor, McpContextMiddleware,
+    A2AContextMiddleware, JtiRevocationChecker, JwtContextExtractor, McpContextMiddleware,
     PublicContextMiddleware, RouterExt, UserOnlyContextMiddleware, ip_ban_middleware,
-    jti_revocation_middleware,
 };
-use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
 
 pub(super) fn configure_routes(
     ctx: &AppContext,
@@ -91,25 +89,7 @@ pub(super) fn configure_routes(
         async move { ip_ban_middleware(req, next, repo, proxies).await }
     }));
 
-    let jti_state = build_jti_revocation_state(ctx)?;
-    router = router.layer(axum::middleware::from_fn_with_state(
-        jti_state,
-        jti_revocation_middleware,
-    ));
-
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
-}
-
-fn build_jti_revocation_state(ctx: &AppContext) -> Result<JtiRevocationState, LoaderError> {
-    let repo =
-        OAuthRepository::new(ctx.db_pool()).map_err(|e| LoaderError::InitializationFailed {
-            extension: "jti_revocation".to_owned(),
-            message: e.to_string(),
-        })?;
-    Ok(JtiRevocationState {
-        repo: Arc::new(repo),
-        cache: Arc::new(JtiRevocationCache::new()),
-    })
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
@@ -125,7 +105,17 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
             extension: "jwt".to_owned(),
             message: "UserProvider is required for JWT validation".to_owned(),
         })?;
-    Ok(JwtContextExtractor::new(analytics, user_provider))
+    let jti_revocation = JtiRevocationChecker::from_pool(ctx.db_pool()).map_err(|e| {
+        LoaderError::InitializationFailed {
+            extension: "jti_revocation".to_owned(),
+            message: e.to_string(),
+        }
+    })?;
+    Ok(JwtContextExtractor::new(
+        analytics,
+        user_provider,
+        jti_revocation,
+    ))
 }
 
 fn discovery_router(

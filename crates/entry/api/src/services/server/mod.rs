@@ -7,6 +7,7 @@ pub mod metrics;
 pub mod readiness;
 mod routes;
 pub mod runner;
+mod shutdown;
 
 pub use builder::*;
 pub use readiness::{

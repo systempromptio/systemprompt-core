@@ -18,6 +18,9 @@ pub enum ContextExtractionError {
     #[error("Invalid JWT token: {0}")]
     InvalidToken(String),
 
+    #[error("Token revoked")]
+    Revoked,
+
     #[error("JWT missing required 'session_id' claim")]
     MissingSessionId,
 

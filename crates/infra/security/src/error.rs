@@ -36,8 +36,8 @@ pub enum AuthError {
     )]
     HookPluginIdMismatch { expected: String, actual: String },
 
-    #[error("token has unsupported algorithm; only RS256 is accepted")]
-    UnsupportedAlgorithm,
+    #[error("token has unsupported algorithm `{got}`; only RS256 is accepted")]
+    UnsupportedAlgorithm { got: String },
 
     #[error("token is missing `kid` header")]
     MissingKid,

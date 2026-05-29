@@ -44,18 +44,14 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     is_scanner BOOLEAN NOT NULL DEFAULT false,
     is_behavioral_bot BOOLEAN NOT NULL DEFAULT false,
     behavioral_bot_reason TEXT,
-    throttle_level INTEGER NOT NULL DEFAULT 0,
     behavioral_bot_score INTEGER NOT NULL DEFAULT 0,
-    throttle_escalated_at TIMESTAMPTZ,
     session_source VARCHAR(50) DEFAULT 'web'
         CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'mcp', 'bridge', 'unknown')),
     revoked_at TIMESTAMPTZ,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
-COMMENT ON COLUMN user_sessions.throttle_level IS 'Rate limit escalation level: 0=Normal, 1=Warning (50%), 2=Severe (25%), 3=Blocked';
 COMMENT ON COLUMN user_sessions.behavioral_bot_score IS 'Cumulative behavioral bot score from multi-signal detection (0-100+)';
-COMMENT ON COLUMN user_sessions.throttle_escalated_at IS 'Timestamp of last throttle level escalation';
 
 COMMENT ON COLUMN user_sessions.total_ai_cost_microdollars IS 'AI cost in microdollars (millionths of a dollar). Divide by 1,000,000 to get USD.';
 COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a bot/crawler (search engines, AI scrapers, social media bots, etc.)';

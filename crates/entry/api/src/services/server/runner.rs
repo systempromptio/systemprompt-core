@@ -53,18 +53,20 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::Scheduler);
     }
-    match initialize_scheduler(&ctx, events.as_ref()).await {
-        Ok(()) => {
+    let scheduler_handle = match initialize_scheduler(&ctx, events.as_ref()).await {
+        Ok(handle) => {
             if let Some(ref tx) = events {
                 tx.phase_completed(Phase::Scheduler);
             }
+            handle
         },
         Err(e) => {
             if let Some(ref tx) = events {
                 tx.phase_failed(Phase::Scheduler, e.to_string());
             }
+            None
         },
-    }
+    };
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
@@ -82,7 +84,13 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
 
     systemprompt_logging::set_startup_mode(false);
 
-    api_server.serve(&addr).await
+    let serve_result = api_server
+        .serve(&addr, super::shutdown::shutdown_signal())
+        .await;
+
+    super::shutdown::drain(&ctx, scheduler_handle).await;
+
+    serve_result
 }
 
 fn create_mcp_orchestrator(

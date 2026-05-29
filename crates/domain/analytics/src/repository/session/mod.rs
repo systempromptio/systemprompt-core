@@ -175,14 +175,6 @@ impl SessionRepository {
         .await
     }
 
-    pub async fn escalate_throttle(&self, session_id: &SessionId, new_level: i32) -> Result<()> {
-        mutations::escalate_throttle(&self.write_pool, session_id, new_level).await
-    }
-
-    pub async fn get_throttle_level(&self, session_id: &SessionId) -> Result<i32> {
-        queries::get_throttle_level(&self.pool, session_id).await
-    }
-
     pub async fn count_sessions_by_fingerprint(
         &self,
         fingerprint_hash: &str,

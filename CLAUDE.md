@@ -169,7 +169,13 @@ register_extension!(MyExtension);
 
 ## Configuration
 
-Profiles are the single source of truth - no environment variable fallbacks:
+Profiles are the primary source of truth. Environment variables are a scoped
+escape hatch, not a general fallback: profile YAML may interpolate `${VAR}`, and
+a small set of sanctioned overrides exists for cloud/subprocess boots
+(`SYSTEMPROMPT_SYSTEM_ADMIN`, `SYSTEMPROMPT_SERVICES_PATH`,
+`SYSTEMPROMPT_SKILLS_PATH`, `SYSTEMPROMPT_CONFIG_PATH`, the secrets `env` source,
+and the Fly/subprocess secret-injection path). Outside these, there are no env
+fallbacks — config comes from the profile:
 
 ```yaml
 # .systemprompt/profiles/local/profile.yaml

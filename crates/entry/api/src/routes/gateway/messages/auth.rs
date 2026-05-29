@@ -86,7 +86,7 @@ pub(super) async fn authenticate(
     if credential.starts_with(API_KEY_PREFIX) {
         return authenticate_api_key(credential, ctx).await;
     }
-    authenticate_jwt(credential, jwt_extractor, ctx).await
+    authenticate_jwt(credential, jwt_extractor).await
 }
 
 async fn authenticate_api_key(
@@ -120,26 +120,12 @@ async fn authenticate_api_key(
 async fn authenticate_jwt(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
-    ctx: &AppContext,
 ) -> Result<AuthedPrincipal, (StatusCode, String)> {
     let jwt_token = JwtToken::new(credential);
-    let claims = jwt_extractor
+    let (claims, user) = jwt_extractor
         .decode_for_gateway(&jwt_token)
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-
-    let repo = systemprompt_users::UserRepository::new(ctx.db_pool())
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    let user = repo
-        .find_by_id(&claims.user_id)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                format!("User not found: {}", claims.user_id.as_str()),
-            )
-        })?;
 
     Ok(AuthedPrincipal::Jwt(JwtPrincipal {
         user_id: claims.user_id,

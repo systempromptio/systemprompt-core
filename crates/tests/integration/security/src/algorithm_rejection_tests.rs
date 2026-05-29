@@ -71,7 +71,7 @@ async fn hs256_token_is_rejected_with_unsupported_algorithm_error() {
         .validate_request(&auth_header(&token))
         .expect_err("hs256 must be rejected");
     assert!(
-        matches!(err, AuthError::UnsupportedAlgorithm),
+        matches!(err, AuthError::UnsupportedAlgorithm { .. }),
         "expected UnsupportedAlgorithm, got {err:?}",
     );
 }

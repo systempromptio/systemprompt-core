@@ -32,14 +32,6 @@ mod analytics_error_tests {
     }
 
     #[test]
-    fn throttle_level_exceeded_displays_message() {
-        let err = AnalyticsError::ThrottleLevelExceeded;
-        let display = format!("{}", err);
-
-        assert!(display.contains("Throttle level exceeded"));
-    }
-
-    #[test]
     fn behavioral_bot_detected_displays_reason() {
         let err = AnalyticsError::BehavioralBotDetected("high_request_count".to_string());
         let display = format!("{}", err);

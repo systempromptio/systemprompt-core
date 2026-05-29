@@ -48,6 +48,7 @@ pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> A
         ContextExtractionError::InvalidToken(_) => {
             ApiError::unauthorized("Invalid or expired JWT token")
         },
+        ContextExtractionError::Revoked => ApiError::unauthorized("Token revoked"),
         ContextExtractionError::UserNotFound(_) => ApiError::unauthorized("User no longer exists"),
         ContextExtractionError::MissingSessionId => {
             ApiError::bad_request("JWT missing required 'session_id' claim")

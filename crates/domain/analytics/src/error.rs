@@ -21,9 +21,6 @@ domain_error! {
         #[error("Session expired")]
         SessionExpired,
 
-        #[error("Throttle level exceeded")]
-        ThrottleLevelExceeded,
-
         #[error("Behavioral bot detected: {0}")]
         BehavioralBotDetected(String),
 

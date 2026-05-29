@@ -4,15 +4,24 @@
 //! pepper, database URLs, and provider credentials.
 //! [`OAUTH_AT_REST_PEPPER_MIN_LENGTH`] is the enforced minimum.
 //! Validation returns [`crate::errors::SecretsError`].
+//!
+//! Secret hygiene is enforced by the type, not by convention: the hand-written
+//! [`fmt::Debug`] redacts every credential so a stray `{:?}` or `?secrets`
+//! cannot leak into logs, and the [`Drop`] impl wipes the plaintext fields from
+//! memory via `zeroize`. `Serialize` is retained deliberately — operator
+//! tooling round-trips the document back to the on-disk secrets file, the one
+//! legitimate sink.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
+use zeroize::Zeroize;
 
 use crate::errors::SecretsError;
 
 pub const OAUTH_AT_REST_PEPPER_MIN_LENGTH: usize = 32;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Secrets {
     pub oauth_at_rest_pepper: String,
 
@@ -50,6 +59,35 @@ pub struct Secrets {
 
     #[serde(default, flatten)]
     pub custom: HashMap<String, String>,
+}
+
+impl fmt::Debug for Secrets {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Secrets")
+            .field("ai_providers", &self.has_ai_provider())
+            .field("custom_keys", &self.custom.keys().collect::<Vec<_>>())
+            .finish_non_exhaustive()
+    }
+}
+
+impl Drop for Secrets {
+    fn drop(&mut self) {
+        self.oauth_at_rest_pepper.zeroize();
+        self.manifest_signing_secret_seed.zeroize();
+        self.database_url.zeroize();
+        self.database_write_url.zeroize();
+        self.external_database_url.zeroize();
+        self.internal_database_url.zeroize();
+        self.gemini.zeroize();
+        self.anthropic.zeroize();
+        self.openai.zeroize();
+        self.github.zeroize();
+        self.moonshot.zeroize();
+        self.qwen.zeroize();
+        for value in self.custom.values_mut() {
+            value.zeroize();
+        }
+    }
 }
 
 impl Secrets {

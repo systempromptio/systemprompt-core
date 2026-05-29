@@ -16,12 +16,10 @@
 //!    the request, so a token issued for plugin A can't drive an event into
 //!    plugin B.
 
-use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
-use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission};
+use systemprompt_models::auth::{JwtAudience, Permission};
 
-use super::validation::JWT_LEEWAY_SECONDS;
 use crate::error::{AuthError, AuthResult};
-use crate::keys::authority;
+use crate::jwt::{ValidationPolicy, decode_rs256_claims};
 
 /// Successfully-validated hook token claims, projected to the bits the
 /// caller needs to dispatch a govern/track decision.
@@ -78,29 +76,9 @@ impl HookTokenValidator {
         required_scope_name: &'static str,
         request_plugin_id: Option<&str>,
     ) -> AuthResult<ValidatedHookClaims> {
-        let header = decode_header(token).map_err(AuthError::InvalidToken)?;
-        if header.alg != Algorithm::RS256 {
-            return Err(AuthError::UnsupportedAlgorithm);
-        }
-        let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
-        let key = authority::decoding_key_for_kid(kid)
-            .map_err(|e| AuthError::KeyLookup(e.to_string()))?
-            .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
+        let policy = ValidationPolicy::issuer_scoped(&self.issuer, &[JwtAudience::Hook]);
+        let claims = decode_rs256_claims(token, &policy)?;
 
-        let mut validation = Validation::new(Algorithm::RS256);
-        validation.leeway = JWT_LEEWAY_SECONDS;
-        validation.validate_nbf = true;
-        validation.set_issuer(&[&self.issuer]);
-        validation.set_audience(&[JwtAudience::Hook.as_str()]);
-
-        let token_data =
-            decode::<JwtClaims>(token, key, &validation).map_err(AuthError::InvalidToken)?;
-
-        let claims = token_data.claims;
-
-        if !claims.aud.iter().any(|a| matches!(a, JwtAudience::Hook)) {
-            return Err(AuthError::HookAudienceMissing);
-        }
         if !claims.scope.contains(&required_scope) {
             return Err(AuthError::HookScopeMissing(required_scope_name));
         }

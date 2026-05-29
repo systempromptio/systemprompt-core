@@ -68,7 +68,7 @@ fn test_jwt_validator_validate_invalid_token() {
     let result = validator.validate_token("invalid_token");
 
     let err = result.unwrap_err();
-    assert!(err.to_string().contains("invalid token"));
+    assert!(err.to_string().to_lowercase().contains("token"));
 }
 
 #[test]

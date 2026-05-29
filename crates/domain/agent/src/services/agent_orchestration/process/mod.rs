@@ -10,6 +10,7 @@ mod signals;
 
 use std::fs;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::paths::BuildPaths;
 use systemprompt_models::{AppPaths, Config};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
@@ -19,8 +20,8 @@ pub use signals::{
 };
 
 pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
+    let binary_path = BuildPaths::resolve_self().map_err(|e| {
+        OrchestrationError::ProcessSpawnFailed(format!("Failed to resolve running binary: {e}"))
     })?;
 
     let config = Config::get().map_err(|e| {
@@ -75,18 +76,8 @@ pub fn is_port_in_use(port: u16) -> bool {
     TcpListener::bind(format!("127.0.0.1:{port}")).is_err()
 }
 
-pub fn spawn_detached_process(
-    paths: &AppPaths,
-    agent_name: &str,
-    port: u16,
-) -> OrchestrationResult<u32> {
-    spawn_detached(paths, agent_name, port)
-}
-
-pub fn validate_agent_binary(paths: &AppPaths) -> crate::error::AgentResult<()> {
-    let binary_path = paths
-        .build()
-        .resolve_binary("systemprompt")
+pub fn validate_agent_binary() -> crate::error::AgentResult<()> {
+    let binary_path = BuildPaths::resolve_self()
         .map_err(|e| crate::error::AgentError::Validation(e.to_string()))?;
 
     let metadata = fs::metadata(&binary_path).map_err(crate::error::AgentError::Io)?;

@@ -152,19 +152,6 @@ pub(super) async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool
     Ok(result.is_some())
 }
 
-pub(super) async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result<i32> {
-    let id = session_id.as_str();
-
-    let result = sqlx::query_scalar!(
-        r#"SELECT throttle_level FROM user_sessions WHERE session_id = $1"#,
-        id
-    )
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(result.unwrap_or(0))
-}
-
 pub(super) async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     let count = sqlx::query_scalar!(
         r#"

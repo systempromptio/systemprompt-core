@@ -17,5 +17,5 @@ pub use orchestration::{
     RuntimeStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
     ServiceType, VerifiedServiceState,
 };
-pub use scheduling::SchedulerService;
+pub use scheduling::{SchedulerHandle, SchedulerService};
 pub use service_management::ServiceManagementService;

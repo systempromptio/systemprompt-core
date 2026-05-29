@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.13.0] - 2026-05-29
+
+### Changed
+
+- JWT validation is consolidated onto a single RS256 decode primitive, `decode_rs256_claims` (`infra/security/src/jwt/validate.rs`). Request-context middleware, session validation, hook-token validation, and the OAuth / MCP / agent domains all route through it, so the `kid` lookup, RS256 enforcement, and the `exp`/`nbf`/issuer/audience policy live in one place behind a `ValidationPolicy` knob and cannot drift apart. Federated subject-token verification (token-exchange) deliberately remains a separate path — it resolves keys from an external issuer's JWKS rather than this deployment's signing authority.
+- JTI revocation moved out of the standalone `entry/api` middleware and into the JWT context extractor as `JtiRevocationChecker` (`middleware/jwt/revocation.rs`). It now runs as the final stateful check — after a token's claims, its backing user, and the session row have all validated — caches negative results for a single-map-lookup hot path, and fails closed: a revocation-store error rejects the request rather than admitting an unverifiable token.
+- Server-lifecycle shutdown is extracted into `entry/api/src/services/server/shutdown.rs`: one Ctrl-C / SIGTERM handler with a bounded child-process grace window, wired to scheduler and process-cleanup teardown.
+- Rate limiting and request throttling shed dead code paths in the analytics throttle service and the rate-limit middleware; `RouterExt::with_auth` remains the single mount point that requires an `AuthzPolicy`.
+
+### Removed
+
+- The standalone JTI-revocation middleware module (`entry/api/.../middleware/jti_revocation.rs`) is deleted; the checker now lives in the JWT context extractor.
+
 ## [0.12.2] - 2026-05-28
 
 ### Breaking

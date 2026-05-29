@@ -1,9 +1,7 @@
 use chrono::Utc;
 use std::sync::Arc;
 
-use systemprompt_analytics::{
-    BehavioralAnalysisInput, BehavioralBotDetector, SessionRepository, ThrottleLevel,
-};
+use systemprompt_analytics::{BehavioralAnalysisInput, BehavioralBotDetector, SessionRepository};
 use systemprompt_identifiers::SessionId;
 
 pub(super) fn spawn_behavioral_detection_task(
@@ -154,46 +152,6 @@ pub(super) fn spawn_behavioral_detection_task(
             {
                 tracing::error!(error = %e, "Failed to update behavioral detection");
             }
-
-            if result.is_suspicious {
-                escalate_throttle_if_needed(&session_repo, &session_id_for_update, result.score)
-                    .await;
-            }
         }
     });
-}
-
-async fn escalate_throttle_if_needed(
-    session_repo: &SessionRepository,
-    session_id: &SessionId,
-    score: i32,
-) {
-    let current_level = session_repo
-        .get_throttle_level(session_id)
-        .await
-        .map_err(|e| {
-            tracing::debug!(error = %e, "Failed to get throttle level");
-            e
-        })
-        .unwrap_or(0);
-
-    let level = ThrottleLevel::from(current_level);
-    let new_level = level.escalate();
-
-    if new_level != level {
-        if let Err(e) = session_repo
-            .escalate_throttle(session_id, i32::from(new_level))
-            .await
-        {
-            tracing::error!(error = %e, "Failed to escalate throttle level");
-        } else {
-            tracing::warn!(
-                session_id = %session_id,
-                score = score,
-                old_level = ?level,
-                new_level = ?new_level,
-                "Escalated throttle level for behavioral bot"
-            );
-        }
-    }
 }

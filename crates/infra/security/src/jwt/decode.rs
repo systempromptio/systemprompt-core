@@ -1,20 +1,21 @@
 //! Bearer-token decode for request-context middleware.
 //!
-//! [`extract_user_context`] validates a token's `kid`, enforces RS256, decodes
-//! the [`JwtClaims`] payload, and re-derives `user_type` from `scope` so a
-//! forged or mis-minted type claim cannot ride past the gate. It returns the
-//! subset of claims the request-context layer consumes ([`JwtUserContext`]);
-//! issuer / audience / `nbf` / leeway enforcement is the responsibility of
-//! [`crate::AuthValidationService`], which is the path used for fully-trusted
-//! session validation.
+//! [`extract_user_context`] decodes via
+//! [`super::validate::decode_rs256_claims`]
+//! with [`ValidationPolicy::session_context`] (signature, RS256, `kid`, `exp`,
+//! `nbf` + leeway), then re-derives `user_type` from `scope` so a forged or
+//! mis-minted type claim cannot ride past the gate, and returns the subset of
+//! claims the request-context layer consumes ([`JwtUserContext`]). Issuer and
+//! audience pinning is left to the stateful validators that hold deployment
+//! config ([`crate::AuthValidationService`]); this path instead binds the
+//! token to a live session and user row in the database after decode.
 
-use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};
-use systemprompt_models::auth::{JwtClaims, Permission, UserType};
+use systemprompt_models::auth::{Permission, UserType};
 
+use super::validate::{ValidationPolicy, decode_rs256_claims};
 use crate::error::{AuthError, AuthResult};
-use crate::keys::authority;
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {
@@ -30,22 +31,7 @@ pub struct JwtUserContext {
 }
 
 pub fn extract_user_context(token: &str) -> AuthResult<JwtUserContext> {
-    let header = decode_header(token).map_err(AuthError::InvalidToken)?;
-    if header.alg != Algorithm::RS256 {
-        return Err(AuthError::UnsupportedAlgorithm);
-    }
-    let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
-    let key = authority::decoding_key_for_kid(kid)
-        .map_err(|e| AuthError::KeyLookup(e.to_string()))?
-        .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
-
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.validate_exp = true;
-    validation.validate_aud = false;
-
-    let claims = decode::<JwtClaims>(token, key, &validation)
-        .map_err(AuthError::InvalidToken)?
-        .claims;
+    let claims = decode_rs256_claims(token, &ValidationPolicy::session_context())?;
 
     let session_id = claims.session_id.ok_or(AuthError::MissingSessionId)?;
     let role = *claims.scope.first().ok_or(AuthError::MissingScope)?;

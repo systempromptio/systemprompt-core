@@ -22,4 +22,10 @@ pub enum PathError {
         name: String,
         searched: Vec<PathBuf>,
     },
+
+    #[error("Failed to resolve the running executable: {source}")]
+    CurrentExeUnavailable {
+        #[source]
+        source: std::io::Error,
+    },
 }

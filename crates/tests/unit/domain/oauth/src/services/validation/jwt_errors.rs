@@ -23,10 +23,7 @@ fn empty_token_is_rejected() {
     let err = validate_jwt_token("", "issuer", &[JwtAudience::Api])
         .expect_err("empty input must fail header decode");
 
-    match err {
-        OauthError::TokenInvalid(msg) => assert!(msg.contains("header decode")),
-        other => panic!("expected TokenInvalid, got {other:?}"),
-    }
+    assert!(matches!(err, OauthError::TokenInvalid(_)));
 }
 
 #[test]

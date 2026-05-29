@@ -78,6 +78,16 @@ impl ProcessCleanup {
     }
 
     #[cfg(unix)]
+    pub async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
+        posix::terminate_group_gracefully(pgid, grace_period_ms).await
+    }
+
+    #[cfg(windows)]
+    pub async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
+        winnt::terminate_group_gracefully(pgid, grace_period_ms).await
+    }
+
+    #[cfg(unix)]
     pub fn process_exists(pid: u32) -> bool {
         posix::process_exists(pid)
     }

@@ -18,6 +18,8 @@
 
 pub mod decode;
 pub mod mint;
+pub mod validate;
 
 pub use decode::{JwtUserContext, extract_user_context};
 pub use mint::{AdminTokenParams, JwtService};
+pub use validate::{JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims};

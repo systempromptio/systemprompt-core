@@ -34,7 +34,7 @@ pub async fn handle(
             "Missing Authorization or x-api-key credential".to_owned(),
         )
     })?;
-    let claims = jwt_extractor
+    let (claims, _user) = jwt_extractor
         .decode_for_gateway(&JwtToken::new(credential))
         .await
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;

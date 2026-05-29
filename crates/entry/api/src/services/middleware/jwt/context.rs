@@ -11,6 +11,7 @@ use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context
 use systemprompt_traits::{AnalyticsProvider, UserProvider};
 
 use super::params::{BuildContextParams, build_context, extract_common_headers};
+use super::revocation::JtiRevocationChecker;
 use super::validation::{UserCache, user_is_admin, validate_session_exists, validate_user_exists};
 
 #[derive(Clone)]
@@ -19,6 +20,7 @@ pub struct JwtContextExtractor {
     analytics_provider: Arc<dyn AnalyticsProvider>,
     user_provider: Arc<dyn UserProvider>,
     user_cache: Arc<UserCache>,
+    jti_revocation: JtiRevocationChecker,
 }
 
 impl std::fmt::Debug for JwtContextExtractor {
@@ -33,12 +35,14 @@ impl JwtContextExtractor {
     pub fn new(
         analytics_provider: Arc<dyn AnalyticsProvider>,
         user_provider: Arc<dyn UserProvider>,
+        jti_revocation: JtiRevocationChecker,
     ) -> Self {
         Self {
             token_extractor: TokenExtractor::browser_only(),
             analytics_provider,
             user_provider,
             user_cache: UserCache::new(),
+            jti_revocation,
         }
     }
 
@@ -73,6 +77,9 @@ impl JwtContextExtractor {
         )
         .await?;
         validate_session_exists(&self.analytics_provider, jwt_context, route_context).await?;
+        self.jti_revocation
+            .ensure_not_revoked(&jwt_context.jti)
+            .await?;
         Ok(validated.user)
     }
 
@@ -113,12 +120,12 @@ impl JwtContextExtractor {
     pub async fn decode_for_gateway(
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
-    ) -> Result<JwtUserContext, ContextExtractionError> {
+    ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
         let jwt_context = extract_user_context(jwt_token.as_str())
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
 
-        self.validate(&jwt_context, "gateway").await?;
-        Ok(jwt_context)
+        let user = self.validate(&jwt_context, "gateway").await?;
+        Ok((jwt_context, user))
     }
 
     async fn extract_from_request_impl(

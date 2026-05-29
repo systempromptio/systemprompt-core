@@ -5,21 +5,15 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 
+use super::get_api_port;
 use super::start::ServiceTarget;
 use super::types::{StopIndividualOutput, StopServiceOutput};
-
-const DEFAULT_API_PORT: u16 = 8080;
-
-fn get_api_port() -> u16 {
-    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
-}
 
 pub(super) async fn execute(
     target: ServiceTarget,

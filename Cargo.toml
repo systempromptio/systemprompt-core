@@ -254,6 +254,7 @@ jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = "0.11"
 subtle = "2"
 hmac = "0.13"
+zeroize = { version = "1", features = ["zeroize_derive"] }
 # `danger-allow-state-serialisation`: multi-instance API replicas need the
 # in-flight challenge state to be ser/de-able across nodes. Compensating control
 # is the bounded, TTL-evicted in-memory state map in

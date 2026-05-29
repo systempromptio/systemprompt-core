@@ -5173,6 +5173,7 @@ dependencies = [
  "url",
  "uuid",
  "validator",
+ "zeroize",
 ]
 
 [[package]]

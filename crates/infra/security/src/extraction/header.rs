@@ -43,13 +43,27 @@ impl HeaderExtractor {
     pub fn extract_gateway_conversation_id(headers: &HeaderMap) -> Option<GatewayConversationId> {
         Self::extract_header(headers, headers::GATEWAY_CONVERSATION_ID)
             .filter(|s| !s.is_empty())
-            .and_then(|s| GatewayConversationId::try_new(s).ok())
+            .and_then(|s| {
+                GatewayConversationId::try_new(s)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Invalid gateway_conversation_id header value, ignoring");
+                        e
+                    })
+                    .ok()
+            })
     }
 
     pub fn extract_provider_request_id(headers: &HeaderMap) -> Option<ProviderRequestId> {
         Self::extract_header(headers, headers::PROVIDER_REQUEST_ID)
             .filter(|s| !s.is_empty())
-            .and_then(|s| ProviderRequestId::try_new(s).ok())
+            .and_then(|s| {
+                ProviderRequestId::try_new(s)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Invalid provider_request_id header value, ignoring");
+                        e
+                    })
+                    .ok()
+            })
     }
 
     pub fn extract_task_id(headers: &HeaderMap) -> Option<TaskId> {

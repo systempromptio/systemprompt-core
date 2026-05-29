@@ -33,7 +33,7 @@ impl AgentLifecycle {
         agent_name: &str,
         port: u16,
     ) -> OrchestrationResult<u32> {
-        process::spawn_detached_process(&self.app_paths, agent_name, port)
+        process::spawn_detached(&self.app_paths, agent_name, port)
     }
 
     pub(super) async fn verify_startup(

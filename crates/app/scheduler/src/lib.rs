@@ -52,6 +52,7 @@ pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig};
 pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     DbServiceRecord, DesiredStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
-    RuntimeStatus, SchedulerService, ServiceAction, ServiceConfig, ServiceManagementService,
-    ServiceReconciler, ServiceStateVerifier, ServiceType, VerifiedServiceState,
+    RuntimeStatus, SchedulerHandle, SchedulerService, ServiceAction, ServiceConfig,
+    ServiceManagementService, ServiceReconciler, ServiceStateVerifier, ServiceType,
+    VerifiedServiceState,
 };

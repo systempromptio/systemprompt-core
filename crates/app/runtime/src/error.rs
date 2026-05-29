@@ -69,9 +69,6 @@ pub enum RuntimeError {
     )]
     SystemAdminMissingRole { username: String },
 
-    #[error("UserService unavailable during AppContext bootstrap; system admin cannot be resolved")]
-    SystemAdminUserServiceUnavailable,
-
     #[error("DATABASE_URL is empty")]
     EmptyDatabaseUrl,
 

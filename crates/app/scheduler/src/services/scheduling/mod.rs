@@ -24,6 +24,30 @@ use tracing::{Instrument, debug, info, warn};
 
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<String>>>;
 
+/// Live handle to a started scheduler, returned by [`SchedulerService::start`].
+///
+/// Holding it keeps the cron dispatch loop owned by the caller so it can be
+/// drained on shutdown; dropping it without [`SchedulerHandle::shutdown`]
+/// leaves the loop running until process exit.
+pub struct SchedulerHandle {
+    scheduler: JobScheduler,
+}
+
+impl std::fmt::Debug for SchedulerHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SchedulerHandle").finish_non_exhaustive()
+    }
+}
+
+impl SchedulerHandle {
+    pub async fn shutdown(mut self) -> SchedulerResult<()> {
+        self.scheduler
+            .shutdown()
+            .await
+            .map_err(SchedulerError::from)
+    }
+}
+
 struct RegistrationCtx<'a> {
     scheduler: &'a JobScheduler,
     registered_jobs: &'a HashMap<&'a str, &'static dyn JobTrait>,
@@ -55,12 +79,13 @@ impl SchedulerService {
     }
 
     /// Resolves job owners, registers every enabled configured job against
-    /// the cron scheduler, and starts dispatching on schedule. Returns
-    /// immediately as a no-op when the scheduler is disabled in config.
-    pub async fn start(self) -> SchedulerResult<()> {
+    /// the cron scheduler, and starts dispatching on schedule. Returns the live
+    /// [`SchedulerHandle`] so the caller can drain the dispatch loop on
+    /// shutdown, or `None` when the scheduler is disabled in config.
+    pub async fn start(self) -> SchedulerResult<Option<SchedulerHandle>> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
-            return Ok(());
+            return Ok(None);
         }
 
         let resolved_owners = Self::resolve_owners(&self.db_pool, &self.config.jobs).await?;
@@ -86,7 +111,7 @@ impl SchedulerService {
         scheduler.start().await?;
 
         info!("Scheduler started");
-        Ok(())
+        Ok(Some(SchedulerHandle { scheduler }))
     }
 
     async fn resolve_owners(

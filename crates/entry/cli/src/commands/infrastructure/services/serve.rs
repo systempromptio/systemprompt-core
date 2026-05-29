@@ -2,17 +2,12 @@ use crate::cli_settings::CliConfig;
 use crate::interactive::confirm_optional;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, ServiceCategory, validate_system};
 use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
-const DEFAULT_API_PORT: u16 = 8080;
-
-fn get_api_port() -> u16 {
-    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
-}
+use super::get_api_port;
 
 pub async fn execute_with_events(
     foreground: bool,

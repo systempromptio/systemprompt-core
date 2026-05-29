@@ -159,17 +159,18 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
         },
     );
 
-    let child = child_command
+    child_command
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::from(log_file))
-        .stdin(std::process::Stdio::null())
-        .spawn()
-        .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "Failed to start detached {}: {e}",
-                config.name
-            ))
-        })?;
+        .stdin(std::process::Stdio::null());
+    place_in_own_process_group(&mut child_command);
+
+    let child = child_command.spawn().map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Failed to start detached {}: {e}",
+            config.name
+        ))
+    })?;
 
     let pid = child.id();
 
@@ -181,6 +182,22 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
     std::mem::forget(child);
 
     Ok(pid)
+}
+
+#[cfg(unix)]
+fn place_in_own_process_group(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    // pgid 0 makes the child its own group leader (pgid == pid), so the
+    // supervisor can signal the whole group on shutdown rather than orphaning
+    // any helper processes the server spawns.
+    command.process_group(0);
+}
+
+#[cfg(windows)]
+fn place_in_own_process_group(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    command.creation_flags(CREATE_NEW_PROCESS_GROUP);
 }
 
 pub fn verify_binary(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<()> {

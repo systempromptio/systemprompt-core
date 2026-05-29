@@ -112,6 +112,25 @@ impl From<jsonwebtoken::errors::Error> for OauthError {
     }
 }
 
+impl From<systemprompt_security::AuthError> for OauthError {
+    fn from(err: systemprompt_security::AuthError) -> Self {
+        use jsonwebtoken::errors::ErrorKind;
+        use systemprompt_security::AuthError;
+        match err {
+            AuthError::UnsupportedAlgorithm { got } => Self::TokenAlgMismatch {
+                got,
+                expected: "RS256".to_owned(),
+            },
+            AuthError::MissingKid => Self::TokenMissingKid,
+            AuthError::UnknownKid(kid) => Self::TokenUnknownKid { kid },
+            AuthError::InvalidToken(e) if matches!(e.kind(), ErrorKind::ExpiredSignature) => {
+                Self::Expired("Token has expired".to_owned())
+            },
+            other => Self::TokenInvalid(other.to_string()),
+        }
+    }
+}
+
 impl From<serde_json::Error> for OauthError {
     fn from(err: serde_json::Error) -> Self {
         Self::Validation(format!("json parse: {err}"))

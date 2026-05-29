@@ -186,15 +186,12 @@ impl AppContextBuilder {
             },
         };
 
-        let user_service = match UserService::new(&database) {
-            Ok(svc) => Some(Arc::new(svc)),
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to initialize user service");
-                None
-            },
-        };
+        // UserService is a mandatory dependency: the system admin cannot be
+        // resolved without it, so a construction failure is fatal here rather
+        // than a warning that re-surfaces as a less specific error downstream.
+        let user_service = Arc::new(UserService::new(&database)?);
 
-        let system_admin = resolve_and_install_system_admin(&config, user_service.as_ref()).await?;
+        let system_admin = resolve_and_install_system_admin(&config, &user_service).await?;
         let mcp_registry = RegistryService::new(system_admin.id().clone());
 
         let marketplace_filter = self
@@ -213,7 +210,7 @@ impl AppContextBuilder {
             route_classifier,
             analytics_service,
             fingerprint_repo,
-            user_service,
+            user_service: Some(user_service),
             app_paths,
             marketplace_filter,
             event_bridge,
@@ -226,9 +223,8 @@ impl AppContextBuilder {
 
 async fn resolve_and_install_system_admin(
     config: &Config,
-    user_service: Option<&Arc<UserService>>,
+    users: &Arc<UserService>,
 ) -> RuntimeResult<Arc<SystemAdmin>> {
-    let users = user_service.ok_or(RuntimeError::SystemAdminUserServiceUnavailable)?;
     let cfg = SystemAdminConfig {
         username: config.system_admin_username.clone(),
     };

@@ -9,7 +9,6 @@ use crate::services::middleware::client_addr::resolve_client_ip;
 use crate::services::middleware::context::{
     A2AContextMiddleware, McpContextMiddleware, PublicContextMiddleware, UserOnlyContextMiddleware,
 };
-use crate::services::middleware::jti_revocation::{JtiRevocationState, jti_revocation_middleware};
 use axum::Router;
 use axum::extract::{ConnectInfo, Request};
 use axum::middleware::Next;
@@ -68,8 +67,6 @@ pub trait RouterExt<S> {
     fn with_rate_limit(self, rate_config: &RateLimitConfig, per_second: u64) -> Self;
 
     fn with_auth<L: ContextLayer>(self, auth: L, policy: AuthzPolicy) -> Self;
-
-    fn with_jti_check(self, jti_state: JtiRevocationState) -> Self;
 }
 
 impl<S> RouterExt<S> for Router<S>
@@ -104,13 +101,6 @@ where
             let auth = auth.clone();
             async move { auth.handle(req, next).await }
         }))
-    }
-
-    fn with_jti_check(self, jti_state: JtiRevocationState) -> Self {
-        self.layer(axum::middleware::from_fn_with_state(
-            jti_state,
-            jti_revocation_middleware,
-        ))
     }
 }
 

@@ -2,10 +2,9 @@
 //! session claims and extracting the authenticated [`UserId`].
 
 use crate::services::shared::error::{AgentServiceError, Result};
-use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
 use systemprompt_identifiers::UserId;
 pub use systemprompt_models::auth::JwtClaims;
-use systemprompt_security::keys::authority;
+use systemprompt_security::jwt::{ValidationPolicy, decode_rs256_claims};
 use systemprompt_traits::AgentJwtClaims;
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -22,24 +21,8 @@ impl JwtValidator {
         reason = "trait-shaped method kept on impl for symmetry"
     )]
     pub fn validate_token(&self, token: &str) -> Result<JwtClaims> {
-        let header = decode_header(token)
-            .map_err(|e| AgentServiceError::Authentication(format!("invalid token: {e}")))?;
-        if header.alg != Algorithm::RS256 {
-            return Err(AgentServiceError::Authentication(
-                "JWT must be RS256-signed".to_owned(),
-            ));
-        }
-        let kid = header.kid.as_deref().ok_or_else(|| {
-            AgentServiceError::Authentication("JWT missing `kid` header".to_owned())
-        })?;
-        let key = authority::decoding_key_for_kid(kid)
-            .map_err(|e| AgentServiceError::Authentication(format!("key lookup: {e}")))?
-            .ok_or_else(|| AgentServiceError::Authentication(format!("unknown `kid` `{kid}`")))?;
-        let mut validation = Validation::new(Algorithm::RS256);
-        validation.validate_aud = false;
-        decode::<JwtClaims>(token, key, &validation)
-            .map(|data| data.claims)
-            .map_err(|e| AgentServiceError::Authentication(format!("invalid token: {e}")))
+        decode_rs256_claims(token, &ValidationPolicy::session_context())
+            .map_err(|e| AgentServiceError::Authentication(e.to_string()))
     }
 }
 

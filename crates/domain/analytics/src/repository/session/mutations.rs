@@ -246,26 +246,3 @@ pub(super) async fn increment_ai_usage(
     .await?;
     Ok(())
 }
-
-pub(super) async fn escalate_throttle(
-    pool: &PgPool,
-    session_id: &SessionId,
-    new_level: i32,
-) -> Result<()> {
-    let id = session_id.as_str();
-
-    sqlx::query!(
-        r#"
-        UPDATE user_sessions
-        SET throttle_level = $1,
-            throttle_escalated_at = CURRENT_TIMESTAMP
-        WHERE session_id = $2
-        "#,
-        new_level,
-        id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}

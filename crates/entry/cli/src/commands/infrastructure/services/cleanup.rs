@@ -3,18 +3,12 @@ use crate::interactive::require_confirmation;
 use crate::shared::CommandResult;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 
+use super::get_api_port;
 use super::types::CleanupOutput;
-
-const DEFAULT_API_PORT: u16 = 8080;
-
-fn get_api_port() -> u16 {
-    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
-}
 
 pub(super) async fn execute(
     yes: bool,

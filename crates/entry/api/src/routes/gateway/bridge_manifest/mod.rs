@@ -227,6 +227,7 @@ async fn authenticate(
     jwt_extractor
         .decode_for_gateway(&JwtToken::new(credential))
         .await
+        .map(|(claims, _user)| claims)
         .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
 }
 

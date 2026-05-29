@@ -64,7 +64,7 @@ pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig
             let user_ctx = extract_user_context(&token)
                 .map_err(|e| tracing::debug!(error = %e, %path, "jwt validation failed"))
                 .ok()?;
-            (user_ctx.role == required).then_some(())
+            (user_ctx.role == required || user_ctx.role.implies(&required)).then_some(())
         });
 
     if auth_result.is_some() {
