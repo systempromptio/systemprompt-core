@@ -6,6 +6,7 @@
 //! - LoadStats structure
 //! - ParsedContent structure
 
+mod ready;
 mod validated;
 
 use systemprompt_content::{LoadStats, ParsedContent};

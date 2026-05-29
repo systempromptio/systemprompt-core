@@ -5,6 +5,8 @@
 //! - IngestionOptions builder pattern
 //! - IngestionReport structure
 
+mod scanner_compat;
+
 use systemprompt_content::{IngestionOptions, IngestionReport};
 
 #[test]
