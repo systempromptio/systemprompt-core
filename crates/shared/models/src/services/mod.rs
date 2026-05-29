@@ -31,7 +31,9 @@ pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
 };
-pub use marketplace::{MarketplaceConfig, MarketplaceConfigFile, MarketplaceVisibility};
+pub use marketplace::{
+    MarketplaceAccess, MarketplaceConfig, MarketplaceConfigFile, MarketplaceVisibility,
+};
 pub use mcp::McpServerSummary;
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,

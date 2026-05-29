@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use systemprompt_identifiers::MarketplaceId;
 
 use super::plugin::{PluginAuthor, PluginComponentRef};
@@ -16,6 +17,25 @@ pub enum MarketplaceVisibility {
     Public,
     Private,
     Org,
+}
+
+/// Declarative assignment block for a marketplace.
+///
+/// `roles` is the only identity vector core inspects: role strings are matched
+/// against `access_control_rules` for the core RBAC check, mirroring
+/// [`JwtClaims::roles`](crate::auth::JwtClaims). `attributes` is an opaque,
+/// dotted-namespace bag core never interprets — it is forwarded verbatim to
+/// extension authz/ABAC hooks, exactly as [`JwtClaims::attributes`] is.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct MarketplaceAccess {
+    #[serde(default)]
+    pub default_included: bool,
+    #[serde(default)]
+    pub roles: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub attributes: BTreeMap<String, serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub justification: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +66,9 @@ pub struct MarketplaceConfig {
     pub mcp_servers: PluginComponentRef,
     #[serde(default)]
     pub agents: PluginComponentRef,
+
+    #[serde(default)]
+    pub access: MarketplaceAccess,
 }
 
 impl MarketplaceConfig {
@@ -70,6 +93,12 @@ impl MarketplaceConfig {
         if self.version.is_empty() {
             return Err(ConfigValidationError::required(format!(
                 "Marketplace '{key}': version must not be empty"
+            )));
+        }
+
+        if self.access.roles.iter().any(|role| role.trim().is_empty()) {
+            return Err(ConfigValidationError::invalid_field(format!(
+                "Marketplace '{key}': access.roles must not contain blank entries"
             )));
         }
 
