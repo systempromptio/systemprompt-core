@@ -10,6 +10,7 @@ use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 pub struct TestKey {
     pub kid: String,
     pub signing: RsaSigningKey,
+    #[allow(dead_code)]
     pub private: RsaPrivateKey,
 }
 
@@ -29,6 +30,7 @@ impl TestKey {
         Jwk::from_rsa_public_key(self.signing.public_key(), self.kid.clone())
     }
 
+    #[allow(dead_code)]
     pub fn encoding_key(&self) -> jsonwebtoken::EncodingKey {
         let der = self.private.to_pkcs1_der().expect("encode rsa der");
         jsonwebtoken::EncodingKey::from_rsa_der(der.as_bytes())
@@ -97,6 +99,7 @@ impl JwksMock {
         self.server.uri()
     }
 
+    #[allow(dead_code)]
     pub fn jwks_uri(&self) -> String {
         format!("{}/.well-known/jwks.json", self.server.uri())
     }

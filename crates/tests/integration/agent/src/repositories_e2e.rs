@@ -580,7 +580,9 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
     assert!(single.history.is_some());
     assert!(single.artifacts.is_some());
 
-    let batch = ctor.construct_tasks_batch(&[task_id.clone()]).await?;
+    let batch = ctor
+        .construct_tasks_batch(std::slice::from_ref(&task_id))
+        .await?;
     assert_eq!(batch.len(), 1);
 
     fx.cleanup().await?;

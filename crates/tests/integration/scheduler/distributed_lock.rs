@@ -25,7 +25,6 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
 use systemprompt_test_fixtures::{
     fixture_app_context, fixture_database_url, fixture_db_pool, fixture_user_id,

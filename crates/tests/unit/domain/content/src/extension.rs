@@ -16,8 +16,8 @@ fn test_metadata_id_and_name() {
 fn test_dependencies_includes_users_and_analytics() {
     let ext = ContentExtension;
     let deps = ext.dependencies();
-    assert!(deps.iter().any(|d| *d == "users"));
-    assert!(deps.iter().any(|d| *d == "analytics"));
+    assert!(deps.contains(&"users"));
+    assert!(deps.contains(&"analytics"));
 }
 
 #[test]

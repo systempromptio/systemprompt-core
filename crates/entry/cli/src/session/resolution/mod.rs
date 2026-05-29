@@ -45,9 +45,9 @@ async fn get_session_for_profile(
     }
 
     if !SecretsBootstrap::is_initialized() {
-        SecretsBootstrap::try_init().with_context(|| {
-            "Failed to initialize secrets. Check your profile's secrets configuration."
-        })?;
+        SecretsBootstrap::try_init().with_context(
+            || "Failed to initialize secrets. Check your profile's secrets configuration.",
+        )?;
     }
 
     get_session_for_loaded_profile(&profile, &profile_path, config).await

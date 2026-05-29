@@ -80,7 +80,9 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
 
             loop {
                 CliService::section("Tenants");
-                CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+                CliService::info(
+                    "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+                );
                 CliService::info("");
 
                 let selection = Select::with_theme(&ColorfulTheme::default())
@@ -97,7 +99,9 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
             }
         } else {
             CliService::section("Tenants");
-            CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+            CliService::info(
+                "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+            );
             CliService::info("");
             for tenant in &store.tenants {
                 let type_str = match tenant.tenant_type {

@@ -23,7 +23,9 @@ pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Optio
                 "GeoIP database not configured - geographic data will not be available",
             );
             CliService::info("  To enable geographic data:");
-            CliService::info("  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data");
+            CliService::info(
+                "  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data",
+            );
             CliService::info(
                 "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
             );

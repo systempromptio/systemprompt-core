@@ -103,11 +103,8 @@ pub async fn spawn_tcp_accept_loop() -> (SocketAddr, tokio::task::JoinHandle<()>
     let addr = listener.local_addr().expect("local_addr");
 
     let handle = tokio::spawn(async move {
-        loop {
-            match listener.accept().await {
-                Ok((stream, _)) => drop(stream),
-                Err(_) => break,
-            }
+        while let Ok((stream, _)) = listener.accept().await {
+            drop(stream);
         }
     });
 

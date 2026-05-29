@@ -32,7 +32,7 @@ impl JwtValidationProvider for StubJwtProvider {
     fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
         if let Some(c) = self.claims.clone() {
             Ok(c)
-        } else if let Some(_) = &self.error {
+        } else if self.error.is_some() {
             Err(JwtProviderError::InvalidToken)
         } else {
             Err(JwtProviderError::InvalidToken)
