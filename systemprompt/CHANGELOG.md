@@ -11,9 +11,9 @@ The `systemprompt` facade tracks the workspace version. This release re-exports 
 
 Feature flags are unchanged: `core` (default), `database`, `api`, `cli`, `full`.
 
-## [0.12.2] - 2026-05-28
+## [0.13.0] - 2026-05-28
 
-The `systemprompt` facade tracks the workspace version. This release re-exports the 0.12.2 surface of every member crate; consult the root `CHANGELOG.md` and per-crate changelogs for behavioural changes. Notable highlights surfaced through the facade:
+The `systemprompt` facade tracks the workspace version. This release re-exports the 0.13.0 surface of every member crate; consult the root `CHANGELOG.md` and per-crate changelogs for behavioural changes. Notable highlights surfaced through the facade:
 
 - `systemprompt::oauth::DynamicRegistrationRequest::{get_grant_types, get_response_types}` now apply the RFC 7591 §2 server defaults (`["authorization_code"]` / `["code"]`) when the dynamic-client-registration payload omits the field, returning `Vec<String>` infallibly. Spec-compliant MCP clients (Cowork, Claude Code DCR, MCP Inspector) no longer hit `400 invalid_client_metadata` on minimal registration payloads.
 - `systemprompt::mcp::Deployment.endpoint` is now `Option<String>` and, for `internal` servers, must be relative; the gateway derives the public URL from `api_external_url`.

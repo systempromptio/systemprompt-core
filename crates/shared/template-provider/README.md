@@ -60,7 +60,7 @@ Provides template loading abstractions and dynamic type aliases for template-rel
 
 ```toml
 [dependencies]
-systemprompt-template-provider = "0.12.2"
+systemprompt-template-provider = "0.13.0"
 ```
 
 ```rust

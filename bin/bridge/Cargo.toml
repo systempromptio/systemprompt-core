@@ -59,8 +59,8 @@ async-trait = "0.1"
 ctrlc = "3"
 is-terminal = "0.4"
 rand = "0.8"
-systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.12.0", default-features = false }
-systemprompt-models = { path = "../../crates/shared/models", version = "0.12.0", default-features = false }
+systemprompt-identifiers = { path = "../../crates/shared/identifiers", version = "0.13.0", default-features = false }
+systemprompt-models = { path = "../../crates/shared/models", version = "0.13.0", default-features = false }
 hostname = "0.4"
 ts-rs = { version = "10", optional = true }
 # Why: OAuth client_secret moves off disk into the OS keystore. v3 needs explicit

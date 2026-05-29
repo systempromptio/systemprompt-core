@@ -31,7 +31,7 @@
 
 - The standalone JTI-revocation middleware module (`entry/api/.../middleware/jti_revocation.rs`) is deleted; the checker now lives in the JWT context extractor.
 
-## [0.12.2] - 2026-05-28
+## [0.13.0] - 2026-05-28
 
 ### Breaking
 
