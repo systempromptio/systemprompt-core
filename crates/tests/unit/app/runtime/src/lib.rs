@@ -13,6 +13,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod app_context_parts;
+#[cfg(test)]
 mod builder_extra;
 #[cfg(test)]
 mod context;
@@ -21,11 +23,17 @@ mod context_loaders_extra;
 #[cfg(test)]
 mod database_context;
 #[cfg(test)]
+mod database_context_live;
+#[cfg(test)]
 mod display_tests;
+#[cfg(test)]
+mod error_variants;
 #[cfg(test)]
 mod files_validator_load;
 #[cfg(test)]
 mod files_validator_tests;
+#[cfg(test)]
+mod module_type_serde;
 #[cfg(test)]
 #[cfg(test)]
 mod registry;
