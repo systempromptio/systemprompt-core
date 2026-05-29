@@ -475,7 +475,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
-        assert!(matches!(r.stop_reason, Some(_)));
+        assert!(r.stop_reason.is_some());
         assert!(
             r.content
                 .iter()
