@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.0] - 2026-05-29
+
+The `systemprompt` facade tracks the workspace version. This release re-exports the 0.13.0 surface of every member crate; consult the root `CHANGELOG.md` and per-crate changelogs for behavioural changes. Notable highlights surfaced through the facade:
+
+- `systemprompt::security` JWT validation is consolidated onto a single RS256 decode primitive behind a `ValidationPolicy`; request-context middleware, session, hook-token, and the OAuth / MCP / agent domains all route through it. JTI revocation now runs inside the JWT context extractor as the final stateful check and fails closed.
+- `systemprompt::security::AuthzRequest` carries `session_id: Option<SessionId>`, threaded into the authz audit row's `session_id` column. Agent task and artifact routes verify context ownership before returning rows.
+- `systemprompt::security::ValidatedHookClaims` fields are typed (`PluginId` / `UserId`), and the gateway capture/audit path uses `AiToolCallId`. The default session-cookie name is centralised on `CookieExtractor::DEFAULT_COOKIE_NAME`.
+- `systemprompt::models::env::{read_env_optional, interpolate, contains_placeholder}` is the single `${VAR}` / `${VAR:-default}` interpolation primitive shared by the profile loader and the services config layer.
+
+Feature flags are unchanged: `core` (default), `database`, `api`, `cli`, `full`.
+
 ## [0.12.2] - 2026-05-28
 
 The `systemprompt` facade tracks the workspace version. This release re-exports the 0.12.2 surface of every member crate; consult the root `CHANGELOG.md` and per-crate changelogs for behavioural changes. Notable highlights surfaced through the facade:

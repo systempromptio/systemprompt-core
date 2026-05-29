@@ -2,7 +2,18 @@
 
 ## [0.13.0] - 2026-05-29
 
+### Security
+
+- Agent task and artifact routes (`GET /api/v1/agent/...`) now verify the caller owns the parent context before returning rows. `TaskRepository::validate_task_ownership`, `ArtifactRepository::validate_artifact_ownership`, and the context-ownership check join through `user_contexts.user_id`; a mismatch is rejected rather than disclosing another principal's tasks or artifacts.
+- The authz audit row's `session_id` column records the attested `SessionId` from the gateway enforcement path instead of the trace id. `AuthzRequest` now carries `session_id: Option<SessionId>`; non-session enforcement sites (server-attach RBAC, MCP middleware) record none.
+
 ### Changed
+
+- The gateway credential extractor prefers the `Authorization` header over `x-api-key` when both are present (previously `x-api-key` won).
+- `ValidatedHookClaims.plugin_id` / `.subject` are now `PluginId` / `UserId`, and the gateway capture/parse/stream-tap path and audit sink carry `AiToolCallId` instead of `String`. The default session-cookie name is centralised on `CookieExtractor::DEFAULT_COOKIE_NAME`.
+- Non-OAuth API routes return a new entry-local `ApiHttpError` (`entry/api/src/error/`); the domain-error-to-HTTP-status mapping lives once in its `From` impls rather than at each call site.
+- `${VAR}` / `${VAR:-default}` interpolation is consolidated into a single `systemprompt_models::env` primitive (`read_env_optional`, `interpolate`, `contains_placeholder`). The profile loader and the services config layer share one regex and one unresolved-placeholder rule, so the syntax cannot drift between surfaces.
+- See `bin/bridge/CHANGELOG.md` 0.9.5: managed MCP servers are registered with Cowork through the bridge loopback proxy with an `Authorization` header instead of `oauth: true`.
 
 - JWT validation is consolidated onto a single RS256 decode primitive, `decode_rs256_claims` (`infra/security/src/jwt/validate.rs`). Request-context middleware, session validation, hook-token validation, and the OAuth / MCP / agent domains all route through it, so the `kid` lookup, RS256 enforcement, and the `exp`/`nbf`/issuer/audience policy live in one place behind a `ValidationPolicy` knob and cannot drift apart. Federated subject-token verification (token-exchange) deliberately remains a separate path — it resolves keys from an external issuer's JWKS rather than this deployment's signing authority.
 - JTI revocation moved out of the standalone `entry/api` middleware and into the JWT context extractor as `JtiRevocationChecker` (`middleware/jwt/revocation.rs`). It now runs as the final stateful check — after a token's claims, its backing user, and the session row have all validated — caches negative results for a single-map-lookup hot path, and fails closed: a revocation-store error rejects the request rather than admitting an unverifiable token.
