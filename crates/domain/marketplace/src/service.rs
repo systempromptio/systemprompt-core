@@ -53,34 +53,35 @@ impl<'a> MarketplaceService<'a> {
                     .marketplaces
                     .keys()
                     .any(|k| k.as_str() == DEFAULT_MARKETPLACE_FALLBACK)
-                    .then(|| DEFAULT_MARKETPLACE_FALLBACK.to_owned())
+                    .then(|| MarketplaceId::new(DEFAULT_MARKETPLACE_FALLBACK))
             })
             .ok_or(MarketplaceError::NoDefault)?;
 
         self.services
             .marketplaces
             .iter()
-            .find(|(k, _)| k.as_str() == id)
+            .find(|(k, _)| k.as_str() == id.as_str())
             .ok_or(MarketplaceError::NoDefault)
     }
 
     /// Resolve the single active marketplace for manifest scoping.
     ///
     /// `None` means no scoping (global fallback). With several marketplaces
-    /// configured this picks one by iteration order and warns: fail-open is
-    /// intentional until a profile-level selector exists.
+    /// configured the active one is named by `settings.default_marketplace_id`,
+    /// which [`ServicesConfig::validate`] guarantees is present and resolvable
+    /// whenever more than one marketplace is configured.
     #[must_use]
     pub fn active(&self) -> Option<&'a MarketplaceConfig> {
         match self.services.marketplaces.len() {
             0 => None,
             1 => self.services.marketplaces.values().next(),
-            n => {
-                tracing::warn!(
-                    count = n,
-                    "marketplace: multiple marketplaces configured without a profile selector; \
-                     picking the first by HashMap iteration order"
-                );
-                self.services.marketplaces.values().next()
+            _ => {
+                let id = self.services.settings.default_marketplace_id.as_ref()?;
+                self.services
+                    .marketplaces
+                    .iter()
+                    .find(|(k, _)| k.as_str() == id.as_str())
+                    .map(|(_, v)| v)
             },
         }
     }
@@ -116,6 +117,28 @@ impl<'a> MarketplaceService<'a> {
     #[must_use]
     pub fn active_access(&self) -> Option<&'a MarketplaceAccess> {
         self.active().map(|config| &config.access)
+    }
+
+    /// The active marketplace's required attribute floor for one member.
+    ///
+    /// Composes [`membership`](Self::membership) with
+    /// [`active_access`](Self::active_access): returns the active marketplace's
+    /// `access.attributes` when `(kind, id)` is a member and that bag is
+    /// non-empty, else `None`. Core never interprets the values — the bag is
+    /// forwarded verbatim to the ABAC hook as a defence-in-depth floor.
+    #[must_use]
+    pub fn member_attribute_floor(
+        &self,
+        kind: EntityKind,
+        id: &str,
+    ) -> Option<&'a BTreeMap<String, serde_json::Value>> {
+        let access = self.active_access()?;
+        if access.attributes.is_empty() {
+            return None;
+        }
+        self.membership()
+            .contains_key(&(kind, id.to_owned()))
+            .then_some(&access.attributes)
     }
 
     pub fn validate_referential_integrity(&self) -> Result<(), MarketplaceError> {

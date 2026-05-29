@@ -9,26 +9,17 @@
 
 use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 
+use crate::service::MarketplaceService;
+
 /// Resolve the active marketplace for manifest scoping.
 ///
 /// `None` means no scoping (global fallback). With multiple marketplaces
-/// configured this picks one and warns: fail-open is intentional until a
-/// profile-level selector exists.
+/// configured the active one is named by `settings.default_marketplace_id`,
+/// which [`ServicesConfig::validate`] requires whenever more than one is
+/// present — so this never picks ambiguously.
 #[must_use]
 pub fn active_marketplace(services: &ServicesConfig) -> Option<&MarketplaceConfig> {
-    match services.marketplaces.len() {
-        0 => None,
-        1 => services.marketplaces.values().next(),
-        n => {
-            tracing::warn!(
-                count = n,
-                "bridge_manifest: multiple marketplaces configured without a profile selector; \
-                 picking the first by HashMap iteration order. Follow-up: add \
-                 Profile::active_marketplace_id and fail closed on ambiguity."
-            );
-            services.marketplaces.values().next()
-        },
-    }
+    MarketplaceService::new(services).active()
 }
 
 /// Filter `items` to those whose id (per `id_of`) appears in `include`.

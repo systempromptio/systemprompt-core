@@ -50,7 +50,7 @@ pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, We
 pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};
 pub use repository::{AccessControlRepository, UpsertRuleParams};
-pub use resolver::{ResolveInput, resolve};
+pub use resolver::{ResolveInput, ResolveParent, resolve};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
 pub use types::{

@@ -129,18 +129,27 @@ async fn get_marketplace_yaml(
     State(ctx): State<AppContext>,
     AxumPath(id): AxumPath<String>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    if id.contains('/') || id.contains("..") {
+    let marketplaces_root = marketplaces_path(&ctx);
+    let requested = marketplaces_root.join(&id).join("config.yaml");
+
+    let canonical_root = marketplaces_root
+        .canonicalize()
+        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let canonical_requested = requested.canonicalize().map_err(|_e| {
+        ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml"))
+    })?;
+
+    if !canonical_requested.starts_with(&canonical_root) {
         return Err(ApiHttpError::forbidden("Invalid marketplace id"));
     }
 
-    let path = marketplaces_path(&ctx).join(&id).join("config.yaml");
-    if !path.is_file() {
+    if !canonical_requested.is_file() {
         return Err(ApiHttpError::not_found(format!(
             "Marketplace '{id}' has no config.yaml"
         )));
     }
 
-    let content = tokio::fs::read(&path)
+    let content = tokio::fs::read(&canonical_requested)
         .await
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
 

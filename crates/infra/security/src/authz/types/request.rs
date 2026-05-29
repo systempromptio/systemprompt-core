@@ -99,6 +99,50 @@ impl AuthzContext {
     pub fn is_none(&self) -> bool {
         self.kind == Self::NONE_KIND
     }
+
+    /// Payload key under which a marketplace's required attribute floor travels.
+    pub const MARKETPLACE_FLOOR_KEY: &'static str = "marketplace.attribute_floor";
+
+    /// Attach the owning marketplace's required attribute floor, preserving
+    /// `kind` and any existing payload.
+    ///
+    /// The floor is an opaque, tenant-namespaced bag (e.g.
+    /// `{ "boeing.clearance": "secret" }`). Core copies it verbatim; the ABAC
+    /// hook interprets it. Stored under [`MARKETPLACE_FLOOR_KEY`] so it never
+    /// collides with the typed `model` / `tool` payload keys.
+    ///
+    /// [`MARKETPLACE_FLOOR_KEY`]: Self::MARKETPLACE_FLOOR_KEY
+    #[must_use]
+    pub fn with_marketplace_floor(&self, floor: &BTreeMap<String, serde_json::Value>) -> Self {
+        let mut payload = match self.payload.clone() {
+            serde_json::Value::Object(map) => map,
+            _ => serde_json::Map::new(),
+        };
+        let floor_value = floor
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<serde_json::Map<String, serde_json::Value>>();
+        payload.insert(
+            Self::MARKETPLACE_FLOOR_KEY.to_owned(),
+            serde_json::Value::Object(floor_value),
+        );
+        Self {
+            kind: self.kind.clone(),
+            payload: serde_json::Value::Object(payload),
+        }
+    }
+
+    /// The marketplace attribute floor attached via
+    /// [`with_marketplace_floor`](Self::with_marketplace_floor), if any.
+    #[must_use]
+    pub fn marketplace_floor(&self) -> Option<BTreeMap<String, serde_json::Value>> {
+        let obj = self.payload.get(Self::MARKETPLACE_FLOOR_KEY)?.as_object()?;
+        Some(
+            obj.iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<BTreeMap<String, serde_json::Value>>(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

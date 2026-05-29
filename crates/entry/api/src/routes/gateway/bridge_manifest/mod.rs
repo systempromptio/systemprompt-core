@@ -10,9 +10,9 @@ use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use chrono::{Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_marketplace::{CanonicalView, ManifestService, MarketplaceCandidate};
-use systemprompt_models::bridge::manifest::SignedManifest;
+use systemprompt_models::bridge::manifest::{ManifestSignature, SignedManifest, UserInfo};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
 
@@ -41,26 +41,6 @@ pub async fn manifest(
 
     let (manifest_version, issued_at, not_before) = build_version()?;
 
-    let services = bridge_data::load_services_config().map_err(|e| {
-        tracing::warn!(error = %e, "manifest: services config load failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
-    })?;
-
-    let services_root = ctx.app_paths().system().services();
-
-    let filter = ctx.marketplace_filter();
-    let candidate = ManifestService::assemble_candidate(
-        &services,
-        services_root,
-        &profile.server.api_external_url,
-        filter.as_ref(),
-        &claims.user_id,
-    )
-    .await
-    .map_err(|e| {
-        tracing::warn!(error = %e, "manifest: candidate assembly failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
-    })?;
     let MarketplaceCandidate {
         plugins,
         skills,
@@ -70,35 +50,13 @@ pub async fn manifest(
         // Why: marketplace_id/access are filter context, deliberately excluded
         // from CanonicalView so the signed payload stays byte-identical.
         ..
-    } = candidate;
+    } = assemble_candidate(&ctx, profile, &claims.user_id).await?;
 
-    let user = match bridge_data::load_user(&ctx, &claims.user_id).await {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: user load failed; continuing without user");
-            None
-        },
-    };
-
-    let revocations = match bridge_data::load_revocations(&ctx, &claims.user_id).await {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!(error = %e, "manifest: revocation load failed; continuing empty");
-            Vec::new()
-        },
-    };
-
-    let enabled_hosts = match bridge_data::load_enabled_hosts(&ctx, &claims.user_id).await {
-        Ok(rows) if rows.is_empty() => default_enabled_hosts(),
-        Ok(rows) => rows,
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "manifest: enabled_hosts load failed; defaulting to all known hosts"
-            );
-            default_enabled_hosts()
-        },
-    };
+    let PerUserContext {
+        user,
+        revocations,
+        enabled_hosts,
+    } = load_per_user_context(&ctx, &claims.user_id).await;
 
     let canonical = CanonicalView {
         manifest_version: &manifest_version,
@@ -116,13 +74,7 @@ pub async fn manifest(
         enabled_hosts: &enabled_hosts,
     };
 
-    let signature = ManifestService::sign(&canonical).map_err(|e| {
-        tracing::error!(error = %e, "manifest signing failed");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("manifest signing failed: {e}"),
-        )
-    })?;
+    let signature = sign_canonical(&canonical)?;
 
     Ok(Json(SignedManifest {
         manifest_version,
@@ -140,6 +92,82 @@ pub async fn manifest(
         enabled_hosts,
         signature,
     }))
+}
+
+async fn assemble_candidate(
+    ctx: &AppContext,
+    profile: &systemprompt_models::Profile,
+    user_id: &UserId,
+) -> Result<MarketplaceCandidate, (StatusCode, String)> {
+    let services = bridge_data::load_services_config().map_err(|e| {
+        tracing::warn!(error = %e, "manifest: services config load failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
+    })?;
+
+    ManifestService::assemble_candidate(
+        &services,
+        ctx.app_paths().system().services(),
+        &profile.server.api_external_url,
+        ctx.marketplace_filter().as_ref(),
+        user_id,
+    )
+    .await
+    .map_err(|e| {
+        tracing::warn!(error = %e, "manifest: candidate assembly failed");
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("manifest: {e}"))
+    })
+}
+
+struct PerUserContext {
+    user: Option<UserInfo>,
+    revocations: Vec<String>,
+    enabled_hosts: Vec<String>,
+}
+
+async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserContext {
+    let user = match bridge_data::load_user(ctx, user_id).await {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::warn!(error = %e, "manifest: user load failed; continuing without user");
+            None
+        },
+    };
+
+    let revocations = match bridge_data::load_revocations(ctx, user_id).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!(error = %e, "manifest: revocation load failed; continuing empty");
+            Vec::new()
+        },
+    };
+
+    let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
+        Ok(rows) if rows.is_empty() => default_enabled_hosts(),
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "manifest: enabled_hosts load failed; defaulting to all known hosts"
+            );
+            default_enabled_hosts()
+        },
+    };
+
+    PerUserContext {
+        user,
+        revocations,
+        enabled_hosts,
+    }
+}
+
+fn sign_canonical(canonical: &CanonicalView<'_>) -> Result<ManifestSignature, (StatusCode, String)> {
+    ManifestService::sign(canonical).map_err(|e| {
+        tracing::error!(error = %e, "manifest signing failed");
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("manifest signing failed: {e}"),
+        )
+    })
 }
 
 async fn authenticate(

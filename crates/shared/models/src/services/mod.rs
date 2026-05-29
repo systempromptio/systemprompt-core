@@ -113,6 +113,30 @@ impl ServicesConfig {
             self.validate_marketplace_bindings(id.as_str(), marketplace)?;
         }
 
+        self.validate_default_marketplace_selector()?;
+
+        Ok(())
+    }
+
+    fn validate_default_marketplace_selector(&self) -> Result<(), ConfigValidationError> {
+        if self.marketplaces.len() > 1 && self.settings.default_marketplace_id.is_none() {
+            return Err(ConfigValidationError::business_rule(format!(
+                "{} marketplaces are configured but settings.default_marketplace_id is unset; \
+                 set it to select the active marketplace",
+                self.marketplaces.len()
+            )));
+        }
+
+        if let Some(id) = &self.settings.default_marketplace_id {
+            if !self.marketplaces.keys().any(|k| k.as_str() == id.as_str()) {
+                return Err(ConfigValidationError::unknown_reference(format!(
+                    "settings.default_marketplace_id '{}' does not match any configured \
+                     marketplace",
+                    id.as_str()
+                )));
+            }
+        }
+
         Ok(())
     }
 

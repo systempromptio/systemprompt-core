@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::MarketplaceId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -21,7 +22,7 @@ pub struct Settings {
     #[serde(default = "default_true")]
     pub marketplace_public: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_marketplace_id: Option<String>,
+    pub default_marketplace_id: Option<MarketplaceId>,
 }
 
 impl Default for Settings {
