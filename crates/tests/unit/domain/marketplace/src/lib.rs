@@ -1,4 +1,13 @@
 #[cfg(test)]
+mod helpers;
+#[cfg(test)]
+mod manifest;
+#[cfg(test)]
+mod scope;
+#[cfg(test)]
+mod service;
+
+#[cfg(test)]
 use async_trait::async_trait;
 #[cfg(test)]
 use systemprompt_identifiers::UserId;

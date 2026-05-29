@@ -19,4 +19,6 @@ mod profile_governance;
 #[cfg(test)]
 mod resolver;
 #[cfg(test)]
+mod resolver_parents;
+#[cfg(test)]
 mod webhook_hook;
