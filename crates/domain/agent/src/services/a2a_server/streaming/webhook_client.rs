@@ -158,10 +158,6 @@ async fn post_and_decode<T: Serialize + Sync + ?Sized>(
     }
 }
 
-// -----------------------------------------------------------------------------
-// Global dispatch
-// -----------------------------------------------------------------------------
-
 static GLOBAL_BROADCASTER: OnceLock<Arc<dyn WebhookBroadcaster>> = OnceLock::new();
 
 fn default_broadcaster() -> Arc<dyn WebhookBroadcaster> {

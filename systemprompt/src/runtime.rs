@@ -57,7 +57,6 @@ impl std::fmt::Debug for RuntimeBuilder {
 }
 
 impl RuntimeBuilder {
-    /// Construct an empty builder with the default web-asset strategy.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -74,14 +73,12 @@ impl RuntimeBuilder {
         self
     }
 
-    /// Register a pre-constructed extension instance.
     #[must_use]
     pub fn with_extension_instance(mut self, ext: Arc<dyn Extension>) -> Self {
         self.extensions.push(ext);
         self
     }
 
-    /// Override the web-asset strategy used by the runtime.
     #[must_use]
     pub fn with_web_assets(mut self, strategy: WebAssetsStrategy) -> Self {
         self.web_assets = strategy;

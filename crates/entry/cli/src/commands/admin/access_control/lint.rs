@@ -27,8 +27,6 @@ const ALL_KINDS: &[EntityKind] = &[
 /// * **Unreachable entities** — catalog rows with `default_included = false`
 ///   and zero matching grants. The entity is registered but no one can reach
 ///   it.
-///
-/// Returns `(human_report, exit_nonzero)`.
 pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
     let ctx = AppContext::new().await?;
     let repo =
