@@ -1,12 +1,21 @@
+use std::time::Duration;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, SchedulerHandle};
 
 const CHILD_SHUTDOWN_GRACE_MS: u64 = 5_000;
+const FORCED_SHUTDOWN_GRACE_MS: u64 = 10_000;
 
 pub(super) async fn shutdown_signal() {
+    wait_for_signal().await;
+    super::readiness::signal_shutdown();
+    arm_forced_exit();
+}
+
+async fn wait_for_signal() {
     let ctrl_c = async {
         if let Err(e) = tokio::signal::ctrl_c().await {
             tracing::error!(error = %e, "Failed to install Ctrl-C handler");
+            std::future::pending::<()>().await;
         }
     };
 
@@ -30,8 +39,28 @@ pub(super) async fn shutdown_signal() {
         () = ctrl_c => tracing::info!("Received Ctrl-C, shutting down"),
         () = terminate => tracing::info!("Received SIGTERM, shutting down"),
     }
+}
 
-    super::readiness::signal_shutdown();
+/// Guarantees the process exits even if axum's graceful drain wedges on a
+/// long-lived connection (SSE / event streams never close on their own). A
+/// second signal or the grace window forces an immediate exit; on the clean
+/// path drain finishes first and this detached task is abandoned at runtime
+/// teardown without delaying it.
+fn arm_forced_exit() {
+    tokio::spawn(async {
+        tokio::select! {
+            () = wait_for_signal() => {
+                tracing::warn!("Second shutdown signal received, forcing immediate exit");
+            },
+            () = tokio::time::sleep(Duration::from_millis(FORCED_SHUTDOWN_GRACE_MS)) => {
+                tracing::warn!(
+                    grace_ms = FORCED_SHUTDOWN_GRACE_MS,
+                    "Graceful shutdown exceeded grace window, forcing exit"
+                );
+            },
+        }
+        std::process::exit(0);
+    });
 }
 
 pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
