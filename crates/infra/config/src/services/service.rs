@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use regex::Regex;
 use systemprompt_logging::CliService;
+use systemprompt_models::{contains_placeholder, interpolate, read_env_optional};
 
 use super::types::{DeployEnvironment, EnvironmentConfig};
 use super::writer::ConfigWriter;
@@ -178,20 +178,23 @@ impl ConfigService {
         mut vars: HashMap<String, String>,
         secrets: &HashMap<String, String>,
     ) -> ConfigResult<HashMap<String, String>> {
-        let var_regex = Regex::new(r"\$\{([^}:]+)(?::-(.*?))?\}")?;
-        let max_passes = 5;
+        const MAX_PASSES: usize = 5;
 
-        for current_pass in 0..max_passes {
+        for current_pass in 0..MAX_PASSES {
             let mut changes_made = false;
 
             for (key, value) in vars.clone() {
-                if var_regex.is_match(&value) {
-                    let resolved = Self::resolve_value(&value, &vars, secrets, &var_regex)?;
+                let resolved = interpolate(&value, &|name| {
+                    secrets
+                        .get(name)
+                        .cloned()
+                        .or_else(|| read_env_optional(name))
+                        .or_else(|| vars.get(name).cloned())
+                });
 
-                    if resolved != value {
-                        vars.insert(key, resolved);
-                        changes_made = true;
-                    }
+                if resolved != value {
+                    vars.insert(key, resolved);
+                    changes_made = true;
                 }
             }
 
@@ -199,16 +202,19 @@ impl ConfigService {
                 break;
             }
 
-            if current_pass == max_passes - 1 && changes_made {
+            // Reaching the final pass while still mutating means a cycle or a
+            // reference chain deeper than MAX_PASSES — surface it rather than
+            // returning a config that still carries placeholders.
+            if current_pass == MAX_PASSES - 1 {
                 let unresolved: Vec<_> = vars
                     .iter()
-                    .filter(|(_, v)| var_regex.is_match(v))
+                    .filter(|(_, v)| contains_placeholder(v))
                     .map(|(k, v)| format!("{k} = {v}"))
                     .collect();
 
                 if !unresolved.is_empty() {
                     return Err(ConfigError::UnresolvedVariables {
-                        passes: max_passes,
+                        passes: MAX_PASSES,
                         unresolved: unresolved.join("\n"),
                     });
                 }
@@ -218,52 +224,11 @@ impl ConfigService {
         Ok(vars)
     }
 
-    fn resolve_value(
-        value: &str,
-        vars: &HashMap<String, String>,
-        secrets: &HashMap<String, String>,
-        var_regex: &Regex,
-    ) -> ConfigResult<String> {
-        let mut result = value.to_owned();
-
-        for cap in var_regex.captures_iter(value) {
-            let full_match = cap
-                .get(0)
-                .ok_or(ConfigError::MissingCaptureGroup { index: 0 })?
-                .as_str();
-            let var_name = cap
-                .get(1)
-                .ok_or(ConfigError::MissingCaptureGroup { index: 1 })?
-                .as_str();
-            let default_value = cap.get(2).map(|m| m.as_str());
-
-            let replacement = secrets
-                .get(var_name)
-                .cloned()
-                .or_else(|| read_env_optional(var_name))
-                .or_else(|| vars.get(var_name).cloned())
-                .unwrap_or_else(|| {
-                    default_value.map_or_else(|| full_match.to_owned(), str::to_owned)
-                });
-
-            result = result.replace(full_match, &replacement);
-        }
-
-        Ok(result)
-    }
-
     pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> ConfigResult<()> {
         ConfigWriter::write_env_file(config, output_path)
     }
 
     pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> ConfigResult<()> {
         self.writer.write_web_env_file(config)
-    }
-}
-
-fn read_env_optional(name: &str) -> Option<String> {
-    match std::env::var(name) {
-        Ok(v) if !v.is_empty() => Some(v),
-        Ok(_) | Err(_) => None,
     }
 }
