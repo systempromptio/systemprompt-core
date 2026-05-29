@@ -139,6 +139,12 @@ lint:
 lint-sqlx:
     ./ci/check-sqlx.sh
 
+# Reject inline `map_err(|e| ApiError::ctor(...))` at HTTP call sites.
+# HTTP status mapping belongs in an entry-local error type's From impls;
+# call sites propagate with bare `?` so the variant decides the status.
+lint-http-errors:
+    ./ci/check-http-errors.sh
+
 # Reject UserId::admin() outside the sanctioned bootstrap call sites.
 # The sentinel is reserved for the actor model, the bootstrap CLI, the
 # scheduler default config, the MCP server registry, and the LogActor
@@ -206,6 +212,9 @@ style-check:
     echo ""
     echo "4️⃣  Checking sqlx::query allowlist..."
     ./ci/check-sqlx.sh
+    echo ""
+    echo "5️⃣  Checking HTTP error propagation..."
+    ./ci/check-http-errors.sh
     echo ""
     echo "✅ All style checks passed!"
 
