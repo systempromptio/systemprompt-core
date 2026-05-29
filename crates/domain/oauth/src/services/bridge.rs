@@ -95,7 +95,16 @@ pub async fn issue_bridge_access_with(
     let ttl_hours = i64::try_from((ttl_seconds / 3600).max(1)).unwrap_or(1);
     let config = JwtConfig {
         permissions: auth_user.permissions().to_vec(),
-        audience: vec![JwtAudience::Bridge],
+        // The bridge runs a first-party loopback proxy that fronts managed
+        // services on behalf of this authenticated user: it injects this token
+        // when forwarding Cowork/Codex MCP traffic to `/api/v1/mcp/<svc>`. The
+        // service-proxy guard (`validate_service_access`) only accepts the
+        // global service audiences, and each MCP server's RBAC requires the
+        // `mcp` audience — so the bridge token must carry `mcp` in addition to
+        // `bridge` (kept for the auth/`/v1/messages` paths). Per-user, short
+        // TTL, loopback-only, so granting service audience to this token is
+        // the same trust as the OAuth flow it replaces.
+        audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
         expires_in_hours: Some(ttl_hours),
         resource: None,
         plugin_id: None,
