@@ -93,8 +93,10 @@ match_block_trailing_comma = true
 # MISCELLANEOUS
 # ============================================================================
 
-# Format string literals
-format_strings = true
+# Do NOT enable `format_strings`: the unstable splitter mangles long string
+# literals containing escaped quotes (e.g. JSON test fixtures), terminating
+# them early and producing syntax errors on every `cargo fmt` run.
+format_strings = false
 
 # Merge derives into single line when possible
 merge_derives = true
