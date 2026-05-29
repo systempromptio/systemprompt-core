@@ -20,3 +20,5 @@ mod job;
 mod llm;
 #[cfg(test)]
 mod tool;
+#[cfg(test)]
+mod web_config_and_component;
