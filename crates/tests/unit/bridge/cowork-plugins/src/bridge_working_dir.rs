@@ -26,7 +26,10 @@ fn staging_dir_is_under_working_dir() {
         staging.display(),
         working.display()
     );
-    assert_eq!(staging.file_name().and_then(|s| s.to_str()), Some("staging"));
+    assert_eq!(
+        staging.file_name().and_then(|s| s.to_str()),
+        Some("staging")
+    );
 }
 
 #[test]

@@ -66,6 +66,7 @@ async fn role_deny_overrides_role_allow_for_same_subject() {
         user_id: &UserId::new("user-1"),
         user_roles: &["engineer".to_owned()],
         default_included: Some(false),
+        parents: &[],
     });
     assert!(
         matches!(decision, Decision::Deny { .. }),
@@ -129,6 +130,7 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
         user_id: &UserId::new("banned-user"),
         user_roles: &["admin".to_owned()],
         default_included: Some(false),
+        parents: &[],
     });
     assert!(
         matches!(decision, Decision::Deny { .. }),
@@ -174,6 +176,7 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
         user_id: &user,
         user_roles: &roles,
         default_included: Some(false),
+        parents: &[],
     });
     let decision_b = resolve(ResolveInput {
         entity: &entity_ref,
@@ -181,6 +184,7 @@ async fn deny_overrides_at_resolve_regardless_of_rule_order() {
         user_id: &user,
         user_roles: &roles,
         default_included: Some(false),
+        parents: &[],
     });
     assert!(
         matches!(decision_a, Decision::Deny { .. }),
@@ -268,6 +272,7 @@ async fn yaml_rule_ordering_does_not_change_decision() {
         user_id: &user,
         user_roles: &roles,
         default_included: Some(false),
+        parents: &[],
     });
     let decision_b = resolve(ResolveInput {
         entity: &entity_ref_b,
@@ -275,6 +280,7 @@ async fn yaml_rule_ordering_does_not_change_decision() {
         user_id: &user,
         user_roles: &roles,
         default_included: Some(false),
+        parents: &[],
     });
     assert!(
         matches!(decision_a, Decision::Deny { .. }),

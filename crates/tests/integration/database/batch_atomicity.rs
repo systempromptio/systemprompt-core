@@ -33,11 +33,7 @@ async fn connect_pool() -> PgPool {
 }
 
 fn unique_table(prefix: &str) -> String {
-    format!(
-        "batch_{}_{}",
-        prefix,
-        Uuid::new_v4().simple().to_string()[..12].to_string()
-    )
+    format!("batch_{}_{}", prefix, &Uuid::new_v4().simple().to_string()[..12])
 }
 
 async fn drop_table(pool: &PgPool, table: &str) {

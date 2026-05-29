@@ -1,11 +1,11 @@
 //! Regression guards for `systemprompt admin session login` on local profiles.
 //!
-//! The original bug: `login` unconditionally called `CredentialsBootstrap::require()`
-//! to resolve the operator's email, so a local-only checkout (no
-//! `~/.systemprompt/cloud/credentials.json`) was locked out of `session login`
-//! the moment its session expired. The fix routes local profiles through
-//! `resolve_local_admin_email`, which looks the system-admin user up by the
-//! `system_admin.username` recorded in the profile.
+//! The original bug: `login` unconditionally called
+//! `CredentialsBootstrap::require()` to resolve the operator's email, so a
+//! local-only checkout (no `~/.systemprompt/cloud/credentials.json`) was locked
+//! out of `session login` the moment its session expired. The fix routes local
+//! profiles through `resolve_local_admin_email`, which looks the system-admin
+//! user up by the `system_admin.username` recorded in the profile.
 
 use systemprompt_cli::admin::session::login::resolve_local_admin_email;
 use systemprompt_database::DbPool;

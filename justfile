@@ -123,17 +123,24 @@ check: lint-schema lint-extensions
 check-offline:
     SQLX_OFFLINE=true cargo check --workspace
 
-# Format code (nightly: rustfmt.toml uses unstable options)
+# Format code (nightly: rustfmt.toml uses unstable options).
+# Covers the separate `crates/tests` workspace too — `--all` stops at the
+# manifest it is invoked from, so the test workspace must be formatted explicitly.
 fmt:
     cargo +nightly fmt --all
+    cd crates/tests && cargo +nightly fmt --all
 
-# Check formatting without making changes
+# Check formatting without making changes (main + test workspace).
 format-check:
     cargo +nightly fmt --all -- --check
+    cd crates/tests && cargo +nightly fmt --all -- --check
 
-# Run clippy linter with strict settings
+# Run clippy linter with strict settings (main + test workspace).
+# `--workspace` does not reach `crates/tests`; lint it explicitly so test-only
+# breakage is caught locally rather than in CI.
 lint:
     cargo clippy --workspace --all-targets --all-features -- -D warnings
+    cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
@@ -205,7 +212,7 @@ style-check:
     cargo +nightly fmt --all -- --check
     echo ""
     echo "2️⃣  Running clippy linter..."
-    cargo clippy --workspace -- -D warnings
+    cargo clippy --workspace --all-targets --all-features -- -D warnings
     echo ""
     echo "3️⃣  Running custom validators..."
     ./tests/validator/validate.sh
@@ -215,6 +222,11 @@ style-check:
     echo ""
     echo "5️⃣  Checking HTTP error propagation..."
     ./ci/check-http-errors.sh
+    echo ""
+    echo "6️⃣  Checking the test workspace (fmt + clippy + compile)..."
+    (cd crates/tests && cargo +nightly fmt --all -- --check)
+    (cd crates/tests && cargo clippy --workspace --all-targets --all-features -- -D warnings)
+    (cd crates/tests && cargo test --workspace --no-run)
     echo ""
     echo "✅ All style checks passed!"
 

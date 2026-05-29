@@ -132,7 +132,10 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
 #[tokio::test]
 async fn anthropic_outbound_streaming_returns_stream() {
     let server = MockServer::start().await;
-    let sse = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n";
+    let sse = "event: message_start\ndata: \
+               {\"type\":\"message_start\",\"message\":{\"id\":\"x\",\"type\":\"message\",\"role\"\
+               :\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"stop_sequence\\
+               ":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}}\n\n";
     Mock::given(method("POST"))
         .and(path("/messages"))
         .respond_with(

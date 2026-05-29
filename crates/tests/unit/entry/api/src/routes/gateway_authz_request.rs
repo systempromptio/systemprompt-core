@@ -23,6 +23,7 @@ fn forwards_roles_and_attributes_to_authz_request() {
         trace_id: TraceId::new("trace-x"),
         route_id: RouteId::new("route-1"),
         model: ModelId::new("claude-3"),
+        session_id: None,
     });
 
     assert_eq!(req.user_id.as_str(), "user_1");

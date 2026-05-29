@@ -18,9 +18,9 @@
 
 use std::fs;
 
+use systemprompt_identifiers::SkillId;
 use systemprompt_marketplace::catalog::{load_agents, load_skills};
 use systemprompt_marketplace::scope_to_marketplace;
-use systemprompt_identifiers::SkillId;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentSkillConfig, CapabilitiesConfig,
     OAuthConfig, ServicesConfig,

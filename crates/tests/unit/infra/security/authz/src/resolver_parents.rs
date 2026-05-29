@@ -1,5 +1,5 @@
 use systemprompt_identifiers::{MarketplaceId, SkillId};
-use systemprompt_security::authz::resolver::{ResolveInput, ResolveParent, resolve};
+use systemprompt_security::authz::{ResolveInput, ResolveParent, resolve};
 use systemprompt_security::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };

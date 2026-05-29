@@ -1,7 +1,7 @@
 //! `HookTokenValidator` projects the validated `plugin_id` / `sub` claims to
-//! typed identifiers (`PluginId` / `UserId`), not raw strings — the contract the
-//! downstream hook endpoint relies on. A token issued for plugin A must also be
-//! rejected when driven against plugin B.
+//! typed identifiers (`PluginId` / `UserId`), not raw strings — the contract
+//! the downstream hook endpoint relies on. A token issued for plugin A must
+//! also be rejected when driven against plugin B.
 
 use std::sync::Once;
 
@@ -89,5 +89,8 @@ fn plugin_id_mismatch_is_rejected() {
 
     let validator = HookTokenValidator::new(ISSUER.to_string());
     let result = validator.validate_govern(&token, Some("plugin-b"));
-    assert!(result.is_err(), "token issued for plugin-a must not drive plugin-b");
+    assert!(
+        result.is_err(),
+        "token issued for plugin-a must not drive plugin-b"
+    );
 }

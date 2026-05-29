@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use sqlx::{Connection, PgConnection, PgPool, Row};
+use sqlx::{Connection, PgConnection, PgPool};
 use uuid::Uuid;
 
 const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
