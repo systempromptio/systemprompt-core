@@ -389,13 +389,15 @@ SQLX_OFFLINE=true cargo build --workspace
 
 # Full README setup on a FRESH DB + dedicated ports (never the shared dev DB)
 just setup-local <ANTHROPIC_KEY> "" "" 8099 5499
-just start
 
-# README demos — must all pass
+# Start the server (foreground in the README; background it for an unattended run).
+# Pass --kill-port-process so a stale listener on the chosen port can't wedge startup.
+target/release/systemprompt infra services start --profile local --kill-port-process &
+
+# README demos — preflight + seed, then the whole suite via the sweep harness
 ./demo/00-preflight.sh           # health + admin + writes demo/.token
 ./demo/01-seed-data.sh
-./demo/governance/01-happy-path.sh
-# ...plus the remaining free governance / analytics / infrastructure demos
+./demo/sweep.sh                  # runs every demo/**/*.sh, prints a Pass/Fail tally
 ```
 
 ### 3. Acceptance criteria
@@ -410,6 +412,31 @@ just start
 
 > Use a freshly-migrated DB on dedicated ports — the `systemprompt-web` dev DB carries
 > web-project triggers that break core/template behaviour.
+
+### 4. Outcome and findings — 0.13.0
+
+The 0.13.0 run passed end-to-end from a fresh clone: offline workspace build against
+the published crates, `setup-local` (publish pipeline 15/15), server up, and
+`demo/sweep.sh` reporting **Pass: 44  Fail: 0**. Two issues surfaced and are worth
+watching on future releases:
+
+- **Profile validation drift (template fix).** Core 0.13.0 hardened `Profile::validate`
+  to require `"hook"` in `security.allowed_resource_audiences` (the gateway mints
+  `hook:govern` / `hook:track` tokens bound to `audience=hook`). The template's
+  `setup-local` profile heredoc did not emit the field, so a fresh clone failed at
+  `db migrate`. Whenever core adds a required profile field, update the template's
+  `setup-local` generator in the same release. This is the smoke test's whole point —
+  it catches core↔template config drift that neither repo's own tests see.
+- **sccache flake (environment, not a defect).** The release C build of `aws-lc-sys`
+  can fail under the global `rustc-wrapper = "sccache"` with
+  `sccache: error: Cannot assign requested address (os error 99)` on WSL2. Bypass it for
+  the smoke build with `RUSTC_WRAPPER= CARGO_BUILD_RUSTC_WRAPPER=`; the offline debug
+  build and the published crates are unaffected.
+
+Two operational notes for an unattended run: free the HTTP port first (a stale listener
+makes `services start` abort — `--kill-port-process` handles it), and avoid
+`pkill -f target/release/systemprompt` verbatim (the pattern matches its own argv and
+kills the shell; use a `[t]arget…` bracket pattern).
 
 ---
 
