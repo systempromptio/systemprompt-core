@@ -100,16 +100,12 @@ impl AuthzContext {
         self.kind == Self::NONE_KIND
     }
 
-    /// Payload key under which a marketplace's required attribute floor travels.
     pub const MARKETPLACE_FLOOR_KEY: &'static str = "marketplace.attribute_floor";
 
-    /// Attach the owning marketplace's required attribute floor, preserving
-    /// `kind` and any existing payload.
-    ///
-    /// The floor is an opaque, tenant-namespaced bag (e.g.
-    /// `{ "boeing.clearance": "secret" }`). Core copies it verbatim; the ABAC
-    /// hook interprets it. Stored under [`MARKETPLACE_FLOOR_KEY`] so it never
-    /// collides with the typed `model` / `tool` payload keys.
+    /// The floor is an opaque tenant-namespaced bag the ABAC hook interprets;
+    /// core copies it verbatim. Keyed under [`MARKETPLACE_FLOOR_KEY`] so it
+    /// never collides with the typed `model` / `tool` payload entries, and
+    /// `kind` plus any existing payload are preserved.
     ///
     /// [`MARKETPLACE_FLOOR_KEY`]: Self::MARKETPLACE_FLOOR_KEY
     #[must_use]
@@ -132,8 +128,6 @@ impl AuthzContext {
         }
     }
 
-    /// The marketplace attribute floor attached via
-    /// [`with_marketplace_floor`](Self::with_marketplace_floor), if any.
     #[must_use]
     pub fn marketplace_floor(&self) -> Option<BTreeMap<String, serde_json::Value>> {
         let obj = self.payload.get(Self::MARKETPLACE_FLOOR_KEY)?.as_object()?;

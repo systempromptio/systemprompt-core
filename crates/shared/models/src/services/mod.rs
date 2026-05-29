@@ -121,8 +121,8 @@ impl ServicesConfig {
     fn validate_default_marketplace_selector(&self) -> Result<(), ConfigValidationError> {
         if self.marketplaces.len() > 1 && self.settings.default_marketplace_id.is_none() {
             return Err(ConfigValidationError::business_rule(format!(
-                "{} marketplaces are configured but settings.default_marketplace_id is unset; \
-                 set it to select the active marketplace",
+                "{} marketplaces are configured but settings.default_marketplace_id is unset; set \
+                 it to select the active marketplace",
                 self.marketplaces.len()
             )));
         }

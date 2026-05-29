@@ -160,7 +160,9 @@ async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserCon
     }
 }
 
-fn sign_canonical(canonical: &CanonicalView<'_>) -> Result<ManifestSignature, (StatusCode, String)> {
+fn sign_canonical(
+    canonical: &CanonicalView<'_>,
+) -> Result<ManifestSignature, (StatusCode, String)> {
     ManifestService::sign(canonical).map_err(|e| {
         tracing::error!(error = %e, "manifest signing failed");
         (

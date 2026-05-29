@@ -66,7 +66,9 @@ async fn generate_with_schema_returns_structured() {
 
 #[tokio::test]
 async fn generate_stream_yields_chunks() {
-    let sse = "data: [{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]}}],\"usageMetadata\":{\"promptTokenCount\":1,\"totalTokenCount\":2,\"candidatesTokenCount\":1}}]\n\n";
+    let sse = "data: [{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\\
+               "}]}}],\"usageMetadata\":{\"promptTokenCount\":1,\"totalTokenCount\":2,\"\
+               candidatesTokenCount\":1}}]\n\n";
     let server = mock_http::gemini_generate_stream(sse).await;
     let p = provider(server.uri());
     let messages = msgs();

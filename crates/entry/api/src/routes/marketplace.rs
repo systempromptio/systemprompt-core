@@ -135,9 +135,9 @@ async fn get_marketplace_yaml(
     let canonical_root = marketplaces_root
         .canonicalize()
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
-    let canonical_requested = requested.canonicalize().map_err(|_e| {
-        ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml"))
-    })?;
+    let canonical_requested = requested
+        .canonicalize()
+        .map_err(|_e| ApiHttpError::not_found(format!("Marketplace '{id}' has no config.yaml")))?;
 
     if !canonical_requested.starts_with(&canonical_root) {
         return Err(ApiHttpError::forbidden("Invalid marketplace id"));
