@@ -39,3 +39,15 @@ mod events;
 
 #[cfg(test)]
 mod file_upload;
+
+#[cfg(test)]
+mod domain_config;
+
+#[cfg(test)]
+mod context_errors;
+
+#[cfg(test)]
+mod registry_errors;
+
+#[cfg(test)]
+mod content_filter;
