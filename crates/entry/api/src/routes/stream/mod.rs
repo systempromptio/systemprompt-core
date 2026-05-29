@@ -1,4 +1,5 @@
-//! Server-sent event stream routes for live A2A, `AgUI`, and context-state feeds.
+//! Server-sent event stream routes for live A2A, `AgUI`, and context-state
+//! feeds.
 //!
 //! Each route opens a per-user SSE connection backed by a broadcaster from
 //! `systemprompt_events`. [`create_sse_stream`] registers the connection (with
