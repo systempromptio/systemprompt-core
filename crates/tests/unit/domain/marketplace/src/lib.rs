@@ -1,11 +1,21 @@
 #[cfg(test)]
+mod candidate;
+#[cfg(test)]
+mod catalog;
+#[cfg(test)]
+mod errors;
+#[cfg(test)]
 mod helpers;
 #[cfg(test)]
 mod manifest;
 #[cfg(test)]
+mod registry;
+#[cfg(test)]
 mod scope;
 #[cfg(test)]
 mod service;
+#[cfg(test)]
+mod view;
 
 #[cfg(test)]
 use async_trait::async_trait;
