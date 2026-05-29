@@ -261,7 +261,7 @@ pub(super) async fn download(
         )
         .header(header::CONTENT_LENGTH, tarball.len())
         .body(Body::from(tarball))
-        .map_err(|e| ApiError::internal_error(e.to_string()))
+        .map_err(to_api_error)
 }
 
 pub(super) async fn upload(
