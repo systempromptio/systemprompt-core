@@ -29,7 +29,7 @@ fn new_mcp_execution_populates_required_fields() {
     assert!(!m.created_at.is_empty());
     assert!(m.updated_at.is_none());
     assert!(m.execution_steps.is_none());
-    assert!(m.extensions.is_none());
+    assert!(m.extensions.is_empty());
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn builder_methods_compose() {
     assert!(m.updated_at.is_some());
     assert_eq!(m.tool_name.as_deref(), Some("toolio"));
     assert!(m.execution_steps.is_some());
-    let ext = m.extensions.as_ref().unwrap();
+    let ext = &m.extensions;
     assert_eq!(ext.get("k"), Some(&json!(1)));
 }
 
@@ -65,7 +65,7 @@ fn with_extension_inserts_into_existing_map() {
     let m = TaskMetadata::new_agent_message("a".into())
         .with_extension("a".into(), json!(1))
         .with_extension("b".into(), json!("hi"));
-    let ext = m.extensions.as_ref().unwrap();
+    let ext = &m.extensions;
     assert_eq!(ext.len(), 2);
     assert_eq!(ext.get("a"), Some(&json!(1)));
     assert_eq!(ext.get("b"), Some(&json!("hi")));

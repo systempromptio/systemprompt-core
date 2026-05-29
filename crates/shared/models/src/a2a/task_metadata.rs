@@ -42,8 +42,10 @@ pub struct TaskMetadata {
     pub model: Option<String>,
     #[serde(rename = "executionSteps", skip_serializing_if = "Option::is_none")]
     pub execution_steps: Option<Vec<ExecutionStep>>,
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub extensions: Option<serde_json::Map<String, serde_json::Value>>,
+    // `flatten` ignores `skip_serializing_if`; an empty map already flattens to
+    // no fields and deserialises back to an empty map, so the type round-trips.
+    #[serde(flatten, default)]
+    pub extensions: serde_json::Map<String, serde_json::Value>,
 }
 
 impl TaskMetadata {
@@ -66,7 +68,7 @@ impl TaskMetadata {
             output_tokens: None,
             model: None,
             execution_steps: None,
-            extensions: None,
+            extensions: serde_json::Map::new(),
         }
     }
 
@@ -85,7 +87,7 @@ impl TaskMetadata {
             output_tokens: None,
             model: None,
             execution_steps: None,
-            extensions: None,
+            extensions: serde_json::Map::new(),
         }
     }
 
@@ -116,9 +118,7 @@ impl TaskMetadata {
     }
 
     pub fn with_extension(mut self, key: String, value: serde_json::Value) -> Self {
-        self.extensions
-            .get_or_insert_with(serde_json::Map::new)
-            .insert(key, value);
+        self.extensions.insert(key, value);
         self
     }
 

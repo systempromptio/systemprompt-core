@@ -119,7 +119,7 @@ fn build_multiturn_records_iteration_metadata() {
         total_iterations: 7,
     });
     let metadata = task.metadata.unwrap();
-    let ext = metadata.extensions.unwrap();
+    let ext = metadata.extensions;
     assert_eq!(ext.get("total_iterations"), Some(&serde_json::json!(7)));
     assert_eq!(ext.get("total_tools_called"), Some(&serde_json::json!(1)));
 }
