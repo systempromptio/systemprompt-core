@@ -43,4 +43,12 @@ mod sitemap_tests;
 #[cfg(test)]
 pub(crate) mod templates;
 #[cfg(test)]
+mod css_steps_tests;
+#[cfg(test)]
+mod markdown_extra_tests;
+#[cfg(test)]
+mod rss_extra_tests;
+#[cfg(test)]
+mod sitemap_alternates_tests;
+#[cfg(test)]
 mod types_tests;
