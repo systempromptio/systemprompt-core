@@ -2,6 +2,11 @@
 
 ## [0.13.0] - 2026-05-29
 
+### Breaking
+
+- The marketplace domain is consolidated into the `systemprompt-marketplace` crate. Resolution, validation, candidate assembly, the disk catalog loaders, and Ed25519 manifest signing move out of `entry/api` into `MarketplaceService`, `ManifestService`, `catalog`, and `scope`; the gateway `bridge_manifest` handler and the `/marketplace*` routes are now thin wiring over the domain service. `MarketplaceCandidate` gains `marketplace_id: Option<MarketplaceId>` and `access: Option<MarketplaceAccess>` — external `MarketplaceFilter` implementations that construct or destructure it by field must account for them (a 5-arg `new(...)` and a `with_marketplace(...)` builder are provided). The signed-manifest wire format and canonical signing bytes are unchanged.
+- `authz::resolve` / `ResolveInput` gain a `parents: &[ResolveParent]` slice for parent-entity inheritance. Callers constructing `ResolveInput` must supply `parents` — `&[]` preserves the prior single-entity behaviour.
+
 ### Security
 
 - Agent task and artifact routes (`GET /api/v1/agent/...`) now verify the caller owns the parent context before returning rows. `TaskRepository::validate_task_ownership`, `ArtifactRepository::validate_artifact_ownership`, and the context-ownership check join through `user_contexts.user_id`; a mismatch is rejected rather than disclosing another principal's tasks or artifacts.
@@ -19,6 +24,8 @@
 - JTI revocation moved out of the standalone `entry/api` middleware and into the JWT context extractor as `JtiRevocationChecker` (`middleware/jwt/revocation.rs`). It now runs as the final stateful check — after a token's claims, its backing user, and the session row have all validated — caches negative results for a single-map-lookup hot path, and fails closed: a revocation-store error rejects the request rather than admitting an unverifiable token.
 - Server-lifecycle shutdown is extracted into `entry/api/src/services/server/shutdown.rs`: one Ctrl-C / SIGTERM handler with a bounded child-process grace window, wired to scheduler and process-cleanup teardown.
 - Rate limiting and request throttling shed dead code paths in the analytics throttle service and the rate-limit middleware; `RouterExt::with_auth` remains the single mount point that requires an `AuthzPolicy`.
+- `MarketplaceConfig` gains a declarative `access` block (`default_included`, `roles`, an opaque dotted-namespace `attributes` bag, `justification`). `roles` drive the core RBAC check; `attributes` are forwarded verbatim to extension authz hooks and never interpreted by core, mirroring `JwtClaims.attributes`. Existing marketplace YAML without an `access` block is unaffected.
+- Marketplace assignment is declarative and cascades. The access-control sync ingests each marketplace's `access.roles` into `access_control_rules` as `entity_type='marketplace'` rows, and the resolver's parent-entity inheritance lets that grant cascade to the marketplace's member skills, agents, and MCP servers unless a more specific rule applies (deny-overrides). A grant authored once on the marketplace YAML propagates to every member it bundles.
 
 ### Removed
 
