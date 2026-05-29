@@ -104,9 +104,8 @@ pub const fn os_label(os: Os) -> &'static str {
 pub fn uninstall(purge: bool) -> Result<UninstallSummary, InstallError> {
     let location = paths::org_plugins_effective().ok_or(InstallError::OrgPluginsUnresolvable)?;
 
-    let metadata = paths::bridge_metadata_dir().ok_or_else(|| {
-        InstallError::Bootstrap("bridge metadata dir unresolvable".into())
-    })?;
+    let metadata = paths::bridge_metadata_dir()
+        .ok_or_else(|| InstallError::Bootstrap("bridge metadata dir unresolvable".into()))?;
     let (metadata_removed, metadata_already_clean) = if metadata.exists() {
         fs::remove_dir_all(&metadata).map_err(|e| {
             InstallError::Bootstrap(format!(

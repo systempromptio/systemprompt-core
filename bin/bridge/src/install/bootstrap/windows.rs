@@ -16,8 +16,8 @@ pub(super) fn chown_to_sudo_user_if_root(_path: &Path) {}
 // place. Bridge-internal scratch (staging, sync sentinels) lives elsewhere
 // under `%LOCALAPPDATA%\systemprompt-bridge\` and never touches Program Files.
 pub(super) fn grant_user_modify(path: &Path) -> std::io::Result<()> {
-    let user = std::env::var("USERNAME")
-        .map_err(|_| std::io::Error::other("USERNAME env var not set"))?;
+    let user =
+        std::env::var("USERNAME").map_err(|_| std::io::Error::other("USERNAME env var not set"))?;
     let path_str = path.to_string_lossy().into_owned();
     let grant_arg = format!("{user}:(OI)(CI)M");
 

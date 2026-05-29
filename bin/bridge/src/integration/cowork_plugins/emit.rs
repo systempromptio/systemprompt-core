@@ -92,6 +92,8 @@ pub fn resolve_target() -> Option<CoworkTarget> {
         return None;
     }
     let mut candidates: Vec<(SystemTime, PathBuf)> = Vec::new();
+    // Why: an unreadable sessions root (permissions, mid-write race) is treated
+    // as "no Cowork target" per this function's optional-Cowork contract.
     for session in fs::read_dir(&sessions_root).ok()?.flatten() {
         if !session.file_type().is_ok_and(|t| t.is_dir()) {
             continue;
@@ -194,8 +196,14 @@ pub(super) fn purge_legacy_marketplace(
     plugin_name: &str,
     marketplace: &str,
 ) -> Result<(), EmitError> {
-    let removed_mp_dir = remove_tree(&target.cowork_plugins_dir.join("marketplaces").join(marketplace))?;
-    let removed_cache_dir = remove_tree(&target.cowork_plugins_dir.join("cache").join(marketplace))?;
+    let removed_mp_dir = remove_tree(
+        &target
+            .cowork_plugins_dir
+            .join("marketplaces")
+            .join(marketplace),
+    )?;
+    let removed_cache_dir =
+        remove_tree(&target.cowork_plugins_dir.join("cache").join(marketplace))?;
     let installed_key = format!("{plugin_name}@{marketplace}");
     let removed_installed = strip_nested_object_key(
         &target.cowork_plugins_dir.join(INSTALLED_PLUGINS_FILE),

@@ -41,6 +41,8 @@ pub(crate) async fn apply_manifest(
 
     let mut report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
 
+    // Why: best-effort staging teardown; a leftover dir is reclaimed by the next
+    // run's prepare_dirs and a removal failure here is not actionable.
     _ = fs::remove_dir_all(&staging_root);
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
@@ -105,58 +107,65 @@ fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> 
     let gw_port = gateway_url.port();
     servers
         .iter()
-        .map(|s| {
-            let url_str = s.url.as_str();
-            let Ok(mut parsed) = Url::parse(url_str) else {
-                return s.clone();
-            };
-            let is_loopback = match parsed.host() {
-                Some(Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
-                Some(Host::Ipv4(addr)) => addr.is_loopback(),
-                Some(Host::Ipv6(addr)) => addr.is_loopback(),
-                None => false,
-            };
-            if !is_loopback {
-                return s.clone();
-            }
-            if parsed.set_scheme(gw_scheme).is_err() {
-                return s.clone();
-            }
-            if parsed.set_host(Some(gw_host)).is_err() {
-                return s.clone();
-            }
-            // Why: set_port returns Err for cannot-be-a-base URLs; for http(s) this only
-            // fails on truly invalid input. Mirror gateway port (None clears
-            // the explicit port).
-            if parsed.set_port(gw_port).is_err() {
-                return s.clone();
-            }
-            let rebuilt = parsed.to_string();
-            match ValidatedUrl::try_new(&rebuilt) {
-                Ok(url) => {
-                    tracing::info!(
-                        target: "bridge::sync",
-                        original = %url_str,
-                        rewritten = %rebuilt,
-                        "rewrote loopback MCP URL to gateway host"
-                    );
-                    let mut next = s.clone();
-                    next.url = url;
-                    next
-                },
-                Err(e) => {
-                    tracing::warn!(
-                        target: "bridge::sync",
-                        original = %url_str,
-                        rewritten = %rebuilt,
-                        error = %e,
-                        "loopback rewrite produced invalid URL; keeping original"
-                    );
-                    s.clone()
-                },
-            }
-        })
+        .map(|s| rewrite_loopback_server(s, gw_scheme, gw_host, gw_port))
         .collect()
+}
+
+fn rewrite_loopback_server(
+    server: &ManagedMcpServer,
+    gw_scheme: &str,
+    gw_host: &str,
+    gw_port: Option<u16>,
+) -> ManagedMcpServer {
+    let url_str = server.url.as_str();
+    let Ok(mut parsed) = Url::parse(url_str) else {
+        return server.clone();
+    };
+    let is_loopback = match parsed.host() {
+        Some(Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
+        Some(Host::Ipv4(addr)) => addr.is_loopback(),
+        Some(Host::Ipv6(addr)) => addr.is_loopback(),
+        None => false,
+    };
+    if !is_loopback {
+        return server.clone();
+    }
+    if parsed.set_scheme(gw_scheme).is_err() {
+        return server.clone();
+    }
+    if parsed.set_host(Some(gw_host)).is_err() {
+        return server.clone();
+    }
+    // Why: set_port returns Err for cannot-be-a-base URLs; for http(s) this only
+    // fails on truly invalid input. Mirror gateway port (None clears the
+    // explicit port).
+    if parsed.set_port(gw_port).is_err() {
+        return server.clone();
+    }
+    let rebuilt = parsed.to_string();
+    match ValidatedUrl::try_new(&rebuilt) {
+        Ok(url) => {
+            tracing::info!(
+                target: "bridge::sync",
+                original = %url_str,
+                rewritten = %rebuilt,
+                "rewrote loopback MCP URL to gateway host"
+            );
+            let mut next = server.clone();
+            next.url = url;
+            next
+        },
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::sync",
+                original = %url_str,
+                rewritten = %rebuilt,
+                error = %e,
+                "loopback rewrite produced invalid URL; keeping original"
+            );
+            server.clone()
+        },
+    }
 }
 
 fn manifest_with_servers(base: &SignedManifest, servers: Vec<ManagedMcpServer>) -> SignedManifest {
@@ -182,12 +191,25 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
     })?;
+    // Why: clear any stale staging from an interrupted prior run; absence is the
+    // normal case and a removal failure is recovered by the create_dir_all below.
     _ = fs::remove_dir_all(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
         context: format!("create staging at {}", staging_root.display()),
         source: e,
     })?;
     Ok((meta_dir, staging_root))
+}
+
+// Why: Claude plugins ship the canonical `.claude-plugin/plugin.json`, but some
+// trees use the dot-less `claude-plugin/`. Both the malformed-plugin check and
+// the hooks-field injection must resolve whichever the synced tree actually
+// uses, matching the dual-form lookup the GUI readers perform.
+fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
+    [".claude-plugin", "claude-plugin"]
+        .iter()
+        .map(|dir| plugin_dir.join(dir).join("plugin.json"))
+        .find(|path| path.is_file())
 }
 
 fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError> {

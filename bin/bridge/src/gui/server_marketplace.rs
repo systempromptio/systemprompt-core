@@ -353,8 +353,17 @@ fn list_managed_mcp(path: &Path) -> Vec<MarketplaceItem> {
     let Ok(bytes) = std::fs::read(path) else {
         return Vec::new();
     };
-    let Ok(root) = serde_json::from_slice::<McpRoot>(&bytes) else {
-        return Vec::new();
+    let root = match serde_json::from_slice::<McpRoot>(&bytes) {
+        Ok(root) => root,
+        Err(e) => {
+            tracing::warn!(
+                target: "bridge::gui",
+                path = %path.display(),
+                error = %e,
+                "ignoring malformed .mcp.json"
+            );
+            return Vec::new();
+        },
     };
     let mut out = Vec::new();
     for (name, entry) in root.mcp_servers {

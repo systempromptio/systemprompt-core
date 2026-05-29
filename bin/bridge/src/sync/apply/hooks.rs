@@ -60,10 +60,9 @@ pub(super) fn write_hooks_json(
 }
 
 pub(super) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), ApplyError> {
-    let path = plugin_dir.join("claude-plugin").join("plugin.json");
-    if !path.is_file() {
+    let Some(path) = super::plugin_manifest_path(plugin_dir) else {
         return Ok(());
-    }
+    };
     let bytes = fs::read(&path).map_err(|e| ApplyError::Io {
         context: format!("read {}", path.display()),
         source: e,

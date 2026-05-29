@@ -35,13 +35,17 @@ pub(super) async fn apply_plugins(
     let mut updated = Vec::new();
     let mut malformed = Vec::new();
 
+    let ctx = PluginSyncCtx {
+        client,
+        bearer,
+        root,
+        staging_root,
+    };
     for plugin in &manifest.plugins {
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
-        if let Some(change) =
-            sync_one_plugin(client, bearer, plugin, &manifest.hooks, root, staging_root).await?
-        {
+        if let Some(change) = sync_one_plugin(&ctx, plugin, &manifest.hooks).await? {
             match change {
                 PluginChange::Installed(id) => installed.push(id),
                 PluginChange::Updated(id) => updated.push(id),
@@ -75,10 +79,7 @@ pub(super) async fn apply_plugins(
 }
 
 fn is_well_formed(plugin_dir: &Path) -> bool {
-    plugin_dir
-        .join("claude-plugin")
-        .join("plugin.json")
-        .is_file()
+    super::plugin_manifest_path(plugin_dir).is_some()
 }
 
 enum PluginChange {
@@ -86,19 +87,23 @@ enum PluginChange {
     Updated(String),
 }
 
-#[tracing::instrument(level = "debug", skip(client, bearer, plugin), fields(plugin_id = %plugin.id))]
+struct PluginSyncCtx<'a> {
+    client: &'a GatewayClient,
+    bearer: &'a str,
+    root: &'a Path,
+    staging_root: &'a Path,
+}
+
+#[tracing::instrument(level = "debug", skip(ctx, plugin, user_hooks), fields(plugin_id = %plugin.id))]
 async fn sync_one_plugin(
-    client: &GatewayClient,
-    bearer: &str,
+    ctx: &PluginSyncCtx<'_>,
     plugin: &PluginEntry,
     user_hooks: &[HookEntry],
-    root: &Path,
-    staging_root: &Path,
 ) -> Result<Option<PluginChange>, super::ApplyError> {
-    let target = root.join(plugin.id.as_str());
+    let target = ctx.root.join(plugin.id.as_str());
 
-    let stage = staging_root.join(plugin.id.as_str());
-    fetch_plugin_into_staging(client, bearer, plugin, &stage).await?;
+    let stage = ctx.staging_root.join(plugin.id.as_str());
+    fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage).await?;
 
     let was_present = target.exists();
     if was_present {
@@ -113,8 +118,13 @@ async fn sync_one_plugin(
     })?;
 
     let plugin_id_typed = systemprompt_identifiers::PluginId::new(plugin.id.as_str());
-    materialize_hook_token(client, bearer, &plugin_id_typed, &target).await?;
-    write_hooks_json(client.base_url_str(), &plugin_id_typed, &target, user_hooks)?;
+    materialize_hook_token(ctx.client, ctx.bearer, &plugin_id_typed, &target).await?;
+    write_hooks_json(
+        ctx.client.base_url_str(),
+        &plugin_id_typed,
+        &target,
+        user_hooks,
+    )?;
     ensure_plugin_json_hooks_field(&target)?;
 
     Ok(Some(if was_present {

@@ -49,7 +49,7 @@ impl HostSync for CoworkSync {
         "cowork"
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
         let Some(target) = resolve_target() else {
             tracing::info!(
                 target: "bridge::cowork",

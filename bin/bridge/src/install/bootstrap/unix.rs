@@ -37,7 +37,12 @@ pub(super) fn chown_to_sudo_user_if_root(path: &Path) {
 // No-op on Unix — POSIX directory permissions are already correctly
 // inherited via the umask + chown above. The Windows path needs an explicit
 // icacls grant because Program Files is admin-write-only by default.
-pub(super) fn grant_user_modify(_path: &std::path::Path) -> std::io::Result<()> {
+#[expect(
+    clippy::unnecessary_wraps,
+    clippy::missing_const_for_fn,
+    reason = "signature parity with the Windows sibling, which performs fallible icacls work"
+)]
+pub(super) fn grant_user_modify(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
