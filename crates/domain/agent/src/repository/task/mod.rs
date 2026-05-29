@@ -181,4 +181,27 @@ impl TaskRepository {
     ) -> Result<Option<TaskContextInfo>, RepositoryError> {
         get_task_context_info(&self.pool, task_id).await
     }
+
+    pub async fn validate_task_ownership(
+        &self,
+        task_id: &systemprompt_identifiers::TaskId,
+        user_id: &UserId,
+    ) -> Result<(), RepositoryError> {
+        let result = sqlx::query_scalar!(
+            "SELECT t.task_id FROM agent_tasks t JOIN user_contexts c ON t.context_id = \
+             c.context_id WHERE t.task_id = $1 AND c.user_id = $2",
+            task_id.as_str(),
+            user_id.as_str()
+        )
+        .fetch_optional(self.pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
+
+        match result {
+            Some(_) => Ok(()),
+            None => Err(RepositoryError::NotFound(format!(
+                "Task {task_id} not found or user {user_id} does not have access"
+            ))),
+        }
+    }
 }

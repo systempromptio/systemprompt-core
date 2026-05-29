@@ -223,6 +223,7 @@ pub struct GatewayAuthzRequestInput {
     pub trace_id: TraceId,
     pub route_id: RouteId,
     pub model: ModelId,
+    pub session_id: Option<SessionId>,
 }
 
 /// Public so unit tests can lock in the JWT-claims forwarding contract
@@ -237,6 +238,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         trace_id,
         route_id,
         model,
+        session_id,
     } = input;
     AuthzRequest {
         entity: EntityRef::GatewayRoute(route_id),
@@ -244,6 +246,7 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
         roles,
         attributes,
         trace_id,
+        session_id,
         context: AuthzContext::gateway_invocation(&model),
         act_chain,
     }
@@ -272,6 +275,7 @@ async fn enforce_authz_pre_dispatch(
         trace_id: principal.trace_id().clone(),
         route_id,
         model: ModelId::new(model),
+        session_id: principal.attested_session().cloned(),
     });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
@@ -284,8 +288,8 @@ async fn enforce_authz_pre_dispatch(
 
 pub fn extract_credential(headers: &HeaderMap) -> Option<String> {
     let raw = headers
-        .get("x-api-key")
-        .or_else(|| headers.get("authorization"))
+        .get("authorization")
+        .or_else(|| headers.get("x-api-key"))
         .and_then(|v| v.to_str().ok())?;
 
     let trimmed = raw.trim_start_matches("Bearer ").trim();

@@ -21,6 +21,7 @@ fn fixture() -> AuthzRequest {
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),
+        session_id: None,
         context: AuthzContext::none(),
         act_chain: Vec::new(),
     }

@@ -30,6 +30,7 @@ fn fixture_request(entity: EntityRef) -> AuthzRequest {
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-test"),
+        session_id: None,
         context: AuthzContext::none(),
         act_chain: Vec::new(),
     }

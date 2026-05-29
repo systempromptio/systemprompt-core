@@ -178,6 +178,7 @@ pub fn build_mcp_authz_request(
         roles: claims.roles.clone(),
         attributes: claims.attributes.clone(),
         trace_id: TraceId::generate(),
+        session_id: None,
         context: AuthzContext::none(),
         act_chain,
     }

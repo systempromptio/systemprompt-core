@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{Actor, McpToolName, ModelId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, McpToolName, ModelId, SessionId, TraceId, UserId};
 
 use super::decision::DenyReason;
 use super::entity_ref::EntityRef;
@@ -113,6 +113,12 @@ pub struct AuthzRequest {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub trace_id: TraceId,
+    /// Attested session this authorization request was made under, when the
+    /// enforcement site has one (gateway path). Threaded into the audit row's
+    /// `session_id` column; non-session paths (server-attach RBAC, MCP) leave
+    /// it `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<SessionId>,
     #[serde(default)]
     pub context: AuthzContext,
     /// RFC 8693 delegation lineage forwarded from

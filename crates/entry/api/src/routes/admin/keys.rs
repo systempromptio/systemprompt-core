@@ -7,9 +7,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
-use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams, UserApiKey};
+
+use crate::error::ApiHttpError;
 
 pub(super) fn router() -> Router<AppContext> {
     Router::new()
@@ -65,10 +66,9 @@ async fn issue_key(
     State(ctx): State<AppContext>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(body): Json<IssueApiKeyRequest>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     let target_user = resolve_target_user(&req_ctx, body.target_user_id.as_deref());
-    let service = ApiKeyService::new(ctx.db_pool())
-        .map_err(|e| ApiError::internal_error(format!("API key service error: {e}")))?;
+    let service = ApiKeyService::new(ctx.db_pool())?;
 
     let issued = service
         .issue(IssueApiKeyParams {
@@ -76,8 +76,7 @@ async fn issue_key(
             name: &body.name,
             expires_at: body.expires_at,
         })
-        .await
-        .map_err(|e| ApiError::internal_error(format!("Failed to issue API key: {e}")))?;
+        .await?;
 
     Ok((
         StatusCode::CREATED,
@@ -95,14 +94,10 @@ async fn issue_key(
 async fn list_keys(
     State(ctx): State<AppContext>,
     Extension(req_ctx): Extension<RequestContext>,
-) -> Result<Json<Vec<ApiKeyView>>, ApiError> {
-    let service = ApiKeyService::new(ctx.db_pool())
-        .map_err(|e| ApiError::internal_error(format!("API key service error: {e}")))?;
+) -> Result<Json<Vec<ApiKeyView>>, ApiHttpError> {
+    let service = ApiKeyService::new(ctx.db_pool())?;
 
-    let keys = service
-        .list_for_user(req_ctx.user_id())
-        .await
-        .map_err(|e| ApiError::internal_error(format!("Failed to list API keys: {e}")))?;
+    let keys = service.list_for_user(req_ctx.user_id()).await?;
 
     Ok(Json(keys.into_iter().map(ApiKeyView::from).collect()))
 }
@@ -111,20 +106,16 @@ async fn revoke_key(
     State(ctx): State<AppContext>,
     Extension(req_ctx): Extension<RequestContext>,
     Path(key_id): Path<String>,
-) -> Result<StatusCode, ApiError> {
-    let service = ApiKeyService::new(ctx.db_pool())
-        .map_err(|e| ApiError::internal_error(format!("API key service error: {e}")))?;
+) -> Result<StatusCode, ApiHttpError> {
+    let service = ApiKeyService::new(ctx.db_pool())?;
 
     let id = ApiKeyId::new(key_id);
-    let revoked = service
-        .revoke(&id, req_ctx.user_id())
-        .await
-        .map_err(|e| ApiError::internal_error(format!("Failed to revoke API key: {e}")))?;
+    let revoked = service.revoke(&id, req_ctx.user_id()).await?;
 
     if revoked {
         Ok(StatusCode::NO_CONTENT)
     } else {
-        Err(ApiError::not_found("API key not found"))
+        Err(ApiHttpError::not_found("API key not found"))
     }
 }
 

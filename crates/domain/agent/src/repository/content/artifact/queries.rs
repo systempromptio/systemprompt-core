@@ -163,6 +163,30 @@ impl ArtifactRepository {
         }
     }
 
+    pub async fn validate_artifact_ownership(
+        &self,
+        artifact_id: &ArtifactId,
+        user_id: &UserId,
+    ) -> Result<(), RepositoryError> {
+        let result = sqlx::query_scalar!(
+            "SELECT a.artifact_id FROM task_artifacts a JOIN agent_tasks t ON a.task_id = \
+             t.task_id JOIN user_contexts c ON t.context_id = c.context_id WHERE a.artifact_id = \
+             $1 AND c.user_id = $2",
+            artifact_id.as_str(),
+            user_id.as_str()
+        )
+        .fetch_optional(self.pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
+
+        match result {
+            Some(_) => Ok(()),
+            None => Err(RepositoryError::NotFound(format!(
+                "Artifact {artifact_id} not found or user {user_id} does not have access"
+            ))),
+        }
+    }
+
     pub async fn get_all_artifacts(
         &self,
         limit: Option<i32>,

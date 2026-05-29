@@ -10,6 +10,7 @@ fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
         roles: vec!["eng".to_owned()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new("trace-1"),
+        session_id: None,
         context: AuthzContext::none(),
         act_chain: chain,
     }

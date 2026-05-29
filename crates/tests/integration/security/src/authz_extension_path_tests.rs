@@ -37,6 +37,7 @@ fn request_with_trace(route: &str, trace: &str) -> AuthzRequest {
         roles: vec!["eng".into()],
         attributes: std::collections::BTreeMap::new(),
         trace_id: TraceId::new(trace),
+        session_id: None,
         context: AuthzContext::none(),
         act_chain: Vec::new(),
     }

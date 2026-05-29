@@ -5,7 +5,7 @@
 //! a deny to an allow.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::Actor;
+use systemprompt_identifiers::{Actor, SessionId};
 
 use super::repository::{GovernanceDecisionRecord, GovernanceDecisionRepository};
 use super::{AuthzAuditSink, AuthzSource};
@@ -48,7 +48,7 @@ impl AuthzAuditSink for DbAuditSink {
         let record = GovernanceDecisionRecord {
             id: &id,
             actor: &actor,
-            session_id: req.trace_id.as_str(),
+            session_id: req.session_id.as_ref().map_or("", SessionId::as_str),
             tool_name: entity_id,
             agent_id: None,
             // Why: the authz path operates on entities (not agent invocations) so

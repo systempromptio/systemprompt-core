@@ -30,11 +30,11 @@ fn trims_surrounding_whitespace() {
 }
 
 #[test]
-fn api_key_header_takes_precedence_over_authorization() {
+fn authorization_header_takes_precedence_over_api_key() {
     let mut h = HeaderMap::new();
     h.insert("x-api-key", HeaderValue::from_static("first"));
     h.insert("authorization", HeaderValue::from_static("Bearer second"));
-    assert_eq!(extract_credential(&h).as_deref(), Some("first"));
+    assert_eq!(extract_credential(&h).as_deref(), Some("second"));
 }
 
 #[test]

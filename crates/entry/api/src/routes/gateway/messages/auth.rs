@@ -40,6 +40,13 @@ impl AuthedPrincipal {
         }
     }
 
+    pub(super) const fn attested_session(&self) -> Option<&SessionId> {
+        match self {
+            Self::Jwt(p) => Some(&p.attested_session),
+            Self::ApiKey(_) => None,
+        }
+    }
+
     pub(super) fn authz_attributes(
         &self,
     ) -> (Vec<String>, BTreeMap<String, serde_json::Value>, Vec<Actor>) {

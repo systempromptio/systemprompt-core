@@ -30,11 +30,17 @@ fn extract_credential_strips_bearer_prefix() {
 }
 
 #[test]
-fn extract_credential_takes_api_key_when_present() {
+fn extract_credential_prefers_authorization_over_api_key() {
     let h = headers(&[
         ("x-api-key", "sk-test-123"),
-        ("authorization", "Bearer ignored"),
+        ("authorization", "Bearer preferred"),
     ]);
+    assert_eq!(extract_credential(&h).as_deref(), Some("preferred"));
+}
+
+#[test]
+fn extract_credential_falls_back_to_api_key() {
+    let h = headers(&[("x-api-key", "sk-test-123")]);
     assert_eq!(extract_credential(&h).as_deref(), Some("sk-test-123"));
 }
 
@@ -74,6 +80,7 @@ fn build_authz_request_carries_user_route_and_model() {
         trace_id: trace_id.clone(),
         route_id: route_id.clone(),
         model: model.clone(),
+        session_id: None,
     });
 
     assert_eq!(req.user_id, user_id);
@@ -101,6 +108,7 @@ fn build_authz_request_preserves_act_chain_and_attributes() {
         trace_id: TraceId::new("t2"),
         route_id: RouteId::new("r2"),
         model: ModelId::new("gpt-5"),
+        session_id: None,
     });
 
     assert_eq!(req.act_chain, vec![actor]);
