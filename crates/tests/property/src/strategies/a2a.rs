@@ -123,7 +123,7 @@ pub fn arb_task_metadata() -> impl Strategy<Value = TaskMetadata> {
             output_tokens: None,
             model: None,
             execution_steps: None,
-            extensions: Some(serde_json::Map::new()),
+            extensions: serde_json::Map::new(),
         })
 }
 
