@@ -14,4 +14,7 @@ mod builder;
 mod core_provider;
 
 #[cfg(test)]
+mod mock_dispatch;
+
+#[cfg(test)]
 mod mocks;
