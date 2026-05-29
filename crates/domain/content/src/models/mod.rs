@@ -1,3 +1,10 @@
+//! Content domain types: content items, links, search, and their builders.
+//!
+//! [`Content`] and [`ContentMetadata`] model published items; the [`link`]
+//! types model campaign/destination links and their performance; the [`search`]
+//! types model query requests and results. Construction parameters live in
+//! [`builders`]; validation failures surface as [`ContentValidationError`].
+
 pub mod builders;
 pub mod content;
 pub mod content_error;

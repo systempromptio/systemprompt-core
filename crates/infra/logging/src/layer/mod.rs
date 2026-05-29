@@ -1,3 +1,9 @@
+//! `tracing` subscriber layer that persists events to the database.
+//!
+//! [`DatabaseLayer`] buffers log events off the hot path and batch-inserts them
+//! from a background task, flushing on a size threshold, a timer, or
+//! immediately on an error. [`ProxyDatabaseLayer`] is the proxy-side variant.
+
 mod proxy;
 mod visitor;
 

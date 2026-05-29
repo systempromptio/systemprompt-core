@@ -1,3 +1,9 @@
+//! Logging domain types: entries, levels, filters, and errors.
+//!
+//! [`LogEntry`] is the structured record written to every sink; [`LogLevel`]
+//! and [`LogActor`] classify it; [`LogFilter`] parameterizes paginated reads;
+//! [`LogRow`] is the database projection. Failures surface as [`LoggingError`].
+
 mod log_entry;
 mod log_error;
 mod log_filter;

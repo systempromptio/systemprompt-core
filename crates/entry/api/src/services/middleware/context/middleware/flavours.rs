@@ -1,156 +1,16 @@
-//! Per-flavour context middleware.
-//!
-//! Typed sibling middlewares that build a [`RequestContext`] for a route group,
-//! with each type encoding its own caller-admission contract at the type level
-//! rather than via a runtime `ContextRequirement` enum.
-//!
-//! Four flavours exist:
-//!
-//! - [`PublicContextMiddleware`] — admits `UserType::Anon`; forwards the
-//!   session-derived `RequestContext` minted by `POST /oauth/session` and
-//!   merges optional `x-context-id` / `x-agent-name` headers on top. Never
-//!   reads or rebuilds the body.
-//! - [`UserOnlyContextMiddleware`] — extracts a real user from headers; on
-//!   extraction failure the request fails. Used for non-A2A authenticated
-//!   routes.
-//! - [`A2AContextMiddleware`] — extracts a real user AND parses the JSON-RPC
-//!   body to recover `contextId` (the A2A wire spec carries it in the body, not
-//!   headers). Rebuilds the body for downstream handlers.
-//! - [`McpContextMiddleware`] — headers-only extraction; on extraction failure,
-//!   forwards the session-derived `RequestContext` (Anon) so the downstream MCP
-//!   proxy handler can answer with an RFC 9728 `WWW-Authenticate` 401
-//!   challenge. The fallback is load-bearing — see
-//!   `crates/tests/integration/api/routes_mcp_unauth_challenge.rs`.
-//!
-//! All four share the same `Arc<dyn ContextExtractor>` and the same error
-//! mapping (`extraction_error_to_api_error`). Mounting a route under the
-//! wrong flavour is a type error, not a runtime branch.
+use std::sync::Arc;
 
 use axum::extract::Request;
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
-use std::sync::Arc;
+use axum::response::Response;
+use systemprompt_identifiers::{AgentName, ContextId};
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::HeaderExtractor;
 use tracing::Instrument;
 
-use super::extractors::ContextExtractor;
-use systemprompt_identifiers::{AgentName, ContextId, TraceId};
-use systemprompt_models::api::ApiError;
-use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
-
-type DynExtractor = Arc<dyn ContextExtractor + Send + Sync>;
-
-pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> ApiError {
-    match error {
-        ContextExtractionError::MissingAuthHeader => {
-            ApiError::unauthorized("Missing Authorization header")
-        },
-        ContextExtractionError::InvalidToken(_) => {
-            ApiError::unauthorized("Invalid or expired JWT token")
-        },
-        ContextExtractionError::Revoked => ApiError::unauthorized("Token revoked"),
-        ContextExtractionError::UserNotFound(_) => ApiError::unauthorized("User no longer exists"),
-        ContextExtractionError::MissingSessionId => {
-            ApiError::bad_request("JWT missing required 'session_id' claim")
-        },
-        ContextExtractionError::MissingUserId => {
-            ApiError::bad_request("JWT missing required 'sub' claim")
-        },
-        ContextExtractionError::MissingContextId => ApiError::bad_request(
-            "Missing required 'x-context-id' header (for MCP routes) or contextId in body (for \
-             A2A routes)",
-        ),
-        ContextExtractionError::MissingHeader(header) => {
-            ApiError::bad_request(format!("Missing required header: {header}"))
-        },
-        ContextExtractionError::InvalidHeaderValue { header, reason } => {
-            ApiError::bad_request(format!("Invalid header {header}: {reason}"))
-        },
-        ContextExtractionError::InvalidUserId(reason) => {
-            ApiError::bad_request(format!("Invalid user_id: {reason}"))
-        },
-        ContextExtractionError::DatabaseError(_) => {
-            ApiError::internal_error("Internal server error")
-        },
-        ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
-            format!("Header '{header}' is not allowed: {reason}. Use JWT authentication instead."),
-        ),
-    }
-}
-
-fn log_error_response(
-    error: &ContextExtractionError,
-    trace_id: &TraceId,
-    path: &str,
-    method: &str,
-) -> Response {
-    let _span = tracing::error_span!(
-        "context_extraction_error",
-        trace_id = %trace_id,
-        path = %path,
-        method = %method,
-    )
-    .entered();
-
-    match error {
-        ContextExtractionError::DatabaseError(e) => {
-            tracing::error!(
-                error = %e,
-                error_type = "database",
-                "Context extraction failed due to database error"
-            );
-        },
-        ContextExtractionError::InvalidToken(reason) => {
-            tracing::warn!(
-                reason = %reason,
-                error_type = "invalid_token",
-                "Context extraction failed: invalid token"
-            );
-        },
-        ContextExtractionError::UserNotFound(user_id) => {
-            tracing::warn!(
-                user_id = %user_id,
-                error_type = "user_not_found",
-                "Context extraction failed: user not found"
-            );
-        },
-        _ => {
-            tracing::warn!(
-                error = %error,
-                error_type = "context_extraction",
-                "Context extraction failed"
-            );
-        },
-    }
-
-    extraction_error_to_api_error(error)
-        .with_trace_id(trace_id.as_str())
-        .with_path(path)
-        .into_response()
-}
-
-fn create_request_span(ctx: &RequestContext) -> tracing::Span {
-    tracing::info_span!(
-        "request",
-        user_id = %ctx.user_id(),
-        session_id = %ctx.session_id(),
-        trace_id = %ctx.trace_id(),
-        context_id = %ctx.context_id(),
-    )
-}
-
-fn session_context_required_error(trace_id: &TraceId, path: &str, method: &str) -> Response {
-    tracing::error!(
-        trace_id = %trace_id,
-        path = %path,
-        method = %method,
-        "Middleware configuration error: SessionMiddleware must run before context middleware"
-    );
-    ApiError::internal_error("Middleware configuration error")
-        .with_trace_id(trace_id.as_str())
-        .with_path(path)
-        .into_response()
-}
+use super::super::extractors::ContextExtractor;
+use super::error::log_error_response;
+use super::support::{DynExtractor, create_request_span, session_context_required_error};
 
 /// Public route flavour: admits `UserType::Anon`.
 ///

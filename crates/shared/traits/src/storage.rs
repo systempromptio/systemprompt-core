@@ -1,5 +1,8 @@
 //! File storage trait and identifier types.
 //!
+//! [`FileStorage`] is dispatched as a trait object (`dyn _`), so it uses
+//! `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
+//!
 //! Defines the [`FileStorage`] abstraction implemented by every storage
 //! backend (local disk, object stores, cloud blob services), along with the
 //! [`StoredFileId`] / [`StoredFileMetadata`] value types returned across the

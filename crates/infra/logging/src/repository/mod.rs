@@ -1,3 +1,10 @@
+//! Log persistence repository.
+//!
+//! [`LoggingRepository`] writes entries to the configured sinks (terminal
+//! and/or database) and serves paginated reads, lookups, and age-based cleanup;
+//! [`AnalyticsRepository`] records analytics events. Read and write pools are
+//! held separately so reads never contend with the write path.
+
 use std::io::Write;
 use std::sync::Arc;
 

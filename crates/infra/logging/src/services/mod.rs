@@ -1,3 +1,11 @@
+//! Logging services: the `tracing` write path, retention, and span helpers.
+//!
+//! [`DatabaseLogService`] persists structured log entries; [`output`] holds the
+//! global publish path used during startup and steady state; [`retention`]
+//! enforces age-based cleanup on a schedule; [`spans`] provides the request and
+//! system span builders. The CLI display sink ([`CliService`]) is gated behind
+//! the `cli` feature.
+
 #[cfg(feature = "cli")]
 pub mod cli;
 mod database_log;

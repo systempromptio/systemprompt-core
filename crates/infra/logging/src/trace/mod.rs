@@ -1,3 +1,10 @@
+//! Trace query services backing the `logs` CLI and audit surfaces.
+//!
+//! [`TraceQueryService`] reconstructs a request's timeline — log events, AI
+//! requests, MCP executions, and execution steps — from a trace id, while
+//! [`AiTraceService`] resolves per-task execution steps. The submodules are
+//! read-only query groups; result shapes are re-exported from `models`.
+
 mod ai_trace_queries;
 mod ai_trace_service;
 mod audit_queries;
