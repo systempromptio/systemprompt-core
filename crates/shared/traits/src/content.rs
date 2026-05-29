@@ -1,4 +1,7 @@
 //! Content provider traits for blog posts, docs, and other published items.
+//!
+//! Dispatched as trait objects (`dyn _`), so they use `#[async_trait]`;
+//! native `async fn` in traits is not yet `dyn`-compatible.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};

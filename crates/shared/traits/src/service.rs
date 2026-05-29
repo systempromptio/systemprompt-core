@@ -1,4 +1,7 @@
 //! Long-running service lifecycle traits.
+//!
+//! Dispatched as trait objects (`dyn _`), so they use `#[async_trait]`;
+//! native `async fn` in traits is not yet `dyn`-compatible.
 
 use async_trait::async_trait;
 

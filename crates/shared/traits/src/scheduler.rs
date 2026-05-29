@@ -1,4 +1,7 @@
 //! Scheduler traits for triggering jobs and inspecting their status.
+//!
+//! These traits are dispatched as trait objects (`dyn _`), so they use
+//! `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
 
 use async_trait::async_trait;
 use std::sync::Arc;

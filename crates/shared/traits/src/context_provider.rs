@@ -1,4 +1,7 @@
 //! Conversation context provider trait used by chat and agent surfaces.
+//!
+//! Dispatched as a trait object (`dyn _`), so it uses `#[async_trait]`;
+//! native `async fn` in traits is not yet `dyn`-compatible.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};

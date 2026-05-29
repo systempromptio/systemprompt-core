@@ -1,4 +1,7 @@
 //! Session analytics and fingerprinting provider traits.
+//!
+//! These traits are dispatched as trait objects (`dyn _`), so they use
+//! `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
