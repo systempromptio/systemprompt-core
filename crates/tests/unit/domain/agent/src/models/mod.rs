@@ -11,11 +11,18 @@
 
 mod a2a;
 mod agent_info;
+mod agent_info_extended;
+mod agent_runtime;
 mod context;
+mod context_events_extended;
+mod create_update_agent;
 mod database_rows;
 mod external_integrations;
 mod protocol_events;
+mod protocol_requests;
+mod push_notification_extended;
 mod runtime;
+mod service_status;
 mod validation;
 mod web;
 mod web_agent_requests;

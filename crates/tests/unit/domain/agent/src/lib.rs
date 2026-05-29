@@ -30,3 +30,6 @@ mod models;
 
 #[cfg(test)]
 mod services;
+
+#[cfg(test)]
+mod state;
