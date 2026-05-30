@@ -1,34 +1,16 @@
 use super::ApplyError;
 use super::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
-use crate::auth::plugin_oauth::mint_or_refresh_plugin_token;
-use crate::fsutil;
-use crate::gateway::GatewayClient;
 use crate::gateway::manifest::HookEntry as ManifestHookEntry;
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::PluginId;
 
-const PLUGIN_TOKEN_ENV_VAR: &str = "SYSTEMPROMPT_PLUGIN_TOKEN";
-
-// Atomic 0600 write — the file holds a bearer token, must not leak between
-// users on multi-tenant hosts.
-pub(super) async fn materialize_hook_token(
-    client: &GatewayClient,
-    bearer: &str,
-    plugin_id: &PluginId,
-    plugin_dir: &Path,
-) -> Result<(), ApplyError> {
-    let token = mint_or_refresh_plugin_token(client, bearer, plugin_id).await?;
-    let env_path = plugin_dir.join(".env.plugin");
-    let body = format!("{PLUGIN_TOKEN_ENV_VAR}={}\n", token.access_token);
-    fsutil::atomic_write_0600(&env_path, body.as_bytes()).map_err(|e| ApplyError::Io {
-        context: format!(".env.plugin for {}", plugin_id.as_str()),
-        source: e,
-    })
-}
-
+// Hooks route through the bridge loopback proxy (not the gateway directly).
+// Cowork presents the static loopback secret; the proxy strips it and injects
+// the plugin's `aud:hook` gateway token (minted on demand from `plugin_id` in
+// the query). This replaces the old `.env.plugin` + `$SYSTEMPROMPT_PLUGIN_TOKEN`
+// env-var delivery, which Cowork's agent VM did not reliably propagate.
 pub(super) fn write_hooks_json(
-    gateway_base: &str,
     plugin_id: &PluginId,
     plugin_dir: &Path,
     user_hooks: &[ManifestHookEntry],
@@ -38,10 +20,14 @@ pub(super) fn write_hooks_json(
         context: format!("create {}", hooks_dir.display()),
         source: e,
     })?;
-    let base = gateway_base.trim_end_matches('/');
-    let govern_url = format!("{base}/api/public/hooks/govern?plugin_id={plugin_id}");
-    let track_url = format!("{base}/api/public/hooks/track?plugin_id={plugin_id}");
-    let mut body = HooksFile::new(govern_url, &track_url, PLUGIN_TOKEN_ENV_VAR);
+    let authorization = crate::proxy::loopback_bearer().map_err(|e| ApplyError::Io {
+        context: format!("loopback secret for hooks.json ({plugin_id})"),
+        source: e,
+    })?;
+    let origin = crate::proxy::loopback_origin();
+    let govern_url = format!("{origin}/api/public/hooks/govern?plugin_id={plugin_id}");
+    let track_url = format!("{origin}/api/public/hooks/track?plugin_id={plugin_id}");
+    let mut body = HooksFile::new(govern_url, &track_url, &authorization);
     for hook in user_hooks {
         let entry =
             WireHookEntry::user_command(hook.command.clone(), hook.event.as_str(), hook.is_async);

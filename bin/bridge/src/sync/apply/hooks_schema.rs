@@ -1,10 +1,13 @@
 //! Typed wire schema for the Cowork `hooks.json` file emitted per-plugin.
 //!
 //! The bridge writes one of these into each synced plugin's `hooks/` directory.
-//! Cowork reads it at hook-fire time, substitutes `$SYSTEMPROMPT_PLUGIN_TOKEN`
-//! from the sibling `.env.plugin`, and dispatches to the bridge gateway's
-//! public hook endpoints. The shape is camelCase on the wire; field names here
-//! are `snake_case` with `#[serde(rename_all = "camelCase")]`.
+//! Cowork reads it at hook-fire time and dispatches to the bridge's loopback
+//! proxy, presenting the static loopback secret as `Authorization`. The proxy
+//! verifies+strips it and injects the plugin's `aud:hook` gateway token before
+//! forwarding to the public hook endpoints. No env-var substitution is used
+//! (`allowedEnvVars` is empty) — Cowork's agent VM does not reliably propagate
+//! plugin env vars into the hook subprocess. The shape is camelCase on the
+//! wire; field names here are `snake_case` with `rename_all = "camelCase"`.
 //!
 //! Two variants share the file: `Http` entries are gateway-issued govern/track
 //! proxies; `Command` entries are user-defined hooks sourced from
@@ -50,22 +53,22 @@ pub(crate) enum HookEntry {
 }
 
 impl HookEntry {
-    pub(crate) fn govern(url: String, token_env_var: &str) -> Self {
+    pub(crate) fn govern(url: String, authorization: &str) -> Self {
         Self::Http {
             url,
-            headers: bearer_header(token_env_var),
-            allowed_env_vars: vec![token_env_var.to_string()],
+            headers: bearer_header(authorization),
+            allowed_env_vars: vec![],
             timeout: DEFAULT_TIMEOUT_SECS,
             r#async: None,
             event: None,
         }
     }
 
-    pub(crate) fn track(url: String, token_env_var: &str, event: &str) -> Self {
+    pub(crate) fn track(url: String, authorization: &str, event: &str) -> Self {
         Self::Http {
             url,
-            headers: bearer_header(token_env_var),
-            allowed_env_vars: vec![token_env_var.to_string()],
+            headers: bearer_header(authorization),
+            allowed_env_vars: vec![],
             timeout: DEFAULT_TIMEOUT_SECS,
             r#async: Some(true),
             event: Some(event.to_string()),
@@ -92,13 +95,13 @@ impl HookMatcher {
 }
 
 impl HooksFile {
-    pub(crate) fn new(govern_url: String, track_url: &str, token_env_var: &str) -> Self {
+    pub(crate) fn new(govern_url: String, track_url: &str, authorization: &str) -> Self {
         let mut hooks: BTreeMap<String, Vec<HookMatcher>> = BTreeMap::new();
         hooks.insert(
             "PreToolUse".to_string(),
             vec![HookMatcher::wildcard(HookEntry::govern(
                 govern_url,
-                token_env_var,
+                authorization,
             ))],
         );
         for event in TRACK_EVENTS {
@@ -106,7 +109,7 @@ impl HooksFile {
                 (*event).to_string(),
                 vec![HookMatcher::wildcard(HookEntry::track(
                     track_url.to_string(),
-                    token_env_var,
+                    authorization,
                     event,
                 ))],
             );
@@ -128,12 +131,9 @@ impl HooksFile {
     }
 }
 
-fn bearer_header(token_env_var: &str) -> BTreeMap<String, String> {
+fn bearer_header(authorization: &str) -> BTreeMap<String, String> {
     let mut h = BTreeMap::new();
-    h.insert(
-        "Authorization".to_string(),
-        format!("Bearer ${token_env_var}"),
-    );
+    h.insert("Authorization".to_string(), authorization.to_string());
     h
 }
 

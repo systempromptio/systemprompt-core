@@ -1,7 +1,6 @@
 use super::super::hash::safe_id_segment;
-use super::hooks::{ensure_plugin_json_hooks_field, materialize_hook_token, write_hooks_json};
+use super::hooks::{ensure_plugin_json_hooks_field, write_hooks_json};
 use crate::config::paths;
-use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{AgentEntry, SignedManifest, SkillEntry};
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 use async_trait::async_trait;
@@ -18,7 +17,7 @@ impl HostSync for ClaudeCodePluginSync {
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), super::ApplyError> {
-        write_synthetic_plugin(ctx.client, ctx.bearer, ctx.org_plugins_root, ctx.manifest).await
+        write_synthetic_plugin(ctx.org_plugins_root, ctx.manifest)
     }
 
     fn clear(&self) -> Result<(), super::ApplyError> {
@@ -65,10 +64,8 @@ pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json:
     serde_json::to_vec_pretty(&pj)
 }
 
-#[tracing::instrument(level = "debug", skip(client, bearer, manifest))]
-pub async fn write_synthetic_plugin(
-    client: &GatewayClient,
-    bearer: &str,
+#[tracing::instrument(level = "debug", skip(manifest))]
+pub fn write_synthetic_plugin(
     org_plugins_root: &Path,
     manifest: &SignedManifest,
 ) -> Result<(), super::ApplyError> {
@@ -117,8 +114,7 @@ pub async fn write_synthetic_plugin(
     }
 
     let synthetic_id = systemprompt_identifiers::PluginId::new(paths::SYNTHETIC_PLUGIN_NAME);
-    materialize_hook_token(client, bearer, &synthetic_id, &root).await?;
-    write_hooks_json(client.base_url_str(), &synthetic_id, &root, &manifest.hooks)?;
+    write_hooks_json(&synthetic_id, &root, &manifest.hooks)?;
     ensure_plugin_json_hooks_field(&root)?;
 
     Ok(())

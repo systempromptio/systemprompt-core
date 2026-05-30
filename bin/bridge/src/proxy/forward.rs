@@ -79,17 +79,43 @@ pub async fn forward(
     session_context: &SessionContext,
     stats: Arc<ProxyStats>,
 ) -> ForwardResult<Response<ProxyBody>> {
+    // The user's bridge JWT. Bearer for gateway/MCP routes, and the credential
+    // used to mint plugin hook tokens for hook routes.
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_string();
 
-    let route = match resolve_route(&parts.uri, gateway_base) {
-        RouteResolution::Gateway(url) => Route {
-            url,
-            extra_headers: BTreeMap::new(),
+    // `is_hook`: a hook route carries a plugin-scoped `aud:hook` token, so an
+    // upstream 401 means that token is stale — not the bridge JWT — and must
+    // not invalidate the shared bridge token cache.
+    let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
+        RouteResolution::Gateway(url) => (
+            Route { url, extra_headers: BTreeMap::new() },
+            token.token.expose().to_owned(),
+            false,
+        ),
+        RouteResolution::Mcp(route) => (route, token.token.expose().to_owned(), false),
+        RouteResolution::Hook { url, plugin_id } => {
+            // Unified local broker: the proxy mints+injects the plugin hook
+            // token here (server-side) so Cowork never needs the env-var
+            // `$SYSTEMPROMPT_PLUGIN_TOKEN`. Reuses the per-plugin cached,
+            // auto-refreshing, 401-rotating mint path.
+            let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
+            let pid = systemprompt_identifiers::PluginId::new(plugin_id);
+            let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
+                &gw,
+                token.token.expose(),
+                &pid,
+            )
+            .await
+            .map_err(|e| ForwardError::Auth(format!("hook token mint for {pid}: {e}")))?;
+            (
+                Route { url, extra_headers: BTreeMap::new() },
+                hook.access_token,
+                true,
+            )
         },
-        RouteResolution::Mcp(route) => route,
         RouteResolution::UnknownMcp(name) => {
             tracing::warn!(server = %name, "unknown managed MCP server requested");
             return not_found_response(&format!("unknown managed MCP server: {name}\n"));
@@ -108,7 +134,7 @@ pub async fn forward(
 
     let upstream_headers = build_upstream_headers(
         &parts.headers,
-        token.token.expose(),
+        &upstream_bearer,
         session_context.session_id(),
         gateway_conversation_id.as_ref(),
         &route.extra_headers,
@@ -130,7 +156,7 @@ pub async fn forward(
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        if status == StatusCode::UNAUTHORIZED {
+        if status == StatusCode::UNAUTHORIZED && !is_hook {
             token_cache.invalidate().await;
         }
     }
@@ -167,6 +193,10 @@ enum RouteResolution {
     Gateway(String),
     Mcp(Route),
     UnknownMcp(String),
+    // A plugin governance/track hook call. Forwarded to the gateway like a
+    // Gateway route, but authenticated with that plugin's `aud:hook` token
+    // (minted by the bridge) instead of the user's bridge JWT — see `forward`.
+    Hook { url: String, plugin_id: String },
 }
 
 fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolution {
@@ -182,6 +212,14 @@ fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolutio
             },
         );
     }
+    if uri.path().starts_with("/api/public/hooks/") {
+        if let Some(plugin_id) = parse_hook_plugin_id(uri) {
+            return RouteResolution::Hook {
+                url: build_gateway_url(gateway_base, uri),
+                plugin_id,
+            };
+        }
+    }
     RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
 }
 
@@ -189,6 +227,16 @@ fn parse_mcp_path(path: &str) -> Option<&str> {
     let stripped = path.strip_prefix("/mcp/")?;
     let name = stripped.split('/').next()?;
     if name.is_empty() { None } else { Some(name) }
+}
+
+// The hook URL the bridge writes carries `?plugin_id=<id>`; the gateway's
+// govern/track guard matches it against the token's `plugin_id` claim, so the
+// proxy must mint the token for exactly this plugin.
+fn parse_hook_plugin_id(uri: &http::Uri) -> Option<String> {
+    uri.query()?.split('&').find_map(|kv| {
+        let (k, v) = kv.split_once('=')?;
+        (k == "plugin_id" && !v.is_empty()).then(|| v.to_string())
+    })
 }
 
 fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {

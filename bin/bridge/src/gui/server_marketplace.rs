@@ -91,13 +91,6 @@ struct McpServerEntry {
     transport: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct McpRoot {
-    #[serde(default)]
-    #[serde(rename = "mcpServers")]
-    mcp_servers: std::collections::BTreeMap<String, McpServerEntry>,
-}
-
 pub fn build_listing() -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
@@ -114,7 +107,7 @@ pub fn build_listing() -> MarketplaceListing {
             let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
             let skills = list_skills(&synthetic.join("skills"));
             let agents = list_agents(&synthetic.join("agents"));
-            let mcp = list_managed_mcp(&synthetic.join(".mcp.json"));
+            let mcp = list_registry_mcp();
             let hooks = Vec::new();
             (plugins, skills, hooks, mcp, agents)
         },
@@ -349,34 +342,34 @@ fn unquote(s: &str) -> &str {
     }
 }
 
-fn list_managed_mcp(path: &Path) -> Vec<MarketplaceItem> {
-    let Ok(bytes) = std::fs::read(path) else {
-        return Vec::new();
-    };
-    let root = match serde_json::from_slice::<McpRoot>(&bytes) {
-        Ok(root) => root,
-        Err(e) => {
-            tracing::warn!(
-                target: "bridge::gui",
-                path = %path.display(),
-                error = %e,
-                "ignoring malformed .mcp.json"
-            );
-            return Vec::new();
-        },
-    };
-    let mut out = Vec::new();
-    for (name, entry) in root.mcp_servers {
-        let summary = entry.url.clone();
+// MCP servers are sourced from the in-memory `mcp_registry` — the single source
+// of truth that also feeds the `managedMcpServers` policy Cowork reads. The
+// synthetic plugin no longer emits a `.mcp.json` (managedMcpServers is the sole
+// MCP channel), so reading that removed file always yielded zero. The registry
+// is populated by an in-process sync, so this lists servers once the running
+// GUI has synced — the same timing as the policy value itself.
+fn list_registry_mcp() -> Vec<MarketplaceItem> {
+    let registry = crate::mcp_registry::snapshot();
+    let mut out = Vec::with_capacity(registry.len());
+    for (slug, upstream) in registry.iter() {
+        // Surface the loopback proxy URL Cowork actually connects to (mirrors
+        // `managed_mcp_servers_json`), while keeping the upstream gateway URL in
+        // `path` for provenance.
+        let proxy_url = crate::proxy::mcp_url(slug);
         out.push(MarketplaceItem {
-            id: name.clone(),
-            name,
+            id: slug.clone(),
+            name: slug.clone(),
             source: "tenant",
-            path: path.display().to_string(),
-            summary,
+            path: upstream.url.as_str().to_string(),
+            summary: Some(proxy_url.clone()),
             readme: None,
             change: None,
-            extra: MarketplaceExtra::Mcp(entry),
+            extra: MarketplaceExtra::Mcp(McpServerEntry {
+                url: Some(proxy_url),
+                command: None,
+                args: Vec::new(),
+                transport: Some("http".to_string()),
+            }),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));

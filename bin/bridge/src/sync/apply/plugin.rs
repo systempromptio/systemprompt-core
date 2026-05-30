@@ -1,5 +1,5 @@
 use super::super::hash::{normalise_relative, safe_plugin_id, sha256_hex};
-use super::hooks::{ensure_plugin_json_hooks_field, materialize_hook_token, write_hooks_json};
+use super::hooks::{ensure_plugin_json_hooks_field, write_hooks_json};
 use crate::auth::plugin_oauth::global_cache;
 use crate::config::paths;
 use crate::gateway::GatewayClient;
@@ -118,13 +118,7 @@ async fn sync_one_plugin(
     })?;
 
     let plugin_id_typed = systemprompt_identifiers::PluginId::new(plugin.id.as_str());
-    materialize_hook_token(ctx.client, ctx.bearer, &plugin_id_typed, &target).await?;
-    write_hooks_json(
-        ctx.client.base_url_str(),
-        &plugin_id_typed,
-        &target,
-        user_hooks,
-    )?;
+    write_hooks_json(&plugin_id_typed, &target, user_hooks)?;
     ensure_plugin_json_hooks_field(&target)?;
 
     Ok(Some(if was_present {

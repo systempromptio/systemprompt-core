@@ -133,8 +133,16 @@ pub fn handle() -> Option<&'static ProxyHandle> {
 /// fallback is correct for the config-write-before-proxy-start ordering.
 #[must_use]
 pub fn mcp_url(slug: &str) -> String {
+    format!("{}/mcp/{slug}", loopback_origin())
+}
+
+/// `http://127.0.0.1:<port>` for the running proxy (or the default port before
+/// it has bound). Base for any host config that should route through the proxy
+/// — MCP servers and plugin hook endpoints alike.
+#[must_use]
+pub fn loopback_origin() -> String {
     let port = handle().map_or(DEFAULT_PROXY_PORT, |h| h.port);
-    format!("http://127.0.0.1:{port}/mcp/{slug}")
+    format!("http://127.0.0.1:{port}")
 }
 
 /// The `Authorization` header value a host presents to the loopback proxy.

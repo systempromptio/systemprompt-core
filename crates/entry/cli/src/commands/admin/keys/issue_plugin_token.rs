@@ -93,9 +93,11 @@ pub(super) async fn execute(
     let authenticated = AuthenticatedUser::new_with_roles(
         user_uuid,
         user.name.clone(),
-        user.email.clone(),
+        user.email,
         vec![Permission::HookGovern, Permission::HookTrack],
-        user.roles,
+        // Why: a hook-scoped (aud=hook) credential authorizes on scope + plugin_id,
+        // never roles; carrying the minting admin's roles would be inert privilege.
+        Vec::new(),
     );
 
     let signing = JwtSigningParams {
