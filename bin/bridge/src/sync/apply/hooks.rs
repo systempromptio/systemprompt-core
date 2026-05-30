@@ -8,8 +8,9 @@ use systemprompt_identifiers::PluginId;
 // Hooks route through the bridge loopback proxy (not the gateway directly).
 // Cowork presents the static loopback secret; the proxy strips it and injects
 // the plugin's `aud:hook` gateway token (minted on demand from `plugin_id` in
-// the query). This replaces the old `.env.plugin` + `$SYSTEMPROMPT_PLUGIN_TOKEN`
-// env-var delivery, which Cowork's agent VM did not reliably propagate.
+// the query). This replaces the old `.env.plugin` +
+// `$SYSTEMPROMPT_PLUGIN_TOKEN` env-var delivery, which Cowork's agent VM did
+// not reliably propagate.
 pub(super) fn write_hooks_json(
     plugin_id: &PluginId,
     plugin_dir: &Path,

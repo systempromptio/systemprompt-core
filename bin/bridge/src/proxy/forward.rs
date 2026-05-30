@@ -91,7 +91,10 @@ pub async fn forward(
     // not invalidate the shared bridge token cache.
     let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
         RouteResolution::Gateway(url) => (
-            Route { url, extra_headers: BTreeMap::new() },
+            Route {
+                url,
+                extra_headers: BTreeMap::new(),
+            },
             token.token.expose().to_owned(),
             false,
         ),
@@ -111,7 +114,10 @@ pub async fn forward(
             .await
             .map_err(|e| ForwardError::Auth(format!("hook token mint for {pid}: {e}")))?;
             (
-                Route { url, extra_headers: BTreeMap::new() },
+                Route {
+                    url,
+                    extra_headers: BTreeMap::new(),
+                },
                 hook.access_token,
                 true,
             )
@@ -212,13 +218,13 @@ fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolutio
             },
         );
     }
-    if uri.path().starts_with("/api/public/hooks/") {
-        if let Some(plugin_id) = parse_hook_plugin_id(uri) {
-            return RouteResolution::Hook {
-                url: build_gateway_url(gateway_base, uri),
-                plugin_id,
-            };
-        }
+    if uri.path().starts_with("/api/public/hooks/")
+        && let Some(plugin_id) = parse_hook_plugin_id(uri)
+    {
+        return RouteResolution::Hook {
+            url: build_gateway_url(gateway_base, uri),
+            plugin_id,
+        };
     }
     RouteResolution::Gateway(build_gateway_url(gateway_base, uri))
 }
