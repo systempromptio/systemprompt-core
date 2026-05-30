@@ -1,3 +1,11 @@
+//! Compile-time registration of [`MarketplaceFilter`] implementations.
+//!
+//! Extensions submit a [`MarketplaceFilterRegistration`] via the
+//! [`register_marketplace_filter!`] macro. [`discover_filters`] returns every
+//! submission ordered by descending `priority`; ties resolve by submission
+//! order (deterministic per build). With no registration the runtime falls back
+//! to [`crate::AllowAllFilter`].
+
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
@@ -5,27 +13,9 @@ use systemprompt_database::DbPool;
 use crate::error::MarketplaceFilterError;
 use crate::filter::MarketplaceFilter;
 
-/// Factory function passed to [`register_marketplace_filter!`].
-///
-/// Receives the live database pool so implementations can hold a
-/// repository, connection cache, or any other DB-backed handle they
-/// need to evaluate ACL at request time. Construction may fail (for
-/// example if the pool is not Postgres) — failures are surfaced as
-/// [`MarketplaceFilterError`] and the runtime logs them and falls back
-/// to [`crate::AllowAllFilter`].
 type MarketplaceFilterFactory =
     fn(&DbPool) -> Result<Arc<dyn MarketplaceFilter>, MarketplaceFilterError>;
 
-/// Inventory submission slot for [`MarketplaceFilter`] implementations.
-///
-/// Extensions register a filter at compile time by calling the
-/// `register_marketplace_filter!` macro at the crate root. The runtime
-/// builder collects every submission and selects the one with the
-/// highest [`priority`] field — ties resolve by submission order, which
-/// is deterministic per build. If no extension registers a filter, the
-/// runtime falls back to [`crate::AllowAllFilter`].
-///
-/// [`priority`]: MarketplaceFilterRegistration::priority
 #[derive(Debug, Clone, Copy)]
 pub struct MarketplaceFilterRegistration {
     pub factory: MarketplaceFilterFactory,
@@ -43,9 +33,6 @@ pub fn discover_filters() -> Vec<&'static MarketplaceFilterRegistration> {
 }
 
 /// Register a [`crate::MarketplaceFilter`] implementation with the runtime.
-///
-/// Highest `priority` wins; ties resolve by submission order; with no
-/// registration the runtime falls back to [`crate::AllowAllFilter`].
 ///
 /// ```ignore
 /// use systemprompt_marketplace::register_marketplace_filter;

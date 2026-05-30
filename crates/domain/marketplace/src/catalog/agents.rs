@@ -1,3 +1,6 @@
+//! Projects configured agents into the signed `AgentEntry` records the manifest
+//! carries.
+
 use systemprompt_identifiers::{AgentId, AgentName};
 use systemprompt_models::bridge::manifest::AgentEntry;
 use systemprompt_models::services::{AgentConfig, ServicesConfig};

@@ -1,3 +1,6 @@
+//! Projects on-disk skill directories into the signed `SkillEntry` records the
+//! manifest carries.
+
 use std::path::Path;
 
 use sha2::{Digest, Sha256};

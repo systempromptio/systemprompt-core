@@ -64,12 +64,6 @@ impl<'a> MarketplaceService<'a> {
             .ok_or(MarketplaceError::NoDefault)
     }
 
-    /// Resolve the single active marketplace for manifest scoping.
-    ///
-    /// `None` means no scoping (global fallback). With several marketplaces
-    /// configured the active one is named by `settings.default_marketplace_id`,
-    /// which [`ServicesConfig::validate`] guarantees is present and resolvable
-    /// whenever more than one marketplace is configured.
     #[must_use]
     pub fn active(&self) -> Option<&'a MarketplaceConfig> {
         match self.services.marketplaces.len() {
@@ -86,12 +80,6 @@ impl<'a> MarketplaceService<'a> {
         }
     }
 
-    /// Map every member of the active marketplace to its owning marketplace id.
-    ///
-    /// Keyed by `(EntityKind, member id)` over the active marketplace's
-    /// `skills`/`agents`/`mcp_servers`/`plugins` include lists. An RBAC filter
-    /// uses this to attribute a member to the marketplace whose grant governs
-    /// it. With no active marketplace the map is empty.
     #[must_use]
     pub fn membership(&self) -> BTreeMap<(EntityKind, String), MarketplaceId> {
         let mut members = BTreeMap::new();
@@ -113,19 +101,13 @@ impl<'a> MarketplaceService<'a> {
         members
     }
 
-    /// Access block of the active marketplace, or `None` when none is active.
     #[must_use]
     pub fn active_access(&self) -> Option<&'a MarketplaceAccess> {
         self.active().map(|config| &config.access)
     }
 
-    /// The active marketplace's required attribute floor for one member.
-    ///
-    /// Composes [`membership`](Self::membership) with
-    /// [`active_access`](Self::active_access): returns the active marketplace's
-    /// `access.attributes` when `(kind, id)` is a member and that bag is
-    /// non-empty, else `None`. Core never interprets the values — the bag is
-    /// forwarded verbatim to the ABAC hook as a defence-in-depth floor.
+    /// Core never interprets the returned bag — it is forwarded verbatim to the
+    /// ABAC hook as a defence-in-depth floor.
     #[must_use]
     pub fn member_attribute_floor(
         &self,

@@ -48,8 +48,6 @@ pub struct CanonicalView<'a> {
 pub struct ManifestService;
 
 impl ManifestService {
-    /// Load the catalogue, scope it to the active marketplace, then apply the
-    /// per-user filter, yielding the candidate to be signed.
     pub async fn assemble_candidate(
         services: &ServicesConfig,
         services_root: &Path,
