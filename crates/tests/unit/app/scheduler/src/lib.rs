@@ -12,6 +12,12 @@
 #[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
+mod error_variants;
+#[cfg(test)]
+mod extended_jobs;
+#[cfg(test)]
+mod job_config;
+#[cfg(test)]
 mod jobs;
 #[cfg(test)]
 mod models;
