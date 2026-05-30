@@ -75,6 +75,26 @@ Two buckets, kept strictly separate:
 
 When adding docs: external-consumer material → `documentation/`; anything about *how we build, release, audit, or evaluate* → `internal/` (use `git add -f` only if a specific internal file must be shared). Never deep-link from a committed file into `internal/` — external readers cannot see it.
 
+## Repository Hygiene
+
+This is a world-class, public, code-only repository. **Only code and proper
+public-facing files belong in git**: source, `Cargo.toml`/`build.rs`,
+`README.md`, `CHANGELOG.md`, schema/migration `*.sql`, and legitimate test
+fixtures (proptest/fuzz seeds, protocol specs). Everything else stays out.
+
+**Never committed** (these are local-only dev artefacts): status reports,
+test-planning stubs, coverage trackers, implementation guides, scratch notes, or
+any process doc (`*STATUS*`, `*PLAN*`, `*REPORT*`, `*SUMMARY*`, `*GUIDE*`,
+`*PROGRESS*`, `*FINDINGS*`), and build/tooling output. The `ci/` scripts and
+`internal/` tree are local-only and `.gitignore`d.
+
+**No new folders — or process docs — are added to git without explicit user
+approval.** Before any commit, sweep the staged tree
+(`git ls-files | grep -iE '(status|plan|report|summary|guide|progress|findings)'`
+and `git ls-files 'crates/**/*.md' | grep -vE '/(README|CHANGELOG)\.md$'`) and
+confirm nothing stray slipped in. Never `git add` a directory you did not create
+as part of an approved change.
+
 ## Key Documentation
 
 | Document | Purpose |
