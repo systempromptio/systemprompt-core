@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.6] - 2026-05-30
+
+### Changed
+
+- Plugin hook calls route through the bridge loopback proxy instead of the gateway directly. The per-plugin `hooks.json` now points Cowork at the proxy's loopback URL with the static loopback secret as `Authorization`; the proxy verifies and strips that header, mints the plugin's `aud:hook` gateway token (resolved from the `plugin_id` query parameter), and injects it before forwarding to the public hook endpoints. This replaces the per-plugin `.env.plugin` file and the `$SYSTEMPROMPT_PLUGIN_TOKEN` env-var substitution, which Cowork's agent VM did not reliably propagate into the hook subprocess; `allowedEnvVars` is now empty. A hook-route `401` rotates the per-plugin hook token rather than invalidating the shared bridge token cache.
+- Hook-scoped credentials issued by `admin keys issue-plugin-token` no longer carry the minting admin's roles. A hook token (`aud:hook`) authorizes on scope and `plugin_id` only, so the roles were inert.
+- The GUI marketplace lists managed MCP servers from the in-memory MCP registry — the same source that feeds the `managedMcpServers` policy — rather than the removed synthetic-plugin `.mcp.json`.
+
 ## [0.9.5] - 2026-05-29
 
 ### Changed
