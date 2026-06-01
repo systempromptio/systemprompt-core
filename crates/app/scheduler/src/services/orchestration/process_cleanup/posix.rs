@@ -62,11 +62,21 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
 
 pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
     use nix::sys::signal::{self, Signal};
-    use nix::unistd::Pid;
+    use nix::unistd::{Pid, getpgid};
+
+    let leader = Pid::from_raw(pgid as i32);
+
+    // Only broadcast to a group whose leader is this exact PID. Our children
+    // are placed in a fresh group via `process_group(0)` (pgid == pid), so a
+    // mismatch means the PID is not one of ours — likely a recycled PID — and
+    // `kill(-pid)` would reach an unrelated group. Fall back to a single-PID
+    // signal in that case.
+    if getpgid(Some(leader)) != Ok(leader) {
+        return terminate_gracefully(pgid, grace_period_ms).await;
+    }
 
     // A negative target signals the whole process group, reaching any children
-    // the leader spawned (e.g. an agent's own a2a server). The leader's PID
-    // equals its PGID because it was placed in a fresh group via `setsid`.
+    // the leader spawned (e.g. an agent's own a2a server).
     let group = Pid::from_raw(-(pgid as i32));
 
     if signal::kill(group, Signal::SIGTERM).is_err() {

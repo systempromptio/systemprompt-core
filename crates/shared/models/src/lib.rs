@@ -75,6 +75,7 @@ pub mod repository;
 pub mod routing;
 pub mod secrets;
 pub mod services;
+pub mod subprocess;
 pub mod text;
 pub mod time_format;
 pub mod users;

@@ -55,9 +55,12 @@ fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
 
     command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env("SYSTEMPROMPT_SUBPROCESS", "1")
+        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
         .env("DATABASE_TYPE", &config_global.database_type)
-        .env("MCP_SERVICE_ID", &config.name)
+        .env(
+            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
+            &config.name,
+        )
         .env("MCP_PORT", config.port.to_string())
         .env("MCP_TOOLS_CONFIG", tools_config_json)
         .env("MCP_SERVER_MODEL_CONFIG", server_model_config_json)

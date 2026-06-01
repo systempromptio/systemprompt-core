@@ -95,6 +95,9 @@ mod secrets;
 mod net;
 
 #[cfg(test)]
+mod subprocess;
+
+#[cfg(test)]
 mod services_hooks;
 
 #[cfg(test)]

@@ -101,8 +101,8 @@ pub(super) fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Comman
     }
     command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env("SYSTEMPROMPT_SUBPROCESS", "1")
-        .env("AGENT_NAME", agent_name)
+        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
+        .env(systemprompt_models::subprocess::AGENT_NAME_ENV, agent_name)
         .env("AGENT_PORT", port.to_string())
         .env("DATABASE_TYPE", &config.database_type)
         .stdout(std::process::Stdio::null())

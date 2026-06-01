@@ -5,6 +5,7 @@
 ### Fixed
 
 - Process liveness checks now treat a zombie (exited-but-unreaped) child as dead. The MCP orchestrator's `is_process_running` previously reported a defunct server as alive because its PID still answered `kill(pid, 0)`; it now also rejects processes in state `Z`.
+- On shutdown, the API confirms that a recorded agent or MCP server PID still belongs to the process it spawned — matching the spawn-time markers in `/proc/<pid>/environ` — before terminating its process group. A stale registry PID that the OS has recycled to an unrelated process is cleared without being signalled, instead of having the reused PID's process group killed. The process-group termination primitive additionally refuses to broadcast to a target that is not its own group leader.
 
 ## [0.14.0] - 2026-06-01
 
