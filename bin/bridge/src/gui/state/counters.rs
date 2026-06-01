@@ -1,5 +1,6 @@
 use crate::config::paths;
 use std::path::Path;
+use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_DIRS, PLUGIN_MANIFEST_FILE};
 
 pub(super) fn count_plugin_dirs(root: &Path) -> Option<usize> {
     let mut n = 0usize;
@@ -28,8 +29,9 @@ pub(super) fn count_malformed_plugin_dirs(root: &Path) -> Option<usize> {
             continue;
         }
         let path = entry.path();
-        let well_formed = path.join(".claude-plugin").join("plugin.json").is_file()
-            || path.join("claude-plugin").join("plugin.json").is_file();
+        let well_formed = PLUGIN_MANIFEST_DIRS
+            .iter()
+            .any(|dir| path.join(dir).join(PLUGIN_MANIFEST_FILE).is_file());
         if !well_formed && name != paths::SYNTHETIC_PLUGIN_NAME {
             n += 1;
         }

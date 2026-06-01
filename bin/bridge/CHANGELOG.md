@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.0] - 2026-06-01
+
+### Changed
+
+- The synthetic organization plugin's `plugin.json` and the malformed-plugin / well-formedness probes use the shared `PluginManifest` model and manifest-path constants from `systemprompt-models::bridge::plugin_bundle` instead of bridge-local copies. The emitted wire shape is unchanged.
+
 ## [0.9.6] - 2026-05-30
 
 ### Changed

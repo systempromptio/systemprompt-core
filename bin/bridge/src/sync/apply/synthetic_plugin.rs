@@ -4,9 +4,9 @@ use crate::config::paths;
 use crate::gateway::manifest::{AgentEntry, SignedManifest, SkillEntry};
 use crate::sync::host_sync::{HostSync, HostSyncCtx};
 use async_trait::async_trait;
-use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
+use systemprompt_models::bridge::plugin_bundle::PluginManifest;
 
 pub(crate) struct ClaudeCodePluginSync;
 
@@ -35,33 +35,27 @@ impl HostSync for ClaudeCodePluginSync {
     }
 }
 
-#[derive(Serialize)]
-struct PluginJson<'a> {
-    name: &'a str,
-    description: &'a str,
-    version: &'a str,
-    // Why: under MDM + custom inference gateway, the default `"available"`
-    // surfaces Cowork's "Contact an organization owner to install connectors"
-    // tooltip — the user cannot install. `"auto_install"` auto-installs the
-    // plugin on first session-load while still allowing user-initiated uninstall.
-    // Docs: https://claude.com/docs/cowork/3p/extensions
-    #[serde(rename = "installationPreference")]
-    installation_preference: &'a str,
-}
-
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "auto_install";
 
-// Pure JSON renderer for the synthetic plugin's `plugin.json`. Separated from
-// the IO path so unit tests can pin the wire shape without needing a tempdir
-// or a runtime.
+// Pure JSON renderer for the synthetic plugin's `plugin.json`, built on the
+// shared `PluginManifest` contract. Separated from the IO path so unit tests
+// can pin the wire shape without needing a tempdir or a runtime.
 pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json::Error> {
-    let pj = PluginJson {
-        name: paths::SYNTHETIC_PLUGIN_NAME,
-        description: "Skills, agents, and MCP servers managed by your organization.",
-        version: manifest_version,
-        installation_preference: PLUGIN_INSTALLATION_PREFERENCE,
+    let manifest = PluginManifest {
+        name: paths::SYNTHETIC_PLUGIN_NAME.to_owned(),
+        description: "Skills, agents, and MCP servers managed by your organization.".to_owned(),
+        version: manifest_version.to_owned(),
+        author: None,
+        hooks: None,
+        keywords: Vec::new(),
+        // Why: under MDM + custom inference gateway, the default `"available"`
+        // surfaces Cowork's "Contact an organization owner to install connectors"
+        // tooltip — the user cannot install. `"auto_install"` auto-installs the
+        // plugin on first session-load while still allowing user-initiated uninstall.
+        // Docs: https://claude.com/docs/cowork/3p/extensions
+        installation_preference: Some(PLUGIN_INSTALLATION_PREFERENCE.to_owned()),
     };
-    serde_json::to_vec_pretty(&pj)
+    serde_json::to_vec_pretty(&manifest)
 }
 
 #[tracing::instrument(level = "debug", skip(manifest))]

@@ -206,9 +206,10 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
 // the hooks-field injection must resolve whichever the synced tree actually
 // uses, matching the dual-form lookup the GUI readers perform.
 fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
-    [".claude-plugin", "claude-plugin"]
+    use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_DIRS, PLUGIN_MANIFEST_FILE};
+    PLUGIN_MANIFEST_DIRS
         .iter()
-        .map(|dir| plugin_dir.join(dir).join("plugin.json"))
+        .map(|dir| plugin_dir.join(dir).join(PLUGIN_MANIFEST_FILE))
         .find(|path| path.is_file())
 }
 
