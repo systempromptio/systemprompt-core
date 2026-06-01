@@ -66,15 +66,11 @@ pub(super) fn build_image_request(
             aspect_ratio: request.aspect_ratio.as_str().to_owned(),
             image_size,
         }),
-        thinking_config: None,
     };
 
     let tools = if request.enable_search_grounding {
         Some(vec![GeminiTool {
-            function_declarations: None,
             google_search: Some(GoogleSearch::default()),
-            url_context: None,
-            code_execution: None,
         }])
     } else {
         None
@@ -83,9 +79,7 @@ pub(super) fn build_image_request(
     GeminiRequest {
         contents,
         generation_config: Some(generation_config),
-        safety_settings: None,
         tools,
-        tool_config: None,
     }
 }
 
