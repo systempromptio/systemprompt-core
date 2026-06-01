@@ -1,9 +1,10 @@
 //! Gateway request extraction and pre-dispatch authorization.
 //!
 //! Turns an inbound HTTP request into a validated [`PreparedRequest`]:
-//! extracts the credential and required headers (see [`headers`]), authenticates
-//! the principal, enforces session binding, parses the canonical body, resolves
-//! the gateway route, and runs the pre-dispatch authz check (see [`authz`]).
+//! extracts the credential and required headers (see [`headers`]),
+//! authenticates the principal, enforces session binding, parses the canonical
+//! body, resolves the gateway route, and runs the pre-dispatch authz check (see
+//! [`authz`]).
 
 mod authz;
 mod headers;
@@ -13,9 +14,7 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use bytes::Bytes;
 use std::sync::Arc;
-use systemprompt_identifiers::{
-    ContextId, GatewayConversationId, SessionId, TraceId, UserId,
-};
+use systemprompt_identifiers::{ContextId, GatewayConversationId, SessionId, TraceId, UserId};
 
 use super::RequestContext;
 use super::auth::{AuthedPrincipal, authenticate};

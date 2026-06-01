@@ -111,6 +111,9 @@ fn build_response(state: &TapState) -> CanonicalResponse {
         content,
         stop_reason: state.final_stop_reason,
         usage: state.usage,
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     }
 }
 

@@ -41,9 +41,7 @@ pub(super) fn any_value_to_string(
     }
 }
 
-pub(super) fn attrs_to_json(
-    attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue],
-) -> Value {
+pub(super) fn attrs_to_json(attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue]) -> Value {
     let mut map = serde_json::Map::new();
     for kv in attrs {
         map.insert(kv.key.clone(), any_value_to_json(kv.value.as_ref()));
@@ -51,9 +49,7 @@ pub(super) fn attrs_to_json(
     Value::Object(map)
 }
 
-fn any_value_to_json(
-    value: Option<&opentelemetry_proto::tonic::common::v1::AnyValue>,
-) -> Value {
+fn any_value_to_json(value: Option<&opentelemetry_proto::tonic::common::v1::AnyValue>) -> Value {
     use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
     let Some(av) = value.and_then(|v| v.value.as_ref()) else {
         return Value::Null;

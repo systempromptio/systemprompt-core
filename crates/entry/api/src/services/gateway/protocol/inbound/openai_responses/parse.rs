@@ -82,6 +82,12 @@ pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
         stream,
         thinking,
         metadata,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     })
 }
 
@@ -234,7 +240,10 @@ fn parse_content_part(value: &Value) -> Option<CanonicalContent> {
         )),
         "input_image" => {
             let url = value.get("image_url").and_then(Value::as_str)?;
-            Some(CanonicalContent::Image(ImageSource::Url(url.to_owned())))
+            Some(CanonicalContent::Image(ImageSource::Url {
+                url: url.to_owned(),
+                detail: None,
+            }))
         },
         _ => None,
     }

@@ -157,14 +157,16 @@ fn parse_image(value: &Value) -> Result<CanonicalContent, InboundParseError> {
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_owned(),
+            detail: None,
         })),
-        "url" => Ok(CanonicalContent::Image(ImageSource::Url(
-            source
+        "url" => Ok(CanonicalContent::Image(ImageSource::Url {
+            url: source
                 .get("url")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_owned(),
-        ))),
+            detail: None,
+        })),
         other => Err(InboundParseError::Unsupported {
             field: "image.source.type",
             detail: other.to_owned(),

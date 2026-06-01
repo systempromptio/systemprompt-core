@@ -12,8 +12,7 @@ mod message_text;
 mod open;
 pub mod payload;
 
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use anyhow::Result;
