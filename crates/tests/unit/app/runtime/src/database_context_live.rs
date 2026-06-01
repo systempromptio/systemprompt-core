@@ -1,13 +1,18 @@
 //! Live async tests for `DatabaseContext` that require a real Postgres
-//! connection. These run against `DATABASE_URL` set in the test environment.
+//! connection. They connect to the `DATABASE_URL` set in the test environment
+//! (CI provisions one and migrates it); when the variable is unset the tests
+//! skip so local runs without a database stay green.
 
 use systemprompt_runtime::DatabaseContext;
 
-const DB_URL: &str = "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_cov_lift";
+fn db_url() -> Option<String> {
+    std::env::var("DATABASE_URL").ok().filter(|u| !u.is_empty())
+}
 
 #[tokio::test]
 async fn from_url_connects_successfully() {
-    let ctx = DatabaseContext::from_url(DB_URL)
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_url(&url)
         .await
         .expect("DatabaseContext::from_url should succeed");
 
@@ -17,9 +22,8 @@ async fn from_url_connects_successfully() {
 
 #[tokio::test]
 async fn from_url_pool_arc_clones_correctly() {
-    let ctx = DatabaseContext::from_url(DB_URL)
-        .await
-        .expect("connect");
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let arc_pool = ctx.db_pool_arc();
     let arc_pool2 = ctx.db_pool_arc();
@@ -32,9 +36,8 @@ async fn from_url_pool_arc_clones_correctly() {
 
 #[tokio::test]
 async fn from_url_db_pool_ref_and_arc_same_pointer() {
-    let ctx = DatabaseContext::from_url(DB_URL)
-        .await
-        .expect("connect");
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let pool_ref = ctx.db_pool();
     let pool_arc = ctx.db_pool_arc();
@@ -43,7 +46,8 @@ async fn from_url_db_pool_ref_and_arc_same_pointer() {
 
 #[tokio::test]
 async fn from_urls_without_write_url_connects() {
-    let ctx = DatabaseContext::from_urls(DB_URL, None)
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_urls(&url, None)
         .await
         .expect("from_urls without write url");
     let _ = ctx.db_pool();
@@ -51,7 +55,8 @@ async fn from_urls_without_write_url_connects() {
 
 #[tokio::test]
 async fn from_urls_with_write_url_same_as_read_connects() {
-    let ctx = DatabaseContext::from_urls(DB_URL, Some(DB_URL))
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_urls(&url, Some(url.as_str()))
         .await
         .expect("from_urls with write url == read url");
     let _ = ctx.db_pool();
@@ -59,9 +64,8 @@ async fn from_urls_with_write_url_same_as_read_connects() {
 
 #[tokio::test]
 async fn database_context_clone_shares_pool() {
-    let ctx = DatabaseContext::from_url(DB_URL)
-        .await
-        .expect("connect");
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let cloned = ctx.clone();
     assert!(std::sync::Arc::ptr_eq(ctx.db_pool(), cloned.db_pool()));
@@ -69,9 +73,8 @@ async fn database_context_clone_shares_pool() {
 
 #[tokio::test]
 async fn database_context_debug_output() {
-    let ctx = DatabaseContext::from_url(DB_URL)
-        .await
-        .expect("connect");
+    let Some(url) = db_url() else { return };
+    let ctx = DatabaseContext::from_url(&url).await.expect("connect");
 
     let dbg = format!("{ctx:?}");
     assert!(dbg.contains("DatabaseContext"), "got: {dbg}");
@@ -79,7 +82,7 @@ async fn database_context_debug_output() {
 
 #[tokio::test]
 async fn from_url_invalid_returns_error() {
-    let result = DatabaseContext::from_url("postgres://invalid_host_that_cannot_resolve:9999/nodb")
-        .await;
+    let result =
+        DatabaseContext::from_url("postgres://invalid_host_that_cannot_resolve:9999/nodb").await;
     assert!(result.is_err(), "should fail with an invalid/unreachable URL");
 }
