@@ -113,9 +113,7 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
                     format!("Invalid {SKILL_CONFIG_FILENAME}: {e}"),
                 )
                 .with_path(&config_path)
-                .with_suggestion(
-                    "Ensure config.yaml has required fields: id, name, description",
-                ),
+                .with_suggestion("Ensure config.yaml has required fields: id, name, description"),
             );
             return;
         },

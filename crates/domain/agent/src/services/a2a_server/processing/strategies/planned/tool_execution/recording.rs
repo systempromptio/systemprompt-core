@@ -2,8 +2,8 @@
 //! planned strategy's tool calls.
 
 use serde_json::Value;
-use systemprompt_models::ai::{ExecutionState, PlannedToolCall};
 use systemprompt_models::TrackedStep;
+use systemprompt_models::ai::{ExecutionState, PlannedToolCall};
 
 use crate::services::ExecutionTrackingService;
 

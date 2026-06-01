@@ -81,24 +81,35 @@ oauth:
 }
 
 pub(in crate::commands::cloud) fn ai_config(default_provider: &str) -> String {
+    let seed = systemprompt_models::profile::ProviderRegistry::default_seed().ok();
+    let default_model = |provider: &str| -> String {
+        seed.as_ref()
+            .and_then(|registry| registry.find_provider(provider))
+            .and_then(|entry| entry.models.first())
+            .map(|model| model.id.as_str().to_owned())
+            .unwrap_or_default()
+    };
     format!(
         r#"# AI Configuration
-default_provider: "{}"
+default_provider: "{provider}"
 
 providers:
   anthropic:
     enabled: true
-    default_model: "claude-sonnet-4-20250514"
+    default_model: "{anthropic}"
 
   openai:
     enabled: true
-    default_model: "gpt-4o"
+    default_model: "{openai}"
 
   gemini:
     enabled: true
-    default_model: "gemini-2.0-flash"
+    default_model: "{gemini}"
 "#,
-        default_provider
+        provider = default_provider,
+        anthropic = default_model("anthropic"),
+        openai = default_model("openai"),
+        gemini = default_model("gemini"),
     )
 }
 

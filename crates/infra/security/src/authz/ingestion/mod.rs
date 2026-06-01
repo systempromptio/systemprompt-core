@@ -207,4 +207,3 @@ impl AccessControlIngestionService {
         Ok(report)
     }
 }
-

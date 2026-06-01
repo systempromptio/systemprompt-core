@@ -3,7 +3,8 @@
 //! These run only on the interactive path; the non-interactive collector reads
 //! keys straight from flags. [`select_provider_keys`] returns the explicit
 //! default when the user picks a single provider, and `None` when they enter
-//! several keys (the default is then resolved by [`resolve_interactive_primary`]).
+//! several keys (the default is then resolved by
+//! [`resolve_interactive_primary`]).
 
 use anyhow::{Result, anyhow};
 use dialoguer::theme::ColorfulTheme;

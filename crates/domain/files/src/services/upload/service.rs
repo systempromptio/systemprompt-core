@@ -98,8 +98,15 @@ impl FileUploadService {
 
         let public_url = self.files_config.upload_url(&relative_path);
 
-        self.record_file(&file_id, &storage_path, &public_url, size_bytes, &request, sha256)
-            .await?;
+        self.record_file(
+            &file_id,
+            &storage_path,
+            &public_url,
+            size_bytes,
+            &request,
+            sha256,
+        )
+        .await?;
 
         Ok(UploadedFile {
             file_id,

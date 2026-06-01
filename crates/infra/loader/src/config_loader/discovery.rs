@@ -5,9 +5,9 @@
 //! folds each entry into the merged [`ServicesConfig`] so that
 //! `skills.include` / `plugins.include` references resolve at validation time.
 //!
-//! `base_path` is the parent of the root `config.yaml` (i.e. `<services>/config`),
-//! so each catalog directory is its grandparent's child — resolved via
-//! [`catalog_dir`].
+//! `base_path` is the parent of the root `config.yaml` (i.e.
+//! `<services>/config`), so each catalog directory is its grandparent's child —
+//! resolved via [`catalog_dir`].
 
 use std::fs;
 use std::path::{Path, PathBuf};

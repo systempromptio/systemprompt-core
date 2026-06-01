@@ -8,11 +8,11 @@
 mod recording;
 
 use crate::services::shared::{AgentServiceError, Result};
+use systemprompt_identifiers::TaskId;
 use systemprompt_models::ai::{
     GenerateResponseParams, PlanValidationError, PlannedToolCall, TemplateValidator,
 };
 use systemprompt_models::{AiMessage, ExecutionStep, McpTool, PlannedTool, TrackedStep};
-use systemprompt_identifiers::TaskId;
 
 use super::super::plan_executor::{
     convert_to_call_tool_results, convert_to_tool_calls, execute_tools_with_templates,
@@ -62,7 +62,14 @@ pub(super) async fn handle_tool_calls(
         })
         .collect();
 
-    emit_planning_complete(tracking, planning_tracked, reasoning, planned_tools, context).await;
+    emit_planning_complete(
+        tracking,
+        planning_tracked,
+        reasoning,
+        planned_tools,
+        context,
+    )
+    .await;
 
     let tool_output_schemas = TemplateValidator::get_tool_output_schemas(&calls, &tools);
     if let Err(validation_errors) = TemplateValidator::validate_plan(&calls, &tool_output_schemas) {
