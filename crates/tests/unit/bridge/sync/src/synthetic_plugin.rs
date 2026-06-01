@@ -1,9 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::auth::plugin_oauth::{CachedHookToken, global_cache};
 use systemprompt_bridge::config::paths::SYNTHETIC_PLUGIN_NAME;
-use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
 };
@@ -13,21 +11,6 @@ use systemprompt_bridge::ids::{
 };
 use systemprompt_bridge::sync::write_synthetic_plugin;
 use systemprompt_test_fixtures::fixture_user_id;
-
-async fn prime_token_cache() {
-    let cache = global_cache().await;
-    cache.put(
-        &systemprompt_identifiers::PluginId::new(SYNTHETIC_PLUGIN_NAME),
-        CachedHookToken {
-            access_token: "test-token".into(),
-            expires_at_unix: u64::MAX,
-        },
-    );
-}
-
-fn stub_client() -> GatewayClient {
-    GatewayClient::new(ValidatedUrl::try_new("http://127.0.0.1:0").unwrap())
-}
 
 fn tempdir() -> PathBuf {
     let mut p = std::env::temp_dir();
@@ -117,15 +100,12 @@ fn synthetic_root(root: &Path) -> PathBuf {
     root.join(SYNTHETIC_PLUGIN_NAME)
 }
 
-#[tokio::test]
-async fn writes_skill_to_claude_desktop_visible_path() {
-    prime_token_cache().await;
+#[test]
+fn writes_skill_to_claude_desktop_visible_path() {
     let root = tempdir();
     let m = manifest_with(vec![skill("example-search", "# Hello\n")], vec![], vec![]);
 
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &m)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &m).unwrap();
 
     let plugin_json = synthetic_root(&root)
         .join(".claude-plugin")
@@ -147,16 +127,13 @@ async fn writes_skill_to_claude_desktop_visible_path() {
     assert!(body.contains("# Hello"));
 }
 
-#[tokio::test]
-async fn passthrough_skill_with_existing_frontmatter_preserves_body() {
-    prime_token_cache().await;
+#[test]
+fn passthrough_skill_with_existing_frontmatter_preserves_body() {
     let root = tempdir();
     let already = "---\nname: pre-existing\ndescription: keep me\n---\n\n# Body\n";
     let m = manifest_with(vec![skill("pre-existing", already)], vec![], vec![]);
 
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &m)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &m).unwrap();
 
     let body = fs::read_to_string(
         synthetic_root(&root)
@@ -168,15 +145,12 @@ async fn passthrough_skill_with_existing_frontmatter_preserves_body() {
     assert_eq!(body, already);
 }
 
-#[tokio::test]
-async fn writes_agent_as_md_file_with_frontmatter() {
-    prime_token_cache().await;
+#[test]
+fn writes_agent_as_md_file_with_frontmatter() {
     let root = tempdir();
     let m = manifest_with(vec![], vec![agent("triage")], vec![]);
 
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &m)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &m).unwrap();
 
     let agent_md = synthetic_root(&root).join("agents").join("triage.md");
     assert!(agent_md.is_file());
@@ -186,9 +160,8 @@ async fn writes_agent_as_md_file_with_frontmatter() {
     assert!(body.contains("You are triage."));
 }
 
-#[tokio::test]
-async fn synthetic_plugin_does_not_write_mcp_json() {
-    prime_token_cache().await;
+#[test]
+fn synthetic_plugin_does_not_write_mcp_json() {
     let root = tempdir();
     // The MDM emitter owns the MCP channel; the synthetic plugin carries only
     // skills, agents, and hooks. MCP servers in the manifest must NOT produce a
@@ -200,9 +173,7 @@ async fn synthetic_plugin_does_not_write_mcp_json() {
         vec![mcp("primary", "https://mcp.example.invalid/api")],
     );
 
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &m)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &m).unwrap();
 
     assert!(
         synthetic_root(&root).is_dir(),
@@ -214,29 +185,23 @@ async fn synthetic_plugin_does_not_write_mcp_json() {
     );
 }
 
-#[tokio::test]
-async fn empty_manifest_removes_synthetic_plugin() {
-    prime_token_cache().await;
+#[test]
+fn empty_manifest_removes_synthetic_plugin() {
     let root = tempdir();
     let with = manifest_with(vec![skill("doomed", "# x\n")], vec![], vec![]);
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &with)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &with).unwrap();
     assert!(synthetic_root(&root).is_dir());
 
     let empty = manifest_with(vec![], vec![], vec![]);
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &empty)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &empty).unwrap();
     assert!(
         !synthetic_root(&root).exists(),
         "synthetic plugin should be removed when manifest has no managed content"
     );
 }
 
-#[tokio::test]
-async fn reapply_replaces_skills_surgically() {
-    prime_token_cache().await;
+#[test]
+fn reapply_replaces_skills_surgically() {
     let root = tempdir();
 
     let first = manifest_with(
@@ -244,9 +209,7 @@ async fn reapply_replaces_skills_surgically() {
         vec![],
         vec![],
     );
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &first)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &first).unwrap();
 
     let alpha_path = synthetic_root(&root).join("skills").join("alpha");
     let beta_path = synthetic_root(&root).join("skills").join("beta");
@@ -254,9 +217,7 @@ async fn reapply_replaces_skills_surgically() {
     assert!(beta_path.is_dir());
 
     let second = manifest_with(vec![skill("alpha", "# alpha v2\n")], vec![], vec![]);
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &second)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &second).unwrap();
 
     assert!(alpha_path.is_dir(), "alpha should still be present");
     assert!(
@@ -271,18 +232,15 @@ async fn reapply_replaces_skills_surgically() {
     );
 }
 
-#[tokio::test]
-async fn does_not_touch_sibling_real_plugin_dir() {
-    prime_token_cache().await;
+#[test]
+fn does_not_touch_sibling_real_plugin_dir() {
     let root = tempdir();
     let real = root.join("real-plugin");
     fs::create_dir_all(real.join(".claude-plugin")).unwrap();
     fs::write(real.join(".claude-plugin").join("plugin.json"), "{}").unwrap();
 
     let m = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
-    write_synthetic_plugin(&stub_client(), "test-bearer", &root, &m)
-        .await
-        .unwrap();
+    write_synthetic_plugin(&root, &m).unwrap();
 
     assert!(real.join(".claude-plugin").join("plugin.json").is_file());
 }
