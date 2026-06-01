@@ -67,6 +67,17 @@ impl DomainConfig for AgentConfigValidator {
             );
         }
 
+        Self::validate_port_uniqueness(config, &mut report);
+        for (name, agent) in &config.agents {
+            Self::validate_agent(name, agent, config, skills_path, &mut report);
+        }
+
+        Ok(report)
+    }
+}
+
+impl AgentConfigValidator {
+    fn validate_port_uniqueness(config: &ServicesConfig, report: &mut ValidationReport) {
         let mut used_ports: HashMap<u16, String> = HashMap::new();
         for (name, agent) in &config.agents {
             if let Some(existing) = used_ports.get(&agent.port) {
@@ -81,66 +92,80 @@ impl DomainConfig for AgentConfigValidator {
                 used_ports.insert(agent.port, name.clone());
             }
         }
+    }
 
-        for (name, agent) in &config.agents {
-            if agent.name.is_empty() {
-                report.add_error(ValidationError::new(
-                    format!("agents.{}.name", name),
-                    "Agent name cannot be empty",
-                ));
-            }
+    fn validate_agent(
+        name: &str,
+        agent: &crate::services::AgentConfig,
+        config: &ServicesConfig,
+        skills_path: &str,
+        report: &mut ValidationReport,
+    ) {
+        if agent.name.is_empty() {
+            report.add_error(ValidationError::new(
+                format!("agents.{}.name", name),
+                "Agent name cannot be empty",
+            ));
+        }
 
-            // NOTE: `agent.card.skills` is deprecated and no longer the source
-            // of truth — the A2A endpoint and the bridge marketplace derive
-            // the card's skills list from `agent.metadata.skills` joined
-            // against the on-disk `services/skills/` catalog. Only
-            // `metadata.skills` is validated here.
+        // NOTE: `agent.card.skills` is deprecated and no longer the source
+        // of truth — the A2A endpoint and the bridge marketplace derive
+        // the card's skills list from `agent.metadata.skills` joined
+        // against the on-disk `services/skills/` catalog. Only
+        // `metadata.skills` is validated here.
 
-            for skill_id in &agent.metadata.skills.include {
-                let skill_path = Path::new(skills_path).join(skill_id);
-                if !skill_path.exists() {
-                    report.add_error(
-                        ValidationError::new(
-                            format!("agents.{}.metadata.skills", name),
-                            format!("Skill '{}' directory not found", skill_id),
-                        )
-                        .with_path(&skill_path)
-                        .with_suggestion("Create the skill directory or remove it from the agent"),
-                    );
-                }
-            }
-
-            for mcp_server in &agent.metadata.mcp_servers.include {
-                if !config.mcp_servers.contains_key(mcp_server) {
-                    report.add_error(
-                        ValidationError::new(
-                            format!("agents.{}.metadata.mcp_servers", name),
-                            format!("MCP server '{}' is not defined", mcp_server),
-                        )
-                        .with_suggestion(
-                            "Define the MCP server in mcp_servers or remove it from the agent",
-                        ),
-                    );
-                } else if let Some(mcp_config) = config.mcp_servers.get(mcp_server) {
-                    if mcp_config.dev_only && !agent.dev_only {
-                        report.add_error(
-                            ValidationError::new(
-                                format!("agents.{}.metadata.mcp_servers", name),
-                                format!(
-                                    "Production agent '{}' references dev-only MCP server '{}'",
-                                    name, mcp_server
-                                ),
-                            )
-                            .with_suggestion(
-                                "Either mark the agent as dev_only: true, or use a production MCP \
-                                 server",
-                            ),
-                        );
-                    }
-                }
+        for skill_id in &agent.metadata.skills.include {
+            let skill_path = Path::new(skills_path).join(skill_id);
+            if !skill_path.exists() {
+                report.add_error(
+                    ValidationError::new(
+                        format!("agents.{}.metadata.skills", name),
+                        format!("Skill '{}' directory not found", skill_id),
+                    )
+                    .with_path(&skill_path)
+                    .with_suggestion("Create the skill directory or remove it from the agent"),
+                );
             }
         }
 
-        Ok(report)
+        for mcp_server in &agent.metadata.mcp_servers.include {
+            Self::validate_agent_mcp_ref(name, agent, mcp_server, config, report);
+        }
+    }
+
+    fn validate_agent_mcp_ref(
+        name: &str,
+        agent: &crate::services::AgentConfig,
+        mcp_server: &str,
+        config: &ServicesConfig,
+        report: &mut ValidationReport,
+    ) {
+        let Some(mcp_config) = config.mcp_servers.get(mcp_server) else {
+            report.add_error(
+                ValidationError::new(
+                    format!("agents.{}.metadata.mcp_servers", name),
+                    format!("MCP server '{}' is not defined", mcp_server),
+                )
+                .with_suggestion(
+                    "Define the MCP server in mcp_servers or remove it from the agent",
+                ),
+            );
+            return;
+        };
+
+        if mcp_config.dev_only && !agent.dev_only {
+            report.add_error(
+                ValidationError::new(
+                    format!("agents.{}.metadata.mcp_servers", name),
+                    format!(
+                        "Production agent '{}' references dev-only MCP server '{}'",
+                        name, mcp_server
+                    ),
+                )
+                .with_suggestion(
+                    "Either mark the agent as dev_only: true, or use a production MCP server",
+                ),
+            );
+        }
     }
 }

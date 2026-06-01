@@ -74,63 +74,11 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
         parents,
     } = input;
 
-    let user_match =
-        |r: &AccessRule| r.rule_type == RuleType::User && r.rule_value == user_id.as_str();
-    let role_match = |r: &AccessRule| {
-        r.rule_type == RuleType::Role && user_roles.iter().any(|role| role == &r.rule_value)
-    };
-
-    let match_rules = |target: &EntityRef, ruleset: &[AccessRule]| -> Option<Decision> {
-        if let Some(rule) = ruleset
-            .iter()
-            .find(|r| user_match(r) && r.access == Access::Deny)
-        {
-            return Some(Decision::Deny {
-                reason: DenyReason::UserDeny {
-                    entity: target.clone(),
-                    user_id: user_id.clone(),
-                    justification: rule.justification.clone(),
-                },
-            });
-        }
-        if ruleset
-            .iter()
-            .any(|r| user_match(r) && r.access == Access::Allow)
-        {
-            return Some(Decision::Allow {
-                matched_by: MatchedBy::UserAllow,
-            });
-        }
-        if let Some(rule) = ruleset
-            .iter()
-            .find(|r| role_match(r) && r.access == Access::Deny)
-        {
-            return Some(Decision::Deny {
-                reason: DenyReason::RoleDeny {
-                    entity: target.clone(),
-                    role: rule.rule_value.clone(),
-                    justification: rule.justification.clone(),
-                },
-            });
-        }
-        if let Some(rule) = ruleset
-            .iter()
-            .find(|r| role_match(r) && r.access == Access::Allow)
-        {
-            return Some(Decision::Allow {
-                matched_by: MatchedBy::RoleAllow {
-                    role: rule.rule_value.clone(),
-                },
-            });
-        }
-        None
-    };
-
-    if let Some(decision) = match_rules(entity, rules) {
+    if let Some(decision) = match_ruleset(entity, rules, user_id, user_roles) {
         return decision;
     }
     for parent in parents {
-        if let Some(decision) = match_rules(parent.entity, parent.rules) {
+        if let Some(decision) = match_ruleset(parent.entity, parent.rules, user_id, user_roles) {
             return decision;
         }
     }
@@ -163,4 +111,61 @@ pub fn resolve(input: ResolveInput<'_>) -> Decision {
             roles: user_roles.to_vec(),
         },
     }
+}
+
+fn match_ruleset(
+    target: &EntityRef,
+    ruleset: &[AccessRule],
+    user_id: &UserId,
+    user_roles: &[String],
+) -> Option<Decision> {
+    let user_match =
+        |r: &AccessRule| r.rule_type == RuleType::User && r.rule_value == user_id.as_str();
+    let role_match = |r: &AccessRule| {
+        r.rule_type == RuleType::Role && user_roles.iter().any(|role| role == &r.rule_value)
+    };
+
+    if let Some(rule) = ruleset
+        .iter()
+        .find(|r| user_match(r) && r.access == Access::Deny)
+    {
+        return Some(Decision::Deny {
+            reason: DenyReason::UserDeny {
+                entity: target.clone(),
+                user_id: user_id.clone(),
+                justification: rule.justification.clone(),
+            },
+        });
+    }
+    if ruleset
+        .iter()
+        .any(|r| user_match(r) && r.access == Access::Allow)
+    {
+        return Some(Decision::Allow {
+            matched_by: MatchedBy::UserAllow,
+        });
+    }
+    if let Some(rule) = ruleset
+        .iter()
+        .find(|r| role_match(r) && r.access == Access::Deny)
+    {
+        return Some(Decision::Deny {
+            reason: DenyReason::RoleDeny {
+                entity: target.clone(),
+                role: rule.rule_value.clone(),
+                justification: rule.justification.clone(),
+            },
+        });
+    }
+    if let Some(rule) = ruleset
+        .iter()
+        .find(|r| role_match(r) && r.access == Access::Allow)
+    {
+        return Some(Decision::Allow {
+            matched_by: MatchedBy::RoleAllow {
+                role: rule.rule_value.clone(),
+            },
+        });
+    }
+    None
 }

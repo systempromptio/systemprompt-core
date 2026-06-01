@@ -38,6 +38,17 @@ pub struct ToolExecution {
     pub created_at: DateTime<Utc>,
 }
 
+fn parse_json_column(row: &HashMap<String, JsonValue>, key: &str) -> Option<JsonValue> {
+    row.get(key).and_then(|v| v.as_str()).and_then(|s| {
+        serde_json::from_str(s)
+            .map_err(|e| {
+                tracing::warn!(error = %e, raw = %s, key = %key, "Failed to parse tool JSON column");
+                e
+            })
+            .ok()
+    })
+}
+
 impl ToolExecution {
     pub fn from_json_row(row: &HashMap<String, JsonValue>) -> Result<Self, RowParseError> {
         let id = row
@@ -70,27 +81,8 @@ impl ToolExecution {
             .ok_or(RowParseError::Missing("service_id"))
             .map(McpServerId::new)?;
 
-        let input = row
-            .get("input")
-            .and_then(|v| v.as_str())
-            .and_then(|s| {
-                serde_json::from_str(s)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, raw = %s, "Failed to parse tool input JSON");
-                        e
-                    })
-                    .ok()
-            })
-            .unwrap_or(JsonValue::Null);
-
-        let output = row.get("output").and_then(|v| v.as_str()).and_then(|s| {
-            serde_json::from_str(s)
-                .map_err(|e| {
-                    tracing::warn!(error = %e, raw = %s, "Failed to parse tool output JSON");
-                    e
-                })
-                .ok()
-        });
+        let input = parse_json_column(row, "input").unwrap_or(JsonValue::Null);
+        let output = parse_json_column(row, "output");
 
         let status = row
             .get("status")

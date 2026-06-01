@@ -176,64 +176,63 @@ impl WebConfigValidator {
             return;
         };
 
-        if branding.copyright.as_ref().is_none_or(String::is_empty) {
-            report.add_error(
-                ValidationError::new(
-                    "web_config.branding.copyright",
-                    "Missing required field 'copyright'",
-                )
-                .with_suggestion("Add 'copyright: \"© 2024 Your Company\"' under branding"),
-            );
-        }
-
-        if branding
-            .twitter_handle
-            .as_ref()
-            .is_none_or(String::is_empty)
-        {
-            report.add_error(
-                ValidationError::new(
-                    "web_config.branding.twitter_handle",
-                    "Missing required field 'twitter_handle'",
-                )
-                .with_suggestion("Add 'twitter_handle: \"@yourhandle\"' under branding"),
-            );
-        }
-
-        if branding.display_sitename.is_none() {
-            report.add_error(
-                ValidationError::new(
-                    "web_config.branding.display_sitename",
-                    "Missing required field 'display_sitename'",
-                )
-                .with_suggestion("Add 'display_sitename: true' under branding"),
-            );
-        }
-
-        if branding.favicon.as_ref().is_none_or(String::is_empty) {
-            report.add_error(
-                ValidationError::new(
-                    "web_config.branding.favicon",
-                    "Missing required field 'favicon'",
-                )
-                .with_suggestion("Add 'favicon: \"/favicon.ico\"' under branding"),
-            );
-        }
+        require_branding_field(
+            report,
+            branding.copyright.as_ref().is_none_or(String::is_empty),
+            "web_config.branding.copyright",
+            "Missing required field 'copyright'",
+            "Add 'copyright: \"© 2024 Your Company\"' under branding",
+        );
+        require_branding_field(
+            report,
+            branding
+                .twitter_handle
+                .as_ref()
+                .is_none_or(String::is_empty),
+            "web_config.branding.twitter_handle",
+            "Missing required field 'twitter_handle'",
+            "Add 'twitter_handle: \"@yourhandle\"' under branding",
+        );
+        require_branding_field(
+            report,
+            branding.display_sitename.is_none(),
+            "web_config.branding.display_sitename",
+            "Missing required field 'display_sitename'",
+            "Add 'display_sitename: true' under branding",
+        );
+        require_branding_field(
+            report,
+            branding.favicon.as_ref().is_none_or(String::is_empty),
+            "web_config.branding.favicon",
+            "Missing required field 'favicon'",
+            "Add 'favicon: \"/favicon.ico\"' under branding",
+        );
 
         let logo_svg = branding
             .logo
             .as_ref()
             .and_then(|l| l.primary.as_ref())
             .and_then(|p| p.svg.as_ref());
+        require_branding_field(
+            report,
+            logo_svg.is_none_or(String::is_empty),
+            "web_config.branding.logo.primary.svg",
+            "Missing required field 'logo.primary.svg'",
+            "Add 'logo: { primary: { svg: \"/logo.svg\" } }' under branding",
+        );
+    }
+}
 
-        if logo_svg.is_none_or(String::is_empty) {
-            report.add_error(
-                ValidationError::new(
-                    "web_config.branding.logo.primary.svg",
-                    "Missing required field 'logo.primary.svg'",
-                )
-                .with_suggestion("Add 'logo: { primary: { svg: \"/logo.svg\" } }' under branding"),
-            );
-        }
+fn require_branding_field(
+    report: &mut ValidationReport,
+    missing: bool,
+    field: &str,
+    message: &str,
+    suggestion: &str,
+) {
+    if missing {
+        report.add_error(
+            ValidationError::new(field, message).with_suggestion(suggestion),
+        );
     }
 }

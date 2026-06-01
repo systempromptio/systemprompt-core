@@ -21,27 +21,8 @@ impl ValidatedUrl {
             IdValidationError::invalid("ValidatedUrl", "must have a scheme (e.g., 'https://')")
         })?;
         let scheme = &value[..scheme_end];
-        if scheme.is_empty() {
-            return Err(IdValidationError::invalid(
-                "ValidatedUrl",
-                "scheme cannot be empty",
-            ));
-        }
-        if !scheme
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
-        {
-            return Err(IdValidationError::invalid(
-                "ValidatedUrl",
-                "scheme contains invalid characters",
-            ));
-        }
-        if !scheme.starts_with(|c: char| c.is_ascii_alphabetic()) {
-            return Err(IdValidationError::invalid(
-                "ValidatedUrl",
-                "scheme must start with a letter",
-            ));
-        }
+        validate_scheme(scheme)?;
+
         let after_scheme = &value[scheme_end + 3..];
         if after_scheme.is_empty() {
             return Err(IdValidationError::invalid(
@@ -49,53 +30,7 @@ impl ValidatedUrl {
                 "URL must have a host component",
             ));
         }
-        let host_end = after_scheme.find('/').unwrap_or(after_scheme.len());
-        let authority = &after_scheme[..host_end];
-        let host_part = authority
-            .rfind('@')
-            .map_or(authority, |i| &authority[i + 1..]);
-
-        let host = if host_part.starts_with('[') {
-            let bracket_end = host_part.find(']').ok_or_else(|| {
-                IdValidationError::invalid("ValidatedUrl", "IPv6 address missing closing bracket")
-            })?;
-            &host_part[..=bracket_end]
-        } else {
-            host_part.split(':').next().unwrap_or(host_part)
-        };
-
-        if host.starts_with('[') && host.ends_with(']') {
-            let ipv6_content = &host[1..host.len() - 1];
-            if ipv6_content.is_empty() {
-                return Err(IdValidationError::invalid(
-                    "ValidatedUrl",
-                    "IPv6 address cannot be empty",
-                ));
-            }
-        }
-
-        if host_part.contains("]:") || (!host_part.starts_with('[') && host_part.contains(':')) {
-            let port_part = if host_part.starts_with('[') {
-                host_part.rsplit("]:").next()
-            } else {
-                host_part.split(':').nth(1)
-            };
-            if let Some(port) = port_part {
-                if port.is_empty() || port.starts_with('/') {
-                    return Err(IdValidationError::invalid(
-                        "ValidatedUrl",
-                        "port cannot be empty when ':' is present",
-                    ));
-                }
-            }
-        }
-
-        if host.is_empty() && !scheme.eq_ignore_ascii_case("file") {
-            return Err(IdValidationError::invalid(
-                "ValidatedUrl",
-                "host cannot be empty",
-            ));
-        }
+        validate_authority(after_scheme, scheme)?;
         Ok(Self(value))
     }
 
@@ -133,6 +68,82 @@ impl ValidatedUrl {
         let scheme = self.scheme().to_ascii_lowercase();
         scheme == "http" || scheme == "https"
     }
+}
+
+fn validate_scheme(scheme: &str) -> Result<(), IdValidationError> {
+    if scheme.is_empty() {
+        return Err(IdValidationError::invalid(
+            "ValidatedUrl",
+            "scheme cannot be empty",
+        ));
+    }
+    if !scheme
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+    {
+        return Err(IdValidationError::invalid(
+            "ValidatedUrl",
+            "scheme contains invalid characters",
+        ));
+    }
+    if !scheme.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        return Err(IdValidationError::invalid(
+            "ValidatedUrl",
+            "scheme must start with a letter",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_authority(after_scheme: &str, scheme: &str) -> Result<(), IdValidationError> {
+    let host_end = after_scheme.find('/').unwrap_or(after_scheme.len());
+    let authority = &after_scheme[..host_end];
+    let host_part = authority
+        .rfind('@')
+        .map_or(authority, |i| &authority[i + 1..]);
+
+    let host = if host_part.starts_with('[') {
+        let bracket_end = host_part.find(']').ok_or_else(|| {
+            IdValidationError::invalid("ValidatedUrl", "IPv6 address missing closing bracket")
+        })?;
+        &host_part[..=bracket_end]
+    } else {
+        host_part.split(':').next().unwrap_or(host_part)
+    };
+
+    if host.starts_with('[') && host.ends_with(']') {
+        let ipv6_content = &host[1..host.len() - 1];
+        if ipv6_content.is_empty() {
+            return Err(IdValidationError::invalid(
+                "ValidatedUrl",
+                "IPv6 address cannot be empty",
+            ));
+        }
+    }
+
+    if host_part.contains("]:") || (!host_part.starts_with('[') && host_part.contains(':')) {
+        let port_part = if host_part.starts_with('[') {
+            host_part.rsplit("]:").next()
+        } else {
+            host_part.split(':').nth(1)
+        };
+        if let Some(port) = port_part {
+            if port.is_empty() || port.starts_with('/') {
+                return Err(IdValidationError::invalid(
+                    "ValidatedUrl",
+                    "port cannot be empty when ':' is present",
+                ));
+            }
+        }
+    }
+
+    if host.is_empty() && !scheme.eq_ignore_ascii_case("file") {
+        return Err(IdValidationError::invalid(
+            "ValidatedUrl",
+            "host cannot be empty",
+        ));
+    }
+    Ok(())
 }
 
 impl fmt::Display for ValidatedUrl {

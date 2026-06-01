@@ -109,27 +109,53 @@ pub fn render_table(headers: &[&str], rows: &[Vec<String>]) {
     render_table_border(&widths, "\u{2514}", "\u{2534}", "\u{2518}");
 }
 
+struct ServiceColumns {
+    name: usize,
+    service_type: usize,
+    port: usize,
+    status: usize,
+}
+
+impl ServiceColumns {
+    fn measure(services: &[ServiceTableEntry]) -> Self {
+        let name = services
+            .iter()
+            .map(|s| s.name.len())
+            .max()
+            .unwrap_or(4)
+            .max(4);
+        let service_type = services
+            .iter()
+            .map(|s| s.service_type.len())
+            .max()
+            .unwrap_or(4)
+            .max(4);
+        Self {
+            name,
+            service_type,
+            port: 5,
+            status: 10,
+        }
+    }
+
+    fn rule(&self, left: &str, middle: &str, right: &str) {
+        stdout_writeln(format_args!(
+            "{left}{}{middle}{}{middle}{}{middle}{}{right}",
+            "\u{2500}".repeat(self.name + 2),
+            "\u{2500}".repeat(self.service_type + 2),
+            "\u{2500}".repeat(self.port + 2),
+            "\u{2500}".repeat(self.status + 2)
+        ));
+    }
+}
+
 pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
     if services.is_empty() {
         return;
     }
 
-    let name_width = services
-        .iter()
-        .map(|s| s.name.len())
-        .max()
-        .unwrap_or(4)
-        .max(4);
-    let type_width = services
-        .iter()
-        .map(|s| s.service_type.len())
-        .max()
-        .unwrap_or(4)
-        .max(4);
-    let port_width = 5;
-    let status_width = 10;
-
-    let total_width = name_width + type_width + port_width + status_width + 13;
+    let cols = ServiceColumns::measure(services);
+    let total_width = cols.name + cols.service_type + cols.port + cols.status + 13;
 
     stdout_writeln(format_args!(""));
     stdout_writeln(format_args!(
@@ -142,14 +168,22 @@ pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
         width = total_width - 3
     ));
 
-    stdout_writeln(format_args!(
-        "\u{251c}{}\u{252c}{}\u{252c}{}\u{252c}{}\u{2524}",
-        "\u{2500}".repeat(name_width + 2),
-        "\u{2500}".repeat(type_width + 2),
-        "\u{2500}".repeat(port_width + 2),
-        "\u{2500}".repeat(status_width + 2)
-    ));
+    cols.rule("\u{251c}", "\u{252c}", "\u{2524}");
+    render_service_header(&cols);
+    cols.rule("\u{251c}", "\u{253c}", "\u{2524}");
 
+    for service in services {
+        render_service_row(service, &cols);
+    }
+
+    cols.rule("\u{2514}", "\u{2534}", "\u{2518}");
+}
+
+fn render_service_header(cols: &ServiceColumns) {
+    let name_width = cols.name;
+    let type_width = cols.service_type;
+    let port_width = cols.port;
+    let status_width = cols.status;
     stdout_writeln(format_args!(
         "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:<port_width$} \u{2502} \
          {:<status_width$} \u{2502}",
@@ -158,43 +192,32 @@ pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
         BrandColors::dim("Port"),
         BrandColors::dim("Status"),
     ));
+}
+
+fn render_service_row(service: &ServiceTableEntry, cols: &ServiceColumns) {
+    let name_width = cols.name;
+    let type_width = cols.service_type;
+    let port_width = cols.port;
+    let status_width = cols.status;
+
+    let port_str = service
+        .port
+        .map_or_else(|| "-".to_owned(), |p| p.to_string());
+
+    let status_display = format!("{} {}", service.status.symbol(), service.status.text());
+    let colored_status = match service.status {
+        ServiceStatus::Running => format!("{}", BrandColors::running(&status_display)),
+        ServiceStatus::Starting => format!("{}", BrandColors::starting(&status_display)),
+        ServiceStatus::Stopped | ServiceStatus::Failed => {
+            format!("{}", BrandColors::stopped(&status_display))
+        },
+        ServiceStatus::Unknown => format!("{}", BrandColors::dim(&status_display)),
+    };
 
     stdout_writeln(format_args!(
-        "\u{251c}{}\u{253c}{}\u{253c}{}\u{253c}{}\u{2524}",
-        "\u{2500}".repeat(name_width + 2),
-        "\u{2500}".repeat(type_width + 2),
-        "\u{2500}".repeat(port_width + 2),
-        "\u{2500}".repeat(status_width + 2)
-    ));
-
-    for service in services {
-        let port_str = service
-            .port
-            .map_or_else(|| "-".to_owned(), |p| p.to_string());
-
-        let status_display = format!("{} {}", service.status.symbol(), service.status.text());
-        let colored_status = match service.status {
-            ServiceStatus::Running => format!("{}", BrandColors::running(&status_display)),
-            ServiceStatus::Starting => format!("{}", BrandColors::starting(&status_display)),
-            ServiceStatus::Stopped | ServiceStatus::Failed => {
-                format!("{}", BrandColors::stopped(&status_display))
-            },
-            ServiceStatus::Unknown => format!("{}", BrandColors::dim(&status_display)),
-        };
-
-        stdout_writeln(format_args!(
-            "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
-             {:<status_width$} \u{2502}",
-            service.name, service.service_type, port_str, colored_status,
-        ));
-    }
-
-    stdout_writeln(format_args!(
-        "\u{2514}{}\u{2534}{}\u{2534}{}\u{2534}{}\u{2518}",
-        "\u{2500}".repeat(name_width + 2),
-        "\u{2500}".repeat(type_width + 2),
-        "\u{2500}".repeat(port_width + 2),
-        "\u{2500}".repeat(status_width + 2)
+        "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
+         {:<status_width$} \u{2502}",
+        service.name, service.service_type, port_str, colored_status,
     ));
 }
 

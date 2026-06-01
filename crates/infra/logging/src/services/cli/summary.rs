@@ -67,6 +67,17 @@ impl ValidationSummary {
     }
 }
 
+fn display_applied_group(label: &str, names: &[String]) {
+    if names.is_empty() {
+        return;
+    }
+    let displays: Vec<StatusDisplay> = names
+        .iter()
+        .map(|name| StatusDisplay::new(ItemStatus::Applied, name))
+        .collect();
+    CollectionDisplay::new(label, displays).display();
+}
+
 impl Display for ValidationSummary {
     fn display(&self) {
         DisplayUtils::section_header("Module Validation Summary");
@@ -76,58 +87,16 @@ impl Display for ValidationSummary {
                 .valid
                 .iter()
                 .map(|(name, version)| {
-                    let detail = format!("v{version}");
-                    StatusDisplay::new(ItemStatus::Valid, name).with_detail(detail)
+                    StatusDisplay::new(ItemStatus::Valid, name).with_detail(format!("v{version}"))
                 })
                 .collect();
-
-            let collection = CollectionDisplay::new("Valid modules", displays);
-            collection.display();
+            CollectionDisplay::new("Valid modules", displays).display();
         }
 
-        if !self.installed.is_empty() {
-            let displays: Vec<StatusDisplay> = self
-                .installed
-                .iter()
-                .map(|name| StatusDisplay::new(ItemStatus::Applied, name))
-                .collect();
-
-            let collection = CollectionDisplay::new("Newly installed", displays);
-            collection.display();
-        }
-
-        if !self.updated.is_empty() {
-            let displays: Vec<StatusDisplay> = self
-                .updated
-                .iter()
-                .map(|name| StatusDisplay::new(ItemStatus::Applied, name))
-                .collect();
-
-            let collection = CollectionDisplay::new("Updated modules", displays);
-            collection.display();
-        }
-
-        if !self.schemas_applied.is_empty() {
-            let displays: Vec<StatusDisplay> = self
-                .schemas_applied
-                .iter()
-                .map(|name| StatusDisplay::new(ItemStatus::Applied, name))
-                .collect();
-
-            let collection = CollectionDisplay::new("Schemas applied", displays);
-            collection.display();
-        }
-
-        if !self.seeds_applied.is_empty() {
-            let displays: Vec<StatusDisplay> = self
-                .seeds_applied
-                .iter()
-                .map(|name| StatusDisplay::new(ItemStatus::Applied, name))
-                .collect();
-
-            let collection = CollectionDisplay::new("Seeds applied", displays);
-            collection.display();
-        }
+        display_applied_group("Newly installed", &self.installed);
+        display_applied_group("Updated modules", &self.updated);
+        display_applied_group("Schemas applied", &self.schemas_applied);
+        display_applied_group("Seeds applied", &self.seeds_applied);
 
         if !self.disabled.is_empty() {
             let displays: Vec<StatusDisplay> = self
@@ -135,9 +104,7 @@ impl Display for ValidationSummary {
                 .iter()
                 .map(|name| StatusDisplay::new(ItemStatus::Disabled, name).with_detail("disabled"))
                 .collect();
-
-            let collection = CollectionDisplay::new("Disabled modules", displays);
-            collection.display();
+            CollectionDisplay::new("Disabled modules", displays).display();
         }
 
         let total_active = self.total_active();

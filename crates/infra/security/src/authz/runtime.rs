@@ -33,7 +33,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_models::net::validate_outbound_url;
-use systemprompt_models::profile::{AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT};
+use systemprompt_models::profile::{
+    AuthzConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
+};
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository, NullAuditSink};
 use super::composite::CompositeAuthzHook;
@@ -100,25 +102,32 @@ pub fn build_authz_hook(
             Ok(Arc::new(AllowAllHook::new(sink)))
         },
         (AuthzMode::Webhook, None) => {
-            let url = authz
-                .hook
-                .url
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
-                .to_owned();
-            validate_outbound_url(&url)
-                .map_err(|e| AuthzBootstrapError::InvalidWebhookUrl(e.to_string()))?;
-            let webhook = WebhookHook::new(
-                url,
-                Duration::from_millis(authz.hook.timeout_ms),
-                Arc::clone(&sink),
-            )?;
-            let webhook: SharedAuthzHook = Arc::new(webhook);
+            let webhook = build_webhook_hook(authz, &sink)?;
             Ok(compose_rule_based(pool, sink, vec![webhook]))
         },
     }
+}
+
+fn build_webhook_hook(
+    authz: &AuthzConfig,
+    sink: &Arc<dyn AuthzAuditSink>,
+) -> AuthzResult<SharedAuthzHook> {
+    let url = authz
+        .hook
+        .url
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
+        .to_owned();
+    validate_outbound_url(&url)
+        .map_err(|e| AuthzBootstrapError::InvalidWebhookUrl(e.to_string()))?;
+    let webhook = WebhookHook::new(
+        url,
+        Duration::from_millis(authz.hook.timeout_ms),
+        Arc::clone(sink),
+    )?;
+    Ok(Arc::new(webhook))
 }
 
 fn compose_rule_based(

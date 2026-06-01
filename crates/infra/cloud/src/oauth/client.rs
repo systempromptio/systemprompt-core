@@ -75,6 +75,59 @@ async fn callback_handler(
     }
 }
 
+async fn fetch_authorize_url(
+    api_url: &str,
+    provider: OAuthProvider,
+    redirect_uri: &str,
+) -> CloudResult<String> {
+    let client = Client::builder()
+        .connect_timeout(HTTP_CONNECT_TIMEOUT)
+        .timeout(HTTP_DEFAULT_TIMEOUT)
+        .build()?;
+    let oauth_endpoint = format!(
+        "{}/api/v1/auth/oauth/{}?redirect_uri={}",
+        api_url,
+        provider.as_str(),
+        urlencoding::encode(redirect_uri)
+    );
+
+    let response = client.get(&oauth_endpoint).send().await?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "Failed to read OAuth error response body");
+            format!("(body unreadable: {e})")
+        });
+        return Err(CloudError::OAuthFlow {
+            message: format!("Failed to get authorization URL ({status}): {body}"),
+        });
+    }
+
+    let auth_response: AuthorizeResponse = response.json().await?;
+    Ok(auth_response.authorize_url)
+}
+
+async fn await_callback(
+    listener: tokio::net::TcpListener,
+    app: Router,
+    rx: oneshot::Receiver<CloudResult<String>>,
+) -> CloudResult<String> {
+    let server = axum::serve(listener, app);
+
+    tokio::select! {
+        result = rx => {
+            result.map_err(|_e| CloudError::OAuthFlow { message: "Authentication cancelled".to_owned() })?
+        }
+        _ = server => {
+            Err(CloudError::OAuthFlow { message: "Server stopped unexpectedly".to_owned() })
+        }
+        () = tokio::time::sleep(std::time::Duration::from_secs(CALLBACK_TIMEOUT_SECS)) => {
+            Err(CloudError::OAuthFlow { message: format!("Authentication timed out after {CALLBACK_TIMEOUT_SECS} seconds") })
+        }
+    }
+}
+
 pub async fn run_oauth_flow(
     api_url: &str,
     provider: OAuthProvider,
@@ -98,34 +151,7 @@ pub async fn run_oauth_flow(
     let redirect_uri = format!("http://127.0.0.1:{CALLBACK_PORT}/callback");
 
     CliService::info("Fetching authorization URL...");
-
-    let client = Client::builder()
-        .connect_timeout(HTTP_CONNECT_TIMEOUT)
-        .timeout(HTTP_DEFAULT_TIMEOUT)
-        .build()?;
-    let oauth_endpoint = format!(
-        "{}/api/v1/auth/oauth/{}?redirect_uri={}",
-        api_url,
-        provider.as_str(),
-        urlencoding::encode(&redirect_uri)
-    );
-
-    let response = client.get(&oauth_endpoint).send().await?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_else(|e| {
-            tracing::warn!(error = %e, "Failed to read OAuth error response body");
-            format!("(body unreadable: {e})")
-        });
-        return Err(CloudError::OAuthFlow {
-            message: format!("Failed to get authorization URL ({status}): {body}"),
-        });
-    }
-
-    let auth_response: AuthorizeResponse = response.json().await?;
-
-    let auth_url = auth_response.authorize_url;
+    let auth_url = fetch_authorize_url(api_url, provider, &redirect_uri).await?;
 
     CliService::info(&format!(
         "Opening browser for {} authentication...",
@@ -142,17 +168,5 @@ pub async fn run_oauth_flow(
     CliService::info("Waiting for authentication...");
     CliService::info(&format!("(timeout in {CALLBACK_TIMEOUT_SECS} seconds)"));
 
-    let server = axum::serve(listener, app);
-
-    tokio::select! {
-        result = rx => {
-            result.map_err(|_e| CloudError::OAuthFlow { message: "Authentication cancelled".to_owned() })?
-        }
-        _ = server => {
-            Err(CloudError::OAuthFlow { message: "Server stopped unexpectedly".to_owned() })
-        }
-        () = tokio::time::sleep(std::time::Duration::from_secs(CALLBACK_TIMEOUT_SECS)) => {
-            Err(CloudError::OAuthFlow { message: format!("Authentication timed out after {CALLBACK_TIMEOUT_SECS} seconds") })
-        }
-    }
+    await_callback(listener, app, rx).await
 }

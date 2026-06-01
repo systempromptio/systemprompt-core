@@ -95,66 +95,86 @@ impl InjectContextHeaders for RequestContext {
     }
 }
 
+fn header_str<'h>(hdrs: &'h HeaderMap, name: &'static str) -> Option<&'h str> {
+    hdrs.get(name).and_then(|v| v.to_str().ok())
+}
+
+fn required_header<'h>(
+    hdrs: &'h HeaderMap,
+    name: &'static str,
+) -> ContextPropagationResult<&'h str> {
+    header_str(hdrs, name).ok_or_else(|| ContextPropagationError::MissingHeader(name.to_owned()))
+}
+
+fn apply_optional_execution_fields(mut ctx: RequestContext, hdrs: &HeaderMap) -> RequestContext {
+    if let Some(s) = header_str(hdrs, headers::TASK_ID) {
+        ctx = ctx.with_task_id(TaskId::new(s.to_owned()));
+    }
+    if let Some(s) = header_str(hdrs, headers::AI_TOOL_CALL_ID) {
+        ctx = ctx.with_ai_tool_call_id(AiToolCallId::new(s.to_owned()));
+    }
+    let call_source =
+        header_str(hdrs, headers::CALL_SOURCE).and_then(|s| CallSource::from_str(s).ok());
+    if let Some(cs) = call_source {
+        ctx = ctx.with_call_source(cs);
+    }
+    if let Some(s) = header_str(hdrs, headers::CLIENT_ID) {
+        ctx = ctx.with_client_id(ClientId::new(s.to_owned()));
+    }
+    let auth_token =
+        header_str(hdrs, headers::AUTHORIZATION).and_then(|s| s.strip_prefix("Bearer "));
+    if let Some(token) = auth_token {
+        ctx = ctx.with_auth_token(token.to_owned());
+    }
+    ctx
+}
+
+fn apply_proxy_verified_user(
+    mut ctx: RequestContext,
+    hdrs: &HeaderMap,
+    user_id: &str,
+) -> ContextPropagationResult<RequestContext> {
+    let proxy_verified = header_str(hdrs, headers::PROXY_VERIFIED).is_some_and(|v| v == "true");
+    if !proxy_verified {
+        return Ok(ctx);
+    }
+
+    let Some(permissions) = header_str(hdrs, headers::USER_PERMISSIONS)
+        .and_then(|s| crate::auth::parse_permissions(s).ok())
+    else {
+        return Ok(ctx);
+    };
+
+    let user_id_uuid =
+        user_id
+            .parse::<uuid::Uuid>()
+            .map_err(|e| ContextPropagationError::InvalidHeader {
+                name: headers::USER_ID.to_owned(),
+                message: format!("invalid UUID: {e}"),
+            })?;
+    let user = crate::auth::AuthenticatedUser::new(
+        user_id_uuid,
+        String::new(),
+        String::new(),
+        permissions,
+    );
+    ctx = ctx.with_user(user);
+    Ok(ctx)
+}
+
 impl ContextPropagation for RequestContext {
     fn from_headers(hdrs: &HeaderMap) -> ContextPropagationResult<Self> {
-        let session_id = hdrs
-            .get(headers::SESSION_ID)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                ContextPropagationError::MissingHeader(headers::SESSION_ID.to_owned())
-            })?;
+        let session_id = required_header(hdrs, headers::SESSION_ID)?;
+        let trace_id = required_header(hdrs, headers::TRACE_ID)?;
+        let user_id = required_header(hdrs, headers::USER_ID)?;
+        let agent_name = required_header(hdrs, headers::AGENT_NAME)?;
 
-        let trace_id = hdrs
-            .get(headers::TRACE_ID)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::TRACE_ID.to_owned()))?;
-
-        let user_id = hdrs
-            .get(headers::USER_ID)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| ContextPropagationError::MissingHeader(headers::USER_ID.to_owned()))?;
-
-        let context_id = hdrs
-            .get(headers::CONTEXT_ID)
-            .and_then(|v| v.to_str().ok())
+        let context_id = header_str(hdrs, headers::CONTEXT_ID)
             .filter(|s| !s.is_empty())
             .and_then(|s| ContextId::try_new(s).ok())
             .unwrap_or_else(ContextId::generate);
 
-        let agent_name = hdrs
-            .get(headers::AGENT_NAME)
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| {
-                ContextPropagationError::MissingHeader(headers::AGENT_NAME.to_owned())
-            })?;
-
-        let task_id = hdrs
-            .get(headers::TASK_ID)
-            .and_then(|v| v.to_str().ok())
-            .map(|s| TaskId::new(s.to_owned()));
-
-        let ai_tool_call_id = hdrs
-            .get(headers::AI_TOOL_CALL_ID)
-            .and_then(|v| v.to_str().ok())
-            .map(|s| AiToolCallId::new(s.to_owned()));
-
-        let call_source = hdrs
-            .get(headers::CALL_SOURCE)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| CallSource::from_str(s).ok());
-
-        let client_id = hdrs
-            .get(headers::CLIENT_ID)
-            .and_then(|v| v.to_str().ok())
-            .map(|s| ClientId::new(s.to_owned()));
-
-        let auth_token = hdrs
-            .get(headers::AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.strip_prefix("Bearer "))
-            .map(str::to_owned);
-
-        let mut ctx = Self::new(
+        let ctx = Self::new(
             SessionId::new(session_id.to_owned()),
             TraceId::new(trace_id.to_owned()),
             context_id,
@@ -162,54 +182,8 @@ impl ContextPropagation for RequestContext {
         )
         .with_actor(Actor::user(UserId::new(user_id.to_owned())));
 
-        if let Some(tid) = task_id {
-            ctx = ctx.with_task_id(tid);
-        }
-
-        if let Some(ai_id) = ai_tool_call_id {
-            ctx = ctx.with_ai_tool_call_id(ai_id);
-        }
-
-        if let Some(cs) = call_source {
-            ctx = ctx.with_call_source(cs);
-        }
-
-        if let Some(cid) = client_id {
-            ctx = ctx.with_client_id(cid);
-        }
-
-        if let Some(token) = auth_token {
-            ctx = ctx.with_auth_token(token);
-        }
-
-        let proxy_verified = hdrs
-            .get(headers::PROXY_VERIFIED)
-            .and_then(|v| v.to_str().ok())
-            .is_some_and(|v| v == "true");
-
-        if proxy_verified {
-            if let Some(permissions) = hdrs
-                .get(headers::USER_PERMISSIONS)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|s| crate::auth::parse_permissions(s).ok())
-            {
-                let user_id_uuid = user_id.parse::<uuid::Uuid>().map_err(|e| {
-                    ContextPropagationError::InvalidHeader {
-                        name: headers::USER_ID.to_owned(),
-                        message: format!("invalid UUID: {e}"),
-                    }
-                })?;
-                let user = crate::auth::AuthenticatedUser::new(
-                    user_id_uuid,
-                    String::new(),
-                    String::new(),
-                    permissions,
-                );
-                ctx = ctx.with_user(user);
-            }
-        }
-
-        Ok(ctx)
+        let ctx = apply_optional_execution_fields(ctx, hdrs);
+        apply_proxy_verified_user(ctx, hdrs, user_id)
     }
 
     fn to_headers(&self) -> HeaderMap {

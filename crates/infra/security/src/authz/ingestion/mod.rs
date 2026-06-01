@@ -10,19 +10,24 @@
 //! with `default_included = false` so the FK on `access_control_rules` is
 //! satisfied and the resolver does not treat the entity as `UnknownEntity`.
 
+mod upsert;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{MarketplaceId, RuleId};
+use systemprompt_identifiers::MarketplaceId;
 use systemprompt_models::services::MarketplaceConfig;
 
-use super::config::{AccessControlConfig, RuleEntry};
+use super::config::AccessControlConfig;
 use super::error::{AuthzError, AuthzResult};
 use super::types::{EntityKind, RuleType};
 
-const SOURCE_LABEL: &str = "ingestion:access_control_config";
+use upsert::{
+    Target, UpsertOutcome, expand_targets, upsert_entity_row, upsert_marketplace_entity_row,
+    upsert_target,
+};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestOptions {
@@ -203,155 +208,3 @@ impl AccessControlIngestionService {
     }
 }
 
-#[derive(Debug)]
-struct Target<'a> {
-    entity_kind: EntityKind,
-    entity_id: &'a str,
-    rule_type: RuleType,
-    rule_value: &'a str,
-    access: &'static str,
-    justification: Option<&'a str>,
-}
-
-fn expand_targets(rules: &[RuleEntry]) -> Vec<Target<'_>> {
-    let mut out = Vec::with_capacity(rules.len());
-    for rule in rules {
-        let access_str = match rule.access {
-            super::types::Access::Allow => "allow",
-            super::types::Access::Deny => "deny",
-        };
-        for role in &rule.roles {
-            out.push(Target {
-                entity_kind: rule.entity_type,
-                entity_id: rule.entity_id.as_str(),
-                rule_type: RuleType::Role,
-                rule_value: role.as_str(),
-                access: access_str,
-                justification: rule.justification.as_deref(),
-            });
-        }
-    }
-    out
-}
-
-#[derive(Debug, Clone, Copy)]
-enum UpsertOutcome {
-    Inserted,
-    Updated,
-    Skipped,
-}
-
-async fn upsert_entity_row(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    target: &Target<'_>,
-) -> AuthzResult<()> {
-    // Why: the rule FK requires the entity to exist; we never want to
-    // clobber an existing default_included flag set by a higher-priority
-    // loader (the publish-pipeline bootstrap pass), so this only inserts
-    // missing rows.
-    sqlx::query!(
-        r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ($1, $2, false, $3)
-        ON CONFLICT (entity_type, entity_id) DO NOTHING
-        "#,
-        target.entity_kind.as_str(),
-        target.entity_id,
-        SOURCE_LABEL,
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
-}
-
-async fn upsert_marketplace_entity_row(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    entity_id: &str,
-    default_included: bool,
-) -> AuthzResult<()> {
-    // Why: unlike the FK-satisfying stub in `upsert_entity_row`, a marketplace
-    // carries an authoritative `default_included` flag from its YAML, so this
-    // path owns the column and updates it on conflict.
-    let source = format!("marketplace:{entity_id}");
-    sqlx::query!(
-        r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ('marketplace', $1, $2, $3)
-        ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = EXCLUDED.default_included,
-                      source = EXCLUDED.source
-        "#,
-        entity_id,
-        default_included,
-        source,
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
-}
-
-async fn upsert_target(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    target: &Target<'_>,
-    override_existing: bool,
-) -> AuthzResult<UpsertOutcome> {
-    let existing = sqlx::query!(
-        r#"
-        SELECT id, access, justification
-        FROM access_control_rules
-        WHERE entity_type = $1 AND entity_id = $2
-          AND rule_type = $3 AND rule_value = $4
-        "#,
-        target.entity_kind.as_str(),
-        target.entity_id,
-        target.rule_type.to_string(),
-        target.rule_value,
-    )
-    .fetch_optional(&mut **tx)
-    .await?;
-
-    if let Some(row) = existing {
-        if !override_existing {
-            return Ok(UpsertOutcome::Skipped);
-        }
-        let unchanged =
-            row.access == target.access && row.justification.as_deref() == target.justification;
-        if unchanged {
-            return Ok(UpsertOutcome::Skipped);
-        }
-        sqlx::query!(
-            r#"
-            UPDATE access_control_rules
-            SET access = $2,
-                justification = $3,
-                updated_at = NOW()
-            WHERE id = $1
-            "#,
-            row.id,
-            target.access,
-            target.justification,
-        )
-        .execute(&mut **tx)
-        .await?;
-        Ok(UpsertOutcome::Updated)
-    } else {
-        let id = RuleId::generate();
-        sqlx::query!(
-            r#"
-            INSERT INTO access_control_rules
-                (id, entity_type, entity_id, rule_type, rule_value, access, justification)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            "#,
-            id.as_str(),
-            target.entity_kind.as_str(),
-            target.entity_id,
-            target.rule_type.to_string(),
-            target.rule_value,
-            target.access,
-            target.justification,
-        )
-        .execute(&mut **tx)
-        .await?;
-        Ok(UpsertOutcome::Inserted)
-    }
-}

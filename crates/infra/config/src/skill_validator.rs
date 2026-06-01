@@ -63,73 +63,74 @@ impl DomainConfig for SkillConfigValidator {
             let entry = entry.map_err(|e| {
                 DomainConfigError::LoadError(format!("Cannot read directory entry: {e}"))
             })?;
-
-            if !entry.path().is_dir() {
-                continue;
-            }
-
-            let dir_name = entry.file_name().to_string_lossy().to_string();
-            let config_path = entry.path().join(SKILL_CONFIG_FILENAME);
-
-            if !config_path.exists() {
-                report.add_error(
-                    ValidationError::new(
-                        format!("skills.{dir_name}"),
-                        format!("Missing {SKILL_CONFIG_FILENAME}"),
-                    )
-                    .with_path(&config_path)
-                    .with_suggestion("Add a config.yaml with id, name, and description"),
-                );
-                continue;
-            }
-
-            let config_text = match std::fs::read_to_string(&config_path) {
-                Ok(text) => text,
-                Err(e) => {
-                    report.add_error(
-                        ValidationError::new(
-                            format!("skills.{dir_name}"),
-                            format!("Cannot read {SKILL_CONFIG_FILENAME}: {e}"),
-                        )
-                        .with_path(&config_path),
-                    );
-                    continue;
-                },
-            };
-
-            let config: DiskSkillConfig = match serde_yaml::from_str(&config_text) {
-                Ok(cfg) => cfg,
-                Err(e) => {
-                    report.add_error(
-                        ValidationError::new(
-                            format!("skills.{dir_name}"),
-                            format!("Invalid {SKILL_CONFIG_FILENAME}: {e}"),
-                        )
-                        .with_path(&config_path)
-                        .with_suggestion(
-                            "Ensure config.yaml has required fields: id, name, description",
-                        ),
-                    );
-                    continue;
-                },
-            };
-
-            let content_file = config.content_file();
-            let content_path = entry.path().join(content_file);
-            if !content_path.exists() {
-                report.add_error(
-                    ValidationError::new(
-                        format!("skills.{dir_name}.file"),
-                        format!("Content file '{content_file}' not found"),
-                    )
-                    .with_path(&content_path)
-                    .with_suggestion(
-                        "Create the content file or update the file field in config.yaml",
-                    ),
-                );
-            }
+            validate_skill_entry(&entry, &mut report);
         }
 
         Ok(report)
+    }
+}
+
+fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport) {
+    if !entry.path().is_dir() {
+        return;
+    }
+
+    let dir_name = entry.file_name().to_string_lossy().to_string();
+    let config_path = entry.path().join(SKILL_CONFIG_FILENAME);
+
+    if !config_path.exists() {
+        report.add_error(
+            ValidationError::new(
+                format!("skills.{dir_name}"),
+                format!("Missing {SKILL_CONFIG_FILENAME}"),
+            )
+            .with_path(&config_path)
+            .with_suggestion("Add a config.yaml with id, name, and description"),
+        );
+        return;
+    }
+
+    let config_text = match std::fs::read_to_string(&config_path) {
+        Ok(text) => text,
+        Err(e) => {
+            report.add_error(
+                ValidationError::new(
+                    format!("skills.{dir_name}"),
+                    format!("Cannot read {SKILL_CONFIG_FILENAME}: {e}"),
+                )
+                .with_path(&config_path),
+            );
+            return;
+        },
+    };
+
+    let config: DiskSkillConfig = match serde_yaml::from_str(&config_text) {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            report.add_error(
+                ValidationError::new(
+                    format!("skills.{dir_name}"),
+                    format!("Invalid {SKILL_CONFIG_FILENAME}: {e}"),
+                )
+                .with_path(&config_path)
+                .with_suggestion(
+                    "Ensure config.yaml has required fields: id, name, description",
+                ),
+            );
+            return;
+        },
+    };
+
+    let content_file = config.content_file();
+    let content_path = entry.path().join(content_file);
+    if !content_path.exists() {
+        report.add_error(
+            ValidationError::new(
+                format!("skills.{dir_name}.file"),
+                format!("Content file '{content_file}' not found"),
+            )
+            .with_path(&content_path)
+            .with_suggestion("Create the content file or update the file field in config.yaml"),
+        );
     }
 }
