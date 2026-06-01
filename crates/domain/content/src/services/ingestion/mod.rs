@@ -119,81 +119,119 @@ impl IngestionService {
 
         match existing_content {
             None => {
-                if dry_run {
-                    return Ok(IngestFileResult::WouldCreate(slug));
-                }
-                let params = CreateContentParams::new(
-                    new_content.slug.clone(),
-                    new_content.title.clone(),
-                    new_content.description.clone(),
-                    new_content.body.clone(),
-                    new_content.source_id.clone(),
-                )
-                .with_locale(new_content.locale.clone())
-                .with_author(new_content.author.clone())
-                .with_published_at(new_content.published_at)
-                .with_keywords(new_content.keywords.clone())
-                .with_kind(new_content.kind.clone())
-                .with_image(new_content.image.clone())
-                .with_category_id(new_content.category_id.clone())
-                .with_version_hash(new_hash)
-                .with_links(new_content.links.clone())
-                .with_public(new_content.public);
-
-                let created_content = self.content_repo.create(&params).await?;
-
-                processors::call_frontmatter_processors(
-                    &self.db_pool,
-                    created_content.id.as_str(),
-                    &slug,
-                    source.source_name,
-                    &parsed,
-                )
-                .await;
-
-                Ok(IngestFileResult::Created)
+                self.ingest_new(&new_content, new_hash, slug, source, &parsed, dry_run)
+                    .await
             },
             Some(existing) => {
-                if existing.version_hash == new_hash {
-                    return Ok(IngestFileResult::Unchanged);
-                }
-
-                if !override_existing {
-                    return Ok(IngestFileResult::Skipped);
-                }
-
-                if dry_run {
-                    return Ok(IngestFileResult::WouldUpdate(slug));
-                }
-
-                let update_params = UpdateContentParams::new(
-                    existing.id.clone(),
-                    new_content.title.clone(),
-                    new_content.description.clone(),
-                    new_content.body.clone(),
-                )
-                .with_keywords(new_content.keywords.clone())
-                .with_image(new_content.image.clone())
-                .with_version_hash(new_hash)
-                .with_category_id(Some(new_content.category_id.clone()))
-                .with_kind(Some(new_content.kind.clone()))
-                .with_author(Some(new_content.author.clone()))
-                .with_published_at(Some(new_content.published_at))
-                .with_links(Some(new_content.links.clone()))
-                .with_public(parsed.metadata.public);
-                self.content_repo.update(&update_params).await?;
-
-                processors::call_frontmatter_processors(
-                    &self.db_pool,
-                    existing.id.as_str(),
-                    &slug,
-                    source.source_name,
+                self.ingest_existing(
+                    existing,
+                    &new_content,
+                    new_hash,
+                    slug,
+                    source,
                     &parsed,
+                    override_existing,
+                    dry_run,
                 )
-                .await;
-
-                Ok(IngestFileResult::Updated)
+                .await
             },
         }
+    }
+
+    async fn ingest_new(
+        &self,
+        new_content: &crate::models::Content,
+        new_hash: String,
+        slug: String,
+        source: &IngestionSource<'_>,
+        parsed: &scanner::ParsedFrontmatter,
+        dry_run: bool,
+    ) -> Result<IngestFileResult, ContentError> {
+        if dry_run {
+            return Ok(IngestFileResult::WouldCreate(slug));
+        }
+        let params = CreateContentParams::new(
+            new_content.slug.clone(),
+            new_content.title.clone(),
+            new_content.description.clone(),
+            new_content.body.clone(),
+            new_content.source_id.clone(),
+        )
+        .with_locale(new_content.locale.clone())
+        .with_author(new_content.author.clone())
+        .with_published_at(new_content.published_at)
+        .with_keywords(new_content.keywords.clone())
+        .with_kind(new_content.kind.clone())
+        .with_image(new_content.image.clone())
+        .with_category_id(new_content.category_id.clone())
+        .with_version_hash(new_hash)
+        .with_links(new_content.links.clone())
+        .with_public(new_content.public);
+
+        let created_content = self.content_repo.create(&params).await?;
+
+        processors::call_frontmatter_processors(
+            &self.db_pool,
+            created_content.id.as_str(),
+            &slug,
+            source.source_name,
+            parsed,
+        )
+        .await;
+
+        Ok(IngestFileResult::Created)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn ingest_existing(
+        &self,
+        existing: crate::models::Content,
+        new_content: &crate::models::Content,
+        new_hash: String,
+        slug: String,
+        source: &IngestionSource<'_>,
+        parsed: &scanner::ParsedFrontmatter,
+        override_existing: bool,
+        dry_run: bool,
+    ) -> Result<IngestFileResult, ContentError> {
+        if existing.version_hash == new_hash {
+            return Ok(IngestFileResult::Unchanged);
+        }
+
+        if !override_existing {
+            return Ok(IngestFileResult::Skipped);
+        }
+
+        if dry_run {
+            return Ok(IngestFileResult::WouldUpdate(slug));
+        }
+
+        let update_params = UpdateContentParams::new(
+            existing.id.clone(),
+            new_content.title.clone(),
+            new_content.description.clone(),
+            new_content.body.clone(),
+        )
+        .with_keywords(new_content.keywords.clone())
+        .with_image(new_content.image.clone())
+        .with_version_hash(new_hash)
+        .with_category_id(Some(new_content.category_id.clone()))
+        .with_kind(Some(new_content.kind.clone()))
+        .with_author(Some(new_content.author.clone()))
+        .with_published_at(Some(new_content.published_at))
+        .with_links(Some(new_content.links.clone()))
+        .with_public(parsed.metadata.public);
+        self.content_repo.update(&update_params).await?;
+
+        processors::call_frontmatter_processors(
+            &self.db_pool,
+            existing.id.as_str(),
+            &slug,
+            source.source_name,
+            parsed,
+        )
+        .await;
+
+        Ok(IngestFileResult::Updated)
     }
 }

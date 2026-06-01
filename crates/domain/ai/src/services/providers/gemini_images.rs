@@ -10,7 +10,7 @@ use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,
     NewImageGenerationResponse,
 };
-use crate::models::providers::gemini::GeminiResponse;
+use crate::models::providers::gemini::{GeminiRequest, GeminiResponse};
 use crate::services::providers::image_provider_trait::{ImageProvider, ImageProviderCapabilities};
 use async_trait::async_trait;
 use reqwest::Client;
@@ -66,6 +66,71 @@ impl GeminiImageProvider {
         self.model_definitions = models;
         self
     }
+
+    fn validate_request(&self, request: &ImageGenerationRequest) -> Result<()> {
+        if request.prompt.len() > self.capabilities().max_prompt_length {
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!(
+                    "Prompt length {} exceeds maximum {}",
+                    request.prompt.len(),
+                    self.capabilities().max_prompt_length
+                ),
+            });
+        }
+
+        if !self.supports_resolution(&request.resolution) {
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("Resolution {} not supported", request.resolution.as_str()),
+            });
+        }
+
+        if !self.supports_aspect_ratio(&request.aspect_ratio) {
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!(
+                    "Aspect ratio {} not supported",
+                    request.aspect_ratio.as_str()
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn fetch_response(&self, model: &str, body: &GeminiRequest) -> Result<GeminiResponse> {
+        let url = format!("{}/models/{}:generateContent", self.endpoint, model);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("x-goog-api-key", &self.api_key)
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("HTTP request failed: {e}"),
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("API returned status {status}: {error_body}"),
+            });
+        }
+
+        response.json().await.map_err(|e| AiError::ProviderError {
+            provider: self.name().to_owned(),
+            message: format!("Failed to parse response: {e}"),
+        })
+    }
 }
 
 #[async_trait]
@@ -115,33 +180,7 @@ impl ImageProvider for GeminiImageProvider {
     ) -> Result<ImageGenerationResponse> {
         let start = Instant::now();
 
-        if request.prompt.len() > self.capabilities().max_prompt_length {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Prompt length {} exceeds maximum {}",
-                    request.prompt.len(),
-                    self.capabilities().max_prompt_length
-                ),
-            });
-        }
-
-        if !self.supports_resolution(&request.resolution) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Resolution {} not supported", request.resolution.as_str()),
-            });
-        }
-
-        if !self.supports_aspect_ratio(&request.aspect_ratio) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Aspect ratio {} not supported",
-                    request.aspect_ratio.as_str()
-                ),
-            });
-        }
+        self.validate_request(request)?;
 
         let model = request
             .model
@@ -157,37 +196,7 @@ impl ImageProvider for GeminiImageProvider {
 
         let gemini_request = build_image_request(request, model, &self.model_definitions);
 
-        let url = format!("{}/models/{}:generateContent", self.endpoint, model);
-
-        let response = self
-            .client
-            .post(&url)
-            .header("x-goog-api-key", &self.api_key)
-            .json(&gemini_request)
-            .send()
-            .await
-            .map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("HTTP request failed: {e}"),
-            })?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response
-                .text()
-                .await
-                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("API returned status {status}: {error_body}"),
-            });
-        }
-
-        let gemini_response: GeminiResponse =
-            response.json().await.map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Failed to parse response: {e}"),
-            })?;
+        let gemini_response = self.fetch_response(model, &gemini_request).await?;
 
         let (image_data, mime_type) = extract_image_from_response(&gemini_response)?;
 

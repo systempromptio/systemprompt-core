@@ -66,8 +66,58 @@ impl UserRepository {
             return Ok(user);
         }
 
-        let now = Utc::now();
-        let id = UserId::new(uuid::Uuid::new_v4().to_string());
+        let fields = NewFederatedUser::derive(issuer, external_sub, claims);
+
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            INSERT INTO users (
+                id, name, email, full_name, display_name,
+                status, email_verified, roles, is_bot,
+                created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)
+            RETURNING id, name, email, full_name, display_name, status, email_verified,
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+            "#,
+            fields.id.as_str(),
+            fields.name,
+            fields.email,
+            fields.display_name.as_deref(),
+            fields.display_name.as_deref(),
+            fields.status,
+            &fields.roles,
+            fields.now,
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
+            issuer,
+            external_sub,
+            user.id.as_str()
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(user)
+    }
+}
+
+struct NewFederatedUser {
+    id: UserId,
+    name: String,
+    email: String,
+    display_name: Option<String>,
+    status: &'static str,
+    roles: Vec<String>,
+    now: chrono::DateTime<Utc>,
+}
+
+impl NewFederatedUser {
+    fn derive(issuer: &str, external_sub: &str, claims: &FederatedIdentityClaims) -> Self {
         let name = claims
             .preferred_username
             .clone()
@@ -94,45 +144,16 @@ impl UserRepository {
             },
             (None, _) => synthetic_email(),
         };
-        let display_name = claims.name.clone();
-        let status = UserStatus::Active.as_str();
-        let roles = normalised_roles(&claims.roles);
 
-        let user = sqlx::query_as!(
-            User,
-            r#"
-            INSERT INTO users (
-                id, name, email, full_name, display_name,
-                status, email_verified, roles, is_bot,
-                created_at, updated_at
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)
-            RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
-            "#,
-            id.as_str(),
+        Self {
+            id: UserId::new(uuid::Uuid::new_v4().to_string()),
             name,
             email,
-            display_name.as_deref(),
-            display_name.as_deref(),
-            status,
-            &roles,
-            now,
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
-            issuer,
-            external_sub,
-            user.id.as_str()
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-        Ok(user)
+            display_name: claims.name.clone(),
+            status: UserStatus::Active.as_str(),
+            roles: normalised_roles(&claims.roles),
+            now: Utc::now(),
+        }
     }
 }
 

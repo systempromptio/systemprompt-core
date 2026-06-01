@@ -98,6 +98,26 @@ impl FileUploadService {
 
         let public_url = self.files_config.upload_url(&relative_path);
 
+        self.record_file(&file_id, &storage_path, &public_url, size_bytes, &request, sha256)
+            .await?;
+
+        Ok(UploadedFile {
+            file_id,
+            path: relative_path,
+            public_url,
+            size_bytes: size_bytes as i64,
+        })
+    }
+
+    async fn record_file(
+        &self,
+        file_id: &FileId,
+        storage_path: &std::path::Path,
+        public_url: &str,
+        size_bytes: u64,
+        request: &FileUploadRequest,
+        sha256: String,
+    ) -> Result<(), FileUploadError> {
         let metadata = FileMetadata::new().with_checksums(FileChecksums::new().with_sha256(sha256));
 
         let metadata_json = serde_json::to_value(&metadata)
@@ -106,27 +126,27 @@ impl FileUploadService {
         let mut insert_request = InsertFileRequest::new(
             file_id.clone(),
             storage_path.to_string_lossy().to_string(),
-            public_url.clone(),
+            public_url.to_owned(),
             request.mime_type.clone(),
         )
         .with_size(size_bytes as i64)
         .with_metadata(metadata_json)
         .with_context_id(request.context_id.clone());
 
-        if let Some(user_id) = request.user_id {
+        if let Some(user_id) = request.user_id.clone() {
             insert_request = insert_request.with_user_id(user_id);
         }
 
-        if let Some(session_id) = request.session_id {
+        if let Some(session_id) = request.session_id.clone() {
             insert_request = insert_request.with_session_id(session_id);
         }
 
-        if let Some(trace_id) = request.trace_id {
+        if let Some(trace_id) = request.trace_id.clone() {
             insert_request = insert_request.with_trace_id(trace_id);
         }
 
         if let Err(e) = self.file_repository.insert(insert_request).await {
-            if let Err(cleanup_err) = fs::remove_file(&storage_path).await {
+            if let Err(cleanup_err) = fs::remove_file(storage_path).await {
                 tracing::warn!(
                     path = %storage_path.display(),
                     error = %cleanup_err,
@@ -136,12 +156,7 @@ impl FileUploadService {
             return Err(FileUploadError::Database(e.to_string()));
         }
 
-        Ok(UploadedFile {
-            file_id,
-            path: relative_path,
-            public_url,
-            size_bytes: size_bytes as i64,
-        })
+        Ok(())
     }
 
     fn determine_storage_path(
@@ -155,32 +170,7 @@ impl FileUploadService {
         let upload_config = self.files_config.upload();
 
         let context_str = context_id.as_str();
-        if context_str.contains("..") || context_str.contains('\0') {
-            return Err(FileUploadError::PathValidation(
-                "Invalid context_id: contains path traversal sequence".to_owned(),
-            ));
-        }
-
-        if let Some(uid) = user_id {
-            let user_str = uid.as_str();
-            if user_str.contains("..") || user_str.contains('\0') {
-                return Err(FileUploadError::PathValidation(
-                    "Invalid user_id: contains path traversal sequence".to_owned(),
-                ));
-            }
-        }
-
-        if filename.contains('\0')
-            || filename.contains('/')
-            || filename.contains('\\')
-            || filename == ".."
-            || filename == "."
-            || filename.is_empty()
-        {
-            return Err(FileUploadError::PathValidation(
-                "Invalid filename: must be a single path component".to_owned(),
-            ));
-        }
+        Self::validate_path_inputs(context_str, filename, user_id)?;
 
         let (full_path, relative) = match upload_config.persistence_mode {
             FilePersistenceMode::ContextScoped => {
@@ -227,5 +217,40 @@ impl FileUploadService {
         }
 
         Ok((full_path, relative))
+    }
+
+    fn validate_path_inputs(
+        context_str: &str,
+        filename: &str,
+        user_id: Option<&UserId>,
+    ) -> Result<(), FileUploadError> {
+        if context_str.contains("..") || context_str.contains('\0') {
+            return Err(FileUploadError::PathValidation(
+                "Invalid context_id: contains path traversal sequence".to_owned(),
+            ));
+        }
+
+        if let Some(uid) = user_id {
+            let user_str = uid.as_str();
+            if user_str.contains("..") || user_str.contains('\0') {
+                return Err(FileUploadError::PathValidation(
+                    "Invalid user_id: contains path traversal sequence".to_owned(),
+                ));
+            }
+        }
+
+        if filename.contains('\0')
+            || filename.contains('/')
+            || filename.contains('\\')
+            || filename == ".."
+            || filename == "."
+            || filename.is_empty()
+        {
+            return Err(FileUploadError::PathValidation(
+                "Invalid filename: must be a single path component".to_owned(),
+            ));
+        }
+
+        Ok(())
     }
 }

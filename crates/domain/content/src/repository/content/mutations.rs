@@ -75,39 +75,7 @@ pub(super) async fn update(
     let now = Utc::now();
 
     let current = queries::get_by_id(pool, &params.id).await?;
-    let current_ref = current.as_ref();
-
-    let category_id_value: Option<String> = match &params.category_id {
-        CategoryIdUpdate::Set(cat) => Some(cat.as_str().to_owned()),
-        CategoryIdUpdate::Clear => None,
-        CategoryIdUpdate::Unchanged => {
-            current_ref.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_owned()))
-        },
-    };
-
-    let kind_value: String = params.kind.clone().unwrap_or_else(|| {
-        current_ref.map_or_else(
-            || ContentKind::Article.as_str().to_owned(),
-            |c| c.kind.clone(),
-        )
-    });
-
-    let public_value: bool = params
-        .public
-        .unwrap_or_else(|| current_ref.is_some_and(|c| c.public));
-
-    let author_value: String = params
-        .author
-        .clone()
-        .unwrap_or_else(|| current_ref.map_or_else(String::new, |c| c.author.clone()));
-
-    let published_at_value = params
-        .published_at
-        .unwrap_or_else(|| current_ref.map_or_else(Utc::now, |c| c.published_at));
-
-    let links_value = params.links.clone().unwrap_or_else(|| {
-        current_ref.map_or_else(|| serde_json::Value::Array(vec![]), |c| c.links.clone())
-    });
+    let resolved = ResolvedUpdate::resolve(params, current.as_ref());
 
     sqlx::query_as!(
         Content,
@@ -134,16 +102,70 @@ pub(super) async fn update(
         params.image,
         params.version_hash,
         now,
-        category_id_value,
-        kind_value,
-        public_value,
-        author_value,
-        published_at_value,
-        links_value,
+        resolved.category_id,
+        resolved.kind,
+        resolved.public,
+        resolved.author,
+        resolved.published_at,
+        resolved.links,
         params.id.as_str()
     )
     .fetch_one(&**pool)
     .await
+}
+
+struct ResolvedUpdate {
+    category_id: Option<String>,
+    kind: String,
+    public: bool,
+    author: String,
+    published_at: chrono::DateTime<Utc>,
+    links: serde_json::Value,
+}
+
+impl ResolvedUpdate {
+    fn resolve(params: &UpdateContentParams, current: Option<&Content>) -> Self {
+        let category_id = match &params.category_id {
+            CategoryIdUpdate::Set(cat) => Some(cat.as_str().to_owned()),
+            CategoryIdUpdate::Clear => None,
+            CategoryIdUpdate::Unchanged => {
+                current.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_owned()))
+            },
+        };
+
+        let kind = params.kind.clone().unwrap_or_else(|| {
+            current.map_or_else(
+                || ContentKind::Article.as_str().to_owned(),
+                |c| c.kind.clone(),
+            )
+        });
+
+        let public = params
+            .public
+            .unwrap_or_else(|| current.is_some_and(|c| c.public));
+
+        let author = params
+            .author
+            .clone()
+            .unwrap_or_else(|| current.map_or_else(String::new, |c| c.author.clone()));
+
+        let published_at = params
+            .published_at
+            .unwrap_or_else(|| current.map_or_else(Utc::now, |c| c.published_at));
+
+        let links = params.links.clone().unwrap_or_else(|| {
+            current.map_or_else(|| serde_json::Value::Array(vec![]), |c| c.links.clone())
+        });
+
+        Self {
+            category_id,
+            kind,
+            public,
+            author,
+            published_at,
+            links,
+        }
+    }
 }
 
 pub(super) async fn delete(pool: &Arc<PgPool>, id: &ContentId) -> Result<(), sqlx::Error> {

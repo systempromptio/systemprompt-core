@@ -120,12 +120,25 @@ pub(super) async fn generate_with_tools(
 
     let openai_response: OpenAiResponse = response.json().await?;
 
+    let tool_calls = parse_tool_calls(&openai_response)?;
+
+    let ai_response = build_response(
+        request_id,
+        &openai_response,
+        "openai",
+        params.base.model,
+        start,
+    )?;
+    Ok((ai_response, tool_calls))
+}
+
+fn parse_tool_calls(openai_response: &OpenAiResponse) -> Result<Vec<ToolCall>> {
     let choice = openai_response
         .choices
         .first()
         .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_owned()))?;
 
-    let tool_calls = choice
+    Ok(choice
         .message
         .tool_calls
         .clone()
@@ -149,16 +162,7 @@ pub(super) async fn generate_with_tools(
                 arguments,
             }
         })
-        .collect();
-
-    let ai_response = build_response(
-        request_id,
-        &openai_response,
-        "openai",
-        params.base.model,
-        start,
-    )?;
-    Ok((ai_response, tool_calls))
+        .collect())
 }
 
 pub(super) async fn generate_structured(

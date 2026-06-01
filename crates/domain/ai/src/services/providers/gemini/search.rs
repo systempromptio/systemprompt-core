@@ -3,7 +3,8 @@ use std::time::Instant;
 
 use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse, WebSource};
 use crate::models::providers::gemini::{
-    GeminiPart, GeminiRequest, GeminiResponse, GeminiTool, GoogleSearch, UrlContext,
+    GeminiCandidate, GeminiPart, GeminiRequest, GeminiResponse, GeminiTool, GoogleSearch,
+    UrlContext,
 };
 
 use super::constants::defaults;
@@ -144,38 +145,9 @@ fn extract_grounded_response(
         })
         .unwrap_or_else(String::new);
 
-    let mut sources = Vec::new();
-    let mut confidence_scores = Vec::new();
-    let mut web_search_queries = Vec::new();
+    let grounding = collect_grounding(candidate);
 
-    if let Some(grounding) = &candidate.grounding_metadata {
-        for chunk in &grounding.grounding_chunks {
-            sources.push(WebSource {
-                title: chunk.web.title.clone(),
-                uri: chunk.web.uri.clone(),
-                relevance: defaults::RELEVANCE_SCORE,
-            });
-        }
-
-        for support in &grounding.grounding_supports {
-            for score in &support.confidence_scores {
-                confidence_scores.push(*score);
-            }
-        }
-
-        web_search_queries.clone_from(&grounding.web_search_queries);
-    }
-
-    let url_context_metadata = candidate.url_context_metadata.as_ref().map(|meta| {
-        use systemprompt_models::ai::UrlMetadata;
-        meta.url_metadata
-            .iter()
-            .map(|url_meta| UrlMetadata {
-                retrieved_url: url_meta.retrieved_url.clone(),
-                url_retrieval_status: url_meta.url_retrieval_status.clone(),
-            })
-            .collect()
-    });
+    let url_context_metadata = extract_url_context_metadata(candidate);
 
     let latency_ms = start.elapsed().as_millis() as u64;
 
@@ -194,13 +166,60 @@ fn extract_grounded_response(
 
     Ok(SearchGroundedResponse {
         content: content_text,
-        sources,
-        confidence_scores,
-        web_search_queries,
+        sources: grounding.sources,
+        confidence_scores: grounding.confidence_scores,
+        web_search_queries: grounding.web_search_queries,
         url_context_metadata,
         tokens_used: response.usage_metadata.as_ref().map(|u| u.total),
         latency_ms,
         finish_reason,
         safety_ratings,
+    })
+}
+
+#[derive(Default)]
+struct GroundingData {
+    sources: Vec<WebSource>,
+    confidence_scores: Vec<f32>,
+    web_search_queries: Vec<String>,
+}
+
+fn collect_grounding(candidate: &GeminiCandidate) -> GroundingData {
+    let mut data = GroundingData::default();
+
+    if let Some(grounding) = &candidate.grounding_metadata {
+        for chunk in &grounding.grounding_chunks {
+            data.sources.push(WebSource {
+                title: chunk.web.title.clone(),
+                uri: chunk.web.uri.clone(),
+                relevance: defaults::RELEVANCE_SCORE,
+            });
+        }
+
+        for support in &grounding.grounding_supports {
+            for score in &support.confidence_scores {
+                data.confidence_scores.push(*score);
+            }
+        }
+
+        data.web_search_queries
+            .clone_from(&grounding.web_search_queries);
+    }
+
+    data
+}
+
+fn extract_url_context_metadata(
+    candidate: &GeminiCandidate,
+) -> Option<Vec<systemprompt_models::ai::UrlMetadata>> {
+    use systemprompt_models::ai::UrlMetadata;
+    candidate.url_context_metadata.as_ref().map(|meta| {
+        meta.url_metadata
+            .iter()
+            .map(|url_meta| UrlMetadata {
+                retrieved_url: url_meta.retrieved_url.clone(),
+                url_retrieval_status: url_meta.url_retrieval_status.clone(),
+            })
+            .collect()
     })
 }

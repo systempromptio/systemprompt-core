@@ -39,81 +39,114 @@ impl ToolAnalyticsRepository {
             ..
         } = *params;
         match sort_order {
-            "success_rate" => sqlx::query_as!(
-                ToolListRow,
-                r#"
-                SELECT
-                    tool_name as "tool_name!",
-                    server_name as "server_name!",
-                    COUNT(*)::bigint as "execution_count!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                    COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                    MAX(created_at) as "last_used!"
-                FROM mcp_tool_executions
-                WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
-                GROUP BY tool_name, server_name
-                ORDER BY CASE WHEN COUNT(*) > 0
-                    THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
-                    ELSE 0 END DESC
-                LIMIT $4
-                "#,
-                start,
-                end,
-                pattern,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into),
-            "avg_time" => sqlx::query_as!(
-                ToolListRow,
-                r#"
-                SELECT
-                    tool_name as "tool_name!",
-                    server_name as "server_name!",
-                    COUNT(*)::bigint as "execution_count!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                    COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                    MAX(created_at) as "last_used!"
-                FROM mcp_tool_executions
-                WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
-                GROUP BY tool_name, server_name
-                ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
-                LIMIT $4
-                "#,
-                start,
-                end,
-                pattern,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into),
-            _ => sqlx::query_as!(
-                ToolListRow,
-                r#"
-                SELECT
-                    tool_name as "tool_name!",
-                    server_name as "server_name!",
-                    COUNT(*)::bigint as "execution_count!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                    COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                    MAX(created_at) as "last_used!"
-                FROM mcp_tool_executions
-                WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
-                GROUP BY tool_name, server_name
-                ORDER BY COUNT(*) DESC
-                LIMIT $4
-                "#,
-                start,
-                end,
-                pattern,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into),
+            "success_rate" => {
+                self.filtered_by_success_rate(start, end, pattern, limit)
+                    .await
+            },
+            "avg_time" => self.filtered_by_avg_time(start, end, pattern, limit).await,
+            _ => self.filtered_by_count(start, end, pattern, limit).await,
         }
+    }
+
+    async fn filtered_by_success_rate(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        pattern: &str,
+        limit: i64,
+    ) -> Result<Vec<ToolListRow>> {
+        sqlx::query_as!(
+            ToolListRow,
+            r#"
+            SELECT
+                tool_name as "tool_name!",
+                server_name as "server_name!",
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
+            GROUP BY tool_name, server_name
+            ORDER BY CASE WHEN COUNT(*) > 0
+                THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
+                ELSE 0 END DESC
+            LIMIT $4
+            "#,
+            start,
+            end,
+            pattern,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn filtered_by_avg_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        pattern: &str,
+        limit: i64,
+    ) -> Result<Vec<ToolListRow>> {
+        sqlx::query_as!(
+            ToolListRow,
+            r#"
+            SELECT
+                tool_name as "tool_name!",
+                server_name as "server_name!",
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
+            GROUP BY tool_name, server_name
+            ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
+            LIMIT $4
+            "#,
+            start,
+            end,
+            pattern,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn filtered_by_count(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        pattern: &str,
+        limit: i64,
+    ) -> Result<Vec<ToolListRow>> {
+        sqlx::query_as!(
+            ToolListRow,
+            r#"
+            SELECT
+                tool_name as "tool_name!",
+                server_name as "server_name!",
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
+            GROUP BY tool_name, server_name
+            ORDER BY COUNT(*) DESC
+            LIMIT $4
+            "#,
+            start,
+            end,
+            pattern,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
     }
 
     async fn list_tools_unfiltered(&self, params: &ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
@@ -125,77 +158,104 @@ impl ToolAnalyticsRepository {
             ..
         } = *params;
         match sort_order {
-            "success_rate" => sqlx::query_as!(
-                ToolListRow,
-                r#"
-                SELECT
-                    tool_name as "tool_name!",
-                    server_name as "server_name!",
-                    COUNT(*)::bigint as "execution_count!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                    COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                    MAX(created_at) as "last_used!"
-                FROM mcp_tool_executions
-                WHERE created_at >= $1 AND created_at < $2
-                GROUP BY tool_name, server_name
-                ORDER BY CASE WHEN COUNT(*) > 0
-                    THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
-                    ELSE 0 END DESC
-                LIMIT $3
-                "#,
-                start,
-                end,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into),
-            "avg_time" => sqlx::query_as!(
-                ToolListRow,
-                r#"
-                SELECT
-                    tool_name as "tool_name!",
-                    server_name as "server_name!",
-                    COUNT(*)::bigint as "execution_count!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                    COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                    MAX(created_at) as "last_used!"
-                FROM mcp_tool_executions
-                WHERE created_at >= $1 AND created_at < $2
-                GROUP BY tool_name, server_name
-                ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
-                LIMIT $3
-                "#,
-                start,
-                end,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into),
-            _ => sqlx::query_as!(
-                ToolListRow,
-                r#"
-                SELECT
-                    tool_name as "tool_name!",
-                    server_name as "server_name!",
-                    COUNT(*)::bigint as "execution_count!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                    COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                    MAX(created_at) as "last_used!"
-                FROM mcp_tool_executions
-                WHERE created_at >= $1 AND created_at < $2
-                GROUP BY tool_name, server_name
-                ORDER BY COUNT(*) DESC
-                LIMIT $3
-                "#,
-                start,
-                end,
-                limit
-            )
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(Into::into),
+            "success_rate" => self.unfiltered_by_success_rate(start, end, limit).await,
+            "avg_time" => self.unfiltered_by_avg_time(start, end, limit).await,
+            _ => self.unfiltered_by_count(start, end, limit).await,
         }
+    }
+
+    async fn unfiltered_by_success_rate(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<ToolListRow>> {
+        sqlx::query_as!(
+            ToolListRow,
+            r#"
+            SELECT
+                tool_name as "tool_name!",
+                server_name as "server_name!",
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2
+            GROUP BY tool_name, server_name
+            ORDER BY CASE WHEN COUNT(*) > 0
+                THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
+                ELSE 0 END DESC
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn unfiltered_by_avg_time(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<ToolListRow>> {
+        sqlx::query_as!(
+            ToolListRow,
+            r#"
+            SELECT
+                tool_name as "tool_name!",
+                server_name as "server_name!",
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2
+            GROUP BY tool_name, server_name
+            ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn unfiltered_by_count(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<ToolListRow>> {
+        sqlx::query_as!(
+            ToolListRow,
+            r#"
+            SELECT
+                tool_name as "tool_name!",
+                server_name as "server_name!",
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2
+            GROUP BY tool_name, server_name
+            ORDER BY COUNT(*) DESC
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
     }
 }

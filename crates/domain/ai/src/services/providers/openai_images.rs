@@ -57,6 +57,82 @@ impl OpenAiImageProvider {
             _ => "1792x1024",
         }
     }
+
+    fn validate_request(&self, request: &ImageGenerationRequest) -> Result<()> {
+        if request.prompt.len() > self.capabilities().max_prompt_length {
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!(
+                    "Prompt length {} exceeds maximum {}",
+                    request.prompt.len(),
+                    self.capabilities().max_prompt_length
+                ),
+            });
+        }
+
+        if !self.supports_resolution(&request.resolution) {
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("Resolution {} not supported", request.resolution.as_str()),
+            });
+        }
+
+        if !self.supports_aspect_ratio(&request.aspect_ratio) {
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!(
+                    "Aspect ratio {} not supported",
+                    request.aspect_ratio.as_str()
+                ),
+            });
+        }
+
+        Ok(())
+    }
+
+    async fn request_image(&self, dalle_request: &DalleRequest) -> Result<String> {
+        let url = format!("{}/images/generations", self.endpoint);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(dalle_request)
+            .send()
+            .await
+            .map_err(|e| AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("HTTP request failed: {e}"),
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
+            return Err(AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("API returned status {status}: {error_body}"),
+            });
+        }
+
+        let dalle_response: DalleResponse =
+            response.json().await.map_err(|e| AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: format!("Failed to parse response: {e}"),
+            })?;
+
+        dalle_response
+            .data
+            .first()
+            .and_then(|d| d.b64_json.clone())
+            .ok_or_else(|| AiError::ProviderError {
+                provider: self.name().to_owned(),
+                message: "No image data in response".to_owned(),
+            })
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -120,33 +196,7 @@ impl ImageProvider for OpenAiImageProvider {
     ) -> Result<ImageGenerationResponse> {
         let start = Instant::now();
 
-        if request.prompt.len() > self.capabilities().max_prompt_length {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Prompt length {} exceeds maximum {}",
-                    request.prompt.len(),
-                    self.capabilities().max_prompt_length
-                ),
-            });
-        }
-
-        if !self.supports_resolution(&request.resolution) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Resolution {} not supported", request.resolution.as_str()),
-            });
-        }
-
-        if !self.supports_aspect_ratio(&request.aspect_ratio) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Aspect ratio {} not supported",
-                    request.aspect_ratio.as_str()
-                ),
-            });
-        }
+        self.validate_request(request)?;
 
         let model = request
             .model
@@ -169,47 +219,7 @@ impl ImageProvider for OpenAiImageProvider {
             response_format: "b64_json".to_owned(),
         };
 
-        let url = format!("{}/images/generations", self.endpoint);
-
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("Content-Type", "application/json")
-            .json(&dalle_request)
-            .send()
-            .await
-            .map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("HTTP request failed: {e}"),
-            })?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response
-                .text()
-                .await
-                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("API returned status {status}: {error_body}"),
-            });
-        }
-
-        let dalle_response: DalleResponse =
-            response.json().await.map_err(|e| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Failed to parse response: {e}"),
-            })?;
-
-        let image_data = dalle_response
-            .data
-            .first()
-            .and_then(|d| d.b64_json.clone())
-            .ok_or_else(|| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: "No image data in response".to_owned(),
-            })?;
+        let image_data = self.request_image(&dalle_request).await?;
 
         let generation_time_ms = start.elapsed().as_millis() as u64;
 
