@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
 All notable changes to `systemprompt-database` are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.13.1] - 2026-06-01

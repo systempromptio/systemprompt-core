@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Changed
+
+- `admin setup` and `admin config` read and write the new provider registry: the setup wizard, catalog, and profile builders produce profiles with a `providers:` section, and provider selection threads through the merged configuration.
+
 ## [0.13.1] - 2026-06-01
 
 ### Added

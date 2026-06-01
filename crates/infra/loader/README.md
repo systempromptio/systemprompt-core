@@ -89,7 +89,7 @@ The `modules` module re-exports the compile-time extension registry. `ModuleLoad
 
 ```toml
 [dependencies]
-systemprompt-loader = "0.13.1"
+systemprompt-loader = "0.14.0"
 ```
 
 ### Features

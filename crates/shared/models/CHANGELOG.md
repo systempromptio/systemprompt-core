@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Breaking
+
+- Adds `profile.providers` (`ProviderRegistry`, `ProviderEntry`, `ProviderModel`, `WireProtocol`) as the single source of upstream connectivity and the model catalog. `GatewayConfig` drops its embedded catalog — only `routes` and `default_provider` remain — and the standalone `profile/gateway/catalog.rs` / `GatewayModel` are removed; model identity, aliases, `upstream_model`, pricing, capabilities, and limits now live on `ProviderModel`. `ProviderRegistry::validate` is the authority for connectivity (unique provider names, SSRF-guarded endpoints, globally-unique model ids/aliases).
+- Adds the provider wire codecs and the provider-neutral canonical model under `wire/` (`wire::{anthropic, openai_chat, openai_responses, gemini, canonical}`), folding in the former `systemprompt-ai-wire` crate. Buffered Anthropic, OpenAI Chat, and OpenAI Responses replies parse into typed `#[derive(Deserialize)]` structs.
+- `services::ai::AiConfig` references providers by `ProviderId` and no longer carries connectivity; `validators::ai` validates the AI config's references against the registry.
+
 ## [0.13.1] - 2026-06-01
 
 ### Added

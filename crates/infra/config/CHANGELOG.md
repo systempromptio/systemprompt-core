@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Changed
+
+- The profile loader validates the provider registry before any layer that references it, and resolves the gateway section against the registry rather than against an embedded catalog directory.
+
 ## [0.13.1] - 2026-06-01
 
 ### Changed

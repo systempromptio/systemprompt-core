@@ -36,7 +36,7 @@ Foundation data models for systemprompt.io. Plain DTOs, on-disk configuration, p
 
 ```toml
 [dependencies]
-systemprompt-models = "0.13.1"
+systemprompt-models = "0.14.0"
 ```
 
 ## Module Map

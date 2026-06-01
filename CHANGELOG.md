@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Breaking
+
+- AI provider configuration is unified into a single profile-level **provider registry**. `Profile` gains a `providers` section (`ProviderRegistry`) in which each provider is declared exactly once — its wire protocol, endpoint, credential, extra headers, and the model catalog it serves — and the gateway and AI-service layers now reference providers by `ProviderId` instead of re-declaring connectivity. The gateway no longer owns a model catalog: `profile.gateway` keeps only routing and `default_provider`, while model identity, aliases, `upstream_model`, pricing, capabilities, and limits live once on `ProviderModel`. Tenants must add a `providers:` block and move per-model definitions out of the old gateway catalog into it; the registry is the authority for connectivity validation (unique provider names, SSRF-guarded endpoints, globally-unique model ids/aliases).
+- The provider **wire types** — the Anthropic Messages, OpenAI Chat Completions, OpenAI Responses, and Gemini codecs plus the provider-neutral canonical request/response model — are folded into `systemprompt-models` under `wire/`. The standalone `systemprompt-ai-wire` crate is removed; depend on `systemprompt-models` (`wire::*`) instead.
+- `AiService::new` takes the resolved provider registry: `AiService::new(&db_pool, &registry, &ai_config, tool_provider, session_provider)`. The AI service resolves provider connectivity from the registry, and `services/ai/config.yaml` declares only the agent default provider/model and per-provider overrides rather than a private connectivity block.
+
+### Changed
+
+- Gateway outbound dispatch is driven by the provider registry and the relocated wire codecs. A Gemini outbound adapter is added, and the per-protocol request/response/streaming handling that previously lived under the `entry/api` gateway is consumed from `systemprompt-models::wire`.
+- Buffered provider replies (Anthropic Messages, OpenAI Chat Completions, OpenAI Responses) are parsed into typed `#[derive(Deserialize)]` wire structs instead of traversing an untyped JSON value; tool-call arguments remain an opaque value and the heterogeneous SSE streaming frames stay dynamic.
+
+### Removed
+
+- The `systemprompt-ai-wire` crate, the gateway's duplicated per-protocol outbound modules, and the standalone gateway model catalog (`profile/gateway/catalog.rs`).
+
 ## [0.13.1] - 2026-06-01
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Changed
+
+- Gateway outbound dispatch resolves providers from the `systemprompt-models` provider registry and uses the relocated `wire::*` codecs. A Gemini outbound adapter is added, and the duplicated per-protocol request/response/streaming modules under the gateway are removed in favour of the shared codecs.
+
 ## [0.13.1] - 2026-06-01
 
 ### Changed

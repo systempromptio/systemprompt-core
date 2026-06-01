@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.0] - 2026-06-01
+
+### Breaking
+
+- `AiService::new` takes the resolved `&ProviderRegistry`: `AiService::new(&db_pool, &registry, &ai_config, tool_provider, session_provider)`. The provider and image-provider factories build clients from registry entries, and the AI config types are consumed from `systemprompt-models` rather than redeclared in this crate.
+
 ## [0.13.1] - 2026-06-01
 
 ### Changed
