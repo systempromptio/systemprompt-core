@@ -9,8 +9,6 @@ use crate::wire::canonical::{
     GroundedSource, Grounding,
 };
 
-// Gemini grounding chunks carry no per-source score; this dialect constant
-// stands in so downstream confidence ranking has a stable value.
 const GEMINI_GROUNDING_RELEVANCE: f32 = 0.85;
 
 #[must_use]
@@ -22,7 +20,6 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     }
 }
 
-/// Falls back to `fallback_model` when the upstream omits `modelVersion`.
 #[must_use]
 pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
     let parsed: GeminiResponse = serde_json::from_value(value.clone()).unwrap_or(GeminiResponse {
@@ -122,8 +119,6 @@ fn code_execution(parts: &[GeminiPart]) -> Option<CodeExecutionOutput> {
     seen.then_some(output)
 }
 
-/// Tool-use blocks get freshly minted ids because Gemini omits them on the
-/// wire. Executable-code parts are surfaced via `code_execution`, not content.
 pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
     parts
         .iter()

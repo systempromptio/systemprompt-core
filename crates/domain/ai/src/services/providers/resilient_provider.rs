@@ -30,7 +30,6 @@ use super::provider_trait::{
 
 type StreamResult = Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>>;
 
-/// An [`AiProvider`] wrapped in a per-provider [`ResilienceGuard`].
 pub struct ResilientProvider {
     provider: String,
     inner: Arc<dyn AiProvider>,
@@ -47,8 +46,6 @@ impl std::fmt::Debug for ResilientProvider {
 }
 
 impl ResilientProvider {
-    /// Wrap `inner`, keying the guard's breaker and bulkhead on the provider
-    /// name.
     #[must_use]
     pub fn new(
         provider: impl Into<String>,
@@ -64,7 +61,6 @@ impl ResilientProvider {
         }
     }
 
-    /// Map a resilience-layer failure back into the provider's error enum.
     fn map_err(&self, err: ResilienceError<AiError>) -> AiError {
         match err {
             ResilienceError::Inner(inner) => inner,
@@ -81,9 +77,6 @@ impl ResilientProvider {
         }
     }
 
-    /// Run a streaming call: admit it through the guard (bulkhead + breaker)
-    /// before opening the stream, then wrap the stream with the per-chunk idle
-    /// timeout, holding the bulkhead permit for the stream's lifetime.
     async fn guarded_stream_call(&self, open: impl Future<Output = StreamResult>) -> StreamResult {
         let permit = self
             .guard

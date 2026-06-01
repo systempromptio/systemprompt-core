@@ -12,8 +12,6 @@ use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
-/// Generic over the upstream byte-stream error so the transport crate (e.g.
-/// `reqwest`) never leaks into this library's public surface.
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,

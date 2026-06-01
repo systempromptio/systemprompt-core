@@ -11,7 +11,6 @@ use crate::models::ai::{AiResponse, SearchGroundedResponse, WebSource};
 use crate::models::tools::ToolCall;
 use systemprompt_identifiers::AiToolCallId;
 
-/// Output of a server-side code-execution turn, surfaced to agent callers.
 #[derive(Debug, Clone)]
 pub struct CodeExecutionResponse {
     pub generated_code: String,

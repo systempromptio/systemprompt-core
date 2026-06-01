@@ -113,8 +113,6 @@ pub(super) async fn generate_with_schema(
         start,
         &parsed,
     );
-    // The schema arrives as the `structured_output` tool call; surface its
-    // arguments as the response body, not as a tool invocation.
     ai_response.content = parsed
         .content
         .iter()

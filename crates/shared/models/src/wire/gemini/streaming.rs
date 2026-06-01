@@ -25,9 +25,6 @@ struct StreamState {
     next_index: u32,
 }
 
-/// The byte error type is generic so callers can pass any transport stream
-/// (e.g. `reqwest::bytes_stream`) without the wire codec depending on the HTTP
-/// client.
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,
@@ -198,7 +195,6 @@ fn emit_tool_use(
             name: name.to_owned(),
         },
     }));
-    // Gemini sends each functionCall whole; serialise its args as one JSON delta.
     events.push(Ok(CanonicalEvent::ToolUseDelta {
         index,
         partial_json: args.to_string(),

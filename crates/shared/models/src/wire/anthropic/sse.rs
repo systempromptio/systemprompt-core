@@ -12,9 +12,6 @@ use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
-/// `msg_id` carries the message id observed at `message_start` so later
-/// `message_stop` frames can be tagged. Returns `None` for frames the canonical
-/// model does not model (e.g. `ping`).
 #[must_use]
 pub fn event_from_sse(value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
     let kind = value.get("type").and_then(Value::as_str)?;

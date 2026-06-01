@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::services::ModelDefinition;
 
-/// The registry models that declare image generation, sorted for a stable
-/// `supported_models` order.
 #[must_use]
 pub fn registry_image_models<S: std::hash::BuildHasher>(
     defs: &HashMap<String, ModelDefinition, S>,
@@ -22,8 +20,6 @@ pub fn registry_image_models<S: std::hash::BuildHasher>(
     models
 }
 
-/// Per-image price (cents) for `model` from the registry catalog, falling back
-/// to `fallback` when the model carries no per-image pricing.
 #[must_use]
 pub fn registry_per_image_cents<S: std::hash::BuildHasher>(
     defs: &HashMap<String, ModelDefinition, S>,

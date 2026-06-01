@@ -84,8 +84,6 @@ impl ImageProviderFactory {
         Arc::new(provider)
     }
 
-    /// Project the registry model catalog into the per-model capability/limit
-    /// definitions the image providers consume for prompt/resolution checks.
     fn model_definitions(entry: &ProviderEntry) -> HashMap<String, ModelDefinition> {
         entry
             .models

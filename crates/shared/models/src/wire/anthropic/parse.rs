@@ -50,7 +50,6 @@ impl AnthropicUsage {
             output_tokens: self.output_tokens,
             cache_read_tokens: self.cache_read_input_tokens,
             cache_creation_tokens: self.cache_creation_input_tokens,
-            // Anthropic does not report a total; derive it so the field is uniform across dialects.
             total_tokens: self.input_tokens
                 + self.output_tokens
                 + self.cache_read_input_tokens

@@ -35,9 +35,6 @@ pub(crate) struct GeminiContent {
     pub(crate) parts: Vec<GeminiPart>,
 }
 
-// Untagged so a single Vec<GeminiPart> can hold text, inline images, function
-// calls (assistant tool use), function responses (tool results), and the
-// server-side code-execution parts (executable code + its result).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(crate) enum GeminiPart {
@@ -135,8 +132,6 @@ pub(crate) struct GeminiThinkingConfig {
     pub(crate) include_thoughts: Option<bool>,
 }
 
-// Untagged so the agent's google-search / url-context / code-execution tools
-// and ordinary function declarations can share one `tools` array.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub(crate) enum GeminiTool {

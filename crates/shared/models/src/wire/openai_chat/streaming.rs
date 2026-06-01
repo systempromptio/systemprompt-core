@@ -13,9 +13,6 @@ use crate::wire::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
-// Why: the gateway feeds a `reqwest` byte stream, but the wire codec is
-// provider-neutral — accept any byte stream whose error type is displayable so
-// the codec owns no transport dependency.
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
     fallback_model: String,

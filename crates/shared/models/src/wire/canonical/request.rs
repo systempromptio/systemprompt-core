@@ -104,9 +104,6 @@ pub struct ThinkingConfig {
     pub budget_tokens: Option<u32>,
 }
 
-/// Constrained-output request. `JsonObject` asks only for syntactically valid
-/// JSON; `JsonSchema` additionally pins the shape (and, when `strict`, the
-/// vendor enforces it).
 #[derive(Debug, Clone)]
 pub enum ResponseFormat {
     JsonObject,
@@ -134,9 +131,6 @@ impl ReasoningEffort {
     }
 }
 
-/// Server-side web-search / URL-grounding request. An empty `urls` plus `None`
-/// limits still requests search; `urls` scopes it to specific pages where the
-/// dialect supports URL context.
 #[derive(Debug, Clone, Default)]
 pub struct SearchConfig {
     pub max_uses: Option<u32>,

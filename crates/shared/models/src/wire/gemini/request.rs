@@ -120,12 +120,9 @@ fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
 }
 
 fn message_to_content(msg: &CanonicalMessage) -> Option<GeminiContent> {
-    // System turns are hoisted into systemInstruction, so they are dropped here.
     let role = match msg.role {
         Role::System => return None,
         Role::Assistant => "model",
-        // Gemini has no dedicated tool role: function responses ride on a
-        // user-role turn alongside any other user content.
         Role::User | Role::Tool => "user",
     };
     let parts: Vec<GeminiPart> = msg.content.iter().filter_map(content_to_part).collect();
@@ -153,7 +150,6 @@ fn content_to_part(part: &CanonicalContent) -> Option<GeminiPart> {
             content,
             is_error,
         } => Some(tool_result_part(tool_use_id, content, *is_error)),
-        // Gemini carries no client-supplied thinking parts on the request.
         CanonicalContent::Thinking { .. } => None,
     }
 }

@@ -68,7 +68,6 @@ impl CanonicalStopReason {
     }
 }
 
-/// One grounded source surfaced by a server-side search / citation pass.
 #[derive(Debug, Clone, Default)]
 pub struct GroundedSource {
     pub uri: String,
@@ -77,17 +76,12 @@ pub struct GroundedSource {
     pub relevance: Option<f32>,
 }
 
-/// Search-grounding evidence attached to a response: the queries the model ran
-/// and the sources it cited.
 #[derive(Debug, Clone, Default)]
 pub struct Grounding {
     pub sources: Vec<GroundedSource>,
     pub queries: Vec<String>,
 }
 
-/// Output of a server-side code-execution turn. `outcome` is the dialect's raw
-/// status string (e.g. Gemini's `OUTCOME_OK`); consumers derive success from
-/// it.
 #[derive(Debug, Clone, Default)]
 pub struct CodeExecutionOutput {
     pub language: Option<String>,
