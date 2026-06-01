@@ -1,92 +1,14 @@
+//! Message and content-block parsing for the Anthropic Messages wire format.
+
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
-use serde_json::{Map, Value};
+use serde_json::Value;
 
-use super::super::super::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, Role, ThinkingConfig,
+use crate::services::gateway::protocol::canonical::{
+    CanonicalContent, CanonicalMessage, ImageSource, Role,
 };
-use super::super::InboundParseError;
+use crate::services::gateway::protocol::inbound::InboundParseError;
 
-#[cfg_attr(
-    not(feature = "test-api"),
-    expect(
-        unreachable_pub,
-        reason = "items are re-exported via `test_api` only when the feature is on"
-    )
-)]
-pub fn parse(value: &Value) -> Result<CanonicalRequest, InboundParseError> {
-    let model = value
-        .get("model")
-        .and_then(Value::as_str)
-        .ok_or(InboundParseError::MissingField("model"))?
-        .to_owned();
-    let max_tokens = value
-        .get("max_tokens")
-        .and_then(Value::as_u64)
-        .ok_or(InboundParseError::MissingField("max_tokens"))? as u32;
-
-    let system = value.get("system").map(parse_system).transpose()?.flatten();
-
-    let messages = value
-        .get("messages")
-        .and_then(Value::as_array)
-        .ok_or(InboundParseError::MissingField("messages"))?
-        .iter()
-        .map(parse_message)
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let temperature = value
-        .get("temperature")
-        .and_then(Value::as_f64)
-        .map(|v| v as f32);
-    let top_p = value.get("top_p").and_then(Value::as_f64).map(|v| v as f32);
-    let top_k = value.get("top_k").and_then(Value::as_i64).map(|v| v as i32);
-
-    let stop_sequences = value
-        .get("stop_sequences")
-        .and_then(Value::as_array)
-        .map_or_else(Vec::new, |arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(str::to_owned))
-                .collect::<Vec<_>>()
-        });
-
-    let tools = value
-        .get("tools")
-        .and_then(Value::as_array)
-        .map_or_else(Vec::new, |arr| {
-            arr.iter().map(parse_tool).collect::<Vec<_>>()
-        });
-
-    let tool_choice = value.get("tool_choice").and_then(parse_tool_choice);
-
-    let stream = value
-        .get("stream")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-
-    let thinking = value.get("thinking").map(parse_thinking);
-
-    let metadata = value.get("metadata").cloned();
-
-    Ok(CanonicalRequest {
-        model,
-        system,
-        messages,
-        max_tokens,
-        temperature,
-        top_p,
-        top_k,
-        stop_sequences,
-        tools,
-        tool_choice,
-        stream,
-        thinking,
-        metadata,
-    })
-}
-
-fn parse_system(value: &Value) -> Result<Option<String>, InboundParseError> {
+pub(super) fn parse_system(value: &Value) -> Result<Option<String>, InboundParseError> {
     match value {
         Value::Null => Ok(None),
         Value::String(s) if s.is_empty() => Ok(None),
@@ -110,7 +32,7 @@ fn parse_system(value: &Value) -> Result<Option<String>, InboundParseError> {
     }
 }
 
-fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundParseError> {
+pub(super) fn parse_message(value: &Value) -> Result<CanonicalMessage, InboundParseError> {
     let role_str = value
         .get("role")
         .and_then(Value::as_str)
@@ -247,60 +169,5 @@ fn parse_image(value: &Value) -> Result<CanonicalContent, InboundParseError> {
             field: "image.source.type",
             detail: other.to_owned(),
         }),
-    }
-}
-
-fn parse_tool(value: &Value) -> CanonicalTool {
-    CanonicalTool {
-        name: value
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_owned(),
-        description: value
-            .get("description")
-            .and_then(Value::as_str)
-            .map(str::to_owned),
-        input_schema: value
-            .get("input_schema")
-            .cloned()
-            .unwrap_or(Value::Object(Map::new())),
-    }
-}
-
-fn parse_tool_choice(value: &Value) -> Option<CanonicalToolChoice> {
-    if let Some(s) = value.as_str() {
-        return match s {
-            "auto" => Some(CanonicalToolChoice::Auto),
-            "any" => Some(CanonicalToolChoice::Any),
-            "none" => Some(CanonicalToolChoice::None),
-            "required" => Some(CanonicalToolChoice::Required),
-            _ => None,
-        };
-    }
-    let kind = value.get("type").and_then(Value::as_str)?;
-    match kind {
-        "auto" => Some(CanonicalToolChoice::Auto),
-        "any" => Some(CanonicalToolChoice::Any),
-        "none" => Some(CanonicalToolChoice::None),
-        "required" => Some(CanonicalToolChoice::Required),
-        "tool" => value
-            .get("name")
-            .and_then(Value::as_str)
-            .map(|n| CanonicalToolChoice::Tool(n.to_owned())),
-        _ => None,
-    }
-}
-
-fn parse_thinking(value: &Value) -> ThinkingConfig {
-    let kind = value.get("type").and_then(Value::as_str).unwrap_or("");
-    let enabled = kind == "enabled";
-    let budget_tokens = value
-        .get("budget_tokens")
-        .and_then(Value::as_u64)
-        .map(|v| v as u32);
-    ThinkingConfig {
-        enabled,
-        budget_tokens,
     }
 }

@@ -1,22 +1,7 @@
-//! OTLP telemetry ingest endpoint.
-//!
-//! [`handle`] decodes a protobuf OTLP envelope (traces, logs, or metrics) and
-//! persists spans and log records to the logging repository; metrics are only
-//! summarised. It always responds `202 Accepted`, swallowing decode and persist
-//! failures so a misbehaving emitter cannot stall.
-//!
-//! Trust boundary: this route is unauthenticated by design. Codex starts
-//! emitting telemetry before any auth handshake completes, and the bridge proxy
-//! already gates `/otel` to loopback origin (bin/bridge/src/proxy/server.rs).
-//! Do not add JWT/API-key auth here without coordinating with the bridge.
+//! Persistence of decoded OTLP spans and log records; metrics are summarised
+//! only.
 
-use axum::body::Body;
-use axum::extract::Request;
-use axum::http::StatusCode;
-use axum::response::Response;
-use prost::Message;
-use serde_json::{Value, json};
-use systemprompt_database::DbPool;
+use serde_json::json;
 use systemprompt_identifiers::TraceId;
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 
@@ -24,67 +9,11 @@ use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
-const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
+use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_level};
+
 const MODULE: &str = "otel";
 
-pub async fn handle(pool: DbPool, request: Request<Body>) -> Response<Body> {
-    let body_bytes = match axum::body::to_bytes(request.into_body(), MAX_BODY_BYTES).await {
-        Ok(b) => b,
-        Err(e) => {
-            tracing::warn!(error = %e, "otel: body read failed");
-            return accepted();
-        },
-    };
-
-    if body_bytes.is_empty() {
-        return accepted();
-    }
-
-    let repo = match LoggingRepository::new(&pool) {
-        // Why: otel ingest is a high-volume background path; keep it strictly
-        // database-backed and out of stderr so it cannot drown the operator's
-        // terminal or recurse into tracing's own subscriber.
-        Ok(r) => r.with_terminal(false).with_database(true),
-        Err(e) => {
-            tracing::warn!(error = %e, "otel: logging repo unavailable");
-            return accepted();
-        },
-    };
-
-    if let Ok(req) = ExportTraceServiceRequest::decode(body_bytes.as_ref()) {
-        if !req.resource_spans.is_empty() {
-            ingest_traces(&repo, req).await;
-            return accepted();
-        }
-    }
-    if let Ok(req) = ExportLogsServiceRequest::decode(body_bytes.as_ref()) {
-        if !req.resource_logs.is_empty() {
-            ingest_logs(&repo, req).await;
-            return accepted();
-        }
-    }
-    if let Ok(req) = ExportMetricsServiceRequest::decode(body_bytes.as_ref()) {
-        if !req.resource_metrics.is_empty() {
-            ingest_metrics(&req);
-            return accepted();
-        }
-    }
-
-    tracing::warn!(
-        bytes = body_bytes.len(),
-        "otel: payload did not decode as any known OTLP envelope"
-    );
-    accepted()
-}
-
-fn accepted() -> Response<Body> {
-    Response::builder()
-        .status(StatusCode::ACCEPTED)
-        .body(Body::empty())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
-}
-
-async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest) {
+pub(super) async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest) {
     for resource in req.resource_spans {
         let resource_attrs = attrs_to_json(
             resource
@@ -154,7 +83,7 @@ async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest)
     }
 }
 
-async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
+pub(super) async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
     for resource in req.resource_logs {
         let resource_attrs = attrs_to_json(
             resource
@@ -214,7 +143,7 @@ async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
     }
 }
 
-fn ingest_metrics(req: &ExportMetricsServiceRequest) {
+pub(super) fn ingest_metrics(req: &ExportMetricsServiceRequest) {
     let mut total = 0usize;
     let mut names: Vec<String> = Vec::new();
     for resource in &req.resource_metrics {
@@ -228,75 +157,4 @@ fn ingest_metrics(req: &ExportMetricsServiceRequest) {
         }
     }
     tracing::debug!(total, names = ?names, "otel: metrics export");
-}
-
-fn hex_lower(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        out.push_str(&format!("{b:02x}"));
-    }
-    out
-}
-
-const fn severity_to_level(severity_number: i32) -> LogLevel {
-    // OTel severity_number: 1-4=TRACE, 5-8=DEBUG, 9-12=INFO, 13-16=WARN,
-    // 17-24=ERROR
-    match severity_number {
-        ..=4 => LogLevel::Trace,
-        5..=8 => LogLevel::Debug,
-        9..=12 => LogLevel::Info,
-        13..=16 => LogLevel::Warn,
-        _ => LogLevel::Error,
-    }
-}
-
-fn any_value_to_string(value: Option<&opentelemetry_proto::tonic::common::v1::AnyValue>) -> String {
-    use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
-    let Some(av) = value.and_then(|v| v.value.as_ref()) else {
-        return String::new();
-    };
-    match av {
-        AV::StringValue(s) => s.clone(),
-        AV::BoolValue(b) => b.to_string(),
-        AV::IntValue(i) => i.to_string(),
-        AV::DoubleValue(f) => f.to_string(),
-        AV::BytesValue(b) => format!("<bytes:{}>", b.len()),
-        AV::ArrayValue(_) | AV::KvlistValue(_) => serde_json::to_string(&any_value_to_json(value))
-            .unwrap_or_else(|e| format!("<json-serialise-failed: {e}>")),
-    }
-}
-
-fn attrs_to_json(attrs: &[opentelemetry_proto::tonic::common::v1::KeyValue]) -> Value {
-    let mut map = serde_json::Map::new();
-    for kv in attrs {
-        map.insert(kv.key.clone(), any_value_to_json(kv.value.as_ref()));
-    }
-    Value::Object(map)
-}
-
-fn any_value_to_json(value: Option<&opentelemetry_proto::tonic::common::v1::AnyValue>) -> Value {
-    use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
-    let Some(av) = value.and_then(|v| v.value.as_ref()) else {
-        return Value::Null;
-    };
-    match av {
-        AV::StringValue(s) => Value::String(s.clone()),
-        AV::BoolValue(b) => Value::Bool(*b),
-        AV::IntValue(i) => Value::from(*i),
-        AV::DoubleValue(f) => json!(f),
-        AV::BytesValue(b) => Value::String(format!("<bytes:{}>", b.len())),
-        AV::ArrayValue(arr) => Value::Array(
-            arr.values
-                .iter()
-                .map(|v| any_value_to_json(Some(v)))
-                .collect(),
-        ),
-        AV::KvlistValue(kvs) => {
-            let mut map = serde_json::Map::new();
-            for kv in &kvs.values {
-                map.insert(kv.key.clone(), any_value_to_json(kv.value.as_ref()));
-            }
-            Value::Object(map)
-        },
-    }
 }
