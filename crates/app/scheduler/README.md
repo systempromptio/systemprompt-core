@@ -154,7 +154,7 @@ State types:
 
 ```toml
 [dependencies]
-systemprompt-scheduler = "0.13.0"
+systemprompt-scheduler = "0.13.1"
 ```
 
 ### Job Discovery

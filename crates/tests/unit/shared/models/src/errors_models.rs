@@ -111,9 +111,17 @@ fn secrets_error_invalid_display() {
 
 #[test]
 fn metadata_error_variants_display() {
-    assert!(MetadataError::MissingExecutionId.to_string().contains("mcp_execution_id"));
+    assert!(
+        MetadataError::MissingExecutionId
+            .to_string()
+            .contains("mcp_execution_id")
+    );
     assert!(MetadataError::MetaMissing.to_string().contains("_meta"));
-    assert!(MetadataError::NotJsonObject.to_string().contains("JSON object"));
+    assert!(
+        MetadataError::NotJsonObject
+            .to_string()
+            .contains("JSON object")
+    );
 }
 
 #[test]

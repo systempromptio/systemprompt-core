@@ -205,11 +205,18 @@ mod anthropic_search_content_block_tests {
         }"#;
         let block: AnthropicSearchContentBlock = serde_json::from_str(json).expect("de");
         match block {
-            AnthropicSearchContentBlock::WebSearchToolResult { tool_use_id, content } => {
+            AnthropicSearchContentBlock::WebSearchToolResult {
+                tool_use_id,
+                content,
+            } => {
                 assert_eq!(tool_use_id, "tu_123");
                 assert_eq!(content.len(), 1);
                 match &content[0] {
-                    AnthropicWebSearchResultItem::WebSearchResult { url, title, page_age } => {
+                    AnthropicWebSearchResultItem::WebSearchResult {
+                        url,
+                        title,
+                        page_age,
+                    } => {
                         assert_eq!(url, "https://weather.com");
                         assert_eq!(title, "Current Weather");
                         assert_eq!(page_age.as_deref(), Some("2026-01-01"));

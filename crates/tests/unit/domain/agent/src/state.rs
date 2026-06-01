@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
+use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
-use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
 
 struct AlwaysErrJwtProvider;
 

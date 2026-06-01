@@ -7,7 +7,11 @@ fn make_secrets(extra: &str) -> impl Fn() -> String + '_ {
         format!(
             r#"{{"oauth_at_rest_pepper": "{}", "database_url": "postgres://u:p@localhost/db"{}}}"#,
             "x".repeat(32),
-            if extra.is_empty() { String::new() } else { format!(", {extra}") }
+            if extra.is_empty() {
+                String::new()
+            } else {
+                format!(", {extra}")
+            }
         )
     }
 }

@@ -2,7 +2,9 @@
 //! `std::error::Error` impl.
 
 use std::str::FromStr;
-use systemprompt_oauth::{DisplayMode, GrantType, PkceMethod, Prompt, ResponseMode, ResponseType, TokenAuthMethod};
+use systemprompt_oauth::{
+    DisplayMode, GrantType, PkceMethod, Prompt, ResponseMode, ResponseType, TokenAuthMethod,
+};
 
 // -- OAuthParseError variants via FromStr failures --------------------------
 

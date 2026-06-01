@@ -2,8 +2,8 @@
 //! high-risk countries.
 
 use systemprompt_analytics::detection::{
-    is_datacenter_ip, is_high_risk_country, is_spam_referrer, DATACENTER_IP_PREFIXES,
-    HIGH_RISK_COUNTRIES, SPAM_REFERRER_PATTERNS,
+    DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES, SPAM_REFERRER_PATTERNS, is_datacenter_ip,
+    is_high_risk_country, is_spam_referrer,
 };
 
 mod is_datacenter_ip_tests {

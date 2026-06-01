@@ -9,7 +9,10 @@ mod embedded_constructor {
     fn sets_name_and_embedded_source() {
         let def = TemplateDefinition::embedded("my-template", "<!DOCTYPE html>");
         assert_eq!(def.name, "my-template");
-        assert!(matches!(def.source, TemplateSource::Embedded("<!DOCTYPE html>")));
+        assert!(matches!(
+            def.source,
+            TemplateSource::Embedded("<!DOCTYPE html>")
+        ));
     }
 
     #[test]

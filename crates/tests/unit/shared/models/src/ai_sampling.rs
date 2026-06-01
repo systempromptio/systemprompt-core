@@ -44,7 +44,9 @@ fn model_hint_serde_as_string() {
     let json = serde_json::to_string(&hint).unwrap();
     assert_eq!(json, "\"claude-3-opus\"");
     let decoded: ModelHint = serde_json::from_str(&json).unwrap();
-    let ModelHint::ModelId(id) = decoded else { panic!("wrong variant") };
+    let ModelHint::ModelId(id) = decoded else {
+        panic!("wrong variant")
+    };
     assert_eq!(id, "claude-3-opus");
 }
 

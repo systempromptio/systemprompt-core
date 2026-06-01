@@ -73,8 +73,7 @@ mod tool_request_params_tests {
     fn direct_constructor_matches_builder() {
         let messages = vec![user_msg("test")];
         let tools = vec![make_tool("t1"), make_tool("t2")];
-        let params_direct =
-            ToolRequestParams::builder(&messages, &tools, 256, "model-x").build();
+        let params_direct = ToolRequestParams::builder(&messages, &tools, 256, "model-x").build();
         assert_eq!(params_direct.messages.len(), 1);
         assert_eq!(params_direct.tools.len(), 2);
         assert_eq!(params_direct.max_output_tokens, 256);
@@ -113,8 +112,8 @@ mod tool_result_params_tests {
         let history = vec![user_msg("what's the weather?")];
         let calls = vec![make_tool_call("get_weather")];
         let results = vec![make_tool_result("sunny")];
-        let params = ToolResultParams::builder(&history, &calls, &results, 512, "gemini-2.5-flash")
-            .build();
+        let params =
+            ToolResultParams::builder(&history, &calls, &results, 512, "gemini-2.5-flash").build();
         assert_eq!(params.conversation_history.len(), 1);
         assert_eq!(params.tool_calls.len(), 1);
         assert_eq!(params.tool_results.len(), 1);
@@ -148,17 +147,10 @@ mod tool_result_params_tests {
     #[test]
     fn multiple_tool_calls_and_results() {
         let history = vec![user_msg("use multiple tools")];
-        let calls = vec![
-            make_tool_call("tool_a"),
-            make_tool_call("tool_b"),
-        ];
-        let results = vec![
-            make_tool_result("result_a"),
-            make_tool_result("result_b"),
-        ];
+        let calls = vec![make_tool_call("tool_a"), make_tool_call("tool_b")];
+        let results = vec![make_tool_result("result_a"), make_tool_result("result_b")];
         let params =
-            ToolResultParams::builder(&history, &calls, &results, 1024, "gemini-2.5-flash")
-                .build();
+            ToolResultParams::builder(&history, &calls, &results, 1024, "gemini-2.5-flash").build();
         assert_eq!(params.tool_calls.len(), 2);
         assert_eq!(params.tool_results.len(), 2);
     }

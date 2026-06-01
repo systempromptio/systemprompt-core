@@ -1,5 +1,5 @@
-use systemprompt_security::jwt::{ValidationPolicy, JWT_LEEWAY_SECONDS};
 use systemprompt_security::AuthError;
+use systemprompt_security::jwt::{JWT_LEEWAY_SECONDS, ValidationPolicy};
 use systemprompt_test_fixtures::install_test_signing_key;
 
 #[test]
@@ -26,7 +26,7 @@ fn issuer_scoped_policy_pins_issuer_and_audiences() {
 #[test]
 fn decode_rejects_non_rs256_token() {
     install_test_signing_key();
-    use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize)]
@@ -56,7 +56,7 @@ fn decode_rejects_non_rs256_token() {
 fn decode_rejects_missing_kid() {
     install_test_signing_key();
     use chrono::{Duration, Utc};
-    use jsonwebtoken::{encode, Algorithm, Header};
+    use jsonwebtoken::{Algorithm, Header, encode};
     use systemprompt_security::keys::authority;
 
     let now = Utc::now();
@@ -100,7 +100,7 @@ fn decode_rejects_missing_kid() {
 fn decode_rejects_unknown_kid() {
     install_test_signing_key();
     use chrono::{Duration, Utc};
-    use jsonwebtoken::{encode, Algorithm, Header};
+    use jsonwebtoken::{Algorithm, Header, encode};
     use systemprompt_security::keys::authority;
 
     let now = Utc::now();

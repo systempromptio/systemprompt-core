@@ -11,7 +11,10 @@ fn oauth_client_config_new_sets_required_fields() {
     );
     assert_eq!(c.provider, "github");
     assert_eq!(c.client_id, ClientId::new("client_123"));
-    assert_eq!(c.authorization_url, "https://github.com/login/oauth/authorize");
+    assert_eq!(
+        c.authorization_url,
+        "https://github.com/login/oauth/authorize"
+    );
     assert_eq!(c.token_url, "https://github.com/login/oauth/access_token");
     assert!(c.client_secret.is_none());
     assert!(c.redirect_uri.is_none());
@@ -31,7 +34,10 @@ fn oauth_client_config_builder_chains() {
     .with_scopes(vec!["openid".to_owned(), "email".to_owned()]);
 
     assert_eq!(c.client_secret.as_deref(), Some("super_secret"));
-    assert_eq!(c.redirect_uri.as_deref(), Some("https://myapp.com/callback"));
+    assert_eq!(
+        c.redirect_uri.as_deref(),
+        Some("https://myapp.com/callback")
+    );
     assert_eq!(c.scopes, vec!["openid", "email"]);
 }
 
@@ -69,8 +75,14 @@ fn oauth_server_config_from_api_server_url() {
     assert!(s.registration_endpoint.contains("/oauth/register"));
     assert!(s.supported_scopes.contains(&"user".to_owned()));
     assert!(s.supported_scopes.contains(&"admin".to_owned()));
-    assert!(s.supported_grant_types.contains(&"authorization_code".to_owned()));
-    assert!(s.supported_code_challenge_methods.contains(&"S256".to_owned()));
+    assert!(
+        s.supported_grant_types
+            .contains(&"authorization_code".to_owned())
+    );
+    assert!(
+        s.supported_code_challenge_methods
+            .contains(&"S256".to_owned())
+    );
 }
 
 #[test]

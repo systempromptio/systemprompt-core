@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.1] - 2026-06-01
+
+### Fixed
+
+- MCP server cleanup never signals the calling process when tearing down a managed child server.
+
 ## [0.13.0] - 2026-05-28
 
 ### Changed

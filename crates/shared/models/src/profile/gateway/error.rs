@@ -68,6 +68,9 @@ pub enum GatewayProfileError {
 
     #[error("gateway catalog model '{model}' has no route whose pattern matches its id")]
     UnreachableModel { model: String },
+
+    #[error("gateway default_provider '{provider}' is not declared in the catalog providers")]
+    DefaultProviderNotInCatalog { provider: String },
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

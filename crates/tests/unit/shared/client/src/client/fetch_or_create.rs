@@ -198,7 +198,9 @@ async fn test_get_context_returns_data_field() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v1/core/contexts/00000000-0000-4000-8000-000000000088"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000088",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": make_context("00000000-0000-4000-8000-000000000088", "Fetched Context"),
             "meta": response_meta()

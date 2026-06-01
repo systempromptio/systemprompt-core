@@ -4,7 +4,10 @@ use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 #[test]
 fn session_timeouts_both_none() {
-    let t = SessionTimeouts { init: None, keep_alive: None };
+    let t = SessionTimeouts {
+        init: None,
+        keep_alive: None,
+    };
     assert!(t.init.is_none());
     assert!(t.keep_alive.is_none());
 }
@@ -110,10 +113,7 @@ fn mcp_http_config_default_hosts_count() {
 fn mcp_http_config_clone_preserves_hosts() {
     let config = McpHttpConfig::default();
     let cloned = config.clone();
-    assert_eq!(
-        cloned.allowed_hosts.as_ref().map(|v| v.len()),
-        Some(5)
-    );
+    assert_eq!(cloned.allowed_hosts.as_ref().map(|v| v.len()), Some(5));
 }
 
 #[test]
@@ -126,8 +126,12 @@ fn mcp_http_config_debug_nonempty() {
 
 #[tokio::test]
 async fn mcp_state_debug_and_accessors() {
-    let Ok(url) = fixture_database_url() else { return };
-    let Ok(pool) = fixture_db_pool(&url).await else { return };
+    let Ok(url) = fixture_database_url() else {
+        return;
+    };
+    let Ok(pool) = fixture_db_pool(&url).await else {
+        return;
+    };
     let state = McpState::new(pool);
     let debug = format!("{state:?}");
     assert!(debug.contains("McpState"));

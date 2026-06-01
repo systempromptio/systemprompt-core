@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use systemprompt_identifiers::{AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId};
+use systemprompt_identifiers::{
+    AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId,
+};
 use systemprompt_security::authz::{Access, EntityKind, EntityRef, RuleType};
 
 #[test]
@@ -16,11 +18,20 @@ fn entity_kind_as_str_all_variants() {
 
 #[test]
 fn entity_kind_from_str_valid() {
-    assert_eq!(EntityKind::from_str("gateway_route").unwrap(), EntityKind::GatewayRoute);
-    assert_eq!(EntityKind::from_str("mcp_server").unwrap(), EntityKind::McpServer);
+    assert_eq!(
+        EntityKind::from_str("gateway_route").unwrap(),
+        EntityKind::GatewayRoute
+    );
+    assert_eq!(
+        EntityKind::from_str("mcp_server").unwrap(),
+        EntityKind::McpServer
+    );
     assert_eq!(EntityKind::from_str("plugin").unwrap(), EntityKind::Plugin);
     assert_eq!(EntityKind::from_str("agent").unwrap(), EntityKind::Agent);
-    assert_eq!(EntityKind::from_str("marketplace").unwrap(), EntityKind::Marketplace);
+    assert_eq!(
+        EntityKind::from_str("marketplace").unwrap(),
+        EntityKind::Marketplace
+    );
     assert_eq!(EntityKind::from_str("skill").unwrap(), EntityKind::Skill);
     assert_eq!(EntityKind::from_str("hook").unwrap(), EntityKind::Hook);
 }
@@ -41,12 +52,36 @@ fn entity_kind_display() {
 #[test]
 fn entity_ref_kind_and_id_str_all_variants() {
     let cases: &[(EntityRef, EntityKind, &str)] = &[
-        (EntityRef::GatewayRoute(RouteId::new("r1")), EntityKind::GatewayRoute, "r1"),
-        (EntityRef::McpServer(McpServerId::new("ms1")), EntityKind::McpServer, "ms1"),
-        (EntityRef::Plugin(PluginId::new("p1")), EntityKind::Plugin, "p1"),
-        (EntityRef::Agent(AgentId::new("a1")), EntityKind::Agent, "a1"),
-        (EntityRef::Marketplace(MarketplaceId::new("m1")), EntityKind::Marketplace, "m1"),
-        (EntityRef::Skill(SkillId::new("s1")), EntityKind::Skill, "s1"),
+        (
+            EntityRef::GatewayRoute(RouteId::new("r1")),
+            EntityKind::GatewayRoute,
+            "r1",
+        ),
+        (
+            EntityRef::McpServer(McpServerId::new("ms1")),
+            EntityKind::McpServer,
+            "ms1",
+        ),
+        (
+            EntityRef::Plugin(PluginId::new("p1")),
+            EntityKind::Plugin,
+            "p1",
+        ),
+        (
+            EntityRef::Agent(AgentId::new("a1")),
+            EntityKind::Agent,
+            "a1",
+        ),
+        (
+            EntityRef::Marketplace(MarketplaceId::new("m1")),
+            EntityKind::Marketplace,
+            "m1",
+        ),
+        (
+            EntityRef::Skill(SkillId::new("s1")),
+            EntityKind::Skill,
+            "s1",
+        ),
         (EntityRef::Hook(HookId::new("h1")), EntityKind::Hook, "h1"),
     ];
     for (entity, expected_kind, expected_id) in cases {

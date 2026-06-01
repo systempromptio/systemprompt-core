@@ -17,7 +17,7 @@ use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, setup_postgres,
     should_run_migrations,
 };
-use super::{SetupArgs, catalog, common, profile, secrets};
+use super::{SetupArgs, ai_config, catalog, common, profile, secrets};
 use crate::CliConfig;
 
 fn should_write(path: &std::path::Path, force: bool, config: &CliConfig) -> bool {
@@ -93,7 +93,7 @@ pub(super) async fn execute(
         "unreachable"
     };
 
-    let mut secrets_data = collect_secrets(&args, config, &env_name)?;
+    let (mut secrets_data, primary_provider) = collect_secrets(&args, config, &env_name)?;
     secrets_data.database_url = Some(pg_config.database_url());
 
     let secrets_path = profile::profile_dir(&systemprompt_dir, &env_name).join("secrets.json");
@@ -107,6 +107,7 @@ pub(super) async fn execute(
         &project_root,
         None,
         &secrets_data,
+        primary_provider.as_ref(),
     )?;
     let profile_path = profile::default_path(&systemprompt_dir, &env_name);
     if should_write(&profile_path, args.force, config) {
@@ -122,6 +123,10 @@ pub(super) async fn execute(
                 catalog_path.display()
             ));
         }
+    }
+
+    if let Some(primary) = primary_provider.as_ref() {
+        ai_config::reconcile(&project_root, primary, &secrets_data, config)?;
     }
 
     let run_migrations = should_run_migrations(&args, config)?;

@@ -103,7 +103,7 @@ pub(super) async fn extract_request_context(
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
 
     let route = gateway_config
-        .find_route(&gateway_request.model)
+        .resolve_route(&gateway_request.model)
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,
@@ -118,7 +118,7 @@ pub(super) async fn extract_request_context(
 
     enforce_authz_pre_dispatch(
         &principal,
-        route,
+        route.as_ref(),
         &gateway_request.model,
         rc.ctx.authz_hook(),
     )

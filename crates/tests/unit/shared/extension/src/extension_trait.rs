@@ -1,13 +1,17 @@
 use std::sync::Arc;
 
-use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole, SchemaDefinition};
 use systemprompt_extension::error::LoaderError;
+use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole, SchemaDefinition};
 
 struct MinimalExt;
 
 impl Extension for MinimalExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "minimal", name: "Minimal", version: "0.1.0" }
+        ExtensionMetadata {
+            id: "minimal",
+            name: "Minimal",
+            version: "0.1.0",
+        }
     }
 }
 
@@ -15,11 +19,18 @@ struct SchemaExt;
 
 impl Extension for SchemaExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "schema-bearing", name: "Schema Bearing", version: "1.0.0" }
+        ExtensionMetadata {
+            id: "schema-bearing",
+            name: "Schema Bearing",
+            version: "1.0.0",
+        }
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::new("things", "CREATE TABLE things (id TEXT)")]
+        vec![SchemaDefinition::new(
+            "things",
+            "CREATE TABLE things (id TEXT)",
+        )]
     }
 }
 
@@ -27,7 +38,11 @@ struct RequiredExt;
 
 impl Extension for RequiredExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "required-ext", name: "Required", version: "1.0.0" }
+        ExtensionMetadata {
+            id: "required-ext",
+            name: "Required",
+            version: "1.0.0",
+        }
     }
 
     fn is_required(&self) -> bool {
@@ -39,7 +54,11 @@ struct PriorityExt;
 
 impl Extension for PriorityExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "priority-ext", name: "Priority", version: "1.0.0" }
+        ExtensionMetadata {
+            id: "priority-ext",
+            name: "Priority",
+            version: "1.0.0",
+        }
     }
 
     fn priority(&self) -> u32 {
@@ -51,7 +70,11 @@ struct DepExt;
 
 impl Extension for DepExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "dep-ext", name: "With Deps", version: "1.0.0" }
+        ExtensionMetadata {
+            id: "dep-ext",
+            name: "With Deps",
+            version: "1.0.0",
+        }
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
@@ -63,7 +86,11 @@ struct RolesExt;
 
 impl Extension for RolesExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "roles-ext", name: "Roles", version: "1.0.0" }
+        ExtensionMetadata {
+            id: "roles-ext",
+            name: "Roles",
+            version: "1.0.0",
+        }
     }
 
     fn roles(&self) -> Vec<ExtensionRole> {
@@ -75,7 +102,11 @@ struct StorageExt;
 
 impl Extension for StorageExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "storage-ext", name: "Storage", version: "1.0.0" }
+        ExtensionMetadata {
+            id: "storage-ext",
+            name: "Storage",
+            version: "1.0.0",
+        }
     }
 
     fn required_storage_paths(&self) -> Vec<&'static str> {
@@ -487,8 +518,8 @@ fn loader_error_seed_failed_display() {
 
 #[test]
 fn schema_definition_with_schema_sets_schema_name() {
-    let schema = SchemaDefinition::new("events", "CREATE TABLE events (id TEXT)")
-        .with_schema("audit");
+    let schema =
+        SchemaDefinition::new("events", "CREATE TABLE events (id TEXT)").with_schema("audit");
     assert_eq!(schema.schema_name(), "audit");
 }
 

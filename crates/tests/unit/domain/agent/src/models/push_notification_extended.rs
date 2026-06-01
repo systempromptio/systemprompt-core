@@ -1,9 +1,9 @@
 use systemprompt_agent::models::a2a::protocol::{
     DeleteTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigRequest,
     ListTaskPushNotificationConfigRequest, ListTaskPushNotificationConfigResponse,
-    PushNotificationConfig, PushNotificationNotSupportedError, SetTaskPushNotificationConfigRequest,
-    SetTaskPushNotificationConfigResponse, TaskPushNotificationConfig,
-    TaskResubscriptionRequest, TaskResubscriptionResponse,
+    PushNotificationConfig, PushNotificationNotSupportedError,
+    SetTaskPushNotificationConfigRequest, SetTaskPushNotificationConfigResponse,
+    TaskPushNotificationConfig, TaskResubscriptionRequest, TaskResubscriptionResponse,
 };
 use systemprompt_identifiers::TaskId;
 

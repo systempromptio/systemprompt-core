@@ -141,7 +141,10 @@ mod issue_api_key_params_tests {
     fn name_with_content_trims_non_empty() {
         let names = ["a", " key ", "\ttest\t", "my-api-key"];
         for name in names {
-            assert!(!name.trim().is_empty(), "expected {name:?} to be non-empty after trim");
+            assert!(
+                !name.trim().is_empty(),
+                "expected {name:?} to be non-empty after trim"
+            );
         }
     }
 }

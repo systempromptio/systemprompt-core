@@ -1,9 +1,10 @@
 //! Tests for URL building, query-string construction, and path formatting.
 //!
-//! These tests exercise `limited_url` (via list_logs/list_users/list_all_artifacts),
-//! context/task/artifact URL composition, agent card paths, and the
-//! send_message JSON-RPC envelope — all without requiring a live server or
-//! touching any network by inspecting wiremock request paths and query strings.
+//! These tests exercise `limited_url` (via
+//! list_logs/list_users/list_all_artifacts), context/task/artifact URL
+//! composition, agent card paths, and the send_message JSON-RPC envelope — all
+//! without requiring a live server or touching any network by inspecting
+//! wiremock request paths and query strings.
 
 use systemprompt_client::SystempromptClient;
 use systemprompt_identifiers::{ContextId, JwtToken, TaskId};
@@ -29,7 +30,10 @@ async fn test_list_logs_no_limit_omits_query_param() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client.list_logs(None).await.expect("list_logs(None) should succeed");
+    client
+        .list_logs(None)
+        .await
+        .expect("list_logs(None) should succeed");
 }
 
 #[tokio::test]
@@ -44,7 +48,10 @@ async fn test_list_logs_with_limit_appends_query_param() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client.list_logs(Some(50)).await.expect("list_logs(Some(50)) should succeed");
+    client
+        .list_logs(Some(50))
+        .await
+        .expect("list_logs(Some(50)) should succeed");
 }
 
 #[tokio::test]
@@ -58,7 +65,10 @@ async fn test_list_users_no_limit_omits_query_param() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client.list_users(None).await.expect("list_users(None) should succeed");
+    client
+        .list_users(None)
+        .await
+        .expect("list_users(None) should succeed");
 }
 
 #[tokio::test]
@@ -73,7 +83,10 @@ async fn test_list_users_with_limit_appends_query_param() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client.list_users(Some(100)).await.expect("list_users(Some(100)) should succeed");
+    client
+        .list_users(Some(100))
+        .await
+        .expect("list_users(Some(100)) should succeed");
 }
 
 #[tokio::test]
@@ -123,7 +136,10 @@ async fn test_list_logs_limit_one() {
         .await;
 
     let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    client.list_logs(Some(1)).await.expect("list_logs(Some(1)) should succeed");
+    client
+        .list_logs(Some(1))
+        .await
+        .expect("list_logs(Some(1)) should succeed");
 }
 
 #[tokio::test]
@@ -131,7 +147,9 @@ async fn test_get_context_builds_correct_url() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v1/core/contexts/00000000-0000-4000-8000-000000000abc"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000abc",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": {
                 "context_id": "00000000-0000-4000-8000-000000000abc",
@@ -159,7 +177,9 @@ async fn test_list_tasks_builds_correct_url() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v1/core/contexts/00000000-0000-4000-8000-000000000001/tasks"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000001/tasks",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
         .mount(&mock_server)
         .await;
@@ -178,7 +198,9 @@ async fn test_list_artifacts_builds_correct_url() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v1/core/contexts/00000000-0000-4000-8000-000000000002/artifacts"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000002/artifacts",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
         .mount(&mock_server)
         .await;
@@ -276,7 +298,10 @@ async fn test_send_message_requires_auth_header_when_token_set() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/agents/agent-x/"))
-        .and(wiremock::matchers::header("Authorization", "Bearer msg-token"))
+        .and(wiremock::matchers::header(
+            "Authorization",
+            "Bearer msg-token",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "jsonrpc": "2.0",
             "result": {},
@@ -305,7 +330,9 @@ async fn test_update_context_name_builds_correct_url() {
     let mock_server = MockServer::start().await;
 
     Mock::given(method("PUT"))
-        .and(path("/api/v1/core/contexts/00000000-0000-4000-8000-000000000999"))
+        .and(path(
+            "/api/v1/core/contexts/00000000-0000-4000-8000-000000000999",
+        ))
         .respond_with(ResponseTemplate::new(200))
         .mount(&mock_server)
         .await;

@@ -1,9 +1,8 @@
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
 use systemprompt_mcp::McpResponseBuilder;
 use systemprompt_models::RequestContext;
-use systemprompt_models::artifacts::{
-    DashboardArtifact, ListArtifact, TextArtifact, cli::CliArtifact,
-};
+use systemprompt_models::artifacts::cli::CliArtifact;
+use systemprompt_models::artifacts::{DashboardArtifact, ListArtifact, TextArtifact};
 
 fn ctx() -> RequestContext {
     RequestContext::new(

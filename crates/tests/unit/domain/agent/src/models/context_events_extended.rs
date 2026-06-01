@@ -1,9 +1,11 @@
 use chrono::Utc;
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
 use systemprompt_agent::models::context::ContextStateEvent;
-use systemprompt_identifiers::{AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId};
-use systemprompt_models::execution::context::RequestContext;
+use systemprompt_identifiers::{
+    AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId,
+};
 use systemprompt_models::UserContext;
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::fixture_user_id;
 
 const CONTEXT_ID_1: &str = "10000000-0000-4000-8000-000000000001";

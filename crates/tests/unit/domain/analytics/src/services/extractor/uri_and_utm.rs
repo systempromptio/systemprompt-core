@@ -1,4 +1,5 @@
-//! Tests for URI extraction, UTM parameters, referrer handling, socket addr, and locale edge cases.
+//! Tests for URI extraction, UTM parameters, referrer handling, socket addr,
+//! and locale edge cases.
 
 use axum::http::{HeaderMap, HeaderValue, Uri};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -12,7 +13,10 @@ fn create_full_headers() -> HeaderMap {
     );
     headers.insert("x-forwarded-for", HeaderValue::from_static("192.168.1.1"));
     headers.insert("x-fingerprint", HeaderValue::from_static("fp_abc123"));
-    headers.insert("accept-language", HeaderValue::from_static("en-US,en;q=0.9"));
+    headers.insert(
+        "accept-language",
+        HeaderValue::from_static("en-US,en;q=0.9"),
+    );
     headers.insert(
         "referer",
         HeaderValue::from_static("https://google.com/search?q=test"),
@@ -23,7 +27,10 @@ fn create_full_headers() -> HeaderMap {
 #[test]
 fn referrer_source_skips_ip_addresses() {
     let mut headers = HeaderMap::new();
-    headers.insert("referer", HeaderValue::from_static("http://192.168.1.1/page"));
+    headers.insert(
+        "referer",
+        HeaderValue::from_static("http://192.168.1.1/page"),
+    );
     let analytics = SessionAnalytics::from_headers(&headers);
 
     assert!(analytics.referrer_source.is_none());
@@ -53,7 +60,9 @@ fn socket_addr_not_used_when_forwarded_for_present() {
 #[test]
 fn from_headers_and_uri_extracts_utm_source() {
     let headers = create_full_headers();
-    let uri: Uri = "https://example.com/page?utm_source=google".parse().unwrap();
+    let uri: Uri = "https://example.com/page?utm_source=google"
+        .parse()
+        .unwrap();
     let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
 
     assert_eq!(analytics.utm_source, Some("google".to_string()));
@@ -111,7 +120,10 @@ fn referrer_source_extracts_subdomain_host() {
     );
     let analytics = SessionAnalytics::from_headers(&headers);
 
-    assert_eq!(analytics.referrer_source, Some("blog.example.com".to_string()));
+    assert_eq!(
+        analytics.referrer_source,
+        Some("blog.example.com".to_string())
+    );
 }
 
 #[test]
@@ -138,7 +150,9 @@ fn from_headers_and_uri_with_no_query_string() {
 #[test]
 fn from_headers_and_uri_with_empty_query_values() {
     let headers = create_full_headers();
-    let uri: Uri = "https://example.com/page?utm_source=&utm_medium=".parse().unwrap();
+    let uri: Uri = "https://example.com/page?utm_source=&utm_medium="
+        .parse()
+        .unwrap();
     let analytics = SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, None);
 
     assert_eq!(analytics.utm_source, Some("".to_string()));
@@ -212,8 +226,7 @@ fn locale_extraction_with_semicolon_in_first_value() {
 fn socket_addr_v6() {
     use std::net::Ipv6Addr;
     let headers = HeaderMap::new();
-    let socket =
-        SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 8080);
+    let socket = SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 8080);
     let analytics =
         SessionAnalytics::from_headers_with_geoip_and_socket(&headers, None, Some(socket));
 

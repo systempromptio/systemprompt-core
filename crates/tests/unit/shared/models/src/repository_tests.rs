@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use systemprompt_models::repository::{ServiceRecord, WhereClause};
 use systemprompt_models::errors::RowParseError;
+use systemprompt_models::repository::{ServiceRecord, WhereClause};
 
 #[test]
 fn where_clause_empty_build_returns_empty_string() {
@@ -80,12 +80,18 @@ fn where_clause_mixed_conditions() {
         .null("deleted_at")
         .like("email", "%@test.com")
         .build();
-    assert_eq!(sql, "WHERE type = ? AND deleted_at IS NULL AND email LIKE ?");
+    assert_eq!(
+        sql,
+        "WHERE type = ? AND deleted_at IS NULL AND email LIKE ?"
+    );
     assert_eq!(params, vec!["user", "%@test.com"]);
 }
 
 fn make_row(fields: &[(&str, serde_json::Value)]) -> HashMap<String, serde_json::Value> {
-    fields.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+    fields
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.clone()))
+        .collect()
 }
 
 #[test]

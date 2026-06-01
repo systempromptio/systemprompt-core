@@ -30,9 +30,13 @@ fn session_generator_mints_valid_token() {
     let uid = UserId::new("session-user");
     let sid = SessionId::generate();
     let sg = SessionGenerator::new("test-issuer");
-    let params = make_params(&uid, &sid, Duration::hours(1), UserType::User, vec![
-        Permission::User,
-    ]);
+    let params = make_params(
+        &uid,
+        &sid,
+        Duration::hours(1),
+        UserType::User,
+        vec![Permission::User],
+    );
     let token = sg.generate(&params).expect("mint session token");
     assert!(!token.as_str().is_empty());
 }
@@ -43,9 +47,13 @@ fn session_generator_token_is_decodable() {
     let uid = UserId::new("decode-user");
     let sid = SessionId::generate();
     let sg = SessionGenerator::new("decode-issuer");
-    let params = make_params(&uid, &sid, Duration::hours(1), UserType::User, vec![
-        Permission::User,
-    ]);
+    let params = make_params(
+        &uid,
+        &sid,
+        Duration::hours(1),
+        UserType::User,
+        vec![Permission::User],
+    );
     let token = sg.generate(&params).expect("mint");
     let token_str = format!("Bearer {}", token.as_str());
     let headers = axum::http::HeaderMap::from_iter([(
@@ -64,9 +72,13 @@ fn session_generator_admin_token_type() {
     let uid = UserId::new("admin-session-user");
     let sid = SessionId::generate();
     let sg = SessionGenerator::new("admin-issuer");
-    let params = make_params(&uid, &sid, Duration::hours(2), UserType::Admin, vec![
-        Permission::Admin,
-    ]);
+    let params = make_params(
+        &uid,
+        &sid,
+        Duration::hours(2),
+        UserType::Admin,
+        vec![Permission::Admin],
+    );
     let token = sg.generate(&params).expect("mint admin session");
     assert!(!token.as_str().is_empty());
 }

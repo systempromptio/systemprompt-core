@@ -6,7 +6,7 @@ use systemprompt_identifiers::{
     AccessTokenId, AuthorizationCode, ChallengeId, CheckoutSessionId, ConnectionId, DbValue,
     DepartmentName, EngagementEventId, EventOutboxId, FunnelId, FunnelProgressId, HookId,
     MarketplaceId, ModelId, PluginId, PolicyId, PolicyVersion, PriceId, ProviderId, RefreshTokenId,
-    RouteId, SecretName, SectionId, SecretPatternId, TenantId, ToDbValue, TransactionId,
+    RouteId, SecretName, SecretPatternId, SectionId, TenantId, ToDbValue, TransactionId,
     WebhookEndpointId,
 };
 
@@ -131,7 +131,10 @@ mod secret_pattern_id {
     #[test]
     fn from_str_validates() {
         assert!(SecretPatternId::from_str("").is_err());
-        assert_eq!(SecretPatternId::from_str("ghp_.*").unwrap().as_str(), "ghp_.*");
+        assert_eq!(
+            SecretPatternId::from_str("ghp_.*").unwrap().as_str(),
+            "ghp_.*"
+        );
     }
 
     #[test]

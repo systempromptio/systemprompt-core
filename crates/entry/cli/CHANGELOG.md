@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.1] - 2026-06-01
+
+### Added
+
+- `admin config` subcommands edit a profile's `gateway`, `governance`, `security`, `secret`, and `catalog` sections in place, validating the result before writing it back.
+- `admin setup` accepts `--default-provider` (and offers interactive selection) to designate the gateway default provider, plus a `--force` flag that overwrites existing profile, catalog, and secrets files.
+
+### Changed
+
+- `admin setup` generates a complete, bootable profile — gateway catalog (providers, models, routes), governance and authz sections, and the gateway-required `hook` resource audience — rather than an empty shell.
+
 ## [0.13.0] - 2026-05-28
 
 ### Changed

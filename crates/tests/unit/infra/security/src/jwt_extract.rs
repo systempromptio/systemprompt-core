@@ -1,9 +1,6 @@
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_models::auth::{
-    JwtAudience, Permission, RateLimitTier, TokenType, UserType,
-};
-use systemprompt_security::extract_user_context;
-use systemprompt_security::AuthError;
+use systemprompt_models::auth::{JwtAudience, Permission, RateLimitTier, TokenType, UserType};
+use systemprompt_security::{AuthError, extract_user_context};
 use systemprompt_test_fixtures::install_test_signing_key;
 
 fn mint_custom(
@@ -14,7 +11,7 @@ fn mint_custom(
 ) -> String {
     install_test_signing_key();
     use chrono::{Duration, Utc};
-    use jsonwebtoken::{encode, Algorithm, Header};
+    use jsonwebtoken::{Algorithm, Header, encode};
     use systemprompt_models::auth::JwtClaims;
     use systemprompt_security::keys::authority;
 
@@ -95,12 +92,7 @@ fn extract_user_context_missing_session_id() {
 #[test]
 fn extract_user_context_user_type_mismatch() {
     let sid = SessionId::generate();
-    let token = mint_custom(
-        "u3",
-        Some(sid),
-        vec![Permission::Admin],
-        UserType::User,
-    );
+    let token = mint_custom("u3", Some(sid), vec![Permission::Admin], UserType::User);
     let err = extract_user_context(&token).unwrap_err();
     assert!(
         matches!(err, AuthError::UserTypeMismatch { .. }),

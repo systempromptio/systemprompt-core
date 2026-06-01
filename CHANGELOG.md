@@ -11,6 +11,7 @@
 
 ### Added
 
+- The gateway gains an optional `default_provider`. When set, a model not matched by any explicit `route` is forwarded to that provider through a synthesized catch-all route instead of being denied, so the gateway is no longer a closed catalog allowlist. `GatewayConfigSpec` / `GatewayConfig` carry `default_provider: Option<ProviderId>`; `GatewayConfig::resolve_route` replaces `find_route` at the dispatch sites and returns the explicit match or the synthesized route as a `Cow<GatewayRoute>`; `is_model_exposed` reports every model as exposed while a default provider is configured; and profile validation rejects a `default_provider` absent from the catalog (`GatewayProfileError::DefaultProviderNotInCatalog`). `admin setup` gains a `--default-provider` flag (and interactive selection) to designate it.
 - `admin config` subcommands edit a profile's sections in place — `gateway` (enable state, catalog source, routes), `governance` (authz hook mode), `security` (resource audiences), `secret` (provider credentials), and `catalog` (providers and models) — each validating the result before writing it back.
 
 ## [0.13.0] - 2026-05-29

@@ -5,6 +5,13 @@ All notable changes to `systemprompt-marketplace` will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2026-06-01
+
+### Changed
+
+- The crate owns the plugin-bundle contract: `bundle::build_plugin_bundle` assembles a plugin from a `PluginConfig` and the resolved catalogue, and both the manifest (`load_plugins`) and the plugin-file byte route build from that one source so their hashes and served bytes cannot drift. A spec whose references resolve to no content is skipped rather than emitting an empty, malformed entry.
+- `MarketplaceService` resolves the active marketplace solely from `settings.default_marketplace_id` (or the single configured marketplace); the implicit `"default"`-id fallback is removed and `resolve_default` / `active` share one selector.
+
 ## [0.13.0] - 2026-05-28
 
 ### Changed

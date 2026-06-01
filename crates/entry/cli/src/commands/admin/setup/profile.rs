@@ -7,6 +7,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::services::SystemAdminConfig;
@@ -34,6 +35,7 @@ pub(super) fn build(
     project_root: &Path,
     bin_path: Option<&Path>,
     secrets: &SecretsData,
+    default_provider: Option<&ProviderId>,
 ) -> Result<Profile> {
     let ctx = ProjectContext::new(project_root.to_path_buf());
     let runtime_env = determine_environment(env_name);
@@ -71,7 +73,7 @@ pub(super) fn build(
             source: SecretsSource::File,
         }),
         extensions: ExtensionsConfig::default(),
-        gateway: Some(sections::gateway(secrets)),
+        gateway: Some(sections::gateway(secrets, default_provider)),
         governance: Some(governance),
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),

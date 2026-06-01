@@ -24,9 +24,8 @@ mod session_analytics_tests {
 
     #[test]
     fn parse_user_agent_detects_uc_browser() {
-        let headers = create_headers_with_user_agent(
-            "Mozilla/5.0 (Linux; Android 10) UCBrowser/13.4.0.1306",
-        );
+        let headers =
+            create_headers_with_user_agent("Mozilla/5.0 (Linux; Android 10) UCBrowser/13.4.0.1306");
         let analytics = SessionAnalytics::from_headers(&headers);
 
         assert_eq!(analytics.browser, Some("UC Browser".to_string()));
@@ -42,9 +41,8 @@ mod session_analytics_tests {
 
     #[test]
     fn parse_user_agent_detects_yandex() {
-        let headers = create_headers_with_user_agent(
-            "Mozilla/5.0 (Windows NT 10.0) YaBrowser/23.11.0.2419",
-        );
+        let headers =
+            create_headers_with_user_agent("Mozilla/5.0 (Windows NT 10.0) YaBrowser/23.11.0.2419");
         let analytics = SessionAnalytics::from_headers(&headers);
 
         assert_eq!(analytics.browser, Some("Yandex".to_string()));
@@ -70,8 +68,7 @@ mod session_analytics_tests {
 
     #[test]
     fn parse_user_agent_detects_silk() {
-        let headers =
-            create_headers_with_user_agent("Mozilla/5.0 (Linux; Android) Silk/93.3.1");
+        let headers = create_headers_with_user_agent("Mozilla/5.0 (Linux; Android) Silk/93.3.1");
         let analytics = SessionAnalytics::from_headers(&headers);
 
         assert_eq!(analytics.browser, Some("Silk".to_string()));

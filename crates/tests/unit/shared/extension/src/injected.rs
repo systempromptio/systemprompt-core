@@ -8,7 +8,11 @@ struct StubExt;
 
 impl Extension for StubExt {
     fn metadata(&self) -> ExtensionMetadata {
-        ExtensionMetadata { id: "stub", name: "Stub", version: "0.0.1" }
+        ExtensionMetadata {
+            id: "stub",
+            name: "Stub",
+            version: "0.0.1",
+        }
     }
 }
 

@@ -69,7 +69,11 @@ fn make_external(name: &str, endpoint: &str) -> McpServerConfig {
 }
 
 fn registry(servers: Vec<McpServerConfig>) -> RegistryConfig {
-    RegistryConfig { servers, registry_url: None, cache_dir: None }
+    RegistryConfig {
+        servers,
+        registry_url: None,
+        cache_dir: None,
+    }
 }
 
 #[test]

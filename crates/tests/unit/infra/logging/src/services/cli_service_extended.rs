@@ -52,12 +52,7 @@ fn session_context_with_url() {
     CliService::session_context_with_url("dev", &sid, None, None);
     CliService::session_context_with_url("dev", &sid, Some("acme"), None);
     CliService::session_context_with_url("dev", &sid, None, Some("http://localhost:8080"));
-    CliService::session_context_with_url(
-        "dev",
-        &sid,
-        Some("acme"),
-        Some("http://localhost:8080"),
-    );
+    CliService::session_context_with_url("dev", &sid, Some("acme"), Some("http://localhost:8080"));
 }
 
 #[test]
@@ -173,9 +168,7 @@ fn status_display_renders_all_statuses() {
         ItemStatus::Pending,
     ] {
         StatusDisplay::new(status, "m").display();
-        StatusDisplay::new(status, "m")
-            .with_detail("d")
-            .display();
+        StatusDisplay::new(status, "m").with_detail("d").display();
     }
 }
 
@@ -213,5 +206,7 @@ fn collection_display_empty_does_not_panic() {
 #[test]
 fn collection_display_empty_without_count() {
     let items: Vec<StatusDisplay> = vec![];
-    CollectionDisplay::new("Empty", items).without_count().display();
+    CollectionDisplay::new("Empty", items)
+        .without_count()
+        .display();
 }

@@ -99,7 +99,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-identifiers = "0.13.0"
+systemprompt-identifiers = "0.13.1"
 ```
 
 ```rust

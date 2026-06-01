@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
 
-use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_marketplace::catalog::{
     load_agents, load_hooks, load_managed_mcp_servers, load_plugins, load_skills,
 };
+use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
@@ -93,9 +93,7 @@ fn load_agents_disabled_agents_excluded() {
     let mut config = ServicesConfig::default();
     let mut disabled = make_agent_config("disabled-agent");
     disabled.enabled = false;
-    config
-        .agents
-        .insert("disabled-agent".to_owned(), disabled);
+    config.agents.insert("disabled-agent".to_owned(), disabled);
     let agents = load_agents(&config, "https://api.example.com");
     assert!(agents.is_empty());
 }
@@ -252,9 +250,10 @@ fn load_managed_mcp_servers_single_enabled() {
 #[test]
 fn load_managed_mcp_servers_disabled_excluded() {
     let mut config = ServicesConfig::default();
-    config
-        .mcp_servers
-        .insert("off-mcp".to_owned(), make_deployment("off-mcp", false, None));
+    config.mcp_servers.insert(
+        "off-mcp".to_owned(),
+        make_deployment("off-mcp", false, None),
+    );
     let servers =
         load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
     assert!(servers.is_empty());
@@ -283,10 +282,7 @@ fn load_managed_mcp_servers_absolute_endpoint_used() {
     );
     let servers =
         load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
-    assert_eq!(
-        servers[0].url.as_str(),
-        "https://remote.example.com/mcp",
-    );
+    assert_eq!(servers[0].url.as_str(), "https://remote.example.com/mcp",);
 }
 
 #[test]

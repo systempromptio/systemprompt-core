@@ -82,7 +82,10 @@ fn load_errors_when_skills_path_not_in_config() {
     let cfg = config_without_path();
 
     let err = v.load(&cfg).unwrap_err();
-    assert!(matches!(err, DomainConfigError::NotFound(_)), "got: {err:?}");
+    assert!(
+        matches!(err, DomainConfigError::NotFound(_)),
+        "got: {err:?}"
+    );
 }
 
 #[test]
@@ -103,7 +106,11 @@ fn validate_empty_skills_dir_returns_clean_report() {
 
     v.load(&cfg).unwrap();
     let report = v.validate().unwrap();
-    assert!(!report.has_errors(), "expected no errors, got: {:?}", report.errors);
+    assert!(
+        !report.has_errors(),
+        "expected no errors, got: {:?}",
+        report.errors
+    );
 }
 
 #[test]
@@ -133,10 +140,14 @@ fn validate_skill_dir_missing_config_yaml() {
     v.load(&cfg).unwrap();
     let report = v.validate().unwrap();
 
-    assert!(report.has_errors(), "expected error for missing config.yaml");
+    assert!(
+        report.has_errors(),
+        "expected error for missing config.yaml"
+    );
     let msgs: Vec<_> = report.errors.iter().map(|e| e.message.as_str()).collect();
     assert!(
-        msgs.iter().any(|m| m.contains("config.yaml") || m.contains("Missing")),
+        msgs.iter()
+            .any(|m| m.contains("config.yaml") || m.contains("Missing")),
         "got: {msgs:?}"
     );
 }
@@ -154,7 +165,10 @@ fn validate_skill_dir_with_invalid_config_yaml() {
     v.load(&cfg).unwrap();
     let report = v.validate().unwrap();
 
-    assert!(report.has_errors(), "expected error for invalid config.yaml");
+    assert!(
+        report.has_errors(),
+        "expected error for invalid config.yaml"
+    );
 }
 
 #[test]
@@ -176,7 +190,8 @@ fn validate_skill_dir_missing_content_file() {
     );
     let msgs: Vec<_> = report.errors.iter().map(|e| e.message.as_str()).collect();
     assert!(
-        msgs.iter().any(|m| m.contains("not found") || m.contains("Content file")),
+        msgs.iter()
+            .any(|m| m.contains("not found") || m.contains("Content file")),
         "got: {msgs:?}"
     );
 }
@@ -195,7 +210,11 @@ fn validate_skill_dir_with_valid_skill() {
     v.load(&cfg).unwrap();
     let report = v.validate().unwrap();
 
-    assert!(!report.has_errors(), "expected no errors, got: {:?}", report.errors);
+    assert!(
+        !report.has_errors(),
+        "expected no errors, got: {:?}",
+        report.errors
+    );
 }
 
 #[test]
@@ -209,7 +228,11 @@ fn validate_non_directory_entries_are_skipped() {
     v.load(&cfg).unwrap();
     let report = v.validate().unwrap();
 
-    assert!(!report.has_errors(), "files should be skipped: {:?}", report.errors);
+    assert!(
+        !report.has_errors(),
+        "files should be skipped: {:?}",
+        report.errors
+    );
 }
 
 #[test]

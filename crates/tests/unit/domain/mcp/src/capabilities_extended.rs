@@ -46,7 +46,10 @@ fn tool_ui_meta_visibility_array_length_matches_input() {
     let vis = default_tool_visibility();
     let meta = tool_ui_meta("srv", &vis);
     let ui = meta.get("ui").expect("ui");
-    let arr = ui.get("visibility").and_then(|v| v.as_array()).expect("array");
+    let arr = ui
+        .get("visibility")
+        .and_then(|v| v.as_array())
+        .expect("array");
     assert_eq!(arr.len(), vis.len());
 }
 

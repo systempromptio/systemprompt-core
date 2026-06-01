@@ -37,9 +37,15 @@ mod stream_event_deserialization {
         }"#;
         let event: AnthropicStreamEvent = serde_json::from_str(json).expect("de");
         match event {
-            AnthropicStreamEvent::ContentBlockStart { index, content_block } => {
+            AnthropicStreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 0);
-                assert!(matches!(content_block, AnthropicContentBlockInfo::Text { .. }));
+                assert!(matches!(
+                    content_block,
+                    AnthropicContentBlockInfo::Text { .. }
+                ));
             },
             _ => panic!("wrong variant"),
         }
@@ -59,7 +65,10 @@ mod stream_event_deserialization {
         }"#;
         let event: AnthropicStreamEvent = serde_json::from_str(json).expect("de");
         match event {
-            AnthropicStreamEvent::ContentBlockStart { index, content_block } => {
+            AnthropicStreamEvent::ContentBlockStart {
+                index,
+                content_block,
+            } => {
                 assert_eq!(index, 1);
                 match content_block {
                     AnthropicContentBlockInfo::ToolUse { id, name, .. } => {

@@ -1,4 +1,5 @@
-//! Tests for `ContentReady`, `ParsedContent`, `LoadStats`, and `SourceLoadStats`.
+//! Tests for `ContentReady`, `ParsedContent`, `LoadStats`, and
+//! `SourceLoadStats`.
 
 use std::collections::HashMap;
 use systemprompt_content::{ContentConfigValidated, ContentReady, LoadStats, ParsedContent};
@@ -461,7 +462,10 @@ fn parsed_content_published_at_is_utc() {
     let ready = ContentReady::from_validated(config);
     let content = ready.get_by_slug("dated").unwrap();
 
-    assert_eq!(content.published_at.format("%Y-%m-%d").to_string(), "2023-11-25");
+    assert_eq!(
+        content.published_at.format("%Y-%m-%d").to_string(),
+        "2023-11-25"
+    );
 }
 
 #[test]

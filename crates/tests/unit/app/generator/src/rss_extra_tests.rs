@@ -126,7 +126,9 @@ fn rss_many_items_all_appear_in_xml() {
             title: format!("Post {i}"),
             link: format!("https://example.com/post/{i}"),
             description: format!("Description {i}"),
-            pub_date: Utc.with_ymd_and_hms(2025, 1, i as u32 + 1, 0, 0, 0).unwrap(),
+            pub_date: Utc
+                .with_ymd_and_hms(2025, 1, i as u32 + 1, 0, 0, 0)
+                .unwrap(),
             guid: format!("guid-{i}"),
             author: None,
         })
@@ -184,7 +186,14 @@ fn escape_xml_mixed_specials() {
     assert!(escaped.contains("&gt;"));
     assert!(escaped.contains("&quot;"));
     assert!(escaped.contains("&apos;"));
-    assert!(!escaped.contains('&') || escaped.contains("&amp;") || escaped.contains("&lt;") || escaped.contains("&gt;") || escaped.contains("&quot;") || escaped.contains("&apos;"));
+    assert!(
+        !escaped.contains('&')
+            || escaped.contains("&amp;")
+            || escaped.contains("&lt;")
+            || escaped.contains("&gt;")
+            || escaped.contains("&quot;")
+            || escaped.contains("&apos;")
+    );
 }
 
 #[test]
@@ -237,6 +246,9 @@ fn rss_pub_date_for_various_months() {
             items: vec![item],
         };
         let xml = build_rss_xml(&ch);
-        assert!(xml.contains(abbr), "month {month} should produce '{abbr}' in pubDate");
+        assert!(
+            xml.contains(abbr),
+            "month {month} should produce '{abbr}' in pubDate"
+        );
     }
 }

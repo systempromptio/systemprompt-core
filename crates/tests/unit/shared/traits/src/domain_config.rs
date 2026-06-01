@@ -1,4 +1,5 @@
-//! Tests for domain_config: DomainConfigError, DomainConfigRegistry, and trait defaults.
+//! Tests for domain_config: DomainConfigError, DomainConfigRegistry, and trait
+//! defaults.
 
 use systemprompt_traits::domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 use systemprompt_traits::validation_report::ValidationReport;
@@ -13,7 +14,10 @@ impl DomainConfig for AlwaysOk {
     fn domain_id(&self) -> &'static str {
         self.id
     }
-    fn load(&mut self, _config: &dyn systemprompt_traits::context::ConfigProvider) -> Result<(), DomainConfigError> {
+    fn load(
+        &mut self,
+        _config: &dyn systemprompt_traits::context::ConfigProvider,
+    ) -> Result<(), DomainConfigError> {
         Ok(())
     }
     fn validate(&self) -> Result<ValidationReport, DomainConfigError> {
@@ -35,7 +39,10 @@ impl DomainConfig for WithPriority {
     fn priority(&self) -> u32 {
         self.priority
     }
-    fn load(&mut self, _config: &dyn systemprompt_traits::context::ConfigProvider) -> Result<(), DomainConfigError> {
+    fn load(
+        &mut self,
+        _config: &dyn systemprompt_traits::context::ConfigProvider,
+    ) -> Result<(), DomainConfigError> {
         Ok(())
     }
     fn validate(&self) -> Result<ValidationReport, DomainConfigError> {
@@ -54,7 +61,10 @@ impl DomainConfig for WithDeps {
     fn dependencies(&self) -> &[&'static str] {
         &["db", "auth"]
     }
-    fn load(&mut self, _config: &dyn systemprompt_traits::context::ConfigProvider) -> Result<(), DomainConfigError> {
+    fn load(
+        &mut self,
+        _config: &dyn systemprompt_traits::context::ConfigProvider,
+    ) -> Result<(), DomainConfigError> {
         Ok(())
     }
     fn validate(&self) -> Result<ValidationReport, DomainConfigError> {
@@ -137,9 +147,18 @@ fn register_multiple_entries() {
 #[test]
 fn validators_sorted_by_priority_ascending() {
     let mut reg = DomainConfigRegistry::new();
-    reg.register(Box::new(WithPriority { id: "high", priority: 200 }));
-    reg.register(Box::new(WithPriority { id: "low", priority: 10 }));
-    reg.register(Box::new(WithPriority { id: "mid", priority: 50 }));
+    reg.register(Box::new(WithPriority {
+        id: "high",
+        priority: 200,
+    }));
+    reg.register(Box::new(WithPriority {
+        id: "low",
+        priority: 10,
+    }));
+    reg.register(Box::new(WithPriority {
+        id: "mid",
+        priority: 50,
+    }));
 
     let sorted = reg.validators_sorted();
     let ids: Vec<&str> = sorted.iter().map(|v| v.domain_id()).collect();
@@ -149,8 +168,14 @@ fn validators_sorted_by_priority_ascending() {
 #[test]
 fn validators_sorted_is_stable_for_equal_priorities() {
     let mut reg = DomainConfigRegistry::new();
-    reg.register(Box::new(WithPriority { id: "x", priority: 100 }));
-    reg.register(Box::new(WithPriority { id: "y", priority: 100 }));
+    reg.register(Box::new(WithPriority {
+        id: "x",
+        priority: 100,
+    }));
+    reg.register(Box::new(WithPriority {
+        id: "y",
+        priority: 100,
+    }));
     let sorted = reg.validators_sorted();
     assert_eq!(sorted.len(), 2);
 }
@@ -180,8 +205,14 @@ fn custom_dependencies_are_returned() {
 #[test]
 fn validators_mut_visits_sorted_order() {
     let mut reg = DomainConfigRegistry::new();
-    reg.register(Box::new(WithPriority { id: "z", priority: 300 }));
-    reg.register(Box::new(WithPriority { id: "a", priority: 1 }));
+    reg.register(Box::new(WithPriority {
+        id: "z",
+        priority: 300,
+    }));
+    reg.register(Box::new(WithPriority {
+        id: "a",
+        priority: 1,
+    }));
 
     let ids: Vec<&str> = reg.validators_mut().map(|v| v.domain_id()).collect();
     assert_eq!(ids, vec!["a", "z"]);

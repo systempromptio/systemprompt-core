@@ -40,6 +40,24 @@ pub enum GatewayCommands {
 
     #[command(subcommand, about = "Manage gateway routes")]
     Route(RouteCommands),
+
+    #[command(
+        subcommand,
+        about = "Manage the default provider (catch-all fallback route)"
+    )]
+    DefaultProvider(DefaultProviderCommands),
+}
+
+#[derive(Debug, Subcommand)]
+pub enum DefaultProviderCommands {
+    #[command(about = "Set the default provider (must exist in the catalog)")]
+    Set {
+        #[arg(long, help = "Provider name declared in the catalog")]
+        provider: String,
+    },
+
+    #[command(about = "Clear the default provider")]
+    Clear,
 }
 
 #[derive(Debug, Subcommand)]
@@ -86,6 +104,12 @@ pub fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
             remove_route(&mut profile, model_pattern)?
         },
         GatewayCommands::Route(RouteCommands::List) => unreachable!("handled above"),
+        GatewayCommands::DefaultProvider(DefaultProviderCommands::Set { provider }) => {
+            set_default_provider(&mut profile, provider)?
+        },
+        GatewayCommands::DefaultProvider(DefaultProviderCommands::Clear) => {
+            clear_default_provider(&mut profile)?
+        },
     };
 
     validate_gateway(&profile, profile_path)?;
@@ -139,6 +163,16 @@ fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
         "Route {} -> {} added",
         args.model_pattern, args.provider
     ))
+}
+
+fn set_default_provider(profile: &mut Profile, provider: &str) -> Result<String> {
+    spec_mut(profile)?.default_provider = Some(ProviderId::new(provider));
+    Ok(format!("Gateway default provider set to {}", provider))
+}
+
+fn clear_default_provider(profile: &mut Profile) -> Result<String> {
+    spec_mut(profile)?.default_provider = None;
+    Ok("Gateway default provider cleared".to_owned())
 }
 
 fn remove_route(profile: &mut Profile, model_pattern: &str) -> Result<String> {

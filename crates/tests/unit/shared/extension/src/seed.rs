@@ -2,7 +2,10 @@ use systemprompt_extension::seed::Seed;
 
 #[test]
 fn seed_new_stores_id_and_sql() {
-    let seed = Seed::new("initial_roles", "INSERT INTO roles (name) VALUES ('admin') ON CONFLICT DO NOTHING");
+    let seed = Seed::new(
+        "initial_roles",
+        "INSERT INTO roles (name) VALUES ('admin') ON CONFLICT DO NOTHING",
+    );
     assert_eq!(seed.id, "initial_roles");
     assert!(seed.sql.contains("INSERT INTO roles"));
 }
@@ -30,7 +33,10 @@ fn seed_debug_format_includes_id() {
 
 #[test]
 fn seed_clone_produces_equal_values() {
-    let seed = Seed::new("clone_me", "INSERT INTO t (id) VALUES (1) ON CONFLICT DO NOTHING");
+    let seed = Seed::new(
+        "clone_me",
+        "INSERT INTO t (id) VALUES (1) ON CONFLICT DO NOTHING",
+    );
     let cloned = seed;
     assert_eq!(cloned.id, "clone_me");
     assert_eq!(cloned.sql, seed.sql);
@@ -38,14 +44,20 @@ fn seed_clone_produces_equal_values() {
 
 #[test]
 fn seed_copy_semantics() {
-    let seed = Seed::new("copyable", "MERGE INTO t USING src ON t.id = src.id WHEN MATCHED THEN UPDATE SET v = src.v");
+    let seed = Seed::new(
+        "copyable",
+        "MERGE INTO t USING src ON t.id = src.id WHEN MATCHED THEN UPDATE SET v = src.v",
+    );
     let second = seed;
     assert_eq!(second.id, seed.id);
 }
 
 #[test]
 fn seed_new_is_const() {
-    const SEED: Seed = Seed::new("const_seed", "UPDATE settings SET active = true WHERE id = 'x'");
+    const SEED: Seed = Seed::new(
+        "const_seed",
+        "UPDATE settings SET active = true WHERE id = 'x'",
+    );
     assert_eq!(SEED.id, "const_seed");
 }
 

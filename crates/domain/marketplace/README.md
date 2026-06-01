@@ -28,7 +28,7 @@ Per-user marketplace filtering for systemprompt.io. Defines the `MarketplaceFilt
 
 ```toml
 [dependencies]
-systemprompt-marketplace = "0.13.0"
+systemprompt-marketplace = "0.13.1"
 ```
 
 ```rust,ignore

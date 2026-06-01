@@ -24,7 +24,10 @@ mod session_row_conversion_tests {
     fn session_fields_preserved() {
         let s = make_session_full();
         assert_eq!(s.session_id.to_string(), "sess-abc");
-        assert_eq!(s.user_id.as_ref().map(|id| id.to_string()), Some("user-xyz".to_string()));
+        assert_eq!(
+            s.user_id.as_ref().map(|id| id.to_string()),
+            Some("user-xyz".to_string())
+        );
         assert_eq!(s.ip_address.as_deref(), Some("10.0.0.1"));
         assert_eq!(s.user_agent.as_deref(), Some("TestAgent/1.0"));
         assert_eq!(s.device_type.as_deref(), Some("mobile"));

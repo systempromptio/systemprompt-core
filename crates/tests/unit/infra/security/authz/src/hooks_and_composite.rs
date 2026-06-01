@@ -109,7 +109,10 @@ async fn composite_first_deny_wins() {
 fn authz_source_policy_strings() {
     assert_eq!(AuthzSource::WebhookFault.policy(), "authz_hook_fault");
     assert_eq!(AuthzSource::DenyAllDefault.policy(), "authz_default_deny");
-    assert_eq!(AuthzSource::AllowAllUnrestricted.policy(), "authz_unrestricted");
+    assert_eq!(
+        AuthzSource::AllowAllUnrestricted.policy(),
+        "authz_unrestricted"
+    );
     assert_eq!(AuthzSource::ExtensionHook.policy(), "authz_extension_hook");
     assert_eq!(AuthzSource::RuleBased.policy(), "authz_rule_based");
 }

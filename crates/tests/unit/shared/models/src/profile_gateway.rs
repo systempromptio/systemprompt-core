@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     GatewayCatalog, GatewayCatalogSource, GatewayConfig, GatewayConfigSpec, GatewayModel,
-    GatewayProfileError, GatewayProvider, GatewayRoute, default_resource_audiences, slugify_pattern,
-    synthesize_route_id,
+    GatewayProfileError, GatewayProvider, GatewayRoute, default_resource_audiences,
+    slugify_pattern, synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
@@ -217,6 +217,129 @@ fn gateway_spec_rejects_legacy_catalog_path_key() {
     assert!(
         serde_yaml::from_str::<GatewayConfigSpec>(legacy).is_err(),
         "the flat catalog_path key must be rejected by deny_unknown_fields"
+    );
+}
+
+fn provider(name: &str, endpoint: &str) -> GatewayProvider {
+    GatewayProvider {
+        name: ProviderId::new(name),
+        endpoint: endpoint.to_owned(),
+        api_key_secret: SecretName::new(name),
+        extra_headers: HashMap::new(),
+    }
+}
+
+fn model(id: &str, provider: &str) -> GatewayModel {
+    GatewayModel {
+        id: ModelId::new(id),
+        provider: ProviderId::new(provider),
+        aliases: Vec::new(),
+        display_name: None,
+        upstream_model: None,
+        pricing: None,
+    }
+}
+
+fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
+    GatewayConfig {
+        enabled: true,
+        routes: vec![
+            route_to("claude-*", "anthropic"),
+            route_to("gemini-*", "gemini"),
+        ],
+        catalog: Some(GatewayCatalog {
+            providers: vec![
+                provider("anthropic", "https://api.anthropic.com/v1"),
+                provider("gemini", "https://generativelanguage.googleapis.com/v1beta"),
+            ],
+            models: vec![
+                model("claude-sonnet-4-20250514", "anthropic"),
+                model("gemini-2.5-flash", "gemini"),
+            ],
+        }),
+        default_provider: default_provider.map(ProviderId::new),
+        ..GatewayConfig::default()
+    }
+}
+
+fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
+    let mut r = GatewayRoute {
+        id: RouteId::new(""),
+        model_pattern: pattern.to_owned(),
+        provider: ProviderId::new(provider),
+        upstream_model: None,
+        extra_headers: HashMap::new(),
+        pricing: None,
+    };
+    r.ensure_id();
+    r
+}
+
+#[test]
+fn resolve_route_prefers_explicit_match_over_default() {
+    let config = two_provider_config(Some("gemini"));
+    let resolved = config
+        .resolve_route("claude-opus-4-7")
+        .expect("explicit route must match");
+    assert_eq!(resolved.provider.as_str(), "anthropic");
+}
+
+#[test]
+fn resolve_route_falls_back_to_default_provider() {
+    let config = two_provider_config(Some("gemini"));
+    let resolved = config
+        .resolve_route("some-unknown-model")
+        .expect("default provider must absorb unmatched model");
+    assert_eq!(resolved.provider.as_str(), "gemini");
+    assert_eq!(
+        resolved.effective_upstream_model("some-unknown-model"),
+        "gemini-2.5-flash",
+        "synthetic route must pin the default provider's catalog model upstream"
+    );
+}
+
+#[test]
+fn resolve_route_is_none_without_default_or_match() {
+    let config = two_provider_config(None);
+    assert!(config.resolve_route("some-unknown-model").is_none());
+}
+
+#[test]
+fn is_model_exposed_widens_with_default_provider() {
+    assert!(
+        !two_provider_config(None).is_model_exposed("some-unknown-model"),
+        "closed catalog must deny unknown models"
+    );
+    assert!(
+        two_provider_config(Some("gemini")).is_model_exposed("some-unknown-model"),
+        "a default provider opens the gateway to unmatched models"
+    );
+}
+
+#[test]
+fn validate_rejects_default_provider_absent_from_catalog() {
+    match two_provider_config(Some("openai")).validate() {
+        Err(GatewayProfileError::DefaultProviderNotInCatalog { provider }) => {
+            assert_eq!(provider, "openai");
+        },
+        other => panic!("expected DefaultProviderNotInCatalog, got {other:?}"),
+    }
+    assert!(
+        two_provider_config(Some("gemini")).validate().is_ok(),
+        "a default provider present in the catalog must validate"
+    );
+}
+
+#[test]
+fn gateway_spec_round_trips_default_provider() {
+    let spec = two_provider_config(Some("gemini")).to_spec();
+    let yaml = serde_yaml::to_string(&spec).expect("serialize");
+    assert!(yaml.contains("default_provider: gemini"), "got:\n{yaml}");
+
+    let back: GatewayConfigSpec = serde_yaml::from_str(&yaml).expect("round-trip");
+    assert_eq!(
+        back.default_provider.as_ref().map(ProviderId::as_str),
+        Some("gemini")
     );
 }
 

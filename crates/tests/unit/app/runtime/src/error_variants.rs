@@ -36,7 +36,10 @@ fn database_not_found_message_contains_path() {
     };
     let msg = err.to_string();
     assert!(msg.contains("/data/app.db"), "got: {msg}");
-    assert!(msg.contains("not found") || msg.contains("Not found"), "got: {msg}");
+    assert!(
+        msg.contains("not found") || msg.contains("Not found"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -65,7 +68,10 @@ fn system_admin_not_found_message_contains_username() {
     };
     let msg = err.to_string();
     assert!(msg.contains("root"), "got: {msg}");
-    assert!(msg.contains("not found") || msg.contains("bootstrap"), "got: {msg}");
+    assert!(
+        msg.contains("not found") || msg.contains("bootstrap"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -88,10 +94,7 @@ fn system_admin_missing_role_message_contains_username() {
     };
     let msg = err.to_string();
     assert!(msg.contains("norole_user"), "got: {msg}");
-    assert!(
-        msg.contains("role") || msg.contains("admin"),
-        "got: {msg}"
-    );
+    assert!(msg.contains("role") || msg.contains("admin"), "got: {msg}");
 }
 
 #[test]
@@ -139,11 +142,21 @@ fn system_admin_not_found_debug_contains_variant() {
 fn all_plain_variants_format_without_panic() {
     let variants: Vec<RuntimeError> = vec![
         RuntimeError::EmptyDatabaseUrl,
-        RuntimeError::DatabaseNotFound { path: "/p".to_string() },
-        RuntimeError::DatabaseNotFile { path: "/d".to_string() },
-        RuntimeError::SystemAdminNotFound { username: "u".to_string() },
-        RuntimeError::SystemAdminInactive { username: "u".to_string() },
-        RuntimeError::SystemAdminMissingRole { username: "u".to_string() },
+        RuntimeError::DatabaseNotFound {
+            path: "/p".to_string(),
+        },
+        RuntimeError::DatabaseNotFile {
+            path: "/d".to_string(),
+        },
+        RuntimeError::SystemAdminNotFound {
+            username: "u".to_string(),
+        },
+        RuntimeError::SystemAdminInactive {
+            username: "u".to_string(),
+        },
+        RuntimeError::SystemAdminMissingRole {
+            username: "u".to_string(),
+        },
         RuntimeError::Internal("msg".to_string()),
     ];
 

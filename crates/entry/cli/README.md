@@ -122,7 +122,7 @@ Artefact variants: `Table`, `List`, `Card`, `Text`, `CopyPasteText`, `Chart`, `F
 
 ```toml
 [dependencies]
-systemprompt-cli = "0.13.0"
+systemprompt-cli = "0.13.1"
 ```
 
 ```bash

@@ -24,7 +24,12 @@ fn render_json_plugins_empty_when_no_includes() {
     let mp = marketplace("acme");
     let json = render_marketplace_json("acme", &mp);
 
-    assert!(json["plugins"].as_array().expect("plugins array").is_empty());
+    assert!(
+        json["plugins"]
+            .as_array()
+            .expect("plugins array")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -56,7 +61,10 @@ fn render_json_plugin_source_path() {
 
     let plugins = json["plugins"].as_array().expect("plugins array");
     let source = plugins[0]["source"].as_str().expect("source field");
-    assert!(source.contains("my-plugin"), "source path must contain plugin id");
+    assert!(
+        source.contains("my-plugin"),
+        "source path must contain plugin id"
+    );
 }
 
 #[test]

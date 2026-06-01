@@ -1,4 +1,5 @@
-//! Unit tests for UserProviderImpl struct construction and From<User> for AuthUser.
+//! Unit tests for UserProviderImpl struct construction and From<User> for
+//! AuthUser.
 //!
 //! `UserProviderImpl` wraps `UserService` (which requires a live DB pool) so
 //! async trait methods are an untestable seam here.  We cover the `From<User>`

@@ -1,7 +1,7 @@
 //! Tests for AI crawler keyword detection.
 
 use systemprompt_analytics::services::ai_crawler_keywords::{
-    matches_ai_crawler, AI_CRAWLER_KEYWORDS,
+    AI_CRAWLER_KEYWORDS, matches_ai_crawler,
 };
 
 mod matches_ai_crawler_tests {
@@ -69,7 +69,9 @@ mod matches_ai_crawler_tests {
 
     #[test]
     fn notebooklm_is_ai_crawler() {
-        assert!(matches_ai_crawler("Mozilla/5.0 (compatible; Google-NotebookLM)"));
+        assert!(matches_ai_crawler(
+            "Mozilla/5.0 (compatible; Google-NotebookLM)"
+        ));
     }
 
     #[test]

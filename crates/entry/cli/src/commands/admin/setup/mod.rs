@@ -5,6 +5,7 @@
 //! overrides; [`execute`] dispatches to the wizard, which writes a profile and
 //! secrets file under `.systemprompt/`.
 
+pub mod ai_config;
 mod catalog;
 mod common;
 mod docker;
@@ -92,6 +93,14 @@ pub struct SetupArgs {
 
     #[arg(long, env = "GITHUB_TOKEN", help = "GitHub token (optional)")]
     pub github_token: Option<String>,
+
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_DEFAULT_PROVIDER",
+        help = "Provider to make the default (gemini | anthropic | openai); must have a key. \
+                In interactive mode the selected provider is used instead."
+    )]
+    pub default_provider: Option<String>,
 
     #[arg(long, help = "Run database migrations after setup")]
     pub migrate: bool,

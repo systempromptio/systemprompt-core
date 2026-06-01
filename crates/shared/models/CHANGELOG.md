@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.1] - 2026-06-01
+
+### Added
+
+- The gateway profile config gains an optional `default_provider: Option<ProviderId>` on `GatewayConfigSpec` / `GatewayConfig`. `GatewayConfig::resolve_route` returns the explicit route match or a synthesized catch-all route to the default provider as a `Cow<GatewayRoute>`, `is_model_exposed` reports every model as exposed while a default provider is set, and `GatewayConfig::validate` rejects a default provider absent from the catalog via the new `GatewayProfileError::DefaultProviderNotInCatalog` variant.
+
+### Changed
+
+- `bridge::plugin_bundle` now holds `PluginManifest` and the bundle well-formedness predicate (moved from `entry/api`) as the single definition shared with the bridge and CLI.
+
 ## [0.13.0] - 2026-05-28
 
 ### Breaking

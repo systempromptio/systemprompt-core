@@ -83,7 +83,7 @@ impl GatewayService {
         }
 
         let route = config
-            .find_route(&request.model)
+            .resolve_route(&request.model)
             .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;
 
         let catalog = config.catalog.as_ref().ok_or_else(|| {
@@ -164,7 +164,7 @@ impl GatewayService {
 
         let upstream_model = route.effective_upstream_model(&request.model).to_owned();
         let outbound_ctx = OutboundCtx {
-            route,
+            route: route.as_ref(),
             endpoint: &provider.endpoint,
             api_key: upstream_api_key,
             request: &request,

@@ -2,7 +2,9 @@ use crate::CliConfig;
 use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
 use super::common::PostgresConfig;
@@ -39,15 +41,23 @@ pub(super) async fn setup_postgres(
     postgres::setup_interactive(args, env_name, config).await
 }
 
+/// Provider-key collection is gated on whether a key was already supplied and
+/// whether stdin is a TTY — deliberately independent of the global
+/// `is_interactive()` flag. This lets `setup-local` keep DB/env/migrations
+/// non-interactive (via flags + `SYSTEMPROMPT_NON_INTERACTIVE`) while still
+/// prompting the operator to pick a provider when no key was passed.
 pub(super) fn collect_secrets(
     args: &SetupArgs,
     config: &CliConfig,
     env_name: &str,
-) -> Result<secrets::SecretsData> {
-    if !config.is_interactive() {
+) -> Result<(secrets::SecretsData, Option<ProviderId>)> {
+    if args.has_ai_provider() {
         return secrets::collect_non_interactive(args, config);
     }
-    secrets::collect_interactive(args, env_name, config)
+    if std::io::stdin().is_terminal() {
+        return secrets::collect_interactive(args, env_name, config);
+    }
+    secrets::collect_non_interactive(args, config)
 }
 
 pub(super) fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {

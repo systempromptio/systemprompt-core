@@ -21,6 +21,7 @@ fn gateway_with(routes: Vec<GatewayRoute>, catalog: Option<GatewayCatalog>) -> G
         enabled: true,
         routes,
         catalog,
+        default_provider: None,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
     }

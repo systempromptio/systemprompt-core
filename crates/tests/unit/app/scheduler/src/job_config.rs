@@ -132,7 +132,12 @@ mod scheduler_config_tests {
     fn with_system_admin_has_four_jobs() {
         let admin = fixture_system_admin("platform-admin");
         let cfg = SchedulerConfig::with_system_admin(&admin);
-        assert_eq!(cfg.jobs.len(), 4, "expected 4 default jobs, got {}", cfg.jobs.len());
+        assert_eq!(
+            cfg.jobs.len(),
+            4,
+            "expected 4 default jobs, got {}",
+            cfg.jobs.len()
+        );
     }
 
     #[test]
@@ -140,7 +145,11 @@ mod scheduler_config_tests {
         let admin = fixture_system_admin("platform-admin");
         let cfg = SchedulerConfig::with_system_admin(&admin);
         for job in &cfg.jobs {
-            assert!(job.enabled, "job '{}' should be enabled by default", job.name);
+            assert!(
+                job.enabled,
+                "job '{}' should be enabled by default",
+                job.name
+            );
         }
     }
 

@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use serde_json::json;
 use systemprompt_identifiers::{McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_security::authz::types::{Decision, MatchedBy};
 use systemprompt_security::policy::types::{
     AccessScope, AgentScope, GovernanceChain, GovernancePolicy, McpToolInput, PolicyContext,
     RateLimitWindow, SecretLocation,
 };
-use systemprompt_security::authz::types::{Decision, MatchedBy};
 
 #[test]
 fn secret_location_new_stores_fields() {
@@ -39,7 +39,9 @@ fn rate_limit_window_serde_roundtrip() {
 #[test]
 fn agent_scope_user_id() {
     let uid = UserId::new("user-123");
-    let scope = AgentScope::User { user_id: uid.clone() };
+    let scope = AgentScope::User {
+        user_id: uid.clone(),
+    };
     assert_eq!(scope.user_id(), Some(&uid));
     let system = AgentScope::System;
     assert!(system.user_id().is_none());
@@ -75,7 +77,10 @@ fn access_scope_as_str_and_display() {
 fn access_scope_from_str_valid() {
     assert_eq!(AccessScope::from_str("admin").unwrap(), AccessScope::Admin);
     assert_eq!(AccessScope::from_str("user").unwrap(), AccessScope::User);
-    assert_eq!(AccessScope::from_str("unknown").unwrap(), AccessScope::Unknown);
+    assert_eq!(
+        AccessScope::from_str("unknown").unwrap(),
+        AccessScope::Unknown
+    );
     assert_eq!(AccessScope::from_str("").unwrap(), AccessScope::Unknown);
 }
 
@@ -191,15 +196,17 @@ fn governance_chain_empty_returns_default_included() {
     let ctx = make_context(&tool, &sid, &uid, &input);
 
     let d = chain.evaluate(&ctx);
-    assert!(matches!(d, Decision::Allow { matched_by: MatchedBy::DefaultIncluded }));
+    assert!(matches!(
+        d,
+        Decision::Allow {
+            matched_by: MatchedBy::DefaultIncluded
+        }
+    ));
 }
 
 #[test]
 fn governance_chain_all_allow_returns_default_included() {
-    let chain = GovernanceChain::new(vec![
-        Arc::new(AllowPolicy),
-        Arc::new(AllowPolicy),
-    ]);
+    let chain = GovernanceChain::new(vec![Arc::new(AllowPolicy), Arc::new(AllowPolicy)]);
     let tool = McpToolName::new("read_file");
     let sid = SessionId::generate();
     let uid = UserId::new("u2");

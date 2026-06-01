@@ -5,9 +5,12 @@
 //! any external catalog fully loaded. [`GatewayConfigSpec::resolve`] performs
 //! the projection and catalog validation.
 
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{ProviderId, RouteId};
 
 use super::catalog::GatewayCatalog;
 use super::error::{GatewayProfileError, GatewayResult};
@@ -28,6 +31,11 @@ pub struct GatewayConfigSpec {
     pub routes: Vec<GatewayRoute>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub catalog: Option<GatewayCatalogSource>,
+    /// Provider that absorbs any model not matched by an explicit `route`.
+    /// When set, the gateway stops being a closed catalog allowlist: an
+    /// unmatched model is forwarded to this provider instead of denied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_provider: Option<ProviderId>,
     #[serde(default = "default_auth_scheme")]
     pub auth_scheme: String,
     #[serde(default = "default_inference_path_prefix")]
@@ -52,6 +60,7 @@ impl Default for GatewayConfigSpec {
             enabled: false,
             routes: Vec::new(),
             catalog: None,
+            default_provider: None,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
         }
@@ -75,6 +84,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             catalog,
+            default_provider,
             auth_scheme,
             inference_path_prefix,
         } = self;
@@ -117,6 +127,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             catalog,
+            default_provider,
             auth_scheme,
             inference_path_prefix,
         })
@@ -135,6 +146,7 @@ pub struct GatewayConfig {
     pub enabled: bool,
     pub routes: Vec<GatewayRoute>,
     pub catalog: Option<GatewayCatalog>,
+    pub default_provider: Option<ProviderId>,
     pub auth_scheme: String,
     pub inference_path_prefix: String,
 }
@@ -145,6 +157,7 @@ impl Default for GatewayConfig {
             enabled: false,
             routes: Vec::new(),
             catalog: None,
+            default_provider: None,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
         }
@@ -156,11 +169,50 @@ impl GatewayConfig {
         self.routes.iter().find(|route| route.matches(model))
     }
 
+    /// Resolve the route for `model`: an explicit match if one exists, else a
+    /// synthetic catch-all route to [`Self::default_provider`] when configured.
+    /// `None` only when neither an explicit route nor a default provider
+    /// applies — the caller then denies the request.
+    #[must_use]
+    pub fn resolve_route(&self, model: &str) -> Option<Cow<'_, GatewayRoute>> {
+        if let Some(route) = self.find_route(model) {
+            return Some(Cow::Borrowed(route));
+        }
+        self.synthesize_default_route().map(Cow::Owned)
+    }
+
+    fn synthesize_default_route(&self) -> Option<GatewayRoute> {
+        let provider = self.default_provider.as_ref()?;
+        let catalog = self.catalog.as_ref()?;
+        catalog.find_provider(provider.as_str())?;
+        let upstream_model = catalog
+            .models
+            .iter()
+            .find(|m| &m.provider == provider)
+            .map(|m| {
+                m.upstream_model
+                    .clone()
+                    .unwrap_or_else(|| m.id.as_str().to_owned())
+            });
+        let mut route = GatewayRoute {
+            id: RouteId::new(""),
+            model_pattern: "*".to_owned(),
+            provider: provider.clone(),
+            upstream_model,
+            extra_headers: HashMap::new(),
+            pricing: None,
+        };
+        route.ensure_id();
+        Some(route)
+    }
+
     #[must_use]
     pub fn is_model_exposed(&self, model: &str) -> bool {
-        self.catalog
-            .as_ref()
-            .is_none_or(|c| c.contains_model(model))
+        self.default_provider.is_some()
+            || self
+                .catalog
+                .as_ref()
+                .is_none_or(|c| c.contains_model(model))
     }
 
     pub fn validate(&self) -> GatewayResult<()> {
@@ -177,6 +229,13 @@ impl GatewayConfig {
             return Ok(());
         };
         catalog.validate()?;
+        if let Some(provider) = self.default_provider.as_ref() {
+            if catalog.find_provider(provider.as_str()).is_none() {
+                return Err(GatewayProfileError::DefaultProviderNotInCatalog {
+                    provider: provider.as_str().to_owned(),
+                });
+            }
+        }
         for route in &self.routes {
             if catalog.find_provider(route.provider.as_str()).is_none() {
                 return Err(GatewayProfileError::RouteProviderNotInCatalog {
@@ -216,6 +275,7 @@ impl GatewayConfig {
             enabled: self.enabled,
             routes: self.routes.clone(),
             catalog: self.catalog.clone().map(GatewayCatalogSource::Inline),
+            default_provider: self.default_provider.clone(),
             auth_scheme: self.auth_scheme.clone(),
             inference_path_prefix: self.inference_path_prefix.clone(),
         }

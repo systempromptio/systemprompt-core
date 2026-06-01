@@ -69,7 +69,10 @@ mod additional_variants {
             owner: "nobody".to_string(),
         };
         let msg = err.to_string();
-        assert!(msg.contains("active"), "error should mention active user requirement");
+        assert!(
+            msg.contains("active"),
+            "error should mention active user requirement"
+        );
     }
 
     #[test]

@@ -1,25 +1,29 @@
 //! Targeted coverage boost for modules that remain at line < 70 %:
 //!
-//! - `error.rs`:  `internal`, `invalid_input`, `PartialImport`, `TarballUnsafe`,
-//!                `Internal`, `Http` retryable branch, `CommandSpawnFailed` display
+//! - `error.rs`:  `internal`, `invalid_input`, `PartialImport`,
+//!   `TarballUnsafe`, `Internal`, `Http` retryable branch, `CommandSpawnFailed`
+//!   display
 //! - `models/local_sync.rs`: `LocalSyncDirection::Display`, `DiskContent` Debug
-//! - `database/mod.rs`: `DatabaseExport`, `UserExport`, `ContextExport`, `ImportResult` serde
-//! - `api_client/mod.rs`: `UploadResponse` deserialize; `with_direct_sync` URL-format
+//! - `database/mod.rs`: `DatabaseExport`, `UserExport`, `ContextExport`,
+//!   `ImportResult` serde
+//! - `api_client/mod.rs`: `UploadResponse` deserialize; `with_direct_sync`
+//!   URL-format
 //! - `files/mod.rs`: `SyncDiffResult` all-deleted, `changed_paths` ordering
 //! - `retry.rs`: zero-duration, base-1 next_delay, asymmetric bounds
 //! - `lib.rs` `SyncDirection`: clone, eq, serde, copy
 //! - `export/mod.rs`: `escape_yaml` idempotent on already-escaped sequences
-//! - `result.rs` `SyncOperationResult`: manual field construction; state=NotStarted
+//! - `result.rs` `SyncOperationResult`: manual field construction;
+//!   state=NotStarted
 
-use std::time::Duration;
 use chrono::Utc;
+use std::time::Duration;
 use systemprompt_identifiers::{ContextId, SessionId, TenantId, UserId};
 use systemprompt_sync::api_client::RetryConfig;
-use systemprompt_sync::{
-    FileDiffStatus, SyncApiClient, SyncDirection, SyncDiffEntry, SyncDiffResult, SyncError,
-    SyncOperationResult, SyncOpState, escape_yaml,
-};
 use systemprompt_sync::database::{ContextExport, DatabaseExport, ImportResult, UserExport};
+use systemprompt_sync::{
+    FileDiffStatus, SyncApiClient, SyncDiffEntry, SyncDiffResult, SyncDirection, SyncError,
+    SyncOpState, SyncOperationResult, escape_yaml,
+};
 
 // ---------------------------------------------------------------------------
 // error.rs coverage
@@ -248,7 +252,10 @@ mod database_types {
         let json = serde_json::to_string(&u).expect("ser");
         let back: UserExport = serde_json::from_str(&json).expect("de");
         assert_eq!(back.display_name, Some("JSmith".to_owned()));
-        assert_eq!(back.avatar_url, Some("https://example.com/a.png".to_owned()));
+        assert_eq!(
+            back.avatar_url,
+            Some("https://example.com/a.png".to_owned())
+        );
     }
 
     #[test]
@@ -322,7 +329,11 @@ mod database_types {
 
     #[test]
     fn import_result_created_updated_skipped() {
-        let r = ImportResult { created: 5, updated: 3, skipped: 2 };
+        let r = ImportResult {
+            created: 5,
+            updated: 3,
+            skipped: 2,
+        };
         assert_eq!(r.created, 5);
         assert_eq!(r.updated, 3);
         assert_eq!(r.skipped, 2);
@@ -330,7 +341,11 @@ mod database_types {
 
     #[test]
     fn import_result_serialise() {
-        let r = ImportResult { created: 1, updated: 0, skipped: 4 };
+        let r = ImportResult {
+            created: 1,
+            updated: 0,
+            skipped: 4,
+        };
         let json = serde_json::to_string(&r).expect("ser");
         assert!(json.contains("\"created\":1"));
         assert!(json.contains("\"skipped\":4"));
@@ -340,14 +355,22 @@ mod database_types {
 
     #[test]
     fn import_result_copy_semantics() {
-        let r = ImportResult { created: 7, updated: 2, skipped: 1 };
+        let r = ImportResult {
+            created: 7,
+            updated: 2,
+            skipped: 1,
+        };
         let copy = r;
         assert_eq!(copy.created, r.created);
     }
 
     #[test]
     fn import_result_debug_renders() {
-        let r = ImportResult { created: 0, updated: 0, skipped: 0 };
+        let r = ImportResult {
+            created: 0,
+            updated: 0,
+            skipped: 0,
+        };
         assert!(format!("{r:?}").contains("ImportResult"));
     }
 }
@@ -502,7 +525,11 @@ mod sync_diff_result_extended {
     use super::*;
 
     fn entry(path: &str, status: FileDiffStatus) -> SyncDiffEntry {
-        SyncDiffEntry { path: path.to_owned(), status, size: 100 }
+        SyncDiffEntry {
+            path: path.to_owned(),
+            status,
+            size: 100,
+        }
     }
 
     #[test]
@@ -668,9 +695,18 @@ mod sync_operation_result_manual {
             items_skipped: 0,
             errors: vec!["partial".to_owned()],
             details: None,
-            state: SyncOpState::Partial { completed: 2, total: 10 },
+            state: SyncOpState::Partial {
+                completed: 2,
+                total: 10,
+            },
         };
-        assert!(matches!(r.state, SyncOpState::Partial { completed: 2, total: 10 }));
+        assert!(matches!(
+            r.state,
+            SyncOpState::Partial {
+                completed: 2,
+                total: 10
+            }
+        ));
     }
 
     #[test]

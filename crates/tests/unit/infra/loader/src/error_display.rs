@@ -162,7 +162,10 @@ fn extension_load_error_manifest_missing_display() {
 #[test]
 fn error_types_implement_debug() {
     let io_err = io::Error::new(io::ErrorKind::Other, "test");
-    let cl = ConfigLoadError::Io { path: PathBuf::from("/a"), source: io_err };
+    let cl = ConfigLoadError::Io {
+        path: PathBuf::from("/a"),
+        source: io_err,
+    };
     let _ = format!("{cl:?}");
 
     let cw = ConfigWriteError::AgentNotFound("x".to_owned());

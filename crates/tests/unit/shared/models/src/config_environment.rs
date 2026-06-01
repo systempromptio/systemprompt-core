@@ -1,5 +1,4 @@
-use systemprompt_models::config::Environment;
-use systemprompt_models::config::VerbosityLevel;
+use systemprompt_models::config::{Environment, VerbosityLevel};
 
 #[test]
 fn environment_is_dev_prod_test_helpers() {

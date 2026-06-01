@@ -9,7 +9,11 @@ mod capabilities;
 #[cfg(test)]
 mod error;
 #[cfg(test)]
+mod extension_trait;
+#[cfg(test)]
 mod hlist;
+#[cfg(test)]
+mod injected;
 #[cfg(test)]
 mod metadata;
 #[cfg(test)]
@@ -21,14 +25,10 @@ mod router;
 #[cfg(test)]
 mod runtime_config;
 #[cfg(test)]
+mod seed;
+#[cfg(test)]
 mod typed_extensions;
 #[cfg(test)]
 mod typed_registry;
 #[cfg(test)]
 mod types;
-#[cfg(test)]
-mod seed;
-#[cfg(test)]
-mod extension_trait;
-#[cfg(test)]
-mod injected;

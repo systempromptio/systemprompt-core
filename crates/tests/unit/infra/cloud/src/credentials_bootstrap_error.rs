@@ -112,7 +112,10 @@ fn into_cloud_error_not_initialized_yields_credentials_not_initialized() {
 #[test]
 fn into_cloud_error_already_initialized_yields_credentials_already_initialized() {
     let cloud_err: CloudError = CredentialsBootstrapError::AlreadyInitialized.into();
-    assert!(matches!(cloud_err, CloudError::CredentialsAlreadyInitialized));
+    assert!(matches!(
+        cloud_err,
+        CloudError::CredentialsAlreadyInitialized
+    ));
 }
 
 #[test]

@@ -1,4 +1,4 @@
-use systemprompt_mcp::orchestration::{McpServerMetadata, McpServerConnectionInfo};
+use systemprompt_mcp::orchestration::{McpServerConnectionInfo, McpServerMetadata};
 
 fn make_metadata(name: &str, endpoint: &str, status: &str) -> McpServerMetadata {
     McpServerMetadata {

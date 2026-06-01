@@ -36,14 +36,14 @@ Trait-first interface contracts for the systemprompt.io platform. Defines the pr
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.13.0"
+systemprompt-traits = "0.13.1"
 ```
 
 Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
 
 ```toml
 [dependencies]
-systemprompt-traits = { version = "0.13.0", features = ["web"] }
+systemprompt-traits = { version = "0.13.1", features = ["web"] }
 ```
 
 ## Example

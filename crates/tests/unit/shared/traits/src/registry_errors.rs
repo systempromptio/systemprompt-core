@@ -1,15 +1,16 @@
-//! Tests for registry.rs, scheduler.rs, process.rs, and session_analytics error types.
+//! Tests for registry.rs, scheduler.rs, process.rs, and session_analytics error
+//! types.
 
-use systemprompt_traits::registry::{
-    AgentInfo, McpServerInfo, RegistryError, ServiceOAuthConfig,
+use systemprompt_traits::ai_providers::AiProviderError;
+use systemprompt_traits::mcp_service::{
+    McpServerMetadata, McpServiceProviderError, McpServiceResult,
 };
-use systemprompt_traits::scheduler::{JobInfo, JobStatus, SchedulerError};
 use systemprompt_traits::process::{ProcessProviderError, ProcessResult};
+use systemprompt_traits::registry::{AgentInfo, McpServerInfo, RegistryError, ServiceOAuthConfig};
+use systemprompt_traits::scheduler::{JobInfo, JobStatus, SchedulerError};
 use systemprompt_traits::session_analytics::{
     SessionAnalyticsProviderError, SessionAnalyticsResult,
 };
-use systemprompt_traits::mcp_service::{McpServerMetadata, McpServiceProviderError, McpServiceResult};
-use systemprompt_traits::ai_providers::AiProviderError;
 
 // --- RegistryError display ---
 

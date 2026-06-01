@@ -87,8 +87,16 @@ fn discover_skills_from_disk() {
     std::fs::write(&config_path, base_config()).expect("write config");
 
     let skills_dir = services_dir.join("skills");
-    write_skill_config(&skills_dir.join("auto-skill-one"), "auto-skill-one", "Auto Skill One");
-    write_skill_config(&skills_dir.join("auto-skill-two"), "auto-skill-two", "Auto Skill Two");
+    write_skill_config(
+        &skills_dir.join("auto-skill-one"),
+        "auto-skill-one",
+        "Auto Skill One",
+    );
+    write_skill_config(
+        &skills_dir.join("auto-skill-two"),
+        "auto-skill-two",
+        "Auto Skill Two",
+    );
 
     let config = ConfigLoader::load_from_path(&config_path).expect("should load");
     assert!(
@@ -175,7 +183,10 @@ skills:
 
     let config = ConfigLoader::load_from_path(&config_path).expect("should load");
     let skill = config.skills.skills.get("my-skill").expect("skill present");
-    assert_eq!(skill.name, "Explicit Skill", "explicit definition must win over disk");
+    assert_eq!(
+        skill.name, "Explicit Skill",
+        "explicit definition must win over disk"
+    );
 }
 
 #[test]
@@ -270,11 +281,18 @@ plugins:
     std::fs::write(&config_path, explicit_yaml).expect("write config");
 
     let plugins_dir = temp.path().join("plugins");
-    write_plugin_config(&plugins_dir.join("my-plugin"), "my-plugin", "Disk Plugin Name");
+    write_plugin_config(
+        &plugins_dir.join("my-plugin"),
+        "my-plugin",
+        "Disk Plugin Name",
+    );
 
     let config = ConfigLoader::load_from_path(&config_path).expect("should load");
     let plugin = config.plugins.get("my-plugin").expect("plugin present");
-    assert_eq!(plugin.name, "Explicit Plugin", "explicit plugin must win over disk");
+    assert_eq!(
+        plugin.name, "Explicit Plugin",
+        "explicit plugin must win over disk"
+    );
 }
 
 #[test]
@@ -396,7 +414,8 @@ fn discover_skips_missing_parent_no_panic() {
     let config_path = temp.path().join("services.yaml");
     std::fs::write(&config_path, base_config()).expect("write config");
 
-    let config = ConfigLoader::load_from_path(&config_path).expect("should load even with no parent services dir structure");
+    let config = ConfigLoader::load_from_path(&config_path)
+        .expect("should load even with no parent services dir structure");
     assert!(config.skills.skills.is_empty());
     assert!(config.plugins.is_empty());
     assert!(config.marketplaces.is_empty());

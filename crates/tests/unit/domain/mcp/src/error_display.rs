@@ -73,21 +73,28 @@ fn path_display_contains_path() {
 
 #[test]
 fn timeout_debug_contains_variant_name() {
-    let e = McpDomainError::Timeout { server: "srv".to_owned(), after_ms: 1 };
+    let e = McpDomainError::Timeout {
+        server: "srv".to_owned(),
+        after_ms: 1,
+    };
     let s = format!("{e:?}");
     assert!(s.contains("Timeout"));
 }
 
 #[test]
 fn circuit_open_debug_contains_variant_name() {
-    let e = McpDomainError::CircuitOpen { server: "srv".to_owned() };
+    let e = McpDomainError::CircuitOpen {
+        server: "srv".to_owned(),
+    };
     let s = format!("{e:?}");
     assert!(s.contains("CircuitOpen"));
 }
 
 #[test]
 fn dependency_unavailable_debug_contains_variant_name() {
-    let e = McpDomainError::DependencyUnavailable { server: "srv".to_owned() };
+    let e = McpDomainError::DependencyUnavailable {
+        server: "srv".to_owned(),
+    };
     let s = format!("{e:?}");
     assert!(s.contains("DependencyUnavailable"));
 }
@@ -108,14 +115,20 @@ fn transport_debug_contains_variant_name() {
 
 #[test]
 fn error_chain_timeout_zero_ms() {
-    let e = McpDomainError::Timeout { server: "s".to_owned(), after_ms: 0 };
+    let e = McpDomainError::Timeout {
+        server: "s".to_owned(),
+        after_ms: 0,
+    };
     let s = e.to_string();
     assert!(s.contains("0"));
 }
 
 #[test]
 fn error_chain_timeout_large_ms() {
-    let e = McpDomainError::Timeout { server: "s".to_owned(), after_ms: u64::MAX };
+    let e = McpDomainError::Timeout {
+        server: "s".to_owned(),
+        after_ms: u64::MAX,
+    };
     let s = e.to_string();
     assert!(!s.is_empty());
 }

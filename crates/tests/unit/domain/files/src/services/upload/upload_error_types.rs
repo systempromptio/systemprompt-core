@@ -22,7 +22,10 @@ fn all_string_variants_display_correctly() {
         ("persistence", FileUploadError::PersistenceDisabled),
         ("db error", FileUploadError::Database("db error".to_owned())),
         ("cfg error", FileUploadError::Config("cfg error".to_owned())),
-        ("bad path", FileUploadError::PathValidation("bad path".to_owned())),
+        (
+            "bad path",
+            FileUploadError::PathValidation("bad path".to_owned()),
+        ),
     ];
     for (needle, err) in cases {
         let s = format!("{err}");

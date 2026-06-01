@@ -1,4 +1,6 @@
-use systemprompt_files::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
+use systemprompt_files::{
+    AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml,
+};
 
 #[test]
 fn persistence_mode_deserialize_context_scoped() {
@@ -111,7 +113,10 @@ fn file_upload_config_roundtrip() {
     assert_eq!(original.enabled, back.enabled);
     assert_eq!(original.max_file_size_bytes, back.max_file_size_bytes);
     assert_eq!(original.persistence_mode, back.persistence_mode);
-    assert_eq!(original.allowed_types.documents, back.allowed_types.documents);
+    assert_eq!(
+        original.allowed_types.documents,
+        back.allowed_types.documents
+    );
 }
 
 #[test]

@@ -100,7 +100,10 @@ fn agent_runtime_info_with_system_prompt() {
     let json = serde_json::to_string(&info).unwrap();
     assert!(json.contains("You are a coding assistant"));
     let de: AgentRuntimeInfo = serde_json::from_str(&json).unwrap();
-    assert_eq!(de.system_prompt, Some("You are a coding assistant".to_string()));
+    assert_eq!(
+        de.system_prompt,
+        Some("You are a coding assistant".to_string())
+    );
 }
 
 #[test]

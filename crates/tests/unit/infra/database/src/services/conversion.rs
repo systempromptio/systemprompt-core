@@ -1,9 +1,10 @@
-//! Tests for `ToDbValue` / `DbValue` variants and `QueryResult` serialization paths.
+//! Tests for `ToDbValue` / `DbValue` variants and `QueryResult` serialization
+//! paths.
 //!
-//! The `bind_params` / `row_to_json` functions require live sqlx rows and cannot
-//! be exercised without a real pool. This file covers the `DbValue` enum surface
-//! and the `ToDbValue` blanket impls from `systemprompt-traits`, which are the
-//! pure-logic half of the conversion module.
+//! The `bind_params` / `row_to_json` functions require live sqlx rows and
+//! cannot be exercised without a real pool. This file covers the `DbValue` enum
+//! surface and the `ToDbValue` blanket impls from `systemprompt-traits`, which
+//! are the pure-logic half of the conversion module.
 
 use systemprompt_database::DbValue;
 

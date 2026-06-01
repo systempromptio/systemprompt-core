@@ -26,7 +26,10 @@ fn load_secrets_from_path_errors_when_file_missing() {
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
-    assert!(msg.contains("nonexistent.json") || !msg.is_empty(), "got: {msg}");
+    assert!(
+        msg.contains("nonexistent.json") || !msg.is_empty(),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -44,7 +47,8 @@ fn load_secrets_from_path_errors_on_invalid_json() {
 fn load_secrets_from_path_errors_on_short_pepper() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("secrets.json");
-    let json = r#"{"oauth_at_rest_pepper": "short", "database_url": "postgres://u:p@localhost/db"}"#;
+    let json =
+        r#"{"oauth_at_rest_pepper": "short", "database_url": "postgres://u:p@localhost/db"}"#;
     std::fs::write(&path, json).unwrap();
 
     let err = load_secrets_from_path(&path).unwrap_err();
@@ -56,8 +60,11 @@ fn load_secrets_from_path_errors_on_short_pepper() {
 fn load_secrets_from_path_errors_on_missing_required_fields() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("secrets.json");
-    std::fs::write(&path, r#"{"oauth_at_rest_pepper": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}"#)
-        .unwrap();
+    std::fs::write(
+        &path,
+        r#"{"oauth_at_rest_pepper": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}"#,
+    )
+    .unwrap();
 
     let err = load_secrets_from_path(&path).unwrap_err();
     let msg = format!("{err}");
@@ -77,7 +84,10 @@ fn load_secrets_from_path_strips_null_fields() {
     let secrets = load_secrets_from_path(&path).unwrap();
     let msg = systemprompt_config::build_loaded_secrets_message(&secrets);
     assert!(msg.contains("database_url"), "got: {msg}");
-    assert!(!msg.contains("gemini"), "null gemini should not appear: {msg}");
+    assert!(
+        !msg.contains("gemini"),
+        "null gemini should not appear: {msg}"
+    );
 }
 
 #[test]

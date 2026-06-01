@@ -103,8 +103,7 @@ fn candidate_with_only_hooks_is_not_empty() {
 
 #[test]
 fn candidate_with_only_mcp_is_not_empty() {
-    let c =
-        MarketplaceCandidate::new(vec![], vec![], vec![], vec![], vec![mcp_server("my-mcp")]);
+    let c = MarketplaceCandidate::new(vec![], vec![], vec![], vec![], vec![mcp_server("my-mcp")]);
     assert!(!c.is_empty());
 }
 
@@ -147,13 +146,7 @@ fn with_marketplace_none_access_is_allowed() {
 
 #[test]
 fn new_leaves_marketplace_fields_unset() {
-    let c = MarketplaceCandidate::new(
-        vec![plugin("p")],
-        vec![],
-        vec![],
-        vec![],
-        vec![],
-    );
+    let c = MarketplaceCandidate::new(vec![plugin("p")], vec![], vec![], vec![], vec![]);
     assert!(c.marketplace_id.is_none());
     assert!(c.access.is_none());
     assert!(!c.is_empty());

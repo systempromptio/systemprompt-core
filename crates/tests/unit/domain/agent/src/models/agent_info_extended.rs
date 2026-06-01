@@ -1,5 +1,5 @@
 use systemprompt_agent::models::AgentInfo;
-use systemprompt_agent::models::a2a::{AgentCard, AgentCapabilities, AgentSkill};
+use systemprompt_agent::models::a2a::{AgentCapabilities, AgentCard, AgentSkill};
 use systemprompt_identifiers::AgentId;
 use systemprompt_models::services::PluginComponentRef;
 
@@ -93,7 +93,11 @@ fn agent_info_mcp_count_with_servers() {
     let id = AgentId::new("mcp-agent");
     let card = minimal_card("McpAgent", "1.0.0");
     let mcp = PluginComponentRef {
-        include: vec!["server1".to_string(), "server2".to_string(), "server3".to_string()],
+        include: vec![
+            "server1".to_string(),
+            "server2".to_string(),
+            "server3".to_string(),
+        ],
         ..Default::default()
     };
     let info = AgentInfo::from_card(id, card, true).with_mcp_servers(mcp);
@@ -120,14 +124,22 @@ fn agent_info_serde_roundtrip() {
 
 #[test]
 fn agent_info_debug() {
-    let info = AgentInfo::from_card(AgentId::new("dbg"), minimal_card("DbgAgent", "1.0.0"), false);
+    let info = AgentInfo::from_card(
+        AgentId::new("dbg"),
+        minimal_card("DbgAgent", "1.0.0"),
+        false,
+    );
     let dbg = format!("{:?}", info);
     assert!(dbg.contains("AgentInfo"));
 }
 
 #[test]
 fn agent_info_clone() {
-    let info = AgentInfo::from_card(AgentId::new("clone"), minimal_card("CloneAgent", "1.0.0"), true);
+    let info = AgentInfo::from_card(
+        AgentId::new("clone"),
+        minimal_card("CloneAgent", "1.0.0"),
+        true,
+    );
     let cloned = info.clone();
     assert_eq!(cloned.id(), info.id());
     assert_eq!(cloned.name(), info.name());
@@ -157,4 +169,3 @@ fn agent_info_with_skills_and_mcp_combined() {
     assert_eq!(info.skills_count(), 1);
     assert_eq!(info.mcp_count(), 1);
 }
-

@@ -22,6 +22,8 @@ mod api_client_mock;
 #[cfg(test)]
 mod config;
 #[cfg(test)]
+mod coverage_boost;
+#[cfg(test)]
 mod crate_deploy;
 #[cfg(test)]
 mod database_export;
@@ -55,5 +57,3 @@ mod retry;
 mod sync_service_lib;
 #[cfg(test)]
 mod token_exchange;
-#[cfg(test)]
-mod coverage_boost;

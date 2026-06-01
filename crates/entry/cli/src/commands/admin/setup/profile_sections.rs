@@ -8,6 +8,7 @@
 use std::path::Path;
 
 use systemprompt_cloud::ProjectContext;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
@@ -101,13 +102,17 @@ pub(super) const fn runtime(environment: Environment, is_prod: bool) -> RuntimeC
     }
 }
 
-pub(super) fn gateway(secrets: &SecretsData) -> GatewayState {
+pub(super) fn gateway(
+    secrets: &SecretsData,
+    default_provider: Option<&ProviderId>,
+) -> GatewayState {
     GatewayState::Spec(GatewayConfigSpec {
         enabled: true,
         routes: catalog::build_routes(secrets),
         catalog: Some(GatewayCatalogSource::Path {
             path: std::path::PathBuf::from("catalog.yaml"),
         }),
+        default_provider: default_provider.cloned(),
         ..GatewayConfigSpec::default()
     })
 }

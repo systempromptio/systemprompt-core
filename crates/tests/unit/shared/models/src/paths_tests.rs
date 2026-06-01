@@ -22,7 +22,10 @@ fn storage_paths_from_profile_ok_when_storage_set() {
     assert_eq!(sp.css(), std::path::Path::new("/tmp/storage/files/css"));
     assert_eq!(sp.js(), std::path::Path::new("/tmp/storage/files/js"));
     assert_eq!(sp.fonts(), std::path::Path::new("/tmp/storage/files/fonts"));
-    assert_eq!(sp.images(), std::path::Path::new("/tmp/storage/files/images"));
+    assert_eq!(
+        sp.images(),
+        std::path::Path::new("/tmp/storage/files/images")
+    );
     assert_eq!(
         sp.generated_images(),
         std::path::Path::new("/tmp/storage/files/images/generated")
@@ -54,10 +57,7 @@ fn storage_paths_from_profile_errors_when_storage_not_set() {
         geoip_database: None,
     };
     let err = StoragePaths::from_profile(&cfg).unwrap_err();
-    assert!(matches!(
-        err,
-        PathError::NotConfigured { field: "storage" }
-    ));
+    assert!(matches!(err, PathError::NotConfigured { field: "storage" }));
 }
 
 #[test]

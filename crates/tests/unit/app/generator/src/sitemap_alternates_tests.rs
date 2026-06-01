@@ -51,7 +51,10 @@ fn build_sitemap_xml_no_xhtml_link_when_no_alternates() {
         alternates: vec![],
     }];
     let xml = build_sitemap_xml(&urls);
-    assert!(!xml.contains("xhtml:link"), "no alternates = no xhtml:link elements");
+    assert!(
+        !xml.contains("xhtml:link"),
+        "no alternates = no xhtml:link elements"
+    );
 }
 
 #[test]
@@ -78,7 +81,10 @@ fn sitemap_url_priority_boundary_values() {
             alternates: vec![],
         }];
         let xml = build_sitemap_xml(&urls);
-        assert!(xml.contains("<priority>"), "priority field should appear for {priority}");
+        assert!(
+            xml.contains("<priority>"),
+            "priority field should appear for {priority}"
+        );
     }
 }
 

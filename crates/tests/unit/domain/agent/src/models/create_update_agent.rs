@@ -1,9 +1,9 @@
+use serde_json::json;
+use systemprompt_agent::models::a2a::{AgentCapabilities, TransportProtocol};
 use systemprompt_agent::models::web::{
     AgentCardInput, CreateAgentRequest, CreateAgentRequestRaw, UpdateAgentRequest,
     UpdateAgentRequestRaw,
 };
-use systemprompt_agent::models::a2a::{AgentCapabilities, TransportProtocol};
-use serde_json::json;
 
 fn deserialize_create_request(json_val: serde_json::Value) -> CreateAgentRequest {
     serde_json::from_value(json_val).expect("should deserialize")
@@ -166,7 +166,11 @@ fn create_request_default_input_modes_fallback() {
         }
     });
     let req = deserialize_create_request(json);
-    assert!(req.card.default_input_modes.contains(&"text/plain".to_string()));
+    assert!(
+        req.card
+            .default_input_modes
+            .contains(&"text/plain".to_string())
+    );
 }
 
 #[test]
@@ -181,8 +185,16 @@ fn create_request_with_explicit_input_modes() {
         }
     });
     let req = deserialize_create_request(json);
-    assert!(req.card.default_input_modes.contains(&"text/markdown".to_string()));
-    assert!(!req.card.default_input_modes.contains(&"text/plain".to_string()));
+    assert!(
+        req.card
+            .default_input_modes
+            .contains(&"text/markdown".to_string())
+    );
+    assert!(
+        !req.card
+            .default_input_modes
+            .contains(&"text/plain".to_string())
+    );
 }
 
 #[test]

@@ -1,10 +1,11 @@
-//! Tests for content.rs: ContentFilter, ContentSummary, ContentItem, and RepositoryError.
+//! Tests for content.rs: ContentFilter, ContentSummary, ContentItem, and
+//! RepositoryError.
 
 use chrono::Utc;
 use systemprompt_identifiers::{ContentId, SourceId};
 use systemprompt_traits::content::{ContentFilter, ContentItem, ContentSummary};
-use systemprompt_traits::repository::RepositoryError;
 use systemprompt_traits::context_provider::ContextProviderError;
+use systemprompt_traits::repository::RepositoryError;
 
 // --- ContentFilter ---
 
@@ -235,8 +236,7 @@ fn repository_serialization_from_json_error() {
 
 #[test]
 fn repository_error_is_std_error() {
-    let e: Box<dyn std::error::Error> =
-        Box::new(RepositoryError::Internal("test".into()));
+    let e: Box<dyn std::error::Error> = Box::new(RepositoryError::Internal("test".into()));
     assert!(!e.to_string().is_empty());
 }
 

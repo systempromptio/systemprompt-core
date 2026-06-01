@@ -28,10 +28,7 @@ struct SilentProvider {
 impl SilentProvider {
     #[allow(dead_code)]
     fn with_applied(versions: &[(u32, &str)]) -> Self {
-        let rows = versions
-            .iter()
-            .map(|(v, n)| (*v, n.to_string()))
-            .collect();
+        let rows = versions.iter().map(|(v, n)| (*v, n.to_string())).collect();
         Self {
             applied: Mutex::new(AppliedRows { rows }),
             execute_log: Mutex::new(vec![]),
@@ -54,10 +51,7 @@ impl DatabaseProvider for SilentProvider {
     }
 
     async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
-        self.execute_log
-            .lock()
-            .expect("lock")
-            .push(sql.to_string());
+        self.execute_log.lock().expect("lock").push(sql.to_string());
         Ok(())
     }
 
@@ -144,10 +138,7 @@ impl DatabaseProvider for SilentProvider {
                         "version".to_string(),
                         serde_json::Value::Number((*version as i64).into()),
                     );
-                    row.insert(
-                        "name".to_string(),
-                        serde_json::Value::String(name.clone()),
-                    );
+                    row.insert("name".to_string(), serde_json::Value::String(name.clone()));
                     row.insert(
                         "checksum".to_string(),
                         serde_json::Value::String("aabbcc".to_string()),
@@ -372,7 +363,10 @@ async fn squash_through_rejects_zero_version() {
     let result = service.squash_through(&ext, 0, false).await;
     assert!(result.is_err(), "through=0 must be rejected");
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("0") || msg.contains("version 0"), "error: {msg}");
+    assert!(
+        msg.contains("0") || msg.contains("version 0"),
+        "error: {msg}"
+    );
 }
 
 #[tokio::test]

@@ -1,4 +1,5 @@
-//! Unit tests for `ResolvedTenant` and the pure-logic accessors on `CloudContext`.
+//! Unit tests for `ResolvedTenant` and the pure-logic accessors on
+//! `CloudContext`.
 
 use systemprompt_cloud::context::{CloudContext, ResolvedTenant};
 use systemprompt_cloud::{StoredTenant, TenantType};

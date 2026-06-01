@@ -1,6 +1,9 @@
-//! Tests for context.rs types: ContextPropagationError and ConfigProvider defaults.
+//! Tests for context.rs types: ContextPropagationError and ConfigProvider
+//! defaults.
 
-use systemprompt_traits::context::{ConfigProvider, ContextPropagationError, ContextPropagationResult};
+use systemprompt_traits::context::{
+    ConfigProvider, ContextPropagationError, ContextPropagationResult,
+};
 
 // --- ContextPropagationError display ---
 
@@ -60,8 +63,7 @@ fn result_alias_ok_carries_value() {
 
 #[test]
 fn result_alias_err_carries_error() {
-    let r: ContextPropagationResult<()> =
-        Err(ContextPropagationError::Invalid("bad".into()));
+    let r: ContextPropagationResult<()> = Err(ContextPropagationError::Invalid("bad".into()));
     assert!(r.is_err());
 }
 

@@ -63,7 +63,8 @@ fn module_type_debug_proxy() {
 fn modules_by_category_returns_empty_for_unknown_when_no_modules_registered() {
     let registry = ModuleApiRegistry::new();
     let modules = registry.modules_by_category(ServiceCategory::Core);
-    // In the test binary no modules are registered via inventory, so all categories are empty.
+    // In the test binary no modules are registered via inventory, so all categories
+    // are empty.
     assert!(
         modules.is_empty(),
         "expected empty in test binary, got {modules:?}"

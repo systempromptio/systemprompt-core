@@ -1,5 +1,5 @@
-use systemprompt_security::error::{AuthError, JwtError, ManifestSigningError};
 use systemprompt_models::auth::UserType;
+use systemprompt_security::error::{AuthError, JwtError, ManifestSigningError};
 
 #[test]
 fn auth_error_missing_authorization_display() {
@@ -47,7 +47,9 @@ fn auth_error_hook_plugin_id_mismatch_display() {
 
 #[test]
 fn auth_error_unsupported_algorithm_display() {
-    let e = AuthError::UnsupportedAlgorithm { got: "HS256".to_owned() };
+    let e = AuthError::UnsupportedAlgorithm {
+        got: "HS256".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("HS256"), "got: {s}");
     assert!(s.contains("RS256"), "got: {s}");

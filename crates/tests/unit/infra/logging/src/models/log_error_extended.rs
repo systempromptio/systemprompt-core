@@ -6,7 +6,10 @@ use systemprompt_logging::models::LoggingError;
 #[test]
 fn pool_unavailable_display() {
     let e = LoggingError::PoolUnavailable("no connections left".to_owned());
-    assert_eq!(e.to_string(), "Database pool unavailable: no connections left");
+    assert_eq!(
+        e.to_string(),
+        "Database pool unavailable: no connections left"
+    );
 }
 
 #[test]

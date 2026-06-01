@@ -99,14 +99,20 @@ fn config_error_other_variant_display() {
 fn profile_bootstrap_error_not_initialized() {
     let e = ProfileBootstrapError::NotInitialized;
     let msg = format!("{e}");
-    assert!(msg.contains("not initialized") || msg.contains("Not initialized"), "got: {msg}");
+    assert!(
+        msg.contains("not initialized") || msg.contains("Not initialized"),
+        "got: {msg}"
+    );
 }
 
 #[test]
 fn profile_bootstrap_error_already_initialized() {
     let e = ProfileBootstrapError::AlreadyInitialized;
     let msg = format!("{e}");
-    assert!(msg.contains("already initialized") || msg.contains("Already initialized"), "got: {msg}");
+    assert!(
+        msg.contains("already initialized") || msg.contains("Already initialized"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -134,14 +140,20 @@ fn profile_bootstrap_error_load_failed() {
 fn secrets_bootstrap_error_not_initialized() {
     let e = SecretsBootstrapError::NotInitialized;
     let msg = format!("{e}");
-    assert!(msg.contains("not initialized") || msg.contains("Not initialized"), "got: {msg}");
+    assert!(
+        msg.contains("not initialized") || msg.contains("Not initialized"),
+        "got: {msg}"
+    );
 }
 
 #[test]
 fn secrets_bootstrap_error_already_initialized() {
     let e = SecretsBootstrapError::AlreadyInitialized;
     let msg = format!("{e}");
-    assert!(msg.contains("already initialized") || msg.contains("Already initialized"), "got: {msg}");
+    assert!(
+        msg.contains("already initialized") || msg.contains("Already initialized"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -180,14 +192,20 @@ fn secrets_bootstrap_error_no_secrets_configured() {
 fn secrets_bootstrap_error_oauth_pepper_required() {
     let e = SecretsBootstrapError::OauthAtRestPepperRequired;
     let msg = format!("{e}");
-    assert!(msg.contains("oauth_at_rest_pepper") || msg.contains("OAUTH_AT_REST_PEPPER"), "got: {msg}");
+    assert!(
+        msg.contains("oauth_at_rest_pepper") || msg.contains("OAUTH_AT_REST_PEPPER"),
+        "got: {msg}"
+    );
 }
 
 #[test]
 fn secrets_bootstrap_error_database_url_required() {
     let e = SecretsBootstrapError::DatabaseUrlRequired;
     let msg = format!("{e}");
-    assert!(msg.contains("database_url") || msg.contains("DATABASE_URL"), "got: {msg}");
+    assert!(
+        msg.contains("database_url") || msg.contains("DATABASE_URL"),
+        "got: {msg}"
+    );
 }
 
 #[test]
@@ -210,5 +228,8 @@ fn secrets_bootstrap_error_manifest_seed_invalid() {
 fn secrets_bootstrap_error_subprocess_seed_missing() {
     let e = SecretsBootstrapError::SubprocessSeedMissing;
     let msg = format!("{e}");
-    assert!(msg.contains("subprocess") || msg.contains("MANIFEST_SIGNING_SECRET_SEED"), "got: {msg}");
+    assert!(
+        msg.contains("subprocess") || msg.contains("MANIFEST_SIGNING_SECRET_SEED"),
+        "got: {msg}"
+    );
 }

@@ -6,8 +6,8 @@
 //! observable error contract by constructing the params and checking the
 //! validation predicates that would trip inside `enroll()`.
 
-use systemprompt_users::EnrollDeviceCertServiceParams;
 use systemprompt_identifiers::UserId;
+use systemprompt_users::EnrollDeviceCertServiceParams;
 
 mod enroll_params_struct_tests {
     use super::*;

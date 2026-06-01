@@ -1,6 +1,11 @@
 use systemprompt_security::authz::{Access, AccessControlConfig, EntityKind, RuleEntry};
 
-fn make_rule(entity_id: &str, entity_type: EntityKind, access: Access, roles: Vec<&str>) -> RuleEntry {
+fn make_rule(
+    entity_id: &str,
+    entity_type: EntityKind,
+    access: Access,
+    roles: Vec<&str>,
+) -> RuleEntry {
     RuleEntry {
         entity_type,
         entity_id: entity_id.to_owned(),
@@ -14,8 +19,18 @@ fn make_rule(entity_id: &str, entity_type: EntityKind, access: Access, roles: Ve
 fn valid_config_passes() {
     let cfg = AccessControlConfig {
         rules: vec![
-            make_rule("claude-3", EntityKind::GatewayRoute, Access::Allow, vec!["user"]),
-            make_rule("my-plugin", EntityKind::Plugin, Access::Deny, vec!["contractor"]),
+            make_rule(
+                "claude-3",
+                EntityKind::GatewayRoute,
+                Access::Allow,
+                vec!["user"],
+            ),
+            make_rule(
+                "my-plugin",
+                EntityKind::Plugin,
+                Access::Deny,
+                vec!["contractor"],
+            ),
         ],
     };
     assert!(cfg.validate().is_ok());
@@ -30,7 +45,12 @@ fn empty_config_passes() {
 #[test]
 fn empty_entity_id_fails() {
     let cfg = AccessControlConfig {
-        rules: vec![make_rule("", EntityKind::Plugin, Access::Allow, vec!["user"])],
+        rules: vec![make_rule(
+            "",
+            EntityKind::Plugin,
+            Access::Allow,
+            vec!["user"],
+        )],
     };
     let err = cfg.validate().unwrap_err();
     let s = err.to_string();
@@ -40,7 +60,12 @@ fn empty_entity_id_fails() {
 #[test]
 fn whitespace_entity_id_fails() {
     let cfg = AccessControlConfig {
-        rules: vec![make_rule("   ", EntityKind::Agent, Access::Allow, vec!["user"])],
+        rules: vec![make_rule(
+            "   ",
+            EntityKind::Agent,
+            Access::Allow,
+            vec!["user"],
+        )],
     };
     let err = cfg.validate().unwrap_err();
     let s = err.to_string();
@@ -50,7 +75,12 @@ fn whitespace_entity_id_fails() {
 #[test]
 fn empty_roles_fails() {
     let cfg = AccessControlConfig {
-        rules: vec![make_rule("my-agent", EntityKind::Agent, Access::Allow, vec![])],
+        rules: vec![make_rule(
+            "my-agent",
+            EntityKind::Agent,
+            Access::Allow,
+            vec![],
+        )],
     };
     let err = cfg.validate().unwrap_err();
     let s = err.to_string();
@@ -60,7 +90,12 @@ fn empty_roles_fails() {
 #[test]
 fn empty_role_string_fails() {
     let cfg = AccessControlConfig {
-        rules: vec![make_rule("my-mcp", EntityKind::McpServer, Access::Deny, vec![""])],
+        rules: vec![make_rule(
+            "my-mcp",
+            EntityKind::McpServer,
+            Access::Deny,
+            vec![""],
+        )],
     };
     let err = cfg.validate().unwrap_err();
     let s = err.to_string();
@@ -97,9 +132,12 @@ fn rule_entry_with_justification() {
 #[test]
 fn config_serde_roundtrip() {
     let cfg = AccessControlConfig {
-        rules: vec![
-            make_rule("marketplace-1", EntityKind::Marketplace, Access::Allow, vec!["user", "admin"]),
-        ],
+        rules: vec![make_rule(
+            "marketplace-1",
+            EntityKind::Marketplace,
+            Access::Allow,
+            vec!["user", "admin"],
+        )],
     };
     let s = serde_json::to_string(&cfg).unwrap();
     let back: AccessControlConfig = serde_json::from_str(&s).unwrap();
@@ -110,7 +148,12 @@ fn config_serde_roundtrip() {
 
 #[test]
 fn rule_entry_deny_access_type() {
-    let rule = make_rule("r1", EntityKind::GatewayRoute, Access::Deny, vec!["contractor"]);
+    let rule = make_rule(
+        "r1",
+        EntityKind::GatewayRoute,
+        Access::Deny,
+        vec!["contractor"],
+    );
     assert_eq!(rule.access, Access::Deny);
     assert_eq!(rule.entity_type, EntityKind::GatewayRoute);
 }

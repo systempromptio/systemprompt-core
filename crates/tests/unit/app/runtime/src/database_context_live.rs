@@ -84,5 +84,8 @@ async fn database_context_debug_output() {
 async fn from_url_invalid_returns_error() {
     let result =
         DatabaseContext::from_url("postgres://invalid_host_that_cannot_resolve:9999/nodb").await;
-    assert!(result.is_err(), "should fail with an invalid/unreachable URL");
+    assert!(
+        result.is_err(),
+        "should fail with an invalid/unreachable URL"
+    );
 }

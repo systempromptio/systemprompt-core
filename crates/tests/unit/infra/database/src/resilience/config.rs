@@ -1,4 +1,5 @@
-//! Tests for `RetryConfig`, `BreakerConfig`, `BulkheadConfig`, and `ResilienceConfig`.
+//! Tests for `RetryConfig`, `BreakerConfig`, `BulkheadConfig`, and
+//! `ResilienceConfig`.
 
 use std::time::Duration;
 

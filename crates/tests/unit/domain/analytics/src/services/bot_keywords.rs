@@ -1,8 +1,9 @@
-//! Tests for bot keyword detection, malformed UA detection, and bot IP range checks.
+//! Tests for bot keyword detection, malformed UA detection, and bot IP range
+//! checks.
 
 use systemprompt_analytics::services::bot_keywords::{
-    is_malformed_user_agent, matches_bot_ip_range, matches_bot_pattern, BOT_IP_PREFIXES,
-    BOT_KEYWORDS,
+    BOT_IP_PREFIXES, BOT_KEYWORDS, is_malformed_user_agent, matches_bot_ip_range,
+    matches_bot_pattern,
 };
 
 mod is_malformed_user_agent_tests {
@@ -88,7 +89,9 @@ mod matches_bot_pattern_tests {
 
     #[test]
     fn generic_bot_keyword_matches() {
-        assert!(matches_bot_pattern("some-bot-agent/1.0 (+http://example.com)"));
+        assert!(matches_bot_pattern(
+            "some-bot-agent/1.0 (+http://example.com)"
+        ));
     }
 
     #[test]
@@ -169,9 +172,7 @@ mod matches_bot_pattern_tests {
 
     #[test]
     fn compatible_with_edge_is_not_bot() {
-        assert!(!matches_bot_pattern(
-            "Mozilla/5.0 (compatible; Edge/120)"
-        ));
+        assert!(!matches_bot_pattern("Mozilla/5.0 (compatible; Edge/120)"));
     }
 
     #[test]

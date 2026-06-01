@@ -5,16 +5,19 @@
 //! from flags, [`validate_secrets`] enforces that at least one provider key is
 //! present, and [`save`] writes the file with `0600` permissions on Unix.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use crate::CliConfig;
 use crate::shared::profile::generate_oauth_at_rest_pepper;
+
+const STANDARD_PROVIDERS: [&str; 3] = ["gemini", "anthropic", "openai"];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(super) struct SecretsData {
@@ -41,6 +44,22 @@ impl SecretsData {
         self.gemini.is_some() || self.anthropic.is_some() || self.openai.is_some()
     }
 
+    fn key_for(&self, provider: &str) -> Option<&String> {
+        match provider {
+            "gemini" => self.gemini.as_ref(),
+            "anthropic" => self.anthropic.as_ref(),
+            "openai" => self.openai.as_ref(),
+            _ => None,
+        }
+    }
+
+    pub(super) fn present_providers(&self) -> Vec<&'static str> {
+        STANDARD_PROVIDERS
+            .into_iter()
+            .filter(|p| self.key_for(p).is_some())
+            .collect()
+    }
+
     pub(super) fn summary(&self) -> String {
         let mut keys = Vec::new();
         if self.gemini.is_some() {
@@ -64,7 +83,30 @@ impl SecretsData {
     }
 }
 
-pub(super) fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<SecretsData> {
+/// Resolve an explicit `--default-provider` flag against the collected keys.
+/// `None` when the flag is absent — non-interactive callers without the flag
+/// (e.g. boeing's single-key setup) leave the default-provider config
+/// untouched.
+fn primary_from_flag(args: &SetupArgs, secrets: &SecretsData) -> Result<Option<ProviderId>> {
+    let Some(name) = args.default_provider.as_deref().map(str::trim) else {
+        return Ok(None);
+    };
+    if !STANDARD_PROVIDERS.contains(&name) {
+        bail!("--default-provider must be one of: gemini, anthropic, openai (got '{name}')");
+    }
+    if secrets.key_for(name).is_none() {
+        bail!(
+            "--default-provider '{name}' has no API key; pass --{name}-key or drop \
+             --default-provider"
+        );
+    }
+    Ok(Some(ProviderId::new(name)))
+}
+
+pub(super) fn collect_non_interactive(
+    args: &SetupArgs,
+    config: &CliConfig,
+) -> Result<(SecretsData, Option<ProviderId>)> {
     if !config.is_json_output() {
         CliService::section("Secrets Setup");
     }
@@ -84,19 +126,20 @@ pub(super) fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> R
     };
 
     validate_secrets(&secrets)?;
+    let primary = primary_from_flag(args, &secrets)?;
 
     if !config.is_json_output() {
         CliService::success(&format!("Configured keys: {}", secrets.summary()));
     }
 
-    Ok(secrets)
+    Ok((secrets, primary))
 }
 
 pub(super) fn collect_interactive(
     args: &SetupArgs,
     env_name: &str,
     _config: &CliConfig,
-) -> Result<SecretsData> {
+) -> Result<(SecretsData, Option<ProviderId>)> {
     CliService::section(&format!("Secrets Setup ({})", env_name));
     CliService::info("At least one AI provider API key is required.");
 
@@ -114,9 +157,24 @@ pub(super) fn collect_interactive(
         args.openai_key.clone_into(&mut secrets.openai);
         args.github_token.clone_into(&mut secrets.github);
         CliService::success(&format!("Using provided keys: {}", secrets.summary()));
-        return Ok(secrets);
+        let primary = primary_from_flag(args, &secrets)?;
+        return Ok((secrets, primary));
     }
 
+    let explicit = select_provider_keys(&mut secrets)?;
+    validate_secrets(&secrets)?;
+    let primary = resolve_interactive_primary(explicit, &secrets)?;
+
+    CliService::success(&format!("Configured keys: {}", secrets.summary()));
+
+    Ok((secrets, primary))
+}
+
+/// Run the "Select your AI provider" menu, filling `secrets` with the entered
+/// keys. Returns the explicitly chosen provider for the single-select options,
+/// or `None` for the "enter multiple keys" path (the default is resolved later
+/// from the keys actually present).
+fn select_provider_keys(secrets: &mut SecretsData) -> Result<Option<ProviderId>> {
     let providers = vec![
         "Google AI (Gemini) - https://aistudio.google.com/app/apikey",
         "Anthropic (Claude) - https://console.anthropic.com/api-keys",
@@ -132,20 +190,19 @@ pub(super) fn collect_interactive(
 
     match selection {
         0 => {
-            let key = prompt_api_key("Gemini API Key")?;
-            secrets.gemini = Some(key);
+            secrets.gemini = Some(prompt_api_key("Gemini API Key")?);
+            Ok(Some(ProviderId::new("gemini")))
         },
         1 => {
-            let key = prompt_api_key("Anthropic API Key")?;
-            secrets.anthropic = Some(key);
+            secrets.anthropic = Some(prompt_api_key("Anthropic API Key")?);
+            Ok(Some(ProviderId::new("anthropic")))
         },
         2 => {
-            let key = prompt_api_key("OpenAI API Key")?;
-            secrets.openai = Some(key);
+            secrets.openai = Some(prompt_api_key("OpenAI API Key")?);
+            Ok(Some(ProviderId::new("openai")))
         },
         3 => {
             CliService::info("Enter API keys (press Enter to skip any):");
-
             if let Some(key) = prompt_optional_api_key("Gemini API Key")? {
                 secrets.gemini = Some(key);
             }
@@ -158,15 +215,34 @@ pub(super) fn collect_interactive(
             if let Some(key) = prompt_optional_api_key("GitHub Token (optional)")? {
                 secrets.github = Some(key);
             }
+            Ok(None)
         },
-        _ => return Err(anyhow!("Invalid AI provider option selected")),
+        _ => Err(anyhow!("Invalid AI provider option selected")),
     }
+}
 
-    validate_secrets(&secrets)?;
-
-    CliService::success(&format!("Configured keys: {}", secrets.summary()));
-
-    Ok(secrets)
+/// Decide the default provider after an interactive collection: the explicit
+/// single-select wins; otherwise the sole present key, or a follow-up prompt
+/// when several keys were entered.
+fn resolve_interactive_primary(
+    explicit: Option<ProviderId>,
+    secrets: &SecretsData,
+) -> Result<Option<ProviderId>> {
+    if explicit.is_some() {
+        return Ok(explicit);
+    }
+    match secrets.present_providers().as_slice() {
+        [] => Ok(None),
+        [only] => Ok(Some(ProviderId::new(*only))),
+        present => {
+            let idx = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Which provider should be the default?")
+                .items(present)
+                .default(0)
+                .interact()?;
+            Ok(Some(ProviderId::new(present[idx])))
+        },
+    }
 }
 
 fn prompt_api_key(prompt: &str) -> Result<String> {

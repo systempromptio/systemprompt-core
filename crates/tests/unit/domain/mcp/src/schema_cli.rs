@@ -1,10 +1,10 @@
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_mcp::McpOutputSchema;
+use systemprompt_models::RequestContext;
+use systemprompt_models::artifacts::cli::CliArtifact;
 use systemprompt_models::artifacts::{
     DashboardArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
-    cli::CliArtifact,
 };
-use systemprompt_models::RequestContext;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 
 fn ctx() -> RequestContext {
     RequestContext::new(
@@ -38,7 +38,10 @@ fn cli_artifact_text_delegates_type_name() {
 fn cli_artifact_dashboard_delegates_type_name() {
     let c = ctx();
     let dash = CliArtifact::dashboard(DashboardArtifact::new("Title", &c));
-    assert_eq!(dash.artifact_type_name(), DashboardArtifact::ARTIFACT_TYPE_STR);
+    assert_eq!(
+        dash.artifact_type_name(),
+        DashboardArtifact::ARTIFACT_TYPE_STR
+    );
 }
 
 #[test]

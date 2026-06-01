@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.1] - 2026-06-01
+
+### Changed
+
+- The plugin manifest and plugin-file routes build from the shared `systemprompt-marketplace` bundle source, so served bytes and manifest hashes share one definition. Gateway dispatch resolves routes through `GatewayConfig::resolve_route`, forwarding a model unmatched by any explicit route to the configured `default_provider` instead of denying it.
+
+### Removed
+
+- The unused `openai_chat_completions::render` module.
+
 ## [0.13.0] - 2026-05-28
 
 ### Changed

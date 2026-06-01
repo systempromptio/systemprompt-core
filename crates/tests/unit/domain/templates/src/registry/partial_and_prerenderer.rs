@@ -5,9 +5,9 @@ use systemprompt_template_provider::{
     ComponentContext, DynComponentRenderer, DynPagePrerenderer, PagePrepareContext,
     PagePrerenderer, PageRenderSpec, PartialTemplate, ProviderResult, RenderedComponent,
 };
-use systemprompt_templates::{ComponentRenderer, TemplateRegistryBuilder, TemplateRegistry};
+use systemprompt_templates::{ComponentRenderer, TemplateRegistry, TemplateRegistryBuilder};
 
-use crate::mocks::{component, loader, MockComponent, MockLoader};
+use crate::mocks::{MockComponent, MockLoader, component, loader};
 
 struct PartialEmittingComponent {
     id: &'static str,
@@ -23,7 +23,12 @@ impl PartialEmittingComponent {
         partial_name: &'static str,
         partial_content: &'static str,
     ) -> Self {
-        Self { id, variable_name, partial_name, partial_content }
+        Self {
+            id,
+            variable_name,
+            partial_name,
+            partial_content,
+        }
     }
 }
 
@@ -38,7 +43,10 @@ impl ComponentRenderer for PartialEmittingComponent {
     }
 
     fn partial_template(&self) -> Option<PartialTemplate> {
-        Some(PartialTemplate::embedded(self.partial_name, self.partial_content))
+        Some(PartialTemplate::embedded(
+            self.partial_name,
+            self.partial_content,
+        ))
     }
 
     async fn render(&self, _ctx: &ComponentContext<'_>) -> ProviderResult<RenderedComponent> {
@@ -56,11 +64,17 @@ struct StubPrerenderer {
 
 impl StubPrerenderer {
     fn new(page_type: &'static str) -> Self {
-        Self { page_type, priority: 100 }
+        Self {
+            page_type,
+            priority: 100,
+        }
     }
 
     fn with_priority(page_type: &'static str, priority: u32) -> Self {
-        Self { page_type, priority }
+        Self {
+            page_type,
+            priority,
+        }
     }
 }
 
@@ -74,7 +88,10 @@ impl PagePrerenderer for StubPrerenderer {
         self.priority
     }
 
-    async fn prepare(&self, _ctx: &PagePrepareContext<'_>) -> ProviderResult<Option<PageRenderSpec>> {
+    async fn prepare(
+        &self,
+        _ctx: &PagePrepareContext<'_>,
+    ) -> ProviderResult<Option<PageRenderSpec>> {
         Ok(None)
     }
 }
@@ -90,14 +107,12 @@ mod partial_registration_tests {
     async fn has_partial_true_after_component_registration() {
         let mut registry = TemplateRegistry::new();
 
-        registry.register_component(
-            Arc::new(PartialEmittingComponent::new(
-                "my-comp",
-                "my_var",
-                "my-partial",
-                "<nav>{{item}}</nav>",
-            )) as DynComponentRenderer,
-        );
+        registry.register_component(Arc::new(PartialEmittingComponent::new(
+            "my-comp",
+            "my_var",
+            "my-partial",
+            "<nav>{{item}}</nav>",
+        )) as DynComponentRenderer);
         registry.register_loader(loader(MockLoader::new()));
 
         registry.initialize().await.expect("should initialize");
@@ -112,14 +127,12 @@ mod partial_registration_tests {
     async fn render_partial_succeeds_for_registered_partial() {
         let mut registry = TemplateRegistry::new();
 
-        registry.register_component(
-            Arc::new(PartialEmittingComponent::new(
-                "nav-comp",
-                "nav_html",
-                "nav-partial",
-                "<nav>{{title}}</nav>",
-            )) as DynComponentRenderer,
-        );
+        registry.register_component(Arc::new(PartialEmittingComponent::new(
+            "nav-comp",
+            "nav_html",
+            "nav-partial",
+            "<nav>{{title}}</nav>",
+        )) as DynComponentRenderer);
         registry.register_loader(loader(MockLoader::new()));
 
         registry.initialize().await.expect("should initialize");
@@ -146,14 +159,18 @@ mod partial_registration_tests {
     async fn multiple_partials_from_multiple_components() {
         let mut registry = TemplateRegistry::new();
 
-        registry.register_component(
-            Arc::new(PartialEmittingComponent::new("c1", "v1", "partial-one", "<p>One</p>"))
-                as DynComponentRenderer,
-        );
-        registry.register_component(
-            Arc::new(PartialEmittingComponent::new("c2", "v2", "partial-two", "<p>Two</p>"))
-                as DynComponentRenderer,
-        );
+        registry.register_component(Arc::new(PartialEmittingComponent::new(
+            "c1",
+            "v1",
+            "partial-one",
+            "<p>One</p>",
+        )) as DynComponentRenderer);
+        registry.register_component(Arc::new(PartialEmittingComponent::new(
+            "c2",
+            "v2",
+            "partial-two",
+            "<p>Two</p>",
+        )) as DynComponentRenderer);
         registry.register_loader(loader(MockLoader::new()));
 
         registry.initialize().await.expect("should initialize");
@@ -180,14 +197,12 @@ mod partial_registration_tests {
     async fn partial_renders_handlebars_template_with_data() {
         let mut registry = TemplateRegistry::new();
 
-        registry.register_component(
-            Arc::new(PartialEmittingComponent::new(
-                "footer",
-                "footer_html",
-                "footer-partial",
-                "<footer>{{#each links}}<a href=\"{{url}}\">{{label}}</a>{{/each}}</footer>",
-            )) as DynComponentRenderer,
-        );
+        registry.register_component(Arc::new(PartialEmittingComponent::new(
+            "footer",
+            "footer_html",
+            "footer-partial",
+            "<footer>{{#each links}}<a href=\"{{url}}\">{{label}}</a>{{/each}}</footer>",
+        )) as DynComponentRenderer);
         registry.register_loader(loader(MockLoader::new()));
 
         registry.initialize().await.expect("should initialize");

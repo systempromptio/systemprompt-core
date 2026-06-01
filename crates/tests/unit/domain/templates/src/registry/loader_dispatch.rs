@@ -6,7 +6,7 @@ use systemprompt_template_provider::{
 };
 use systemprompt_templates::{TemplateDefinition, TemplateError, TemplateRegistry};
 
-use crate::mocks::{loader, provider, MockLoader, MockProvider};
+use crate::mocks::{MockLoader, MockProvider, loader, provider};
 
 struct NeverLoadsLoader;
 
@@ -58,7 +58,10 @@ mod no_loader_error_tests {
 
         registry.initialize().await.expect("should initialize");
 
-        assert!(!registry.has_template("orphan"), "template with no loader should not be registered");
+        assert!(
+            !registry.has_template("orphan"),
+            "template with no loader should not be registered"
+        );
     }
 
     #[tokio::test]
@@ -130,7 +133,10 @@ mod no_loader_error_tests {
         let registry = TemplateRegistry::new();
         let data = serde_json::json!({});
         let result = registry.render("missing", &data);
-        assert!(matches!(result.unwrap_err(), TemplateError::RenderError { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            TemplateError::RenderError { .. }
+        ));
     }
 
     #[tokio::test]

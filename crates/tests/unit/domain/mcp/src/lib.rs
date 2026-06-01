@@ -19,11 +19,11 @@ mod capabilities;
 #[cfg(test)]
 mod capabilities_extended;
 #[cfg(test)]
-mod error_display;
-#[cfg(test)]
 mod error;
 #[cfg(test)]
 mod error_classify;
+#[cfg(test)]
+mod error_display;
 #[cfg(test)]
 mod error_from;
 #[cfg(test)]

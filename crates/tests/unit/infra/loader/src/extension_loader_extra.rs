@@ -177,7 +177,8 @@ fn validate_mcp_binaries_with_debug_dir() {
 
     write_mcp_manifest(&ext_dir.join("my-ext"), "my-ext", "my-binary");
     std::fs::create_dir_all(&debug_dir).expect("create debug dir");
-    std::fs::write(debug_dir.join("systemprompt"), "systemprompt binary").expect("write systemprompt");
+    std::fs::write(debug_dir.join("systemprompt"), "systemprompt binary")
+        .expect("write systemprompt");
     std::fs::write(debug_dir.join("my-binary"), "my binary").expect("write binary");
 
     let missing = ExtensionLoader::validate_mcp_binaries(temp.path());

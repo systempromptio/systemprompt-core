@@ -78,7 +78,10 @@ mod mock_loader_dispatch {
         let loader = MockLoader::new();
         let source = TemplateSource::Directory(std::path::PathBuf::from("/templates/dir"));
 
-        let result = loader.load(&source).await.expect("should load directory source");
+        let result = loader
+            .load(&source)
+            .await
+            .expect("should load directory source");
         assert!(
             result.contains("templates") || result.contains("dir"),
             "directory source output should include path components"
@@ -131,7 +134,11 @@ mod mock_loader_dispatch {
         let source = TemplateSource::Embedded("x");
 
         let _ = loader.load(&source).await;
-        assert_eq!(loader.load_count(), 1, "failing loader should still increment count");
+        assert_eq!(
+            loader.load_count(),
+            1,
+            "failing loader should still increment count"
+        );
     }
 
     #[test]
@@ -281,7 +288,8 @@ mod mock_page_provider_dispatch {
 
     #[test]
     fn page_provider_with_applies_to_returns_pages() {
-        let pp = MockPageProvider::with_applies_to("pp", vec!["home".to_string(), "about".to_string()]);
+        let pp =
+            MockPageProvider::with_applies_to("pp", vec!["home".to_string(), "about".to_string()]);
         let pages = pp.applies_to_pages();
         assert_eq!(pages.len(), 2);
         assert!(pages.contains(&"home".to_string()));

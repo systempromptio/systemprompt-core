@@ -1,13 +1,12 @@
 use serde_json::json;
 use systemprompt_ai::models::providers::gemini::{
-    CodeExecution, GeminiCandidate, GeminiCodeExecutionResult, GeminiContent,
-    GeminiFunctionCall, GeminiFunctionCallingConfig, GeminiFunctionCallingMode,
-    GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig,
-    GeminiGroundingChunk, GeminiGroundingMetadata, GeminiGroundingSupport, GeminiImageConfig,
-    GeminiInlineData, GeminiPart, GeminiRequest, GeminiResponse, GeminiSafetyRating,
-    GeminiSafetySetting, GeminiTextSegment, GeminiThinkingConfig, GeminiTool, GeminiToolConfig,
-    GeminiUrlContextMetadata, GeminiUrlMetadata, GeminiUsageMetadata, GeminiWebSource,
-    GoogleSearch, UrlContext,
+    CodeExecution, GeminiCandidate, GeminiCodeExecutionResult, GeminiContent, GeminiFunctionCall,
+    GeminiFunctionCallingConfig, GeminiFunctionCallingMode, GeminiFunctionDeclaration,
+    GeminiFunctionResponse, GeminiGenerationConfig, GeminiGroundingChunk, GeminiGroundingMetadata,
+    GeminiGroundingSupport, GeminiImageConfig, GeminiInlineData, GeminiPart, GeminiRequest,
+    GeminiResponse, GeminiSafetyRating, GeminiSafetySetting, GeminiTextSegment,
+    GeminiThinkingConfig, GeminiTool, GeminiToolConfig, GeminiUrlContextMetadata,
+    GeminiUrlMetadata, GeminiUsageMetadata, GeminiWebSource, GoogleSearch, UrlContext,
 };
 
 mod gemini_part_variants {
@@ -70,7 +69,10 @@ mod gemini_part_variants {
         let back: GeminiPart = serde_json::from_str(&json).expect("de");
         match back {
             GeminiPart::FunctionCall { function_call } => {
-                assert_eq!(function_call.thought_signature.as_deref(), Some("sig_abc123"));
+                assert_eq!(
+                    function_call.thought_signature.as_deref(),
+                    Some("sig_abc123")
+                );
             },
             _ => panic!("wrong variant"),
         }
@@ -108,9 +110,14 @@ mod gemini_part_variants {
         assert!(json.contains("codeExecutionResult"));
         let back: GeminiPart = serde_json::from_str(&json).expect("de");
         match back {
-            GeminiPart::CodeExecutionResult { code_execution_result } => {
+            GeminiPart::CodeExecutionResult {
+                code_execution_result,
+            } => {
                 assert_eq!(code_execution_result.outcome, "OUTCOME_OK");
-                assert_eq!(code_execution_result.output.as_deref(), Some("hello world\n"));
+                assert_eq!(
+                    code_execution_result.output.as_deref(),
+                    Some("hello world\n")
+                );
             },
             _ => panic!("wrong variant"),
         }
@@ -127,7 +134,9 @@ mod gemini_part_variants {
         let json = serde_json::to_string(&part).expect("ser");
         let back: GeminiPart = serde_json::from_str(&json).expect("de");
         match back {
-            GeminiPart::CodeExecutionResult { code_execution_result } => {
+            GeminiPart::CodeExecutionResult {
+                code_execution_result,
+            } => {
                 assert_eq!(code_execution_result.outcome, "OUTCOME_FAILED");
                 assert!(code_execution_result.output.is_none());
             },
@@ -250,7 +259,10 @@ mod gemini_tool_config_tests {
         assert!(json.contains("AUTO"));
         assert!(!json.contains("allowedFunctionNames"));
         let back: GeminiToolConfig = serde_json::from_str(&json).expect("de");
-        matches!(back.function_calling_config.mode, GeminiFunctionCallingMode::Auto);
+        matches!(
+            back.function_calling_config.mode,
+            GeminiFunctionCallingMode::Auto
+        );
     }
 
     #[test]
@@ -419,7 +431,10 @@ mod gemini_response_tests {
         let json = serde_json::to_string(&meta).expect("ser");
         let back: GeminiUrlContextMetadata = serde_json::from_str(&json).expect("de");
         assert_eq!(back.url_metadata.len(), 1);
-        assert_eq!(back.url_metadata[0].retrieved_url, "https://example.com/page");
+        assert_eq!(
+            back.url_metadata[0].retrieved_url,
+            "https://example.com/page"
+        );
         assert_eq!(back.url_metadata[0].url_retrieval_status, "SUCCESS");
     }
 

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use systemprompt_provider_contracts::{ExtendedData, PartialSource, PartialTemplate, RenderedComponent};
+use systemprompt_provider_contracts::{
+    ExtendedData, PartialSource, PartialTemplate, RenderedComponent,
+};
 use systemprompt_template_provider::{DynTemplateLoader, EmbeddedLoader};
 
 mod partial_template {

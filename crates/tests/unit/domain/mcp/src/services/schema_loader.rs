@@ -60,14 +60,26 @@ fn list_schema_files_returns_only_sql_files() {
     let dir = temp_dir_for("list_sql");
     let schema_dir = dir.join("schema");
     fs::create_dir_all(&schema_dir).expect("create schema dir");
-    fs::write(schema_dir.join("001_init.sql"), "CREATE TABLE x (id INTEGER)").expect("write");
+    fs::write(
+        schema_dir.join("001_init.sql"),
+        "CREATE TABLE x (id INTEGER)",
+    )
+    .expect("write");
     fs::write(schema_dir.join("notes.txt"), "not sql").expect("write");
-    fs::write(schema_dir.join("002_more.sql"), "CREATE TABLE y (id INTEGER)").expect("write");
+    fs::write(
+        schema_dir.join("002_more.sql"),
+        "CREATE TABLE y (id INTEGER)",
+    )
+    .expect("write");
 
     let files = SchemaLoader::list_schema_files(&dir).expect("list");
     cleanup(&dir);
     assert_eq!(files.len(), 2);
-    assert!(files.iter().all(|f| f.extension().and_then(|e| e.to_str()) == Some("sql")));
+    assert!(
+        files
+            .iter()
+            .all(|f| f.extension().and_then(|e| e.to_str()) == Some("sql"))
+    );
 }
 
 #[test]

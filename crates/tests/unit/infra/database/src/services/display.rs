@@ -1,7 +1,7 @@
 //! Tests for `DatabaseCliDisplay` — coverage of the formatting logic via public
 //! surface and struct construction (display writes to stdout so we only verify
-//! that the impl exists and the `is_empty` / `first` paths on `QueryResult` stay
-//! consistent with what the display impl branches on; the actual write is
+//! that the impl exists and the `is_empty` / `first` paths on `QueryResult`
+//! stay consistent with what the display impl branches on; the actual write is
 //! side-effecting and not captured here).
 
 use systemprompt_database::{ColumnInfo, DatabaseInfo, QueryResult, TableInfo};

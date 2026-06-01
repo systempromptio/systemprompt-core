@@ -83,7 +83,11 @@ fn plugin_config(id: &str, skills: PluginComponentRef, agents: PluginComponentRe
 #[test]
 fn build_plugin_bundle_generates_manifest_and_layout() {
     let skills = vec![skill_entry("use_dangerous_secret", "danger", "do not leak")];
-    let agents = vec![agent_entry("developer_agent", "the dev", Some("You are dev"))];
+    let agents = vec![agent_entry(
+        "developer_agent",
+        "the dev",
+        Some("You are dev"),
+    )];
     let content = BundleContent {
         skills: &skills,
         agents: &agents,
@@ -218,10 +222,7 @@ fn bundle_has_manifest_detects_contract_path() {
         PLUGIN_MANIFEST_RELPATH,
         "skills/x/SKILL.md"
     ]));
-    assert!(!bundle_has_manifest([
-        "skills/x/SKILL.md",
-        "agents/y.md"
-    ]));
+    assert!(!bundle_has_manifest(["skills/x/SKILL.md", "agents/y.md"]));
 }
 
 #[test]
@@ -266,15 +267,26 @@ fn plugin_bundles_scopes_to_active_marketplace() {
     let mut services = config_with(vec![mp]);
     services.plugins.insert(
         "a".to_owned(),
-        plugin_config("plugin-a", explicit(&["a_skill"]), PluginComponentRef::default()),
+        plugin_config(
+            "plugin-a",
+            explicit(&["a_skill"]),
+            PluginComponentRef::default(),
+        ),
     );
     services.plugins.insert(
         "b".to_owned(),
-        plugin_config("plugin-b", explicit(&["b_skill"]), PluginComponentRef::default()),
+        plugin_config(
+            "plugin-b",
+            explicit(&["b_skill"]),
+            PluginComponentRef::default(),
+        ),
     );
 
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
-    let ids: Vec<&str> = bundles.keys().map(systemprompt_models::bridge::ids::PluginId::as_str).collect();
+    let ids: Vec<&str> = bundles
+        .keys()
+        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .collect();
     assert_eq!(
         ids,
         vec!["plugin-a"],
@@ -287,7 +299,11 @@ fn manifest_entries_hash_the_served_bytes() {
     use sha2::{Digest, Sha256};
 
     let skills = vec![skill_entry("use_dangerous_secret", "danger", "do not leak")];
-    let agents = vec![agent_entry("developer_agent", "the dev", Some("You are dev"))];
+    let agents = vec![agent_entry(
+        "developer_agent",
+        "the dev",
+        Some("You are dev"),
+    )];
     let content = BundleContent {
         skills: &skills,
         agents: &agents,

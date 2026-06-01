@@ -23,7 +23,10 @@ fn create_full_headers() -> HeaderMap {
     );
     headers.insert("x-forwarded-for", HeaderValue::from_static("192.168.1.1"));
     headers.insert("x-fingerprint", HeaderValue::from_static("fp_abc123"));
-    headers.insert("accept-language", HeaderValue::from_static("en-US,en;q=0.9"));
+    headers.insert(
+        "accept-language",
+        HeaderValue::from_static("en-US,en;q=0.9"),
+    );
     headers.insert(
         "referer",
         HeaderValue::from_static("https://google.com/search?q=test"),
@@ -153,7 +156,10 @@ mod session_analytics_tests {
     #[test]
     fn referrer_source_skips_ip_addresses() {
         let mut headers = HeaderMap::new();
-        headers.insert("referer", HeaderValue::from_static("http://192.168.1.1/page"));
+        headers.insert(
+            "referer",
+            HeaderValue::from_static("http://192.168.1.1/page"),
+        );
         let analytics = SessionAnalytics::from_headers(&headers);
         assert!(analytics.referrer_source.is_none());
     }

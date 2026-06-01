@@ -26,7 +26,9 @@ fn decision_tag_from_authz_decision() {
     assert_eq!(tag, DecisionTag::Allow);
 
     let deny = AuthzDecision::Deny {
-        reason: DenyReason::HookUnavailable { policy: "test".to_owned() },
+        reason: DenyReason::HookUnavailable {
+            policy: "test".to_owned(),
+        },
         policy: "test".to_owned(),
     };
     let tag2 = DecisionTag::from(&deny);
@@ -35,14 +37,18 @@ fn decision_tag_from_authz_decision() {
 
 #[test]
 fn decision_allow_tag() {
-    let d = Decision::Allow { matched_by: MatchedBy::UserAllow };
+    let d = Decision::Allow {
+        matched_by: MatchedBy::UserAllow,
+    };
     assert_eq!(d.tag(), DecisionTag::Allow);
 }
 
 #[test]
 fn decision_deny_tag() {
     let d = Decision::Deny {
-        reason: DenyReason::HookUnavailable { policy: "p".to_owned() },
+        reason: DenyReason::HookUnavailable {
+            policy: "p".to_owned(),
+        },
     };
     assert_eq!(d.tag(), DecisionTag::Deny);
 }
@@ -52,7 +58,9 @@ fn decision_allow_serde_roundtrip() {
     for mb in [
         MatchedBy::UserAllow,
         MatchedBy::DefaultIncluded,
-        MatchedBy::RoleAllow { role: "admin".to_owned() },
+        MatchedBy::RoleAllow {
+            role: "admin".to_owned(),
+        },
     ] {
         let d = Decision::Allow { matched_by: mb };
         let s = serde_json::to_string(&d).unwrap();
@@ -109,7 +117,9 @@ fn deny_reason_unknown_entity_display() {
 
 #[test]
 fn deny_reason_hook_unavailable_display() {
-    let r = DenyReason::HookUnavailable { policy: "authz_rule_based".to_owned() };
+    let r = DenyReason::HookUnavailable {
+        policy: "authz_rule_based".to_owned(),
+    };
     let s = r.to_string();
     assert!(s.contains("authz_rule_based"), "got: {s}");
 }
@@ -173,7 +183,9 @@ fn deny_reason_rate_limit_exceeded_display() {
 
 #[test]
 fn deny_reason_serde_roundtrip_hook_unavailable() {
-    let r = DenyReason::HookUnavailable { policy: "authz_default_deny".to_owned() };
+    let r = DenyReason::HookUnavailable {
+        policy: "authz_default_deny".to_owned(),
+    };
     let s = serde_json::to_string(&r).unwrap();
     let back: DenyReason = serde_json::from_str(&s).unwrap();
     assert!(matches!(back, DenyReason::HookUnavailable { .. }));
@@ -190,7 +202,9 @@ fn matched_by_serde_user_allow() {
 
 #[test]
 fn matched_by_serde_role_allow() {
-    let mb = MatchedBy::RoleAllow { role: "ops".to_owned() };
+    let mb = MatchedBy::RoleAllow {
+        role: "ops".to_owned(),
+    };
     let s = serde_json::to_string(&mb).unwrap();
     assert!(s.contains("ops"), "got: {s}");
     let back: MatchedBy = serde_json::from_str(&s).unwrap();

@@ -239,7 +239,11 @@ ai:
         .expect("should load config with !include system prompt");
 
     let agent = config.agents.get("prompt_agent").expect("agent present");
-    let sp = agent.metadata.system_prompt.as_deref().expect("system_prompt set");
+    let sp = agent
+        .metadata
+        .system_prompt
+        .as_deref()
+        .expect("system_prompt set");
     assert_eq!(sp, prompt_content);
 }
 
@@ -412,8 +416,8 @@ fn validate_file_invalid_errors() {
     let config_path = temp.path().join("bad.yaml");
     std::fs::write(&config_path, "not: valid: yaml: : :").expect("write bad yaml");
 
-    let err = ConfigLoader::validate_file(&config_path)
-        .expect_err("invalid YAML must fail validation");
+    let err =
+        ConfigLoader::validate_file(&config_path).expect_err("invalid YAML must fail validation");
     let msg = format!("{err:#}");
     assert!(!msg.is_empty());
 }
