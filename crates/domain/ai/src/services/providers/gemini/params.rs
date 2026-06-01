@@ -1,5 +1,4 @@
 use crate::models::ai::{AiMessage, SamplingParams};
-use crate::models::providers::gemini::GeminiFunctionCallingMode;
 use crate::models::tools::{CallToolResult, McpTool, ToolCall};
 
 #[derive(Debug)]
@@ -133,29 +132,5 @@ impl<'a> ToolResultParams<'a> {
             max_output_tokens,
             model,
         )
-    }
-}
-
-pub(super) struct ToolConfigParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub tools: Vec<McpTool>,
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-    pub function_calling_mode: GeminiFunctionCallingMode,
-    pub allowed_function_names: Option<Vec<String>>,
-}
-
-impl<'a> ToolConfigParams<'a> {
-    pub(super) fn new(base: &ToolRequestParams<'a>) -> Self {
-        Self {
-            messages: base.messages,
-            tools: base.tools.to_vec(),
-            sampling: base.sampling,
-            max_output_tokens: base.max_output_tokens,
-            model: base.model,
-            function_calling_mode: GeminiFunctionCallingMode::Auto,
-            allowed_function_names: None,
-        }
     }
 }

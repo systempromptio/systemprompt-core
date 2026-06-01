@@ -1,22 +1,43 @@
-use crate::error::Result;
-use serde_json::json;
+//! Buffered `OpenAI` Chat Completions entry points.
+//!
+//! Each builds a canonical request through the bridge, renders it with the
+//! shared `openai_chat` codec, posts it, and maps the parsed canonical reply
+//! back to an [`AiResponse`].
+
 use std::time::Instant;
-use tracing::warn;
+
+use serde_json::Value;
+use systemprompt_models::wire::canonical::ResponseFormat;
+use systemprompt_models::wire::openai_chat;
 use uuid::Uuid;
 
+use crate::error::Result;
 use crate::models::ai::AiResponse;
-use crate::models::providers::openai::{
-    OpenAiJsonSchema, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat,
-};
 use crate::models::tools::ToolCall;
+use crate::services::providers::canonical_bridge::{
+    self, BridgeProvider, CanonicalBuild, agent_response_format, tools_to_canonical,
+};
 use crate::services::providers::{
     GenerationParams, SchemaGenerationParams, StructuredGenerationParams, ToolGenerationParams,
 };
-use systemprompt_identifiers::AiToolCallId;
 
 use super::provider::OpenAiProvider;
-use super::response_builder::build_response;
-use super::{converters, reasoning};
+
+const STRUCTURED_OUTPUT_TOOL: &str = "structured_output";
+
+async fn post_chat(provider: &OpenAiProvider, body: &Value) -> Result<Value> {
+    let response = provider
+        .client
+        .post(format!("{}/chat/completions", provider.endpoint))
+        .bearer_auth(&provider.api_key)
+        .json(body)
+        .send()
+        .await?;
+    if !response.status().is_success() {
+        return Err(crate::error::AiError::from_error_response("openai", response).await);
+    }
+    Ok(response.json().await?)
+}
 
 pub(super) async fn generate(
     provider: &OpenAiProvider,
@@ -24,49 +45,25 @@ pub(super) async fn generate(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::OpenAi,
+        params.messages,
+        params.model,
+        params.max_output_tokens,
+    )
+    .with_sampling(params.sampling)
+    .into_request();
 
-    let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        params.messages.iter().map(Into::into).collect();
-
-    let (temperature, top_p, presence_penalty, frequency_penalty) =
-        params.sampling.map_or((None, None, None, None), |s| {
-            (
-                s.temperature,
-                s.top_p,
-                s.presence_penalty,
-                s.frequency_penalty,
-            )
-        });
-
-    let reasoning_config = reasoning::build_reasoning_config(params.model);
-
-    let request = OpenAiRequest {
-        model: params.model.to_owned(),
-        messages: openai_messages,
-        temperature,
-        top_p,
-        presence_penalty,
-        frequency_penalty,
-        max_tokens: Some(params.max_output_tokens),
-        tools: None,
-        response_format: None,
-        reasoning_effort: reasoning_config,
-    };
-
-    let response = provider
-        .client
-        .post(format!("{}/chat/completions", provider.endpoint))
-        .bearer_auth(&provider.api_key)
-        .json(&request)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("openai", response).await);
-    }
-
-    let openai_response: OpenAiResponse = response.json().await?;
-    build_response(request_id, &openai_response, "openai", params.model, start)
+    let body = openai_chat::build_request_body(&canonical, params.model);
+    let value = post_chat(provider, &body).await?;
+    let parsed = openai_chat::parse_response(&value, params.model);
+    Ok(canonical_bridge::to_ai_response(
+        "openai",
+        params.model,
+        request_id,
+        start,
+        &parsed,
+    ))
 }
 
 pub(super) async fn generate_with_tools(
@@ -75,94 +72,23 @@ pub(super) async fn generate_with_tools(
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-
-    let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        params.base.messages.iter().map(Into::into).collect();
-
-    let openai_tools = converters::convert_tools(params.tools)?;
-
-    let (temperature, top_p, presence_penalty, frequency_penalty) =
-        params.base.sampling.map_or((None, None, None, None), |s| {
-            (
-                s.temperature,
-                s.top_p,
-                s.presence_penalty,
-                s.frequency_penalty,
-            )
-        });
-
-    let reasoning_config = reasoning::build_reasoning_config(params.base.model);
-
-    let request = OpenAiRequest {
-        model: params.base.model.to_owned(),
-        messages: openai_messages,
-        temperature,
-        top_p,
-        presence_penalty,
-        frequency_penalty,
-        max_tokens: Some(params.base.max_output_tokens),
-        tools: Some(openai_tools),
-        response_format: None,
-        reasoning_effort: reasoning_config,
-    };
-
-    let response = provider
-        .client
-        .post(format!("{}/chat/completions", provider.endpoint))
-        .bearer_auth(&provider.api_key)
-        .json(&request)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("openai", response).await);
-    }
-
-    let openai_response: OpenAiResponse = response.json().await?;
-
-    let tool_calls = parse_tool_calls(&openai_response)?;
-
-    let ai_response = build_response(
-        request_id,
-        &openai_response,
-        "openai",
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::OpenAi,
+        params.base.messages,
         params.base.model,
-        start,
-    )?;
+        params.base.max_output_tokens,
+    )
+    .with_sampling(params.base.sampling)
+    .with_tools(tools_to_canonical(params.tools))
+    .into_request();
+
+    let body = openai_chat::build_request_body(&canonical, params.base.model);
+    let value = post_chat(provider, &body).await?;
+    let parsed = openai_chat::parse_response(&value, params.base.model);
+    let tool_calls = canonical_bridge::tool_calls(&parsed);
+    let ai_response =
+        canonical_bridge::to_ai_response("openai", params.base.model, request_id, start, &parsed);
     Ok((ai_response, tool_calls))
-}
-
-fn parse_tool_calls(openai_response: &OpenAiResponse) -> Result<Vec<ToolCall>> {
-    let choice = openai_response
-        .choices
-        .first()
-        .ok_or_else(|| crate::error::AiError::Internal("No response from OpenAI".to_owned()))?;
-
-    Ok(choice
-        .message
-        .tool_calls
-        .clone()
-        .unwrap_or_else(Vec::new)
-        .into_iter()
-        .map(|tc| {
-            let arguments = serde_json::from_str::<serde_json::Value>(&tc.function.arguments)
-                .unwrap_or_else(|e| {
-                    warn!(
-                        error = %e,
-                        tool_name = %tc.function.name,
-                        raw_arguments = %tc.function.arguments,
-                        "Failed to parse OpenAI tool arguments"
-                    );
-                    json!({})
-                });
-
-            ToolCall {
-                ai_tool_call_id: AiToolCallId::new(tc.id),
-                name: tc.function.name,
-                arguments,
-            }
-        })
-        .collect())
 }
 
 pub(super) async fn generate_structured(
@@ -171,55 +97,26 @@ pub(super) async fn generate_structured(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::OpenAi,
+        params.base.messages,
+        params.base.model,
+        params.base.max_output_tokens,
+    )
+    .with_sampling(params.base.sampling)
+    .with_response_format(agent_response_format(params.response_format))
+    .into_request();
 
-    let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        params.base.messages.iter().map(Into::into).collect();
-
-    let (temperature, top_p, presence_penalty, frequency_penalty) =
-        params.base.sampling.map_or((None, None, None, None), |s| {
-            (
-                s.temperature,
-                s.top_p,
-                s.presence_penalty,
-                s.frequency_penalty,
-            )
-        });
-
-    let reasoning_config = reasoning::build_reasoning_config(params.base.model);
-
-    let request = OpenAiRequest {
-        model: params.base.model.to_owned(),
-        messages: openai_messages,
-        temperature,
-        top_p,
-        presence_penalty,
-        frequency_penalty,
-        max_tokens: Some(params.base.max_output_tokens),
-        tools: None,
-        response_format: converters::convert_response_format(params.response_format)?,
-        reasoning_effort: reasoning_config,
-    };
-
-    let response = provider
-        .client
-        .post(format!("{}/chat/completions", provider.endpoint))
-        .bearer_auth(&provider.api_key)
-        .json(&request)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("openai", response).await);
-    }
-
-    let openai_response: OpenAiResponse = response.json().await?;
-    build_response(
-        request_id,
-        &openai_response,
+    let body = openai_chat::build_request_body(&canonical, params.base.model);
+    let value = post_chat(provider, &body).await?;
+    let parsed = openai_chat::parse_response(&value, params.base.model);
+    Ok(canonical_bridge::to_ai_response(
         "openai",
         params.base.model,
+        request_id,
         start,
-    )
+        &parsed,
+    ))
 }
 
 pub(super) async fn generate_with_schema(
@@ -228,54 +125,29 @@ pub(super) async fn generate_with_schema(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-
-    let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        params.base.messages.iter().map(Into::into).collect();
-
-    let (temperature, top_p) = params
-        .base
-        .sampling
-        .map_or((None, None), |s| (s.temperature, s.top_p));
-
-    let reasoning_config = reasoning::build_reasoning_config(params.base.model);
-
-    let request = OpenAiRequest {
-        model: params.base.model.to_owned(),
-        messages: openai_messages,
-        temperature,
-        top_p,
-        presence_penalty: None,
-        frequency_penalty: None,
-        max_tokens: Some(params.base.max_output_tokens),
-        tools: None,
-        response_format: Some(OpenAiResponseFormat::JsonSchema {
-            json_schema: OpenAiJsonSchema {
-                name: "structured_output".to_owned(),
-                schema: params.response_schema,
-                strict: Some(true),
-            },
-        }),
-        reasoning_effort: reasoning_config,
+    let response_format = ResponseFormat::JsonSchema {
+        name: STRUCTURED_OUTPUT_TOOL.to_owned(),
+        schema: params.response_schema,
+        strict: true,
     };
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::OpenAi,
+        params.base.messages,
+        params.base.model,
+        params.base.max_output_tokens,
+    )
+    .with_sampling(params.base.sampling)
+    .with_response_format(Some(response_format))
+    .into_request();
 
-    let response = provider
-        .client
-        .post(format!("{}/chat/completions", provider.endpoint))
-        .header("Authorization", format!("Bearer {}", provider.api_key))
-        .json(&request)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("openai", response).await);
-    }
-
-    let openai_response: OpenAiResponse = response.json().await?;
-    build_response(
-        request_id,
-        &openai_response,
+    let body = openai_chat::build_request_body(&canonical, params.base.model);
+    let value = post_chat(provider, &body).await?;
+    let parsed = openai_chat::parse_response(&value, params.base.model);
+    Ok(canonical_bridge::to_ai_response(
         "openai",
         params.base.model,
+        request_id,
         start,
-    )
+        &parsed,
+    ))
 }

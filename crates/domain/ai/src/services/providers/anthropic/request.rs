@@ -1,40 +1,24 @@
-//! Shared request plumbing for the Anthropic Messages API — sampling
-//! extraction and the POST/`status`-check round trip used by every driver
-//! entry point.
+//! HTTP plumbing for the Anthropic Messages API: the POST + status-check round
+//! trip shared by every driver entry point. Auth headers and request-body
+//! rendering come from the shared `systemprompt_models::wire` codec.
 
 use reqwest::Response;
-use serde::Serialize;
-
-use crate::error::Result;
-use crate::models::ai::SamplingParams;
+use serde_json::Value;
+use systemprompt_models::wire::anthropic;
 
 use super::provider::AnthropicProvider;
+use crate::error::Result;
 
-pub(super) type SamplingTuple = (Option<f32>, Option<f32>, Option<i32>, Option<Vec<String>>);
-
-pub(super) fn sampling_tuple(sampling: Option<&SamplingParams>) -> SamplingTuple {
-    sampling.map_or((None, None, None, None), |s| {
-        (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
-    })
-}
-
-pub(super) async fn post_messages<T: Serialize + Sync>(
-    provider: &AnthropicProvider,
-    request: &T,
-) -> Result<Response> {
-    let response = provider
+pub(super) async fn post_body(provider: &AnthropicProvider, body: &Value) -> Result<Response> {
+    let mut request = provider
         .client
-        .post(format!("{}/messages", provider.endpoint))
-        .header("x-api-key", &provider.api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(request)
-        .send()
-        .await?;
-
+        .post(format!("{}/messages", provider.endpoint));
+    for (name, value) in anthropic::auth_headers(&provider.api_key) {
+        request = request.header(name, value);
+    }
+    let response = request.json(body).send().await?;
     if !response.status().is_success() {
         return Err(crate::error::AiError::from_error_response("anthropic", response).await);
     }
-
     Ok(response)
 }

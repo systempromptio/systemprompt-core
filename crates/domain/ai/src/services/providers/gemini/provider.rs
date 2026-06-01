@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use crate::services::schema::ToolNameMapper;
 
 use super::constants::defaults;
-use super::generation;
+use super::transport;
 
 #[derive(Debug)]
 pub struct GeminiProvider {
@@ -24,7 +24,7 @@ pub struct GeminiProvider {
 
 impl GeminiProvider {
     pub fn new(api_key: String) -> Result<Self> {
-        let client = generation::build_client()?;
+        let client = transport::build_client()?;
         Ok(Self {
             client,
             api_key,
@@ -38,7 +38,7 @@ impl GeminiProvider {
     }
 
     pub fn with_endpoint(api_key: String, endpoint: String) -> Result<Self> {
-        let client = generation::build_client()?;
+        let client = transport::build_client()?;
         Ok(Self {
             client,
             api_key,

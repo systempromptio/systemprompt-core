@@ -1,148 +1,43 @@
-use crate::error::Result;
-use futures::Stream;
-use futures::stream::StreamExt;
+//! Gemini streaming: builds a canonical streaming request, posts it to
+//! `streamGenerateContent?alt=sse`, and maps the shared codec's canonical
+//! events into agent [`StreamChunk`]s.
+
 use std::pin::Pin;
 
-use crate::models::providers::gemini::{GeminiPart, GeminiRequest, GeminiResponse};
+use futures::stream::{Stream, StreamExt};
+use systemprompt_models::wire::gemini;
+
+use crate::error::Result;
+use crate::models::ai::StreamChunk;
 use crate::services::providers::GenerationParams;
-use systemprompt_models::ai::StreamChunk;
+use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
 
 use super::provider::GeminiProvider;
-use super::{converters, request_builders};
+use super::transport;
 
 pub(super) async fn generate_stream(
     provider: &GeminiProvider,
     params: GenerationParams<'_>,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-    let contents = converters::convert_messages(params.messages);
-    let generation_config = request_builders::build_generation_config(
-        params.sampling,
-        params.max_output_tokens,
-        None,
-        None,
-    );
-
-    let request = GeminiRequest {
-        contents,
-        generation_config: Some(generation_config),
-        safety_settings: None,
-        tools: None,
-        tool_config: None,
-    };
-
-    let url = request_builders::build_url(
-        &provider.endpoint,
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Gemini,
+        params.messages,
         params.model,
-        &provider.api_key,
-        "streamGenerateContent",
-    );
+        params.max_output_tokens,
+    )
+    .with_sampling(params.sampling)
+    .with_stream(true)
+    .into_request();
 
-    let response = provider.client.post(&url).json(&request).send().await?;
+    let body = gemini::build_request_body(&canonical);
+    let response = transport::post(provider, &body, params.model, true).await?;
 
-    if !response.status().is_success() {
-        return Err(crate::error::AiError::from_error_response("gemini", response).await);
-    }
-
-    let byte_stream = response.bytes_stream();
-
-    let chunk_stream = byte_stream
-        .map(|result| {
-            result
-                .map_err(crate::error::AiError::from)
-                .map(|b| parse_stream_chunks(&b))
-        })
-        .flat_map(|result| match result {
-            Ok(chunks) => futures::stream::iter(chunks.into_iter().map(Ok)).boxed(),
-            Err(e) => futures::stream::iter(vec![Err(e)]).boxed(),
-        });
-
-    Ok(Box::pin(chunk_stream))
-}
-
-fn parse_stream_chunks(bytes: &bytes::Bytes) -> Vec<StreamChunk> {
-    let text = String::from_utf8_lossy(bytes);
-    let cleaned = text
-        .trim()
-        .trim_start_matches('[')
-        .trim_end_matches(']')
-        .trim();
-
-    if let Some(chunks) = try_parse_array_format(cleaned) {
-        return chunks;
-    }
-
-    try_parse_chunked_format(cleaned).unwrap_or_else(Vec::new)
-}
-
-fn try_parse_array_format(cleaned: &str) -> Option<Vec<StreamChunk>> {
-    let json_array = format!("[{cleaned}]");
-    let responses: Vec<GeminiResponse> = serde_json::from_str(&json_array)
-        .map_err(|e| {
-            tracing::debug!(error = %e, chunk = %cleaned, "Failed to parse Gemini stream as JSON array");
-            e
-        })
-        .ok()?;
-    let chunks = extract_chunks_from_responses(&responses);
-    if chunks.is_empty() {
-        None
-    } else {
-        Some(chunks)
-    }
-}
-
-fn try_parse_chunked_format(cleaned: &str) -> Option<Vec<StreamChunk>> {
-    let mut chunks = Vec::new();
-    for chunk in cleaned.split("\n,\n") {
-        let trimmed = chunk.trim().trim_start_matches(',').trim();
-        if trimmed.is_empty() || !trimmed.starts_with('{') {
-            continue;
+    let events = gemini::sse_to_canonical_events(response.bytes_stream(), params.model.to_owned());
+    let stream = events.filter_map(|result| async move {
+        match result {
+            Ok(event) => canonical_bridge::event_to_chunk(event).map(Ok),
+            Err(e) => Some(Err(crate::error::AiError::Internal(e))),
         }
-
-        if let Ok(response) = serde_json::from_str::<GeminiResponse>(trimmed) {
-            chunks.extend(extract_chunks_from_responses(&[response]));
-        }
-    }
-    if chunks.is_empty() {
-        None
-    } else {
-        Some(chunks)
-    }
-}
-
-fn extract_chunks_from_responses(responses: &[GeminiResponse]) -> Vec<StreamChunk> {
-    let mut chunks = Vec::new();
-    for response in responses {
-        if let Some(candidate) = response.candidates.first() {
-            if let Some(candidate_content) = candidate.content.as_ref() {
-                let content: String = candidate_content
-                    .parts
-                    .iter()
-                    .filter_map(|part| match part {
-                        GeminiPart::Text { text } => Some(text.clone()),
-                        _ => None,
-                    })
-                    .collect();
-
-                if !content.is_empty() {
-                    chunks.push(StreamChunk::Text(content));
-                }
-            }
-        }
-
-        if let Some(usage) = &response.usage_metadata {
-            let finish_reason = response
-                .candidates
-                .first()
-                .and_then(|c| c.finish_reason.clone());
-            chunks.push(StreamChunk::Usage {
-                input_tokens: Some(usage.prompt),
-                output_tokens: usage.candidates,
-                tokens_used: Some(usage.total),
-                cache_read_tokens: None,
-                cache_creation_tokens: None,
-                finish_reason,
-            });
-        }
-    }
-    chunks
+    });
+    Ok(Box::pin(stream))
 }

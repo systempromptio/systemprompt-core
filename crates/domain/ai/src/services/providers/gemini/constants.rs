@@ -11,6 +11,5 @@ pub(super) mod tokens {
 }
 
 pub(super) mod defaults {
-    pub(in super::super) const RELEVANCE_SCORE: f32 = 0.85;
     pub(in super::super) const ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta";
 }

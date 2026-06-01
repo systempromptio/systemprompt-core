@@ -1,26 +1,24 @@
-use crate::error::Result;
-use reqwest::Client;
+//! Buffered Gemini generation: plain and schema-constrained completions.
+//!
+//! Builds a canonical request through the bridge, renders it with the shared
+//! Gemini codec, posts it, and maps the parsed reply back to an [`AiResponse`].
+
 use std::time::Instant;
+
+use serde_json::Value;
+use systemprompt_models::wire::canonical::ResponseFormat;
+use systemprompt_models::wire::gemini;
 use uuid::Uuid;
 
+use crate::error::Result;
 use crate::models::ai::AiResponse;
-use crate::models::providers::gemini::{GeminiPart, GeminiRequest, GeminiResponse};
+use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
 use crate::services::providers::{GenerationParams, SchemaGenerationParams};
 
-use super::constants::timeout;
 use super::provider::GeminiProvider;
-use super::request_builders::AiResponseParams;
-use super::{converters, request_builders};
+use super::transport;
 
-pub(super) fn build_client() -> Result<Client> {
-    Client::builder()
-        .timeout(systemprompt_models::net::AI_PROVIDER_REQUEST_TIMEOUT)
-        .connect_timeout(timeout::CONNECT_TIMEOUT)
-        .build()
-        .map_err(|e| {
-            crate::error::AiError::Internal(format!("Failed to create HTTP client: {}", e))
-        })
-}
+const STRUCTURED_OUTPUT_TOOL: &str = "structured_output";
 
 pub(super) async fn generate(
     provider: &GeminiProvider,
@@ -28,32 +26,27 @@ pub(super) async fn generate(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-
-    let contents = converters::convert_messages(params.messages);
-    let generation_config = request_builders::build_generation_config(
-        params.sampling,
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Gemini,
+        params.messages,
+        params.model,
         params.max_output_tokens,
-        None,
-        None,
-    );
+    )
+    .with_sampling(params.sampling)
+    .into_request();
 
-    let request = GeminiRequest {
-        contents,
-        generation_config: Some(generation_config),
-        safety_settings: None,
-        tools: None,
-        tool_config: None,
-    };
-
-    let response_text =
-        request_builders::send_request(provider, &request, params.model, "generateContent").await?;
-
-    let gemini_response: GeminiResponse = request_builders::parse_response(&response_text)?;
-    let content = extract_content(&gemini_response)?;
-
-    Ok(request_builders::build_ai_response(
-        AiResponseParams::builder(request_id, &gemini_response, params.model, start, content)
-            .build(),
+    let body = gemini::build_request_body(&canonical);
+    let value: Value = transport::post(provider, &body, params.model, false)
+        .await?
+        .json()
+        .await?;
+    let parsed = gemini::parse_response(&value, params.model);
+    Ok(canonical_bridge::to_ai_response(
+        "gemini",
+        params.model,
+        request_id,
+        start,
+        &parsed,
     ))
 }
 
@@ -63,64 +56,32 @@ pub(super) async fn generate_with_schema(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-
-    let contents = converters::convert_messages(params.base.messages);
-    let generation_config = request_builders::build_generation_config(
-        params.base.sampling,
-        params.base.max_output_tokens,
-        Some(("application/json".to_owned(), params.response_schema)),
-        None,
-    );
-
-    let request = GeminiRequest {
-        contents,
-        generation_config: Some(generation_config),
-        safety_settings: None,
-        tools: None,
-        tool_config: None,
+    let response_format = ResponseFormat::JsonSchema {
+        name: STRUCTURED_OUTPUT_TOOL.to_owned(),
+        schema: params.response_schema,
+        strict: true,
     };
-
-    let response_text =
-        request_builders::send_request(provider, &request, params.base.model, "generateContent")
-            .await?;
-
-    let gemini_response: GeminiResponse = request_builders::parse_response(&response_text)?;
-    let content = extract_content(&gemini_response)?;
-
-    Ok(request_builders::build_ai_response(
-        AiResponseParams::builder(
-            request_id,
-            &gemini_response,
-            params.base.model,
-            start,
-            content,
-        )
-        .build(),
-    ))
-}
-
-fn extract_content(gemini_response: &GeminiResponse) -> Result<String> {
-    let candidate = gemini_response
-        .candidates
-        .first()
-        .ok_or_else(|| crate::error::AiError::Internal("No response from Gemini".to_owned()))?;
-
-    candidate.content.as_ref().map_or_else(
-        || {
-            let reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");
-            Err(crate::error::AiError::Internal(format!(
-                "Gemini returned no content. Finish reason: {reason}"
-            )))
-        },
-        |content| {
-            Ok(content
-                .parts
-                .iter()
-                .filter_map(|part| match part {
-                    GeminiPart::Text { text } => Some(text.clone()),
-                    _ => None,
-                })
-                .collect())
-        },
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Gemini,
+        params.base.messages,
+        params.base.model,
+        params.base.max_output_tokens,
     )
+    .with_sampling(params.base.sampling)
+    .with_response_format(Some(response_format))
+    .into_request();
+
+    let body = gemini::build_request_body(&canonical);
+    let value: Value = transport::post(provider, &body, params.base.model, false)
+        .await?
+        .json()
+        .await?;
+    let parsed = gemini::parse_response(&value, params.base.model);
+    Ok(canonical_bridge::to_ai_response(
+        "gemini",
+        params.base.model,
+        request_id,
+        start,
+        &parsed,
+    ))
 }

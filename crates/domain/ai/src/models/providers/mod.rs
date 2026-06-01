@@ -1,9 +1,8 @@
-//! Wire-format request and response types for each upstream AI provider.
+//! Gemini image-generation wire types.
 //!
-//! One submodule per provider ([`anthropic`], [`gemini`], [`openai`]), each
-//! mirroring that vendor's JSON API. Model catalogues (ids, pricing,
-//! capabilities) live in the profile `providers` registry, not here.
+//! Chat/completions wire translation lives once in the shared
+//! `systemprompt_models::wire` codec; the only vendor shapes that remain here
+//! are the Gemini [`gemini`] image-generation request/response, which the image
+//! provider uses against the `generateContent` image models.
 
-pub mod anthropic;
 pub mod gemini;
-pub mod openai;

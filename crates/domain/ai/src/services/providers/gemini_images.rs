@@ -11,7 +11,9 @@ use crate::models::image_generation::{
     NewImageGenerationResponse,
 };
 use crate::models::providers::gemini::{GeminiRequest, GeminiResponse};
-use crate::services::providers::image_provider_trait::{ImageProvider, ImageProviderCapabilities};
+use crate::services::providers::image_provider_trait::{
+    ImageProvider, ImageProviderCapabilities, registry_image_models, registry_per_image_cents,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use std::collections::HashMap;
@@ -21,6 +23,8 @@ use systemprompt_models::services::ModelDefinition;
 use tracing::error;
 
 use super::gemini_image_mapping::{build_image_request, extract_image_from_response};
+
+const DEFAULT_IMAGE_CENTS: f32 = 4.0;
 
 #[derive(Debug)]
 pub struct GeminiImageProvider {
@@ -158,16 +162,21 @@ impl ImageProvider for GeminiImageProvider {
             supports_image_editing: true,
             supports_search_grounding: true,
             max_prompt_length: 8000,
-            cost_per_image_cents: 4.0,
+            cost_per_image_cents: registry_per_image_cents(
+                &self.model_definitions,
+                &self.default_model,
+                DEFAULT_IMAGE_CENTS,
+            ),
         }
     }
 
     fn supported_models(&self) -> Vec<String> {
-        vec![
-            "gemini-3.1-flash-image-preview".to_owned(),
-            "gemini-3-pro-image-preview".to_owned(),
-            "gemini-2.5-flash-image".to_owned(),
-        ]
+        let models = registry_image_models(&self.model_definitions);
+        if models.is_empty() {
+            vec![self.default_model.clone()]
+        } else {
+            models
+        }
     }
 
     fn default_model(&self) -> &str {

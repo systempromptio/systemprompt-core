@@ -1,14 +1,21 @@
-use crate::error::Result;
+//! Anthropic server-side web search: builds a canonical request carrying a
+//! [`SearchConfig`], renders it with the shared codec (which adds the
+//! `web_search` server tool), and maps the grounded reply back.
+
 use std::time::Instant;
 
-use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse, WebSource};
-use crate::models::providers::anthropic::{
-    AnthropicSearchContentBlock, AnthropicSearchRequest, AnthropicSearchResponse,
-    AnthropicServerTool, AnthropicWebSearchResultItem,
-};
+use serde_json::Value;
+use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::canonical::SearchConfig;
 
-use super::converters;
+use crate::error::Result;
+use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse};
+use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
+
 use super::provider::AnthropicProvider;
+use super::request::post_body;
+
+const DEFAULT_MAX_USES: u32 = 5;
 
 #[derive(Debug)]
 pub struct SearchParams<'a> {
@@ -46,115 +53,23 @@ pub async fn generate_with_web_search(
     params: SearchParams<'_>,
 ) -> Result<SearchGroundedResponse> {
     let start = Instant::now();
-
-    let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
-
-    let (temperature, top_p, top_k) = params
-        .sampling
-        .map_or((None, None, None), |s| (s.temperature, s.top_p, s.top_k));
-
-    let web_search_tool = AnthropicServerTool::WebSearch {
-        name: "web_search".to_owned(),
-        max_uses: params.max_uses.or(Some(5)),
+    let search = SearchConfig {
+        max_uses: Some(params.max_uses.unwrap_or(DEFAULT_MAX_USES)),
+        context_size: None,
+        urls: Vec::new(),
     };
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Anthropic,
+        params.messages,
+        params.model,
+        params.max_output_tokens,
+    )
+    .with_sampling(params.sampling)
+    .with_search(Some(search))
+    .into_request();
 
-    let request = AnthropicSearchRequest {
-        model: params.model.to_owned(),
-        messages: anthropic_messages,
-        max_tokens: params.max_output_tokens,
-        temperature,
-        top_p,
-        top_k,
-        system: system_prompt,
-        tools: vec![web_search_tool],
-    };
-
-    let response = provider
-        .client
-        .post(format!("{}/messages", provider.endpoint))
-        .header("x-api-key", &provider.api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&request)
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_body = response
-            .text()
-            .await
-            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-        return Err(crate::error::AiError::Internal(format!(
-            "Anthropic API returned status {}: {}",
-            status, error_body
-        )));
-    }
-
-    let search_response: AnthropicSearchResponse = response.json().await?;
-
-    Ok(extract_search_response(&search_response, start))
-}
-
-fn extract_search_response(
-    response: &AnthropicSearchResponse,
-    start: Instant,
-) -> SearchGroundedResponse {
-    let mut content_text = String::new();
-    let mut sources = Vec::new();
-    let mut web_search_queries = Vec::new();
-    let mut seen_urls = std::collections::HashSet::new();
-
-    for block in &response.content {
-        match block {
-            AnthropicSearchContentBlock::Text { text, citations } => {
-                content_text.push_str(text);
-
-                if let Some(cites) = citations {
-                    for citation in cites {
-                        if seen_urls.insert(citation.url.clone()) {
-                            sources.push(WebSource {
-                                title: citation.title.clone(),
-                                uri: citation.url.clone(),
-                                relevance: 1.0,
-                            });
-                        }
-                    }
-                }
-            },
-            AnthropicSearchContentBlock::ServerToolUse { input, .. } => {
-                if let Some(query) = input.get("query").and_then(|q| q.as_str()) {
-                    web_search_queries.push(query.to_owned());
-                }
-            },
-            AnthropicSearchContentBlock::WebSearchToolResult { content, .. } => {
-                for item in content {
-                    if let AnthropicWebSearchResultItem::WebSearchResult { url, title, .. } = item {
-                        if seen_urls.insert(url.clone()) {
-                            sources.push(WebSource {
-                                title: title.clone(),
-                                uri: url.clone(),
-                                relevance: 1.0,
-                            });
-                        }
-                    }
-                }
-            },
-        }
-    }
-
-    let latency_ms = start.elapsed().as_millis() as u64;
-    let tokens_used = Some(response.usage.input_tokens + response.usage.output_tokens);
-
-    SearchGroundedResponse {
-        content: content_text,
-        sources,
-        confidence_scores: Vec::new(),
-        web_search_queries,
-        url_context_metadata: None,
-        tokens_used,
-        latency_ms,
-        finish_reason: response.stop_reason.clone(),
-        safety_ratings: None,
-    }
+    let body = anthropic::build_request_body(&canonical, params.model);
+    let value: Value = post_body(provider, &body).await?.json().await?;
+    let parsed = anthropic::parse_response(&value, params.model);
+    Ok(canonical_bridge::to_search_grounded(start, &parsed))
 }

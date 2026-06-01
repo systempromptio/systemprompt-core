@@ -73,7 +73,8 @@ impl ImageProviderFactory {
         let base = OpenAiImageProvider::with_endpoint(
             params.api_key.clone(),
             params.entry.endpoint.clone(),
-        );
+        )
+        .with_model_definitions(Self::model_definitions(params.entry));
 
         let provider = match params.policy.default_image_model.as_str() {
             "" => base,

@@ -1,19 +1,28 @@
-use crate::error::Result;
+//! Buffered Anthropic generation entry points.
+//!
+//! Each builds a canonical request through the bridge, renders it with the
+//! shared Anthropic codec, posts it, and maps the parsed canonical reply back
+//! to an [`AiResponse`]. No vendor wire shapes live here.
+
 use std::time::Instant;
+
+use serde_json::Value;
+use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::canonical::{CanonicalContent, ResponseFormat};
 use uuid::Uuid;
 
+use crate::error::Result;
 use crate::models::ai::AiResponse;
-use crate::models::providers::anthropic::{
-    AnthropicContentBlock, AnthropicRequest, AnthropicResponse, AnthropicTool, AnthropicToolChoice,
-};
 use crate::models::tools::ToolCall;
+use crate::services::providers::canonical_bridge::{
+    self, BridgeProvider, CanonicalBuild, tools_to_canonical,
+};
 use crate::services::providers::{GenerationParams, SchemaGenerationParams, ToolGenerationParams};
-use systemprompt_identifiers::AiToolCallId;
 
 use super::provider::AnthropicProvider;
-use super::request::{post_messages, sampling_tuple};
-use super::response::{ResponseContext, build_response};
-use super::{converters, thinking};
+use super::request::post_body;
+
+const STRUCTURED_OUTPUT_TOOL: &str = "structured_output";
 
 pub(super) async fn generate(
     provider: &AnthropicProvider,
@@ -21,45 +30,24 @@ pub(super) async fn generate(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Anthropic,
+        params.messages,
+        params.model,
+        params.max_output_tokens,
+    )
+    .with_sampling(params.sampling)
+    .into_request();
 
-    let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
-    let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.sampling);
-
-    let request = AnthropicRequest {
-        model: params.model.to_owned(),
-        messages: anthropic_messages,
-        max_tokens: params.max_output_tokens,
-        temperature,
-        top_p,
-        top_k,
-        stop_sequences,
-        system: system_prompt,
-        tools: None,
-        tool_choice: None,
-        stream: None,
-        thinking: thinking::build_thinking_config(params.model),
-    };
-
-    let anthropic_response: AnthropicResponse =
-        post_messages(provider, &request).await?.json().await?;
-
-    let content = anthropic_response
-        .content
-        .iter()
-        .filter_map(|block| match block {
-            AnthropicContentBlock::Text { text } => Some(text.clone()),
-            _ => None,
-        })
-        .collect::<String>();
-
-    Ok(build_response(
-        ResponseContext {
-            request_id,
-            model: params.model,
-            start,
-        },
-        &anthropic_response,
-        content,
+    let body = anthropic::build_request_body(&canonical, params.model);
+    let value: Value = post_body(provider, &body).await?.json().await?;
+    let parsed = anthropic::parse_response(&value, params.model);
+    Ok(canonical_bridge::to_ai_response(
+        "anthropic",
+        params.model,
+        request_id,
+        start,
+        &parsed,
     ))
 }
 
@@ -69,41 +57,27 @@ pub(super) async fn generate_with_tools(
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Anthropic,
+        params.base.messages,
+        params.base.model,
+        params.base.max_output_tokens,
+    )
+    .with_sampling(params.base.sampling)
+    .with_tools(tools_to_canonical(params.tools))
+    .into_request();
 
-    let (system_prompt, anthropic_messages) = converters::convert_messages(params.base.messages);
-    let anthropic_tools = converters::convert_tools(params.tools);
-    let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.base.sampling);
-
-    let request = AnthropicRequest {
-        model: params.base.model.to_owned(),
-        messages: anthropic_messages,
-        max_tokens: params.base.max_output_tokens,
-        temperature,
-        top_p,
-        top_k,
-        stop_sequences,
-        system: system_prompt,
-        tools: Some(anthropic_tools),
-        tool_choice: None,
-        stream: None,
-        thinking: thinking::build_thinking_config(params.base.model),
-    };
-
-    let anthropic_response: AnthropicResponse =
-        post_messages(provider, &request).await?.json().await?;
-
-    let (content, tool_calls) = split_content_and_tools(&anthropic_response);
-
-    let ai_response = build_response(
-        ResponseContext {
-            request_id,
-            model: params.base.model,
-            start,
-        },
-        &anthropic_response,
-        content,
+    let body = anthropic::build_request_body(&canonical, params.base.model);
+    let value: Value = post_body(provider, &body).await?.json().await?;
+    let parsed = anthropic::parse_response(&value, params.base.model);
+    let tool_calls = canonical_bridge::tool_calls(&parsed);
+    let ai_response = canonical_bridge::to_ai_response(
+        "anthropic",
+        params.base.model,
+        request_id,
+        start,
+        &parsed,
     );
-
     Ok((ai_response, tool_calls))
 }
 
@@ -113,79 +87,42 @@ pub(super) async fn generate_with_schema(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-
-    let (system_prompt, anthropic_messages) = converters::convert_messages(params.base.messages);
-    let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.base.sampling);
-
-    let structured_tool = AnthropicTool {
-        name: "structured_output".to_owned(),
-        description: Some("Return structured JSON output matching the schema".to_owned()),
-        input_schema: params.response_schema,
+    let response_format = ResponseFormat::JsonSchema {
+        name: STRUCTURED_OUTPUT_TOOL.to_owned(),
+        schema: params.response_schema,
+        strict: true,
     };
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::Anthropic,
+        params.base.messages,
+        params.base.model,
+        params.base.max_output_tokens,
+    )
+    .with_sampling(params.base.sampling)
+    .with_response_format(Some(response_format))
+    .into_request();
 
-    let request = AnthropicRequest {
-        model: params.base.model.to_owned(),
-        messages: anthropic_messages,
-        max_tokens: params.base.max_output_tokens,
-        temperature,
-        top_p,
-        top_k,
-        stop_sequences,
-        system: system_prompt,
-        tools: Some(vec![structured_tool]),
-        tool_choice: Some(AnthropicToolChoice::Tool {
-            name: "structured_output".to_owned(),
-        }),
-        stream: None,
-        thinking: thinking::build_thinking_config(params.base.model),
-    };
+    let body = anthropic::build_request_body(&canonical, params.base.model);
+    let value: Value = post_body(provider, &body).await?.json().await?;
+    let parsed = anthropic::parse_response(&value, params.base.model);
 
-    let anthropic_response: AnthropicResponse =
-        post_messages(provider, &request).await?.json().await?;
-
-    let content = anthropic_response
+    let mut ai_response = canonical_bridge::to_ai_response(
+        "anthropic",
+        params.base.model,
+        request_id,
+        start,
+        &parsed,
+    );
+    // The schema arrives as the `structured_output` tool call; surface its
+    // arguments as the response body, not as a tool invocation.
+    ai_response.content = parsed
         .content
         .iter()
         .find_map(|block| match block {
-            AnthropicContentBlock::ToolUse { input, .. } => match serde_json::to_string(input) {
-                Ok(s) => Some(s),
-                Err(e) => {
-                    tracing::warn!(error = %e, "Failed to serialize Anthropic tool input");
-                    Some(String::new())
-                },
-            },
+            CanonicalContent::ToolUse { input, .. } => serde_json::to_string(input).ok(),
             _ => None,
         })
         .unwrap_or_default();
-
-    Ok(build_response(
-        ResponseContext {
-            request_id,
-            model: params.base.model,
-            start,
-        },
-        &anthropic_response,
-        content,
-    ))
-}
-
-fn split_content_and_tools(response: &AnthropicResponse) -> (String, Vec<ToolCall>) {
-    let mut content = String::new();
-    let mut tool_calls = Vec::new();
-
-    for block in &response.content {
-        match block {
-            AnthropicContentBlock::Text { text } => content.push_str(text),
-            AnthropicContentBlock::ToolUse { id, name, input } => {
-                tool_calls.push(ToolCall {
-                    ai_tool_call_id: AiToolCallId::new(id.clone()),
-                    name: name.clone(),
-                    arguments: input.clone(),
-                });
-            },
-            AnthropicContentBlock::Image { .. } | AnthropicContentBlock::ToolResult { .. } => {},
-        }
-    }
-
-    (content, tool_calls)
+    ai_response.tool_calls = Vec::new();
+    Ok(ai_response)
 }

@@ -1,144 +1,66 @@
-use crate::error::Result;
+//! Gemini tool use and tool-result synthesis.
+//!
+//! Tool requests run schemas through the transformer/name-mapper, render via
+//! the shared codec, and resolve model-emitted function names on the way back.
+//! Tool-result synthesis appends the assistant `functionCall` turn and the
+//! `functionResponse` turn to the canonical request the codec renders.
+
 use std::time::Instant;
-use tracing::{debug, error, info};
+
+use rmcp::model::RawContent;
+use systemprompt_models::wire::canonical::{
+    CanonicalContent, CanonicalMessage, CanonicalToolChoice, Role, SearchConfig,
+};
+use systemprompt_models::wire::gemini;
 use uuid::Uuid;
 
-use crate::models::ai::{AiMessage, AiResponse, SamplingParams};
-use crate::models::providers::gemini::{
-    GeminiContent, GeminiFunctionCall, GeminiFunctionCallingConfig, GeminiFunctionResponse,
-    GeminiPart, GeminiRequest, GeminiResponse, GeminiToolConfig,
-};
+use crate::error::Result;
+use crate::models::ai::AiResponse;
 use crate::models::tools::{CallToolResult, ToolCall};
+use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
 
-use super::params::ToolConfigParams;
 pub use super::params::{ToolRequestParams, ToolResultParams};
 use super::provider::GeminiProvider;
-use super::request_builders::AiResponseParams;
-use super::tool_conversion::{build_thinking_config, convert_tools, extract_tool_response};
-use super::{converters, request_builders};
+use super::tool_conversion::{convert_tools, resolve_response, thinking_for};
+use super::transport;
 
 pub(super) async fn generate_with_tools(
     provider: &GeminiProvider,
     params: ToolRequestParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
-    let config_params = ToolConfigParams::new(&params);
-    generate_with_tools_config(provider, config_params).await
-}
-
-async fn generate_with_tools_config(
-    provider: &GeminiProvider,
-    params: ToolConfigParams<'_>,
-) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
+    let canonical_tools = convert_tools(provider, params.tools.to_vec()).await?;
+    let has_tools = !canonical_tools.is_empty();
 
-    let request = build_tool_request(provider, &params).await?;
-
-    info!(
-        request_id = %request_id,
-        model = %params.model,
-        tool_count = params.tools.len(),
-        message_count = params.messages.len(),
-        max_output_tokens = params.max_output_tokens,
-        "Sending tool request to Gemini"
-    );
-
-    let gemini_response = send_tool_request(provider, &request, params.model, request_id).await?;
-
-    build_tool_response(request_id, &gemini_response, provider, params.model, start).await
-}
-
-async fn build_tool_request(
-    provider: &GeminiProvider,
-    params: &ToolConfigParams<'_>,
-) -> Result<GeminiRequest> {
-    let contents = converters::convert_messages(params.messages);
-    let gemini_tools = convert_tools(provider, params.tools.clone()).await?;
-    let thinking_config = build_thinking_config(params.model);
-    let generation_config = request_builders::build_generation_config(
-        params.sampling,
+    let mut build = CanonicalBuild::new(
+        BridgeProvider::Gemini,
+        params.messages,
+        params.model,
         params.max_output_tokens,
-        None,
-        thinking_config,
-    );
+    )
+    .with_sampling(params.sampling)
+    .with_tools(canonical_tools);
+    if has_tools {
+        build = build.with_tool_choice(Some(CanonicalToolChoice::Auto));
+    } else if provider.has_google_search() {
+        build = build.with_search(Some(SearchConfig::default()));
+    }
+    let mut canonical = build.into_request();
+    canonical.thinking = thinking_for(params.model);
 
-    let has_function_declarations = gemini_tools.iter().any(|t| {
-        t.function_declarations
-            .as_ref()
-            .is_some_and(|f| !f.is_empty())
-    });
+    let body = gemini::build_request_body(&canonical);
+    let value = transport::post(provider, &body, params.model, false)
+        .await?
+        .json()
+        .await?;
+    let parsed = gemini::parse_response(&value, params.model);
+    let (content, tool_calls) = resolve_response(provider, &parsed).await;
 
-    let tool_config = if has_function_declarations {
-        Some(GeminiToolConfig {
-            function_calling_config: GeminiFunctionCallingConfig {
-                mode: params.function_calling_mode,
-                allowed_function_names: params.allowed_function_names.clone(),
-            },
-        })
-    } else {
-        None
-    };
-
-    Ok(GeminiRequest {
-        contents,
-        generation_config: Some(generation_config),
-        safety_settings: None,
-        tools: if gemini_tools.is_empty() {
-            None
-        } else {
-            Some(gemini_tools)
-        },
-        tool_config,
-    })
-}
-
-async fn send_tool_request(
-    provider: &GeminiProvider,
-    request: &GeminiRequest,
-    model: &str,
-    request_id: Uuid,
-) -> Result<GeminiResponse> {
-    let response_text =
-        request_builders::send_request(provider, request, model, "generateContent").await?;
-
-    debug!(
-        request_id = %request_id,
-        response_length = response_text.len(),
-        "Received response from Gemini"
-    );
-
-    request_builders::parse_response(&response_text).map_err(|e| {
-        error!(
-            request_id = %request_id,
-            error = %e,
-            response_preview = %response_text.chars().take(1000).collect::<String>(),
-            "Failed to parse Gemini response"
-        );
-        e
-    })
-}
-
-async fn build_tool_response(
-    request_id: Uuid,
-    gemini_response: &GeminiResponse,
-    provider: &GeminiProvider,
-    model: &str,
-    start: Instant,
-) -> Result<(AiResponse, Vec<ToolCall>)> {
-    let (content, tool_calls) = extract_tool_response(provider, gemini_response).await?;
-
-    info!(
-        request_id = %request_id,
-        has_text = !content.is_empty(),
-        tool_call_count = tool_calls.len(),
-        latency_ms = start.elapsed().as_millis() as u64,
-        "Parsed Gemini response"
-    );
-
-    let response = request_builders::build_ai_response(
-        AiResponseParams::builder(request_id, gemini_response, model, start, content).build(),
-    );
-
+    let mut response =
+        canonical_bridge::to_ai_response("gemini", params.model, request_id, start, &parsed);
+    response.content = content;
+    response.tool_calls.clone_from(&tool_calls);
     Ok((response, tool_calls))
 }
 
@@ -148,118 +70,72 @@ pub(super) async fn generate_with_tool_results(
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
-
-    let contents = build_tool_result_contents(
+    let mut canonical = CanonicalBuild::new(
+        BridgeProvider::Gemini,
         params.conversation_history,
-        params.tool_calls,
-        params.tool_results,
-    );
-    let request = build_tool_result_request(contents, params.sampling, params.max_output_tokens);
+        params.model,
+        params.max_output_tokens,
+    )
+    .with_sampling(params.sampling)
+    .into_request();
 
-    let response_text =
-        request_builders::send_request(provider, &request, params.model, "generateContent").await?;
+    let assistant: Vec<CanonicalContent> = params
+        .tool_calls
+        .iter()
+        .map(|tc| CanonicalContent::ToolUse {
+            id: tc.ai_tool_call_id.as_str().to_owned(),
+            name: tc.name.clone(),
+            input: tc.arguments.clone(),
+        })
+        .collect();
+    if !assistant.is_empty() {
+        canonical.messages.push(CanonicalMessage {
+            role: Role::Assistant,
+            content: assistant,
+        });
+    }
 
-    let gemini_response: GeminiResponse = request_builders::parse_response(&response_text)?;
-    let content = extract_synthesis_content(&gemini_response)?;
+    let results: Vec<CanonicalContent> = params
+        .tool_calls
+        .iter()
+        .zip(params.tool_results.iter())
+        .map(|(tc, tr)| CanonicalContent::ToolResult {
+            // Gemini matches a functionResponse to its call by name, not id.
+            tool_use_id: tc.name.clone(),
+            content: vec![CanonicalContent::Text(tool_result_text(tr))],
+            is_error: tr.is_error.unwrap_or(false),
+        })
+        .collect();
+    if !results.is_empty() {
+        canonical.messages.push(CanonicalMessage {
+            role: Role::Tool,
+            content: results,
+        });
+    }
 
-    debug!(
-        request_id = %request_id,
-        model = %params.model,
-        has_content = !content.is_empty(),
-        content_length = content.len(),
-        tool_call_count = params.tool_calls.len(),
-        tool_result_count = params.tool_results.len(),
-        "Tool synthesis response details"
-    );
-
-    Ok(request_builders::build_ai_response(
-        AiResponseParams::builder(request_id, &gemini_response, params.model, start, content)
-            .build(),
+    let body = gemini::build_request_body(&canonical);
+    let value = transport::post(provider, &body, params.model, false)
+        .await?
+        .json()
+        .await?;
+    let parsed = gemini::parse_response(&value, params.model);
+    Ok(canonical_bridge::to_ai_response(
+        "gemini",
+        params.model,
+        request_id,
+        start,
+        &parsed,
     ))
 }
 
-fn build_tool_result_contents(
-    conversation_history: &[AiMessage],
-    tool_calls: &[ToolCall],
-    tool_results: &[CallToolResult],
-) -> Vec<GeminiContent> {
-    let mut contents = converters::convert_messages(conversation_history);
-
-    let assistant_parts: Vec<_> = tool_calls
+fn tool_result_text(result: &CallToolResult) -> String {
+    result
+        .content
         .iter()
-        .map(|tc| GeminiPart::FunctionCall {
-            function_call: GeminiFunctionCall {
-                name: tc.name.clone(),
-                args: tc.arguments.clone(),
-                thought_signature: None,
-            },
-        })
-        .collect();
-
-    if !assistant_parts.is_empty() {
-        contents.push(GeminiContent {
-            role: "model".to_owned(),
-            parts: assistant_parts,
-        });
-    }
-
-    let user_parts: Vec<_> = tool_calls
-        .iter()
-        .zip(tool_results.iter())
-        .map(|(tc, tr)| GeminiPart::FunctionResponse {
-            function_response: GeminiFunctionResponse {
-                name: tc.name.clone(),
-                response: converters::convert_tool_result_to_json(tr),
-            },
-        })
-        .collect();
-
-    if !user_parts.is_empty() {
-        contents.push(GeminiContent {
-            role: "user".to_owned(),
-            parts: user_parts,
-        });
-    }
-
-    contents
-}
-
-fn build_tool_result_request(
-    contents: Vec<GeminiContent>,
-    sampling: Option<&SamplingParams>,
-    max_output_tokens: u32,
-) -> GeminiRequest {
-    let generation_config =
-        request_builders::build_generation_config(sampling, max_output_tokens, None, None);
-
-    GeminiRequest {
-        contents,
-        generation_config: Some(generation_config),
-        safety_settings: None,
-        tools: None,
-        tool_config: None,
-    }
-}
-
-fn extract_synthesis_content(gemini_response: &GeminiResponse) -> Result<String> {
-    let candidate = gemini_response.candidates.first().ok_or_else(|| {
-        crate::error::AiError::Internal("No response from Gemini for tool synthesis".to_owned())
-    })?;
-
-    let finish_reason = candidate.finish_reason.as_deref().unwrap_or("UNKNOWN");
-
-    let candidate_content = candidate.content.as_ref().ok_or_else(|| {
-        crate::error::AiError::Internal(format!(
-            "Gemini returned no content after tool execution. Finish reason: {finish_reason}"
-        ))
-    })?;
-
-    Ok(candidate_content
-        .parts
-        .iter()
-        .filter_map(|part| match part {
-            GeminiPart::Text { text } => Some(text.as_str()),
+        .filter_map(|c| match &c.raw {
+            RawContent::Text(text) => Some(text.text.as_str()),
             _ => None,
         })
-        .collect())
+        .collect::<Vec<_>>()
+        .join("\n")
 }

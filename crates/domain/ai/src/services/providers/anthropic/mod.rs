@@ -1,14 +1,12 @@
 //! Anthropic provider driver — chat completions, streaming, search-grounded
-//! responses, and tool use.
+//! responses, and tool use. Vendor wire translation is delegated to the shared
+//! `systemprompt_models::wire::anthropic` codec via the `canonical_bridge`.
 
-pub mod converters;
 mod generation;
 mod provider;
 mod request;
-mod response;
 pub mod search;
 mod streaming;
-pub mod thinking;
 mod trait_impl;
 
 pub use provider::AnthropicProvider;

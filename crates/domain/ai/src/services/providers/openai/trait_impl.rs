@@ -12,8 +12,10 @@ use crate::services::providers::{
 };
 use crate::services::schema::ProviderCapabilities;
 
+use crate::services::providers::canonical_bridge::tools_to_canonical;
+
 use super::provider::OpenAiProvider;
-use super::{converters, generation, search};
+use super::{generation, search};
 
 #[async_trait]
 impl AiProvider for OpenAiProvider {
@@ -90,9 +92,8 @@ impl AiProvider for OpenAiProvider {
         &self,
         params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        let openai_tools = converters::convert_tools(params.tools)?;
-        self.create_stream_request(params.base, Some(openai_tools))
-            .await
+        let tools = tools_to_canonical(params.tools);
+        self.create_stream_request(params.base, Some(tools)).await
     }
 
     fn supports_google_search(&self) -> bool {

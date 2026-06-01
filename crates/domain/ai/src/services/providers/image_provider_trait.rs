@@ -3,7 +3,35 @@ use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,
 };
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_models::services::ModelDefinition;
+
+/// The registry models that declare image generation, sorted for a stable
+/// `supported_models` order.
+#[must_use]
+pub fn registry_image_models(defs: &HashMap<String, ModelDefinition>) -> Vec<String> {
+    let mut models: Vec<String> = defs
+        .iter()
+        .filter(|(_, def)| def.capabilities.image_generation)
+        .map(|(id, _)| id.clone())
+        .collect();
+    models.sort();
+    models
+}
+
+/// Per-image price (cents) for `model` from the registry catalog, falling back
+/// to `fallback` when the model carries no per-image pricing.
+#[must_use]
+pub fn registry_per_image_cents(
+    defs: &HashMap<String, ModelDefinition>,
+    model: &str,
+    fallback: f32,
+) -> f32 {
+    defs.get(model)
+        .and_then(|def| def.pricing.per_image_cents)
+        .map_or(fallback, |cents| cents as f32)
+}
 
 #[derive(Debug, Clone)]
 pub struct ImageProviderCapabilities {

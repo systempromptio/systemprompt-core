@@ -1,11 +1,10 @@
 //! `OpenAI` provider driver — chat completions, streaming, structured
-//! outputs, and tool use.
+//! outputs, search (Responses API), and tool use. Vendor wire translation is
+//! delegated to the shared `systemprompt_models::wire` codecs via the
+//! `canonical_bridge`.
 
-pub mod converters;
 mod generation;
 mod provider;
-pub mod reasoning;
-pub mod response_builder;
 pub mod search;
 mod streaming;
 mod trait_impl;

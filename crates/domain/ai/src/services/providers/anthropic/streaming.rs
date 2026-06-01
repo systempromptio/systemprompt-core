@@ -1,104 +1,99 @@
-use crate::error::Result;
-use futures::{Stream, StreamExt};
+//! Anthropic streaming: builds a canonical streaming request, posts it, frames
+//! the SSE byte stream, and maps each decoded frame through the shared codec's
+//! [`anthropic::event_from_sse`] into agent [`StreamChunk`]s.
+
 use std::pin::Pin;
 
-use crate::models::providers::anthropic::{
-    AnthropicDelta, AnthropicRequest, AnthropicStreamEvent, AnthropicTool,
-};
+use futures::{Stream, StreamExt};
+use serde_json::Value;
+use systemprompt_models::wire::anthropic;
+use systemprompt_models::wire::canonical::CanonicalTool;
+
+use crate::error::Result;
+use crate::models::ai::StreamChunk;
 use crate::services::providers::GenerationParams;
-use systemprompt_models::ai::StreamChunk;
+use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
 
 use super::provider::AnthropicProvider;
-use super::request::{post_messages, sampling_tuple};
-use super::{converters, thinking};
+use super::request::post_body;
 
 impl AnthropicProvider {
     pub(super) async fn create_stream_request(
         &self,
         params: GenerationParams<'_>,
-        tools: Option<Vec<AnthropicTool>>,
+        tools: Option<Vec<CanonicalTool>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
-        let (temperature, top_p, top_k, stop_sequences) = sampling_tuple(params.sampling);
-        let thinking_config = thinking::build_thinking_config(params.model);
+        let canonical = CanonicalBuild::new(
+            BridgeProvider::Anthropic,
+            params.messages,
+            params.model,
+            params.max_output_tokens,
+        )
+        .with_sampling(params.sampling)
+        .with_tools(tools.unwrap_or_default())
+        .with_stream(true)
+        .into_request();
 
-        let request = AnthropicRequest {
-            model: params.model.to_owned(),
-            messages: anthropic_messages,
-            max_tokens: params.max_output_tokens,
-            temperature,
-            top_p,
-            top_k,
-            stop_sequences,
-            system: system_prompt,
-            tools,
-            tool_choice: None,
-            stream: Some(true),
-            thinking: thinking_config,
-        };
-
-        let response = post_messages(self, &request).await?;
+        let body = anthropic::build_request_body(&canonical, params.model);
+        let response = post_body(self, &body).await?;
 
         let stream = response
             .bytes_stream()
-            .map(|chunk| -> Result<Vec<StreamChunk>> {
-                match chunk {
-                    Ok(bytes) => Ok(parse_sse_chunks(&bytes)),
-                    Err(e) => Err(crate::error::AiError::Internal(format!(
+            .scan(SseState::default(), |state, item| {
+                let out = match item {
+                    Ok(bytes) => state.drain(&bytes),
+                    Err(e) => vec![Err(crate::error::AiError::Internal(format!(
                         "Stream error: {e}"
-                    ))),
-                }
+                    )))],
+                };
+                futures::future::ready(Some(out))
             })
-            .flat_map(|result| match result {
-                Ok(chunks) => futures::stream::iter(chunks.into_iter().map(Ok)).boxed(),
-                Err(e) => futures::stream::iter(vec![Err(e)]).boxed(),
-            });
+            .flat_map(futures::stream::iter);
 
         Ok(Box::pin(stream))
     }
 }
 
-fn parse_sse_chunks(bytes: &bytes::Bytes) -> Vec<StreamChunk> {
-    let text = String::from_utf8_lossy(bytes);
-    let mut chunks = Vec::new();
-
-    for line in text.lines() {
-        if let Some(data) = line.strip_prefix("data: ") {
-            if let Ok(event) = serde_json::from_str::<AnthropicStreamEvent>(data) {
-                chunks.extend(extract_chunks_from_event(&event));
-            }
-        }
-    }
-
-    chunks
+#[derive(Default)]
+struct SseState {
+    buf: Vec<u8>,
+    message_id: String,
 }
 
-fn extract_chunks_from_event(event: &AnthropicStreamEvent) -> Vec<StreamChunk> {
-    match event {
-        AnthropicStreamEvent::ContentBlockDelta { delta, .. } => match delta {
-            AnthropicDelta::TextDelta { text } => vec![StreamChunk::Text(text.clone())],
-            AnthropicDelta::InputJsonDelta { .. } => vec![],
-        },
-        AnthropicStreamEvent::MessageStart { message } => {
-            vec![StreamChunk::Usage {
-                input_tokens: Some(message.usage.input),
-                output_tokens: Some(message.usage.output),
-                tokens_used: Some(message.usage.input + message.usage.output),
-                cache_read_tokens: message.usage.cache_read,
-                cache_creation_tokens: message.usage.cache_creation,
-                finish_reason: None,
-            }]
-        },
-        AnthropicStreamEvent::MessageDelta { delta, usage } => {
-            vec![StreamChunk::Usage {
-                input_tokens: None,
-                output_tokens: Some(usage.output_tokens),
-                tokens_used: None,
-                cache_read_tokens: None,
-                cache_creation_tokens: None,
-                finish_reason: delta.stop_reason.clone(),
-            }]
-        },
-        _ => vec![],
+impl SseState {
+    fn drain(&mut self, bytes: &[u8]) -> Vec<Result<StreamChunk>> {
+        self.buf.extend_from_slice(bytes);
+        let mut chunks = Vec::new();
+        while let Some(pos) = self.buf.windows(2).position(|w| w == b"\n\n") {
+            let frame: Vec<u8> = self.buf.drain(..pos + 2).collect();
+            let frame_str = String::from_utf8_lossy(&frame);
+            for line in frame_str.lines() {
+                let Some(data) = line.strip_prefix("data: ") else {
+                    continue;
+                };
+                let Ok(value) = serde_json::from_str::<Value>(data) else {
+                    continue;
+                };
+                self.capture_message_id(&value);
+                if let Some(event) = anthropic::event_from_sse(&value, &self.message_id) {
+                    if let Some(chunk) = canonical_bridge::event_to_chunk(event) {
+                        chunks.push(Ok(chunk));
+                    }
+                }
+            }
+        }
+        chunks
+    }
+
+    fn capture_message_id(&mut self, value: &Value) {
+        if value.get("type").and_then(Value::as_str) == Some("message_start") {
+            if let Some(id) = value
+                .get("message")
+                .and_then(|m| m.get("id"))
+                .and_then(Value::as_str)
+            {
+                self.message_id = id.to_owned();
+            }
+        }
     }
 }

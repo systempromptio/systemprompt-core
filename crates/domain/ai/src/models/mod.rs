@@ -24,7 +24,6 @@ pub mod tools {
 
 pub mod ai_request_record;
 pub mod image_generation;
-pub mod message_converters;
 pub mod providers;
 
 pub use ai_request_record::{

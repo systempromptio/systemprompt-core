@@ -9,12 +9,18 @@ use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,
     NewImageGenerationResponse,
 };
-use crate::services::providers::image_provider_trait::{ImageProvider, ImageProviderCapabilities};
+use crate::services::providers::image_provider_trait::{
+    ImageProvider, ImageProviderCapabilities, registry_image_models, registry_per_image_cents,
+};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::Instant;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
+use systemprompt_models::services::ModelDefinition;
+
+const DEFAULT_IMAGE_CENTS: f32 = 4.0;
 
 #[derive(Debug)]
 pub struct OpenAiImageProvider {
@@ -22,6 +28,7 @@ pub struct OpenAiImageProvider {
     api_key: String,
     endpoint: String,
     default_model: String,
+    model_definitions: HashMap<String, ModelDefinition>,
 }
 
 impl OpenAiImageProvider {
@@ -36,6 +43,7 @@ impl OpenAiImageProvider {
             api_key,
             endpoint: "https://api.openai.com/v1".to_owned(),
             default_model: "gpt-image-1".to_owned(),
+            model_definitions: HashMap::new(),
         }
     }
 
@@ -47,6 +55,11 @@ impl OpenAiImageProvider {
 
     pub fn with_default_model(mut self, model: String) -> Self {
         self.default_model = model;
+        self
+    }
+
+    pub fn with_model_definitions(mut self, models: HashMap<String, ModelDefinition>) -> Self {
+        self.model_definitions = models;
         self
     }
 
@@ -173,17 +186,21 @@ impl ImageProvider for OpenAiImageProvider {
             supports_image_editing: true,
             supports_search_grounding: false,
             max_prompt_length: 4000,
-            cost_per_image_cents: 4.0,
+            cost_per_image_cents: registry_per_image_cents(
+                &self.model_definitions,
+                &self.default_model,
+                DEFAULT_IMAGE_CENTS,
+            ),
         }
     }
 
     fn supported_models(&self) -> Vec<String> {
-        vec![
-            "gpt-image-1".to_owned(),
-            "gpt-image-1-mini".to_owned(),
-            "dall-e-3".to_owned(),
-            "dall-e-2".to_owned(),
-        ]
+        let models = registry_image_models(&self.model_definitions);
+        if models.is_empty() {
+            vec![self.default_model.clone()]
+        } else {
+            models
+        }
     }
 
     fn default_model(&self) -> &str {

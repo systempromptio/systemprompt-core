@@ -1,18 +1,20 @@
 //! Gemini provider driver — chat completions, streaming, code-execution
-//! tool, Google Search grounding, and tool use.
+//! tool, Google Search grounding, and tool use. Vendor wire translation is
+//! delegated to the shared `systemprompt_models::wire::gemini` codec; this
+//! module keeps the transport, the schema transformer / tool-name mapper, and
+//! the canonical glue.
 
 mod code_execution;
 mod constants;
-pub mod converters;
 mod generation;
 mod params;
 mod provider;
-mod request_builders;
 mod search;
 mod streaming;
-pub mod tool_conversion;
+mod tool_conversion;
 mod tools;
 mod trait_impl;
+mod transport;
 
 pub use code_execution::{CodeExecutionResponse, generate_with_code_execution};
 pub use provider::GeminiProvider;

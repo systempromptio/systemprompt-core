@@ -6,6 +6,7 @@
 //! used by [`crate::AiService`].
 
 pub mod anthropic;
+pub mod canonical_bridge;
 pub mod gemini;
 mod gemini_image_mapping;
 pub mod gemini_images;
@@ -20,7 +21,8 @@ pub mod resilient_provider;
 pub mod shared;
 
 pub use anthropic::AnthropicProvider;
-pub use gemini::{CodeExecutionResponse, GeminiProvider};
+pub use canonical_bridge::CodeExecutionResponse;
+pub use gemini::GeminiProvider;
 pub use gemini_images::GeminiImageProvider;
 pub use image_provider_factory::{ImageProviderFactory, ImageProviderParams};
 pub use image_provider_trait::{BoxedImageProvider, ImageProvider, ImageProviderCapabilities};

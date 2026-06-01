@@ -1,14 +1,20 @@
-use crate::error::Result;
+//! `OpenAI` server-side web search via the Responses API: builds a canonical
+//! request carrying a [`SearchConfig`], renders it with the shared
+//! `openai_responses` codec, and maps the grounded reply back.
+
 use std::time::Instant;
 
-use crate::models::ai::{
-    AiMessage, MessageRole, SamplingParams, SearchGroundedResponse, WebSource,
-};
-use crate::models::providers::openai::{
-    OpenAiResponsesInput, OpenAiResponsesRequest, OpenAiResponsesResponse, OpenAiResponsesTool,
-};
+use serde_json::Value;
+use systemprompt_models::wire::canonical::SearchConfig;
+use systemprompt_models::wire::openai_responses;
+
+use crate::error::Result;
+use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse};
+use crate::services::providers::canonical_bridge::{self, BridgeProvider, CanonicalBuild};
 
 use super::provider::OpenAiProvider;
+
+const DEFAULT_CONTEXT_SIZE: &str = "medium";
 
 #[derive(Debug)]
 pub struct SearchParams<'a> {
@@ -39,109 +45,33 @@ pub async fn generate_with_web_search(
     params: SearchParams<'_>,
 ) -> Result<SearchGroundedResponse> {
     let start = Instant::now();
-
-    let input: Vec<OpenAiResponsesInput> = params
-        .messages
-        .iter()
-        .map(|msg| OpenAiResponsesInput {
-            role: match msg.role {
-                MessageRole::User => "user".to_owned(),
-                MessageRole::Assistant => "assistant".to_owned(),
-                MessageRole::System => "system".to_owned(),
-            },
-            content: msg.content.clone(),
-        })
-        .collect();
-
-    let request = OpenAiResponsesRequest {
-        model: params.model.to_owned(),
-        input,
-        tools: Some(vec![OpenAiResponsesTool::WebSearch {
-            search_context_size: Some("medium".to_owned()),
-        }]),
-        temperature: params.sampling.and_then(|s| s.temperature),
-        max_output_tokens: Some(params.max_output_tokens),
+    let search = SearchConfig {
+        max_uses: None,
+        context_size: Some(DEFAULT_CONTEXT_SIZE.to_owned()),
+        urls: Vec::new(),
     };
+    let canonical = CanonicalBuild::new(
+        BridgeProvider::OpenAi,
+        params.messages,
+        params.model,
+        params.max_output_tokens,
+    )
+    .with_sampling(params.sampling)
+    .with_search(Some(search))
+    .into_request();
 
-    let url = format!("{}/responses", provider.endpoint);
-
+    let body = openai_responses::build_request_body(&canonical, params.model);
     let response = provider
         .client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", provider.api_key))
-        .header("Content-Type", "application/json")
-        .json(&request)
+        .post(format!("{}/responses", provider.endpoint))
+        .bearer_auth(&provider.api_key)
+        .json(&body)
         .send()
         .await?;
-
     if !response.status().is_success() {
-        let status = response.status();
-        let error_body = response
-            .text()
-            .await
-            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-        return Err(crate::error::AiError::Internal(format!(
-            "OpenAI API returned status {}: {}",
-            status, error_body
-        )));
+        return Err(crate::error::AiError::from_error_response("openai", response).await);
     }
-
-    let responses_response: OpenAiResponsesResponse = response.json().await?;
-
-    Ok(extract_search_response(&responses_response, start))
-}
-
-fn extract_search_response(
-    response: &OpenAiResponsesResponse,
-    start: Instant,
-) -> SearchGroundedResponse {
-    let mut content_text = String::new();
-    let mut sources = Vec::new();
-    let mut seen_urls = std::collections::HashSet::new();
-
-    for output in &response.output {
-        if output.r#type == "message" {
-            if let Some(contents) = &output.content {
-                for content in contents {
-                    if content.r#type == "output_text" {
-                        if let Some(text) = &content.text {
-                            content_text.push_str(text);
-                        }
-                    }
-
-                    if let Some(annotations) = &content.annotations {
-                        for annotation in annotations {
-                            if annotation.r#type == "url_citation" {
-                                if let (Some(url), Some(title)) =
-                                    (&annotation.url, &annotation.title)
-                                {
-                                    if seen_urls.insert(url.clone()) {
-                                        sources.push(WebSource {
-                                            title: title.clone(),
-                                            uri: url.clone(),
-                                            relevance: 1.0,
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    let latency_ms = start.elapsed().as_millis() as u64;
-
-    SearchGroundedResponse {
-        content: content_text,
-        sources,
-        confidence_scores: Vec::new(),
-        web_search_queries: Vec::new(),
-        url_context_metadata: None,
-        tokens_used: response.usage.as_ref().map(|u| u.total),
-        latency_ms,
-        finish_reason: Some("stop".to_owned()),
-        safety_ratings: None,
-    }
+    let value: Value = response.json().await?;
+    let parsed = openai_responses::parse_response_object(&value, params.model);
+    Ok(canonical_bridge::to_search_grounded(start, &parsed))
 }
