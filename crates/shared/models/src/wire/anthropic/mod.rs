@@ -62,11 +62,13 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
         obj.insert("stop_sequences".into(), json!(request.stop_sequences));
     }
     let mut tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
-    let mut forced_tool: Option<&str> = None;
-    if let Some(ResponseFormat::JsonSchema { name, schema, .. }) = &request.response_format {
-        tools.push(structured_output_tool(name, schema));
-        forced_tool = Some(name.as_str());
-    }
+    let forced_tool: Option<&str> =
+        if let Some(ResponseFormat::JsonSchema { name, schema, .. }) = &request.response_format {
+            tools.push(structured_output_tool(name, schema));
+            Some(name.as_str())
+        } else {
+            None
+        };
     let searching = request.search.is_some();
     if let Some(search) = &request.search {
         tools.push(web_search_tool(search));

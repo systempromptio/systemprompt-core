@@ -10,7 +10,9 @@ use systemprompt_models::services::ModelDefinition;
 /// The registry models that declare image generation, sorted for a stable
 /// `supported_models` order.
 #[must_use]
-pub fn registry_image_models(defs: &HashMap<String, ModelDefinition>) -> Vec<String> {
+pub fn registry_image_models<S: std::hash::BuildHasher>(
+    defs: &HashMap<String, ModelDefinition, S>,
+) -> Vec<String> {
     let mut models: Vec<String> = defs
         .iter()
         .filter(|(_, def)| def.capabilities.image_generation)
@@ -23,8 +25,8 @@ pub fn registry_image_models(defs: &HashMap<String, ModelDefinition>) -> Vec<Str
 /// Per-image price (cents) for `model` from the registry catalog, falling back
 /// to `fallback` when the model carries no per-image pricing.
 #[must_use]
-pub fn registry_per_image_cents(
-    defs: &HashMap<String, ModelDefinition>,
+pub fn registry_per_image_cents<S: std::hash::BuildHasher>(
+    defs: &HashMap<String, ModelDefinition, S>,
     model: &str,
     fallback: f32,
 ) -> f32 {

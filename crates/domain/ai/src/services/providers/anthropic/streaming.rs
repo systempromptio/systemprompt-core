@@ -92,7 +92,7 @@ impl SseState {
                 .and_then(|m| m.get("id"))
                 .and_then(Value::as_str)
             {
-                self.message_id = id.to_owned();
+                id.clone_into(&mut self.message_id);
             }
         }
     }

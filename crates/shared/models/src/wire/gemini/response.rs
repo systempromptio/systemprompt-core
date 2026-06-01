@@ -45,10 +45,10 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     let stop_reason = raw_finish_reason.as_deref().map(stop_reason);
     let grounding = candidate.as_ref().and_then(grounding_from_candidate);
     let parts = candidate.and_then(|c| c.content).map(|c| c.parts);
-    let (content, code_execution) = match parts {
-        Some(parts) => (parts_to_content(&parts), code_execution(&parts)),
-        None => (Vec::new(), None),
-    };
+    let (content, code_execution) = parts.map_or_else(
+        || (Vec::new(), None),
+        |parts| (parts_to_content(&parts), code_execution(&parts)),
+    );
 
     CanonicalResponse {
         id,

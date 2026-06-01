@@ -29,7 +29,7 @@ pub(super) async fn convert_tools(
     let mut mapper = provider.tool_mapper.lock().await;
     let mut seen_names = HashSet::new();
 
-    let transformed = tools
+    let canonical_tools = tools
         .into_iter()
         .map(|tool| {
             let discriminator_field = tool
@@ -54,7 +54,7 @@ pub(super) async fn convert_tools(
         })
         .collect();
 
-    Ok(transformed)
+    Ok(canonical_tools)
 }
 
 pub(super) async fn resolve_response(
@@ -78,6 +78,7 @@ pub(super) async fn resolve_response(
             _ => {},
         }
     }
+    drop(mapper);
     (content, tool_calls)
 }
 

@@ -43,7 +43,7 @@ struct ResponseInputTokensDetails {
 }
 
 impl ResponseUsage {
-    fn into_canonical(self) -> CanonicalUsage {
+    const fn into_canonical(self) -> CanonicalUsage {
         CanonicalUsage {
             input_tokens: self.input_tokens,
             output_tokens: self.output_tokens,

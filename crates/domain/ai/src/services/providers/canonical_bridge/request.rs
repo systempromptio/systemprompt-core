@@ -2,8 +2,8 @@
 //!
 //! This owns the per-provider sampling and reasoning *policy* that the deleted
 //! per-provider request builders used to carry: Anthropic extended-thinking for
-//! the claude-3-5 family, OpenAI reasoning effort for the o1/o3 families, and
-//! the OpenAI streaming temperature default. Vendor wire rendering itself lives
+//! the claude-3-5 family, `OpenAI` reasoning effort for the o1/o3 families, and
+//! the `OpenAI` streaming temperature default. Vendor wire rendering itself lives
 //! in [`systemprompt_models::wire`]; this module only assembles the canonical
 //! request the codec consumes.
 
@@ -46,7 +46,7 @@ pub struct CanonicalBuild<'a> {
 }
 
 impl<'a> CanonicalBuild<'a> {
-    pub fn new(
+    pub const fn new(
         provider: BridgeProvider,
         messages: &'a [AiMessage],
         model: &'a str,
@@ -68,7 +68,7 @@ impl<'a> CanonicalBuild<'a> {
     }
 
     #[must_use]
-    pub fn with_sampling(mut self, sampling: Option<&'a SamplingParams>) -> Self {
+    pub const fn with_sampling(mut self, sampling: Option<&'a SamplingParams>) -> Self {
         self.sampling = sampling;
         self
     }

@@ -159,6 +159,11 @@ pub(crate) enum GeminiTool {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[expect(
+    clippy::empty_structs_with_brackets,
+    reason = "Gemini expects these tool markers as an empty JSON object `{}`; a unit struct would \
+              serialize as `null`"
+)]
 pub(crate) struct GeminiEmpty {}
 
 #[derive(Debug, Clone, Serialize)]

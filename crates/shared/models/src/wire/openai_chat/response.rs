@@ -40,7 +40,7 @@ struct ChatPromptTokensDetails {
 }
 
 impl ChatUsage {
-    fn into_canonical(self) -> CanonicalUsage {
+    const fn into_canonical(self) -> CanonicalUsage {
         CanonicalUsage {
             input_tokens: self.prompt_tokens,
             output_tokens: self.completion_tokens,
@@ -98,7 +98,7 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     let mut stop_reason = None;
     let mut raw_finish_reason = None;
     if let Some(choice) = resp.choices.into_iter().next() {
-        raw_finish_reason = choice.finish_reason.clone();
+        raw_finish_reason.clone_from(&choice.finish_reason);
         stop_reason = choice
             .finish_reason
             .as_deref()
