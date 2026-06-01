@@ -103,7 +103,7 @@ pub(super) async fn extract_request_context(
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
 
     let route = gateway_config
-        .resolve_route(&gateway_request.model)
+        .resolve_route(&rc.profile.providers, &gateway_request.model)
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,

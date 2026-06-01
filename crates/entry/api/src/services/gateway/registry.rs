@@ -2,9 +2,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
 use super::protocol::outbound::anthropic::AnthropicOutbound;
+use super::protocol::outbound::gemini::GeminiOutbound;
 use super::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use super::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use super::protocol::outbound::{OutboundAdapter, OutboundAdapterRegistration};
+use systemprompt_models::profile::WireProtocol;
 
 pub struct GatewayUpstreamRegistry {
     entries: HashMap<String, Arc<dyn OutboundAdapter>>,
@@ -35,16 +37,24 @@ impl GatewayUpstreamRegistry {
     pub(super) fn build() -> Self {
         let mut entries: HashMap<String, Arc<dyn OutboundAdapter>> = HashMap::new();
 
-        let anthropic: Arc<dyn OutboundAdapter> = Arc::new(AnthropicOutbound);
-        let openai: Arc<dyn OutboundAdapter> = Arc::new(OpenAiChatOutbound);
-        let responses: Arc<dyn OutboundAdapter> = Arc::new(OpenAiResponsesOutbound);
-
-        entries.insert("anthropic".to_owned(), Arc::clone(&anthropic));
-        entries.insert("minimax".to_owned(), Arc::clone(&anthropic));
-        entries.insert("openai".to_owned(), Arc::clone(&openai));
-        entries.insert("moonshot".to_owned(), Arc::clone(&openai));
-        entries.insert("qwen".to_owned(), Arc::clone(&openai));
-        entries.insert("openai-responses".to_owned(), Arc::clone(&responses));
+        // Outbound adapters are keyed on the WireProtocol tag, not the provider
+        // name: a ProviderEntry's `protocol` selects the wire codec.
+        entries.insert(
+            WireProtocol::Anthropic.as_tag().to_owned(),
+            Arc::new(AnthropicOutbound),
+        );
+        entries.insert(
+            WireProtocol::OpenAiChat.as_tag().to_owned(),
+            Arc::new(OpenAiChatOutbound),
+        );
+        entries.insert(
+            WireProtocol::OpenAiResponses.as_tag().to_owned(),
+            Arc::new(OpenAiResponsesOutbound),
+        );
+        entries.insert(
+            WireProtocol::Gemini.as_tag().to_owned(),
+            Arc::new(GeminiOutbound),
+        );
 
         for registration in inventory::iter::<OutboundAdapterRegistration> {
             let tag = registration.tag.to_owned();

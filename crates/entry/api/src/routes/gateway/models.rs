@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::ModelId;
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -46,7 +47,7 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
         )
     })?;
 
-    let gateway = profile
+    profile
         .gateway
         .as_ref()
         .and_then(systemprompt_models::profile::GatewayState::resolved)
@@ -55,20 +56,19 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
 
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
 
-    if let Some(catalog) = gateway.catalog.as_ref() {
-        for m in &catalog.models {
-            by_id.insert(
-                m.id.as_str().to_owned(),
-                ModelEntry {
-                    kind: "model",
-                    display_name: m
-                        .display_name
-                        .clone()
-                        .unwrap_or_else(|| humanize_model_id(m.id.as_str())),
-                    id: m.id.as_str().to_owned(),
-                    created_at: "1970-01-01T00:00:00Z".to_owned(),
-                },
-            );
+    for entry in &profile.providers.providers {
+        for m in &entry.models {
+            for id in std::iter::once(m.id.as_str()).chain(m.aliases.iter().map(ModelId::as_str)) {
+                by_id.insert(
+                    id.to_owned(),
+                    ModelEntry {
+                        kind: "model",
+                        display_name: humanize_model_id(id),
+                        id: id.to_owned(),
+                        created_at: "1970-01-01T00:00:00Z".to_owned(),
+                    },
+                );
+            }
         }
     }
 

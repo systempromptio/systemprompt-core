@@ -1,25 +1,22 @@
 //! Outbound adapter targeting the `OpenAI` Responses API.
 //!
-//! [`OpenAiResponsesOutbound`] builds a Responses request from the canonical
-//! model, sends it upstream, and returns either a buffered response or a stream
-//! of canonical events translated from the Responses SSE format.
+//! [`OpenAiResponsesOutbound`] orchestrates transport — auth headers, HTTP
+//! status handling, stream-vs-buffered dispatch — and delegates every wire
+//! concern (request build, response parse, SSE-to-event mapping) to the shared
+//! [`systemprompt_models::wire::openai_responses`] codec.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_models::wire::openai_responses as codec;
 
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome};
 
-mod request;
-mod response;
-mod slot;
-mod streaming;
-
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    pub use super::request::build_request_body;
-    pub use super::response::parse_response_object;
-    pub use super::streaming::sse_to_canonical_events;
+    pub use systemprompt_models::wire::openai_responses::{
+        build_request_body, parse_response_object, sse_to_canonical_events,
+    };
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -32,7 +29,7 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
     }
 
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = request::build_request_body(ctx.request, ctx.upstream_model);
+        let body = codec::build_request_body(ctx.request, ctx.upstream_model);
         let url = format!("{}/responses", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
@@ -60,8 +57,7 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
-            let event_stream =
-                streaming::sse_to_canonical_events(stream, ctx.request.model.clone());
+            let event_stream = codec::sse_to_canonical_events(stream, ctx.request.model.clone());
             return Ok(OutboundOutcome::Streaming(event_stream));
         }
 
@@ -71,7 +67,7 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
             .map_err(|e| anyhow!("Failed to read Responses body: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Responses body not valid JSON: {e}"))?;
-        let canon = response::parse_response_object(&value, &ctx.request.model);
+        let canon = codec::parse_response_object(&value, &ctx.request.model);
         Ok(OutboundOutcome::Buffered(canon))
     }
 }

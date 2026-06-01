@@ -1,42 +1,45 @@
-//! Outbound adapter targeting the `OpenAI` Chat Completions API.
+//! Outbound adapter targeting the Google Gemini generativeLanguage API.
 //!
-//! [`OpenAiChatOutbound`] orchestrates transport — auth headers, HTTP status
-//! handling, stream-vs-buffered dispatch — and delegates every wire concern
-//! (request build, response parse, SSE-to-event mapping) to the shared
-//! [`systemprompt_models::wire::openai_chat`] codec. Also serves
-//! OpenAI-compatible providers exposing the same surface.
+//! [`GeminiOutbound`] renders the canonical model to a Gemini `generateContent`
+//! request via [`systemprompt_models::wire::gemini`], sends it upstream, and
+//! returns either a buffered [`CanonicalResponse`] or a stream of canonical
+//! events translated from the Gemini `?alt=sse` byte stream. Auth rides the
+//! `x-goog-api-key` header.
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_models::wire::openai_chat as codec;
+use systemprompt_models::profile::WireProtocol;
+use systemprompt_models::wire::gemini;
 
+use super::super::canonical_response::CanonicalResponse;
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome};
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
-    pub use systemprompt_models::wire::openai_chat::{
+    pub use systemprompt_models::wire::gemini::{
         build_request_body, parse_response, sse_to_canonical_events,
     };
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct OpenAiChatOutbound;
+pub struct GeminiOutbound;
 
 #[async_trait]
-impl OutboundAdapter for OpenAiChatOutbound {
+impl OutboundAdapter for GeminiOutbound {
     fn provider_tag(&self) -> &'static str {
-        "openai"
+        WireProtocol::Gemini.as_tag()
     }
 
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = codec::build_request_body(ctx.request, ctx.upstream_model);
-        let url = format!("{}/chat/completions", ctx.endpoint.trim_end_matches('/'));
+        let body = gemini::build_request_body(ctx.request);
+        let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
+        let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
         let mut req = client
             .post(&url)
-            .header("authorization", format!("Bearer {}", ctx.api_key))
+            .header(gemini::API_KEY_HEADER, ctx.api_key)
             .header("content-type", "application/json")
             .json(&body);
         for (name, value) in &ctx.route.extra_headers {
@@ -46,7 +49,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
         let upstream_response = req
             .send()
             .await
-            .map_err(|e| anyhow!("Upstream OpenAI-compatible request failed: {e}"))?;
+            .map_err(|e| anyhow!("Upstream Gemini request failed: {e}"))?;
 
         let status = upstream_response.status();
         if !status.is_success() {
@@ -59,17 +62,17 @@ impl OutboundAdapter for OpenAiChatOutbound {
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
-            let event_stream = codec::sse_to_canonical_events(stream, ctx.request.model.clone());
+            let event_stream = gemini::sse_to_canonical_events(stream, ctx.request.model.clone());
             return Ok(OutboundOutcome::Streaming(event_stream));
         }
 
         let bytes = upstream_response
             .bytes()
             .await
-            .map_err(|e| anyhow!("Failed to read OpenAI response: {e}"))?;
+            .map_err(|e| anyhow!("Failed to read Gemini response: {e}"))?;
         let value: Value = serde_json::from_slice(&bytes)
-            .map_err(|e| anyhow!("OpenAI response not valid JSON: {e}"))?;
-        let canon = codec::parse_response(&value, &ctx.request.model);
+            .map_err(|e| anyhow!("Gemini response not valid JSON: {e}"))?;
+        let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str());
         Ok(OutboundOutcome::Buffered(canon))
     }
 }

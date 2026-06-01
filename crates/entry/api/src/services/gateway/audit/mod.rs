@@ -201,7 +201,10 @@ impl GatewayAudit {
             .as_ref()
             .and_then(|p| p.gateway.as_ref())
             .and_then(systemprompt_models::profile::GatewayState::resolved);
-        let pricing_rates = pricing::resolve(&self.ctx.provider, &effective_model, gateway);
+        let empty_registry = systemprompt_models::profile::ProviderRegistry::default();
+        let registry = profile.as_ref().map_or(&empty_registry, |p| &p.providers);
+        let pricing_rates =
+            pricing::resolve(&self.ctx.provider, &effective_model, gateway, registry);
         let cost =
             pricing::cost_microdollars(pricing_rates, usage.input_tokens, usage.output_tokens);
 

@@ -53,6 +53,7 @@ pub(super) async fn dispatch_to_provider(
 
     match GatewayService::dispatch(
         gateway_config,
+        &rc.profile.providers,
         rc.ctx.db_pool(),
         DispatchInputs {
             request: gateway_request,

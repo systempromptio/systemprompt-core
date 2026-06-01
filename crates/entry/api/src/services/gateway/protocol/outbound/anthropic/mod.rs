@@ -7,6 +7,7 @@
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
+use systemprompt_models::wire::anthropic;
 
 use super::super::canonical_response::CanonicalResponse;
 use super::{OutboundAdapter, OutboundCtx, OutboundOutcome};
@@ -36,12 +37,10 @@ impl OutboundAdapter for AnthropicOutbound {
         let url = format!("{}/messages", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
-        let mut req = client
-            .post(&url)
-            .header("x-api-key", ctx.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&body);
+        let mut req = client.post(&url).json(&body);
+        for (name, value) in anthropic::auth_headers(ctx.api_key) {
+            req = req.header(name, value);
+        }
         for (name, value) in &ctx.route.extra_headers {
             req = req.header(name.as_str(), value.as_str());
         }

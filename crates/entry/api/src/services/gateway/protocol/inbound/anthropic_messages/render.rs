@@ -1,8 +1,8 @@
 use bytes::Bytes;
 // JSON: protocol boundary — Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
+use systemprompt_models::wire::anthropic::content_to_anthropic_block;
 
-use super::super::super::canonical::{CanonicalContent, ImageSource};
 use super::super::super::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
@@ -33,54 +33,6 @@ pub fn render_response_value(response: &CanonicalResponse) -> Value {
             "output_tokens": response.usage.output_tokens,
         },
     })
-}
-
-pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
-    match part {
-        CanonicalContent::Text(t) => json!({ "type": "text", "text": t }),
-        CanonicalContent::Thinking { text, signature } => {
-            let mut obj = Map::new();
-            obj.insert("type".into(), Value::String("thinking".into()));
-            obj.insert("thinking".into(), Value::String(text.clone()));
-            if let Some(sig) = signature {
-                obj.insert("signature".into(), Value::String(sig.clone()));
-            }
-            Value::Object(obj)
-        },
-        CanonicalContent::ToolUse { id, name, input } => json!({
-            "type": "tool_use",
-            "id": id,
-            "name": name,
-            "input": input,
-        }),
-        CanonicalContent::ToolResult {
-            tool_use_id,
-            content,
-            is_error,
-        } => {
-            let inner: Vec<Value> = content.iter().map(content_to_anthropic_block).collect();
-            json!({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "is_error": is_error,
-                "content": inner,
-            })
-        },
-        CanonicalContent::Image(src) => match src {
-            ImageSource::Base64 { media_type, data } => json!({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": data,
-                },
-            }),
-            ImageSource::Url(u) => json!({
-                "type": "image",
-                "source": { "type": "url", "url": u },
-            }),
-        },
-    }
 }
 
 #[expect(

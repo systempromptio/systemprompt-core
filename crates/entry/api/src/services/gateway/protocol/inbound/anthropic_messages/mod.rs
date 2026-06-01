@@ -15,7 +15,7 @@ use super::{InboundAdapter, InboundParseError};
 mod parse;
 mod render;
 
-pub use render::content_to_anthropic_block;
+pub use systemprompt_models::wire::anthropic::content_to_anthropic_block;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {

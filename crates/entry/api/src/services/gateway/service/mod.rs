@@ -14,7 +14,7 @@ use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
-use systemprompt_models::profile::GatewayConfig;
+use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize, run_request_safety_scan};
 use super::audit::{GatewayAudit, GatewayRequestContext};
@@ -52,6 +52,7 @@ pub struct QuotaExceeded {
 impl GatewayService {
     pub async fn dispatch(
         config: &GatewayConfig,
+        registry: &ProviderRegistry,
         db: &DbPool,
         inputs: DispatchInputs,
     ) -> Result<Response<Body>> {
@@ -69,11 +70,11 @@ impl GatewayService {
 
         let ai_request_id = ctx.ai_request_id.clone();
 
-        if !config.is_model_exposed(&request.model) {
+        if !config.is_model_exposed(registry, &request.model) {
             tracing::warn!(
                 ai_request_id = %ai_request_id,
                 model = %request.model,
-                "Gateway denied: model not in catalog"
+                "Gateway denied: model not exposed by gateway policy or registry"
             );
             return Err(PolicyDenied(format!(
                 "model '{}' is not permitted by gateway policy",
@@ -83,15 +84,13 @@ impl GatewayService {
         }
 
         let route = config
-            .resolve_route(&request.model)
+            .resolve_route(registry, &request.model)
             .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;
 
-        let catalog = config.catalog.as_ref().ok_or_else(|| {
-            anyhow!("Gateway catalog is not loaded; cannot resolve provider for route")
-        })?;
-        let provider = route.resolve(&catalog.providers).ok_or_else(|| {
+        let provider = route.resolve(registry).ok_or_else(|| {
             anyhow!(
-                "Gateway provider '{}' is not declared in the catalog",
+                "Gateway route '{}' provider '{}' is not declared in profile.providers",
+                route.id.as_str(),
                 route.provider.as_str()
             )
         })?;
@@ -109,11 +108,11 @@ impl GatewayService {
             })?;
 
         let upstream = GatewayUpstreamRegistry::global()
-            .get(route.provider.as_str())
+            .get(provider.protocol.as_tag())
             .ok_or_else(|| {
                 anyhow!(
-                    "Gateway provider '{}' is not registered",
-                    route.provider.as_str()
+                    "Gateway has no outbound adapter for wire protocol '{}'",
+                    provider.protocol.as_tag()
                 )
             })?;
 
