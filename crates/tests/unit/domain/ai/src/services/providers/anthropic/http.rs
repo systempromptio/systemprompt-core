@@ -14,6 +14,7 @@ use systemprompt_identifiers::McpServerId;
 
 fn provider(endpoint: String) -> AnthropicProvider {
     AnthropicProvider::with_endpoint("test-key".to_owned(), endpoint)
+        .with_models(mock_http::seed_models("anthropic"))
 }
 
 fn msgs() -> Vec<AiMessage> {

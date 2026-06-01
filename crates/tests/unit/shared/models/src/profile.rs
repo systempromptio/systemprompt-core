@@ -71,6 +71,7 @@ fn make_profile(name: &str) -> Profile {
         cloud: None,
         secrets: None,
         extensions: ExtensionsConfig::default(),
+        providers: systemprompt_models::profile::ProviderRegistry::default(),
         gateway: None,
         governance: None,
         system_admin: SystemAdminConfig {

@@ -1,43 +1,6 @@
 //! Tests for Gemini model types.
 
-use systemprompt_ai::models::providers::gemini::{GeminiContent, GeminiModels, GeminiPart};
-
-mod gemini_models_tests {
-    use super::*;
-
-    #[test]
-    fn default_models_have_correct_ids() {
-        let models = GeminiModels::default();
-
-        assert!(models.gemini_flash_lite.id.contains("flash-lite"));
-        assert!(models.gemini_flash.id.contains("flash"));
-    }
-
-    #[test]
-    fn default_models_have_large_context() {
-        let models = GeminiModels::default();
-
-        assert_eq!(models.gemini_flash_lite.max_tokens, 1_000_000);
-        assert_eq!(models.gemini_flash.max_tokens, 1_000_000);
-    }
-
-    #[test]
-    fn default_models_support_tools() {
-        let models = GeminiModels::default();
-
-        assert!(models.gemini_flash_lite.supports_tools);
-        assert!(models.gemini_flash.supports_tools);
-    }
-
-    #[test]
-    fn flash_lite_is_cheaper() {
-        let models = GeminiModels::default();
-
-        assert!(
-            models.gemini_flash_lite.cost_per_1k_tokens < models.gemini_flash.cost_per_1k_tokens
-        );
-    }
-}
+use systemprompt_ai::models::providers::gemini::{GeminiContent, GeminiPart};
 
 mod gemini_content_tests {
     use super::*;

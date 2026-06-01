@@ -1,48 +1,9 @@
 //! Tests for Anthropic model types.
 
 use systemprompt_ai::models::providers::anthropic::{
-    AnthropicContent, AnthropicContentBlock, AnthropicMessage, AnthropicModels, AnthropicRequest,
-    AnthropicResponse, AnthropicTool, AnthropicToolChoice, AnthropicUsage,
+    AnthropicContent, AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicResponse,
+    AnthropicTool, AnthropicToolChoice, AnthropicUsage,
 };
-
-mod anthropic_models_tests {
-    use super::*;
-
-    #[test]
-    fn default_models_have_correct_ids() {
-        let models = AnthropicModels::default();
-
-        assert!(models.opus.id.contains("opus"));
-        assert!(models.sonnet.id.contains("sonnet"));
-        assert!(models.haiku.id.contains("haiku"));
-    }
-
-    #[test]
-    fn default_models_have_max_tokens() {
-        let models = AnthropicModels::default();
-
-        assert_eq!(models.opus.max_tokens, 200_000);
-        assert_eq!(models.sonnet.max_tokens, 200_000);
-        assert_eq!(models.haiku.max_tokens, 200_000);
-    }
-
-    #[test]
-    fn default_models_support_tools() {
-        let models = AnthropicModels::default();
-
-        assert!(models.opus.supports_tools);
-        assert!(models.sonnet.supports_tools);
-        assert!(models.haiku.supports_tools);
-    }
-
-    #[test]
-    fn models_have_decreasing_cost() {
-        let models = AnthropicModels::default();
-
-        assert!(models.opus.cost_per_1k_tokens > models.sonnet.cost_per_1k_tokens);
-        assert!(models.sonnet.cost_per_1k_tokens > models.haiku.cost_per_1k_tokens);
-    }
-}
 
 mod anthropic_message_tests {
     use super::*;

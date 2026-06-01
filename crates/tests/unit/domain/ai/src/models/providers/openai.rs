@@ -2,46 +2,9 @@
 
 use systemprompt_ai::models::providers::openai::{
     OpenAiChoice, OpenAiFunction, OpenAiFunctionCall, OpenAiJsonSchema, OpenAiMessage,
-    OpenAiMessageContent, OpenAiModels, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat,
+    OpenAiMessageContent, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat,
     OpenAiResponseMessage, OpenAiTool, OpenAiToolCall, OpenAiUsage,
 };
-
-mod openai_models_tests {
-    use super::*;
-
-    #[test]
-    fn default_models_have_correct_ids() {
-        let models = OpenAiModels::default();
-
-        assert_eq!(models.gpt4_turbo.id, "gpt-4.1");
-        assert_eq!(models.gpt35_turbo.id, "gpt-4.1-mini");
-    }
-
-    #[test]
-    fn default_models_have_max_tokens() {
-        let models = OpenAiModels::default();
-
-        assert_eq!(models.gpt4_turbo.max_tokens, 1_000_000);
-        assert_eq!(models.gpt35_turbo.max_tokens, 1_000_000);
-    }
-
-    #[test]
-    fn default_models_support_tools() {
-        let models = OpenAiModels::default();
-
-        assert!(models.gpt4_turbo.supports_tools);
-        assert!(models.gpt35_turbo.supports_tools);
-    }
-
-    #[test]
-    fn default_models_have_cost_per_1k_tokens() {
-        let models = OpenAiModels::default();
-
-        assert!(models.gpt4_turbo.cost_per_1k_tokens > 0.0);
-        assert!(models.gpt35_turbo.cost_per_1k_tokens > 0.0);
-        assert!(models.gpt4_turbo.cost_per_1k_tokens > models.gpt35_turbo.cost_per_1k_tokens);
-    }
-}
 
 mod openai_message_tests {
     use super::*;

@@ -12,6 +12,7 @@ use systemprompt_identifiers::McpServerId;
 
 fn provider(endpoint: String) -> OpenAiProvider {
     OpenAiProvider::with_endpoint("test-key".to_owned(), endpoint)
+        .with_models(mock_http::seed_models("openai"))
 }
 
 fn msgs() -> Vec<AiMessage> {

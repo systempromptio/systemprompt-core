@@ -4,30 +4,10 @@ use serde_json::json;
 use systemprompt_ai::models::ai::{AiMessage, MessageRole, ResponseFormat, SamplingParams};
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::providers::{
-    GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
-    StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
+    GenerationParams, SchemaGenerationParams, SearchGenerationParams, StructuredGenerationParams,
+    ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
-
-mod model_pricing_tests {
-    use super::*;
-
-    #[test]
-    fn new_creates_pricing() {
-        let pricing = ModelPricing::new(0.01, 0.03);
-
-        assert!((pricing.input_cost_per_1k - 0.01).abs() < f32::EPSILON);
-        assert!((pricing.output_cost_per_1k - 0.03).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn pricing_is_debug() {
-        let pricing = ModelPricing::new(0.01, 0.02);
-        let debug = format!("{:?}", pricing);
-
-        assert!(debug.contains("ModelPricing"));
-    }
-}
 
 mod generation_params_tests {
     use super::*;

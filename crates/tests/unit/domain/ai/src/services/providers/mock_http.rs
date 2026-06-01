@@ -4,8 +4,21 @@
 //! constructed via `with_endpoint`.
 
 use serde_json::json;
+use systemprompt_models::profile::{ProviderModel, ProviderRegistry};
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+/// The embedded canonical catalog for one provider, used to construct provider
+/// clients in tests the same way the runtime factory does (the registry is the
+/// single source of model knowledge).
+pub fn seed_models(provider: &str) -> Vec<ProviderModel> {
+    ProviderRegistry::default_seed()
+        .expect("embedded default catalog parses")
+        .find_provider(provider)
+        .unwrap_or_else(|| panic!("provider '{provider}' present in default catalog"))
+        .models
+        .clone()
+}
 
 pub async fn anthropic_messages_success(body: serde_json::Value) -> MockServer {
     let server = MockServer::start().await;

@@ -8,7 +8,9 @@ use systemprompt_ai::services::providers::{
 };
 
 fn provider(endpoint: String) -> GeminiProvider {
-    GeminiProvider::with_endpoint("test-key".to_owned(), endpoint).expect("provider")
+    GeminiProvider::with_endpoint("test-key".to_owned(), endpoint)
+        .expect("provider")
+        .with_models(mock_http::seed_models("gemini"))
 }
 
 fn msgs() -> Vec<AiMessage> {
