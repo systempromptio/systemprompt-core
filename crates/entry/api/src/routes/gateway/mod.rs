@@ -1,7 +1,8 @@
 //! LLM gateway router and its access log.
 //!
-//! [`gateway_router`] assembles the bridge-facing surface: the `/messages` and
-//! `/responses` proxy endpoints (each bound to an [`InboundAdapter`]), the
+//! [`gateway_router`] assembles the bridge-facing surface: the `/messages`
+//! and `/responses` proxy endpoints (each bound to an
+//! [`InboundAdapter`]), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
 //! manifest and heartbeat routes, the unauthenticated `/otel` ingest
 //! ([`otel`]), and `/models`. The router is gated on the availability of the
