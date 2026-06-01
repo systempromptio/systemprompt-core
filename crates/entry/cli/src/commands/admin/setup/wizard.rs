@@ -17,8 +17,21 @@ use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, setup_postgres,
     should_run_migrations,
 };
-use super::{SetupArgs, common, profile, secrets};
+use super::{SetupArgs, catalog, common, profile, secrets};
 use crate::CliConfig;
+
+fn should_write(path: &std::path::Path, force: bool, config: &CliConfig) -> bool {
+    if force || !path.exists() {
+        return true;
+    }
+    if !config.is_json_output() {
+        CliService::info(&format!(
+            "Preserving existing {} (pass --force to overwrite)",
+            path.display()
+        ));
+    }
+    false
+}
 
 pub(super) async fn execute(
     args: SetupArgs,
@@ -83,25 +96,32 @@ pub(super) async fn execute(
     let mut secrets_data = collect_secrets(&args, config, &env_name)?;
     secrets_data.database_url = Some(pg_config.database_url());
 
-    let secrets_path = secrets::default_path(&systemprompt_dir, &env_name);
-    secrets::save(&secrets_data, &secrets_path)?;
+    let secrets_path = profile::profile_dir(&systemprompt_dir, &env_name).join("secrets.json");
+    if should_write(&secrets_path, args.force, config) {
+        secrets::save(&secrets_data, &secrets_path)?;
+    }
 
-    let relative_secrets_path = format!("../secrets/{}.secrets.json", env_name);
-    let profile_data = profile::build(&env_name, &relative_secrets_path, &project_root, None)?;
+    let profile_data = profile::build(
+        &env_name,
+        "secrets.json",
+        &project_root,
+        None,
+        &secrets_data,
+    )?;
     let profile_path = profile::default_path(&systemprompt_dir, &env_name);
-    profile::save(&profile_data, &profile_path)?;
+    if should_write(&profile_path, args.force, config) {
+        profile::save(&profile_data, &profile_path)?;
+    }
 
-    match profile_data.validate() {
-        Ok(()) => {
-            if !config.is_json_output() {
-                CliService::success("Profile validated successfully");
-            }
-        },
-        Err(e) => {
-            if !config.is_json_output() {
-                CliService::warning(&format!("Profile validation warnings: {}", e));
-            }
-        },
+    let catalog_path = profile::catalog_path(&systemprompt_dir, &env_name);
+    if should_write(&catalog_path, args.force, config) {
+        catalog::save_catalog(&catalog::build_catalog(&secrets_data), &catalog_path)?;
+        if !config.is_json_output() {
+            CliService::success(&format!(
+                "Saved gateway catalog to {}",
+                catalog_path.display()
+            ));
+        }
     }
 
     let run_migrations = should_run_migrations(&args, config)?;

@@ -15,6 +15,17 @@ use serde::{Deserialize, Serialize};
 /// the operator's YAML edit rather than at a downstream tenant's first call.
 pub const GATEWAY_REQUIRED_RESOURCE_AUDIENCES: &[&str] = &["hook"];
 
+/// The resource audiences every generated profile must opt into so it passes
+/// [`crate::profile::Profile::validate`] — the single source of truth shared by
+/// the setup wizard and the env-driven cloud bootstrap.
+#[must_use]
+pub fn default_resource_audiences() -> Vec<String> {
+    GATEWAY_REQUIRED_RESOURCE_AUDIENCES
+        .iter()
+        .map(|aud| (*aud).to_owned())
+        .collect()
+}
+
 const fn default_allow_registration() -> bool {
     true
 }

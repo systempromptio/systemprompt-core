@@ -44,7 +44,9 @@ pub use rate_limits::{
 };
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
-pub use security::{GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer};
+pub use security::{
+    GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer, default_resource_audiences,
+};
 pub use server::{ContentNegotiationConfig, SecurityHeadersConfig, ServerConfig};
 pub use site::SiteConfig;
 pub use style::ProfileStyle;

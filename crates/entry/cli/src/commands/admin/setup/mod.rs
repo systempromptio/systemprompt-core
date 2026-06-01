@@ -5,12 +5,14 @@
 //! overrides; [`execute`] dispatches to the wizard, which writes a profile and
 //! secrets file under `.systemprompt/`.
 
+mod catalog;
 mod common;
 mod docker;
 mod docker_compose;
 mod docker_database;
 mod postgres;
 mod profile;
+mod profile_sections;
 mod secrets;
 mod types;
 mod wizard;
@@ -102,6 +104,12 @@ pub struct SetupArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
+
+    #[arg(
+        long,
+        help = "Overwrite existing profile/catalog/secrets files (default: preserve them)"
+    )]
+    pub force: bool,
 }
 
 impl SetupArgs {

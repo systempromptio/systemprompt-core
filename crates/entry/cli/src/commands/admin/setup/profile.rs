@@ -7,18 +7,16 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_loader::ExtensionLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
-    CliPaths, CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment,
-    ExtensionsConfig, LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig,
-    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
-    ServerConfig, SiteConfig,
+    CliPaths, CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, Profile,
+    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, SiteConfig,
 };
 
+use super::profile_sections as sections;
+use super::secrets::SecretsData;
 use crate::shared::profile::generate_display_name;
 
 fn determine_environment(env_name: &str) -> Environment {
@@ -35,13 +33,13 @@ pub(super) fn build(
     secrets_path: &str,
     project_root: &Path,
     bin_path: Option<&Path>,
+    secrets: &SecretsData,
 ) -> Result<Profile> {
     let ctx = ProjectContext::new(project_root.to_path_buf());
-    let system_path = project_root.to_string_lossy().to_string();
-    let services_path = project_root.join("services").to_string_lossy().to_string();
-
     let runtime_env = determine_environment(env_name);
     let is_prod = matches!(runtime_env, Environment::Production);
+    let server = sections::server(is_prod);
+    let governance = sections::governance(&server.api_internal_url);
 
     let profile = Profile {
         name: env_name.to_owned(),
@@ -55,73 +53,14 @@ pub(super) fn build(
             db_type: "postgres".to_owned(),
             external_db_access: false,
         },
-        server: ServerConfig {
-            host: if is_prod {
-                "0.0.0.0".to_owned()
-            } else {
-                "127.0.0.1".to_owned()
-            },
-            port: 8080,
-            api_server_url: "http://localhost:8080".to_owned(),
-            api_internal_url: "http://localhost:8080".to_owned(),
-            api_external_url: "http://localhost:8080".to_owned(),
-            use_https: is_prod,
-            cors_allowed_origins: vec![
-                "http://localhost:8080".to_owned(),
-                "http://localhost:5173".to_owned(),
-                "http://127.0.0.1:8080".to_owned(),
-            ],
-            content_negotiation: ContentNegotiationConfig::default(),
-            security_headers: SecurityHeadersConfig::default(),
-            instance_id: None,
-            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-            trusted_proxies: Vec::new(),
-        },
-        paths: PathsConfig {
-            system: system_path,
-            services: services_path,
-            bin: bin_path.map_or_else(
-                || {
-                    ExtensionLoader::resolve_bin_directory(project_root, None)
-                        .to_string_lossy()
-                        .to_string()
-                },
-                |p| p.to_string_lossy().to_string(),
-            ),
-            storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
-            geoip_database: None,
-            web_path: None,
-        },
-        security: SecurityConfig {
-            issuer: format!("systemprompt-{}", env_name),
-            access_token_expiration: 2_592_000,
-            refresh_token_expiration: 15_552_000,
-            audiences: vec![
-                JwtAudience::Web,
-                JwtAudience::Api,
-                JwtAudience::A2a,
-                JwtAudience::Mcp,
-            ],
-            allowed_resource_audiences: Vec::new(),
-            allow_registration: true,
-            signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-            trusted_issuers: Vec::new(),
-        },
+        server,
+        paths: sections::paths(project_root, bin_path, &ctx),
+        security: sections::security(env_name),
         rate_limits: RateLimitsConfig {
             disabled: !is_prod,
             ..Default::default()
         },
-        runtime: RuntimeConfig {
-            environment: runtime_env,
-            log_level: if is_prod {
-                LogLevel::Normal
-            } else {
-                LogLevel::Verbose
-            },
-            output_format: OutputFormat::Text,
-            no_color: false,
-            non_interactive: is_prod,
-        },
+        runtime: sections::runtime(runtime_env, is_prod),
         cloud: Some(CloudConfig {
             tenant_id: None,
             validation: CloudValidationMode::Skip,
@@ -132,31 +71,17 @@ pub(super) fn build(
             source: SecretsSource::File,
         }),
         extensions: ExtensionsConfig::default(),
-        gateway: None,
-        governance: None,
+        gateway: Some(sections::gateway(secrets)),
+        governance: Some(governance),
         system_admin: SystemAdminConfig {
             username: "admin".to_owned(),
         },
     };
 
-    validate_profile(&profile)?;
+    profile
+        .validate()
+        .context("generated profile failed validation")?;
     Ok(profile)
-}
-
-fn validate_profile(profile: &Profile) -> Result<()> {
-    if profile.security.issuer.is_empty() {
-        anyhow::bail!("JWT issuer cannot be empty");
-    }
-    if profile.security.access_token_expiration <= 0 {
-        anyhow::bail!("Access token expiration must be positive");
-    }
-    if profile.security.refresh_token_expiration <= 0 {
-        anyhow::bail!("Refresh token expiration must be positive");
-    }
-    if profile.security.audiences.is_empty() {
-        anyhow::bail!("At least one JWT audience must be configured");
-    }
-    Ok(())
 }
 
 pub(super) fn save(profile: &Profile, profile_path: &Path) -> Result<()> {
@@ -173,10 +98,16 @@ pub(super) fn save(profile: &Profile, profile_path: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(super) fn profile_dir(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
+    systemprompt_dir.join("profiles").join(env_name)
+}
+
 pub(super) fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
-    systemprompt_dir
-        .join("profiles")
-        .join(format!("{}.profile.yaml", env_name))
+    profile_dir(systemprompt_dir, env_name).join("profile.yaml")
+}
+
+pub(super) fn catalog_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
+    profile_dir(systemprompt_dir, env_name).join("catalog.yaml")
 }
 
 pub(super) fn run_migrations(profile_path: &Path) -> Result<()> {
