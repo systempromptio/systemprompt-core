@@ -26,6 +26,16 @@ use crate::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
 pub use protocol::WireProtocol;
 
+/// The canonical out-of-the-box provider catalog, embedded at build time. The
+/// single seed source shared by the setup wizard, cloud-init scaffolding, and
+/// the catalog-parity tests — see [`ProviderRegistry::default_seed`].
+const DEFAULT_CATALOG_YAML: &str = include_str!("default_catalog.yaml");
+
+#[derive(Deserialize)]
+struct DefaultCatalogFile {
+    providers: Vec<ProviderEntry>,
+}
+
 /// One model served by a provider: identity, routing, and economics.
 ///
 /// A model's full description lives here exactly once: identity and routing
@@ -101,6 +111,17 @@ pub struct ProviderRegistry {
 }
 
 impl ProviderRegistry {
+    /// Parse the embedded [`DEFAULT_CATALOG_YAML`] into the canonical seed
+    /// registry (every known provider + its full model catalog). Errs only if
+    /// the in-tree YAML is malformed — a build-time bug caught by tests.
+    pub fn default_seed() -> ProviderRegistryResult<Self> {
+        let file: DefaultCatalogFile = serde_yaml::from_str(DEFAULT_CATALOG_YAML)
+            .map_err(|e| ProviderRegistryError::InvalidDefaultCatalog(e.to_string()))?;
+        Ok(Self {
+            providers: file.providers,
+        })
+    }
+
     #[must_use]
     pub fn find_provider(&self, name: &str) -> Option<&ProviderEntry> {
         self.providers.iter().find(|p| p.name.as_str() == name)
