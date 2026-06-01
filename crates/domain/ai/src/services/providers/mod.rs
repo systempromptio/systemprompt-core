@@ -29,6 +29,7 @@ pub use openai_images::OpenAiImageProvider;
 pub use provider_factory::{ProviderClientParams, ProviderFactory};
 pub use provider_trait::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
-    StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
+    StructuredGenerationParams, ToolGenerationParams, ToolResultsParams, catalog_default_model,
+    catalog_pricing, catalog_supports_model,
 };
 pub use resilient_provider::ResilientProvider;

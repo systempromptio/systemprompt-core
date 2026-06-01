@@ -28,6 +28,9 @@ pub enum ProviderRegistryError {
 
     #[error("provider registry model '{id}' has an empty id")]
     EmptyModelId { id: String },
+
+    #[error("embedded default provider catalog failed to parse: {0}")]
+    InvalidDefaultCatalog(String),
 }
 
 pub type ProviderRegistryResult<T> = Result<T, ProviderRegistryError>;

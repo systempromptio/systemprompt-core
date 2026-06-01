@@ -1,5 +1,6 @@
 use reqwest::Client;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
+use systemprompt_models::profile::ProviderModel;
 
 use crate::services::providers::http_client::build_client;
 
@@ -9,6 +10,8 @@ pub struct AnthropicProvider {
     pub(crate) api_key: String,
     pub(crate) endpoint: String,
     pub(crate) web_search_enabled: bool,
+    pub(crate) models: Vec<ProviderModel>,
+    pub(crate) default_model_override: Option<String>,
 }
 
 impl AnthropicProvider {
@@ -18,6 +21,8 @@ impl AnthropicProvider {
             api_key,
             endpoint: "https://api.anthropic.com/v1".to_owned(),
             web_search_enabled: false,
+            models: Vec::new(),
+            default_model_override: None,
         }
     }
 
@@ -27,11 +32,25 @@ impl AnthropicProvider {
             api_key,
             endpoint,
             web_search_enabled: false,
+            models: Vec::new(),
+            default_model_override: None,
         }
     }
 
     pub const fn with_web_search(mut self) -> Self {
         self.web_search_enabled = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_models(mut self, models: Vec<ProviderModel>) -> Self {
+        self.models = models;
+        self
+    }
+
+    #[must_use]
+    pub fn with_default_model(mut self, model: Option<String>) -> Self {
+        self.default_model_override = model;
         self
     }
 }

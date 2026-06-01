@@ -10,7 +10,7 @@
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_models::profile::WireProtocol;
+use systemprompt_models::profile::{ProviderModel, WireProtocol};
 use systemprompt_models::services::ResilienceSettings;
 
 use crate::error::Result;
@@ -25,6 +25,8 @@ pub struct ProviderClientParams<'a> {
     pub api_key: String,
     pub google_search_enabled: bool,
     pub resilience: &'a ResilienceSettings,
+    pub models: &'a [ProviderModel],
+    pub default_model: Option<&'a str>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -40,7 +42,9 @@ impl ProviderFactory {
                 let provider = AnthropicProvider::with_endpoint(
                     params.api_key.clone(),
                     params.endpoint.to_owned(),
-                );
+                )
+                .with_models(params.models.to_vec())
+                .with_default_model(params.default_model.map(str::to_owned));
                 let provider = if params.google_search_enabled {
                     provider.with_web_search()
                 } else {
@@ -52,7 +56,9 @@ impl ProviderFactory {
                 let provider = OpenAiProvider::with_endpoint(
                     params.api_key.clone(),
                     params.endpoint.to_owned(),
-                );
+                )
+                .with_models(params.models.to_vec())
+                .with_default_model(params.default_model.map(str::to_owned));
                 let provider = if params.google_search_enabled {
                     provider.with_web_search()
                 } else {
@@ -64,7 +70,9 @@ impl ProviderFactory {
                 let mut provider = GeminiProvider::with_endpoint(
                     params.api_key.clone(),
                     params.endpoint.to_owned(),
-                )?;
+                )?
+                .with_models(params.models.to_vec())
+                .with_default_model(params.default_model.map(str::to_owned));
                 if params.google_search_enabled {
                     provider = provider.with_google_search();
                 }

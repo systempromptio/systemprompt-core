@@ -1,33 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OpenAiModels {
-    pub gpt4_turbo: ModelConfig,
-    pub gpt35_turbo: ModelConfig,
-}
-
-pub use systemprompt_models::ModelConfig;
-
-impl Default for OpenAiModels {
-    fn default() -> Self {
-        Self {
-            gpt4_turbo: ModelConfig {
-                id: "gpt-4.1".to_owned(),
-                max_tokens: 1_000_000,
-                supports_tools: true,
-                cost_per_1k_tokens: 0.008,
-            },
-            gpt35_turbo: ModelConfig {
-                id: "gpt-4.1-mini".to_owned(),
-                max_tokens: 1_000_000,
-                supports_tools: true,
-                cost_per_1k_tokens: 0.0016,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenAiRequest {
     pub model: String,
     pub messages: Vec<OpenAiMessage>,

@@ -2,6 +2,7 @@ use crate::error::Result;
 use reqwest::Client;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_models::profile::ProviderModel;
 use tokio::sync::Mutex;
 
 use crate::services::schema::ToolNameMapper;
@@ -17,6 +18,8 @@ pub struct GeminiProvider {
     pub(crate) tool_mapper: Arc<Mutex<ToolNameMapper>>,
     pub(crate) db_pool: Option<DbPool>,
     pub(crate) google_search_enabled: bool,
+    pub(crate) models: Vec<ProviderModel>,
+    pub(crate) default_model_override: Option<String>,
 }
 
 impl GeminiProvider {
@@ -29,6 +32,8 @@ impl GeminiProvider {
             tool_mapper: Arc::new(Mutex::new(ToolNameMapper::new())),
             db_pool: None,
             google_search_enabled: false,
+            models: Vec::new(),
+            default_model_override: None,
         })
     }
 
@@ -41,6 +46,8 @@ impl GeminiProvider {
             tool_mapper: Arc::new(Mutex::new(ToolNameMapper::new())),
             db_pool: None,
             google_search_enabled: false,
+            models: Vec::new(),
+            default_model_override: None,
         })
     }
 
@@ -51,6 +58,18 @@ impl GeminiProvider {
 
     pub const fn with_google_search(mut self) -> Self {
         self.google_search_enabled = true;
+        self
+    }
+
+    #[must_use]
+    pub fn with_models(mut self, models: Vec<ProviderModel>) -> Self {
+        self.models = models;
+        self
+    }
+
+    #[must_use]
+    pub fn with_default_model(mut self, model: Option<String>) -> Self {
+        self.default_model_override = model;
         self
     }
 

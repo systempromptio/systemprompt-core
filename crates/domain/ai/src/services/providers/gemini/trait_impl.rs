@@ -7,7 +7,8 @@ use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, Stre
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
-    ToolGenerationParams, ToolResultsParams,
+    ToolGenerationParams, ToolResultsParams, catalog_default_model, catalog_pricing,
+    catalog_supports_model,
 };
 use crate::services::schema::ProviderCapabilities;
 
@@ -29,45 +30,19 @@ impl AiProvider for GeminiProvider {
     }
 
     fn supports_model(&self, model: &str) -> bool {
-        matches!(
-            model,
-            "gemini-3.1-flash-lite-preview"
-                | "gemini-3.1-flash-image-preview"
-                | "gemini-3-flash-preview"
-                | "gemini-3-pro-image-preview"
-                | "gemini-2.5-flash-lite"
-                | "gemini-2.5-flash"
-                | "gemini-2.5-pro"
-                | "gemini-2.0-flash"
-                | "gemini-2.0-flash-lite"
-                | "gemini-1.5-flash"
-                | "gemini-1.5-flash-latest"
-                | "gemini-1.5-flash-8b"
-        )
+        catalog_supports_model(&self.models, model)
     }
 
     fn supports_sampling(&self, _sampling: Option<&SamplingParams>) -> bool {
         true
     }
 
-    fn default_model(&self) -> &'static str {
-        "gemini-3.1-flash-lite-preview"
+    fn default_model(&self) -> &str {
+        catalog_default_model(&self.models, self.default_model_override.as_deref())
     }
 
     fn get_pricing(&self, model: &str) -> ModelPricing {
-        match model {
-            "gemini-3-pro-image-preview" => ModelPricing::new(0.002, 0.012),
-            "gemini-3-flash-preview" | "gemini-3.1-flash-image-preview" => {
-                ModelPricing::new(0.0005, 0.003)
-            },
-            "gemini-3.1-flash-lite-preview" => ModelPricing::new(0.000_25, 0.0015),
-            "gemini-2.5-pro" | "gemini-2.5-pro-preview-05-06" => ModelPricing::new(0.00125, 0.01),
-            "gemini-2.5-flash"
-            | "gemini-2.5-flash-preview-04-17"
-            | "gemini-2.5-flash-preview-09-2025" => ModelPricing::new(0.0003, 0.0025),
-            "gemini-1.5-pro" => ModelPricing::new(0.00125, 0.005),
-            _ => ModelPricing::new(0.0001, 0.0004),
-        }
+        catalog_pricing(&self.models, model)
     }
 
     fn supports_streaming(&self) -> bool {

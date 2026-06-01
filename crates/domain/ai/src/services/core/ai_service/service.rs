@@ -153,6 +153,9 @@ impl AiService {
             api_key,
             google_search_enabled: policy.google_search_enabled,
             resilience: &policy.resilience,
+            models: &entry.models,
+            default_model: (!policy.default_model.is_empty())
+                .then_some(policy.default_model.as_str()),
         };
         ProviderFactory::create(&params, Some(Arc::clone(db_pool)))
     }

@@ -95,8 +95,8 @@ impl StreamStorageWrapper {
     fn calculate_cost(&self) -> i64 {
         let input = f64::from(self.input_tokens.unwrap_or(0));
         let output = f64::from(self.output_tokens.unwrap_or(0));
-        let input_cost = (input / 1000.0) * f64::from(self.pricing.input_cost_per_1k);
-        let output_cost = (output / 1000.0) * f64::from(self.pricing.output_cost_per_1k);
+        let input_cost = (input / 1_000_000.0) * self.pricing.input_per_million;
+        let output_cost = (output / 1_000_000.0) * self.pricing.output_per_million;
         ((input_cost + output_cost) * 1_000_000.0).round() as i64
     }
 

@@ -124,15 +124,17 @@ impl AiService {
         let input = f64::from(response.input_tokens.unwrap_or(0));
         let output = f64::from(response.output_tokens.unwrap_or(0));
 
-        let pricing = self
-            .providers
-            .get(&response.provider)
-            .map_or(ModelPricing::new(0.001, 0.001), |p| {
-                p.get_pricing(&response.model)
-            });
+        let pricing = self.providers.get(&response.provider).map_or(
+            ModelPricing {
+                input_per_million: 1.0,
+                output_per_million: 1.0,
+                per_image_cents: None,
+            },
+            |p| p.get_pricing(&response.model),
+        );
 
-        let input_cost = (input / 1000.0) * f64::from(pricing.input_cost_per_1k);
-        let output_cost = (output / 1000.0) * f64::from(pricing.output_cost_per_1k);
+        let input_cost = (input / 1_000_000.0) * pricing.input_per_million;
+        let output_cost = (output / 1_000_000.0) * pricing.output_per_million;
 
         ((input_cost + output_cost) * 1_000_000.0).round() as i64
     }

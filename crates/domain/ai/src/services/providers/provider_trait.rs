@@ -6,7 +6,9 @@
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
 //! [`StructuredGenerationParams`], [`SearchGenerationParams`],
 //! [`ToolResultsParams`]) keep large call signatures readable, and
-//! [`ModelPricing`] carries per-model cost rates for usage accounting.
+//! Per-model cost rates come from the registry's
+//! [`systemprompt_models::services::ai::ModelPricing`] (per-million tokens),
+//! re-exported here as the single pricing type for usage accounting.
 
 use crate::error::Result;
 use crate::models::ai::{
@@ -19,19 +21,31 @@ use futures::stream::Stream;
 use rmcp::model::RawContent;
 use std::pin::Pin;
 
-#[derive(Debug, Clone, Copy)]
-pub struct ModelPricing {
-    pub input_cost_per_1k: f32,
-    pub output_cost_per_1k: f32,
+use systemprompt_models::profile::ProviderModel;
+pub use systemprompt_models::services::ai::ModelPricing;
+
+#[must_use]
+pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {
+    models.iter().any(|m| m.matches(model))
 }
 
-impl ModelPricing {
-    pub const fn new(input_cost_per_1k: f32, output_cost_per_1k: f32) -> Self {
-        Self {
-            input_cost_per_1k,
-            output_cost_per_1k,
-        }
-    }
+#[must_use]
+pub fn catalog_pricing(models: &[ProviderModel], model: &str) -> ModelPricing {
+    models
+        .iter()
+        .find(|m| m.matches(model))
+        .map(|m| m.pricing)
+        .unwrap_or_default()
+}
+
+#[must_use]
+pub fn catalog_default_model<'a>(
+    models: &'a [ProviderModel],
+    override_model: Option<&'a str>,
+) -> &'a str {
+    override_model
+        .or_else(|| models.first().map(|m| m.id.as_str()))
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone)]
