@@ -23,6 +23,14 @@ use super::error::FileUploadError;
 use super::request::{FileUploadRequest, UploadedFile};
 use super::validator::{FileCategory, FileValidator};
 
+struct StoredArtifact<'a> {
+    file_id: &'a FileId,
+    storage_path: &'a std::path::Path,
+    public_url: &'a str,
+    size_bytes: u64,
+    sha256: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct FileUploadService {
     files_config: FilesConfig,
@@ -99,12 +107,14 @@ impl FileUploadService {
         let public_url = self.files_config.upload_url(&relative_path);
 
         self.record_file(
-            &file_id,
-            &storage_path,
-            &public_url,
-            size_bytes,
+            StoredArtifact {
+                file_id: &file_id,
+                storage_path: &storage_path,
+                public_url: &public_url,
+                size_bytes,
+                sha256,
+            },
             &request,
-            sha256,
         )
         .await?;
 
@@ -118,13 +128,17 @@ impl FileUploadService {
 
     async fn record_file(
         &self,
-        file_id: &FileId,
-        storage_path: &std::path::Path,
-        public_url: &str,
-        size_bytes: u64,
+        artifact: StoredArtifact<'_>,
         request: &FileUploadRequest,
-        sha256: String,
     ) -> Result<(), FileUploadError> {
+        let StoredArtifact {
+            file_id,
+            storage_path,
+            public_url,
+            size_bytes,
+            sha256,
+        } = artifact;
+
         let metadata = FileMetadata::new().with_checksums(FileChecksums::new().with_sha256(sha256));
 
         let metadata_json = serde_json::to_value(&metadata)
