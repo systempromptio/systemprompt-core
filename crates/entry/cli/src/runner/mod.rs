@@ -6,6 +6,7 @@
 
 mod args;
 mod bootstrap;
+mod db_url;
 mod routing;
 
 use anyhow::{Context, Result, bail};
@@ -44,7 +45,16 @@ pub async fn run() -> Result<()> {
     }
 
     if let Some(database_url) = cli.database.database_url.clone() {
-        return run_with_database_url(cli.command, &cli_config, &database_url).await;
+        match cli.command.as_ref().map(args::Commands::db_url_routing) {
+            Some(db_url::DbUrlRouting::Direct) => {
+                return run_with_database_url(cli.command, &cli_config, &database_url).await;
+            },
+            Some(db_url::DbUrlRouting::Unsupported) => bail!(
+                "This command cannot run with --database-url; it requires full profile \
+                 initialization. Remove --database-url."
+            ),
+            Some(db_url::DbUrlRouting::ProfileDriven) | None => {},
+        }
     }
 
     let desc = cli
