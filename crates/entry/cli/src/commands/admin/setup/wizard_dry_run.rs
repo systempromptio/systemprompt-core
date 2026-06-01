@@ -4,7 +4,7 @@ use std::path::Path;
 use systemprompt_logging::CliService;
 
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
-use super::{SetupArgs, common, profile, secrets};
+use super::{SetupArgs, common, profile};
 
 pub(super) fn execute_dry_run(
     args: &SetupArgs,
@@ -17,7 +17,6 @@ pub(super) fn execute_dry_run(
     }
 
     let profile_path = profile::default_path(systemprompt_dir, env_name);
-    let secrets_path = secrets::default_path(systemprompt_dir, env_name);
 
     let connection_status = if args.docker {
         "docker_pending"
@@ -28,13 +27,7 @@ pub(super) fn execute_dry_run(
     };
 
     if !config.is_json_output() {
-        render_preview(
-            args,
-            env_name,
-            &profile_path,
-            &secrets_path,
-            connection_status,
-        );
+        render_preview(args, env_name, systemprompt_dir, connection_status);
     }
 
     let output = SetupOutput {
@@ -69,14 +62,15 @@ pub(super) fn execute_dry_run(
 fn render_preview(
     args: &SetupArgs,
     env_name: &str,
-    profile_path: &Path,
-    secrets_path: &Path,
+    systemprompt_dir: &Path,
     connection_status: &str,
 ) {
+    let dir = profile::profile_dir(systemprompt_dir, env_name);
     CliService::subsection("Configuration Preview");
     CliService::key_value("Environment", env_name);
-    CliService::key_value("Profile path", &profile_path.to_string_lossy());
-    CliService::key_value("Secrets path", &secrets_path.to_string_lossy());
+    CliService::key_value("Profile path", &dir.join("profile.yaml").to_string_lossy());
+    CliService::key_value("Catalog path", &dir.join("catalog.yaml").to_string_lossy());
+    CliService::key_value("Secrets path", &dir.join("secrets.json").to_string_lossy());
 
     CliService::subsection("Database");
     CliService::key_value("Host", &args.db_host);

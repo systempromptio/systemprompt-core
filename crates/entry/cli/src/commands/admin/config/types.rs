@@ -12,6 +12,12 @@ pub use super::config_section::*;
 pub use super::rate_limit_types::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ConfigMutationOutput {
+    pub field: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConfigOverviewOutput {
     pub profile_name: String,
     pub profile_path: String,

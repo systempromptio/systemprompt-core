@@ -5,13 +5,18 @@
 //! Each sub-module owns its clap surface and renders results through
 //! [`crate::shared::render_result`].
 
+pub mod catalog;
 pub mod config_section;
+pub mod gateway;
+pub mod governance;
 pub mod list;
 pub mod paths;
+pub mod profile_io;
 pub mod provider;
 pub mod rate_limit_types;
 pub mod rate_limits;
 pub mod runtime;
+pub mod secret;
 pub mod security;
 pub mod server;
 pub mod show;
@@ -53,6 +58,18 @@ pub enum ConfigCommands {
 
     #[command(subcommand, about = "AI provider configuration")]
     Provider(provider::ProviderCommands),
+
+    #[command(subcommand, about = "Gateway configuration (routes, catalog source)")]
+    Gateway(gateway::GatewayCommands),
+
+    #[command(subcommand, about = "Governance authorization hook configuration")]
+    Governance(governance::GovernanceCommands),
+
+    #[command(subcommand, about = "Gateway model catalog (providers, models)")]
+    Catalog(catalog::CatalogCommands),
+
+    #[command(subcommand, about = "Profile secrets")]
+    Secret(secret::SecretCommands),
 }
 
 pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
@@ -78,6 +95,10 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
         ConfigCommands::Security(ref cmd) => security::execute(cmd, config),
         ConfigCommands::Paths(cmd) => paths::execute(cmd, config),
         ConfigCommands::Provider(cmd) => provider::execute(cmd, config),
+        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, config),
+        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, config),
+        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, config),
+        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, config),
     }
 }
 

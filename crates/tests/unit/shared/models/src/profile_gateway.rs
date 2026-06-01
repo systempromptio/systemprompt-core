@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
+
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
-    GatewayCatalog, GatewayConfig, GatewayModel, GatewayProfileError, GatewayProvider,
-    GatewayRoute, slugify_pattern, synthesize_route_id,
+    GatewayCatalog, GatewayCatalogSource, GatewayConfig, GatewayConfigSpec, GatewayModel,
+    GatewayProfileError, GatewayProvider, GatewayRoute, default_resource_audiences, slugify_pattern,
+    synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
@@ -184,4 +187,42 @@ fn validate_rejects_duplicate_route_id() {
         Err(GatewayProfileError::DuplicateRouteId { id }) => assert_eq!(id, "dup"),
         other => panic!("expected DuplicateRouteId, got {other:?}"),
     }
+}
+
+#[test]
+fn gateway_spec_round_trips_catalog_path() {
+    let spec = GatewayConfigSpec {
+        enabled: true,
+        routes: vec![route("claude-*")],
+        catalog: Some(GatewayCatalogSource::Path {
+            path: PathBuf::from("catalog.yaml"),
+        }),
+        ..GatewayConfigSpec::default()
+    };
+
+    let yaml = serde_yaml::to_string(&spec).expect("serialize gateway spec");
+    assert!(yaml.contains("path: catalog.yaml"), "got:\n{yaml}");
+    assert!(!yaml.contains("catalog_path"), "got:\n{yaml}");
+
+    let back: GatewayConfigSpec = serde_yaml::from_str(&yaml).expect("round-trip deserialize");
+    assert!(matches!(
+        back.catalog,
+        Some(GatewayCatalogSource::Path { .. })
+    ));
+}
+
+#[test]
+fn gateway_spec_rejects_legacy_catalog_path_key() {
+    let legacy = "enabled: true\nroutes: []\ncatalog_path: catalog.yaml\n";
+    assert!(
+        serde_yaml::from_str::<GatewayConfigSpec>(legacy).is_err(),
+        "the flat catalog_path key must be rejected by deny_unknown_fields"
+    );
+}
+
+#[test]
+fn default_resource_audiences_cover_gateway_requirements() {
+    let audiences = default_resource_audiences();
+    assert!(audiences.contains(&"hook".to_owned()));
+    assert!(!audiences.is_empty());
 }

@@ -1,10 +1,10 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use std::fs;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_models::profile::{TrustedIssuer, default_resource_audiences};
 
+use super::profile_io::{load_profile, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
@@ -17,6 +17,9 @@ pub enum SecurityCommands {
 
     #[command(about = "Set security configuration value")]
     Set(SetArgs),
+
+    #[command(subcommand, about = "Manage federated trusted JWT issuers")]
+    TrustedIssuer(TrustedIssuerCommands),
 }
 
 #[derive(Debug, Clone, Args)]
@@ -29,12 +32,43 @@ pub struct SetArgs {
 
     #[arg(long, help = "Refresh token expiry in seconds")]
     pub refresh_expiry: Option<i64>,
+
+    #[arg(
+        long = "resource-audience",
+        help = "Resource audience to allow (repeatable). Gateway-required audiences are always kept."
+    )]
+    pub resource_audiences: Vec<String>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum TrustedIssuerCommands {
+    #[command(about = "Add or replace a trusted issuer")]
+    Add(TrustedIssuerAddArgs),
+
+    #[command(about = "Remove a trusted issuer by its issuer URL")]
+    Remove {
+        #[arg(long, help = "Issuer URL to remove")]
+        issuer: String,
+    },
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct TrustedIssuerAddArgs {
+    #[arg(long, help = "Issuer URL (iss claim)")]
+    pub issuer: String,
+
+    #[arg(long, help = "JWKS URI for signature verification")]
+    pub jwks_uri: String,
+
+    #[arg(long, help = "Expected audience claim")]
+    pub audience: String,
 }
 
 pub fn execute(command: &SecurityCommands, config: &CliConfig) -> Result<()> {
     match command {
         SecurityCommands::Show => execute_show(),
         SecurityCommands::Set(args) => execute_set(args, config),
+        SecurityCommands::TrustedIssuer(cmd) => execute_trusted_issuer(cmd, config),
     }
 }
 
@@ -59,13 +93,18 @@ pub(super) fn execute_show() -> Result<()> {
 }
 
 pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
-    if args.jwt_issuer.is_none() && args.access_expiry.is_none() && args.refresh_expiry.is_none() {
-        bail!("Must specify at least one option: --jwt-issuer, --access-expiry, --refresh-expiry");
+    if args.jwt_issuer.is_none()
+        && args.access_expiry.is_none()
+        && args.refresh_expiry.is_none()
+        && args.resource_audiences.is_empty()
+    {
+        bail!(
+            "Must specify at least one option: --jwt-issuer, --access-expiry, --refresh-expiry, --resource-audience"
+        );
     }
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile(profile_path)?;
-
     let mut changes: Vec<SecuritySetOutput> = Vec::new();
 
     if let Some(ref issuer) = args.jwt_issuer {
@@ -107,29 +146,84 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
         });
     }
 
-    save_profile(&profile, profile_path)?;
-
-    for change in &changes {
-        render_result(&CommandResult::text(change.clone()).with_title("Security Updated"));
+    if !args.resource_audiences.is_empty() {
+        let old = profile.security.allowed_resource_audiences.join(",");
+        let mut merged = default_resource_audiences();
+        for aud in &args.resource_audiences {
+            if !merged.contains(aud) {
+                merged.push(aud.clone());
+            }
+        }
+        profile
+            .security
+            .allowed_resource_audiences
+            .clone_from(&merged);
+        changes.push(SecuritySetOutput {
+            field: "allowed_resource_audiences".to_owned(),
+            old_value: old,
+            new_value: merged.join(","),
+            message: "Updated allowed resource audiences".to_owned(),
+        });
     }
 
+    save_profile(&profile, profile_path)?;
+    render_changes(&changes, config);
+    Ok(())
+}
+
+fn execute_trusted_issuer(command: &TrustedIssuerCommands, config: &CliConfig) -> Result<()> {
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile(profile_path)?;
+
+    let change = match command {
+        TrustedIssuerCommands::Add(args) => {
+            if args.issuer.is_empty() || args.jwks_uri.is_empty() || args.audience.is_empty() {
+                bail!("--issuer, --jwks-uri, and --audience are all required");
+            }
+            profile
+                .security
+                .trusted_issuers
+                .retain(|t| t.issuer != args.issuer);
+            profile.security.trusted_issuers.push(TrustedIssuer {
+                issuer: args.issuer.clone(),
+                jwks_uri: args.jwks_uri.clone(),
+                audience: args.audience.clone(),
+            });
+            SecuritySetOutput {
+                field: "trusted_issuers".to_owned(),
+                old_value: String::new(),
+                new_value: args.issuer.clone(),
+                message: format!("Added trusted issuer {}", args.issuer),
+            }
+        },
+        TrustedIssuerCommands::Remove { issuer } => {
+            let before = profile.security.trusted_issuers.len();
+            profile
+                .security
+                .trusted_issuers
+                .retain(|t| &t.issuer != issuer);
+            if profile.security.trusted_issuers.len() == before {
+                bail!("No trusted issuer found with issuer {}", issuer);
+            }
+            SecuritySetOutput {
+                field: "trusted_issuers".to_owned(),
+                old_value: issuer.clone(),
+                new_value: String::new(),
+                message: format!("Removed trusted issuer {}", issuer),
+            }
+        },
+    };
+
+    save_profile(&profile, profile_path)?;
+    render_changes(std::slice::from_ref(&change), config);
+    Ok(())
+}
+
+fn render_changes(changes: &[SecuritySetOutput], config: &CliConfig) {
+    for change in changes {
+        render_result(&CommandResult::text(change.clone()).with_title("Security Updated"));
+    }
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
     }
-
-    Ok(())
-}
-
-fn load_profile(path: &str) -> Result<Profile> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {}", path))?;
-    let profile: Profile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse profile: {}", path))?;
-    Ok(profile)
-}
-
-pub(super) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
-    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
-    fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
-    Ok(())
 }

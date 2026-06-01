@@ -15,9 +15,11 @@ use serde::{Deserialize, Serialize};
 /// the operator's YAML edit rather than at a downstream tenant's first call.
 pub const GATEWAY_REQUIRED_RESOURCE_AUDIENCES: &[&str] = &["hook"];
 
-/// The resource audiences every generated profile must opt into so it passes
-/// [`crate::profile::Profile::validate`] — the single source of truth shared by
-/// the setup wizard and the env-driven cloud bootstrap.
+/// The resource audiences every generated profile must opt into.
+///
+/// Returns [`GATEWAY_REQUIRED_RESOURCE_AUDIENCES`] as owned strings, so the
+/// setup wizard and the env-driven cloud bootstrap seed the same audiences and
+/// pass [`crate::profile::Profile::validate`] from one source of truth.
 #[must_use]
 pub fn default_resource_audiences() -> Vec<String> {
     GATEWAY_REQUIRED_RESOURCE_AUDIENCES

@@ -26,6 +26,10 @@ use clap::Args;
 pub use types::*;
 
 #[derive(Debug, Args)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each bool is an independent clap CLI flag, not a state machine"
+)]
 pub struct SetupArgs {
     #[arg(
         short,

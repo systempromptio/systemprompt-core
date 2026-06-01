@@ -87,7 +87,7 @@ pub(super) fn security(env_name: &str) -> SecurityConfig {
     }
 }
 
-pub(super) fn runtime(environment: Environment, is_prod: bool) -> RuntimeConfig {
+pub(super) const fn runtime(environment: Environment, is_prod: bool) -> RuntimeConfig {
     RuntimeConfig {
         environment,
         log_level: if is_prod {

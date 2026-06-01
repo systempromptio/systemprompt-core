@@ -237,9 +237,3 @@ pub(super) fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
 
     Ok(())
 }
-
-pub(super) fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
-    systemprompt_dir
-        .join("secrets")
-        .join(format!("{}.secrets.json", env_name))
-}

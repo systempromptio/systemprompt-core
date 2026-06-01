@@ -8,6 +8,10 @@
 - `MarketplaceService` resolves the active marketplace solely from `settings.default_marketplace_id` (or the single configured marketplace); the implicit `"default"`-id fallback is removed and `resolve_default` / `active` share one selector.
 - `admin setup` generates a complete, bootable profile: the wizard emits a gateway catalog (providers, models, and routes for the AI keys supplied), governance and authz sections, and the gateway-required `hook` resource audience, rather than an empty shell. Env-driven and cloud bootstrap seed the same audiences through `default_resource_audiences()`, and a new `--force` flag overwrites existing profile, catalog, and secrets files.
 
+### Added
+
+- `admin config` subcommands edit a profile's sections in place — `gateway` (enable state, catalog source, routes), `governance` (authz hook mode), `security` (resource audiences), `secret` (provider credentials), and `catalog` (providers and models) — each validating the result before writing it back.
+
 ## [0.13.0] - 2026-05-29
 
 ### Breaking
