@@ -1,7 +1,7 @@
 //! Shared profile load/save for the `admin config` setter sub-trees.
 //!
 //! Every setter follows the same shape: deserialize the on-disk profile,
-//! mutate a typed field, write it back. [`save_profile`] revalidates before
+//! mutate a typed field, write it back. `save_profile` revalidates before
 //! writing so a config edit can never persist a profile the loader would reject
 //! at boot — drift surfaces at the edit, not at the next service start.
 
