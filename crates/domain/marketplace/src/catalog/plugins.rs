@@ -1,3 +1,6 @@
+//! Projects on-disk plugin directories into the signed `PluginEntry` records
+//! the manifest carries, hashing each plugin's file tree.
+
 use std::collections::BTreeMap;
 use std::path::Path;
 

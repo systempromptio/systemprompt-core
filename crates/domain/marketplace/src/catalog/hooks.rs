@@ -1,3 +1,6 @@
+//! Projects on-disk hook definitions into the signed `HookEntry` records the
+//! manifest carries.
+
 use std::path::Path;
 
 use sha2::{Digest, Sha256};

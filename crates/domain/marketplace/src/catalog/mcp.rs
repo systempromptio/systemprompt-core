@@ -1,3 +1,6 @@
+//! Projects configured managed MCP servers into the signed `ManagedMcpServer`
+//! records the manifest carries.
+
 use systemprompt_identifiers::ValidatedUrl;
 use systemprompt_models::bridge::ids::ManagedMcpServerName;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
