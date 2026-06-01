@@ -44,8 +44,8 @@ mod create_tests {
             false,
         );
         assert_eq!(provider.name(), "anthropic");
-        assert!(provider.supports_model("claude-sonnet-4-6-20250610"));
-        assert_eq!(provider.default_model(), "claude-sonnet-4-6-20250610");
+        assert!(provider.supports_model("claude-sonnet-4-6"));
+        assert_eq!(provider.default_model(), "claude-sonnet-4-6");
         assert!(!provider.supports_model("gpt-4.1"));
     }
 
@@ -102,8 +102,8 @@ mod create_tests {
             "https://api.anthropic.com/v1",
             false,
         );
-        let pricing = provider.get_pricing("claude-3-haiku-20240307");
-        assert!((pricing.input_per_million - 0.25).abs() < f64::EPSILON);
-        assert!((pricing.output_per_million - 1.25).abs() < f64::EPSILON);
+        let pricing = provider.get_pricing("claude-haiku-4-5-20251001");
+        assert!((pricing.input_per_million - 1.0).abs() < f64::EPSILON);
+        assert!((pricing.output_per_million - 5.0).abs() < f64::EPSILON);
     }
 }

@@ -78,9 +78,9 @@ fn registry_pricing_used_when_no_route_override() {
 #[test]
 fn resolve_reads_pricing_from_seeded_registry() {
     let registry = ProviderRegistry::default_seed().expect("embedded default catalog parses");
-    let p = resolve("anthropic", "claude-3-haiku-20240307", None, &registry);
-    assert!((p.input_per_million - 0.25).abs() < 1e-9);
-    assert!((p.output_per_million - 1.25).abs() < 1e-9);
+    let p = resolve("anthropic", "claude-haiku-4-5-20251001", None, &registry);
+    assert!((p.input_per_million - 1.0).abs() < 1e-9);
+    assert!((p.output_per_million - 5.0).abs() < 1e-9);
 }
 
 #[test]

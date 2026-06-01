@@ -138,7 +138,7 @@ pub fn anthropic_response_body(text: &str) -> serde_json::Value {
         "type": "message",
         "role": "assistant",
         "content": [ { "type": "text", "text": text } ],
-        "model": "claude-sonnet-4-6-20250610",
+        "model": "claude-sonnet-4-6",
         "stop_reason": "end_turn",
         "stop_sequence": null,
         "usage": { "input_tokens": 10, "output_tokens": 20 }
@@ -154,7 +154,7 @@ pub fn anthropic_tool_use_body(tool_name: &str, input: serde_json::Value) -> ser
             { "type": "text", "text": "calling tool" },
             { "type": "tool_use", "id": "toolu_01", "name": tool_name, "input": input }
         ],
-        "model": "claude-sonnet-4-6-20250610",
+        "model": "claude-sonnet-4-6",
         "stop_reason": "tool_use",
         "stop_sequence": null,
         "usage": { "input_tokens": 12, "output_tokens": 25 }

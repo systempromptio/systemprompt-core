@@ -46,7 +46,7 @@ pub struct AgentArgs {
     #[arg(long, help = "AI provider (e.g., anthropic, openai, gemini)")]
     pub provider: Option<String>,
 
-    #[arg(long, help = "AI model (e.g., claude-3-5-sonnet-20241022)")]
+    #[arg(long, help = "AI model (e.g., claude-sonnet-4-6)")]
     pub model: Option<String>,
 
     #[arg(long = "system-prompt", help = "Set the system prompt inline")]

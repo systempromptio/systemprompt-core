@@ -167,7 +167,7 @@ async fn provider_metadata_is_consistent() {
     let _ = p.get_pricing("gpt-4");
     let _ = p.get_pricing("gpt-3.5-turbo");
     let _ = p.get_pricing("o1");
-    let _ = p.get_pricing("o1-mini");
+    let _ = p.get_pricing("o3-mini");
     let _ = p.get_pricing("unknown");
     let _ = p.capabilities();
     assert_eq!(p.default_model(), "gpt-4.1");

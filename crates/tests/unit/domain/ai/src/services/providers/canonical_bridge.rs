@@ -48,7 +48,7 @@ fn anthropic_non_3_5_leaves_thinking_unset() {
 #[test]
 fn openai_o_series_requests_medium_reasoning() {
     let messages = [msg(MessageRole::User, "hi")];
-    for model in ["o1-preview", "o3-mini"] {
+    for model in ["o3", "o3-mini"] {
         let req = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, model, 256).into_request();
         assert!(matches!(
             req.reasoning_effort,

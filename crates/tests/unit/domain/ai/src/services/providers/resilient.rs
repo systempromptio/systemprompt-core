@@ -28,7 +28,7 @@ async fn delegates_generate_to_inner() {
         Arc::new(ResilientProvider::new("anthropic", Arc::new(inner), &s));
 
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 32);
+    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
     let resp = resilient.generate(params).await.expect("ok");
     assert!(resp.content.contains("ok via guard"));
 }
@@ -43,10 +43,10 @@ async fn delegates_metadata() {
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     assert_eq!(r.name(), "anthropic");
     assert!(r.supports_streaming());
-    assert!(r.supports_model("claude-sonnet-4-6-20250610"));
+    assert!(r.supports_model("claude-sonnet-4-6"));
     assert!(!r.supports_model("nope"));
-    assert_eq!(r.default_model(), "claude-sonnet-4-6-20250610");
-    let _ = r.get_pricing("claude-sonnet-4-6-20250610");
+    assert_eq!(r.default_model(), "claude-sonnet-4-6");
+    let _ = r.get_pricing("claude-sonnet-4-6");
     let _ = r.capabilities();
     let _ = r.supports_json_mode();
     let _ = r.supports_structured_output();
@@ -65,7 +65,7 @@ async fn maps_inner_error() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 16);
+    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
     let res = r.generate(params).await;
     assert!(res.is_err());
 }
@@ -84,7 +84,7 @@ async fn delegates_generate_with_tools() {
     let messages = vec![AiMessage::user("hi")];
     let tools = vec![McpTool::new("f", McpServerId::new("svc"))];
     let params = ToolGenerationParams::new(
-        GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 16),
+        GenerationParams::new(&messages, "claude-sonnet-4-6", 16),
         tools,
     );
     let res = r.generate_with_tools(params).await;
@@ -103,7 +103,7 @@ async fn delegates_generate_with_schema() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 32);
+    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
     let params = SchemaGenerationParams::new(
         base,
         serde_json::json!({"type": "object", "properties": {"answer": {"type": "number"}}}),
@@ -121,7 +121,7 @@ async fn delegates_generate_structured() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 32);
+    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
     let fmt = ResponseFormat::json_object();
     let params = StructuredGenerationParams::new(base, &fmt);
     let res = r.generate_structured(params).await;
@@ -138,7 +138,7 @@ async fn delegates_generate_with_tool_results() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 32);
+    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 32);
     let calls: Vec<systemprompt_ai::models::tools::ToolCall> = Vec::new();
     let results: Vec<systemprompt_ai::models::tools::CallToolResult> = Vec::new();
     let params = ToolResultsParams::new(base, &calls, &results);
@@ -156,7 +156,7 @@ async fn delegates_generate_with_tools_stream() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let base = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 16);
+    let base = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
     let tools = vec![McpTool::new("f", McpServerId::new("svc"))];
     let params = ToolGenerationParams::new(base, tools);
     let stream_res = r.generate_with_tools_stream(params).await;
@@ -173,7 +173,7 @@ async fn stream_open_failure_releases_permit() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 16);
+    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
     let res = r.generate_stream(params).await;
     assert!(res.is_err());
 }
@@ -188,7 +188,7 @@ async fn stream_call_guards_path() {
     let s = settings();
     let r = ResilientProvider::new("anthropic", Arc::new(inner), &s);
     let messages = vec![AiMessage::user("hi")];
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6-20250610", 16);
+    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 16);
     let stream_res = r.generate_stream(params).await;
     assert!(stream_res.is_ok());
 }

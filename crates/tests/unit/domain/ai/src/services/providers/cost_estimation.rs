@@ -30,9 +30,9 @@ fn microdollars(models: &[ProviderModel], model: &str, input: u32, output: u32) 
 fn anthropic_haiku_cost_is_exact() {
     let models = seed_models("anthropic");
     assert_eq!(
-        microdollars(&models, "claude-3-haiku-20240307", 1_000, 500),
-        875,
-        "1k in @ 0.25/M + 0.5k out @ 1.25/M = 250 + 625 microdollars"
+        microdollars(&models, "claude-haiku-4-5-20251001", 1_000, 500),
+        3_500,
+        "1k in @ 1.0/M + 0.5k out @ 5.0/M = 1000 + 2500 microdollars"
     );
 }
 
@@ -40,7 +40,7 @@ fn anthropic_haiku_cost_is_exact() {
 fn anthropic_sonnet_cost_is_exact() {
     let models = seed_models("anthropic");
     assert_eq!(
-        microdollars(&models, "claude-sonnet-4-6-20250610", 1_000_000, 1_000_000),
+        microdollars(&models, "claude-sonnet-4-6", 1_000_000, 1_000_000),
         18_000_000,
         "1M in @ 3/M + 1M out @ 15/M = 3 + 15 dollars"
     );

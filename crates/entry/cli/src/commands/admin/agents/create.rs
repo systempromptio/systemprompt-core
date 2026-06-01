@@ -14,6 +14,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::profile::ProviderRegistry;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
@@ -81,6 +82,15 @@ pub(super) fn execute(
         name, port, display_name
     ));
 
+    let provider = args
+        .agent
+        .provider
+        .unwrap_or_else(|| "anthropic".to_owned());
+    let model = args
+        .agent
+        .model
+        .unwrap_or_else(|| default_model_for(&provider));
+
     let agent_config = AgentConfig {
         name: name.clone(),
         port,
@@ -124,16 +134,8 @@ pub(super) fn execute(
                 include: args.agent.skills,
                 ..Default::default()
             },
-            provider: Some(
-                args.agent
-                    .provider
-                    .unwrap_or_else(|| "anthropic".to_owned()),
-            ),
-            model: Some(
-                args.agent
-                    .model
-                    .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_owned()),
-            ),
+            provider: Some(provider),
+            model: Some(model),
             ..Default::default()
         },
         oauth: OAuthConfig::default(),
@@ -247,4 +249,18 @@ fn prompt_description() -> Result<String> {
         .allow_empty(true)
         .interact_text()
         .context("Failed to get description")
+}
+
+// Why: the seed catalog is the single source of valid out-of-box model ids;
+// deriving the provider's default here keeps agent-create from pinning a
+// retired id that would 404 on first inference.
+fn default_model_for(provider: &str) -> String {
+    ProviderRegistry::default_seed()
+        .ok()
+        .and_then(|registry| {
+            registry
+                .find_provider(provider)
+                .and_then(|entry| entry.models.first().map(|m| m.id.as_str().to_owned()))
+        })
+        .unwrap_or_else(|| "claude-sonnet-4-6".to_owned())
 }
