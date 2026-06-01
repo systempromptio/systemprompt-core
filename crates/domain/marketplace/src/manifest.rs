@@ -16,6 +16,7 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_security::manifest_signing;
 
+use crate::bundle::BundleContent;
 use crate::candidate::MarketplaceCandidate;
 use crate::catalog::{
     load_agents, load_hooks, load_managed_mcp_servers, load_plugins, load_skills,
@@ -58,8 +59,16 @@ impl ManifestService {
         let skills = load_skills(services_root)?;
         let agents = load_agents(services, api_external_url);
         let hooks = load_hooks(services_root)?;
-        let plugins = load_plugins(services_root, services);
         let managed_mcp_servers = load_managed_mcp_servers(services, api_external_url)?;
+
+        let plugins_root = services_root.join("plugins");
+        let content = BundleContent {
+            skills: &skills,
+            agents: &agents,
+            mcp_servers: &managed_mcp_servers,
+            plugins_root: &plugins_root,
+        };
+        let plugins = load_plugins(services, &content);
 
         let active = active_marketplace(services);
         let (skills, agents, plugins, managed_mcp_servers) = match active {

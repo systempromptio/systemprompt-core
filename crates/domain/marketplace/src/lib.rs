@@ -11,6 +11,9 @@
 //!   referential-integrity check).
 //! - [`catalog`]: on-disk loaders projecting the services tree into the signed
 //!   `*Entry` records the manifest carries.
+//! - [`bundle`]: the build-from-spec plugin-bundle assembler
+//!   ([`build_plugin_bundle`]) — the single owner of the `.claude-plugin`
+//!   bundle contract, consumed by both the manifest and byte-serving paths.
 //! - [`scope_to_marketplace`] / [`active_marketplace`]: marketplace scoping of
 //!   the catalogue lists.
 //! - [`ManifestService`] / [`CanonicalView`]: assemble a scoped, filtered
@@ -36,6 +39,7 @@
 //! (manifest signing). No HTTP and no database queries: loaders take a
 //! services-root path, never an `AppContext`.
 
+pub mod bundle;
 mod candidate;
 pub mod catalog;
 mod error;
@@ -46,6 +50,9 @@ mod scope;
 mod service;
 mod view;
 
+pub use bundle::{
+    BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
+};
 pub use candidate::MarketplaceCandidate;
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};

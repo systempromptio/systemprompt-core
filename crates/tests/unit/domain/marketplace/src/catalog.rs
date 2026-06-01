@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 
+use systemprompt_marketplace::BundleContent;
 use systemprompt_marketplace::catalog::{
     load_agents, load_hooks, load_managed_mcp_servers, load_plugins, load_skills,
 };
@@ -291,7 +292,14 @@ fn load_managed_mcp_servers_absolute_endpoint_used() {
 #[test]
 fn load_plugins_empty_config_returns_empty() {
     let dir = tempfile::tempdir().expect("temp dir");
+    let plugins_root = dir.path().join("plugins");
     let config = ServicesConfig::default();
-    let plugins = load_plugins(dir.path(), &config);
+    let content = BundleContent {
+        skills: &[],
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: &plugins_root,
+    };
+    let plugins = load_plugins(&config, &content);
     assert!(plugins.is_empty());
 }

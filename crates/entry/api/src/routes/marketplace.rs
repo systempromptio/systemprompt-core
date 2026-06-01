@@ -2,19 +2,24 @@
 //!
 //! [`router`] serves the default `marketplace.json`, lists and renders
 //! individual marketplaces (JSON and raw `config.yaml`), and streams plugin
-//! files. File-serving handlers canonicalize the requested path and reject
-//! traversal outside the plugin directory and access to configuration files.
+//! files. Plugin files are served from the bundle the gateway *generates* from
+//! the plugin spec ([`build_plugin_bundle`]) — the same in-memory artifact the
+//! manifest hashes — so the byte stream and the manifest cannot drift, and an
+//! internal `config.yaml` is never part of the generated bundle to leak.
 
 use axum::Router;
 use axum::extract::{Path as AxumPath, State};
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_marketplace::catalog::{load_agents, load_managed_mcp_servers, load_skills};
 use systemprompt_marketplace::{
-    MarketplaceService, render_marketplace_json, render_marketplace_list,
+    BundleContent, MarketplaceService, build_plugin_bundle, render_marketplace_json,
+    render_marketplace_list,
 };
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
@@ -33,15 +38,11 @@ pub fn router() -> Router<AppContext> {
         .route("/plugins/{plugin_id}/{*path}", get(serve_plugin_file))
 }
 
-fn plugins_path(ctx: &AppContext) -> PathBuf {
-    ctx.app_paths().system().services().join("plugins")
-}
-
 fn marketplaces_path(ctx: &AppContext) -> PathBuf {
     ctx.app_paths().system().services().join("marketplaces")
 }
 
-fn resolve_mime_type(path: &std::path::Path) -> &'static str {
+fn resolve_mime_type(path: &Path) -> &'static str {
     match path.extension().and_then(|ext| ext.to_str()) {
         Some("json") => "application/json",
         Some("md") => "text/markdown; charset=utf-8",
@@ -165,60 +166,57 @@ async fn get_marketplace_yaml(
     ))
 }
 
-const BLOCKED_FILENAMES: &[&str] = &["config.yaml", "config.yml"];
-
 async fn serve_plugin_file(
     State(ctx): State<AppContext>,
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let plugin_dir = plugins_path(&ctx).join(&plugin_id);
-
-    if !plugin_dir.exists() {
+    let services = load_services_config()?;
+    let Some(config) = services
+        .plugins
+        .values()
+        .find(|p| p.enabled && p.id.as_str() == plugin_id)
+    else {
         return Err(ApiHttpError::not_found(format!(
             "Plugin '{plugin_id}' not found"
         )));
-    }
+    };
 
-    let requested = plugin_dir.join(&file_path);
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| ApiHttpError::internal_error(format!("profile not ready: {e}")))?;
+    let api_external_url = &profile.server.api_external_url;
+    let services_root = ctx.app_paths().system().services();
 
-    let canonical_plugin_dir = plugin_dir
-        .canonicalize()
+    let skills =
+        load_skills(services_root).map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let agents = load_agents(&services, api_external_url);
+    let mcp_servers = load_managed_mcp_servers(&services, api_external_url)
+        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let plugins_root = services_root.join("plugins");
+    let content = BundleContent {
+        skills: &skills,
+        agents: &agents,
+        mcp_servers: &mcp_servers,
+        plugins_root: &plugins_root,
+    };
+
+    let bundle = build_plugin_bundle(config, &content)
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
 
-    let canonical_requested = requested
-        .canonicalize()
-        .map_err(|_e| ApiHttpError::not_found(format!("File not found: {file_path}")))?;
-
-    if !canonical_requested.starts_with(&canonical_plugin_dir) {
-        return Err(ApiHttpError::forbidden("Path traversal not allowed"));
-    }
-
-    if let Some(filename) = canonical_requested.file_name().and_then(|f| f.to_str()) {
-        if BLOCKED_FILENAMES.contains(&filename) {
-            return Err(ApiHttpError::forbidden(
-                "Access to configuration files is not allowed",
-            ));
-        }
-    }
-
-    if !canonical_requested.is_file() {
+    let Some(file) = bundle.get(&file_path) else {
         return Err(ApiHttpError::not_found(format!(
             "File not found: {file_path}"
         )));
-    }
-
-    let content = tokio::fs::read(&canonical_requested)
-        .await
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
-
-    let mime_type = resolve_mime_type(&canonical_requested);
+    };
 
     Ok((
         StatusCode::OK,
         [
-            (header::CONTENT_TYPE, mime_type),
+            (
+                header::CONTENT_TYPE,
+                resolve_mime_type(Path::new(&file_path)),
+            ),
             (header::CACHE_CONTROL, "public, max-age=300"),
         ],
-        content,
+        file.bytes.clone(),
     ))
 }

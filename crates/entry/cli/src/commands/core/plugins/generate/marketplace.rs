@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_models::{MarketplaceConfig, PluginConfig};
 
@@ -88,38 +89,21 @@ pub(super) fn generate_plugin_json(
     let claude_plugin_dir = output_dir.join(".claude-plugin");
     std::fs::create_dir_all(&claude_plugin_dir)?;
 
-    let mut manifest = serde_json::Map::new();
-    manifest.insert(
-        "name".to_owned(),
-        serde_json::Value::String(plugin.id.to_string()),
-    );
-    manifest.insert(
-        "description".to_owned(),
-        serde_json::Value::String(plugin.description.clone()),
-    );
-    manifest.insert(
-        "version".to_owned(),
-        serde_json::Value::String(plugin.version.clone()),
-    );
-
-    let mut author_obj = serde_json::Map::new();
-    author_obj.insert(
-        "name".to_owned(),
-        serde_json::Value::String(plugin.author.name.clone()),
-    );
-    manifest.insert("author".to_owned(), serde_json::Value::Object(author_obj));
-
-    if !plugin.keywords.is_empty() {
-        let keywords: Vec<serde_json::Value> = plugin
-            .keywords
-            .iter()
-            .map(|k| serde_json::Value::String(k.clone()))
-            .collect();
-        manifest.insert("keywords".to_owned(), serde_json::Value::Array(keywords));
-    }
+    let manifest = PluginManifest {
+        name: plugin.id.as_str().to_owned(),
+        description: plugin.description.clone(),
+        version: plugin.version.clone(),
+        author: Some(ManifestAuthor {
+            name: plugin.author.name.clone(),
+            email: plugin.author.email.clone(),
+        }),
+        hooks: None,
+        keywords: plugin.keywords.clone(),
+        installation_preference: None,
+    };
 
     let plugin_json_path = claude_plugin_dir.join("plugin.json");
-    let content = serde_json::to_string_pretty(&serde_json::Value::Object(manifest))?;
+    let content = serde_json::to_string_pretty(&manifest)?;
     std::fs::write(&plugin_json_path, content)?;
     files_generated.push(plugin_json_path.to_string_lossy().to_string());
 

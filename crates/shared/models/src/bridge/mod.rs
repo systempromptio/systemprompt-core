@@ -11,6 +11,9 @@
 //!
 //! - [`manifest`] — the signed manifest envelope and its sub-entries (plugins,
 //!   skills, agents, managed MCP servers, user info).
+//! - [`plugin_bundle`] — the `.claude-plugin/plugin.json` manifest shape and
+//!   the well-formedness predicate shared by every plugin-bundle
+//!   producer/consumer.
 //! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
 //!   carried inside every manifest.
 //! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin id,
@@ -25,3 +28,4 @@
 pub mod ids;
 pub mod manifest;
 pub mod manifest_version;
+pub mod plugin_bundle;

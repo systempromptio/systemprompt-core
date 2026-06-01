@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod bundle;
+#[cfg(test)]
 mod candidate;
 #[cfg(test)]
 mod catalog;
