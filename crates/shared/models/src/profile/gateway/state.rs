@@ -1,10 +1,9 @@
 //! Lifecycle wrapper for the gateway section of a profile.
 //!
 //! YAML deserialization always produces [`GatewayState::Spec`]; the
-//! profile loader projects it to [`GatewayState::Resolved`] once a
-//! `profile_dir` is available. Runtime read paths must observe
-//! [`GatewayState::Resolved`] — they consult [`Self::resolved`] which
-//! logs and returns `None` if the loader has not run.
+//! profile loader projects it to [`GatewayState::Resolved`]. Runtime read
+//! paths must observe [`GatewayState::Resolved`] — they consult
+//! [`Self::resolved`] which logs and returns `None` if the loader has not run.
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -12,9 +11,9 @@ use super::config::{GatewayConfig, GatewayConfigSpec};
 
 #[derive(Debug, Clone)]
 pub enum GatewayState {
-    /// Freshly parsed YAML; catalog path (if any) has not been read.
+    /// Freshly parsed YAML.
     Spec(GatewayConfigSpec),
-    /// Loader has run; any catalog reference has been read and validated.
+    /// Loader has run; the spec has been projected to runtime form.
     Resolved(GatewayConfig),
 }
 

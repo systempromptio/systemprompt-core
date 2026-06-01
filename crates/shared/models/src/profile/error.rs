@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
-use super::GatewayProfileError;
+use super::{GatewayProfileError, ProviderRegistryError};
 
 pub type ProfileResult<T> = Result<T, ProfileError>;
 
@@ -29,6 +29,9 @@ pub enum ProfileError {
 
     #[error(transparent)]
     Gateway(#[from] GatewayProfileError),
+
+    #[error(transparent)]
+    ProviderRegistry(#[from] ProviderRegistryError),
 
     #[error("Profile '{name}' validation failed:\n  - {}", errors.join("\n  - "))]
     Validation { name: String, errors: Vec<String> },

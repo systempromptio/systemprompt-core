@@ -11,8 +11,8 @@ use std::collections::HashMap;
 use systemprompt_identifiers::SkillId;
 
 use super::IncludableString;
-use super::ai::ToolModelConfig;
 use super::plugin::PluginComponentRef;
+use crate::ai::ToolModelConfig;
 
 const fn default_true() -> bool {
     true

@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProviderId, RouteId};
 
-use super::catalog::GatewayProvider;
+use super::super::providers::{ProviderEntry, ProviderRegistry};
 use crate::services::ai::ModelPricing;
 
 fn default_route_id() -> RouteId {
@@ -42,8 +42,8 @@ impl GatewayRoute {
         }
     }
 
-    pub fn resolve<'a>(&self, providers: &'a [GatewayProvider]) -> Option<&'a GatewayProvider> {
-        providers.iter().find(|p| p.name == self.provider)
+    pub fn resolve<'a>(&self, registry: &'a ProviderRegistry) -> Option<&'a ProviderEntry> {
+        registry.find_provider(self.provider.as_str())
     }
 }
 

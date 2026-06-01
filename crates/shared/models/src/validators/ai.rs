@@ -106,68 +106,19 @@ impl AiConfigValidator {
             );
         }
 
+        // Connectivity (credential, endpoint, model catalog) lives in the
+        // profile `providers` registry and is validated there; this policy
+        // layer only flags an enabled provider that names no default-model
+        // override.
         for (name, cfg) in &enabled {
-            if cfg.api_key.is_empty() {
-                report.add_warning(
-                    ValidationWarning::new(
-                        format!("ai.providers.{}", name),
-                        format!("Provider '{}' is enabled but has no API key", name),
-                    )
-                    .with_suggestion(format!(
-                        "Set {}_API_KEY environment variable",
-                        name.to_uppercase()
-                    )),
-                );
-            }
             if cfg.default_model.is_empty() {
-                report.add_error(ValidationError::new(
+                report.add_warning(ValidationWarning::new(
                     format!("ai.providers.{}.default_model", name),
-                    format!("Provider '{}' has no default model specified", name),
-                ));
-            }
-
-            Self::validate_provider_models(report, name, cfg);
-        }
-    }
-
-    fn validate_provider_models(
-        report: &mut ValidationReport,
-        provider_name: &str,
-        cfg: &crate::AiProviderConfig,
-    ) {
-        if cfg.models.is_empty() {
-            return;
-        }
-
-        if !cfg.default_model.is_empty() && !cfg.models.contains_key(&cfg.default_model) {
-            report.add_warning(
-                ValidationWarning::new(
-                    format!("ai.providers.{}.default_model", provider_name),
                     format!(
-                        "Default model '{}' not defined in models for provider '{}'",
-                        cfg.default_model, provider_name
+                        "Provider '{}' has no default_model override; the provider client default \
+                         will be used",
+                        name
                     ),
-                )
-                .with_suggestion(
-                    "Add the model to ai.providers.{provider}.models or change default_model",
-                ),
-            );
-        }
-
-        for (model_name, model_def) in &cfg.models {
-            let path = format!("ai.providers.{}.models.{}", provider_name, model_name);
-
-            if model_def.limits.context_window == 0 {
-                report.add_warning(ValidationWarning::new(
-                    format!("{}.limits.context_window", path),
-                    format!("Model '{}' has no context_window defined", model_name),
-                ));
-            }
-
-            if model_def.limits.max_output_tokens == 0 {
-                report.add_warning(ValidationWarning::new(
-                    format!("{}.limits.max_output_tokens", path),
-                    format!("Model '{}' has no max_output_tokens defined", model_name),
                 ));
             }
         }

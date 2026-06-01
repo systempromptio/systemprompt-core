@@ -58,6 +58,10 @@ base64 = { workspace = true }
 # Async streaming
 futures = { workspace = true }
 
+# Wire codecs: SSE byte buffering + stream adaptation
+bytes = { workspace = true }
+futures-util = { workspace = true }
+
 # Web framework (optional, for IntoResponse implementations)
 axum = { workspace = true, optional = true }
 

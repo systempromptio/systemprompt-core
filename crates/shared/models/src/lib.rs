@@ -33,6 +33,8 @@
 //! - [`services`] — services manifest (agents, plugins, hooks, MCP, …).
 //! - [`users`] — public user / session summaries.
 //! - [`validators`] — startup configuration validation passes.
+//! - [`wire`] — canonical AI wire types and per-protocol codecs (gateway +
+//!   agent clients).
 //!
 //! # Feature flags
 //!
@@ -77,6 +79,7 @@ pub mod text;
 pub mod time_format;
 pub mod users;
 pub mod validators;
+pub mod wire;
 
 pub use a2a::{
     AgentAuthentication, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
@@ -181,8 +184,7 @@ pub use services::{
     PluginAuthor, PluginComponentRef, PluginConfig, PluginConfigFile, PluginScript,
     PluginVariableDef, RuntimeStatus, SKILL_CONFIG_FILENAME, SamplingConfig, SchedulerConfig,
     ServiceType, ServicesConfig, Settings as ServicesSettings, SkillConfig, SkillsConfig,
-    SystemAdmin, SystemAdminConfig, ToolModelConfig, ToolModelSettings, WebConfig,
-    strip_frontmatter,
+    SystemAdmin, SystemAdminConfig, WebConfig, strip_frontmatter,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
 pub use users::{SessionSummary, UserSummary};

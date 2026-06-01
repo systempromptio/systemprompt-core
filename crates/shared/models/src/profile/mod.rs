@@ -13,6 +13,7 @@ mod gateway;
 mod governance;
 mod info;
 mod paths;
+mod providers;
 mod rate_limits;
 mod runtime;
 mod secrets;
@@ -26,15 +27,18 @@ pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
 pub use error::{ProfileError, ProfileResult};
 pub use gateway::{
-    GatewayCatalog, GatewayCatalogSource, GatewayConfig, GatewayConfigSpec, GatewayModel,
-    GatewayProfileError, GatewayProvider, GatewayResult, GatewayRoute, GatewayState,
-    slugify_pattern, synthesize_route_id,
+    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult, GatewayRoute,
+    GatewayState, slugify_pattern, synthesize_route_id,
 };
 pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
+pub use providers::{
+    ProviderEntry, ProviderModel, ProviderRegistry, ProviderRegistryError, ProviderRegistryResult,
+    WireProtocol,
+};
 pub use rate_limits::{
     RateLimitsConfig, TierMultipliers, default_a2a_multiplier, default_admin_multiplier,
     default_agent_registry, default_agents, default_anon_multiplier, default_artifacts,
@@ -124,6 +128,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub extensions: ExtensionsConfig,
+
+    #[serde(default)]
+    pub providers: ProviderRegistry,
 
     #[serde(default)]
     pub gateway: Option<GatewayState>,
