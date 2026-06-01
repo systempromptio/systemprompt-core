@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
-    GatewayCatalog, GatewayCatalogSource, GatewayConfig, GatewayConfigSpec, GatewayModel,
-    GatewayProfileError, GatewayProvider, GatewayRoute, default_resource_audiences,
-    slugify_pattern, synthesize_route_id,
+    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, ProviderEntry,
+    ProviderModel, ProviderRegistry, WireProtocol, default_resource_audiences, slugify_pattern,
+    synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
@@ -92,59 +91,62 @@ fn ensure_id_backfills_empty_id() {
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
 }
 
-fn catalog_with_endpoint(endpoint: &str) -> GatewayCatalog {
-    GatewayCatalog {
-        providers: vec![GatewayProvider {
+// SSRF endpoint validation now lives on the ProviderRegistry: the gateway owns
+// no catalog, and the registry is the authority for outbound connectivity.
+fn registry_with_endpoint(endpoint: &str) -> ProviderRegistry {
+    ProviderRegistry {
+        providers: vec![ProviderEntry {
             name: ProviderId::new("test"),
+            protocol: WireProtocol::Anthropic,
             endpoint: endpoint.to_owned(),
             api_key_secret: SecretName::new("test"),
             extra_headers: HashMap::new(),
-        }],
-        models: vec![GatewayModel {
-            id: ModelId::new("any"),
-            provider: ProviderId::new("test"),
-            aliases: Vec::new(),
-            display_name: None,
-            upstream_model: None,
-            pricing: None,
+            models: vec![ProviderModel {
+                id: ModelId::new("any"),
+                aliases: Vec::new(),
+                upstream_model: None,
+                pricing: Default::default(),
+                capabilities: Default::default(),
+                limits: Default::default(),
+            }],
         }],
     }
 }
 
 #[test]
-fn catalog_validate_accepts_public_https_endpoint() {
+fn registry_validate_accepts_public_https_endpoint() {
     assert!(
-        catalog_with_endpoint("https://api.anthropic.com/v1")
+        registry_with_endpoint("https://api.anthropic.com/v1")
             .validate()
             .is_ok()
     );
 }
 
 #[test]
-fn catalog_validate_allows_loopback_http_for_local_dev() {
+fn registry_validate_allows_loopback_http_for_local_dev() {
     assert!(
-        catalog_with_endpoint("http://localhost:8080")
+        registry_with_endpoint("http://localhost:8080")
             .validate()
             .is_ok()
     );
     assert!(
-        catalog_with_endpoint("http://127.0.0.1:8080")
+        registry_with_endpoint("http://127.0.0.1:8080")
             .validate()
             .is_ok()
     );
 }
 
 #[test]
-fn catalog_validate_rejects_cloud_metadata_endpoint() {
+fn registry_validate_rejects_cloud_metadata_endpoint() {
     assert!(
-        catalog_with_endpoint("http://169.254.169.254/latest/meta-data/")
+        registry_with_endpoint("http://169.254.169.254/latest/meta-data/")
             .validate()
             .is_err()
     );
 }
 
 #[test]
-fn catalog_validate_rejects_private_ranges() {
+fn registry_validate_rejects_private_ranges() {
     for endpoint in [
         "https://10.0.0.5/v1",
         "https://192.168.1.10/v1",
@@ -152,21 +154,21 @@ fn catalog_validate_rejects_private_ranges() {
         "https://[fd00::1]/v1",
     ] {
         assert!(
-            catalog_with_endpoint(endpoint).validate().is_err(),
+            registry_with_endpoint(endpoint).validate().is_err(),
             "expected {endpoint} to be rejected as a private/ULA address"
         );
     }
 }
 
 #[test]
-fn catalog_validate_rejects_non_http_scheme_and_plain_http_to_remote() {
+fn registry_validate_rejects_non_http_scheme_and_plain_http_to_remote() {
     assert!(
-        catalog_with_endpoint("ftp://example.com/v1")
+        registry_with_endpoint("ftp://example.com/v1")
             .validate()
             .is_err()
     );
     assert!(
-        catalog_with_endpoint("http://api.anthropic.com/v1")
+        registry_with_endpoint("http://api.anthropic.com/v1")
             .validate()
             .is_err()
     );
@@ -183,60 +185,49 @@ fn validate_rejects_duplicate_route_id() {
         routes: vec![a, b],
         ..GatewayConfig::default()
     };
-    match config.validate() {
+    let registry = two_provider_registry();
+    match config.validate(&registry) {
         Err(GatewayProfileError::DuplicateRouteId { id }) => assert_eq!(id, "dup"),
         other => panic!("expected DuplicateRouteId, got {other:?}"),
     }
 }
 
-#[test]
-fn gateway_spec_round_trips_catalog_path() {
-    let spec = GatewayConfigSpec {
-        enabled: true,
-        routes: vec![route("claude-*")],
-        catalog: Some(GatewayCatalogSource::Path {
-            path: PathBuf::from("catalog.yaml"),
-        }),
-        ..GatewayConfigSpec::default()
-    };
-
-    let yaml = serde_yaml::to_string(&spec).expect("serialize gateway spec");
-    assert!(yaml.contains("path: catalog.yaml"), "got:\n{yaml}");
-    assert!(!yaml.contains("catalog_path"), "got:\n{yaml}");
-
-    let back: GatewayConfigSpec = serde_yaml::from_str(&yaml).expect("round-trip deserialize");
-    assert!(matches!(
-        back.catalog,
-        Some(GatewayCatalogSource::Path { .. })
-    ));
-}
-
-#[test]
-fn gateway_spec_rejects_legacy_catalog_path_key() {
-    let legacy = "enabled: true\nroutes: []\ncatalog_path: catalog.yaml\n";
-    assert!(
-        serde_yaml::from_str::<GatewayConfigSpec>(legacy).is_err(),
-        "the flat catalog_path key must be rejected by deny_unknown_fields"
-    );
-}
-
-fn provider(name: &str, endpoint: &str) -> GatewayProvider {
-    GatewayProvider {
+fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> ProviderEntry {
+    ProviderEntry {
         name: ProviderId::new(name),
+        protocol: WireProtocol::Anthropic,
         endpoint: endpoint.to_owned(),
         api_key_secret: SecretName::new(name),
         extra_headers: HashMap::new(),
+        models,
     }
 }
 
-fn model(id: &str, provider: &str) -> GatewayModel {
-    GatewayModel {
+fn model(id: &str) -> ProviderModel {
+    ProviderModel {
         id: ModelId::new(id),
-        provider: ProviderId::new(provider),
         aliases: Vec::new(),
-        display_name: None,
         upstream_model: None,
-        pricing: None,
+        pricing: Default::default(),
+        capabilities: Default::default(),
+        limits: Default::default(),
+    }
+}
+
+fn two_provider_registry() -> ProviderRegistry {
+    ProviderRegistry {
+        providers: vec![
+            provider_entry(
+                "anthropic",
+                "https://api.anthropic.com/v1",
+                vec![model("claude-sonnet-4-20250514")],
+            ),
+            provider_entry(
+                "gemini",
+                "https://generativelanguage.googleapis.com/v1beta",
+                vec![model("gemini-2.5-flash")],
+            ),
+        ],
     }
 }
 
@@ -247,16 +238,6 @@ fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
             route_to("claude-*", "anthropic"),
             route_to("gemini-*", "gemini"),
         ],
-        catalog: Some(GatewayCatalog {
-            providers: vec![
-                provider("anthropic", "https://api.anthropic.com/v1"),
-                provider("gemini", "https://generativelanguage.googleapis.com/v1beta"),
-            ],
-            models: vec![
-                model("claude-sonnet-4-20250514", "anthropic"),
-                model("gemini-2.5-flash", "gemini"),
-            ],
-        }),
         default_provider: default_provider.map(ProviderId::new),
         ..GatewayConfig::default()
     }
@@ -278,8 +259,9 @@ fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
 #[test]
 fn resolve_route_prefers_explicit_match_over_default() {
     let config = two_provider_config(Some("gemini"));
+    let registry = two_provider_registry();
     let resolved = config
-        .resolve_route("claude-opus-4-7")
+        .resolve_route(&registry, "claude-opus-4-7")
         .expect("explicit route must match");
     assert_eq!(resolved.provider.as_str(), "anthropic");
 }
@@ -287,46 +269,67 @@ fn resolve_route_prefers_explicit_match_over_default() {
 #[test]
 fn resolve_route_falls_back_to_default_provider() {
     let config = two_provider_config(Some("gemini"));
+    let registry = two_provider_registry();
     let resolved = config
-        .resolve_route("some-unknown-model")
+        .resolve_route(&registry, "some-unknown-model")
         .expect("default provider must absorb unmatched model");
     assert_eq!(resolved.provider.as_str(), "gemini");
+    // The synthetic default route forwards the requested model verbatim;
+    // per-model upstream rewrites are applied downstream from the registry.
     assert_eq!(
         resolved.effective_upstream_model("some-unknown-model"),
-        "gemini-2.5-flash",
-        "synthetic route must pin the default provider's catalog model upstream"
+        "some-unknown-model",
+        "synthetic default route must pass the requested model through unchanged"
     );
 }
 
 #[test]
 fn resolve_route_is_none_without_default_or_match() {
     let config = two_provider_config(None);
-    assert!(config.resolve_route("some-unknown-model").is_none());
+    let registry = two_provider_registry();
+    assert!(
+        config
+            .resolve_route(&registry, "some-unknown-model")
+            .is_none()
+    );
 }
 
 #[test]
 fn is_model_exposed_widens_with_default_provider() {
+    let registry = two_provider_registry();
     assert!(
-        !two_provider_config(None).is_model_exposed("some-unknown-model"),
-        "closed catalog must deny unknown models"
+        !two_provider_config(None).is_model_exposed(&registry, "some-unknown-model"),
+        "closed gateway must deny unknown models"
     );
     assert!(
-        two_provider_config(Some("gemini")).is_model_exposed("some-unknown-model"),
+        two_provider_config(Some("gemini")).is_model_exposed(&registry, "some-unknown-model"),
         "a default provider opens the gateway to unmatched models"
     );
 }
 
 #[test]
-fn validate_rejects_default_provider_absent_from_catalog() {
-    match two_provider_config(Some("openai")).validate() {
-        Err(GatewayProfileError::DefaultProviderNotInCatalog { provider }) => {
+fn is_model_exposed_admits_registry_model() {
+    let registry = two_provider_registry();
+    assert!(
+        two_provider_config(None).is_model_exposed(&registry, "claude-sonnet-4-20250514"),
+        "a model present in the registry must be exposed even without a default provider"
+    );
+}
+
+#[test]
+fn validate_rejects_default_provider_absent_from_registry() {
+    let registry = two_provider_registry();
+    match two_provider_config(Some("openai")).validate(&registry) {
+        Err(GatewayProfileError::DefaultProviderNotInRegistry { provider }) => {
             assert_eq!(provider, "openai");
         },
-        other => panic!("expected DefaultProviderNotInCatalog, got {other:?}"),
+        other => panic!("expected DefaultProviderNotInRegistry, got {other:?}"),
     }
     assert!(
-        two_provider_config(Some("gemini")).validate().is_ok(),
-        "a default provider present in the catalog must validate"
+        two_provider_config(Some("gemini"))
+            .validate(&registry)
+            .is_ok(),
+        "a default provider present in the registry must validate"
     );
 }
 

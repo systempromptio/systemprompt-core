@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use systemprompt_models::services::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
+    ModelLimits, ModelPricing, SamplingConfig,
 };
 
 mod ai_config_defaults {
@@ -23,12 +23,6 @@ mod ai_config_defaults {
     fn default_ai_config_has_empty_providers_map() {
         let config = AiConfig::default();
         assert!(config.providers.is_empty());
-    }
-
-    #[test]
-    fn default_ai_config_has_empty_tool_models_map() {
-        let config = AiConfig::default();
-        assert!(config.tool_models.is_empty());
     }
 }
 
@@ -57,13 +51,10 @@ mod ai_config_serde {
             "openai".to_string(),
             AiProviderConfig {
                 enabled: true,
-                api_key: "sk-test".to_string(),
-                endpoint: Some("https://api.openai.com".to_string()),
                 default_model: "gpt-4".to_string(),
                 default_image_model: "dall-e-3".to_string(),
                 default_image_resolution: "1024x1024".to_string(),
                 google_search_enabled: false,
-                models: HashMap::new(),
                 ..AiProviderConfig::default()
             },
         );
@@ -72,7 +63,6 @@ mod ai_config_serde {
             default_provider: "openai".to_string(),
             default_max_output_tokens: Some(4096),
             providers,
-            tool_models: HashMap::new(),
             sampling: SamplingConfig {
                 enable_smart_routing: true,
                 fallback_enabled: false,
@@ -186,65 +176,36 @@ mod ai_provider_config_tests {
     fn default_is_enabled_with_empty_fields() {
         let config = AiProviderConfig::default();
         assert!(config.enabled);
-        assert!(config.api_key.is_empty());
-        assert!(config.endpoint.is_none());
         assert!(config.default_model.is_empty());
         assert!(config.default_image_model.is_empty());
         assert!(config.default_image_resolution.is_empty());
         assert!(!config.google_search_enabled);
-        assert!(config.models.is_empty());
     }
 
     #[test]
     fn serde_enabled_defaults_to_true() {
         let config: AiProviderConfig =
-            serde_json::from_str(r#"{"api_key":"test"}"#).expect("deserialize");
+            serde_json::from_str(r#"{"default_model":"gpt-4"}"#).expect("deserialize");
         assert!(config.enabled);
     }
 
     #[test]
-    fn serde_roundtrip_with_models() {
-        let mut models = HashMap::new();
-        models.insert(
-            "gpt-4".to_string(),
-            ModelDefinition {
-                capabilities: ModelCapabilities {
-                    vision: true,
-                    tools: true,
-                    structured_output: true,
-                    ..Default::default()
-                },
-                limits: ModelLimits {
-                    context_window: 128000,
-                    max_output_tokens: 8192,
-                },
-                pricing: ModelPricing {
-                    input_per_million: 30.0,
-                    output_per_million: 60.0,
-                    per_image_cents: Some(1.0),
-                },
-            },
-        );
-
+    fn serde_roundtrip_policy_fields() {
         let config = AiProviderConfig {
             enabled: true,
-            api_key: "sk-test".to_string(),
-            endpoint: None,
             default_model: "gpt-4".to_string(),
-            default_image_model: String::new(),
-            default_image_resolution: String::new(),
-            google_search_enabled: false,
-            models,
+            default_image_model: "dall-e-3".to_string(),
+            default_image_resolution: "1024x1024".to_string(),
+            google_search_enabled: true,
             ..AiProviderConfig::default()
         };
 
         let json = serde_json::to_string(&config).expect("serialize");
         let deserialized: AiProviderConfig = serde_json::from_str(&json).expect("deserialize");
-        assert!(deserialized.models.contains_key("gpt-4"));
-        let model = &deserialized.models["gpt-4"];
-        assert!(model.capabilities.vision);
-        assert_eq!(model.limits.context_window, 128000);
-        assert!((model.pricing.input_per_million - 30.0).abs() < f64::EPSILON);
+        assert_eq!(deserialized.default_model, "gpt-4");
+        assert_eq!(deserialized.default_image_model, "dall-e-3");
+        assert_eq!(deserialized.default_image_resolution, "1024x1024");
+        assert!(deserialized.google_search_enabled);
     }
 }
 
@@ -350,73 +311,6 @@ mod model_pricing_tests {
         let json = serde_json::to_string(&pricing).expect("serialize");
         let deserialized: ModelPricing = serde_json::from_str(&json).expect("deserialize");
         assert!(deserialized.per_image_cents.is_none());
-    }
-}
-
-mod tool_model_settings_tests {
-    use super::*;
-
-    #[test]
-    fn default_has_empty_model() {
-        let settings = ToolModelSettings::default();
-        assert!(settings.model.is_empty());
-        assert!(settings.max_output_tokens.is_none());
-    }
-
-    #[test]
-    fn serde_roundtrip() {
-        let settings = ToolModelSettings {
-            model: "gpt-4-turbo".to_string(),
-            max_output_tokens: Some(2048),
-        };
-        let json = serde_json::to_string(&settings).expect("serialize");
-        let deserialized: ToolModelSettings = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.model, "gpt-4-turbo");
-        assert_eq!(deserialized.max_output_tokens, Some(2048));
-    }
-}
-
-mod tool_model_config_tests {
-    use super::*;
-
-    #[test]
-    fn serde_roundtrip() {
-        let config = ToolModelConfig {
-            provider: "anthropic".to_string(),
-            model: "claude-3-opus".to_string(),
-            max_output_tokens: Some(4096),
-            thinking_level: Some("high".to_string()),
-        };
-        let json = serde_json::to_string(&config).expect("serialize");
-        let deserialized: ToolModelConfig = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.provider, "anthropic");
-        assert_eq!(deserialized.model, "claude-3-opus");
-        assert_eq!(deserialized.max_output_tokens, Some(4096));
-        assert_eq!(deserialized.thinking_level.as_deref(), Some("high"));
-    }
-
-    #[test]
-    fn serde_skips_none_fields() {
-        let config = ToolModelConfig {
-            provider: "openai".to_string(),
-            model: "gpt-4".to_string(),
-            max_output_tokens: None,
-            thinking_level: None,
-        };
-        let json = serde_json::to_string(&config).expect("serialize");
-        assert!(!json.contains("max_output_tokens"));
-        assert!(!json.contains("thinking_level"));
-    }
-
-    #[test]
-    fn deserialize_minimal() {
-        let config: ToolModelConfig =
-            serde_json::from_str(r#"{"provider":"gemini","model":"gemini-pro"}"#)
-                .expect("deserialize");
-        assert_eq!(config.provider, "gemini");
-        assert_eq!(config.model, "gemini-pro");
-        assert!(config.max_output_tokens.is_none());
-        assert!(config.thinking_level.is_none());
     }
 }
 
