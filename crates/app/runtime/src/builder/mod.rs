@@ -3,6 +3,9 @@
 //! The builder owns the bootstrap order: profile -> paths -> files ->
 //! database -> logging -> extensions -> ancillary services. Failures at
 //! any step propagate as [`RuntimeError`](crate::error::RuntimeError).
+//! Subsystem resolution helpers live in [`assembly`].
+
+mod assembly;
 
 use std::sync::{Arc, OnceLock};
 
@@ -10,11 +13,9 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_marketplace::{AllowAllFilter, MarketplaceFilter, discover_filters};
+use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::auth::UserRole;
-use systemprompt_models::services::{SystemAdmin, SystemAdminConfig};
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentRouting};
+use systemprompt_models::{AppPaths, Config};
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_users::UserService;
 
@@ -51,6 +52,13 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("migration_config", &self.migration_config)
             .finish()
     }
+}
+
+struct CoreLayer {
+    config: Arc<Config>,
+    app_paths: Arc<AppPaths>,
+    database: Arc<Database>,
+    authz_hook: SharedAuthzHook,
 }
 
 impl AppContextBuilder {
@@ -121,61 +129,25 @@ impl AppContextBuilder {
     }
 
     pub async fn build(self) -> RuntimeResult<AppContext> {
-        // The builder owns paths/files/config initialisation so it is
-        // self-sufficient: a non-CLI entry (API, tests) can build a context
-        // without a prior bootstrap step having installed the globals. All
-        // three inits are idempotent OnceLock guards, so a CLI that already
-        // ran them is a no-op here.
-        let profile = ProfileBootstrap::get()?;
-        let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);
-        systemprompt_files::FilesConfig::init(&app_paths)?;
-        systemprompt_config::try_init_config()
-            .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
-        let config = Arc::new(Config::get()?.clone());
-
-        let database = Arc::new(
-            Database::from_config_with_write(
-                &config.database_type,
-                &config.database_url,
-                config.database_write_url.as_deref(),
-            )
-            .await?,
-        );
-
-        let authz_audit_pool = database.write_pool_arc().ok();
-        let authz_hook = systemprompt_security::authz::build_authz_hook(
-            profile.governance.as_ref(),
-            authz_audit_pool,
-            self.authz_hook,
-        )
-        .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
-
-        systemprompt_logging::init_logging(Arc::clone(&database));
-
-        if config.database_write_url.is_some() {
-            tracing::debug!(
-                "Database read/write separation enabled: reads from replica, writes to primary"
-            );
-        }
+        let CoreLayer {
+            config,
+            app_paths,
+            database,
+            authz_hook,
+        } = init_core(self.authz_hook).await?;
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
-
-        let registry = match self.extension_registry {
-            Some(registry) => registry,
-            None => ExtensionRegistry::discover()?,
-        };
-        registry.validate()?;
-
-        if self.install_schemas {
-            install_extension_schemas_full(&registry, database.write(), &[], self.migration_config)
-                .await?;
-        }
-
-        let extension_registry = Arc::new(registry);
+        let extension_registry = init_extensions(
+            self.extension_registry,
+            self.install_schemas,
+            self.migration_config,
+            &database,
+        )
+        .await?;
 
         let geoip_reader = AppContext::load_geoip_database(&config, self.show_startup_warnings);
         let content_config = AppContext::load_content_config(&config, &app_paths);
-        let content_routing = content_routing_from(content_config.as_ref());
+        let content_routing = assembly::content_routing_from(content_config.as_ref());
         let route_classifier = Arc::new(systemprompt_models::RouteClassifier::new(
             content_routing.clone(),
         ));
@@ -198,12 +170,13 @@ impl AppContextBuilder {
         // than a warning that re-surfaces as a less specific error downstream.
         let user_service = Arc::new(UserService::new(&database)?);
 
-        let system_admin = resolve_and_install_system_admin(&config, &user_service).await?;
+        let system_admin =
+            assembly::resolve_and_install_system_admin(&config, &user_service).await?;
         let mcp_registry = RegistryService::new(system_admin.id().clone());
 
         let marketplace_filter = self
             .marketplace_filter
-            .unwrap_or_else(|| build_marketplace_filter(&database));
+            .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
         let event_bridge = Arc::new(OnceLock::new());
 
@@ -236,70 +209,67 @@ impl AppContextBuilder {
     }
 }
 
-async fn resolve_and_install_system_admin(
-    config: &Config,
-    users: &Arc<UserService>,
-) -> RuntimeResult<Arc<SystemAdmin>> {
-    let cfg = SystemAdminConfig {
-        username: config.system_admin_username.clone(),
+/// Bootstraps profile, paths, files, config, database, authz, and logging.
+///
+/// The path/files/config inits are idempotent `OnceLock` guards, so a non-CLI
+/// entry (API, tests) can build a context self-sufficiently while a CLI that
+/// already ran them sees a no-op.
+async fn init_core(authz_hook_override: Option<SharedAuthzHook>) -> RuntimeResult<CoreLayer> {
+    let profile = ProfileBootstrap::get()?;
+    let app_paths = Arc::new(AppPaths::from_profile(&profile.paths)?);
+    systemprompt_files::FilesConfig::init(&app_paths)?;
+    systemprompt_config::try_init_config()
+        .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
+    let config = Arc::new(Config::get()?.clone());
+
+    let database = Arc::new(
+        Database::from_config_with_write(
+            &config.database_type,
+            &config.database_url,
+            config.database_write_url.as_deref(),
+        )
+        .await?,
+    );
+
+    let authz_audit_pool = database.write_pool_arc().ok();
+    let authz_hook = systemprompt_security::authz::build_authz_hook(
+        profile.governance.as_ref(),
+        authz_audit_pool,
+        authz_hook_override,
+    )
+    .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
+
+    systemprompt_logging::init_logging(Arc::clone(&database));
+
+    if config.database_write_url.is_some() {
+        tracing::debug!(
+            "Database read/write separation enabled: reads from replica, writes to primary"
+        );
+    }
+
+    Ok(CoreLayer {
+        config,
+        app_paths,
+        database,
+        authz_hook,
+    })
+}
+
+async fn init_extensions(
+    extension_registry: Option<ExtensionRegistry>,
+    install_schemas: bool,
+    migration_config: MigrationConfig,
+    database: &Arc<Database>,
+) -> RuntimeResult<Arc<ExtensionRegistry>> {
+    let registry = match extension_registry {
+        Some(registry) => registry,
+        None => ExtensionRegistry::discover()?,
     };
-    let resolved = resolve_system_admin(&cfg, users.as_ref()).await?;
-    systemprompt_logging::install_log_attribution(resolved.clone());
-    Ok(Arc::new(resolved))
-}
+    registry.validate()?;
 
-async fn resolve_system_admin(
-    cfg: &SystemAdminConfig,
-    users: &UserService,
-) -> RuntimeResult<SystemAdmin> {
-    let user = users.find_by_name(&cfg.username).await?.ok_or_else(|| {
-        RuntimeError::SystemAdminNotFound {
-            username: cfg.username.clone(),
-        }
-    })?;
-    if !user.is_active() {
-        return Err(RuntimeError::SystemAdminInactive {
-            username: cfg.username.clone(),
-        });
+    if install_schemas {
+        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?;
     }
-    let admin_role = UserRole::Admin.as_str();
-    if !user.roles.iter().any(|r| r == admin_role) {
-        return Err(RuntimeError::SystemAdminMissingRole {
-            username: cfg.username.clone(),
-        });
-    }
-    Ok(SystemAdmin::new(user.id, user.name))
-}
 
-fn build_marketplace_filter(
-    database: &systemprompt_database::DbPool,
-) -> Arc<dyn MarketplaceFilter> {
-    for reg in discover_filters() {
-        match (reg.factory)(database) {
-            Ok(filter) => {
-                tracing::debug!(
-                    priority = reg.priority,
-                    "marketplace filter registered via inventory; using highest-priority impl",
-                );
-                return filter;
-            },
-            Err(err) => {
-                tracing::error!(
-                    priority = reg.priority,
-                    error = %err,
-                    "marketplace filter factory failed; trying next candidate",
-                );
-            },
-        }
-    }
-    let fallback: Arc<dyn MarketplaceFilter> = Arc::new(AllowAllFilter);
-    fallback
-}
-
-fn content_routing_from(
-    content_config: Option<&Arc<ContentConfigRaw>>,
-) -> Option<Arc<dyn ContentRouting>> {
-    let concrete = Arc::clone(content_config?);
-    let routing: Arc<dyn ContentRouting> = concrete;
-    Some(routing)
+    Ok(Arc::new(registry))
 }
