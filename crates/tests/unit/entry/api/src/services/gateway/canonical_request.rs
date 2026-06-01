@@ -21,6 +21,12 @@ fn req_with(messages: Vec<CanonicalMessage>, system: Option<&str>) -> CanonicalR
         stream: false,
         thinking: None,
         metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     }
 }
 
@@ -81,7 +87,10 @@ fn flatten_text_skips_images() {
             role: Role::User,
             content: vec![
                 CanonicalContent::Text("look".into()),
-                CanonicalContent::Image(ImageSource::Url("https://x".into())),
+                CanonicalContent::Image(ImageSource::Url {
+                    url: "https://x".into(),
+                    detail: None,
+                }),
             ],
         }],
         None,

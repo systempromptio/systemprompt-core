@@ -141,7 +141,9 @@ fn parse_content_block_image_base64() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Image(ImageSource::Base64 { media_type, data })) => {
+        Some(CanonicalContent::Image(ImageSource::Base64 {
+            media_type, data, ..
+        })) => {
             assert_eq!(media_type, "image/png");
             assert_eq!(data, "AAA=");
         },
@@ -159,8 +161,8 @@ fn parse_content_block_image_url() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Image(ImageSource::Url(u))) => {
-            assert_eq!(u, "https://example.com/x.png");
+        Some(CanonicalContent::Image(ImageSource::Url { url, .. })) => {
+            assert_eq!(url, "https://example.com/x.png");
         },
         other => panic!("expected url image, got {other:?}"),
     }

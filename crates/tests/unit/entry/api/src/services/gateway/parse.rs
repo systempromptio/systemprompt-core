@@ -15,6 +15,9 @@ fn empty_response() -> CanonicalResponse {
         content: vec![],
         stop_reason: Some(CanonicalStopReason::EndTurn),
         usage: CanonicalUsage::default(),
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     }
 }
 
@@ -24,6 +27,7 @@ fn extract_from_canonical_returns_usage_and_no_tools_for_empty() {
     r.usage = CanonicalUsage {
         input_tokens: 11,
         output_tokens: 22,
+        ..CanonicalUsage::default()
     };
     let (usage, tools) = extract_from_canonical(&r);
     assert_eq!(usage.input_tokens, 11);

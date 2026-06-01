@@ -26,7 +26,11 @@ fn sample_response() -> CanonicalResponse {
         usage: CanonicalUsage {
             input_tokens: 10,
             output_tokens: 5,
+            ..CanonicalUsage::default()
         },
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     }
 }
 
@@ -68,8 +72,12 @@ fn content_block_helpers_cover_all_variants() {
         CanonicalContent::Image(ImageSource::Base64 {
             media_type: "image/png".into(),
             data: "AA".into(),
+            detail: None,
         }),
-        CanonicalContent::Image(ImageSource::Url("https://x".into())),
+        CanonicalContent::Image(ImageSource::Url {
+            url: "https://x".into(),
+            detail: None,
+        }),
     ];
     for c in &cases {
         let v = content_to_anthropic_block(c);
@@ -149,6 +157,7 @@ fn render_event_covers_all_variants() {
         CanonicalEvent::UsageDelta(CanonicalUsage {
             input_tokens: 1,
             output_tokens: 2,
+            ..CanonicalUsage::default()
         }),
         CanonicalEvent::MessageStop {
             id: "m1".into(),

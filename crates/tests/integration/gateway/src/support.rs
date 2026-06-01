@@ -26,6 +26,12 @@ pub fn minimal_request(system: Option<&str>, first_user_text: &str) -> Canonical
         stream: false,
         thinking: None,
         metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     }
 }
 

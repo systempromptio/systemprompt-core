@@ -57,7 +57,9 @@ fn parse_input_message_with_input_image_url() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::Image(ImageSource::Url(u))) => assert_eq!(u, "https://x/y.png"),
+        Some(CanonicalContent::Image(ImageSource::Url { url, .. })) => {
+            assert_eq!(url, "https://x/y.png")
+        },
         other => panic!("expected image url, got {other:?}"),
     }
 }

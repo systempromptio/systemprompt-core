@@ -69,7 +69,11 @@ mod create_tests {
         })
         .err()
         .expect("should be an error");
-        assert!(error.to_string().contains("does not support image generation"));
+        assert!(
+            error
+                .to_string()
+                .contains("does not support image generation")
+        );
     }
 
     #[test]

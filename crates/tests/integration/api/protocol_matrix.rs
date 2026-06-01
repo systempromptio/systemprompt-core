@@ -91,6 +91,12 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
         stream,
         thinking: None,
         metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     }
 }
 
@@ -343,7 +349,11 @@ fn anthropic_render_response_value_emits_id_model_content() {
         usage: systemprompt_api::services::gateway::protocol::CanonicalUsage {
             input_tokens: 1,
             output_tokens: 2,
+            ..Default::default()
         },
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     };
     let value = anthropic_messages::test_api::render_response_value(&canon);
     assert_eq!(value["id"], "msg_render_1");

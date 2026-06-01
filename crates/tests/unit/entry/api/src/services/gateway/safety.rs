@@ -30,6 +30,12 @@ fn req_with(text: &str) -> CanonicalRequest {
         stream: false,
         thinking: None,
         metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     }
 }
 
@@ -40,6 +46,9 @@ fn resp_with(text: &str) -> CanonicalResponse {
         content: vec![CanonicalContent::Text(text.into())],
         stop_reason: None,
         usage: CanonicalUsage::default(),
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     }
 }
 

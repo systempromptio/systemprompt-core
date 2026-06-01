@@ -37,11 +37,21 @@ mod web_search_enablement {
 
     #[test]
     fn openai_search_toggle() {
-        let on = create("openai", WireProtocol::OpenAiChat, "https://api.openai.com/v1", true);
+        let on = create(
+            "openai",
+            WireProtocol::OpenAiChat,
+            "https://api.openai.com/v1",
+            true,
+        );
         assert_eq!(on.name(), "openai");
         assert!(on.supports_google_search());
 
-        let off = create("openai", WireProtocol::OpenAiChat, "https://api.openai.com/v1", false);
+        let off = create(
+            "openai",
+            WireProtocol::OpenAiChat,
+            "https://api.openai.com/v1",
+            false,
+        );
         assert!(!off.supports_google_search());
     }
 

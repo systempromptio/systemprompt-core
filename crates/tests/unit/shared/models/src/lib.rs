@@ -59,6 +59,9 @@ mod profile_gateway;
 mod provider_catalog_parity;
 
 #[cfg(test)]
+mod wire_codec;
+
+#[cfg(test)]
 mod agui;
 
 #[cfg(test)]

@@ -49,8 +49,12 @@ fn rich_request() -> CanonicalRequest {
                     CanonicalContent::Image(ImageSource::Base64 {
                         media_type: "image/png".into(),
                         data: "AAAA".into(),
+                        detail: None,
                     }),
-                    CanonicalContent::Image(ImageSource::Url("https://x/y".into())),
+                    CanonicalContent::Image(ImageSource::Url {
+                        url: "https://x/y".into(),
+                        detail: None,
+                    }),
                 ],
             },
             CanonicalMessage {
@@ -94,6 +98,12 @@ fn rich_request() -> CanonicalRequest {
             budget_tokens: Some(2048),
         }),
         metadata: Some(json!({"trace": "abc"})),
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     }
 }
 
@@ -257,6 +267,12 @@ async fn anthropic_outbound_no_system_no_tools() {
         stream: false,
         thinking: None,
         metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     };
     let ctx = OutboundCtx {
         route: &r,

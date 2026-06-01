@@ -51,7 +51,12 @@ mod create_tests {
 
     #[test]
     fn create_openai_resolves_catalog() {
-        let provider = create("openai", WireProtocol::OpenAiChat, "https://api.openai.com/v1", false);
+        let provider = create(
+            "openai",
+            WireProtocol::OpenAiChat,
+            "https://api.openai.com/v1",
+            false,
+        );
         assert_eq!(provider.name(), "openai");
         assert!(provider.supports_model("gpt-4.1"));
         assert_eq!(provider.default_model(), "gpt-4.1");

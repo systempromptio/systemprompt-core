@@ -22,7 +22,13 @@ fn pricing(registry: &ProviderRegistry, provider: &str, model: &str) -> (f64, f6
     (m.pricing.input_per_million, m.pricing.output_per_million)
 }
 
-fn assert_pricing(registry: &ProviderRegistry, provider: &str, model: &str, input: f64, output: f64) {
+fn assert_pricing(
+    registry: &ProviderRegistry,
+    provider: &str,
+    model: &str,
+    input: f64,
+    output: f64,
+) {
     let (got_in, got_out) = pricing(registry, provider, model);
     assert!(
         (got_in - input).abs() < f64::EPSILON,
@@ -45,14 +51,50 @@ fn seed_parses_and_validates() {
 #[test]
 fn anthropic_pricing_baseline() {
     let registry = seed();
-    assert_pricing(&registry, "anthropic", "claude-sonnet-4-6-20250610", 3.0, 15.0);
-    assert_pricing(&registry, "anthropic", "claude-opus-4-6-20250610", 5.0, 25.0);
-    assert_pricing(&registry, "anthropic", "claude-haiku-4-5-20251101", 1.0, 5.0);
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-sonnet-4-6-20250610",
+        3.0,
+        15.0,
+    );
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-opus-4-6-20250610",
+        5.0,
+        25.0,
+    );
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-haiku-4-5-20251101",
+        1.0,
+        5.0,
+    );
     assert_pricing(&registry, "anthropic", "claude-opus-4-20250514", 15.0, 75.0);
-    assert_pricing(&registry, "anthropic", "claude-3-5-sonnet-20241022", 3.0, 15.0);
-    assert_pricing(&registry, "anthropic", "claude-3-5-haiku-20241022", 0.8, 4.0);
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-3-5-sonnet-20241022",
+        3.0,
+        15.0,
+    );
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-3-5-haiku-20241022",
+        0.8,
+        4.0,
+    );
     assert_pricing(&registry, "anthropic", "claude-3-opus-20240229", 15.0, 75.0);
-    assert_pricing(&registry, "anthropic", "claude-3-haiku-20240307", 0.25, 1.25);
+    assert_pricing(
+        &registry,
+        "anthropic",
+        "claude-3-haiku-20240307",
+        0.25,
+        1.25,
+    );
 }
 
 #[test]

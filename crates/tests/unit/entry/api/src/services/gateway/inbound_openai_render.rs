@@ -33,7 +33,11 @@ fn sample_response() -> CanonicalResponse {
         usage: CanonicalUsage {
             input_tokens: 3,
             output_tokens: 7,
+            ..CanonicalUsage::default()
         },
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     }
 }
 
@@ -65,6 +69,9 @@ fn render_response_omits_message_when_no_text() {
         }],
         stop_reason: None,
         usage: CanonicalUsage::default(),
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
     };
     let bytes = inbound.render_response(&resp);
     let v: Value = serde_json::from_slice(&bytes).unwrap();

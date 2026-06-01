@@ -60,6 +60,12 @@ fn buffered_request() -> CanonicalRequest {
         stream: false,
         thinking: None,
         metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
     }
 }
 
@@ -453,9 +459,10 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
     req.messages.push(CanonicalMessage {
         role: Role::User,
         content: vec![CanonicalContent::Image(
-            systemprompt_api::services::gateway::protocol::canonical::ImageSource::Url(
-                "https://x".into(),
-            ),
+            systemprompt_api::services::gateway::protocol::canonical::ImageSource::Url {
+                url: "https://x".into(),
+                detail: None,
+            },
         )],
     });
     req.messages.push(CanonicalMessage {
