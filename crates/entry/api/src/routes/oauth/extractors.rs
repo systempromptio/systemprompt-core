@@ -12,6 +12,11 @@ pub struct OAuthRepo(pub OAuthRepository);
 impl FromRequestParts<OAuthState> for OAuthRepo {
     type Rejection = Response;
 
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "async signature required by the FromRequestParts trait; this \
+                  extractor constructs the repository synchronously"
+    )]
     async fn from_request_parts(
         _parts: &mut Parts,
         state: &OAuthState,

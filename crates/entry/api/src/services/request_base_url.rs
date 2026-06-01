@@ -113,6 +113,11 @@ fn build_from_host(raw_host: &str, configured: &url::Url) -> Result<RequestBaseU
 impl<S: Send + Sync> FromRequestParts<S> for RequestBaseUrl {
     type Rejection = (StatusCode, String);
 
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "async signature required by the FromRequestParts trait; this \
+                  extractor resolves the base URL synchronously"
+    )]
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let cfg = Config::get().map_err(|e| {
             tracing::error!(error = %e, "Failed to load config for RequestBaseUrl");
