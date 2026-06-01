@@ -55,12 +55,14 @@ jobs:
     runs-on: ubuntu-latest
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
-    # Drop debuginfo and incremental artifacts: a cold rebuild of the whole
-    # test workspace otherwise exhausts the 2-core runner's disk/RAM.
+    # Drop debuginfo and incremental artifacts and serialize codegen: a cold
+    # rebuild of the whole test workspace otherwise peaks past the runner's
+    # RAM and the hosted runner loses communication mid-build.
     env:
       RUSTFLAGS: ""
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "1"
     services:
       postgres:
         image: postgres:16
@@ -77,19 +79,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free disk space
-        # A cold rebuild of both workspaces' target dirs fills the ~14 GB
-        # runner volume; reclaim the preinstalled SDKs we never use so the
-        # build completes (and the rust-cache post-step can finally save).
+      - name: Runner resources
         run: |
-          sudo rm -rf \
-            /usr/share/dotnet \
-            /usr/local/lib/android \
-            /opt/ghc \
-            /usr/local/.ghcup \
-            /opt/hostedtoolcache/CodeQL \
-            /usr/share/swift || true
-          df -h /
+          echo "cores: $(nproc)"; free -h; df -h /
 
       - name: Strip [unstable] and [profile.dev] from cargo configs
         run: |
