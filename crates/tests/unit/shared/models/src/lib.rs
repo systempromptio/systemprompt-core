@@ -56,6 +56,9 @@ mod profile;
 mod profile_gateway;
 
 #[cfg(test)]
+mod provider_catalog_parity;
+
+#[cfg(test)]
 mod agui;
 
 #[cfg(test)]

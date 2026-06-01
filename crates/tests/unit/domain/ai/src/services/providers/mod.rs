@@ -3,6 +3,7 @@
 pub mod mock_http;
 
 mod anthropic;
+mod cost_estimation;
 mod gemini;
 mod gemini_images_http;
 mod gemini_params;
