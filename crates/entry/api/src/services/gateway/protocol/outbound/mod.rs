@@ -36,7 +36,7 @@ pub struct OutboundCtx<'a> {
     reason = "variants hold streaming bodies that intentionally do not implement Debug"
 )]
 pub enum OutboundOutcome {
-    Buffered(CanonicalResponse),
+    Buffered(Box<CanonicalResponse>),
     Streaming(BoxStream<'static, Result<CanonicalEvent, String>>),
 }
 

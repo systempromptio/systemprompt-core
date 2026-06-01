@@ -68,6 +68,6 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Responses body not valid JSON: {e}"))?;
         let canon = codec::parse_response_object(&value, &ctx.request.model);
-        Ok(OutboundOutcome::Buffered(canon))
+        Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

@@ -73,6 +73,6 @@ impl OutboundAdapter for GeminiOutbound {
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Gemini response not valid JSON: {e}"))?;
         let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str());
-        Ok(OutboundOutcome::Buffered(canon))
+        Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

@@ -79,6 +79,6 @@ impl OutboundAdapter for AnthropicOutbound {
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("Anthropic response not valid JSON: {e}"))?;
         let canon: CanonicalResponse = response::parse_response(&value, ctx.request.model.as_str());
-        Ok(OutboundOutcome::Buffered(canon))
+        Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }

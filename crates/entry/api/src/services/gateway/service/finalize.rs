@@ -42,6 +42,7 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     } = fctx;
     match outcome {
         OutboundOutcome::Buffered(canonical) => {
+            let canonical = *canonical;
             let body_bytes = inbound.render_response(&canonical);
             let audit_clone = Arc::clone(&audit);
             let body_for_task = body_bytes.clone();

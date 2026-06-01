@@ -70,6 +70,6 @@ impl OutboundAdapter for OpenAiChatOutbound {
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|e| anyhow!("OpenAI response not valid JSON: {e}"))?;
         let canon = codec::parse_response(&value, &ctx.request.model);
-        Ok(OutboundOutcome::Buffered(canon))
+        Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }
 }
