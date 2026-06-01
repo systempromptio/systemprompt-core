@@ -138,6 +138,11 @@ impl IngestionService {
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "ingestion needs the parsed content, its hash/slug, the source, the frontmatter, \
+                  and the dry-run flag together; splitting them obscures the single ingest step"
+    )]
     async fn ingest_new(
         &self,
         new_content: &crate::models::Content,
@@ -182,7 +187,11 @@ impl IngestionService {
         Ok(IngestFileResult::Created)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "update path also needs the existing row and the override flag alongside the same \
+                  ingest inputs; splitting them obscures the single ingest step"
+    )]
     async fn ingest_existing(
         &self,
         existing: crate::models::Content,
