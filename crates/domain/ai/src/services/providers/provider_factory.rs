@@ -1,110 +1,85 @@
-use crate::error::Result;
-use std::collections::HashMap;
+//! Protocol-driven provider-client factory.
+//!
+//! A provider client is selected by the registry entry's [`WireProtocol`], not
+//! by its name: any vendor speaking `anthropic` reuses [`AnthropicProvider`],
+//! any speaking `openai-chat`/`openai-responses` reuses [`OpenAiProvider`], and
+//! `gemini` uses [`GeminiProvider`]. Connectivity (endpoint, resolved key)
+//! comes from the profile `providers` registry; the per-provider AI policy
+//! supplies resilience and the web-search toggle.
+
 use std::sync::Arc;
+
 use systemprompt_database::DbPool;
-use systemprompt_models::services::AiProviderConfig;
+use systemprompt_models::profile::WireProtocol;
+use systemprompt_models::services::ResilienceSettings;
+
+use crate::error::Result;
 
 use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider, ResilientProvider};
+
+/// Resolved connectivity + policy for one provider client.
+#[derive(Debug)]
+pub struct ProviderClientParams<'a> {
+    pub name: &'a str,
+    pub protocol: WireProtocol,
+    pub endpoint: &'a str,
+    pub api_key: String,
+    pub google_search_enabled: bool,
+    pub resilience: &'a ResilienceSettings,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct ProviderFactory;
 
 impl ProviderFactory {
     pub fn create(
-        name: &str,
-        config: &AiProviderConfig,
+        params: &ProviderClientParams<'_>,
         db_pool: Option<DbPool>,
     ) -> Result<Arc<dyn AiProvider>> {
-        if !config.enabled {
-            return Err(crate::error::AiError::Internal(format!(
-                "Provider {name} is disabled"
-            )));
-        }
-
-        let inner: Arc<dyn AiProvider> = match name {
-            "openai" => {
-                let provider = config.endpoint.as_ref().map_or_else(
-                    || OpenAiProvider::new(config.api_key.clone()),
-                    |endpoint| {
-                        OpenAiProvider::with_endpoint(config.api_key.clone(), endpoint.clone())
-                    },
+        let inner: Arc<dyn AiProvider> = match params.protocol {
+            WireProtocol::Anthropic => {
+                let provider = AnthropicProvider::with_endpoint(
+                    params.api_key.clone(),
+                    params.endpoint.to_owned(),
                 );
-
-                let provider = if config.google_search_enabled {
+                let provider = if params.google_search_enabled {
                     provider.with_web_search()
                 } else {
                     provider
                 };
-
                 Arc::new(provider)
             },
-            "anthropic" => {
-                let provider = config.endpoint.as_ref().map_or_else(
-                    || AnthropicProvider::new(config.api_key.clone()),
-                    |endpoint| {
-                        AnthropicProvider::with_endpoint(config.api_key.clone(), endpoint.clone())
-                    },
+            WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
+                let provider = OpenAiProvider::with_endpoint(
+                    params.api_key.clone(),
+                    params.endpoint.to_owned(),
                 );
-
-                let provider = if config.google_search_enabled {
+                let provider = if params.google_search_enabled {
                     provider.with_web_search()
                 } else {
                     provider
                 };
-
                 Arc::new(provider)
             },
-            "gemini" => {
-                let mut provider = if let Some(endpoint) = &config.endpoint {
-                    GeminiProvider::with_endpoint(config.api_key.clone(), endpoint.clone())?
-                } else {
-                    GeminiProvider::new(config.api_key.clone())?
-                };
-
-                if config.google_search_enabled {
+            WireProtocol::Gemini => {
+                let mut provider = GeminiProvider::with_endpoint(
+                    params.api_key.clone(),
+                    params.endpoint.to_owned(),
+                )?;
+                if params.google_search_enabled {
                     provider = provider.with_google_search();
                 }
-
                 if let Some(pool) = db_pool {
                     provider = provider.with_db_pool(pool);
                 }
-
                 Arc::new(provider)
-            },
-            _ => {
-                return Err(crate::error::AiError::Internal(format!(
-                    "Unknown provider: {name}"
-                )));
             },
         };
 
         Ok(Arc::new(ResilientProvider::new(
-            name,
+            params.name,
             inner,
-            &config.resilience,
+            params.resilience,
         )))
-    }
-
-    pub fn create_all(
-        configs: HashMap<String, AiProviderConfig>,
-        db_pool: Option<&DbPool>,
-    ) -> Result<HashMap<String, Arc<dyn AiProvider>>> {
-        let mut providers = HashMap::new();
-
-        for (name, config) in configs {
-            if config.enabled {
-                if let Ok(provider) = Self::create(&name, &config, db_pool.cloned()) {
-                    providers.insert(name, provider);
-                }
-            }
-        }
-
-        if providers.is_empty() {
-            return Err(crate::error::AiError::Internal(
-                "No providers could be initialized".to_owned(),
-            ));
-        }
-
-        Ok(providers)
     }
 }

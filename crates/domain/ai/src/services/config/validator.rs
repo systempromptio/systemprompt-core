@@ -1,68 +1,63 @@
-use crate::error::Result;
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use systemprompt_models::services::AiConfig;
 use tracing::warn;
+
+use crate::error::Result;
+use crate::services::providers::AiProvider;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ConfigValidator;
 
 impl ConfigValidator {
-    pub fn validate(config: &AiConfig, missing_env_vars: &[String]) -> Result<()> {
-        Self::validate_providers(config, missing_env_vars)?;
+    pub fn validate(
+        config: &AiConfig,
+        providers: &HashMap<String, Arc<dyn AiProvider>>,
+        missing_env_vars: &[String],
+    ) -> Result<()> {
+        Self::validate_providers(config, providers, missing_env_vars)?;
         Self::validate_sampling(config);
         Self::validate_mcp(config)?;
         Self::validate_history(config);
         Ok(())
     }
 
-    fn validate_providers(config: &AiConfig, missing_env_vars: &[String]) -> Result<()> {
-        let enabled_providers: Vec<_> =
-            config.providers.iter().filter(|(_, c)| c.enabled).collect();
-
-        if enabled_providers.is_empty() {
+    fn validate_providers(
+        config: &AiConfig,
+        providers: &HashMap<String, Arc<dyn AiProvider>>,
+        missing_env_vars: &[String],
+    ) -> Result<()> {
+        if providers.is_empty() {
             return Err(crate::error::AiError::Internal(Self::no_providers_message(
                 config,
                 missing_env_vars,
             )));
         }
 
-        for (name, provider_config) in &enabled_providers {
-            if provider_config.api_key.is_empty() {
-                return Err(crate::error::AiError::Internal(format!(
-                    "Provider '{}' is enabled but has no API key.\n\nFix: Add '\"{}\"' key to \
-                     your secrets.json file",
-                    name, name
-                )));
-            }
-
-            if provider_config.default_model.is_empty() {
-                return Err(crate::error::AiError::Internal(format!(
-                    "Provider {name} has no default model specified"
-                )));
-            }
-        }
-
-        if !config.providers.contains_key(&config.default_provider) {
+        let default = &config.default_provider;
+        if !config.providers.get(default).is_some_and(|c| c.enabled) {
             return Err(crate::error::AiError::Internal(format!(
-                "Default provider '{}' not found in providers.\nAvailable providers: {:?}\nFix: \
-                 Update 'default_provider' in your config file",
-                config.default_provider,
-                config.providers.keys().collect::<Vec<_>>()
+                "Default provider '{}' must be an enabled entry under ai.providers.\nEnabled \
+                 policy providers: {:?}\nFix: enable '{}' or change 'default_provider'",
+                default,
+                config
+                    .providers
+                    .iter()
+                    .filter(|(_, c)| c.enabled)
+                    .map(|(n, _)| n.as_str())
+                    .collect::<Vec<_>>(),
+                default
             )));
         }
 
-        if !config.providers[&config.default_provider].enabled {
-            let available: Vec<&str> = config
-                .providers
-                .iter()
-                .filter(|(_, c)| c.enabled)
-                .map(|(n, _)| n.as_str())
-                .collect();
-
+        if !providers.contains_key(default) {
             return Err(crate::error::AiError::Internal(format!(
-                "Default provider '{}' is not enabled.\nEnabled providers: {:?}\nFix: Either \
-                 enable '{}' in your config OR change 'default_provider' to one of the enabled \
-                 providers",
-                config.default_provider, available, config.default_provider
+                "Default provider '{}' has no connectivity in the profile registry.\nProviders \
+                 with connectivity: {:?}\nFix: add a `providers` registry entry named '{}'",
+                default,
+                providers.keys().collect::<Vec<_>>(),
+                default
             )));
         }
 
@@ -73,27 +68,26 @@ impl ConfigValidator {
         let mut error_msg = String::from("No AI providers are enabled.\n\n");
 
         if missing_env_vars.is_empty() {
-            error_msg.push_str("To fix, configure AI providers in your services.yaml:\n\n");
+            error_msg.push_str(
+                "To fix, enable a provider in your AI policy and declare its \
+                                connectivity in the profile `providers` registry:\n\n",
+            );
             error_msg.push_str("  ai:\n");
             error_msg.push_str("    default_provider: gemini\n");
             error_msg.push_str("    providers:\n");
             error_msg.push_str("      gemini:\n");
-            error_msg.push_str("        enabled: true\n");
-            error_msg.push_str("        api_key: \"${GEMINI_API_KEY}\"\n");
-            error_msg.push_str("        default_model: gemini-3.1-flash-lite-preview\n\n");
-            error_msg.push_str("And add the API key to your secrets.json:\n\n");
-            error_msg.push_str("  { \"gemini\": \"your-api-key-here\" }\n\n");
-            error_msg.push_str("Supported providers: gemini, anthropic, openai\n");
+            error_msg.push_str("        enabled: true\n\n");
+            error_msg.push_str("And add the matching credential to your secrets.json.\n");
         } else {
-            error_msg.push_str("Providers disabled due to missing secrets:\n");
+            error_msg.push_str("Providers with unresolved secrets:\n");
             for env_var_message in missing_env_vars {
                 error_msg.push_str(&format!("  - {env_var_message}\n"));
             }
-            error_msg.push_str("\nTo fix: Add the required API keys to your secrets.json file\n");
+            error_msg.push_str("\nTo fix: add the required API keys to your secrets.json file\n");
         }
 
         error_msg.push_str(&format!(
-            "\nCurrent providers defined: {:?}",
+            "\nProviders defined in AI policy: {:?}",
             config.providers.keys().collect::<Vec<_>>()
         ));
 

@@ -70,7 +70,7 @@ use systemprompt_database::DbPool;
 use std::sync::Arc;
 
 let tool_provider = Arc::new(NoopToolProvider::new());
-let ai_service = AiService::new(&db_pool, &ai_config, tool_provider, None)?;
+let ai_service = AiService::new(&db_pool, &registry, &ai_config, tool_provider, None)?;
 
 let request = AiRequest::builder(
     vec![AiMessage::user("Hello!")],

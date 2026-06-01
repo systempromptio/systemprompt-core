@@ -22,11 +22,11 @@ pub mod shared;
 pub use anthropic::AnthropicProvider;
 pub use gemini::{CodeExecutionResponse, GeminiProvider};
 pub use gemini_images::GeminiImageProvider;
-pub use image_provider_factory::ImageProviderFactory;
+pub use image_provider_factory::{ImageProviderFactory, ImageProviderParams};
 pub use image_provider_trait::{BoxedImageProvider, ImageProvider, ImageProviderCapabilities};
 pub use openai::OpenAiProvider;
 pub use openai_images::OpenAiImageProvider;
-pub use provider_factory::ProviderFactory;
+pub use provider_factory::{ProviderClientParams, ProviderFactory};
 pub use provider_trait::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,

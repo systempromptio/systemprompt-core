@@ -1,88 +1,68 @@
-use crate::error::Result;
+//! Image-provider factory, keyed on registry [`WireProtocol`].
+//!
+//! Connectivity (endpoint, resolved key, model catalog) comes from a profile
+//! `providers` registry [`ProviderEntry`]; the per-provider AI policy supplies
+//! the image-model default. Only the `gemini` and `openai-chat`/`-responses`
+//! protocols generate images; other protocols fall back to one that can.
+
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_models::services::AiProviderConfig;
+
+use systemprompt_models::profile::{ProviderEntry, WireProtocol};
+use systemprompt_models::services::{AiProviderConfig, ModelDefinition};
+
+use crate::error::Result;
 
 use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
+
+/// Resolved connectivity + policy for one image provider.
+#[derive(Debug)]
+pub struct ImageProviderParams<'a> {
+    pub entry: &'a ProviderEntry,
+    pub policy: &'a AiProviderConfig,
+    pub api_key: String,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct ImageProviderFactory;
 
 impl ImageProviderFactory {
-    pub fn create(name: &str, config: &AiProviderConfig) -> Result<BoxedImageProvider> {
-        if !config.enabled {
+    pub fn create(params: &ImageProviderParams<'_>) -> Result<BoxedImageProvider> {
+        if !params.policy.enabled {
             return Err(crate::error::AiError::Internal(format!(
-                "Image provider {name} is disabled"
+                "Image provider {} is disabled",
+                params.entry.name.as_str()
             )));
         }
 
-        match name {
-            "gemini" => Ok(Self::create_gemini(config)),
-            "openai" => Ok(Self::create_openai(config)),
-            _ => Err(crate::error::AiError::Internal(format!(
-                "Unknown image provider: {name}"
+        match params.entry.protocol {
+            WireProtocol::Gemini => Ok(Self::create_gemini(params)),
+            WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
+                Ok(Self::create_openai(params))
+            },
+            WireProtocol::Anthropic => Err(crate::error::AiError::Internal(format!(
+                "Provider {} does not support image generation",
+                params.entry.name.as_str()
             ))),
         }
     }
 
-    pub fn create_with_fallback(
-        name: &str,
-        config: &AiProviderConfig,
-        all_configs: &HashMap<String, AiProviderConfig>,
-    ) -> Result<BoxedImageProvider> {
-        match Self::create(name, config) {
-            Ok(provider) => Ok(provider),
-            Err(_) if !Self::supports_image_generation(name) => {
-                for fallback_name in &["openai", "gemini"] {
-                    if let Some(fallback_config) = all_configs.get(*fallback_name) {
-                        if fallback_config.enabled {
-                            if let Ok(provider) = Self::create(fallback_name, fallback_config) {
-                                tracing::info!(
-                                    primary = %name,
-                                    fallback = %fallback_name,
-                                    "Using fallback image provider"
-                                );
-                                return Ok(provider);
-                            }
-                        }
-                    }
-                }
-                Err(crate::error::AiError::Internal(format!(
-                    "No image provider available (primary: {} does not support images)",
-                    name
-                )))
-            },
-            Err(e) => Err(e),
-        }
+    #[must_use]
+    pub const fn supports_image_generation(protocol: WireProtocol) -> bool {
+        matches!(
+            protocol,
+            WireProtocol::Gemini | WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses
+        )
     }
 
-    pub fn supports_image_generation(provider_name: &str) -> bool {
-        matches!(provider_name, "openai" | "gemini")
-    }
+    fn create_gemini(params: &ImageProviderParams<'_>) -> BoxedImageProvider {
+        let base = GeminiImageProvider::with_endpoint(
+            params.api_key.clone(),
+            params.entry.endpoint.clone(),
+        )
+        .with_model_definitions(Self::model_definitions(params.entry));
 
-    fn create_gemini(config: &AiProviderConfig) -> BoxedImageProvider {
-        let base = config.endpoint.as_ref().map_or_else(
-            || GeminiImageProvider::new(config.api_key.clone()),
-            |ep| GeminiImageProvider::with_endpoint(config.api_key.clone(), ep.clone()),
-        );
-
-        let provider = base.with_model_definitions(config.models.clone());
-
-        let provider = match config.default_image_model.as_str() {
-            "" => provider,
-            model => provider.with_default_model(model.to_owned()),
-        };
-
-        Arc::new(provider)
-    }
-
-    fn create_openai(config: &AiProviderConfig) -> BoxedImageProvider {
-        let base = config.endpoint.as_ref().map_or_else(
-            || OpenAiImageProvider::new(config.api_key.clone()),
-            |ep| OpenAiImageProvider::with_endpoint(config.api_key.clone(), ep.clone()),
-        );
-
-        let provider = match config.default_image_model.as_str() {
+        let provider = match params.policy.default_image_model.as_str() {
             "" => base,
             model => base.with_default_model(model.to_owned()),
         };
@@ -90,28 +70,36 @@ impl ImageProviderFactory {
         Arc::new(provider)
     }
 
-    pub fn create_all(
-        configs: &HashMap<String, AiProviderConfig>,
-    ) -> Result<HashMap<String, BoxedImageProvider>> {
-        let mut providers = HashMap::new();
+    fn create_openai(params: &ImageProviderParams<'_>) -> BoxedImageProvider {
+        let base = OpenAiImageProvider::with_endpoint(
+            params.api_key.clone(),
+            params.entry.endpoint.clone(),
+        );
 
-        for (name, config) in configs.iter().filter(|(_, c)| c.enabled) {
-            match Self::create(name, config) {
-                Ok(provider) => {
-                    providers.insert(name.clone(), provider);
-                },
-                Err(e) => {
-                    tracing::warn!(provider = %name, error = %e, "Failed to create image provider");
-                },
-            }
-        }
+        let provider = match params.policy.default_image_model.as_str() {
+            "" => base,
+            model => base.with_default_model(model.to_owned()),
+        };
 
-        if providers.is_empty() {
-            return Err(crate::error::AiError::Internal(
-                "No image providers could be initialized".to_owned(),
-            ));
-        }
+        Arc::new(provider)
+    }
 
-        Ok(providers)
+    /// Project the registry model catalog into the per-model capability/limit
+    /// definitions the image providers consume for prompt/resolution checks.
+    fn model_definitions(entry: &ProviderEntry) -> HashMap<String, ModelDefinition> {
+        entry
+            .models
+            .iter()
+            .map(|m| {
+                (
+                    m.id.as_str().to_owned(),
+                    ModelDefinition {
+                        capabilities: m.capabilities,
+                        limits: m.limits,
+                        pricing: m.pricing,
+                    },
+                )
+            })
+            .collect()
     }
 }
