@@ -3,10 +3,10 @@
 //! Pure, transport-free translation between the canonical model and the
 //! Anthropic Messages dialect. This module ([`mod`](self)) owns the request
 //! side — auth headers, request-body build, and canonical-content rendering —
-//! while [`parse`] owns the buffered-response and per-SSE-frame parse side. The
-//! HTTP transport and SSE framing live in the gateway adapter; everything here
-//! operates on already-decoded values so it is shared by both the outbound
-//! adapter and the inbound renderer.
+//! while the `parse` submodule owns the buffered-response and per-SSE-frame
+//! parse side. The HTTP transport and SSE framing live in the gateway adapter;
+//! everything here operates on already-decoded values so it is shared by both
+//! the outbound adapter and the inbound renderer.
 
 mod parse;
 mod sse;

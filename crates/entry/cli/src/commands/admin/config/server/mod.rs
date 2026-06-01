@@ -1,8 +1,8 @@
 //! `admin config server` command: show and edit profile server settings.
 //!
 //! [`ServerCommands`] reports and updates host, port, URLs, and HTTPS settings,
-//! and delegates the CORS allowed-origins list to [`cors`]. Changes persist to
-//! the active profile.
+//! and delegates the CORS allowed-origins list to the `cors` submodule. Changes
+//! persist to the active profile.
 
 mod cors;
 

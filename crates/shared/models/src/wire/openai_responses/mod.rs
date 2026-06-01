@@ -7,9 +7,9 @@
 //!
 //! Every public function here is a pure codec over [`serde_json::Value`] or a
 //! byte stream; transport, auth, and HTTP status handling stay in the gateway
-//! adapter that calls these. [`request`] owns the request build, [`response`]
-//! the buffered-reply parse, [`streaming`] the SSE-to-event pipeline, and
-//! [`slot`] the per-output-item slot state machine the streaming pass tracks.
+//! adapter that calls these. The `request` submodule owns the request build,
+//! `response` the buffered-reply parse, `streaming` the SSE-to-event pipeline,
+//! and `slot` the per-output-item slot state machine the streaming pass tracks.
 
 mod request;
 mod response;

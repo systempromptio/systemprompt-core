@@ -1,9 +1,10 @@
 //! OTLP telemetry ingest endpoint.
 //!
 //! [`handle`] decodes a protobuf OTLP envelope (traces, logs, or metrics) and
-//! persists spans and log records to the logging repository (see [`ingest`]);
-//! metrics are only summarised. It always responds `202 Accepted`, swallowing
-//! decode and persist failures so a misbehaving emitter cannot stall.
+//! persists spans and log records to the logging repository (see the `ingest`
+//! submodule); metrics are only summarised. It always responds `202 Accepted`,
+//! swallowing decode and persist failures so a misbehaving emitter cannot
+//! stall.
 //!
 //! Trust boundary: this route is unauthenticated by design. Codex starts
 //! emitting telemetry before any auth handshake completes, and the bridge proxy

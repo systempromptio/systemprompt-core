@@ -111,7 +111,7 @@ pub struct ProviderRegistry {
 }
 
 impl ProviderRegistry {
-    /// Parse the embedded [`DEFAULT_CATALOG_YAML`] into the canonical seed
+    /// Parse the embedded `DEFAULT_CATALOG_YAML` into the canonical seed
     /// registry (every known provider + its full model catalog). Errs only if
     /// the in-tree YAML is malformed — a build-time bug caught by tests.
     pub fn default_seed() -> ProviderRegistryResult<Self> {

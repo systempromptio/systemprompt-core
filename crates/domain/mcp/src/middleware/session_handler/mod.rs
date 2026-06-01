@@ -1,9 +1,9 @@
 //! Database-backed MCP session manager.
 //!
 //! [`DatabaseSessionHandler`] implements the rmcp `SessionManager` trait (see
-//! [`session_manager_impl`]), wrapping rmcp's in-memory `LocalSessionManager`
-//! while mirroring session lifecycle (create, activity, close) into the
-//! `mcp_sessions` table for cross-restart visibility.
+//! the `session_manager_impl` submodule), wrapping rmcp's in-memory
+//! `LocalSessionManager` while mirroring session lifecycle (create, activity,
+//! close) into the `mcp_sessions` table for cross-restart visibility.
 //! [`DatabaseSessionManagerError`] models the local, database, and
 //! reconnect-signalling failure cases; database persistence is best-effort and
 //! never fails an in-memory operation.

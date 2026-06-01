@@ -1,7 +1,7 @@
 //! `admin config catalog` — edit the profile's provider registry
 //! (`profile.providers`).
 //!
-//! Mutates the typed [`ProviderRegistry`] on the profile — adding or removing
+//! Mutates the typed `ProviderRegistry` on the profile — adding or removing
 //! providers and the models each provider serves — then revalidates the whole
 //! profile before writing it back. This is how an instance declares a custom
 //! provider such as `minimax` (its wire protocol, endpoint, credential, and
