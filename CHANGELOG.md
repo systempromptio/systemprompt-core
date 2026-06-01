@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.1] - 2026-06-01
+
+### Fixed
+
+- Process liveness checks now treat a zombie (exited-but-unreaped) child as dead. The MCP orchestrator's `is_process_running` previously reported a defunct server as alive because its PID still answered `kill(pid, 0)`; it now also rejects processes in state `Z`.
+
 ## [0.14.0] - 2026-06-01
 
 ### Breaking
