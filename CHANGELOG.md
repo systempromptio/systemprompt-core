@@ -8,10 +8,14 @@
 - The provider **wire types** — the Anthropic Messages, OpenAI Chat Completions, OpenAI Responses, and Gemini codecs plus the provider-neutral canonical request/response model — are folded into `systemprompt-models` under `wire/`. The standalone `systemprompt-ai-wire` crate is removed; depend on `systemprompt-models` (`wire::*`) instead.
 - `AiService::new` takes the resolved provider registry: `AiService::new(&db_pool, &registry, &ai_config, tool_provider, session_provider)`. The AI service resolves provider connectivity from the registry, and `services/ai/config.yaml` declares only the agent default provider/model and per-provider overrides rather than a private connectivity block.
 
+### Added
+
+- The provider-neutral canonical model carries the evidence and accounting that responses now expose uniformly across providers: web-search **grounding** (sources with URI/title/snippet/relevance plus the queries that produced them), server-side **code-execution** output, and richer **usage accounting** (cache-read and cache-creation tokens alongside input/output and a total). Requests gain `presence_penalty` / `frequency_penalty` sampling controls and a `code_execution` toggle, and image inputs carry an optional `detail` hint (`ImageSource::Url` is now a struct variant). These fields are extracted by the Anthropic, OpenAI Chat, OpenAI Responses, and Gemini codecs and mapped to and from the AI domain by the new `canonical_bridge`.
+
 ### Changed
 
 - Gateway outbound dispatch is driven by the provider registry and the relocated wire codecs. A Gemini outbound adapter is added, and the per-protocol request/response/streaming handling that previously lived under the `entry/api` gateway is consumed from `systemprompt-models::wire`.
-- Buffered provider replies (Anthropic Messages, OpenAI Chat Completions, OpenAI Responses) are parsed into typed `#[derive(Deserialize)]` wire structs instead of traversing an untyped JSON value; tool-call arguments remain an opaque value and the heterogeneous SSE streaming frames stay dynamic.
+- Buffered provider replies (Anthropic Messages, OpenAI Chat Completions, OpenAI Responses) are parsed into typed `#[derive(Deserialize)]` wire structs instead of traversing an untyped JSON value; tool-call arguments remain an opaque value and the heterogeneous SSE streaming frames stay dynamic. Citation and grounding evidence is extracted from each provider's reply into the canonical response.
 
 ### Removed
 

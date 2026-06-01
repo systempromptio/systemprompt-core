@@ -8,6 +8,10 @@
 - Adds the provider wire codecs and the provider-neutral canonical model under `wire/` (`wire::{anthropic, openai_chat, openai_responses, gemini, canonical}`), folding in the former `systemprompt-ai-wire` crate. Buffered Anthropic, OpenAI Chat, and OpenAI Responses replies parse into typed `#[derive(Deserialize)]` structs.
 - `services::ai::AiConfig` references providers by `ProviderId` and no longer carries connectivity; `validators::ai` validates the AI config's references against the registry.
 
+### Added
+
+- The canonical model carries provider evidence and accounting uniformly: `CanonicalResponse` gains `grounding` (`Grounding` / `GroundedSource` — web-search sources and the queries that produced them), `code_execution` (`CodeExecutionOutput`), and `raw_finish_reason`; `CanonicalUsage` gains `cache_read_tokens`, `cache_creation_tokens`, and `total_tokens`; `CanonicalRequest` gains `presence_penalty`, `frequency_penalty`, and a `code_execution` flag; and `ImageSource` gains an optional `detail` (`ImageDetail`) with `ImageSource::Url` now a struct variant. Each `wire::*` codec extracts these fields from the corresponding provider format.
+
 ## [0.13.1] - 2026-06-01
 
 ### Added

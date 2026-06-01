@@ -6,6 +6,10 @@
 
 - `AiService::new` takes the resolved `&ProviderRegistry`: `AiService::new(&db_pool, &registry, &ai_config, tool_provider, session_provider)`. The provider and image-provider factories build clients from registry entries, and the AI config types are consumed from `systemprompt-models` rather than redeclared in this crate.
 
+### Changed
+
+- Provider drivers map to and from the canonical model through a new `canonical_bridge`, which owns the per-provider sampling and reasoning policy (Anthropic extended-thinking, OpenAI reasoning effort, streaming temperature defaults) and assembles the canonical request the relocated `wire::*` codecs consume. The per-provider request builders and message-model conversion modules they replaced are removed, along with the now-unused legacy Gemini provider structs.
+
 ## [0.13.1] - 2026-06-01
 
 ### Changed

@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Gateway outbound dispatch resolves providers from the `systemprompt-models` provider registry and uses the relocated `wire::*` codecs. A Gemini outbound adapter is added, and the duplicated per-protocol request/response/streaming modules under the gateway are removed in favour of the shared codecs.
+- Gateway outbound dispatch resolves providers from the `systemprompt-models` provider registry and uses the relocated `wire::*` codecs. A Gemini outbound adapter is added, and the duplicated per-protocol request/response/streaming modules under the gateway are removed in favour of the shared codecs. The gateway threads the expanded canonical fields — grounding and citation evidence, code-execution output, cache and total token usage, image `detail`, and sampling penalties — through dispatch in both directions.
 
 ## [0.13.1] - 2026-06-01
 
