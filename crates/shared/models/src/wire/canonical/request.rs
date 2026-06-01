@@ -26,10 +26,34 @@ impl Role {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageDetail {
+    Auto,
+    Low,
+    High,
+}
+
+impl ImageDetail {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Low => "low",
+            Self::High => "high",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ImageSource {
-    Base64 { media_type: String, data: String },
-    Url(String),
+    Base64 {
+        media_type: String,
+        data: String,
+        detail: Option<ImageDetail>,
+    },
+    Url {
+        url: String,
+        detail: Option<ImageDetail>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +104,46 @@ pub struct ThinkingConfig {
     pub budget_tokens: Option<u32>,
 }
 
+/// Constrained-output request. `JsonObject` asks only for syntactically valid
+/// JSON; `JsonSchema` additionally pins the shape (and, when `strict`, the
+/// vendor enforces it).
+#[derive(Debug, Clone)]
+pub enum ResponseFormat {
+    JsonObject,
+    JsonSchema {
+        name: String,
+        schema: Value,
+        strict: bool,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
+}
+
+impl ReasoningEffort {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+}
+
+/// Server-side web-search / URL-grounding request. An empty `urls` plus `None`
+/// limits still requests search; `urls` scopes it to specific pages where the
+/// dialect supports URL context.
+#[derive(Debug, Clone, Default)]
+pub struct SearchConfig {
+    pub max_uses: Option<u32>,
+    pub context_size: Option<String>,
+    pub urls: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct CanonicalRequest {
     pub model: String,
@@ -95,6 +159,12 @@ pub struct CanonicalRequest {
     pub stream: bool,
     pub thinking: Option<ThinkingConfig>,
     pub metadata: Option<Value>,
+    pub response_format: Option<ResponseFormat>,
+    pub reasoning_effort: Option<ReasoningEffort>,
+    pub search: Option<SearchConfig>,
+    pub code_execution: bool,
+    pub presence_penalty: Option<f32>,
+    pub frequency_penalty: Option<f32>,
 }
 
 impl CanonicalRequest {

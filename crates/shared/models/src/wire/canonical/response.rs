@@ -11,6 +11,9 @@ use super::request::CanonicalContent;
 pub struct CanonicalUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
+    pub total_tokens: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +63,34 @@ impl CanonicalStopReason {
     }
 }
 
+/// One grounded source surfaced by a server-side search / citation pass.
+#[derive(Debug, Clone, Default)]
+pub struct GroundedSource {
+    pub uri: String,
+    pub title: Option<String>,
+    pub snippet: Option<String>,
+    pub relevance: Option<f32>,
+}
+
+/// Search-grounding evidence attached to a response: the queries the model ran
+/// and the sources it cited.
+#[derive(Debug, Clone, Default)]
+pub struct Grounding {
+    pub sources: Vec<GroundedSource>,
+    pub queries: Vec<String>,
+}
+
+/// Output of a server-side code-execution turn. `outcome` is the dialect's raw
+/// status string (e.g. Gemini's `OUTCOME_OK`); consumers derive success from
+/// it.
+#[derive(Debug, Clone, Default)]
+pub struct CodeExecutionOutput {
+    pub language: Option<String>,
+    pub code: String,
+    pub result: Option<String>,
+    pub outcome: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct CanonicalResponse {
     pub id: String,
@@ -67,6 +98,9 @@ pub struct CanonicalResponse {
     pub content: Vec<CanonicalContent>,
     pub stop_reason: Option<CanonicalStopReason>,
     pub usage: CanonicalUsage,
+    pub grounding: Option<Grounding>,
+    pub code_execution: Option<CodeExecutionOutput>,
+    pub raw_finish_reason: Option<String>,
 }
 
 #[derive(Debug, Clone)]

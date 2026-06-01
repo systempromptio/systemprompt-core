@@ -96,6 +96,9 @@ fn handle_chunk(
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsage {
             input_tokens: usage.prompt,
             output_tokens: usage.candidates,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+            total_tokens: usage.prompt + usage.candidates,
         })));
     }
     let Some(candidate) = chunk.candidates.into_iter().next() else {

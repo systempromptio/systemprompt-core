@@ -27,6 +27,28 @@ struct ChatUsage {
     prompt_tokens: u32,
     #[serde(default)]
     completion_tokens: u32,
+    #[serde(default)]
+    total_tokens: u32,
+    #[serde(default)]
+    prompt_tokens_details: ChatPromptTokensDetails,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatPromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: u32,
+}
+
+impl ChatUsage {
+    fn into_canonical(self) -> CanonicalUsage {
+        CanonicalUsage {
+            input_tokens: self.prompt_tokens,
+            output_tokens: self.completion_tokens,
+            cache_read_tokens: self.prompt_tokens_details.cached_tokens,
+            cache_creation_tokens: 0,
+            total_tokens: self.total_tokens,
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -67,20 +89,16 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         .id
         .unwrap_or_else(|| format!("msg_{}", Uuid::new_v4().simple()));
     let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
-    let usage = resp.usage.map_or(
-        CanonicalUsage {
-            input_tokens: 0,
-            output_tokens: 0,
-        },
-        |u| CanonicalUsage {
-            input_tokens: u.prompt_tokens,
-            output_tokens: u.completion_tokens,
-        },
-    );
+    let usage = resp
+        .usage
+        .map(ChatUsage::into_canonical)
+        .unwrap_or_default();
 
     let mut content: Vec<CanonicalContent> = Vec::new();
     let mut stop_reason = None;
+    let mut raw_finish_reason = None;
     if let Some(choice) = resp.choices.into_iter().next() {
+        raw_finish_reason = choice.finish_reason.clone();
         stop_reason = choice
             .finish_reason
             .as_deref()
@@ -96,6 +114,9 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         content,
         stop_reason,
         usage,
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason,
     }
 }
 

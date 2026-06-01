@@ -4,7 +4,8 @@
 use serde_json::{Map, Value, json};
 
 use crate::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
+    ResponseFormat, Role, SearchConfig,
 };
 
 pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
@@ -33,36 +34,78 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
     if request.stream {
         obj.insert("stream".into(), Value::Bool(true));
     }
-    if !request.tools.is_empty() {
-        let tools: Vec<Value> = request
-            .tools
-            .iter()
-            .map(|t| {
-                json!({
-                    "type": "function",
-                    "name": t.name,
-                    "description": t.description,
-                    "parameters": t.input_schema,
-                })
+    let mut tools: Vec<Value> = request
+        .tools
+        .iter()
+        .map(|t| {
+            json!({
+                "type": "function",
+                "name": t.name,
+                "description": t.description,
+                "parameters": t.input_schema,
             })
-            .collect();
+        })
+        .collect();
+    if let Some(search) = &request.search {
+        tools.push(web_search_tool(search));
+    }
+    if !tools.is_empty() {
         obj.insert("tools".into(), Value::Array(tools));
     }
     if let Some(tc) = &request.tool_choice {
         obj.insert("tool_choice".into(), tool_choice_to_responses(tc));
     }
-    if let Some(thinking) = &request.thinking {
-        if thinking.enabled {
-            let effort = match thinking.budget_tokens {
-                Some(b) if b >= 16384 => "high",
-                Some(b) if b >= 4096 => "medium",
-                Some(_) => "low",
-                None => "medium",
-            };
-            obj.insert("reasoning".into(), json!({ "effort": effort }));
-        }
+    if let Some(effort) = reasoning_effort(request) {
+        obj.insert("reasoning".into(), json!({ "effort": effort }));
+    }
+    if let Some(format) = &request.response_format {
+        obj.insert(
+            "text".into(),
+            json!({ "format": response_format_to_responses(format) }),
+        );
     }
     Value::Object(obj)
+}
+
+fn reasoning_effort(request: &CanonicalRequest) -> Option<&'static str> {
+    if let Some(effort) = request.reasoning_effort {
+        return Some(effort.as_str());
+    }
+    let thinking = request.thinking?;
+    if !thinking.enabled {
+        return None;
+    }
+    Some(match thinking.budget_tokens {
+        Some(b) if b >= 16384 => "high",
+        Some(b) if b >= 4096 => "medium",
+        Some(_) => "low",
+        None => "medium",
+    })
+}
+
+fn response_format_to_responses(format: &ResponseFormat) -> Value {
+    match format {
+        ResponseFormat::JsonObject => json!({ "type": "json_object" }),
+        ResponseFormat::JsonSchema {
+            name,
+            schema,
+            strict,
+        } => json!({
+            "type": "json_schema",
+            "name": name,
+            "strict": strict,
+            "schema": schema,
+        }),
+    }
+}
+
+fn web_search_tool(search: &SearchConfig) -> Value {
+    let mut t = Map::new();
+    t.insert("type".into(), Value::String("web_search".into()));
+    if let Some(size) = &search.context_size {
+        t.insert("search_context_size".into(), Value::String(size.clone()));
+    }
+    Value::Object(t)
 }
 
 fn render_tool_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
@@ -147,12 +190,22 @@ fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
 fn content_to_input_part(part: &CanonicalContent) -> Option<Value> {
     match part {
         CanonicalContent::Text(t) => Some(json!({ "type": "input_text", "text": t })),
-        CanonicalContent::Image(src) => match src {
-            ImageSource::Url(u) => Some(json!({ "type": "input_image", "image_url": u })),
-            ImageSource::Base64 { media_type, data } => Some(json!({
-                "type": "input_image",
-                "image_url": format!("data:{media_type};base64,{data}"),
-            })),
+        CanonicalContent::Image(src) => {
+            let (url, detail) = match src {
+                ImageSource::Url { url, detail } => (url.clone(), *detail),
+                ImageSource::Base64 {
+                    media_type,
+                    data,
+                    detail,
+                } => (format!("data:{media_type};base64,{data}"), *detail),
+            };
+            let mut part = Map::new();
+            part.insert("type".into(), Value::String("input_image".into()));
+            part.insert("image_url".into(), Value::String(url));
+            if let Some(d) = detail {
+                part.insert("detail".into(), Value::String(d.as_str().to_owned()));
+            }
+            Some(Value::Object(part))
         },
         _ => None,
     }

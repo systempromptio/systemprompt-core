@@ -3,12 +3,14 @@
 use serde_json::{Value, json};
 
 use super::wire::{
-    GeminiContent, GeminiFunctionCall, GeminiFunctionCallingConfig, GeminiFunctionDeclaration,
-    GeminiFunctionResponse, GeminiGenerationConfig, GeminiInlineData, GeminiPart, GeminiRequest,
-    GeminiSystemInstruction, GeminiTool, GeminiToolConfig,
+    GeminiContent, GeminiEmpty, GeminiFunctionCall, GeminiFunctionCallingConfig,
+    GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig, GeminiInlineData,
+    GeminiPart, GeminiRequest, GeminiSystemInstruction, GeminiThinkingConfig, GeminiTool,
+    GeminiToolConfig,
 };
 use crate::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
+    ResponseFormat, Role,
 };
 
 #[must_use]
@@ -26,6 +28,13 @@ pub fn build_request_body(request: &CanonicalRequest) -> Value {
 }
 
 fn generation_config(request: &CanonicalRequest) -> GeminiGenerationConfig {
+    let (response_mime_type, response_schema) = match &request.response_format {
+        Some(ResponseFormat::JsonSchema { schema, .. }) => {
+            (Some("application/json".to_owned()), Some(schema.clone()))
+        },
+        Some(ResponseFormat::JsonObject) => (Some("application/json".to_owned()), None),
+        None => (None, None),
+    };
     GeminiGenerationConfig {
         temperature: request.temperature,
         top_p: request.top_p,
@@ -36,25 +45,55 @@ fn generation_config(request: &CanonicalRequest) -> GeminiGenerationConfig {
         } else {
             Some(request.stop_sequences.clone())
         },
+        response_mime_type,
+        response_schema,
+        thinking_config: thinking_config(request),
     }
 }
 
-fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {
-    if request.tools.is_empty() {
+fn thinking_config(request: &CanonicalRequest) -> Option<GeminiThinkingConfig> {
+    let thinking = request.thinking?;
+    if !thinking.enabled {
         return None;
     }
-    let declarations = request
-        .tools
-        .iter()
-        .map(|t| GeminiFunctionDeclaration {
-            name: t.name.clone(),
-            description: t.description.clone(),
-            parameters: t.input_schema.clone(),
-        })
-        .collect();
-    Some(vec![GeminiTool {
-        function_declarations: declarations,
-    }])
+    Some(GeminiThinkingConfig {
+        thinking_budget: thinking.budget_tokens,
+        include_thoughts: None,
+    })
+}
+
+fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {
+    let mut tools: Vec<GeminiTool> = Vec::new();
+    if !request.tools.is_empty() {
+        let declarations = request
+            .tools
+            .iter()
+            .map(|t| GeminiFunctionDeclaration {
+                name: t.name.clone(),
+                description: t.description.clone(),
+                parameters: t.input_schema.clone(),
+            })
+            .collect();
+        tools.push(GeminiTool::Functions {
+            function_declarations: declarations,
+        });
+    }
+    if let Some(search) = &request.search {
+        tools.push(GeminiTool::GoogleSearch {
+            google_search: GeminiEmpty {},
+        });
+        if !search.urls.is_empty() {
+            tools.push(GeminiTool::UrlContext {
+                url_context: GeminiEmpty {},
+            });
+        }
+    }
+    if request.code_execution {
+        tools.push(GeminiTool::CodeExecution {
+            code_execution: GeminiEmpty {},
+        });
+    }
+    (!tools.is_empty()).then_some(tools)
 }
 
 fn tool_config(choice: &CanonicalToolChoice) -> GeminiToolConfig {
@@ -121,7 +160,9 @@ fn content_to_part(part: &CanonicalContent) -> Option<GeminiPart> {
 
 fn image_part(src: &ImageSource) -> GeminiPart {
     match src {
-        ImageSource::Base64 { media_type, data } => GeminiPart::InlineData {
+        ImageSource::Base64 {
+            media_type, data, ..
+        } => GeminiPart::InlineData {
             inline_data: GeminiInlineData {
                 mime_type: media_type.clone(),
                 data: data.clone(),
@@ -129,7 +170,7 @@ fn image_part(src: &ImageSource) -> GeminiPart {
         },
         // Gemini inlineData has no URL variant; pass the URL as text so the
         // model still sees the reference rather than silently dropping it.
-        ImageSource::Url(u) => GeminiPart::Text { text: u.clone() },
+        ImageSource::Url { url, .. } => GeminiPart::Text { text: url.clone() },
     }
 }
 

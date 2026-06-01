@@ -3,10 +3,15 @@
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::wire::{GeminiPart, GeminiResponse, GeminiUsageMetadata};
+use super::wire::{GeminiCandidate, GeminiPart, GeminiResponse, GeminiUsageMetadata};
 use crate::wire::canonical::{
-    CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
+    CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CodeExecutionOutput,
+    GroundedSource, Grounding,
 };
+
+// Gemini grounding chunks carry no per-source score; this dialect constant
+// stands in so downstream confidence ranking has a stable value.
+const GEMINI_GROUNDING_RELEVANCE: f32 = 0.85;
 
 #[must_use]
 pub fn stop_reason(finish: &str) -> CanonicalStopReason {
@@ -34,22 +39,26 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         .model_version
         .unwrap_or_else(|| fallback_model.to_owned());
 
+    let usage = usage(parsed.usage_metadata);
     let candidate = parsed.candidates.into_iter().next();
-    let stop = candidate
-        .as_ref()
-        .and_then(|c| c.finish_reason.as_deref())
-        .map(stop_reason);
-    let content = candidate
-        .and_then(|c| c.content)
-        .map(|c| parts_to_content(&c.parts))
-        .unwrap_or_default();
+    let raw_finish_reason = candidate.as_ref().and_then(|c| c.finish_reason.clone());
+    let stop_reason = raw_finish_reason.as_deref().map(stop_reason);
+    let grounding = candidate.as_ref().and_then(grounding_from_candidate);
+    let parts = candidate.and_then(|c| c.content).map(|c| c.parts);
+    let (content, code_execution) = match parts {
+        Some(parts) => (parts_to_content(&parts), code_execution(&parts)),
+        None => (Vec::new(), None),
+    };
 
     CanonicalResponse {
         id,
         model,
         content,
-        stop_reason: stop,
-        usage: usage(parsed.usage_metadata),
+        stop_reason,
+        usage,
+        grounding,
+        code_execution,
+        raw_finish_reason,
     }
 }
 
@@ -57,11 +66,64 @@ fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     meta.map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
         input_tokens: u.prompt,
         output_tokens: u.candidates,
+        cache_read_tokens: u.cached,
+        cache_creation_tokens: 0,
+        total_tokens: if u.total > 0 {
+            u.total
+        } else {
+            u.prompt + u.candidates
+        },
     })
 }
 
+fn grounding_from_candidate(candidate: &GeminiCandidate) -> Option<Grounding> {
+    let meta = candidate.grounding_metadata.as_ref()?;
+    let sources: Vec<GroundedSource> = meta
+        .grounding_chunks
+        .iter()
+        .filter_map(|c| c.web.as_ref())
+        .filter(|w| !w.uri.is_empty())
+        .map(|w| GroundedSource {
+            uri: w.uri.clone(),
+            title: w.title.clone(),
+            relevance: Some(GEMINI_GROUNDING_RELEVANCE),
+            ..GroundedSource::default()
+        })
+        .collect();
+    if sources.is_empty() && meta.web_search_queries.is_empty() {
+        return None;
+    }
+    Some(Grounding {
+        sources,
+        queries: meta.web_search_queries.clone(),
+    })
+}
+
+fn code_execution(parts: &[GeminiPart]) -> Option<CodeExecutionOutput> {
+    let mut output = CodeExecutionOutput::default();
+    let mut seen = false;
+    for part in parts {
+        match part {
+            GeminiPart::ExecutableCode { executable_code } => {
+                seen = true;
+                output.language.clone_from(&executable_code.language);
+                output.code.clone_from(&executable_code.code);
+            },
+            GeminiPart::CodeExecutionResult {
+                code_execution_result,
+            } => {
+                seen = true;
+                output.result.clone_from(&code_execution_result.output);
+                output.outcome.clone_from(&code_execution_result.outcome);
+            },
+            _ => {},
+        }
+    }
+    seen.then_some(output)
+}
+
 /// Tool-use blocks get freshly minted ids because Gemini omits them on the
-/// wire.
+/// wire. Executable-code parts are surfaced via `code_execution`, not content.
 pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
     parts
         .iter()

@@ -263,6 +263,13 @@ fn handle_completed(
         events.push(Ok(CanonicalEvent::UsageDelta(CanonicalUsage {
             input_tokens: pull("input_tokens"),
             output_tokens: pull("output_tokens"),
+            cache_read_tokens: usage
+                .get("input_tokens_details")
+                .and_then(|d| d.get("cached_tokens"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as u32,
+            cache_creation_tokens: 0,
+            total_tokens: pull("total_tokens"),
         })));
     }
     events.push(Ok(CanonicalEvent::MessageStop {

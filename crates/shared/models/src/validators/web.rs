@@ -231,8 +231,6 @@ fn require_branding_field(
     suggestion: &str,
 ) {
     if missing {
-        report.add_error(
-            ValidationError::new(field, message).with_suggestion(suggestion),
-        );
+        report.add_error(ValidationError::new(field, message).with_suggestion(suggestion));
     }
 }

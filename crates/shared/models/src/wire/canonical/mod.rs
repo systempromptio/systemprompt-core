@@ -10,8 +10,9 @@ mod response;
 
 pub use request::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, Role, ThinkingConfig,
+    ImageDetail, ImageSource, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 pub use response::{
-    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
+    CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, CodeExecutionOutput,
+    ContentBlockKind, GroundedSource, Grounding,
 };

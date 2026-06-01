@@ -5,7 +5,8 @@
 use serde_json::{Map, Value, json};
 
 use crate::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
+    ResponseFormat, Role,
 };
 
 pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
@@ -54,7 +55,36 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
     if let Some(tc) = &request.tool_choice {
         obj.insert("tool_choice".into(), tool_choice_to_chat(tc));
     }
+    if let Some(p) = request.presence_penalty {
+        obj.insert("presence_penalty".into(), json!(p));
+    }
+    if let Some(p) = request.frequency_penalty {
+        obj.insert("frequency_penalty".into(), json!(p));
+    }
+    if let Some(effort) = request.reasoning_effort {
+        obj.insert(
+            "reasoning_effort".into(),
+            Value::String(effort.as_str().to_owned()),
+        );
+    }
+    if let Some(format) = &request.response_format {
+        obj.insert("response_format".into(), response_format_to_chat(format));
+    }
     Value::Object(obj)
+}
+
+fn response_format_to_chat(format: &ResponseFormat) -> Value {
+    match format {
+        ResponseFormat::JsonObject => json!({ "type": "json_object" }),
+        ResponseFormat::JsonSchema {
+            name,
+            schema,
+            strict,
+        } => json!({
+            "type": "json_schema",
+            "json_schema": { "name": name, "strict": strict, "schema": schema },
+        }),
+    }
 }
 
 fn canonical_message_to_chat(msg: &CanonicalMessage) -> Vec<Value> {
@@ -134,17 +164,22 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
 fn content_to_chat_part(part: &CanonicalContent) -> Option<Value> {
     match part {
         CanonicalContent::Text(t) => Some(json!({ "type": "text", "text": t })),
-        CanonicalContent::Image(src) => Some(json!({
-            "type": "image_url",
-            "image_url": {
-                "url": match src {
-                    ImageSource::Url(u) => u.clone(),
-                    ImageSource::Base64 { media_type, data } => {
-                        format!("data:{media_type};base64,{data}")
-                    },
-                },
-            },
-        })),
+        CanonicalContent::Image(src) => {
+            let (url, detail) = match src {
+                ImageSource::Url { url, detail } => (url.clone(), *detail),
+                ImageSource::Base64 {
+                    media_type,
+                    data,
+                    detail,
+                } => (format!("data:{media_type};base64,{data}"), *detail),
+            };
+            let mut image_url = Map::new();
+            image_url.insert("url".into(), Value::String(url));
+            if let Some(d) = detail {
+                image_url.insert("detail".into(), Value::String(d.as_str().to_owned()));
+            }
+            Some(json!({ "type": "image_url", "image_url": Value::Object(image_url) }))
+        },
         _ => None,
     }
 }

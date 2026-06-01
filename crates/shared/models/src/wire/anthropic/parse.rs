@@ -9,8 +9,8 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::wire::canonical::{
-    CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
-    ContentBlockKind, ImageSource,
+    CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, GroundedSource,
+    Grounding, ImageSource,
 };
 
 #[derive(Debug, Default, Deserialize)]
@@ -33,6 +33,26 @@ struct AnthropicUsage {
     input_tokens: u32,
     #[serde(default)]
     output_tokens: u32,
+    #[serde(default)]
+    cache_read_input_tokens: u32,
+    #[serde(default)]
+    cache_creation_input_tokens: u32,
+}
+
+impl AnthropicUsage {
+    fn into_canonical(self) -> CanonicalUsage {
+        CanonicalUsage {
+            input_tokens: self.input_tokens,
+            output_tokens: self.output_tokens,
+            cache_read_tokens: self.cache_read_input_tokens,
+            cache_creation_tokens: self.cache_creation_input_tokens,
+            // Anthropic does not report a total; derive it so the field is uniform across dialects.
+            total_tokens: self.input_tokens
+                + self.output_tokens
+                + self.cache_read_input_tokens
+                + self.cache_creation_input_tokens,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,6 +61,8 @@ enum AnthropicBlock {
     Text {
         #[serde(default)]
         text: String,
+        #[serde(default)]
+        citations: Vec<AnthropicCitation>,
     },
     Thinking {
         #[serde(default)]
@@ -59,8 +81,30 @@ enum AnthropicBlock {
     Image {
         source: AnthropicImageSource,
     },
+    WebSearchToolResult {
+        #[serde(default)]
+        content: Vec<AnthropicWebSearchResult>,
+    },
     #[serde(other)]
     Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+struct AnthropicWebSearchResult {
+    #[serde(default)]
+    url: String,
+    #[serde(default)]
+    title: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AnthropicCitation {
+    #[serde(default)]
+    url: String,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    cited_text: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,16 +135,44 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         .map(CanonicalStopReason::from_anthropic);
     let usage = resp
         .usage
-        .map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
-            input_tokens: u.input_tokens,
-            output_tokens: u.output_tokens,
-        });
+        .map(AnthropicUsage::into_canonical)
+        .unwrap_or_default();
 
-    let content = resp
-        .content
-        .into_iter()
-        .filter_map(canonical_block)
-        .collect();
+    let mut content = Vec::with_capacity(resp.content.len());
+    let mut sources: Vec<GroundedSource> = Vec::new();
+    for block in resp.content {
+        match block {
+            AnthropicBlock::WebSearchToolResult { content: results } => {
+                sources.extend(results.into_iter().filter(|r| !r.url.is_empty()).map(|r| {
+                    GroundedSource {
+                        uri: r.url,
+                        title: r.title,
+                        ..GroundedSource::default()
+                    }
+                }));
+            },
+            AnthropicBlock::Text { text, citations } => {
+                for c in citations.into_iter().filter(|c| !c.url.is_empty()) {
+                    sources.push(GroundedSource {
+                        uri: c.url,
+                        title: c.title,
+                        snippet: c.cited_text,
+                        relevance: None,
+                    });
+                }
+                content.push(CanonicalContent::Text(text));
+            },
+            other => {
+                if let Some(part) = canonical_block(other) {
+                    content.push(part);
+                }
+            },
+        }
+    }
+    let grounding = (!sources.is_empty()).then(|| Grounding {
+        sources,
+        queries: Vec::new(),
+    });
 
     CanonicalResponse {
         id,
@@ -108,12 +180,15 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
         content,
         stop_reason,
         usage,
+        grounding,
+        code_execution: None,
+        raw_finish_reason: resp.stop_reason,
     }
 }
 
 fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
     match block {
-        AnthropicBlock::Text { text } => Some(CanonicalContent::Text(text)),
+        AnthropicBlock::Text { text, .. } => Some(CanonicalContent::Text(text)),
         AnthropicBlock::Thinking {
             thinking,
             signature,
@@ -125,7 +200,7 @@ fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
             Some(CanonicalContent::ToolUse { id, name, input })
         },
         AnthropicBlock::Image { source } => canonical_image(source),
-        AnthropicBlock::Unknown => None,
+        AnthropicBlock::WebSearchToolResult { .. } | AnthropicBlock::Unknown => None,
     }
 }
 
@@ -135,130 +210,13 @@ fn canonical_image(source: AnthropicImageSource) -> Option<CanonicalContent> {
             Some(CanonicalContent::Image(ImageSource::Base64 {
                 media_type: media_type.unwrap_or_else(|| "image/png".to_owned()),
                 data,
+                detail: None,
             }))
         },
-        AnthropicImageSource::Url { url } => Some(CanonicalContent::Image(ImageSource::Url(url))),
+        AnthropicImageSource::Url { url } => Some(CanonicalContent::Image(ImageSource::Url {
+            url,
+            detail: None,
+        })),
         AnthropicImageSource::Unknown => None,
     }
-}
-
-/// `msg_id` carries the message id observed at `message_start` so later
-/// `message_stop` frames can be tagged. Returns `None` for frames the canonical
-/// model does not model (e.g. `ping`).
-#[must_use]
-pub fn event_from_sse(value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
-    let kind = value.get("type").and_then(Value::as_str)?;
-    match kind {
-        "message_start" => convert_message_start(value),
-        "content_block_start" => convert_content_block_start(value),
-        "content_block_delta" => convert_content_block_delta(value),
-        "content_block_stop" => Some(CanonicalEvent::ContentBlockStop {
-            index: u32_field(value, "index"),
-        }),
-        "message_delta" => convert_message_delta(value, msg_id),
-        "message_stop" => Some(CanonicalEvent::MessageStop {
-            id: msg_id.to_owned(),
-            stop_reason: None,
-        }),
-        "error" => Some(CanonicalEvent::Error(
-            value
-                .get("error")
-                .and_then(|e| e.get("message"))
-                .and_then(Value::as_str)
-                .unwrap_or("upstream error")
-                .to_owned(),
-        )),
-        _ => None,
-    }
-}
-
-fn convert_message_start(value: &Value) -> Option<CanonicalEvent> {
-    let msg = value.get("message")?;
-    Some(CanonicalEvent::MessageStart {
-        id: str_field(msg, "id", ""),
-        model: str_field(msg, "model", ""),
-        usage: usage_from_value(msg.get("usage")),
-    })
-}
-
-fn convert_content_block_start(value: &Value) -> Option<CanonicalEvent> {
-    let index = u32_field(value, "index");
-    let block = value.get("content_block")?;
-    let block_type = block.get("type").and_then(Value::as_str)?;
-    let kind = match block_type {
-        "text" => ContentBlockKind::Text,
-        "thinking" => ContentBlockKind::Thinking {
-            signature: block
-                .get("signature")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
-        },
-        "tool_use" => ContentBlockKind::ToolUse {
-            id: str_field(block, "id", ""),
-            name: str_field(block, "name", ""),
-        },
-        _ => return None,
-    };
-    Some(CanonicalEvent::ContentBlockStart { index, block: kind })
-}
-
-fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
-    let index = u32_field(value, "index");
-    let delta = value.get("delta")?;
-    let dtype = delta.get("type").and_then(Value::as_str)?;
-    let text_field = |field: &str| str_field(delta, field, "");
-    match dtype {
-        "text_delta" => Some(CanonicalEvent::TextDelta {
-            index,
-            text: text_field("text"),
-        }),
-        "thinking_delta" => Some(CanonicalEvent::ThinkingDelta {
-            index,
-            text: text_field("thinking"),
-        }),
-        "input_json_delta" => Some(CanonicalEvent::ToolUseDelta {
-            index,
-            partial_json: text_field("partial_json"),
-        }),
-        _ => None,
-    }
-}
-
-fn convert_message_delta(value: &Value, msg_id: &str) -> Option<CanonicalEvent> {
-    let stop_reason = value
-        .get("delta")
-        .and_then(|d| d.get("stop_reason"))
-        .and_then(Value::as_str)
-        .map(CanonicalStopReason::from_anthropic);
-    if stop_reason.is_some() {
-        return Some(CanonicalEvent::MessageStop {
-            id: msg_id.to_owned(),
-            stop_reason,
-        });
-    }
-    value
-        .get("usage")
-        .map(|u| CanonicalEvent::UsageDelta(usage_from_value(Some(u))))
-}
-
-fn usage_from_value(v: Option<&Value>) -> CanonicalUsage {
-    let Some(u) = v else {
-        return CanonicalUsage::default();
-    };
-    CanonicalUsage {
-        input_tokens: u.get("input_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-        output_tokens: u.get("output_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-    }
-}
-
-fn str_field(value: &Value, field: &str, default: &str) -> String {
-    value
-        .get(field)
-        .and_then(Value::as_str)
-        .unwrap_or(default)
-        .to_owned()
-}
-
-fn u32_field(value: &Value, field: &str) -> u32 {
-    value.get(field).and_then(Value::as_u64).unwrap_or(0) as u32
 }

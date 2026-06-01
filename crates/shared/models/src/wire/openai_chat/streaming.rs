@@ -243,15 +243,17 @@ fn emit_message_stop(
 }
 
 fn usage_from_value(usage: &Value) -> CanonicalUsage {
+    let field = |name: &str| usage.get(name).and_then(Value::as_u64).unwrap_or(0) as u32;
     CanonicalUsage {
-        input_tokens: usage
-            .get("prompt_tokens")
+        input_tokens: field("prompt_tokens"),
+        output_tokens: field("completion_tokens"),
+        cache_read_tokens: usage
+            .get("prompt_tokens_details")
+            .and_then(|d| d.get("cached_tokens"))
             .and_then(Value::as_u64)
             .unwrap_or(0) as u32,
-        output_tokens: usage
-            .get("completion_tokens")
-            .and_then(Value::as_u64)
-            .unwrap_or(0) as u32,
+        cache_creation_tokens: 0,
+        total_tokens: field("total_tokens"),
     }
 }
 

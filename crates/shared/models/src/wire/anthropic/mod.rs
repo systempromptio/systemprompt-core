@@ -9,15 +9,17 @@
 //! adapter and the inbound renderer.
 
 mod parse;
+mod sse;
 
-pub use parse::{event_from_sse, parse_response};
+pub use parse::parse_response;
+pub use sse::event_from_sse;
 
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
-    ImageSource, Role,
+    ImageSource, ResponseFormat, Role, SearchConfig,
 };
 
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -59,30 +61,81 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
     if !request.stop_sequences.is_empty() {
         obj.insert("stop_sequences".into(), json!(request.stop_sequences));
     }
-    if !request.tools.is_empty() {
-        let tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
+    let mut tools: Vec<Value> = request.tools.iter().map(tool_to_anthropic).collect();
+    let mut forced_tool: Option<&str> = None;
+    if let Some(ResponseFormat::JsonSchema { name, schema, .. }) = &request.response_format {
+        tools.push(structured_output_tool(name, schema));
+        forced_tool = Some(name.as_str());
+    }
+    let searching = request.search.is_some();
+    if let Some(search) = &request.search {
+        tools.push(web_search_tool(search));
+    }
+    if !tools.is_empty() {
         obj.insert("tools".into(), Value::Array(tools));
     }
-    if let Some(tc) = &request.tool_choice {
+    // A server-tool search turn must not pin tool_choice or stream — Anthropic
+    // rejects the web_search tool combined with either.
+    if searching {
+        if let Some(thinking) = &request.thinking {
+            insert_thinking(&mut obj, thinking);
+        }
+        if let Some(meta) = &request.metadata {
+            obj.insert("metadata".into(), meta.clone());
+        }
+        return Value::Object(obj);
+    }
+    if let Some(name) = forced_tool {
+        obj.insert(
+            "tool_choice".into(),
+            json!({ "type": "tool", "name": name }),
+        );
+    } else if let Some(tc) = &request.tool_choice {
         obj.insert("tool_choice".into(), tool_choice_to_anthropic(tc));
     }
     if request.stream {
         obj.insert("stream".into(), Value::Bool(true));
     }
     if let Some(thinking) = &request.thinking {
-        if thinking.enabled {
-            let mut t = Map::new();
-            t.insert("type".into(), Value::String("enabled".into()));
-            if let Some(b) = thinking.budget_tokens {
-                t.insert("budget_tokens".into(), Value::from(b));
-            }
-            obj.insert("thinking".into(), Value::Object(t));
-        }
+        insert_thinking(&mut obj, thinking);
     }
     if let Some(meta) = &request.metadata {
         obj.insert("metadata".into(), meta.clone());
     }
     Value::Object(obj)
+}
+
+fn insert_thinking(
+    obj: &mut Map<String, Value>,
+    thinking: &crate::wire::canonical::ThinkingConfig,
+) {
+    if !thinking.enabled {
+        return;
+    }
+    let mut t = Map::new();
+    t.insert("type".into(), Value::String("enabled".into()));
+    if let Some(b) = thinking.budget_tokens {
+        t.insert("budget_tokens".into(), Value::from(b));
+    }
+    obj.insert("thinking".into(), Value::Object(t));
+}
+
+fn structured_output_tool(name: &str, schema: &Value) -> Value {
+    json!({
+        "name": name,
+        "description": "Respond by calling this tool with arguments matching the schema.",
+        "input_schema": schema,
+    })
+}
+
+fn web_search_tool(search: &SearchConfig) -> Value {
+    let mut t = Map::new();
+    t.insert("type".into(), Value::String("web_search_20250305".into()));
+    t.insert("name".into(), Value::String("web_search".into()));
+    if let Some(max) = search.max_uses {
+        t.insert("max_uses".into(), Value::from(max));
+    }
+    Value::Object(t)
 }
 
 fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
@@ -146,13 +199,15 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
             })
         },
         CanonicalContent::Image(src) => match src {
-            ImageSource::Base64 { media_type, data } => json!({
+            ImageSource::Base64 {
+                media_type, data, ..
+            } => json!({
                 "type": "image",
                 "source": { "type": "base64", "media_type": media_type, "data": data },
             }),
-            ImageSource::Url(u) => json!({
+            ImageSource::Url { url, .. } => json!({
                 "type": "image",
-                "source": { "type": "url", "url": u },
+                "source": { "type": "url", "url": url },
             }),
         },
     }
