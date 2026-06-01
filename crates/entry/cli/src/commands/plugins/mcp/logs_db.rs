@@ -74,7 +74,7 @@ pub(super) async fn execute_db_mode(
 }
 
 fn build_service_patterns(service: &str) -> Vec<String> {
-    vec![format!("%{}%", service), format!("%rmcp%")]
+    vec![format!("%{}%", service), "%rmcp%".to_owned()]
 }
 
 fn build_all_mcp_patterns() -> Result<Vec<String>> {
