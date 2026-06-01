@@ -1,3 +1,13 @@
+//! Gateway routing patterns and stable route-id synthesis.
+//!
+//! A [`GatewayRoute`] maps an external `model_pattern` (exact, prefix `foo*`,
+//! suffix `*foo`, or catch-all `*`) onto a provider in the registry. When a
+//! route omits an explicit id, [`synthesize_route_id`] derives a stable one
+//! from `(model_pattern, provider)` so `access_control_rules` can address the
+//! route by a name that survives reordering. A model's connectivity is never
+//! embedded here — [`GatewayRoute::resolve`] looks the provider up in the
+//! registry at use time.
+
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -47,12 +57,9 @@ impl GatewayRoute {
     }
 }
 
-/// Slugify a model pattern for use in a stable id.
-///
-/// Mirrors the template's historical implementation in
-/// `extensions/web/admin/.../gateway.rs`: `*` becomes `star`,
-/// non-alphanumeric runs collapse to a single `-`, leading/trailing `-`
-/// are trimmed, and an empty result becomes `route`.
+/// Slugify a model pattern for use in a stable route id: `*` becomes `star`,
+/// non-alphanumeric runs collapse to a single `-`, leading/trailing `-` are
+/// trimmed, and an empty result becomes `route`.
 #[must_use]
 pub fn slugify_pattern(pattern: &str) -> String {
     let mut out = String::with_capacity(pattern.len());

@@ -106,7 +106,6 @@ pub(super) fn execute(
                             });
                         }
 
-                        let _ = provider_config;
                         match registry.find_provider(provider_name) {
                             None => {
                                 errors.push(ValidationIssue {

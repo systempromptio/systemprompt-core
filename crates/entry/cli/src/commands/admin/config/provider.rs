@@ -55,27 +55,19 @@ pub fn execute(cmd: ProviderCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         ProviderCommands::List(_args) => {
             let result = list_providers()?;
-            render_result(
-                &CommandResult::table(serde_json::to_value(result)?).with_title("AI Providers"),
-            );
+            render_result(&CommandResult::table(result).with_title("AI Providers"));
         },
         ProviderCommands::Set(args) => {
             let result = set_default_provider(&args.provider)?;
-            render_result(
-                &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Updated"),
-            );
+            render_result(&CommandResult::card(result).with_title("Provider Updated"));
         },
         ProviderCommands::Enable(args) => {
             let result = set_provider_enabled(&args.provider, true)?;
-            render_result(
-                &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Enabled"),
-            );
+            render_result(&CommandResult::card(result).with_title("Provider Enabled"));
         },
         ProviderCommands::Disable(args) => {
             let result = set_provider_enabled(&args.provider, false)?;
-            render_result(
-                &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Disabled"),
-            );
+            render_result(&CommandResult::card(result).with_title("Provider Disabled"));
         },
     }
     Ok(())

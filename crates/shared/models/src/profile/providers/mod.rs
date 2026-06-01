@@ -28,9 +28,9 @@ pub use protocol::WireProtocol;
 
 /// One model served by a provider: identity, routing, and economics.
 ///
-/// Merges the former gateway `GatewayModel` (id, aliases, `upstream_model`,
-/// pricing) with the agent-side `ModelDefinition` (capabilities, limits) so a
-/// model's full description lives in exactly one place.
+/// A model's full description lives here exactly once: identity and routing
+/// (id, aliases, `upstream_model`, pricing) alongside agent-side capabilities
+/// and limits.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderModel {
@@ -61,7 +61,6 @@ impl ProviderModel {
         self.id.as_str() == requested || self.aliases.iter().any(|a| a.as_str() == requested)
     }
 
-    /// The vendor-side model name to forward upstream for `requested`.
     #[must_use]
     pub fn effective_upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         self.upstream_model.as_deref().unwrap_or(requested)

@@ -22,9 +22,6 @@ use crate::wire::canonical::{
 
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 
-/// Static auth + protocol headers for an Anthropic Messages call.
-///
-/// Per-route `extra_headers` are layered on by the caller after these.
 #[must_use]
 pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
     [
@@ -116,9 +113,6 @@ fn tool_choice_to_anthropic(tc: &CanonicalToolChoice) -> Value {
     }
 }
 
-/// Render one canonical content block to its Anthropic JSON form.
-///
-/// Shared by the outbound request builder and the inbound response renderer.
 #[must_use]
 pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
     match part {

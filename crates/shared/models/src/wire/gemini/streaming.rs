@@ -25,8 +25,6 @@ struct StreamState {
     next_index: u32,
 }
 
-/// Translates the upstream Gemini SSE byte stream into canonical events.
-///
 /// The byte error type is generic so callers can pass any transport stream
 /// (e.g. `reqwest::bytes_stream`) without the wire codec depending on the HTTP
 /// client.

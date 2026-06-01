@@ -15,7 +15,6 @@ use crate::error::Result;
 
 use super::{BoxedImageProvider, GeminiImageProvider, OpenAiImageProvider};
 
-/// Resolved connectivity + policy for one image provider.
 #[derive(Debug)]
 pub struct ImageProviderParams<'a> {
     pub entry: &'a ProviderEntry,

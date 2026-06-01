@@ -8,7 +8,6 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 
-/// Maps a Gemini `finishReason` string to a canonical stop reason.
 #[must_use]
 pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     match finish {
@@ -18,8 +17,7 @@ pub fn stop_reason(finish: &str) -> CanonicalStopReason {
     }
 }
 
-/// Parses the buffered Gemini JSON body into the canonical response. Falls back
-/// to `fallback_model` when the upstream omits `modelVersion`.
+/// Falls back to `fallback_model` when the upstream omits `modelVersion`.
 #[must_use]
 pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
     let parsed: GeminiResponse = serde_json::from_value(value.clone()).unwrap_or(GeminiResponse {
@@ -62,8 +60,8 @@ fn usage(meta: Option<GeminiUsageMetadata>) -> CanonicalUsage {
     })
 }
 
-/// Converts Gemini reply parts into canonical content, lifting `functionCall`
-/// parts into tool-use blocks with freshly minted ids (Gemini omits them).
+/// Tool-use blocks get freshly minted ids because Gemini omits them on the
+/// wire.
 pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
     parts
         .iter()

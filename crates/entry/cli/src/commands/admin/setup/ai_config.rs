@@ -52,11 +52,8 @@ pub(super) fn reconcile(
     Ok(())
 }
 
-/// Set `ai.default_provider` and align each standard provider's `enabled`
-/// flag to whether its key is present.
-///
-/// Custom providers and all other fields are left as-is. Errors only if the
-/// document has no `ai` mapping.
+/// Custom providers (e.g. `minimax`) and every field other than the standard
+/// providers' `enabled` flag are left untouched.
 pub fn apply_ai_defaults(doc: &mut Value, default_provider: &str, present: &[&str]) -> Result<()> {
     let ai = doc
         .get_mut("ai")

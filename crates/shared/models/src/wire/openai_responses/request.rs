@@ -7,7 +7,6 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource, Role,
 };
 
-/// Render a canonical request to an `OpenAI` Responses request body.
 pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
     let mut input: Vec<Value> = Vec::new();
     for msg in &request.messages {

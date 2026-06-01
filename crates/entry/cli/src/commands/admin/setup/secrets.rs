@@ -87,8 +87,6 @@ impl SecretsData {
     }
 }
 
-/// First present key in [`PROVIDER_PRIORITY`] order. `None` only when no
-/// standard provider key was supplied.
 fn first_present_by_priority(secrets: &SecretsData) -> Option<ProviderId> {
     PROVIDER_PRIORITY
         .into_iter()
@@ -96,10 +94,9 @@ fn first_present_by_priority(secrets: &SecretsData) -> Option<ProviderId> {
         .map(ProviderId::new)
 }
 
-/// The chosen default provider: an explicit, key-backed `--default-provider`
-/// flag if given, otherwise the first present key by [`PROVIDER_PRIORITY`].
-/// `None` only when no standard key is present (the flag's absence is never
-/// fatal — `validate_secrets` already guarantees at least one key).
+/// An explicit, key-backed `--default-provider` flag wins; otherwise the first
+/// present key by [`PROVIDER_PRIORITY`]. The flag's absence is never fatal —
+/// `validate_secrets` already guarantees at least one key is present.
 fn resolve_primary(args: &SetupArgs, secrets: &SecretsData) -> Result<Option<ProviderId>> {
     let Some(name) = args.default_provider.as_deref().map(str::trim) else {
         return Ok(first_present_by_priority(secrets));
@@ -183,10 +180,8 @@ pub(super) fn collect_interactive(
     Ok((secrets, primary))
 }
 
-/// Run the "Select your AI provider" menu, filling `secrets` with the entered
-/// keys. Returns the explicitly chosen provider for the single-select options,
-/// or `None` for the "enter multiple keys" path (the default is resolved later
-/// from the keys actually present).
+/// Returns `None` for the "enter multiple keys" path; that default is resolved
+/// later from the keys actually present, not at selection time.
 fn select_provider_keys(secrets: &mut SecretsData) -> Result<Option<ProviderId>> {
     let providers = vec![
         "Google AI (Gemini) - https://aistudio.google.com/app/apikey",

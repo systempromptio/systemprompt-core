@@ -11,9 +11,7 @@ use super::config::{GatewayConfig, GatewayConfigSpec};
 
 #[derive(Debug, Clone)]
 pub enum GatewayState {
-    /// Freshly parsed YAML.
     Spec(GatewayConfigSpec),
-    /// Loader has run; the spec has been projected to runtime form.
     Resolved(GatewayConfig),
 }
 

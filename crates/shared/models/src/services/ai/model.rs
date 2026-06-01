@@ -1,3 +1,11 @@
+//! Per-provider AI policy and per-model descriptors.
+//!
+//! [`AiProviderConfig`] is the deployment policy layered on a registry provider
+//! (enable flag, default-model overrides, resilience). [`ModelDefinition`] and
+//! its [`ModelCapabilities`], [`ModelLimits`], and [`ModelPricing`] are the
+//! per-model descriptors shared with `profile.providers`. Connectivity itself
+//! is never modelled here — it lives in the provider registry.
+
 use serde::{Deserialize, Serialize};
 
 use super::config::ResilienceSettings;

@@ -58,10 +58,8 @@ fn default_inference_path_prefix() -> String {
 }
 
 impl GatewayConfigSpec {
-    /// Project the on-disk spec to the runtime [`GatewayConfig`].
-    ///
-    /// A pure field map: the gateway owns no catalog file, so there is no I/O
-    /// to perform here.
+    /// A pure field map: the gateway owns no catalog file, so resolution
+    /// performs no I/O.
     #[must_use]
     pub fn resolve(self) -> GatewayConfig {
         let Self {
@@ -187,8 +185,8 @@ impl GatewayConfig {
         Ok(())
     }
 
-    /// Convert a runtime config back to the on-disk spec form. Used when
-    /// persisting a resolved profile back to YAML.
+    /// Round-trips a resolved config back to its on-disk spec for persisting a
+    /// profile to YAML.
     #[must_use]
     pub fn to_spec(&self) -> GatewayConfigSpec {
         GatewayConfigSpec {

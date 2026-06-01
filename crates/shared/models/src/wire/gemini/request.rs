@@ -11,7 +11,6 @@ use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource, Role,
 };
 
-/// Serialises the canonical request into the Gemini JSON request body.
 #[must_use]
 pub fn build_request_body(request: &CanonicalRequest) -> Value {
     let body = GeminiRequest {

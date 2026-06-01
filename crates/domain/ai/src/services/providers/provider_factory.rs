@@ -17,7 +17,6 @@ use crate::error::Result;
 
 use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider, ResilientProvider};
 
-/// Resolved connectivity + policy for one provider client.
 #[derive(Debug)]
 pub struct ProviderClientParams<'a> {
     pub name: &'a str,

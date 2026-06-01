@@ -19,14 +19,10 @@ pub use request::build_request_body;
 pub use response::{parse_response, stop_reason};
 pub use streaming::sse_to_canonical_events;
 
-/// Header name carrying the Gemini API key on every upstream request.
 pub const API_KEY_HEADER: &str = "x-goog-api-key";
 
-/// Builds the upstream path for a model + method.
-///
-/// Picks `generateContent` or `streamGenerateContent`; the streaming method
-/// appends `?alt=sse` so the upstream frames replies as line-delimited SSE
-/// rather than a JSON array.
+/// The streaming method appends `?alt=sse` so the upstream frames replies as
+/// line-delimited SSE rather than a JSON array.
 #[must_use]
 pub fn upstream_path(model: &str, stream: bool) -> String {
     if stream {

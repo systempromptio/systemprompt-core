@@ -1,3 +1,9 @@
+//! Failure modes of
+//! [`ProviderRegistry::validate`](super::ProviderRegistry::validate): duplicate
+//! provider names, empty or SSRF-blocked endpoints, and duplicate or
+//! empty model ids/aliases. Connectivity is the registry's authority, so these
+//! are the only errors emitted while checking it.
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]

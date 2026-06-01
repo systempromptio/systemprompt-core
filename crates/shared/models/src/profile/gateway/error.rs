@@ -1,3 +1,7 @@
+//! Failure modes emitted while validating the gateway's references into the
+//! provider registry: duplicate route ids, and a route or `default_provider`
+//! naming a provider absent from `profile.providers`.
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
