@@ -38,6 +38,7 @@ impl HostApp for StubHost {
             profile_keys: BTreeMap::new(),
             host_running: false,
             host_processes: Vec::new(),
+            app_installed: false,
             probed_at_unix: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_secs()),

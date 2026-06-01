@@ -3,8 +3,9 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 
-function chooseBadge(installed, partial, proxyState) {
-  if (!installed) { return { text: t("host-badge-not-installed") || "not installed", cls: "sp-badge--warn" }; }
+function chooseBadge(appInstalled, installed, partial, proxyState) {
+  if (!appInstalled) { return { text: t("host-badge-app-missing") || "app not installed", cls: "sp-badge--err" }; }
+  if (!installed && !partial) { return { text: t("host-badge-not-installed") || "profile not installed", cls: "sp-badge--warn" }; }
   if (partial) { return { text: t("host-badge-partial") || "partial", cls: "sp-badge--warn" }; }
   if (proxyState === "Unconfigured") { return { text: t("host-badge-awaiting") || "awaiting first launch", cls: "sp-badge--warn" }; }
   if (proxyState === "Listening") { return { text: t("host-badge-healthy") || "healthy", cls: "sp-badge--ok" }; }
@@ -17,8 +18,15 @@ export class SpHostCard extends SpElement {
     this.host = null;
     this.snapshot = null;
     this.registerAction("open", async () => {
-      if (this.host) {
+      const installed = !!(this.host && this.host.snapshot && this.host.snapshot.app_installed);
+      if (this.host && installed) {
         try { await bridge.agentOpen(this.host.id); } catch (e) { console.warn("open", e); }
+      }
+    });
+    this.registerAction("download", async () => {
+      const url = this.host && this.host.download_url;
+      if (url) {
+        try { await bridge.openExternalUrl(url); } catch (e) { console.warn("download", e); }
       }
     });
   }
@@ -33,8 +41,9 @@ export class SpHostCard extends SpElement {
     const partial = profileState.kind === "partial";
     const proxyState = ((snap.local_proxy && snap.local_proxy.state) || "Unknown").toString();
     const probing = !!host.probe_in_flight;
+    const appInstalled = !!(hs && hs.app_installed);
     const badge = hs
-      ? chooseBadge(installed, partial, proxyState)
+      ? chooseBadge(appInstalled, installed, partial, proxyState)
       : { text: "probing…", cls: "sp-badge--muted" };
     const spinnerMarkup = probing && hs ? `<span class="sp-spinner" aria-hidden="true"></span>` : "";
 
@@ -44,6 +53,12 @@ export class SpHostCard extends SpElement {
     else if (partial) { profileDot = "sp-dot--warn"; profileText = t("host-profile-partial", { missing: missing.join(", ") }) || `partial (${missing.join(", ")})`; }
 
     const profileSource = (hs && hs.profile_source) || "—";
+    const appDot = appInstalled ? "sp-dot--ok" : "sp-dot--err";
+    const appInstalledText = appInstalled
+      ? (t("host-app-installed") || "installed")
+      : (t("host-app-not-installed") || "not installed");
+    const downloadUrl = (host && host.download_url) || "";
+
     const running = hs && hs.host_running;
     const runningDot = running ? "sp-dot--ok" : "sp-dot--warn";
     const runningText = running ? (t("host-process-running") || "running") : (t("host-process-not-running") || "not running");
@@ -100,6 +115,12 @@ export class SpHostCard extends SpElement {
 
     const iconId = host.icon || host.id || "";
     const openLabel = escapeHtml(t("host-action-open") || "Open");
+    const downloadLabel = escapeHtml(t("host-action-download") || "Download");
+    const actionMarkup = appInstalled
+      ? `<button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="open">${openLabel}</button>`
+      : (downloadUrl
+          ? `<button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="download" title="${escapeHtml(downloadUrl)}">${downloadLabel} ↗</button>`
+          : `<button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="open" disabled title="${escapeHtml(t("host-app-not-installed") || "not installed")}">${openLabel}</button>`);
     const logoTpl = document.getElementById(`tpl-host-logo-${iconId}`);
     const logoMarkup = logoTpl && logoTpl.content && logoTpl.content.firstElementChild
       ? logoTpl.content.firstElementChild.outerHTML.replace(/^<svg/, '<svg class="sp-host-card__logo"')
@@ -112,7 +133,7 @@ export class SpHostCard extends SpElement {
           <h3 class="sp-host-card__name">${escapeHtml(host.display_name || "—")}</h3>
           <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
           ${spinnerMarkup}
-          <button class="sp-btn-ghost sp-host-card__open-btn" type="button" data-action="open">${openLabel}</button>
+          ${actionMarkup}
         </header>
         <table class="sp-status__board"><tbody>
           <tr>
@@ -120,6 +141,12 @@ export class SpHostCard extends SpElement {
             <td>
               <div class="sp-status__row"><span class="sp-dot ${profileDot}" aria-hidden="true"></span><span>${escapeHtml(profileText)}</span></div>
               <div class="sp-status__detail sp-u-mono ${profileSource === "—" ? "sp-u-muted" : ""}">${escapeHtml(profileSource)}</div>
+            </td>
+          </tr>
+          <tr>
+            <th>Application</th>
+            <td>
+              <div class="sp-status__row"><span class="sp-dot ${appDot}" aria-hidden="true"></span><span>${escapeHtml(appInstalledText)}</span></div>
             </td>
           </tr>
           <tr>

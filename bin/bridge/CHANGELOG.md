@@ -6,6 +6,10 @@
 
 - The synthetic organization plugin's `plugin.json` and the malformed-plugin / well-formedness probes use the shared `PluginManifest` model and manifest-path constants from `systemprompt-models::bridge::plugin_bundle` instead of bridge-local copies. The emitted wire shape is unchanged.
 
+### Added
+
+- The bridge detects whether each host's desktop app is installed, launches or focuses it on request, and offers an official download link when the app is absent. `HostAppSnapshot` gains `app_installed`, the `HostApp` trait gains `download_url()`, and the setup UI surfaces install, launch, and download actions.
+
 ## [0.9.6] - 2026-05-30
 
 ### Changed

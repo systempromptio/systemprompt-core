@@ -6,9 +6,8 @@ import "/assets/js/components/sp-setup-gateway.js";
 import "/assets/js/components/sp-setup-agents.js";
 
 const STEP_LABEL = {
-  connect: () => t("setup-step-label-connect") || "Step 1 of 3",
-  agents: () => t("setup-step-label-agents") || "Step 2 of 3",
-  done: () => t("setup-step-label-done") || "Step 3 of 3",
+  connect: () => t("setup-step-label-connect") || "Step 1 of 2",
+  agents: () => t("setup-step-label-agents") || "Step 2 of 2",
 };
 
 function isConfigured(snap) {
@@ -22,9 +21,11 @@ export class SpSetup extends SpElement {
     super();
     this.snapshot = null;
     this.step = "connect";
+    this.anyInstalled = false;
+    this._finished = false;
     this._logoFragment = null;
     this._onSetupOpen = () => { document.body.classList.add("is-setup-mode"); };
-    this.registerAction("complete", () => this._complete());
+    this.registerAction("finish", () => this._finish());
     this.registerAction("open-bridge", () => { document.body.classList.remove("is-setup-mode"); });
   }
 
@@ -47,16 +48,27 @@ export class SpSetup extends SpElement {
     this.snapshot = snap;
     if (!snap) { return; }
     const configured = isConfigured(snap);
-    const onboarded = snap.agents_onboarded === true;
-    const anyInstalled = (snap.host_apps || []).some((h) => h.snapshot?.profile_state?.kind === "installed");
-    const inSetup = !(configured && (onboarded || anyInstalled));
+    const hosts = snap.host_apps || [];
+    // Install state for a host is only KNOWN once its probe has completed, at
+    // which point `snapshot` is populated. Until every host has a snapshot the
+    // result is "unknown" — we must not show onboarding then, or it flashes
+    // before detection resolves (the bug where it appeared with agents already
+    // installed). Once settled, show the agents step only when none are
+    // installed; installing one (anyInstalled) drops straight into the app.
+    const settled = hosts.length > 0 && hosts.every((h) => h.snapshot);
+    const anyInstalled = hosts.some((h) => h.snapshot?.profile_state?.kind === "installed");
+    this.anyInstalled = anyInstalled;
+
+    const needAgents = configured && settled && !anyInstalled && !this._finished;
+    const inSetup = !configured || needAgents;
     document.body.classList.toggle("is-setup-mode", inSetup);
     this.step = configured ? "agents" : "connect";
   }
 
-  async _complete() {
-    try { await bridge.setupComplete(); } catch (err) { console.warn("setup complete", err); }
-    this.step = "done";
+  _finish() {
+    this._finished = true;
+    bridge.setupComplete().catch((err) => console.warn("setup complete", err));
+    document.body.classList.remove("is-setup-mode");
   }
 
   afterRender() {
@@ -73,6 +85,7 @@ export class SpSetup extends SpElement {
     const version = this.dataset.version || "";
     const platform = this.dataset.platform || "linux";
     const platformDisplay = this.dataset.platformDisplay || "";
+    const finishDisabled = this.anyInstalled ? "" : "disabled";
     return `
       <div class="sp-setup__card">
         <div class="sp-setup__hero">
@@ -88,14 +101,7 @@ export class SpSetup extends SpElement {
           <p class="sp-setup__lede" data-l10n-id="setup-agents-lede">Pick the coding agents you want systemprompt bridge to govern.</p>
           <sp-setup-agents></sp-setup-agents>
           <div class="sp-setup__actions">
-            <button class="sp-btn-ghost" type="button" data-l10n-id="setup-skip-agents" data-action="complete">Skip — set up later</button>
-            <button class="sp-btn-primary" type="button" data-l10n-id="setup-finish" data-action="complete">Finish</button>
-          </div>
-        </div>
-        <div class="sp-setup__step" data-step="done" ${step !== "done" ? "hidden" : ""}>
-          <p class="sp-setup__lede" data-l10n-id="setup-done-lede">systemprompt bridge is ready.</p>
-          <div class="sp-setup__actions">
-            <button class="sp-btn-primary" type="button" data-l10n-id="setup-open" data-action="open-bridge">Open systemprompt bridge</button>
+            <button class="sp-btn-primary" type="button" data-l10n-id="setup-finish" data-action="finish" ${finishDisabled}>Finish</button>
           </div>
         </div>
         <aside class="sp-setup__warning" role="note">
@@ -114,5 +120,5 @@ export class SpSetup extends SpElement {
   }
 }
 
-reactive(SpSetup.prototype, ["snapshot", "step"]);
+reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled"]);
 customElements.define("sp-setup", SpSetup);

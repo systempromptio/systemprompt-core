@@ -172,6 +172,10 @@ fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
             Err(_) => wry::http::HeaderValue::from_static("application/octet-stream"),
         },
     );
+    _ = response.headers_mut().insert(
+        wry::http::header::CACHE_CONTROL,
+        wry::http::HeaderValue::from_static("no-store, must-revalidate"),
+    );
     response
 }
 

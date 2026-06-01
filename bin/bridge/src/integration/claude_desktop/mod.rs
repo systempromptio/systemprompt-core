@@ -50,6 +50,12 @@ impl HostApp for ClaudeDesktopHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
+            app_installed: crate::integration::app_launch::is_installed(
+                "Claude",
+                "Claude",
+                &claude_app_candidates(),
+                "claude",
+            ),
             probed_at_unix: shared::now_unix(),
         }
     }
@@ -63,7 +69,12 @@ impl HostApp for ClaudeDesktopHost {
     }
 
     fn open(&self) -> std::io::Result<()> {
-        os::open_host()
+        crate::integration::app_launch::open_app(
+            "Claude",
+            "Claude",
+            &claude_app_candidates(),
+            "claude",
+        )
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -94,6 +105,26 @@ impl HostApp for ClaudeDesktopHost {
             ConfigFormat::Plist
         }
     }
+
+    fn download_url(&self) -> &'static str {
+        "https://claude.ai/download"
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn claude_app_candidates() -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        let local = std::path::PathBuf::from(local);
+        out.push(
+            local
+                .join("Microsoft")
+                .join("WindowsApps")
+                .join("Claude.exe"),
+        );
+        out.push(local.join("AnthropicClaude").join("Claude.exe"));
+    }
+    out
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]

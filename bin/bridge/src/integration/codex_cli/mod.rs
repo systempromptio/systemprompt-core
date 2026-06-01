@@ -40,6 +40,12 @@ impl HostApp for CodexCliHost {
             profile_keys: read.keys,
             host_running: !processes.is_empty(),
             host_processes: processes,
+            app_installed: crate::integration::app_launch::is_installed(
+                "Codex",
+                "Codex",
+                &[],
+                "codex",
+            ),
             probed_at_unix: config::now_unix(),
         }
     }
@@ -52,10 +58,8 @@ impl HostApp for CodexCliHost {
         install::install_profile(path)
     }
 
-    /// Codex is a CLI; "open" launches a terminal so the user can run `codex`
-    /// interactively.
     fn open(&self) -> std::io::Result<()> {
-        open_terminal()
+        crate::integration::app_launch::open_app("Codex", "Codex", &[], "codex")
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -84,42 +88,8 @@ impl HostApp for CodexCliHost {
     fn config_format(&self) -> ConfigFormat {
         ConfigFormat::Toml
     }
-}
 
-#[cfg(target_os = "macos")]
-fn open_terminal() -> std::io::Result<()> {
-    let status = std::process::Command::new("/usr/bin/open")
-        .args(["-a", "Terminal"])
-        .status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(std::io::Error::other(format!(
-            "open -a Terminal exited with {}",
-            status.code().unwrap_or(-1)
-        )))
+    fn download_url(&self) -> &'static str {
+        "https://developers.openai.com/codex/app"
     }
-}
-
-#[cfg(target_os = "windows")]
-fn open_terminal() -> std::io::Result<()> {
-    let status = std::process::Command::new("cmd")
-        .args(["/C", "start", "cmd", "/K", "codex"])
-        .status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(std::io::Error::other(format!(
-            "start cmd exited with {}",
-            status.code().unwrap_or(-1)
-        )))
-    }
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn open_terminal() -> std::io::Result<()> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::Unsupported,
-        "open not supported on this platform",
-    ))
 }

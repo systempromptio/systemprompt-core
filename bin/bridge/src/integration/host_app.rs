@@ -59,6 +59,7 @@ pub struct HostAppSnapshot {
     pub profile_keys: BTreeMap<String, String>,
     pub host_running: bool,
     pub host_processes: Vec<String>,
+    pub app_installed: bool,
     pub probed_at_unix: u64,
 }
 
@@ -95,8 +96,6 @@ pub trait HostApp: Send + Sync + 'static {
     fn install_profile(&self, path: &str) -> std::io::Result<()>;
     fn install_action_label(&self) -> &'static str;
 
-    /// Launch or focus the host on the user's machine; semantics differ per
-    /// platform impl.
     fn open(&self) -> std::io::Result<()> {
         Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
@@ -118,5 +117,11 @@ pub trait HostApp: Send + Sync + 'static {
 
     fn config_format(&self) -> ConfigFormat {
         ConfigFormat::Json
+    }
+
+    /// Official download page, opened externally when the desktop app is not
+    /// installed. Empty means no download action is offered.
+    fn download_url(&self) -> &'static str {
+        ""
     }
 }
