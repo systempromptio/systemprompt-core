@@ -12,8 +12,8 @@ use systemprompt_identifiers::ProviderId;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
-    AuthzConfig, AuthzHookConfig, AuthzMode, GatewayCatalogSource, GatewayConfigSpec, GatewayState,
-    GovernanceConfig, default_resource_audiences,
+    AuthzConfig, AuthzHookConfig, AuthzMode, GatewayConfigSpec, GatewayState, GovernanceConfig,
+    ProviderRegistry, default_resource_audiences,
 };
 use systemprompt_models::{
     ContentNegotiationConfig, Environment, LogLevel, OutputFormat, PathsConfig, RuntimeConfig,
@@ -102,6 +102,10 @@ pub(super) const fn runtime(environment: Environment, is_prod: bool) -> RuntimeC
     }
 }
 
+pub(super) fn providers(secrets: &SecretsData) -> ProviderRegistry {
+    catalog::build_registry(secrets)
+}
+
 pub(super) fn gateway(
     secrets: &SecretsData,
     default_provider: Option<&ProviderId>,
@@ -109,9 +113,6 @@ pub(super) fn gateway(
     GatewayState::Spec(GatewayConfigSpec {
         enabled: true,
         routes: catalog::build_routes(secrets),
-        catalog: Some(GatewayCatalogSource::Path {
-            path: std::path::PathBuf::from("catalog.yaml"),
-        }),
         default_provider: default_provider.cloned(),
         ..GatewayConfigSpec::default()
     })

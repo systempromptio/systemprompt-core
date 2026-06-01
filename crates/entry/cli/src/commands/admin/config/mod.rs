@@ -59,13 +59,16 @@ pub enum ConfigCommands {
     #[command(subcommand, about = "AI provider configuration")]
     Provider(provider::ProviderCommands),
 
-    #[command(subcommand, about = "Gateway configuration (routes, catalog source)")]
+    #[command(subcommand, about = "Gateway configuration (routes, default provider)")]
     Gateway(gateway::GatewayCommands),
 
     #[command(subcommand, about = "Governance authorization hook configuration")]
     Governance(governance::GovernanceCommands),
 
-    #[command(subcommand, about = "Gateway model catalog (providers, models)")]
+    #[command(
+        subcommand,
+        about = "Provider registry (profile.providers: providers, models)"
+    )]
     Catalog(catalog::CatalogCommands),
 
     #[command(subcommand, about = "Profile secrets")]

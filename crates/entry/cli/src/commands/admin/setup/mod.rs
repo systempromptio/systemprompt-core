@@ -120,7 +120,7 @@ pub struct SetupArgs {
 
     #[arg(
         long,
-        help = "Overwrite existing profile/catalog/secrets files (default: preserve them)"
+        help = "Overwrite existing profile/secrets files (default: preserve them)"
     )]
     pub force: bool,
 }

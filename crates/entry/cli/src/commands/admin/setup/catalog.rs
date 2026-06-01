@@ -1,23 +1,25 @@
-//! Default AI-provider catalog and route generation for the setup wizard.
+//! Default provider-registry and route generation for the setup wizard.
 //!
-//! Emits a `GatewayProvider` / `GatewayModel` / `GatewayRoute` triple only for
-//! the AI keys actually supplied, so the generated gateway resolves and passes
-//! `GatewayConfig::validate` (every catalog model must be reachable by a route,
-//! and every route provider must exist in the catalog). Operators reshape the
-//! result — adding custom providers like `minimax` — via `admin config
-//! catalog`.
+//! Emits a `profile.providers` [`ProviderEntry`] plus a matching
+//! [`GatewayRoute`] for each AI key actually supplied, so the generated
+//! profile resolves and passes both [`ProviderRegistry::validate`] and
+//! `GatewayConfig::validate` (every route provider must exist in the
+//! registry). Operators reshape the result — adding custom providers like
+//! `minimax` — by editing `profile.providers` directly.
 
 use std::collections::HashMap;
-use std::path::Path;
 
-use anyhow::{Context, Result};
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::profile::{GatewayCatalog, GatewayModel, GatewayProvider, GatewayRoute};
+use systemprompt_models::profile::{
+    GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+};
+use systemprompt_models::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
 
 use super::secrets::SecretsData;
 
 struct ProviderDefault {
     name: &'static str,
+    protocol: WireProtocol,
     endpoint: &'static str,
     secret: &'static str,
     route_pattern: &'static str,
@@ -28,6 +30,7 @@ struct ProviderDefault {
 const PROVIDER_DEFAULTS: &[ProviderDefault] = &[
     ProviderDefault {
         name: "anthropic",
+        protocol: WireProtocol::Anthropic,
         endpoint: "https://api.anthropic.com/v1",
         secret: "anthropic",
         route_pattern: "claude-*",
@@ -36,6 +39,7 @@ const PROVIDER_DEFAULTS: &[ProviderDefault] = &[
     },
     ProviderDefault {
         name: "openai",
+        protocol: WireProtocol::OpenAiChat,
         endpoint: "https://api.openai.com/v1",
         secret: "openai",
         route_pattern: "gpt-*",
@@ -44,6 +48,7 @@ const PROVIDER_DEFAULTS: &[ProviderDefault] = &[
     },
     ProviderDefault {
         name: "gemini",
+        protocol: WireProtocol::Gemini,
         endpoint: "https://generativelanguage.googleapis.com/v1beta",
         secret: "gemini",
         route_pattern: "gemini-*",
@@ -77,38 +82,25 @@ pub(super) fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
         .collect()
 }
 
-pub(super) fn build_catalog(secrets: &SecretsData) -> GatewayCatalog {
-    let defaults = present_defaults(secrets);
-    GatewayCatalog {
-        providers: defaults
+pub(super) fn build_registry(secrets: &SecretsData) -> ProviderRegistry {
+    ProviderRegistry {
+        providers: present_defaults(secrets)
             .iter()
-            .map(|d| GatewayProvider {
+            .map(|d| ProviderEntry {
                 name: ProviderId::new(d.name),
+                protocol: d.protocol,
                 endpoint: d.endpoint.to_owned(),
                 api_key_secret: SecretName::new(d.secret),
                 extra_headers: HashMap::new(),
-            })
-            .collect(),
-        models: defaults
-            .iter()
-            .map(|d| GatewayModel {
-                id: ModelId::new(d.model),
-                provider: ProviderId::new(d.name),
-                aliases: Vec::new(),
-                display_name: None,
-                upstream_model: None,
-                pricing: None,
+                models: vec![ProviderModel {
+                    id: ModelId::new(d.model),
+                    aliases: Vec::new(),
+                    upstream_model: None,
+                    pricing: ModelPricing::default(),
+                    capabilities: ModelCapabilities::default(),
+                    limits: ModelLimits::default(),
+                }],
             })
             .collect(),
     }
-}
-
-pub(super) fn save_catalog(catalog: &GatewayCatalog, path: &Path) -> Result<()> {
-    let yaml = serde_yaml::to_string(catalog).context("Failed to serialize gateway catalog")?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create {}", parent.display()))?;
-    }
-    std::fs::write(path, yaml).with_context(|| format!("Failed to write {}", path.display()))?;
-    Ok(())
 }

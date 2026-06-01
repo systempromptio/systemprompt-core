@@ -12,7 +12,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
-    SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
+    ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -129,6 +129,7 @@ impl LocalProfileBuilder {
                 source: SecretsSource::File,
             }),
             extensions: ExtensionsConfig::default(),
+            providers: ProviderRegistry::default(),
             gateway: None,
             governance: None,
             system_admin: SystemAdminConfig {
@@ -261,6 +262,7 @@ impl CloudProfileBuilder {
                 source: SecretsSource::Env,
             }),
             extensions: ExtensionsConfig::default(),
+            providers: ProviderRegistry::default(),
             gateway: None,
             governance: None,
             system_admin: SystemAdminConfig {

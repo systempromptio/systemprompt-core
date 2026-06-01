@@ -1,6 +1,6 @@
 //! Reconcile `services/ai/config.yaml` with the provider chosen during setup.
 //!
-//! `admin setup` generates the profile, catalog, and secrets, but the AI
+//! `admin setup` generates the profile and secrets, but the AI
 //! service layer reads `services/ai/config.yaml` for its `default_provider` and
 //! per-provider `enabled` flags. When the operator picks a default provider,
 //! align that file: make the choice the default and disable the standard
@@ -52,10 +52,11 @@ pub(super) fn reconcile(
     Ok(())
 }
 
-/// Set `ai.default_provider` to `default_provider` and align each standard
-/// provider's `enabled` flag to whether its key is `present`. Custom providers
-/// and all other fields are left as-is. Errors only if the document has no `ai`
-/// mapping.
+/// Set `ai.default_provider` and align each standard provider's `enabled`
+/// flag to whether its key is present.
+///
+/// Custom providers and all other fields are left as-is. Errors only if the
+/// document has no `ai` mapping.
 pub fn apply_ai_defaults(doc: &mut Value, default_provider: &str, present: &[&str]) -> Result<()> {
     let ai = doc
         .get_mut("ai")

@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
+use systemprompt_config::ProfileBootstrap;
 
 use super::types::{
     ConfigSection, ProviderInfo, ProviderListOutput, ProviderSetOutput, read_yaml_file,
@@ -85,6 +86,7 @@ fn get_ai_config_path() -> Result<std::path::PathBuf> {
 }
 
 fn list_providers() -> Result<ProviderListOutput> {
+    let registry = &ProfileBootstrap::get()?.providers;
     let file_path = get_ai_config_path()?;
     let content = read_yaml_file(&file_path)?;
 
@@ -117,10 +119,9 @@ fn list_providers() -> Result<ProviderListOutput> {
                 .unwrap_or("unknown")
                 .to_owned();
 
-            let endpoint = config
-                .get("endpoint")
-                .and_then(|v| v.as_str())
-                .map(String::from);
+            let endpoint = registry
+                .find_provider(&name_str)
+                .map(|entry| entry.endpoint.clone());
 
             providers.push(ProviderInfo {
                 name: name_str.clone(),
@@ -139,27 +140,31 @@ fn list_providers() -> Result<ProviderListOutput> {
 }
 
 fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
+    let registry = &ProfileBootstrap::get()?.providers;
+    if registry.find_provider(provider).is_none() {
+        let available: Vec<&str> = registry.providers.iter().map(|p| p.name.as_str()).collect();
+        anyhow::bail!(
+            "Unknown provider: '{}' is not in profile.providers. Available: {:?}",
+            provider,
+            available
+        );
+    }
+
     let file_path = get_ai_config_path()?;
     let mut content = read_yaml_file(&file_path)?;
 
-    let providers = content
-        .get("ai")
-        .and_then(|ai| ai.get("providers"))
-        .ok_or_else(|| anyhow::anyhow!("Missing providers section"))?;
-
-    if !providers
-        .as_mapping()
-        .is_some_and(|m| m.contains_key(serde_yaml::Value::String(provider.to_owned())))
-    {
-        let available: Vec<String> = providers.as_mapping().map_or_else(Vec::new, |m| {
-            m.keys()
-                .filter_map(|k| k.as_str().map(String::from))
-                .collect()
-        });
+    let policy = content.get("ai").and_then(|ai| ai.get("providers"));
+    let enabled = policy
+        .and_then(|p| p.get(provider))
+        .and_then(|p| p.get("enabled"))
+        .and_then(serde_yaml::Value::as_bool)
+        .unwrap_or(true);
+    if !enabled {
         anyhow::bail!(
-            "Unknown provider: '{}'. Available providers: {:?}",
+            "Provider '{}' is disabled in AI policy; enable it first \
+             (admin config provider enable {})",
             provider,
-            available
+            provider
         );
     }
 

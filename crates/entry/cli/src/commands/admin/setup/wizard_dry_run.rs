@@ -69,7 +69,6 @@ fn render_preview(
     CliService::subsection("Configuration Preview");
     CliService::key_value("Environment", env_name);
     CliService::key_value("Profile path", &dir.join("profile.yaml").to_string_lossy());
-    CliService::key_value("Catalog path", &dir.join("catalog.yaml").to_string_lossy());
     CliService::key_value("Secrets path", &dir.join("secrets.json").to_string_lossy());
 
     CliService::subsection("Database");

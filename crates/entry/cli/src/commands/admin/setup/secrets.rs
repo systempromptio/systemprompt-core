@@ -19,6 +19,10 @@ use crate::shared::profile::generate_oauth_at_rest_pepper;
 
 const STANDARD_PROVIDERS: [&str; 3] = ["gemini", "anthropic", "openai"];
 
+// Default-provider precedence when no --default-provider flag is given: the
+// first provider in this order whose key was supplied wins.
+const PROVIDER_PRIORITY: [&str; 3] = ["anthropic", "openai", "gemini"];
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(super) struct SecretsData {
     pub oauth_at_rest_pepper: String,
@@ -83,13 +87,22 @@ impl SecretsData {
     }
 }
 
-/// Resolve an explicit `--default-provider` flag against the collected keys.
-/// `None` when the flag is absent — non-interactive callers without the flag
-/// (e.g. boeing's single-key setup) leave the default-provider config
-/// untouched.
-fn primary_from_flag(args: &SetupArgs, secrets: &SecretsData) -> Result<Option<ProviderId>> {
+/// First present key in [`PROVIDER_PRIORITY`] order. `None` only when no
+/// standard provider key was supplied.
+fn first_present_by_priority(secrets: &SecretsData) -> Option<ProviderId> {
+    PROVIDER_PRIORITY
+        .into_iter()
+        .find(|p| secrets.key_for(p).is_some())
+        .map(ProviderId::new)
+}
+
+/// The chosen default provider: an explicit, key-backed `--default-provider`
+/// flag if given, otherwise the first present key by [`PROVIDER_PRIORITY`].
+/// `None` only when no standard key is present (the flag's absence is never
+/// fatal — `validate_secrets` already guarantees at least one key).
+fn resolve_primary(args: &SetupArgs, secrets: &SecretsData) -> Result<Option<ProviderId>> {
     let Some(name) = args.default_provider.as_deref().map(str::trim) else {
-        return Ok(None);
+        return Ok(first_present_by_priority(secrets));
     };
     if !STANDARD_PROVIDERS.contains(&name) {
         bail!("--default-provider must be one of: gemini, anthropic, openai (got '{name}')");
@@ -126,7 +139,7 @@ pub(super) fn collect_non_interactive(
     };
 
     validate_secrets(&secrets)?;
-    let primary = primary_from_flag(args, &secrets)?;
+    let primary = resolve_primary(args, &secrets)?;
 
     if !config.is_json_output() {
         CliService::success(&format!("Configured keys: {}", secrets.summary()));
@@ -157,7 +170,7 @@ pub(super) fn collect_interactive(
         args.openai_key.clone_into(&mut secrets.openai);
         args.github_token.clone_into(&mut secrets.github);
         CliService::success(&format!("Using provided keys: {}", secrets.summary()));
-        let primary = primary_from_flag(args, &secrets)?;
+        let primary = resolve_primary(args, &secrets)?;
         return Ok((secrets, primary));
     }
 

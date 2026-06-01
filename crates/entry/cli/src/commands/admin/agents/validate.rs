@@ -4,7 +4,7 @@ use clap::Args;
 use super::types::{ValidationIssue, ValidationOutput};
 use crate::CliConfig;
 use crate::shared::CommandResult;
-use systemprompt_config::SecretsBootstrap;
+use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Args)]
@@ -17,20 +17,11 @@ pub(super) fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {
-    let mut services_config =
-        ConfigLoader::load().context("Failed to load services configuration")?;
-
-    if let Ok(secrets) = SecretsBootstrap::get() {
-        for provider_config in services_config.ai.providers.values_mut() {
-            if provider_config.api_key.starts_with("${") && provider_config.api_key.ends_with('}') {
-                let var_name =
-                    provider_config.api_key[2..provider_config.api_key.len() - 1].to_string();
-                if let Some(v) = secrets.get(&var_name) {
-                    provider_config.api_key.clone_from(v);
-                }
-            }
-        }
-    }
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let registry = &ProfileBootstrap::get()
+        .context("Failed to access bootstrapped profile for provider registry")?
+        .providers;
+    let secrets = SecretsBootstrap::get().ok();
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -115,17 +106,37 @@ pub(super) fn execute(
                             });
                         }
 
-                        if provider_config.api_key.is_empty()
-                            || provider_config.api_key.starts_with("${")
-                        {
-                            errors.push(ValidationIssue {
-                                source: name.clone(),
-                                message: format!(
-                                    "No API key configured for provider '{}' (check secrets file)",
-                                    provider_name
-                                ),
-                                suggestion: None,
-                            });
+                        let _ = provider_config;
+                        match registry.find_provider(provider_name) {
+                            None => {
+                                errors.push(ValidationIssue {
+                                    source: name.clone(),
+                                    message: format!(
+                                        "Provider '{}' has no connectivity entry in the profile \
+                                         registry",
+                                        provider_name
+                                    ),
+                                    suggestion: None,
+                                });
+                            },
+                            Some(entry) => {
+                                let secret_name = entry.api_key_secret.as_str();
+                                let key_present = secrets
+                                    .as_ref()
+                                    .and_then(|s| s.get(secret_name))
+                                    .is_some_and(|k| !k.is_empty());
+                                if !key_present {
+                                    errors.push(ValidationIssue {
+                                        source: name.clone(),
+                                        message: format!(
+                                            "No API key configured for provider '{}' (secret '{}' \
+                                             not found)",
+                                            provider_name, secret_name
+                                        ),
+                                        suggestion: None,
+                                    });
+                                }
+                            },
                         }
                     },
                 }

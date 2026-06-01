@@ -29,14 +29,24 @@ fn determine_environment(env_name: &str) -> Environment {
     }
 }
 
-pub(super) fn build(
-    env_name: &str,
-    secrets_path: &str,
-    project_root: &Path,
-    bin_path: Option<&Path>,
-    secrets: &SecretsData,
-    default_provider: Option<&ProviderId>,
-) -> Result<Profile> {
+pub(super) struct ProfileBuildParams<'a> {
+    pub env_name: &'a str,
+    pub secrets_path: &'a str,
+    pub project_root: &'a Path,
+    pub bin_path: Option<&'a Path>,
+    pub secrets: &'a SecretsData,
+    pub default_provider: Option<&'a ProviderId>,
+}
+
+pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
+    let ProfileBuildParams {
+        env_name,
+        secrets_path,
+        project_root,
+        bin_path,
+        secrets,
+        default_provider,
+    } = *params;
     let ctx = ProjectContext::new(project_root.to_path_buf());
     let runtime_env = determine_environment(env_name);
     let is_prod = matches!(runtime_env, Environment::Production);
@@ -73,6 +83,7 @@ pub(super) fn build(
             source: SecretsSource::File,
         }),
         extensions: ExtensionsConfig::default(),
+        providers: sections::providers(secrets),
         gateway: Some(sections::gateway(secrets, default_provider)),
         governance: Some(governance),
         system_admin: SystemAdminConfig {
@@ -106,10 +117,6 @@ pub(super) fn profile_dir(systemprompt_dir: &Path, env_name: &str) -> std::path:
 
 pub(super) fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
     profile_dir(systemprompt_dir, env_name).join("profile.yaml")
-}
-
-pub(super) fn catalog_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
-    profile_dir(systemprompt_dir, env_name).join("catalog.yaml")
 }
 
 pub(super) fn run_migrations(profile_path: &Path) -> Result<()> {

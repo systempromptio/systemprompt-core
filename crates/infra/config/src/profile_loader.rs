@@ -1,4 +1,5 @@
-//! YAML profile loader with embedded gateway-catalog resolution.
+//! YAML profile loader: parses a profile and projects its gateway section to
+//! runtime form, validating the provider registry and gateway references.
 
 use std::path::Path;
 
@@ -13,11 +14,14 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
     })?;
     let mut profile = Profile::from_yaml(&content, path)?;
 
+    // The registry is the authority for upstream connectivity; validate it
+    // before any layer that references it.
+    profile.providers.validate()?;
+
     let Some(state) = profile.gateway.take() else {
         return Ok(profile);
     };
 
-    let profile_dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut spec = state.into_spec();
 
     // Route ids are synthesized deterministically from (pattern, provider), so
@@ -26,7 +30,8 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
     // race and the risk of baking interpolated `${VAR}` values into the source.
     profile_gateway::backfill_route_ids(&mut spec);
 
-    let resolved = spec.resolve(profile_dir)?;
+    let resolved = spec.resolve();
+    resolved.validate(&profile.providers)?;
     profile.gateway = Some(GatewayState::Resolved(resolved));
     Ok(profile)
 }

@@ -1,9 +1,11 @@
 //! `admin config gateway` — edit the profile's gateway section: enable state,
-//! catalog source, and routing patterns.
+//! routing patterns, and the default provider.
 //!
-//! Every mutation resolves the resulting spec against the on-disk catalog and
-//! runs `GatewayConfig::validate`, so an unreachable route or a provider
-//! missing from the catalog fails at the edit rather than at the next boot.
+//! Every mutation resolves the resulting spec and validates it against the
+//! profile's provider registry (`profile.providers`), so a route or
+//! default-provider that names a provider absent from the registry fails at the
+//! edit rather than at the next boot. The gateway owns no catalog: providers
+//! and models live in `profile.providers` (see `admin config catalog`).
 
 use std::collections::HashMap;
 
@@ -12,11 +14,9 @@ use clap::{Args, Subcommand};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::Profile;
-use systemprompt_models::profile::{
-    GatewayCatalogSource, GatewayConfigSpec, GatewayRoute, GatewayState,
-};
+use systemprompt_models::profile::{GatewayConfigSpec, GatewayRoute, GatewayState};
 
-use super::profile_io::{load_profile, profile_dir, save_profile};
+use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
 use crate::shared::{CommandResult, render_result};
@@ -28,15 +28,6 @@ pub enum GatewayCommands {
 
     #[command(about = "Disable the gateway")]
     Disable,
-
-    #[command(about = "Set the gateway catalog source path")]
-    CatalogSet {
-        #[arg(
-            long,
-            help = "Path to the catalog YAML, relative to the profile directory"
-        )]
-        path: String,
-    },
 
     #[command(subcommand, about = "Manage gateway routes")]
     Route(RouteCommands),
@@ -50,9 +41,9 @@ pub enum GatewayCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum DefaultProviderCommands {
-    #[command(about = "Set the default provider (must exist in the catalog)")]
+    #[command(about = "Set the default provider (must exist in profile.providers)")]
     Set {
-        #[arg(long, help = "Provider name declared in the catalog")]
+        #[arg(long, help = "Provider name declared in profile.providers")]
         provider: String,
     },
 
@@ -80,7 +71,7 @@ pub struct RouteAddArgs {
     #[arg(long, help = "Model pattern (e.g. claude-*)")]
     pub model_pattern: String,
 
-    #[arg(long, help = "Provider name (must exist in the catalog)")]
+    #[arg(long, help = "Provider name (must exist in profile.providers)")]
     pub provider: String,
 
     #[arg(long, help = "Upstream model name the provider expects (optional)")]
@@ -98,7 +89,6 @@ pub fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
     let message = match command {
         GatewayCommands::Enable => set_enabled(&mut profile, true)?,
         GatewayCommands::Disable => set_enabled(&mut profile, false)?,
-        GatewayCommands::CatalogSet { path } => set_catalog(&mut profile, path)?,
         GatewayCommands::Route(RouteCommands::Add(args)) => add_route(&mut profile, args)?,
         GatewayCommands::Route(RouteCommands::Remove { model_pattern }) => {
             remove_route(&mut profile, model_pattern)?
@@ -112,7 +102,7 @@ pub fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
         },
     };
 
-    validate_gateway(&profile, profile_path)?;
+    validate_gateway(&profile)?;
     save_profile(&profile, profile_path)?;
 
     render_result(
@@ -136,13 +126,6 @@ fn spec_mut(profile: &mut Profile) -> Result<&mut GatewayConfigSpec> {
 fn set_enabled(profile: &mut Profile, enabled: bool) -> Result<String> {
     spec_mut(profile)?.enabled = enabled;
     Ok(format!("Gateway enabled = {}", enabled))
-}
-
-fn set_catalog(profile: &mut Profile, path: &str) -> Result<String> {
-    spec_mut(profile)?.catalog = Some(GatewayCatalogSource::Path {
-        path: std::path::PathBuf::from(path),
-    });
-    Ok(format!("Gateway catalog source set to {}", path))
 }
 
 fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
@@ -185,17 +168,13 @@ fn remove_route(profile: &mut Profile, model_pattern: &str) -> Result<String> {
     Ok(format!("Route {} removed", model_pattern))
 }
 
-fn validate_gateway(profile: &Profile, profile_path: &str) -> Result<()> {
+fn validate_gateway(profile: &Profile) -> Result<()> {
     let Some(state) = &profile.gateway else {
         return Ok(());
     };
-    let resolved = state
-        .clone()
-        .into_spec()
-        .resolve(profile_dir(profile_path))
-        .map_err(|e| anyhow!("gateway resolution failed: {e}"))?;
+    let resolved = state.clone().into_spec().resolve();
     resolved
-        .validate()
+        .validate(&profile.providers)
         .map_err(|e| anyhow!("gateway validation failed: {e}"))
 }
 

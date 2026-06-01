@@ -1,38 +1,39 @@
-//! `admin config catalog` — edit the gateway's model catalog (`catalog.yaml`).
+//! `admin config catalog` — edit the profile's provider registry
+//! (`profile.providers`).
 //!
-//! Resolves the catalog file from the profile's `gateway.catalog` path, mutates
-//! the typed `GatewayCatalog`, runs `GatewayCatalog::validate` (SSRF-guarded
-//! endpoints, provider/model consistency), and writes it back. This is how an
-//! instance adds a custom provider such as `minimax` without hand-editing YAML.
+//! Mutates the typed [`ProviderRegistry`] on the profile — adding or removing
+//! providers and the models each provider serves — then revalidates the whole
+//! profile before writing it back. This is how an instance declares a custom
+//! provider such as `minimax` (its wire protocol, endpoint, credential, and
+//! model catalog) without hand-editing YAML.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use systemprompt_models::Profile;
-use systemprompt_models::profile::{
-    GatewayCatalog, GatewayCatalogSource, GatewayModel, GatewayProvider,
-};
+use systemprompt_models::profile::{ProviderEntry, ProviderModel, WireProtocol};
 
-use super::profile_io::{load_profile, profile_dir};
+use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
 use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum CatalogCommands {
-    #[command(subcommand, about = "Manage catalog providers")]
+    #[command(subcommand, about = "Manage registry providers")]
     Provider(ProviderCommands),
 
-    #[command(subcommand, about = "Manage catalog models")]
+    #[command(subcommand, about = "Manage the models a provider serves")]
     Model(ModelCommands),
 }
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
+    #[command(about = "List declared providers")]
+    List,
     #[command(about = "Add or replace a provider")]
     Add(ProviderAddArgs),
     #[command(about = "Remove a provider by name")]
@@ -44,10 +45,12 @@ pub enum ProviderCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum ModelCommands {
-    #[command(about = "Add or replace a model")]
+    #[command(about = "Add or replace a model under a provider")]
     Add(ModelAddArgs),
-    #[command(about = "Remove a model by id")]
+    #[command(about = "Remove a model by id from a provider")]
     Remove {
+        #[arg(long, help = "Provider that serves the model")]
+        provider: String,
         #[arg(long)]
         id: String,
     },
@@ -57,6 +60,11 @@ pub enum ModelCommands {
 pub struct ProviderAddArgs {
     #[arg(long)]
     pub name: String,
+    #[arg(
+        long,
+        help = "Wire protocol: anthropic | openai-chat | openai-responses | gemini"
+    )]
+    pub protocol: String,
     #[arg(long)]
     pub endpoint: String,
     #[arg(long)]
@@ -67,82 +75,58 @@ pub struct ProviderAddArgs {
 
 #[derive(Debug, Clone, Args)]
 pub struct ModelAddArgs {
+    #[arg(long, help = "Provider that serves this model")]
+    pub provider: String,
     #[arg(long)]
     pub id: String,
-    #[arg(long)]
-    pub provider: String,
     #[arg(long = "alias", help = "Model alias (repeatable)")]
     pub aliases: Vec<String>,
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Vendor-side model name to forward upstream (defaults to id)"
+    )]
     pub upstream_model: Option<String>,
-    #[arg(long)]
-    pub display_name: Option<String>,
 }
 
 pub fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<()> {
+    if matches!(command, CatalogCommands::Provider(ProviderCommands::List)) {
+        return list_providers();
+    }
+
     let profile_path = ProfileBootstrap::get_path()?;
-    let profile = load_profile(profile_path)?;
-    let catalog_file = catalog_file_path(&profile, profile_path)?;
-    let mut catalog = read_catalog(&catalog_file)?;
+    let mut profile = load_profile(profile_path)?;
 
     let message = match command {
-        CatalogCommands::Provider(ProviderCommands::Add(args)) => add_provider(&mut catalog, args)?,
+        CatalogCommands::Provider(ProviderCommands::List) => unreachable!("handled above"),
+        CatalogCommands::Provider(ProviderCommands::Add(args)) => add_provider(&mut profile, args)?,
         CatalogCommands::Provider(ProviderCommands::Remove { name }) => {
-            remove_provider(&mut catalog, name)?
+            remove_provider(&mut profile, name)?
         },
-        CatalogCommands::Model(ModelCommands::Add(args)) => add_model(&mut catalog, args)?,
-        CatalogCommands::Model(ModelCommands::Remove { id }) => remove_model(&mut catalog, id)?,
+        CatalogCommands::Model(ModelCommands::Add(args)) => add_model(&mut profile, args)?,
+        CatalogCommands::Model(ModelCommands::Remove { provider, id }) => {
+            remove_model(&mut profile, provider, id)?
+        },
     };
 
-    catalog
-        .validate()
-        .map_err(|e| anyhow::anyhow!("catalog validation failed: {e}"))?;
-    write_catalog(&catalog, &catalog_file)?;
+    save_profile(&profile, profile_path)?;
 
     render_result(
         &CommandResult::text(ConfigMutationOutput {
-            field: "catalog".to_owned(),
+            field: "providers".to_owned(),
             message,
         })
-        .with_title("Catalog Updated"),
+        .with_title("Provider Registry Updated"),
     );
     Ok(())
 }
 
-fn catalog_file_path(profile: &Profile, profile_path: &str) -> Result<PathBuf> {
-    let spec = profile
-        .gateway
-        .clone()
-        .map(systemprompt_models::profile::GatewayState::into_spec)
-        .ok_or_else(|| anyhow::anyhow!("profile has no gateway section"))?;
-    match spec.catalog {
-        Some(GatewayCatalogSource::Path { path }) => {
-            if path.is_absolute() {
-                Ok(path)
-            } else {
-                Ok(profile_dir(profile_path).join(path))
-            }
-        },
-        Some(GatewayCatalogSource::Inline(_)) => {
-            bail!("gateway catalog is inline; edit the profile directly")
-        },
-        None => {
-            bail!("gateway has no catalog source; run `admin config gateway catalog-set` first")
-        },
-    }
-}
-
-fn read_catalog(path: &std::path::Path) -> Result<GatewayCatalog> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read catalog: {}", path.display()))?;
-    serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse catalog: {}", path.display()))
-}
-
-fn write_catalog(catalog: &GatewayCatalog, path: &std::path::Path) -> Result<()> {
-    let content = serde_yaml::to_string(catalog).context("Failed to serialize catalog")?;
-    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
-    Ok(())
+fn parse_protocol(raw: &str) -> Result<WireProtocol> {
+    serde_yaml::from_str(raw).map_err(|e| {
+        anyhow::anyhow!(
+            "invalid --protocol '{raw}' ({e}); expected one of: anthropic, openai-chat, \
+             openai-responses, gemini"
+        )
+    })
 }
 
 fn parse_headers(raw: &[String]) -> Result<HashMap<String, String>> {
@@ -155,50 +139,96 @@ fn parse_headers(raw: &[String]) -> Result<HashMap<String, String>> {
         .collect()
 }
 
-fn add_provider(catalog: &mut GatewayCatalog, args: &ProviderAddArgs) -> Result<String> {
-    let provider = GatewayProvider {
+fn add_provider(profile: &mut Profile, args: &ProviderAddArgs) -> Result<String> {
+    // Preserve the existing model catalog when replacing a provider in place.
+    let models = profile
+        .providers
+        .find_provider(&args.name)
+        .map(|p| p.models.clone())
+        .unwrap_or_default();
+    let entry = ProviderEntry {
         name: ProviderId::new(&args.name),
+        protocol: parse_protocol(&args.protocol)?,
         endpoint: args.endpoint.clone(),
         api_key_secret: SecretName::new(&args.api_key_secret),
         extra_headers: parse_headers(&args.headers)?,
+        models,
     };
-    catalog.providers.retain(|p| p.name.as_str() != args.name);
-    catalog.providers.push(provider);
-    Ok(format!("Provider {} added", args.name))
+    profile
+        .providers
+        .providers
+        .retain(|p| p.name.as_str() != args.name);
+    profile.providers.providers.push(entry);
+    Ok(format!("Provider {} ({}) added", args.name, args.protocol))
 }
 
-fn remove_provider(catalog: &mut GatewayCatalog, name: &str) -> Result<String> {
-    let before = catalog.providers.len();
-    catalog.providers.retain(|p| p.name.as_str() != name);
-    if catalog.providers.len() == before {
+fn remove_provider(profile: &mut Profile, name: &str) -> Result<String> {
+    let before = profile.providers.providers.len();
+    profile
+        .providers
+        .providers
+        .retain(|p| p.name.as_str() != name);
+    if profile.providers.providers.len() == before {
         bail!("No provider named {}", name);
     }
     Ok(format!("Provider {} removed", name))
 }
 
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "uniform Result signature across catalog mutation handlers dispatched together"
-)]
-fn add_model(catalog: &mut GatewayCatalog, args: &ModelAddArgs) -> Result<String> {
-    let model = GatewayModel {
+fn add_model(profile: &mut Profile, args: &ModelAddArgs) -> Result<String> {
+    let provider = profile
+        .providers
+        .providers
+        .iter_mut()
+        .find(|p| p.name.as_str() == args.provider)
+        .ok_or_else(|| anyhow::anyhow!("No provider named {}", args.provider))?;
+    let model = ProviderModel {
         id: ModelId::new(&args.id),
-        provider: ProviderId::new(&args.provider),
         aliases: args.aliases.iter().map(ModelId::new).collect(),
-        display_name: args.display_name.clone(),
         upstream_model: args.upstream_model.clone(),
-        pricing: None,
+        pricing: systemprompt_models::services::ai::ModelPricing::default(),
+        capabilities: systemprompt_models::services::ai::ModelCapabilities::default(),
+        limits: systemprompt_models::services::ai::ModelLimits::default(),
     };
-    catalog.models.retain(|m| m.id.as_str() != args.id);
-    catalog.models.push(model);
-    Ok(format!("Model {} added", args.id))
+    provider.models.retain(|m| m.id.as_str() != args.id);
+    provider.models.push(model);
+    Ok(format!("Model {} added to {}", args.id, args.provider))
 }
 
-fn remove_model(catalog: &mut GatewayCatalog, id: &str) -> Result<String> {
-    let before = catalog.models.len();
-    catalog.models.retain(|m| m.id.as_str() != id);
-    if catalog.models.len() == before {
-        bail!("No model with id {}", id);
+fn remove_model(profile: &mut Profile, provider_name: &str, id: &str) -> Result<String> {
+    let provider = profile
+        .providers
+        .providers
+        .iter_mut()
+        .find(|p| p.name.as_str() == provider_name)
+        .ok_or_else(|| anyhow::anyhow!("No provider named {}", provider_name))?;
+    let before = provider.models.len();
+    provider.models.retain(|m| m.id.as_str() != id);
+    if provider.models.len() == before {
+        bail!("No model with id {} under provider {}", id, provider_name);
     }
-    Ok(format!("Model {} removed", id))
+    Ok(format!("Model {} removed from {}", id, provider_name))
+}
+
+fn list_providers() -> Result<()> {
+    let profile_path = ProfileBootstrap::get_path()?;
+    let profile = load_profile(profile_path)?;
+    let rows: Vec<String> = profile
+        .providers
+        .providers
+        .iter()
+        .map(|p| {
+            let models: Vec<&str> = p.models.iter().map(|m| m.id.as_str()).collect();
+            format!(
+                "{} [{}] {} ({} models: {})",
+                p.name.as_str(),
+                p.protocol,
+                p.endpoint,
+                models.len(),
+                models.join(", ")
+            )
+        })
+        .collect();
+
+    render_result(&CommandResult::list(rows).with_title("Provider Registry"));
+    Ok(())
 }

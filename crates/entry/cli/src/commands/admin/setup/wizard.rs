@@ -17,7 +17,7 @@ use super::wizard_prompts::{
     collect_secrets, detect_project_root, get_environment_name, print_summary, setup_postgres,
     should_run_migrations,
 };
-use super::{SetupArgs, ai_config, catalog, common, profile, secrets};
+use super::{SetupArgs, ai_config, common, profile, secrets};
 use crate::CliConfig;
 
 fn should_write(path: &std::path::Path, force: bool, config: &CliConfig) -> bool {
@@ -101,28 +101,17 @@ pub(super) async fn execute(
         secrets::save(&secrets_data, &secrets_path)?;
     }
 
-    let profile_data = profile::build(
-        &env_name,
-        "secrets.json",
-        &project_root,
-        None,
-        &secrets_data,
-        primary_provider.as_ref(),
-    )?;
+    let profile_data = profile::build(&profile::ProfileBuildParams {
+        env_name: &env_name,
+        secrets_path: "secrets.json",
+        project_root: &project_root,
+        bin_path: None,
+        secrets: &secrets_data,
+        default_provider: primary_provider.as_ref(),
+    })?;
     let profile_path = profile::default_path(&systemprompt_dir, &env_name);
     if should_write(&profile_path, args.force, config) {
         profile::save(&profile_data, &profile_path)?;
-    }
-
-    let catalog_path = profile::catalog_path(&systemprompt_dir, &env_name);
-    if should_write(&catalog_path, args.force, config) {
-        catalog::save_catalog(&catalog::build_catalog(&secrets_data), &catalog_path)?;
-        if !config.is_json_output() {
-            CliService::success(&format!(
-                "Saved gateway catalog to {}",
-                catalog_path.display()
-            ));
-        }
     }
 
     if let Some(primary) = primary_provider.as_ref() {
