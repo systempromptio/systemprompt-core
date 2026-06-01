@@ -2,10 +2,11 @@
 //!
 //! [`router`] serves the default `marketplace.json`, lists and renders
 //! individual marketplaces (JSON and raw `config.yaml`), and streams plugin
-//! files. Plugin files are served from the bundle the gateway *generates* from
-//! the plugin spec ([`build_plugin_bundle`]) — the same in-memory artifact the
-//! manifest hashes — so the byte stream and the manifest cannot drift, and an
-//! internal `config.yaml` is never part of the generated bundle to leak.
+//! files. Plugin files are served from `plugin_bundles` — the same active,
+//! content-gated map the signed manifest is hashed from — so the byte stream
+//! and the manifest cannot drift: a plugin the manifest excludes (content-less
+//! or outside the active marketplace) is absent from the map and yields a 404,
+//! and an internal `config.yaml` is never part of the generated bundle to leak.
 
 use axum::Router;
 use axum::extract::{Path as AxumPath, State};
@@ -16,11 +17,11 @@ use std::path::{Path, PathBuf};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_marketplace::catalog::{load_agents, load_managed_mcp_servers, load_skills};
 use systemprompt_marketplace::{
-    BundleContent, MarketplaceService, build_plugin_bundle, render_marketplace_json,
+    CatalogContent, MarketplaceService, plugin_bundles, render_marketplace_json,
     render_marketplace_list,
 };
+use systemprompt_models::bridge::ids::PluginId;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
@@ -171,36 +172,23 @@ async fn serve_plugin_file(
     AxumPath((plugin_id, file_path)): AxumPath<(String, String)>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
     let services = load_services_config()?;
-    let Some(config) = services
-        .plugins
-        .values()
-        .find(|p| p.enabled && p.id.as_str() == plugin_id)
-    else {
-        return Err(ApiHttpError::not_found(format!(
-            "Plugin '{plugin_id}' not found"
-        )));
-    };
-
     let profile = ProfileBootstrap::get()
         .map_err(|e| ApiHttpError::internal_error(format!("profile not ready: {e}")))?;
     let api_external_url = &profile.server.api_external_url;
     let services_root = ctx.app_paths().system().services();
 
-    let skills =
-        load_skills(services_root).map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
-    let agents = load_agents(&services, api_external_url);
-    let mcp_servers = load_managed_mcp_servers(&services, api_external_url)
+    let catalog = CatalogContent::load(&services, services_root, api_external_url)
         .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
-    let plugins_root = services_root.join("plugins");
-    let content = BundleContent {
-        skills: &skills,
-        agents: &agents,
-        mcp_servers: &mcp_servers,
-        plugins_root: &plugins_root,
-    };
+    let bundles = plugin_bundles(&services, &catalog.as_content())
+        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
 
-    let bundle = build_plugin_bundle(config, &content)
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let id = PluginId::try_new(&plugin_id)
+        .map_err(|_e| ApiHttpError::not_found(format!("Plugin '{plugin_id}' not found")))?;
+    let Some(bundle) = bundles.get(&id) else {
+        return Err(ApiHttpError::not_found(format!(
+            "Plugin '{plugin_id}' not found"
+        )));
+    };
 
     let Some(file) = bundle.get(&file_path) else {
         return Err(ApiHttpError::not_found(format!(

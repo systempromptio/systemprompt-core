@@ -10,7 +10,9 @@
 //!   `ServicesConfig` (lookup, default fallback, active marketplace,
 //!   referential-integrity check).
 //! - [`catalog`]: on-disk loaders projecting the services tree into the signed
-//!   `*Entry` records the manifest carries.
+//!   `*Entry` records the manifest carries. [`CatalogContent`] owns the
+//!   resolved catalogue; [`plugin_bundles`] is the single source of the active,
+//!   content-gated plugin bundles shared by the manifest and serving paths.
 //! - [`bundle`]: the build-from-spec plugin-bundle assembler
 //!   ([`build_plugin_bundle`]) — the single owner of the `.claude-plugin`
 //!   bundle contract, consumed by both the manifest and byte-serving paths.
@@ -54,6 +56,7 @@ pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
 pub use candidate::MarketplaceCandidate;
+pub use catalog::{CatalogContent, plugin_bundles};
 pub use error::{MarketplaceError, MarketplaceFilterError};
 pub use filter::{AllowAllFilter, MarketplaceFilter};
 pub use manifest::{CanonicalView, ManifestService};

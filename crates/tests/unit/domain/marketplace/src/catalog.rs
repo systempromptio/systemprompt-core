@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 
-use systemprompt_marketplace::BundleContent;
+use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_marketplace::catalog::{
     load_agents, load_hooks, load_managed_mcp_servers, load_plugins, load_skills,
 };
@@ -300,6 +300,20 @@ fn load_plugins_empty_config_returns_empty() {
         mcp_servers: &[],
         plugins_root: &plugins_root,
     };
-    let plugins = load_plugins(&config, &content);
+    let plugins = load_plugins(&config, &content).expect("load plugins");
     assert!(plugins.is_empty());
+}
+
+#[test]
+fn catalog_content_loads_once_and_exposes_borrowed_view() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let services = ServicesConfig::default();
+    let catalog = CatalogContent::load(&services, dir.path(), "https://api.example.com")
+        .expect("load catalog content");
+
+    let content = catalog.as_content();
+    assert!(content.skills.is_empty());
+    assert!(content.agents.is_empty());
+    assert!(content.mcp_servers.is_empty());
+    assert!(content.plugins_root.ends_with("plugins"));
 }

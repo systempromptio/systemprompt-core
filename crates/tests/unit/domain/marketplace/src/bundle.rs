@@ -2,7 +2,7 @@ use std::path::Path;
 
 use systemprompt_identifiers::{AgentId, AgentName, PluginId};
 use systemprompt_marketplace::bundle::{BundleContent, build_plugin_bundle, bundle_has_content};
-use systemprompt_marketplace::catalog::load_plugins;
+use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
 use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::{AgentEntry, SkillEntry};
 use systemprompt_models::bridge::plugin_bundle::{
@@ -11,6 +11,8 @@ use systemprompt_models::bridge::plugin_bundle::{
 use systemprompt_models::services::{
     ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig, ServicesConfig,
 };
+
+use crate::helpers::{config_with, include, marketplace};
 
 fn zero_digest() -> Sha256Digest {
     Sha256Digest::try_new("0".repeat(64)).expect("zero digest is valid hex")
@@ -173,7 +175,7 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
         ),
     );
 
-    let entries = load_plugins(&services, &content);
+    let entries = load_plugins(&services, &content).expect("load plugins");
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].id.as_str(), "demo-plugin");
     assert!(!entries[0].files.is_empty());
@@ -203,7 +205,7 @@ fn load_plugins_skips_spec_with_no_resolvable_content() {
         ),
     );
 
-    let entries = load_plugins(&services, &content);
+    let entries = load_plugins(&services, &content).expect("load plugins");
     assert!(
         entries.is_empty(),
         "a spec resolving to no content must be skipped, not shipped as a shell"
@@ -220,4 +222,116 @@ fn bundle_has_manifest_detects_contract_path() {
         "skills/x/SKILL.md",
         "agents/y.md"
     ]));
+}
+
+#[test]
+fn plugin_bundles_skips_content_less_plugin() {
+    let content = BundleContent {
+        skills: &[],
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent/plugins"),
+    };
+    let mut services = ServicesConfig::default();
+    services.plugins.insert(
+        "demo".to_owned(),
+        plugin_config(
+            "demo-plugin",
+            explicit(&["missing_skill"]),
+            PluginComponentRef::default(),
+        ),
+    );
+
+    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+    assert!(
+        bundles.is_empty(),
+        "a content-less plugin must be absent from the served map, mirroring the manifest skip"
+    );
+}
+
+#[test]
+fn plugin_bundles_scopes_to_active_marketplace() {
+    let skills = vec![
+        skill_entry("a_skill", "a", "ab"),
+        skill_entry("b_skill", "b", "bb"),
+    ];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let mut mp = marketplace("only-a");
+    mp.plugins = include(&["plugin-a"]);
+    let mut services = config_with(vec![mp]);
+    services.plugins.insert(
+        "a".to_owned(),
+        plugin_config("plugin-a", explicit(&["a_skill"]), PluginComponentRef::default()),
+    );
+    services.plugins.insert(
+        "b".to_owned(),
+        plugin_config("plugin-b", explicit(&["b_skill"]), PluginComponentRef::default()),
+    );
+
+    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+    let ids: Vec<&str> = bundles.keys().map(systemprompt_models::bridge::ids::PluginId::as_str).collect();
+    assert_eq!(
+        ids,
+        vec!["plugin-a"],
+        "a plugin outside the active marketplace must be absent from the served map"
+    );
+}
+
+#[test]
+fn manifest_entries_hash_the_served_bytes() {
+    use sha2::{Digest, Sha256};
+
+    let skills = vec![skill_entry("use_dangerous_secret", "danger", "do not leak")];
+    let agents = vec![agent_entry("developer_agent", "the dev", Some("You are dev"))];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &agents,
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent/plugins"),
+    };
+    let mut services = ServicesConfig::default();
+    services.plugins.insert(
+        "demo".to_owned(),
+        plugin_config(
+            "demo-plugin",
+            explicit(&["use_dangerous_secret"]),
+            explicit(&["developer_agent"]),
+        ),
+    );
+
+    let entries = load_plugins(&services, &content).expect("load plugins");
+    let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
+    assert_eq!(entries.len(), 1);
+
+    for entry in &entries {
+        let bundle = bundles
+            .iter()
+            .find(|(id, _)| id.as_str() == entry.id.as_str())
+            .map(|(_, bundle)| bundle)
+            .expect("the manifest entry has a served bundle");
+        assert_eq!(
+            entry.files.len(),
+            bundle.len(),
+            "every served file is recorded in the manifest entry"
+        );
+        for file in &entry.files {
+            let served = bundle.get(&file.path).expect("the manifest path is served");
+            let digest: String = Sha256::digest(&served.bytes)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
+            assert_eq!(
+                file.sha256.as_str(),
+                digest,
+                "manifest hash matches served bytes for {}",
+                file.path
+            );
+            assert_eq!(file.size, served.bytes.len() as u64);
+        }
+    }
 }

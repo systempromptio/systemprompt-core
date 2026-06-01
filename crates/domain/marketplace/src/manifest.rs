@@ -16,11 +16,8 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_models::services::ServicesConfig;
 use systemprompt_security::manifest_signing;
 
-use crate::bundle::BundleContent;
 use crate::candidate::MarketplaceCandidate;
-use crate::catalog::{
-    load_agents, load_hooks, load_managed_mcp_servers, load_plugins, load_skills,
-};
+use crate::catalog::{CatalogContent, load_hooks, load_plugins};
 use crate::error::MarketplaceError;
 use crate::filter::MarketplaceFilter;
 use crate::scope::{active_marketplace, scope_to_marketplace};
@@ -56,31 +53,21 @@ impl ManifestService {
         filter: &dyn MarketplaceFilter,
         user_id: &UserId,
     ) -> Result<MarketplaceCandidate, MarketplaceError> {
-        let skills = load_skills(services_root)?;
-        let agents = load_agents(services, api_external_url);
+        let catalog = CatalogContent::load(services, services_root, api_external_url)?;
         let hooks = load_hooks(services_root)?;
-        let managed_mcp_servers = load_managed_mcp_servers(services, api_external_url)?;
-
-        let plugins_root = services_root.join("plugins");
-        let content = BundleContent {
-            skills: &skills,
-            agents: &agents,
-            mcp_servers: &managed_mcp_servers,
-            plugins_root: &plugins_root,
-        };
-        let plugins = load_plugins(services, &content);
+        let plugins = load_plugins(services, &catalog.as_content())?;
+        let (skills, agents, managed_mcp_servers) = catalog.into_parts();
 
         let active = active_marketplace(services);
-        let (skills, agents, plugins, managed_mcp_servers) = match active {
+        let (skills, agents, managed_mcp_servers) = match active {
             Some(mp) => (
                 scope_to_marketplace(skills, &mp.skills.include, |s| s.id.as_str()),
                 scope_to_marketplace(agents, &mp.agents.include, |a| a.id.as_str()),
-                scope_to_marketplace(plugins, &mp.plugins.include, |p| p.id.as_str()),
                 scope_to_marketplace(managed_mcp_servers, &mp.mcp_servers.include, |m| {
                     m.name.as_str()
                 }),
             ),
-            None => (skills, agents, plugins, managed_mcp_servers),
+            None => (skills, agents, managed_mcp_servers),
         };
 
         let mut candidate =

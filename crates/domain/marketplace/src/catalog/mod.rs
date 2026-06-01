@@ -8,13 +8,15 @@
 //! [`MarketplaceError::Catalog`](crate::error::MarketplaceError).
 
 mod agents;
+mod content;
 mod hooks;
 mod mcp;
 mod plugins;
 mod skills;
 
 pub use agents::load_agents;
+pub use content::CatalogContent;
 pub use hooks::load_hooks;
 pub use mcp::load_managed_mcp_servers;
-pub use plugins::load_plugins;
+pub use plugins::{load_plugins, plugin_bundles};
 pub use skills::load_skills;
