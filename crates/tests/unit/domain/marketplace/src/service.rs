@@ -18,14 +18,15 @@ fn resolve_default_uses_explicit_id() {
 }
 
 #[test]
-fn resolve_default_falls_back_to_conventional_id() {
-    let config = config_with(vec![marketplace("default"), marketplace("other")]);
+fn resolve_default_uses_sole_marketplace_without_explicit_id() {
+    let config = config_with(vec![marketplace("only")]);
     let service = MarketplaceService::new(&config);
 
-    let (id, _) = service
+    let (id, mp) = service
         .resolve_default()
-        .expect("conventional 'default' id resolves");
-    assert_eq!(id.as_str(), "default");
+        .expect("the single configured marketplace resolves");
+    assert_eq!(id.as_str(), "only");
+    assert_eq!(mp.id.as_str(), "only");
 }
 
 #[test]

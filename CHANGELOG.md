@@ -5,6 +5,7 @@
 ### Changed
 
 - Plugin bundles are generated from the plugin spec instead of served as a pre-built directory tree. `systemprompt-marketplace` now owns the bundle contract: `bundle::build_plugin_bundle` assembles `.claude-plugin/plugin.json`, `skills/<n>/SKILL.md`, `agents/<n>.md`, `.mcp.json`, and scripts from a `PluginConfig` and the resolved catalogue, and both the manifest (`load_plugins`) and the plugin-file byte route build from that one source so their hashes and bytes cannot drift. A spec whose references resolve to no content is skipped rather than emitting an empty, malformed plugin entry, and the per-request `config.yaml` denylists on the manifest and serving paths are removed. `PluginManifest` and the bundle well-formedness predicate move to `systemprompt-models::bridge::plugin_bundle` as the single definition shared with the bridge and CLI.
+- `MarketplaceService` resolves the active marketplace solely from `settings.default_marketplace_id` (or the single configured marketplace); the implicit `"default"`-id fallback is removed and `resolve_default` / `active` share one selector.
 
 ## [0.13.0] - 2026-05-29
 

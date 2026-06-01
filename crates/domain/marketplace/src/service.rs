@@ -1,8 +1,8 @@
 //! Read-only access to the configured marketplaces.
 //!
-//! [`MarketplaceService`] borrows a [`ServicesConfig`] and resolves
-//! marketplace lookups, the default-marketplace fallback, and referential
-//! integrity without owning or cloning the config.
+//! [`MarketplaceService`] borrows a [`ServicesConfig`] and resolves marketplace
+//! lookups, the active-marketplace selection, and referential integrity without
+//! owning or cloning the config.
 
 use std::collections::BTreeMap;
 
@@ -11,9 +11,6 @@ use systemprompt_models::services::{MarketplaceAccess, MarketplaceConfig, Servic
 use systemprompt_security::authz::EntityKind;
 
 use crate::error::MarketplaceError;
-
-/// Conventional marketplace id used when no `default_marketplace_id` is set.
-const DEFAULT_MARKETPLACE_FALLBACK: &str = "default";
 
 #[derive(Debug, Clone, Copy)]
 pub struct MarketplaceService<'a> {
@@ -34,50 +31,33 @@ impl<'a> MarketplaceService<'a> {
     pub fn get(&self, id: &MarketplaceId) -> Result<&'a MarketplaceConfig, MarketplaceError> {
         self.services
             .marketplaces
-            .iter()
-            .find(|(k, _)| k.as_str() == id.as_str())
-            .map(|(_, v)| v)
+            .get(id)
             .ok_or_else(|| MarketplaceError::NotFound(id.clone()))
     }
 
     pub fn resolve_default(
         &self,
     ) -> Result<(&'a MarketplaceId, &'a MarketplaceConfig), MarketplaceError> {
-        let id = self
-            .services
-            .settings
-            .default_marketplace_id
-            .clone()
-            .or_else(|| {
-                self.services
-                    .marketplaces
-                    .keys()
-                    .any(|k| k.as_str() == DEFAULT_MARKETPLACE_FALLBACK)
-                    .then(|| MarketplaceId::new(DEFAULT_MARKETPLACE_FALLBACK))
-            })
-            .ok_or(MarketplaceError::NoDefault)?;
+        self.active_entry().ok_or(MarketplaceError::NoDefault)
+    }
 
-        self.services
-            .marketplaces
-            .iter()
-            .find(|(k, _)| k.as_str() == id.as_str())
-            .ok_or(MarketplaceError::NoDefault)
+    /// `None` only when no marketplace is configured. With more than one the
+    /// active one is named by `settings.default_marketplace_id`, which
+    /// [`ServicesConfig::validate`] guarantees is present and resolvable.
+    fn active_entry(&self) -> Option<(&'a MarketplaceId, &'a MarketplaceConfig)> {
+        match self.services.marketplaces.len() {
+            0 => None,
+            1 => self.services.marketplaces.iter().next(),
+            _ => {
+                let id = self.services.settings.default_marketplace_id.as_ref()?;
+                self.services.marketplaces.get_key_value(id)
+            },
+        }
     }
 
     #[must_use]
     pub fn active(&self) -> Option<&'a MarketplaceConfig> {
-        match self.services.marketplaces.len() {
-            0 => None,
-            1 => self.services.marketplaces.values().next(),
-            _ => {
-                let id = self.services.settings.default_marketplace_id.as_ref()?;
-                self.services
-                    .marketplaces
-                    .iter()
-                    .find(|(k, _)| k.as_str() == id.as_str())
-                    .map(|(_, v)| v)
-            },
-        }
+        self.active_entry().map(|(_, config)| config)
     }
 
     #[must_use]
