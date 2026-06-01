@@ -1,11 +1,11 @@
 //! Anthropic Messages response + SSE-frame parse side of the codec.
 //!
-//! [`parse_response`] turns a buffered Messages reply into a
+//! [`parse_response`] deserializes a buffered Messages reply into a
 //! [`CanonicalResponse`]; [`event_from_sse`] turns one decoded SSE `data:`
-//! payload into a [`CanonicalEvent`]. Both are pure functions over
-//! [`serde_json::Value`].
+//! payload into a [`CanonicalEvent`]. The streaming side stays dynamic because
+//! each frame is a distinct, sparsely-populated event keyed on `type`.
 
-// JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::wire::canonical::{
@@ -13,28 +13,94 @@ use crate::wire::canonical::{
     ContentBlockKind, ImageSource,
 };
 
+#[derive(Debug, Default, Deserialize)]
+struct AnthropicResponse {
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    stop_reason: Option<String>,
+    #[serde(default)]
+    usage: Option<AnthropicUsage>,
+    #[serde(default)]
+    content: Vec<AnthropicBlock>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct AnthropicUsage {
+    #[serde(default)]
+    input_tokens: u32,
+    #[serde(default)]
+    output_tokens: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum AnthropicBlock {
+    Text {
+        #[serde(default)]
+        text: String,
+    },
+    Thinking {
+        #[serde(default)]
+        thinking: String,
+        #[serde(default)]
+        signature: Option<String>,
+    },
+    ToolUse {
+        #[serde(default)]
+        id: String,
+        #[serde(default)]
+        name: String,
+        #[serde(default)]
+        input: Value,
+    },
+    Image {
+        source: AnthropicImageSource,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum AnthropicImageSource {
+    Base64 {
+        #[serde(default)]
+        media_type: Option<String>,
+        #[serde(default)]
+        data: String,
+    },
+    Url {
+        #[serde(default)]
+        url: String,
+    },
+    #[serde(other)]
+    Unknown,
+}
+
 #[must_use]
 pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let id = str_field(value, "id", "");
-    let model = value
-        .get("model")
-        .and_then(Value::as_str)
-        .unwrap_or(fallback_model)
-        .to_owned();
-    let stop_reason = value
-        .get("stop_reason")
-        .and_then(Value::as_str)
+    let resp = AnthropicResponse::deserialize(value).unwrap_or_default();
+    let id = resp.id.unwrap_or_default();
+    let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
+    let stop_reason = resp
+        .stop_reason
+        .as_deref()
         .map(CanonicalStopReason::from_anthropic);
-    let usage = usage_from_value(value.get("usage"));
+    let usage = resp
+        .usage
+        .map_or_else(CanonicalUsage::default, |u| CanonicalUsage {
+            input_tokens: u.input_tokens,
+            output_tokens: u.output_tokens,
+        });
 
-    let mut content: Vec<CanonicalContent> = Vec::new();
-    if let Some(arr) = value.get("content").and_then(Value::as_array) {
-        for block in arr {
-            if let Some(part) = parse_content_block(block) {
-                content.push(part);
-            }
-        }
-    }
+    let content = resp
+        .content
+        .into_iter()
+        .filter_map(canonical_block)
+        .collect();
 
     CanonicalResponse {
         id,
@@ -45,48 +111,37 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     }
 }
 
-fn parse_content_block(value: &Value) -> Option<CanonicalContent> {
-    let kind = value.get("type").and_then(Value::as_str)?;
-    match kind {
-        "text" => Some(CanonicalContent::Text(str_field(value, "text", ""))),
-        "thinking" => Some(CanonicalContent::Thinking {
-            text: str_field(value, "thinking", ""),
-            signature: value
-                .get("signature")
-                .and_then(Value::as_str)
-                .map(str::to_owned),
+fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
+    match block {
+        AnthropicBlock::Text { text } => Some(CanonicalContent::Text(text)),
+        AnthropicBlock::Thinking {
+            thinking,
+            signature,
+        } => Some(CanonicalContent::Thinking {
+            text: thinking,
+            signature,
         }),
-        "tool_use" => Some(CanonicalContent::ToolUse {
-            id: str_field(value, "id", ""),
-            name: str_field(value, "name", ""),
-            input: value.get("input").cloned().unwrap_or(Value::Null),
-        }),
-        "image" => parse_image_block(value),
-        _ => None,
+        AnthropicBlock::ToolUse { id, name, input } => {
+            Some(CanonicalContent::ToolUse { id, name, input })
+        },
+        AnthropicBlock::Image { source } => canonical_image(source),
+        AnthropicBlock::Unknown => None,
     }
 }
 
-fn parse_image_block(value: &Value) -> Option<CanonicalContent> {
-    let src = value.get("source")?;
-    let stype = src.get("type").and_then(Value::as_str)?;
-    match stype {
-        "base64" => Some(CanonicalContent::Image(ImageSource::Base64 {
-            media_type: src
-                .get("media_type")
-                .and_then(Value::as_str)
-                .unwrap_or("image/png")
-                .to_owned(),
-            data: str_field(src, "data", ""),
-        })),
-        "url" => Some(CanonicalContent::Image(ImageSource::Url(str_field(
-            src, "url", "",
-        )))),
-        _ => None,
+fn canonical_image(source: AnthropicImageSource) -> Option<CanonicalContent> {
+    match source {
+        AnthropicImageSource::Base64 { media_type, data } => {
+            Some(CanonicalContent::Image(ImageSource::Base64 {
+                media_type: media_type.unwrap_or_else(|| "image/png".to_owned()),
+                data,
+            }))
+        },
+        AnthropicImageSource::Url { url } => Some(CanonicalContent::Image(ImageSource::Url(url))),
+        AnthropicImageSource::Unknown => None,
     }
 }
 
-/// Translate one decoded SSE `data:` JSON payload into a canonical event.
-///
 /// `msg_id` carries the message id observed at `message_start` so later
 /// `message_stop` frames can be tagged. Returns `None` for frames the canonical
 /// model does not model (e.g. `ping`).

@@ -1,52 +1,92 @@
 //! `OpenAI` Chat Completions buffered-response parsing into the canonical
 //! model.
 
-// JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
-// JSON.
-use serde_json::{Map, Value};
+use serde::Deserialize;
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
 };
 
+#[derive(Debug, Default, Deserialize)]
+struct ChatCompletion {
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    usage: Option<ChatUsage>,
+    #[serde(default)]
+    choices: Vec<ChatChoice>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatUsage {
+    #[serde(default)]
+    prompt_tokens: u32,
+    #[serde(default)]
+    completion_tokens: u32,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatChoice {
+    #[serde(default)]
+    finish_reason: Option<String>,
+    #[serde(default)]
+    message: Option<ChatMessage>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatMessage {
+    #[serde(default)]
+    content: Option<String>,
+    #[serde(default)]
+    tool_calls: Vec<ChatToolCall>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatToolCall {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    function: ChatFunction,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ChatFunction {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    arguments: String,
+}
+
 pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse {
-    let id = value
-        .get("id")
-        .and_then(Value::as_str)
-        .map_or_else(|| format!("msg_{}", Uuid::new_v4().simple()), str::to_owned);
-    let model = value
-        .get("model")
-        .and_then(Value::as_str)
-        .unwrap_or(fallback_model)
-        .to_owned();
-    let usage = value.get("usage").map_or(
+    let resp = ChatCompletion::deserialize(value).unwrap_or_default();
+    let id = resp
+        .id
+        .unwrap_or_else(|| format!("msg_{}", Uuid::new_v4().simple()));
+    let model = resp.model.unwrap_or_else(|| fallback_model.to_owned());
+    let usage = resp.usage.map_or(
         CanonicalUsage {
             input_tokens: 0,
             output_tokens: 0,
         },
         |u| CanonicalUsage {
-            input_tokens: u.get("prompt_tokens").and_then(Value::as_u64).unwrap_or(0) as u32,
-            output_tokens: u
-                .get("completion_tokens")
-                .and_then(Value::as_u64)
-                .unwrap_or(0) as u32,
+            input_tokens: u.prompt_tokens,
+            output_tokens: u.completion_tokens,
         },
     );
 
     let mut content: Vec<CanonicalContent> = Vec::new();
     let mut stop_reason = None;
-    if let Some(choice) = value
-        .get("choices")
-        .and_then(Value::as_array)
-        .and_then(|a| a.first())
-    {
+    if let Some(choice) = resp.choices.into_iter().next() {
         stop_reason = choice
-            .get("finish_reason")
-            .and_then(Value::as_str)
+            .finish_reason
+            .as_deref()
             .map(CanonicalStopReason::from_openai);
-        if let Some(msg) = choice.get("message") {
-            extract_message_content(msg, &mut content);
+        if let Some(msg) = choice.message {
+            collect_message_content(msg, &mut content);
         }
     }
 
@@ -59,31 +99,26 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
     }
 }
 
-fn extract_message_content(msg: &Value, content: &mut Vec<CanonicalContent>) {
-    if let Some(text) = msg.get("content").and_then(Value::as_str) {
+fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>) {
+    if let Some(text) = msg.content {
         if !text.is_empty() {
-            content.push(CanonicalContent::Text(text.to_owned()));
+            content.push(CanonicalContent::Text(text));
         }
     }
-    if let Some(tool_calls) = msg.get("tool_calls").and_then(Value::as_array) {
-        for tc in tool_calls {
-            let id = tc
-                .get("id")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_owned();
-            let func = tc.get("function").unwrap_or(&Value::Null);
-            let name = func
-                .get("name")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_owned();
-            let args = func
-                .get("arguments")
-                .and_then(Value::as_str)
-                .unwrap_or("{}");
-            let input: Value = serde_json::from_str(args).unwrap_or(Value::Object(Map::new()));
-            content.push(CanonicalContent::ToolUse { id, name, input });
-        }
+    for tc in msg.tool_calls {
+        let args = if tc.function.arguments.is_empty() {
+            "{}"
+        } else {
+            &tc.function.arguments
+        };
+        // Tool-call arguments are a user-defined schema instance; the canonical
+        // model carries them as an opaque JSON value, not a typed shape.
+        let input: Value =
+            serde_json::from_str(args).unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
+        content.push(CanonicalContent::ToolUse {
+            id: tc.id,
+            name: tc.function.name,
+            input,
+        });
     }
 }
