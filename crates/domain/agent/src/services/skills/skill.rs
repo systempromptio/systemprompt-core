@@ -118,6 +118,7 @@ impl SkillService {
 
     #[expect(
         clippy::unused_async,
+        clippy::unused_async_trait_impl,
         reason = "async signature kept so the call site can stay uniform with load_skill, which \
                   is genuinely async"
     )]
@@ -127,6 +128,7 @@ impl SkillService {
 
     #[expect(
         clippy::unused_async,
+        clippy::unused_async_trait_impl,
         reason = "async signature kept so the call site can stay uniform with load_skill, which \
                   is genuinely async"
     )]

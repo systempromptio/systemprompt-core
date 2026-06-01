@@ -30,6 +30,11 @@ impl JwtTokenValidator {
 }
 
 impl TokenValidator for JwtTokenValidator {
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "async signature required by the TokenValidator trait; this \
+                  validator decodes the JWT synchronously"
+    )]
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
         let claims =
             jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| {

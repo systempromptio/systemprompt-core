@@ -37,6 +37,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
+        clippy::unused_async_trait_impl,
         reason = "async signature required by AgentRegistryProvider trait impl in \
                   registry_provider.rs"
     )]
@@ -50,6 +51,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
+        clippy::unused_async_trait_impl,
         reason = "async signature required by AgentRegistryProvider trait impl in \
                   registry_provider.rs"
     )]
@@ -59,6 +61,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
+        clippy::unused_async_trait_impl,
         reason = "async signature required by AgentRegistryProvider trait impl in \
                   registry_provider.rs"
     )]
@@ -75,6 +78,7 @@ impl AgentRegistry {
 
     #[expect(
         clippy::unused_async,
+        clippy::unused_async_trait_impl,
         reason = "async signature required by AgentRegistryProvider trait impl in \
                   registry_provider.rs"
     )]
