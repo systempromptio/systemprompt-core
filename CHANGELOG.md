@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.2] - 2026-06-02
+
+### Added
+
+- OAuth dynamic client registration accepts and persists the RFC 7591 `application_type` (defaulting to `"web"`). The field is stored on `oauth_clients` (migration 011), carried on `OAuthClientRow` / `OAuthClient`, and surfaced through registration and the client-config endpoints.
+- MCP sessions survive a server restart. A Postgres-backed `SessionStore` records each session's `initialize` params in `mcp_sessions` and restores them on demand, so the streamable HTTP service transparently re-creates a session whose in-memory worker was lost to a restart or eviction instead of returning `404 Session not found` and provoking a client reconnect storm. Persistence is best-effort: a store error degrades to the re-initialize path.
+- The gateway propagates Anthropic extended-thinking signatures. A `signature_delta` SSE frame is parsed into a canonical `SignatureDelta` event, accumulated onto the in-flight thinking block, and rendered back out on the Anthropic and OpenAI Responses inbound surfaces.
+
+### Changed
+
+- Tool-result content carries `structured_content` and `meta` through the wire codecs. When a tool result has structured content, the Gemini codec emits it as the `functionResponse` result, falling back to flattened text otherwise.
+- CLI command output is unified behind a single non-generic `CommandOutput`, replacing the former generic `CommandResult<T>` wrapper. The unused artifact-conversion plumbing (`CommandResultRaw`, `ConversionError`, `CliArtifactType`, `RenderingHints`, and the cli conversion module) is removed from `systemprompt-models`.
+
+### Fixed
+
+- Process-signal helpers no longer let an out-of-range PID escalate to a group or broadcast kill. A `u32` PID above `i32::MAX` wraps to a negative value, which `kill(2)` reads as a process group (`-1` broadcasts to every process the caller can signal). The scheduler, agent, and MCP signal helpers now route every PID through `systemprompt_models::subprocess::signalable_pid`, which rejects `0` and out-of-range values so an invalid id becomes a no-op instead of a group or session-wide kill.
+
 ## [0.14.1] - 2026-06-02
 
 ### Added
