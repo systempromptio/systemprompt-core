@@ -160,10 +160,8 @@ async fn stop_api_server(api_port: u16, quiet: bool) -> Result<usize> {
     if !quiet {
         CliService::info("Stopping API server...");
     }
-    let api_killed = match ProcessCleanup::check_port(api_port) {
-        Some(pid) => ProcessCleanup::kill_port(api_port, pid),
-        None => vec![],
-    };
+    let api_killed = ProcessCleanup::check_port(api_port)
+        .map_or_else(Vec::new, |pid| ProcessCleanup::kill_port(api_port, pid));
     let cleaned = usize::from(!api_killed.is_empty());
     ProcessCleanup::kill_by_pattern("systemprompt serve api");
     ProcessCleanup::wait_for_port_free(api_port, 3, 1000).await?;
