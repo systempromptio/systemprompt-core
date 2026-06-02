@@ -29,8 +29,13 @@ pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 // timeout before falling back. reqwest 0.12 has no happy-eyeballs option, so
 // we install a resolver that returns IPv4 addresses first: loopback (and any
 // dual-stack host) connects immediately, with IPv6 retained as a fallback.
+// `pub(crate)` so the proxy's upstream client
+// (`proxy::server::build_upstream_client`) can install the same resolver — it
+// forwards Cowork's MCP + inference to the gateway, so a user-entered
+// `localhost` gateway URL would otherwise stall every proxied call on the IPv6
+// connect timeout.
 #[derive(Debug)]
-struct Ipv4FirstResolver;
+pub(crate) struct Ipv4FirstResolver;
 
 impl Resolve for Ipv4FirstResolver {
     fn resolve(&self, name: Name) -> Resolving {

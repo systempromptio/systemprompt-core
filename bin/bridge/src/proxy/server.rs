@@ -95,6 +95,11 @@ pub fn start(
 
 fn build_upstream_client() -> std::io::Result<reqwest::Client> {
     reqwest::Client::builder()
+        // Same IPv4-first resolver the gateway client uses: a user-entered
+        // `localhost` gateway URL resolves to IPv6 `::1` first, but the WSL2
+        // localhost forwarder black-holes IPv6 SYNs, so without this every
+        // proxied MCP/inference call stalls the full connect timeout.
+        .dns_resolver(Arc::new(crate::gateway::Ipv4FirstResolver))
         .pool_max_idle_per_host(16)
         .tcp_nodelay(true)
         .connect_timeout(Duration::from_secs(15))

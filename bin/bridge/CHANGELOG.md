@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.3] - 2026-06-02
+
+### Fixed
+
+- The proxy's upstream client (`proxy::server::build_upstream_client`) now installs the same `Ipv4FirstResolver` the gateway client already uses. The client forwards Cowork's MCP and `/v1/messages` inference to the gateway, so when a user configured the gateway as `http://localhost:…`, every proxied call resolved IPv6 `::1` first and stalled the full connect timeout (~15-21s) before falling back to IPv4 — the WSL2 localhost forwarder black-holes IPv6 SYNs. Sync/probe/profile-fetch were already IPv4-first via the gateway client; the proxy path was the remaining gap, so a user-entered `localhost` URL no longer freezes proxied traffic. `gateway::Ipv4FirstResolver` is now `pub(crate)`.
+
 ## [0.10.2] - 2026-06-02
 
 ### Added
