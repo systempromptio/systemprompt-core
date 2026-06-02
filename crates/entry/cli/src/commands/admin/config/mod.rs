@@ -13,6 +13,7 @@ pub mod list;
 pub mod paths;
 pub mod profile_io;
 pub mod provider;
+pub mod reconcile;
 pub mod rate_limit_types;
 pub mod rate_limits;
 pub mod runtime;
@@ -75,7 +76,7 @@ pub enum ConfigCommands {
     Secret(secret::SecretCommands),
 }
 
-pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
     match command {
         ConfigCommands::Show => {
             let result = show::execute(config)?;
@@ -98,9 +99,9 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
         ConfigCommands::Security(ref cmd) => security::execute(cmd, config),
         ConfigCommands::Paths(cmd) => paths::execute(cmd, config),
         ConfigCommands::Provider(cmd) => provider::execute(cmd, config),
-        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, config),
+        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, config).await,
         ConfigCommands::Governance(ref cmd) => governance::execute(cmd, config),
-        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, config),
+        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, config).await,
         ConfigCommands::Secret(ref cmd) => secret::execute(cmd, config),
     }
 }

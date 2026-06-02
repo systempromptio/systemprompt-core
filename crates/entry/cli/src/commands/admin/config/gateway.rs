@@ -78,7 +78,7 @@ pub struct RouteAddArgs {
     pub upstream_model: Option<String>,
 }
 
-pub fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
     if matches!(command, GatewayCommands::Route(RouteCommands::List)) {
         return list_routes();
     }
@@ -104,6 +104,7 @@ pub fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
 
     validate_gateway(&profile)?;
     save_profile(&profile, profile_path)?;
+    super::reconcile::reconcile_authz(&profile, profile_path).await;
 
     render_result(
         &CommandResult::text(ConfigMutationOutput {

@@ -6,6 +6,7 @@
 //! [`Self::resolved`] which logs and returns `None` if the loader has not run.
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use systemprompt_identifiers::RouteId;
 
 use super::config::{GatewayConfig, GatewayConfigSpec};
 
@@ -47,6 +48,22 @@ impl GatewayState {
             Self::Spec(s) => s,
             Self::Resolved(c) => c.to_spec(),
         }
+    }
+
+    /// The content-addressed id of every configured route, with synthesized ids
+    /// filled in. Works in either lifecycle state, so a caller can materialise
+    /// the authz entity catalog straight from the typed profile without having
+    /// run the loader.
+    #[must_use]
+    pub fn resolved_route_ids(&self) -> Vec<RouteId> {
+        let mut spec = self.clone().into_spec();
+        spec.routes
+            .iter_mut()
+            .map(|route| {
+                route.ensure_id();
+                route.id.clone()
+            })
+            .collect()
     }
 }
 

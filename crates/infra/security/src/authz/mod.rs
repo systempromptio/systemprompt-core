@@ -29,6 +29,7 @@ pub mod composite;
 pub mod config;
 pub mod error;
 pub mod extension;
+pub mod gateway_entities;
 pub mod hook;
 pub mod ingestion;
 pub mod registry;
@@ -43,9 +44,10 @@ pub use audit::{
     GovernanceDecisionRepository, NullAuditSink, insert_governance_decision,
 };
 pub use composite::CompositeAuthzHook;
-pub use config::{AccessControlConfig, RuleEntry};
+pub use config::{AccessControlConfig, RuleEntry, RuleTarget};
 pub use error::{AuthzBootstrapError, AuthzError, AuthzResult};
 pub use extension::AuthzExtension;
+pub use gateway_entities::reconcile_gateway_entities;
 pub use hook::{AllowAllHook, AuthzDecisionHook, DenyAllHook, SharedAuthzHook, WebhookHook};
 pub use ingestion::{AccessControlIngestionService, IngestOptions, IngestReport};
 pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook};

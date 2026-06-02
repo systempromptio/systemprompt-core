@@ -109,10 +109,14 @@ async fn extension_hook_evaluated_and_audited() {
     assert_eq!(recorded.len(), 1, "hook should be evaluated exactly once");
     assert_eq!(recorded[0].as_str(), trace);
 
+    // This request carries no session, so the audit row's session_id is empty;
+    // identify the row this evaluation wrote by its unique route (recorded as
+    // `tool_name`), which also keeps the count correct when other tests write
+    // to the same table.
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM governance_decisions WHERE session_id = $1 AND policy = $2",
+        "SELECT COUNT(*) FROM governance_decisions WHERE tool_name = $1 AND policy = $2",
     )
-    .bind(&trace)
+    .bind(&route)
     .bind(AuthzSource::ExtensionHook.policy())
     .fetch_one(write_pool.as_ref())
     .await

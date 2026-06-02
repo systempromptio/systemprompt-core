@@ -70,7 +70,7 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         AdminCommands::Users(cmd) => users::execute(cmd, config).await,
         AdminCommands::Agents(cmd) => agents::execute(cmd).await,
-        AdminCommands::Config(cmd) => config::execute(cmd, config),
+        AdminCommands::Config(cmd) => config::execute(cmd, config).await,
         AdminCommands::Setup(args) => {
             let result = setup::execute(args, config).await?;
             render_result(&result);

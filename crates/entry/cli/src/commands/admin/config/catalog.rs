@@ -88,7 +88,7 @@ pub struct ModelAddArgs {
     pub upstream_model: Option<String>,
 }
 
-pub fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<()> {
     if matches!(command, CatalogCommands::Provider(ProviderCommands::List)) {
         return list_providers();
     }
@@ -109,6 +109,7 @@ pub fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<()> {
     };
 
     save_profile(&profile, profile_path)?;
+    super::reconcile::reconcile_authz(&profile, profile_path).await;
 
     render_result(
         &CommandResult::text(ConfigMutationOutput {
