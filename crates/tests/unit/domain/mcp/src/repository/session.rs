@@ -48,3 +48,28 @@ async fn cleanup_and_delete_stale_execute() {
     let _ = repo.cleanup_expired().await.unwrap();
     let _ = repo.delete_stale(365).await.unwrap();
 }
+
+#[tokio::test]
+async fn find_initialize_params_random_returns_none() {
+    let Some(db) = db().await else { return };
+    let repo = McpSessionRepository::new(&db).unwrap();
+    let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+    assert!(repo.find_initialize_params(&id).await.unwrap().is_none());
+}
+
+#[tokio::test]
+async fn store_find_and_clear_initialize_params_round_trip() {
+    let Some(db) = db().await else { return };
+    let repo = McpSessionRepository::new(&db).unwrap();
+    let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+    let params = serde_json::json!({ "protocolVersion": "2025-06-18" });
+
+    repo.store_initialize_params(&id, &params).await.unwrap();
+    assert_eq!(
+        repo.find_initialize_params(&id).await.unwrap(),
+        Some(params)
+    );
+
+    repo.clear_initialize_params(&id).await.unwrap();
+    assert!(repo.find_initialize_params(&id).await.unwrap().is_none());
+}

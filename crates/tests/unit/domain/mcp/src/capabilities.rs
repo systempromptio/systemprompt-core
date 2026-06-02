@@ -1,7 +1,7 @@
 //! Unit tests for capabilities module (re-exports at crate root).
 
 use systemprompt_mcp::{
-    WEBSITE_URL, build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
+    WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json,
 };
 
@@ -20,8 +20,8 @@ fn test_mcp_apps_ui_extension_key_and_value_shape() {
 }
 
 #[test]
-fn test_build_experimental_capabilities_contains_apps_ui_key() {
-    let caps = build_experimental_capabilities();
+fn test_build_extension_capabilities_contains_apps_ui_key() {
+    let caps = build_extension_capabilities();
     let (expected_key, _) = mcp_apps_ui_extension();
     assert!(caps.contains_key(&expected_key));
     assert_eq!(caps.len(), 1);

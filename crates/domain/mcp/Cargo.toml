@@ -11,10 +11,13 @@ keywords.workspace = true
 categories.workspace = true
 description = "Native Model Context Protocol (MCP) implementation for systemprompt.io. Orchestration, per-server OAuth2, RBAC middleware, and tool-call governance — the core of the AI governance pipeline."
 readme = "README.md"
-include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true

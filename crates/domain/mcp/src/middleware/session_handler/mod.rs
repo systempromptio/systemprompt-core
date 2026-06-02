@@ -9,6 +9,9 @@
 //! never fails an in-memory operation.
 
 mod session_manager_impl;
+mod session_store;
+
+pub use session_store::PostgresSessionStore;
 
 use std::fmt;
 use std::sync::Arc;

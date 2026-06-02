@@ -39,7 +39,7 @@ fn builder_new_exec_id_in_debug() {
     let c = ctx();
     let exec_id = McpExecutionId::generate();
     let exec_id_str = exec_id.to_string();
-    let t = TextArtifact::new("data", &c);
+    let t = TextArtifact::new("data");
     let builder = McpResponseBuilder::new(t, "tool-x", &c, &exec_id);
     let debug = format!("{builder:?}");
     assert!(debug.contains(&exec_id_str));
@@ -67,7 +67,7 @@ fn build_error_for_cli_artifact_type() {
 fn builder_debug_contains_tool_name() {
     let c = ctx();
     let exec_id = McpExecutionId::generate();
-    let t = TextArtifact::new("payload", &c);
+    let t = TextArtifact::new("payload");
     let builder = McpResponseBuilder::new(t, "my-custom-tool", &c, &exec_id);
     let debug = format!("{builder:?}");
     assert!(debug.contains("my-custom-tool"));
@@ -100,7 +100,7 @@ fn build_error_empty_string_message() {
 fn builder_new_with_owned_string_tool() {
     let c = ctx();
     let exec_id = McpExecutionId::generate();
-    let t = TextArtifact::new("val", &c);
+    let t = TextArtifact::new("val");
     let tool_name = "dynamic-tool".to_owned();
     let builder = McpResponseBuilder::new(t, tool_name, &c, &exec_id);
     let debug = format!("{builder:?}");

@@ -55,7 +55,7 @@ pub use rmcp::ErrorData as McpError;
 pub type McpResult<T> = Result<T, McpError>;
 
 pub use capabilities::{
-    WEBSITE_URL, build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
+    WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json,
 };
 pub use progress::{ProgressCallback, create_progress_callback};
@@ -216,7 +216,11 @@ where
         Some(hosts) => host_policy.with_allowed_hosts(hosts),
         None => host_policy.disable_allowed_hosts(),
     };
-    let config = host_policy.with_sse_keep_alive(session.keep_alive);
+    let mut config = host_policy.with_sse_keep_alive(session.keep_alive);
+    let session_store: std::sync::Arc<
+        dyn rmcp::transport::streamable_http_server::session::store::SessionStore,
+    > = std::sync::Arc::new(middleware::PostgresSessionStore::new(db_pool));
+    config.session_store = Some(session_store);
 
     let session_manager = DatabaseSessionHandler::with_timeouts(db_pool, session);
 

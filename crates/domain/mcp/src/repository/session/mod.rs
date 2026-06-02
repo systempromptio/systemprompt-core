@@ -146,6 +146,58 @@ impl McpSessionRepository {
         Ok(())
     }
 
+    pub async fn store_initialize_params(
+        &self,
+        session_id: &SessionId,
+        params: &serde_json::Value,
+    ) -> McpDomainResult<()> {
+        sqlx::query!(
+            r#"
+            INSERT INTO mcp_sessions (session_id, initialize_params, status)
+            VALUES ($1, $2, 'active')
+            ON CONFLICT (session_id)
+            DO UPDATE SET initialize_params = EXCLUDED.initialize_params
+            "#,
+            session_id.as_str(),
+            params,
+        )
+        .execute(&*self.write_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn find_initialize_params(
+        &self,
+        session_id: &SessionId,
+    ) -> McpDomainResult<Option<serde_json::Value>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT initialize_params
+            FROM mcp_sessions
+            WHERE session_id = $1
+              AND status = 'active'
+              AND expires_at > NOW()
+            "#,
+            session_id.as_str()
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        Ok(row.and_then(|r| r.initialize_params))
+    }
+
+    pub async fn clear_initialize_params(&self, session_id: &SessionId) -> McpDomainResult<()> {
+        sqlx::query!(
+            r#"UPDATE mcp_sessions SET initialize_params = NULL WHERE session_id = $1"#,
+            session_id.as_str(),
+        )
+        .execute(&*self.write_pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn close(&self, session_id: &SessionId) -> McpDomainResult<()> {
         sqlx::query!(
             r#"

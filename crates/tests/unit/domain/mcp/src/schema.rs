@@ -120,31 +120,18 @@ fn validated_schema_for_each_artifact() {
 
 #[test]
 fn artifact_type_name_default_returns_static_str() {
-    let ctx = test_request_context();
-    let text = TextArtifact::new("hello", &ctx);
+    let text = TextArtifact::new("hello");
     assert_eq!(text.artifact_type_name(), TextArtifact::ARTIFACT_TYPE_STR);
 }
 
 #[test]
 fn artifact_title_text_artifact_optional_some() {
-    let ctx = test_request_context();
-    let text = TextArtifact::new("hello", &ctx).with_title("hi");
+    let text = TextArtifact::new("hello").with_title("hi");
     assert_eq!(text.artifact_title(), Some("hi".to_string()));
 }
 
 #[test]
 fn artifact_title_text_artifact_none() {
-    let ctx = test_request_context();
-    let text = TextArtifact::new("hello", &ctx);
+    let text = TextArtifact::new("hello");
     assert_eq!(text.artifact_title(), None);
-}
-
-fn test_request_context() -> systemprompt_models::RequestContext {
-    use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
-    systemprompt_models::RequestContext::new(
-        SessionId::new("s"),
-        TraceId::new("t"),
-        ContextId::new("00000000-0000-4000-8000-000000000001"),
-        AgentName::new("a"),
-    )
 }

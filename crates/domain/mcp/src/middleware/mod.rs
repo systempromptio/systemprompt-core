@@ -10,7 +10,7 @@ use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_traits::ContextPropagation;
 
 pub use rbac::{AuthResult, AuthenticatedRequestContext, enforce_rbac_from_registry};
-pub use session_handler::DatabaseSessionHandler;
+pub use session_handler::{DatabaseSessionHandler, PostgresSessionStore};
 
 pub fn extract_bearer_token(
     mcp_context: &RequestContext<RoleServer>,

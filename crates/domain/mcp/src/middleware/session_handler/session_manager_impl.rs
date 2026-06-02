@@ -6,7 +6,7 @@ use futures::{Stream, StreamExt};
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};
 use rmcp::transport::common::server_side_http::ServerSseMessage;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
-use rmcp::transport::streamable_http_server::session::{SessionId, SessionManager};
+use rmcp::transport::streamable_http_server::session::{RestoreOutcome, SessionId, SessionManager};
 
 use super::{DatabaseSessionHandler, DatabaseSessionManagerError};
 
@@ -80,6 +80,21 @@ impl SessionManager for DatabaseSessionHandler {
         let stream = self.local_manager.create_standalone_stream(id).await?;
         self.update_activity(id).await;
         Ok(stream)
+    }
+
+    async fn restore_session(
+        &self,
+        id: SessionId,
+    ) -> Result<RestoreOutcome<Self::Transport>, Self::Error> {
+        let outcome = self
+            .local_manager
+            .restore_session(std::sync::Arc::<str>::clone(&id))
+            .await?;
+        if matches!(outcome, RestoreOutcome::Restored(_)) {
+            tracing::info!(session_id = %id, "MCP session restored from external store");
+            self.update_activity(&id).await;
+        }
+        Ok(outcome)
     }
 
     async fn resume(

@@ -43,7 +43,7 @@ fn build_error_with_unicode_message() {
 fn builder_new_records_tool_name_in_debug() {
     let ctx = test_request_context();
     let exec_id = McpExecutionId::generate();
-    let text = TextArtifact::new("payload", &ctx);
+    let text = TextArtifact::new("payload");
     let builder = McpResponseBuilder::new(text, "my-tool", &ctx, &exec_id);
     let debug = format!("{:?}", builder);
     assert!(debug.contains("my-tool"));
@@ -54,7 +54,7 @@ fn builder_new_records_tool_name_in_debug() {
 fn builder_new_accepts_string_tool_name() {
     let ctx = test_request_context();
     let exec_id = McpExecutionId::generate();
-    let text = TextArtifact::new("payload", &ctx);
+    let text = TextArtifact::new("payload");
     let _ = McpResponseBuilder::new(text, String::from("dynamic-tool"), &ctx, &exec_id);
 }
 

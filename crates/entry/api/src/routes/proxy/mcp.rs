@@ -112,6 +112,7 @@ pub struct McpAuthorizationServerMetadata {
     pub grant_types_supported: Vec<String>,
     pub code_challenge_methods_supported: Vec<String>,
     pub token_endpoint_auth_methods_supported: Vec<String>,
+    pub authorization_response_iss_parameter_supported: bool,
 }
 
 pub async fn handle_mcp_protected_resource(
@@ -179,6 +180,7 @@ pub async fn handle_mcp_authorization_server(
             TokenAuthMethod::ClientSecretPost.to_string(),
             TokenAuthMethod::ClientSecretBasic.to_string(),
         ],
+        authorization_response_iss_parameter_supported: true,
     };
 
     (StatusCode::OK, Json(metadata)).into_response()

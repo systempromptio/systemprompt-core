@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS mcp_sessions (
     user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
     mcp_server_id TEXT,
     last_event_id TEXT,
+    initialize_params JSONB,
     status VARCHAR(50) NOT NULL DEFAULT 'active'
         CHECK (status IN ('active', 'closed', 'expired')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

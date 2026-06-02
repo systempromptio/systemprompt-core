@@ -45,6 +45,10 @@ impl Extension for McpExtension {
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users"]
     }
+
+    fn migrations(&self) -> Vec<Migration> {
+        extension_migrations!()
+    }
 }
 
 register_extension!(McpExtension);

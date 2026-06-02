@@ -1,5 +1,5 @@
 use systemprompt_mcp::{
-    WEBSITE_URL, build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
+    WEBSITE_URL, build_extension_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json,
 };
 
@@ -27,8 +27,8 @@ fn mcp_apps_ui_extension_mime_types_is_array_or_scalar() {
 }
 
 #[test]
-fn build_experimental_capabilities_is_btree_sorted() {
-    let caps = build_experimental_capabilities();
+fn build_extension_capabilities_is_btree_sorted() {
+    let caps = build_extension_capabilities();
     let keys: Vec<_> = caps.keys().collect();
     let mut sorted = keys.clone();
     sorted.sort();
