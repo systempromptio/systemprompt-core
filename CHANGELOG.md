@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.3] - 2026-06-02
+
+### Fixed
+
+- MCP cross-restart session recovery now works after a session's worker has closed. Recovery looked up the persisted `initialize` params with `status = 'active'`, but a worker that ends — after any request, or for every session on a graceful restart — marks its row `closed` while leaving the params intact (only a client `DELETE` clears them). The lookup now keys on the presence of non-null `initialize_params` rather than status, so a streamable HTTP session is restored instead of returning `404 Session not found` and provoking a client reconnect loop. A restored session's row is marked `active` again on its next activity.
+
 ## [0.14.2] - 2026-06-02
 
 ### Added

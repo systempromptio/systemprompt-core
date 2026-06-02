@@ -73,3 +73,43 @@ async fn store_find_and_clear_initialize_params_round_trip() {
     repo.clear_initialize_params(&id).await.unwrap();
     assert!(repo.find_initialize_params(&id).await.unwrap().is_none());
 }
+
+#[tokio::test]
+async fn find_initialize_params_recovers_closed_session() {
+    let Some(db) = db().await else { return };
+    let repo = McpSessionRepository::new(&db).unwrap();
+    let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+    let params = serde_json::json!({ "protocolVersion": "2025-06-18" });
+
+    repo.store_initialize_params(&id, &params).await.unwrap();
+    repo.close(&id).await.unwrap();
+
+    assert_eq!(
+        repo.find_initialize_params(&id).await.unwrap(),
+        Some(params),
+        "a closed session whose init params survive must remain recoverable"
+    );
+
+    repo.clear_initialize_params(&id).await.unwrap();
+    assert!(
+        repo.find_initialize_params(&id).await.unwrap().is_none(),
+        "an explicit DELETE clears the recoverable signal"
+    );
+}
+
+#[tokio::test]
+async fn update_activity_reactivates_closed_session() {
+    let Some(db) = db().await else { return };
+    let repo = McpSessionRepository::new(&db).unwrap();
+    let id = SessionId::new(format!("sess-{}", uuid::Uuid::new_v4().simple()));
+
+    repo.create(&id, None, None).await.unwrap();
+    repo.close(&id).await.unwrap();
+    assert!(repo.find_active(&id).await.unwrap().is_none());
+
+    repo.update_activity(&id).await.unwrap();
+    assert!(
+        repo.find_active(&id).await.unwrap().is_some(),
+        "activity on a restored session must flip its status back to active"
+    );
+}

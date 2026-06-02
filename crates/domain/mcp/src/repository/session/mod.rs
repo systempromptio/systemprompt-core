@@ -135,7 +135,8 @@ impl McpSessionRepository {
             r#"
             UPDATE mcp_sessions
             SET last_activity_at = NOW(),
-                expires_at = NOW() + INTERVAL '24 hours'
+                expires_at = NOW() + INTERVAL '24 hours',
+                status = 'active'
             WHERE session_id = $1
             "#,
             session_id.as_str(),
@@ -171,13 +172,17 @@ impl McpSessionRepository {
         &self,
         session_id: &SessionId,
     ) -> McpDomainResult<Option<serde_json::Value>> {
+        // A worker that ends (after any request, or a server restart) marks its
+        // row 'closed' but leaves initialize_params intact; only a client DELETE
+        // nulls them. Presence of non-null params — not status — is the
+        // recoverable signal, so recovery must not filter on status = 'active'.
         let row = sqlx::query!(
             r#"
             SELECT initialize_params
             FROM mcp_sessions
             WHERE session_id = $1
-              AND status = 'active'
               AND expires_at > NOW()
+              AND initialize_params IS NOT NULL
             "#,
             session_id.as_str()
         )
