@@ -1,11 +1,12 @@
 name: Coverage
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: "23 6 * * 1"
+    # Nightly at 06:23 UTC. Coverage is the heaviest job (instrumented build is
+    # ~2-3x), so it runs on a schedule rather than on every push to keep pushes
+    # fast; trigger manually via workflow_dispatch when an on-demand run is needed.
+    - cron: "23 6 * * *"
 
 concurrency:
   group: coverage-${{ github.ref }}
@@ -32,6 +33,7 @@ jobs:
   coverage:
     name: Line coverage (cargo-llvm-cov)
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:16
@@ -81,6 +83,7 @@ jobs:
           workspaces: |
             .
             crates/tests
+      - uses: taiki-e/install-action@nextest
 
       - name: Migrate coverage test database
         env:
@@ -103,7 +106,10 @@ jobs:
           SQLX_OFFLINE: "false"
         run: |
           mkdir -p "${{ github.workspace }}/coverage-profraw"
-          cargo test \
+          # nextest runs each test in its own process, so the per-test timeout
+          # applies under instrumentation too; %p in LLVM_PROFILE_FILE keeps the
+          # profraw files distinct across those processes.
+          cargo nextest run --profile ci \
             --manifest-path crates/tests/Cargo.toml \
             --workspace --lib
           echo "profraw count: $(find ${{ github.workspace }}/coverage-profraw -name '*.profraw' | wc -l)"

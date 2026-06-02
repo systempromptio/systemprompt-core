@@ -51,18 +51,36 @@ jobs:
       - run: cargo check --workspace --locked
 
   test:
-    name: Test suite
+    # The test workspace (66 crates, ~12k tests) does not fit one free runner
+    # in a single pass, so it is sharded by test-workspace path prefix: each
+    # shard compiles and runs only its crates (shared core deps come from the
+    # cache). Tests run under cargo-nextest with a per-test timeout, so a hung
+    # or leaking test fails fast and is named instead of starving the runner
+    # until it loses communication. `timeout-minutes` is the backstop.
+    name: Test (${{ matrix.group }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Prefixes are anchored at the test-workspace root (`/tests/`) so the
+          # bridge `integration` crate is not double-matched by `/integration/`.
+          - { group: shared, prefixes: "/tests/unit/shared/" }
+          - { group: infra, prefixes: "/tests/unit/infra/" }
+          - { group: domain, prefixes: "/tests/unit/domain/" }
+          - { group: app-entry, prefixes: "/tests/unit/app/ /tests/unit/entry/" }
+          - { group: bridge, prefixes: "/tests/unit/bridge/" }
+          - { group: integration, prefixes: "/tests/integration/" }
+          - { group: edge, prefixes: "/tests/concurrency/ /tests/property/ /tests/contract/" }
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
-    # Drop debuginfo and incremental artifacts and serialize codegen: a cold
-    # rebuild of the whole test workspace otherwise peaks past the runner's
-    # RAM and the hosted runner loses communication mid-build.
+    # Drop debuginfo and incremental artifacts: each shard's compile footprint
+    # is small enough that codegen no longer needs serializing.
     env:
       RUSTFLAGS: ""
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_INCREMENTAL: "0"
-      CARGO_BUILD_JOBS: "1"
     services:
       postgres:
         image: postgres:16
@@ -103,9 +121,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
+          # Per-shard key so shards don't clobber each other's cache.
+          key: ${{ matrix.group }}
           workspaces: |
             .
             crates/tests
+      - uses: taiki-e/install-action@nextest
 
       - name: Migrate test database
         env:
@@ -117,14 +138,23 @@ jobs:
         run: |
           cargo run \
             --manifest-path crates/tests/Cargo.toml \
-            -p systemprompt-test-migrate \
-            --release
+            -p systemprompt-test-migrate
 
-      - name: Run test suite
+      - name: Run shard
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           SQLX_OFFLINE: "false"
         run: |
-          cargo test \
+          PKGS=$(cargo metadata --no-deps --format-version 1 \
+                   --manifest-path crates/tests/Cargo.toml \
+                 | jq -r --arg ps "${{ matrix.prefixes }}" '
+                     ($ps | split(" ") | map(select(length > 0))) as $prefixes
+                     | .packages[]
+                     | .manifest_path as $m
+                     | select($prefixes | any(. as $p | $m | contains($p)))
+                     | "-p \(.name)"' | tr '\n' ' ')
+          echo "shard packages: $PKGS"
+          test -n "$PKGS"
+          cargo nextest run --profile ci \
             --manifest-path crates/tests/Cargo.toml \
-            --workspace --lib
+            --lib $PKGS --test-threads 4

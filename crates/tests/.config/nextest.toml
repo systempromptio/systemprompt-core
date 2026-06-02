@@ -1,0 +1,20 @@
+# nextest configuration for the systemprompt test workspace.
+#
+# The `ci` profile exists so a hung or leaking test fails fast and is named in
+# the run output, instead of starving the hosted runner until it loses
+# communication (the failure mode that kept the Test/Coverage jobs red).
+
+[profile.default]
+# A test still running after 60s is flagged slow; after 3 such periods (180s)
+# nextest terminates it and reports the failure. Real tests finish in ms — only
+# a genuine hang reaches this ceiling.
+slow-timeout = { period = "60s", terminate-after = 3 }
+
+[profile.ci]
+slow-timeout = { period = "60s", terminate-after = 3 }
+fail-fast = false
+failure-output = "immediate-final"
+final-status-level = "slow"
+
+[profile.ci.junit]
+path = "junit.xml"
