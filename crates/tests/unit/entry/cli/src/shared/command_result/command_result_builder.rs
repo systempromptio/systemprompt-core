@@ -51,13 +51,19 @@ fn test_command_output_text_titled() {
 #[test]
 fn test_command_output_copy_paste() {
     let output = CommandOutput::copy_paste("copyable text");
-    assert!(matches!(output.artifact(), CliArtifact::CopyPasteText { .. }));
+    assert!(matches!(
+        output.artifact(),
+        CliArtifact::CopyPasteText { .. }
+    ));
 }
 
 #[test]
 fn test_command_output_copy_paste_titled() {
     let output = CommandOutput::copy_paste_titled("Title", "copyable text");
-    assert!(matches!(output.artifact(), CliArtifact::CopyPasteText { .. }));
+    assert!(matches!(
+        output.artifact(),
+        CliArtifact::CopyPasteText { .. }
+    ));
 }
 
 #[test]

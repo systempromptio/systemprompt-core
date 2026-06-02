@@ -75,7 +75,10 @@ fn render_result_text_in_json_mode() {
 #[test]
 fn render_result_chart_dashboard_copy_paste_text() {
     set_global_config(CliConfig::default().with_output_format(OutputFormat::Json));
-    render_result(&CommandOutput::chart(ChartArtifact::new("c", ChartType::Bar)));
+    render_result(&CommandOutput::chart(ChartArtifact::new(
+        "c",
+        ChartType::Bar,
+    )));
     render_result(&CommandOutput::dashboard(DashboardArtifact::new("d")));
     render_result(&CommandOutput::copy_paste("c"));
     render_result(&CommandOutput::text("t"));

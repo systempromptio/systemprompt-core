@@ -5,9 +5,7 @@
 
 use rmcp::model::InitializeRequestParams;
 use rmcp::transport::streamable_http_server::session::store::{SessionState, SessionStore};
-use rmcp::transport::streamable_http_server::session::{
-    RestoreOutcome, SessionId, SessionManager,
-};
+use rmcp::transport::streamable_http_server::session::{RestoreOutcome, SessionId, SessionManager};
 use systemprompt_mcp::middleware::{DatabaseSessionHandler, PostgresSessionStore};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 

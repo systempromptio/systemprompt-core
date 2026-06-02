@@ -193,7 +193,9 @@ fn gemini_tools_strip_unsupported_schema_keywords() {
         "propertyNames must be stripped"
     );
     assert!(
-        params["properties"]["count"].get("exclusiveMinimum").is_none(),
+        params["properties"]["count"]
+            .get("exclusiveMinimum")
+            .is_none(),
         "exclusiveMinimum must be stripped from nested properties"
     );
     // The structural fields the parser does accept survive.
