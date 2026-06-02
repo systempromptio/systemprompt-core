@@ -8,8 +8,9 @@ use std::collections::BTreeMap;
 
 use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_MORE_DATA, ERROR_SUCCESS};
 use windows_sys::Win32::System::Registry::{
-    HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY, REG_SZ, REG_VALUE_TYPE,
-    RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
+    HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY, KEY_WRITE,
+    REG_OPTION_NON_VOLATILE, REG_SZ, REG_VALUE_TYPE, RegCloseKey, RegCreateKeyExW, RegOpenKeyExW,
+    RegQueryValueExW, RegSetValueExW,
 };
 
 use super::{ConfigStore, ConfigStoreError, ManagedPolicyRead};
@@ -161,4 +162,80 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
         None => slice,
     };
     Ok(Some(String::from_utf16_lossy(trimmed)))
+}
+
+pub(crate) fn write_managed_policy_values(
+    elevated: bool,
+    entries: &[(String, String)],
+) -> Result<(), ConfigStoreError> {
+    let (hive, hive_label) = if elevated {
+        (HKEY_LOCAL_MACHINE, "HKLM")
+    } else {
+        (HKEY_CURRENT_USER, "HKCU")
+    };
+    tracing::info!(
+        hive = hive_label,
+        subkey = POLICY_SUBKEY,
+        value_count = entries.len(),
+        "writing managed Claude policy via in-process registry FFI"
+    );
+    let key = create_policy_key(hive)?;
+    for (name, value) in entries {
+        set_string_value(key.0, name, value)?;
+        tracing::debug!(hive = hive_label, name, "wrote REG_SZ policy value");
+    }
+    Ok(())
+}
+
+fn create_policy_key(hive: HKEY) -> Result<OwnedKey, ConfigStoreError> {
+    let subkey: Vec<u16> = POLICY_SUBKEY
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut handle: HKEY = std::ptr::null_mut();
+    let status = unsafe {
+        RegCreateKeyExW(
+            hive,
+            subkey.as_ptr(),
+            0,
+            std::ptr::null_mut(),
+            REG_OPTION_NON_VOLATILE,
+            KEY_WRITE | KEY_WOW64_64KEY,
+            std::ptr::null(),
+            &mut handle,
+            std::ptr::null_mut(),
+        )
+    };
+    if status == ERROR_SUCCESS {
+        Ok(OwnedKey(handle))
+    } else {
+        Err(ConfigStoreError::Backend(format!(
+            "RegCreateKeyExW({POLICY_SUBKEY}) failed with status {status}"
+        )))
+    }
+}
+
+fn set_string_value(key: HKEY, name: &str, value: &str) -> Result<(), ConfigStoreError> {
+    let name_w: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+    let data_w: Vec<u16> = value.encode_utf16().chain(std::iter::once(0)).collect();
+    let byte_len = u32::try_from(std::mem::size_of_val(data_w.as_slice())).map_err(|_| {
+        ConfigStoreError::Backend(format!("value for {name} exceeds the registry size limit"))
+    })?;
+    let status = unsafe {
+        RegSetValueExW(
+            key,
+            name_w.as_ptr(),
+            0,
+            REG_SZ,
+            data_w.as_ptr().cast::<u8>(),
+            byte_len,
+        )
+    };
+    if status == ERROR_SUCCESS {
+        Ok(())
+    } else {
+        Err(ConfigStoreError::Backend(format!(
+            "RegSetValueExW({name}) failed with status {status}"
+        )))
+    }
 }

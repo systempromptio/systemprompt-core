@@ -42,6 +42,14 @@ pub fn managed_policy_store() -> Box<dyn ConfigStore> {
     }
 }
 
+#[cfg(target_os = "windows")]
+pub(crate) fn write_managed_claude_policy(
+    elevated: bool,
+    entries: &[(String, String)],
+) -> Result<(), ConfigStoreError> {
+    windows_registry::write_managed_policy_values(elevated, entries)
+}
+
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 struct NoopStore;
 

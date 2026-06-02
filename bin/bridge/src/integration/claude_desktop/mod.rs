@@ -1,3 +1,4 @@
+pub mod reg_profile;
 mod shared;
 
 #[cfg(target_os = "macos")]

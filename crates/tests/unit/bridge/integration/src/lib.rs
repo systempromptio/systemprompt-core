@@ -10,3 +10,5 @@ mod plugin_oauth;
 mod profile_state;
 #[cfg(test)]
 mod proxy_probe;
+#[cfg(test)]
+mod reg_profile;

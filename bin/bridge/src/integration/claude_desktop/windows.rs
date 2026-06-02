@@ -57,7 +57,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let (payload_uuid, profile_uuid) = make_uuids();
     let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
 
-    let body = render_reg(inputs);
+    let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs);
     std::fs::File::create(&path)?.write_all(body.as_bytes())?;
 
     Ok(GeneratedProfile {
@@ -69,48 +69,28 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
 }
 
 pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
-    let status = winproc::reg_command().args(["import", path]).status()?;
-    if !status.success() {
-        return Err(std::io::Error::other(format!(
-            "reg import exited with {}",
-            status.code().unwrap_or(-1)
-        )));
+    let elevated = winproc::is_elevated();
+    tracing::info!(path, elevated, "installing Claude Desktop profile");
+    let body = std::fs::read_to_string(path)?;
+    let entries = super::reg_profile::parse_reg_entries(&body);
+    tracing::info!(
+        path,
+        parsed_values = entries.len(),
+        names = ?entries.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
+        "parsed staged registry profile"
+    );
+    if entries.is_empty() {
+        return Err(std::io::Error::other(
+            "staged registry profile contained no policy values",
+        ));
     }
+    crate::config::store::write_managed_claude_policy(elevated, &entries).map_err(|e| {
+        tracing::error!(error = %e, path, "managed Claude policy write failed");
+        std::io::Error::other(e.to_string())
+    })?;
+    tracing::info!(
+        value_count = entries.len(),
+        "Claude Desktop profile installed"
+    );
     Ok(())
-}
-
-fn render_reg(inputs: &ProfileGenInputs) -> String {
-    let hive = if winproc::is_elevated() {
-        "HKEY_LOCAL_MACHINE"
-    } else {
-        "HKEY_CURRENT_USER"
-    };
-    let mut out = String::new();
-    out.push_str("Windows Registry Editor Version 5.00\r\n\r\n");
-    out.push_str(&format!("[{hive}\\SOFTWARE\\Policies\\Claude]\r\n"));
-    out.push_str("\"inferenceProvider\"=\"gateway\"\r\n");
-    out.push_str(&format!(
-        "\"inferenceGatewayBaseUrl\"=\"{}\"\r\n",
-        reg_escape(&inputs.gateway_base_url)
-    ));
-    out.push_str(&format!(
-        "\"inferenceGatewayApiKey\"=\"{}\"\r\n",
-        reg_escape(&inputs.api_key)
-    ));
-    out.push_str("\"inferenceGatewayAuthScheme\"=\"bearer\"\r\n");
-    let models: Vec<String> = if inputs.models.is_empty() {
-        super::shared::default_models()
-    } else {
-        inputs.models.clone()
-    };
-    let models_json = serde_json::to_string(&models).unwrap_or_else(|_| "[]".into());
-    out.push_str(&format!(
-        "\"inferenceModels\"=\"{}\"\r\n",
-        reg_escape(&models_json)
-    ));
-    out
-}
-
-fn reg_escape(s: &str) -> String {
-    s.replace('\\', r"\\").replace('"', "\\\"")
 }
