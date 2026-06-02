@@ -62,7 +62,12 @@ fn text_part(text: &str) -> Part {
     })
 }
 
-fn file_part(name: Option<&str>, mime: Option<&str>, bytes: Option<&str>, url: Option<&str>) -> Part {
+fn file_part(
+    name: Option<&str>,
+    mime: Option<&str>,
+    bytes: Option<&str>,
+    url: Option<&str>,
+) -> Part {
     Part::File(FilePart {
         file: FileContent {
             name: name.map(String::from),
@@ -153,7 +158,9 @@ async fn table_sortable_columns_hint() {
         "table",
         None,
         None,
-        vec![data_part(serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}))],
+        vec![data_part(
+            serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}),
+        )],
         Some(serde_json::json!({"sortable_columns": ["a"]})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -168,7 +175,9 @@ async fn table_empty_title_omits_h1() {
         "table",
         Some(""),
         None,
-        vec![data_part(serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}))],
+        vec![data_part(
+            serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -192,7 +201,9 @@ async fn table_escapes_title() {
         "table",
         Some("<b>x</b>"),
         None,
-        vec![data_part(serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}))],
+        vec![data_part(
+            serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -246,7 +257,9 @@ async fn chart_unknown_type_defaults_bar() {
         "chart",
         None,
         None,
-        vec![data_part(serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}))],
+        vec![data_part(
+            serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}),
+        )],
         Some(serde_json::json!({"chart_type": "weird"})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -260,7 +273,9 @@ async fn chart_data_only_synthesizes_dataset() {
         "chart",
         Some("MyData"),
         None,
-        vec![data_part(serde_json::json!({"labels": ["A", "B"], "data": [10, 20]}))],
+        vec![data_part(
+            serde_json::json!({"labels": ["A", "B"], "data": [10, 20]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -275,7 +290,9 @@ async fn chart_title_hint_adds_plugin_title() {
         "chart",
         None,
         None,
-        vec![data_part(serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}))],
+        vec![data_part(
+            serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}),
+        )],
         Some(serde_json::json!({"chart_type": "bar", "title": "Chart Title"})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -289,7 +306,9 @@ async fn chart_only_x_axis_label() {
         "chart",
         None,
         None,
-        vec![data_part(serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}))],
+        vec![data_part(
+            serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}),
+        )],
         Some(serde_json::json!({"x_axis_label": "OnlyX"})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -304,7 +323,9 @@ async fn chart_with_description() {
         "chart",
         Some("T"),
         Some("Chart description"),
-        vec![data_part(serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}))],
+        vec![data_part(
+            serde_json::json!({"labels": ["A"], "datasets": [{"data": [1]}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -369,7 +390,9 @@ async fn list_item_name_alias() {
         "list",
         None,
         None,
-        vec![data_part(serde_json::json!({"items": [{"name": "ByName"}]}))],
+        vec![data_part(
+            serde_json::json!({"items": [{"name": "ByName"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -383,7 +406,9 @@ async fn list_item_label_alias() {
         "list",
         None,
         None,
-        vec![data_part(serde_json::json!({"items": [{"label": "ByLabel"}]}))],
+        vec![data_part(
+            serde_json::json!({"items": [{"label": "ByLabel"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -483,7 +508,9 @@ async fn form_dedupes_hint_and_data_fields() {
         "form",
         None,
         None,
-        vec![data_part(serde_json::json!({"fields": [{"name": "dup", "type": "text"}]}))],
+        vec![data_part(
+            serde_json::json!({"fields": [{"name": "dup", "type": "text"}]}),
+        )],
         Some(serde_json::json!({"fields": [{"name": "dup", "type": "text"}]})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -627,7 +654,9 @@ async fn form_field_label_falls_back_to_name() {
         "form",
         None,
         None,
-        vec![data_part(serde_json::json!({"fields": [{"name": "no_label"}]}))],
+        vec![data_part(
+            serde_json::json!({"fields": [{"name": "no_label"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -673,7 +702,9 @@ async fn form_no_submit_tool_yields_null() {
         "form",
         None,
         None,
-        vec![data_part(serde_json::json!({"fields": [{"name": "x", "type": "text"}]}))],
+        vec![data_part(
+            serde_json::json!({"fields": [{"name": "x", "type": "text"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -691,7 +722,12 @@ async fn image_from_file_bytes() {
         "image",
         None,
         None,
-        vec![file_part(Some("p.png"), Some("image/jpeg"), Some("QUJD"), None)],
+        vec![file_part(
+            Some("p.png"),
+            Some("image/jpeg"),
+            Some("QUJD"),
+            None,
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -721,7 +757,9 @@ async fn image_url_alias_in_data_part() {
         "image",
         None,
         None,
-        vec![data_part(serde_json::json!({"url": "https://e.test/u.png"}))],
+        vec![data_part(
+            serde_json::json!({"url": "https://e.test/u.png"}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -735,7 +773,9 @@ async fn image_alt_and_caption_from_hints() {
         "image",
         None,
         None,
-        vec![data_part(serde_json::json!({"src": "https://e.test/i.png"}))],
+        vec![data_part(
+            serde_json::json!({"src": "https://e.test/i.png"}),
+        )],
         Some(serde_json::json!({"alt": "HintAlt", "caption": "HintCap"})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -750,7 +790,9 @@ async fn image_width_only() {
         "image",
         None,
         None,
-        vec![data_part(serde_json::json!({"src": "https://e.test/i.png", "width": 100}))],
+        vec![data_part(
+            serde_json::json!({"src": "https://e.test/i.png", "width": 100}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -765,7 +807,9 @@ async fn image_height_only() {
         "image",
         None,
         None,
-        vec![data_part(serde_json::json!({"src": "https://e.test/i.png", "height": 50}))],
+        vec![data_part(
+            serde_json::json!({"src": "https://e.test/i.png", "height": 50}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -779,7 +823,9 @@ async fn image_alt_defaults_to_title() {
         "image",
         Some("MyTitle"),
         None,
-        vec![data_part(serde_json::json!({"src": "https://e.test/i.png"}))],
+        vec![data_part(
+            serde_json::json!({"src": "https://e.test/i.png"}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -1058,7 +1104,9 @@ async fn dashboard_section_default_title() {
         "dashboard",
         None,
         None,
-        vec![data_part(serde_json::json!({"sections": [{"type": "text", "text": "x"}]}))],
+        vec![data_part(
+            serde_json::json!({"sections": [{"type": "text", "text": "x"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -1112,7 +1160,9 @@ async fn dashboard_with_description() {
         "dashboard",
         Some("D"),
         Some("Dash desc"),
-        vec![data_part(serde_json::json!({"sections": [{"type": "text", "text": "x"}]}))],
+        vec![data_part(
+            serde_json::json!({"sections": [{"type": "text", "text": "x"}]}),
+        )],
         None,
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -1126,7 +1176,9 @@ async fn dashboard_unknown_layout_defaults_vertical() {
         "dashboard",
         None,
         None,
-        vec![data_part(serde_json::json!({"sections": [{"type": "text", "text": "x"}]}))],
+        vec![data_part(
+            serde_json::json!({"sections": [{"type": "text", "text": "x"}]}),
+        )],
         Some(serde_json::json!({"layout": "spiral"})),
     );
     let result = renderer.render(&artifact).await.unwrap();
@@ -1140,7 +1192,9 @@ async fn dashboard_capitalized_grid_layout() {
         "dashboard",
         None,
         None,
-        vec![data_part(serde_json::json!({"sections": [{"type": "text", "text": "x"}]}))],
+        vec![data_part(
+            serde_json::json!({"sections": [{"type": "text", "text": "x"}]}),
+        )],
         Some(serde_json::json!({"layout": "Grid"})),
     );
     let result = renderer.render(&artifact).await.unwrap();

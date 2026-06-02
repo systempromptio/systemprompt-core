@@ -18,6 +18,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-traits = { workspace = true }
+systemprompt-security = { workspace = true }
 axum = { workspace = true }
 tower = { workspace = true }
 sqlx = { workspace = true }
@@ -28,3 +29,4 @@ schemars = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 rmcp = { workspace = true }
+async-trait = { workspace = true }

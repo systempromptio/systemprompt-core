@@ -1,8 +1,8 @@
-// Covers the McpServiceProvider impl on McpServerRegistry (services/providers.rs):
-// the pure protocol_version() and the error-mapping in find_server/
-// validate_registry. Config::get() is not initialised in unit tests, so the
-// loader-backed calls deterministically take their error branch — which is the
-// branch we want to cover.
+// Covers the McpServiceProvider impl on McpServerRegistry
+// (services/providers.rs): the pure protocol_version() and the error-mapping in
+// find_server/ validate_registry. Config::get() is not initialised in unit
+// tests, so the loader-backed calls deterministically take their error branch —
+// which is the branch we want to cover.
 
 use systemprompt_mcp::McpServerRegistry;
 use systemprompt_test_fixtures::fixture_user_id;

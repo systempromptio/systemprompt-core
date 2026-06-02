@@ -5,7 +5,9 @@
 // the guards reject self/0/out-of-range before any signal, and the dead-PID
 // SIGTERM simply fails.
 
-use systemprompt_mcp::services::process::utils::{kill_process, process_exists, terminate_gracefully};
+use systemprompt_mcp::services::process::utils::{
+    kill_process, process_exists, terminate_gracefully,
+};
 
 const DEAD_PID: u32 = 4_194_305;
 
