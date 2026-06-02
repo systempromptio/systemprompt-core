@@ -19,6 +19,11 @@ pub struct SchemaComposition {
     pub not: bool,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "schema feature matrix: each bool is an independent JSON-Schema construct the \
+              provider does or does not accept, not state"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SchemaFeatures {
     pub references: bool,
