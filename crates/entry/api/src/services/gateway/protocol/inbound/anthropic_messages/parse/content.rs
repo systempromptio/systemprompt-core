@@ -90,6 +90,10 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
                 .unwrap_or("")
                 .to_owned(),
             input: value.get("input").cloned().unwrap_or(Value::Null),
+            signature: value
+                .get("signature")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
         }),
         "tool_result" => {
             let inner = value

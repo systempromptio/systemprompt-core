@@ -5,6 +5,7 @@
 ### Fixed
 
 - MCP cross-restart session recovery now works after a session's worker has closed. Recovery looked up the persisted `initialize` params with `status = 'active'`, but a worker that ends — after any request, or for every session on a graceful restart — marks its row `closed` while leaving the params intact (only a client `DELETE` clears them). The lookup now keys on the presence of non-null `initialize_params` rather than status, so a streamable HTTP session is restored instead of returning `404 Session not found` and provoking a client reconnect loop. A restored session's row is marked `active` again on its next activity.
+- The gateway preserves Gemini's function-call `thoughtSignature` across conversation turns. Gemini 3.x attaches an opaque thought signature to each `functionCall` part and rejects a replayed tool turn whose first function call omits it (`400 INVALID_ARGUMENT: Function call is missing a thought_signature`). The canonical tool-use representation now carries this signature: the Gemini codec captures it from response `functionCall` parts and re-emits it on the next request, and it round-trips through the Anthropic Messages inbound surface (buffered blocks and streamed `tool_use` start frames) alongside the existing extended-thinking signature handling. Tool calls originating from other providers leave the signature unset and are unaffected.
 
 ## [0.14.2] - 2026-06-02
 

@@ -126,10 +126,14 @@ pub(super) fn parts_to_content(parts: &[GeminiPart]) -> Vec<CanonicalContent> {
             GeminiPart::Text { text } if !text.is_empty() => {
                 Some(CanonicalContent::Text(text.clone()))
             },
-            GeminiPart::FunctionCall { function_call } => Some(CanonicalContent::ToolUse {
+            GeminiPart::FunctionCall {
+                function_call,
+                thought_signature,
+            } => Some(CanonicalContent::ToolUse {
                 id: format!("call_{}", Uuid::new_v4().simple()),
                 name: function_call.name.clone(),
                 input: function_call.args.clone(),
+                signature: thought_signature.clone(),
             }),
             _ => None,
         })

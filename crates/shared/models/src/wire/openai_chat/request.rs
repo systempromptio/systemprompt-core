@@ -137,7 +137,9 @@ fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {
     for part in content {
         match part {
             CanonicalContent::Text(t) => text.push_str(t),
-            CanonicalContent::ToolUse { id, name, input } => {
+            CanonicalContent::ToolUse {
+                id, name, input, ..
+            } => {
                 tool_calls.push(json!({
                     "id": id,
                     "type": "function",

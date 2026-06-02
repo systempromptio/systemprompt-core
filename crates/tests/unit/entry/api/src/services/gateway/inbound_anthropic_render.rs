@@ -20,6 +20,7 @@ fn sample_response() -> CanonicalResponse {
                 id: "t1".into(),
                 name: "ls".into(),
                 input: json!({"path": "/"}),
+                signature: None,
             },
         ],
         stop_reason: Some(CanonicalStopReason::EndTurn),
@@ -63,6 +64,7 @@ fn content_block_helpers_cover_all_variants() {
             id: "x".into(),
             name: "y".into(),
             input: json!({}),
+            signature: None,
         },
         CanonicalContent::ToolResult {
             tool_use_id: "tu".into(),
@@ -141,6 +143,7 @@ fn render_event_covers_all_variants() {
             block: ContentBlockKind::ToolUse {
                 id: "t".into(),
                 name: "do".into(),
+                signature: None,
             },
         },
         CanonicalEvent::TextDelta {
@@ -199,6 +202,28 @@ fn render_event_emits_signature_delta_frame() {
     assert_eq!(v["index"], 1);
     assert_eq!(v["delta"]["type"], "signature_delta");
     assert_eq!(v["delta"]["signature"], "sig==");
+}
+
+#[test]
+fn render_event_tool_use_block_start_emits_signature() {
+    let inbound = AnthropicMessagesInbound;
+    let ev = CanonicalEvent::ContentBlockStart {
+        index: 2,
+        block: ContentBlockKind::ToolUse {
+            id: "t".into(),
+            name: "do".into(),
+            signature: Some("sig==".into()),
+        },
+    };
+    let frame = inbound.render_event(&ev, "m").expect("frame");
+    let text = String::from_utf8_lossy(&frame);
+    let data = text
+        .lines()
+        .find_map(|l| l.strip_prefix("data: "))
+        .expect("data line");
+    let v: Value = serde_json::from_str(data).expect("json");
+    assert_eq!(v["content_block"]["type"], "tool_use");
+    assert_eq!(v["content_block"]["signature"], "sig==");
 }
 
 #[test]

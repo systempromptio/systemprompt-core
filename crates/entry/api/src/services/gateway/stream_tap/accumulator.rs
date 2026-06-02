@@ -33,6 +33,7 @@ enum BlockAccumulator {
         id: String,
         name: String,
         partial: String,
+        signature: Option<String>,
     },
 }
 
@@ -56,7 +57,10 @@ pub(super) fn extract_summary(state: &mut TapState) -> Summary {
         .content
         .iter()
         .filter_map(|c| {
-            if let CanonicalContent::ToolUse { id, name, input } = c {
+            if let CanonicalContent::ToolUse {
+                id, name, input, ..
+            } = c
+            {
                 Some(CapturedToolUse {
                     ai_tool_call_id: AiToolCallId::new(id.clone()),
                     tool_name: name.clone(),
@@ -97,11 +101,17 @@ fn build_response(state: &TapState) -> CanonicalResponse {
                 text: text.clone(),
                 signature: signature.clone(),
             },
-            BlockAccumulator::ToolUse { id, name, partial } => CanonicalContent::ToolUse {
+            BlockAccumulator::ToolUse {
+                id,
+                name,
+                partial,
+                signature,
+            } => CanonicalContent::ToolUse {
                 id: id.clone(),
                 name: name.clone(),
                 input: serde_json::from_str(partial)
                     .unwrap_or(serde_json::Value::Object(serde_json::Map::new())),
+                signature: signature.clone(),
             },
         })
         .collect();
@@ -133,10 +143,15 @@ pub(super) fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
                     text: String::new(),
                     signature: signature.clone(),
                 },
-                ContentBlockKind::ToolUse { id, name } => BlockAccumulator::ToolUse {
+                ContentBlockKind::ToolUse {
+                    id,
+                    name,
+                    signature,
+                } => BlockAccumulator::ToolUse {
                     id: id.clone(),
                     name: name.clone(),
                     partial: String::new(),
+                    signature: signature.clone(),
                 },
             };
             let idx = *index as usize;

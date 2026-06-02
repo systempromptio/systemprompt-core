@@ -18,6 +18,7 @@ fn sample_response() -> CanonicalResponse {
                 id: "t1".into(),
                 name: "fn".into(),
                 input: json!({"a": 1}),
+                signature: None,
             },
             CanonicalContent::Thinking {
                 text: "thinking".into(),
@@ -68,6 +69,7 @@ fn render_response_omits_message_when_no_text() {
             id: "t".into(),
             name: "f".into(),
             input: json!({}),
+            signature: None,
         }],
         stop_reason: None,
         usage: CanonicalUsage::default(),
@@ -115,6 +117,7 @@ fn render_event_covers_all_variants() {
             block: ContentBlockKind::ToolUse {
                 id: "t".into(),
                 name: "f".into(),
+                signature: None,
             },
         },
         CanonicalEvent::ContentBlockStart {

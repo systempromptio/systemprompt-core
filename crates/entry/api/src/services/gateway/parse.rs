@@ -13,7 +13,10 @@ pub fn extract_from_canonical(
     };
     let mut tool_calls = Vec::new();
     for part in &response.content {
-        if let CanonicalContent::ToolUse { id, name, input } = part {
+        if let CanonicalContent::ToolUse {
+            id, name, input, ..
+        } = part
+        {
             tool_calls.push(CapturedToolUse {
                 ai_tool_call_id: AiToolCallId::new(id.clone()),
                 tool_name: name.clone(),

@@ -157,11 +157,17 @@ fn content_to_part(part: &CanonicalContent) -> Option<GeminiPart> {
     match part {
         CanonicalContent::Text(t) => Some(GeminiPart::Text { text: t.clone() }),
         CanonicalContent::Image(src) => Some(image_part(src)),
-        CanonicalContent::ToolUse { name, input, .. } => Some(GeminiPart::FunctionCall {
+        CanonicalContent::ToolUse {
+            name,
+            input,
+            signature,
+            ..
+        } => Some(GeminiPart::FunctionCall {
             function_call: GeminiFunctionCall {
                 name: name.clone(),
                 args: input.clone(),
             },
+            thought_signature: signature.clone(),
         }),
         CanonicalContent::ToolResult {
             tool_use_id,

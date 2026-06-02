@@ -69,6 +69,7 @@ fn rich_request() -> CanonicalRequest {
                         id: "tu1".into(),
                         name: "search".into(),
                         input: json!({"q": "rust"}),
+                        signature: None,
                     },
                 ],
             },

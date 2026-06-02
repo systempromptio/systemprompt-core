@@ -143,6 +143,12 @@ pub enum CanonicalEvent {
 #[derive(Debug, Clone)]
 pub enum ContentBlockKind {
     Text,
-    Thinking { signature: Option<String> },
-    ToolUse { id: String, name: String },
+    Thinking {
+        signature: Option<String>,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        signature: Option<String>,
+    },
 }

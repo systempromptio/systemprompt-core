@@ -6,7 +6,7 @@
 use serde_json::{Value, json};
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalRequest, CanonicalTool,
-    ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    ContentBlockKind, ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 use systemprompt_models::wire::{anthropic, gemini, openai_chat};
 
@@ -276,4 +276,143 @@ fn anthropic_sse_parses_thinking_signature_delta() {
         },
         other => panic!("expected SignatureDelta, got {other:?}"),
     }
+}
+
+fn tool_use(signature: Option<&str>) -> CanonicalContent {
+    CanonicalContent::ToolUse {
+        id: "call_1".to_owned(),
+        name: "lookup".to_owned(),
+        input: json!({"q": "rust"}),
+        signature: signature.map(str::to_owned),
+    }
+}
+
+#[test]
+fn gemini_parse_captures_function_call_thought_signature() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [
+                {"functionCall": {"name": "lookup", "args": {"q": "rust"}}, "thoughtSignature": "sig=="}
+            ]},
+            "finishReason": "STOP"
+        }]
+    });
+    let response = gemini::parse_response(&value, "fallback");
+    match response.content.first() {
+        Some(CanonicalContent::ToolUse { signature, .. }) => {
+            assert_eq!(signature.as_deref(), Some("sig=="));
+        },
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
+
+#[test]
+fn gemini_parse_leaves_signature_none_when_absent() {
+    let value: Value = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [
+                {"functionCall": {"name": "lookup", "args": {"q": "rust"}}}
+            ]},
+            "finishReason": "STOP"
+        }]
+    });
+    let response = gemini::parse_response(&value, "fallback");
+    match response.content.first() {
+        Some(CanonicalContent::ToolUse { signature, .. }) => assert!(signature.is_none()),
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
+
+#[test]
+fn gemini_request_emits_thought_signature_on_function_call() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![tool_use(Some("sig=="))],
+    });
+    let body = gemini::build_request_body(&req, None);
+    let part = body["contents"]
+        .as_array()
+        .and_then(|c| c.iter().find(|m| m["role"] == "model"))
+        .map(|m| &m["parts"][0])
+        .expect("model part present");
+    assert_eq!(part["functionCall"]["name"], "lookup");
+    assert_eq!(part["thoughtSignature"], "sig==");
+}
+
+#[test]
+fn gemini_request_omits_thought_signature_when_absent() {
+    let mut req = base_request();
+    req.messages.push(CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![tool_use(None)],
+    });
+    let body = gemini::build_request_body(&req, None);
+    let part = body["contents"]
+        .as_array()
+        .and_then(|c| c.iter().find(|m| m["role"] == "model"))
+        .map(|m| &m["parts"][0])
+        .expect("model part present");
+    assert!(part.get("thoughtSignature").is_none());
+}
+
+#[test]
+fn anthropic_tool_use_signature_round_trips() {
+    let block = anthropic::content_to_anthropic_block(&tool_use(Some("sig==")));
+    assert_eq!(block["signature"], "sig==");
+    let response = json!({ "content": [block] });
+    let parsed = anthropic::parse_response(&response, "fallback");
+    match parsed.content.first() {
+        Some(CanonicalContent::ToolUse { signature, .. }) => {
+            assert_eq!(signature.as_deref(), Some("sig=="));
+        },
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
+}
+
+#[test]
+fn anthropic_sse_tool_use_block_start_carries_signature() {
+    let frame = json!({
+        "type": "content_block_start",
+        "index": 3,
+        "content_block": {"type": "tool_use", "id": "tu_1", "name": "lookup", "signature": "sig=="},
+    });
+    match anthropic::event_from_sse(&frame, "msg_1") {
+        Some(CanonicalEvent::ContentBlockStart {
+            block: ContentBlockKind::ToolUse { signature, .. },
+            ..
+        }) => assert_eq!(signature.as_deref(), Some("sig==")),
+        other => panic!("expected tool_use ContentBlockStart, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn gemini_stream_emits_tool_use_block_with_signature() {
+    use futures::StreamExt;
+
+    let frame = json!({
+        "candidates": [{
+            "content": {"role": "model", "parts": [
+                {"functionCall": {"name": "lookup", "args": {"q": "rust"}}, "thoughtSignature": "sig=="}
+            ]}
+        }]
+    });
+    let sse = format!("data: {frame}\n\n");
+    let upstream = futures::stream::once(async move {
+        Ok::<_, std::io::Error>(bytes::Bytes::from(sse))
+    });
+    let events: Vec<_> = gemini::sse_to_canonical_events(upstream, "fallback".to_owned())
+        .collect()
+        .await;
+    let signature = events.into_iter().find_map(|e| match e {
+        Ok(CanonicalEvent::ContentBlockStart {
+            block: ContentBlockKind::ToolUse { signature, .. },
+            ..
+        }) => Some(signature),
+        _ => None,
+    });
+    assert_eq!(
+        signature.expect("tool-use block emitted").as_deref(),
+        Some("sig==")
+    );
 }

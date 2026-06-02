@@ -63,6 +63,10 @@ fn convert_content_block_start(value: &Value) -> Option<CanonicalEvent> {
         "tool_use" => ContentBlockKind::ToolUse {
             id: str_field(block, "id", ""),
             name: str_field(block, "name", ""),
+            signature: block
+                .get("signature")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
         },
         _ => return None,
     };

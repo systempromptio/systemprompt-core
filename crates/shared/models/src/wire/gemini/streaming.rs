@@ -152,8 +152,17 @@ fn emit_part(
 ) {
     match part {
         GeminiPart::Text { text } if !text.is_empty() => emit_text(state, text, events),
-        GeminiPart::FunctionCall { function_call } => {
-            emit_tool_use(state, &function_call.name, &function_call.args, events);
+        GeminiPart::FunctionCall {
+            function_call,
+            thought_signature,
+        } => {
+            emit_tool_use(
+                state,
+                &function_call.name,
+                &function_call.args,
+                thought_signature.clone(),
+                events,
+            );
         },
         _ => {},
     }
@@ -184,6 +193,7 @@ fn emit_tool_use(
     state: &mut StreamState,
     name: &str,
     args: &Value,
+    signature: Option<String>,
     events: &mut Vec<Result<CanonicalEvent, String>>,
 ) {
     let index = state.next_index;
@@ -193,6 +203,7 @@ fn emit_tool_use(
         block: ContentBlockKind::ToolUse {
             id: format!("call_{}", Uuid::new_v4().simple()),
             name: name.to_owned(),
+            signature,
         },
     }));
     events.push(Ok(CanonicalEvent::ToolUseDelta {

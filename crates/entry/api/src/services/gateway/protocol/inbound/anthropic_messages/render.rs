@@ -138,12 +138,11 @@ fn render_content_block_start(index: u32, block: &ContentBlockKind) -> Value {
         ContentBlockKind::Thinking { signature } => {
             render_thinking_block_start(signature.as_deref())
         },
-        ContentBlockKind::ToolUse { id, name } => json!({
-            "type": "tool_use",
-            "id": id,
-            "name": name,
-            "input": {},
-        }),
+        ContentBlockKind::ToolUse {
+            id,
+            name,
+            signature,
+        } => render_tool_use_block_start(id, name, signature.as_deref()),
     };
     json!({
         "type": "content_block_start",
@@ -156,6 +155,18 @@ fn render_thinking_block_start(signature: Option<&str>) -> Value {
     let mut obj = Map::new();
     obj.insert("type".into(), Value::String("thinking".into()));
     obj.insert("thinking".into(), Value::String(String::new()));
+    if let Some(sig) = signature {
+        obj.insert("signature".into(), Value::String(sig.to_owned()));
+    }
+    Value::Object(obj)
+}
+
+fn render_tool_use_block_start(id: &str, name: &str, signature: Option<&str>) -> Value {
+    let mut obj = Map::new();
+    obj.insert("type".into(), Value::String("tool_use".into()));
+    obj.insert("id".into(), Value::String(id.to_owned()));
+    obj.insert("name".into(), Value::String(name.to_owned()));
+    obj.insert("input".into(), json!({}));
     if let Some(sig) = signature {
         obj.insert("signature".into(), Value::String(sig.to_owned()));
     }

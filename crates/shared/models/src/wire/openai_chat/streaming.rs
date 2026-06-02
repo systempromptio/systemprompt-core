@@ -212,7 +212,11 @@ fn open_new_tool_call(
         .to_owned();
     events.push(Ok(CanonicalEvent::ContentBlockStart {
         index: idx,
-        block: ContentBlockKind::ToolUse { id, name },
+        block: ContentBlockKind::ToolUse {
+            id,
+            name,
+            signature: None,
+        },
     }));
     state.tool_calls.push(ToolCallProgress {
         index: idx,

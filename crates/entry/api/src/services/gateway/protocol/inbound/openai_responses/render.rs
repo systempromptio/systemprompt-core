@@ -23,7 +23,9 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
             CanonicalContent::Text(t) => {
                 text_parts.push(json!({ "type": "output_text", "text": t, "annotations": [] }));
             },
-            CanonicalContent::ToolUse { id, name, input } => {
+            CanonicalContent::ToolUse {
+                id, name, input, ..
+            } => {
                 let arguments = serde_json::to_string(input).unwrap_or_else(|_| "{}".into());
                 output.push(json!({
                     "type": "function_call",
@@ -185,7 +187,7 @@ fn render_block_start(index: u32, block: &ContentBlockKind) -> Value {
                 "content": [],
             },
         }),
-        ContentBlockKind::ToolUse { id, name } => json!({
+        ContentBlockKind::ToolUse { id, name, .. } => json!({
             "type": "response.output_item.added",
             "output_index": index,
             "item": {

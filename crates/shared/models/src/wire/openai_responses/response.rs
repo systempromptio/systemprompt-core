@@ -184,6 +184,7 @@ fn collect_output_item(
                 id,
                 name: call.name,
                 input,
+                signature: None,
             });
         },
         OutputItem::Reasoning { summary } => {

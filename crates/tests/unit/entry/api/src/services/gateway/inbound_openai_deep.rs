@@ -119,7 +119,9 @@ fn parse_function_call_item_becomes_tool_use() {
     assert_eq!(req.messages.len(), 1);
     assert_eq!(req.messages[0].role, Role::Assistant);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::ToolUse { id, name, input }) => {
+        Some(CanonicalContent::ToolUse {
+            id, name, input, ..
+        }) => {
             assert_eq!(id, "call_1");
             assert_eq!(name, "search");
             assert_eq!(input["q"], "r");

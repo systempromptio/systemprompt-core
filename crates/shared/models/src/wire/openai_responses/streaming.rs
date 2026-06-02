@@ -168,7 +168,14 @@ fn handle_item_added(
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_owned();
-            (SlotKind::Function, ContentBlockKind::ToolUse { id, name })
+            (
+                SlotKind::Function,
+                ContentBlockKind::ToolUse {
+                    id,
+                    name,
+                    signature: None,
+                },
+            )
         },
         "reasoning" => (
             SlotKind::Reasoning,

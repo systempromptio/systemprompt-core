@@ -80,6 +80,8 @@ enum AnthropicBlock {
         name: String,
         #[serde(default)]
         input: Value,
+        #[serde(default)]
+        signature: Option<String>,
     },
     Image {
         source: AnthropicImageSource,
@@ -199,9 +201,17 @@ fn canonical_block(block: AnthropicBlock) -> Option<CanonicalContent> {
             text: thinking,
             signature,
         }),
-        AnthropicBlock::ToolUse { id, name, input } => {
-            Some(CanonicalContent::ToolUse { id, name, input })
-        },
+        AnthropicBlock::ToolUse {
+            id,
+            name,
+            input,
+            signature,
+        } => Some(CanonicalContent::ToolUse {
+            id,
+            name,
+            input,
+            signature,
+        }),
         AnthropicBlock::Image { source } => canonical_image(source),
         AnthropicBlock::WebSearchToolResult { .. } | AnthropicBlock::Unknown => None,
     }

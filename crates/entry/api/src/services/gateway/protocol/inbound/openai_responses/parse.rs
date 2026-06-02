@@ -153,7 +153,12 @@ fn parse_function_call(item: &Value) -> CanonicalMessage {
     let input: Value = serde_json::from_str(arguments).unwrap_or(Value::Null);
     CanonicalMessage {
         role: Role::Assistant,
-        content: vec![CanonicalContent::ToolUse { id, name, input }],
+        content: vec![CanonicalContent::ToolUse {
+            id,
+            name,
+            input,
+            signature: None,
+        }],
     }
 }
 

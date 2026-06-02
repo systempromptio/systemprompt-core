@@ -140,6 +140,7 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
                 id,
                 name,
                 input: arg,
+                ..
             } => {
                 tool_calls.push(json!({
                     "type": "function_call",

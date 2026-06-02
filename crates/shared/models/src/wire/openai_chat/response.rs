@@ -140,6 +140,7 @@ fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>
             id: tc.id,
             name: tc.function.name,
             input,
+            signature: None,
         });
     }
 }

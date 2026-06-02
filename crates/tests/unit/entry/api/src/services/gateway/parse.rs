@@ -44,11 +44,13 @@ fn extract_from_canonical_captures_tool_uses() {
             id: "tu_1".into(),
             name: "search".into(),
             input: json!({"query": "rust"}),
+            signature: None,
         },
         CanonicalContent::ToolUse {
             id: "tu_2".into(),
             name: "fetch".into(),
             input: json!({"url": "https://x"}),
+            signature: None,
         },
     ];
     let (_, tools) = extract_from_canonical(&r);
@@ -74,6 +76,7 @@ fn extract_assistant_text_joins_text_parts_with_newline() {
             id: "x".into(),
             name: "y".into(),
             input: json!({}),
+            signature: None,
         },
         CanonicalContent::Text("world".into()),
     ];
@@ -99,6 +102,7 @@ fn extract_assistant_text_skips_non_text_variants() {
             id: "t".into(),
             name: "n".into(),
             input: json!({}),
+            signature: None,
         },
     ];
     assert!(extract_assistant_text(&r).is_none());

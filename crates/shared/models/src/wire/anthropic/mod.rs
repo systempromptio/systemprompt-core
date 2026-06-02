@@ -187,12 +187,22 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
             }
             Value::Object(obj)
         },
-        CanonicalContent::ToolUse { id, name, input } => json!({
-            "type": "tool_use",
-            "id": id,
-            "name": name,
-            "input": input,
-        }),
+        CanonicalContent::ToolUse {
+            id,
+            name,
+            input,
+            signature,
+        } => {
+            let mut obj = Map::new();
+            obj.insert("type".into(), Value::String("tool_use".into()));
+            obj.insert("id".into(), Value::String(id.clone()));
+            obj.insert("name".into(), Value::String(name.clone()));
+            obj.insert("input".into(), input.clone());
+            if let Some(sig) = signature {
+                obj.insert("signature".into(), Value::String(sig.clone()));
+            }
+            Value::Object(obj)
+        },
         CanonicalContent::ToolResult {
             tool_use_id,
             content,

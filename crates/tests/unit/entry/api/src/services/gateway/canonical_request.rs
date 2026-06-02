@@ -71,6 +71,7 @@ fn flatten_text_renders_tool_use_as_bracketed() {
             id: "tu_1".into(),
             name: "search".into(),
             input: json!({"q": "rust"}),
+            signature: None,
         }],
     });
     let s = r.flatten_text();

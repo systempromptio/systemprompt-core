@@ -26,3 +26,5 @@ tempfile = { workspace = true }
 indexmap = { workspace = true }
 uuid = { workspace = true }
 rmcp = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }

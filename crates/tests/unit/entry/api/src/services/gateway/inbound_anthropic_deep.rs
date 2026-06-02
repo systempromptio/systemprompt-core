@@ -178,10 +178,29 @@ fn parse_content_block_tool_use() {
     }"#;
     let req = parse_ok(body);
     match req.messages[0].content.first() {
-        Some(CanonicalContent::ToolUse { id, name, input }) => {
+        Some(CanonicalContent::ToolUse {
+            id, name, input, ..
+        }) => {
             assert_eq!(id, "tu_1");
             assert_eq!(name, "search");
             assert_eq!(input["q"], "rust");
+        },
+        other => panic!("expected tool_use, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_content_block_tool_use_captures_signature() {
+    let body = br#"{
+        "model":"m","max_tokens":1,
+        "messages":[{"role":"assistant","content":[
+            {"type":"tool_use","id":"tu_1","name":"search","input":{"q":"rust"},"signature":"sig=="}
+        ]}]
+    }"#;
+    let req = parse_ok(body);
+    match req.messages[0].content.first() {
+        Some(CanonicalContent::ToolUse { signature, .. }) => {
+            assert_eq!(signature.as_deref(), Some("sig=="));
         },
         other => panic!("expected tool_use, got {other:?}"),
     }
