@@ -129,6 +129,7 @@ marketplace-badge-syncing = syncing
 marketplace-badge-synced = synced
 marketplace-badge-never = never synced
 marketplace-detail-readme = README
+marketplace-detail-tools = Tools
 marketplace-detail-path = Path
 marketplace-detail-copy = Copy
 marketplace-detail-copied = Copied ✓

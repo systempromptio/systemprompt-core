@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.2] - 2026-06-02
+
+### Added
+
+- **MCP authentication status in the GUI.** The Status tab gains an "MCP servers" group that runs a live `initialize` → `tools/list` round-trip per registered server through the loopback proxy (`proxy::mcp_probe`) and classifies the result — Authenticated, `bad loopback secret` (403), gateway unauthorized (401), proxy unreachable, etc. — so failures that previously required reading Cowork's `main.log` are visible in-app. Authenticated servers list the tools they expose as chips. The panel re-probes automatically after each sync and via a manual "Recheck" button. The MCP server's tools are also listed in the Marketplace detail view.
+
+### Changed
+
+- The synthetic org plugin now ships `installationPreference: "required"` (was `"auto_install"`). `auto_install` installs once at sign-in but treats a later removal as a sticky user-uninstall, so a cleared install record never returned and the plugin sat behind a manual "Add" with its skills disabled. `"required"` is the org-plugin equivalent of the `managedMcpServers` policy — it force-installs at every sign-in and reinstalls if removed — so skills/agents/hooks land automatically, matching the managed MCP connector. Takes effect on each user's next Cowork sign-in.
+
+### Fixed
+
+- `gateway::Ipv4FirstResolver` no longer uses a trivial `as` cast to box its address iterator (a `Box<…> as Box<dyn …>` unsizing the newer toolchain's `trivial_casts` lint flags); the coercion is now expressed via a typed binding.
+
 ## [0.10.1] - 2026-06-02
 
 ### Fixed

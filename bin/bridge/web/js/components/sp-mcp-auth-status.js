@@ -44,10 +44,10 @@ function detailRows(srv) {
 function toolsBlock(srv) {
   if (srv.state !== "Authenticated") { return ""; }
   if (!srv.tools || srv.tools.length === 0) {
-    return `<p class="sp-kpi-card__label">Authenticated, but the server exposed no tools.</p>`;
+    return `<p class="sp-kpi-card__label">Authenticated — no tools exposed.</p>`;
   }
   const chips = srv.tools.map((t) => `<span class="sp-chip">${escapeHtml(t)}</span>`).join("");
-  return `<div class="sp-chip-list sp-kpi-card__chips">${chips}</div>`;
+  return `<p class="sp-kpi-card__label">Tools (${srv.tools.length})</p><div class="sp-chip-list sp-kpi-card__chips">${chips}</div>`;
 }
 
 function card(srv) {
