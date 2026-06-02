@@ -27,4 +27,7 @@ mod oauth_parse_error;
 mod pagination;
 
 #[cfg(test)]
+mod repository;
+
+#[cfg(test)]
 mod services;
