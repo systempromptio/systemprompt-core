@@ -1,11 +1,12 @@
 //! Structured command output and its terminal/JSON rendering.
 //!
-//! [`CommandOutput`] wraps the typed [`CliArtifact`] a command produces. Machine
-//! output (`--output json`/`yaml`) serializes the artifact verbatim — the same
-//! tagged union the MCP server deserializes. [`render_result`] renders the
-//! artifact for an interactive terminal, dispatching per variant. The reusable
-//! payload shapes [`TextOutput`], [`SuccessOutput`], [`KeyValueOutput`], and
-//! [`TableOutput`] remain available as command-side data structs.
+//! [`CommandOutput`] wraps the typed [`CliArtifact`] a command produces.
+//! Machine output (`--output json`/`yaml`) serializes the artifact verbatim —
+//! the same tagged union the MCP server deserializes. [`render_result`] renders
+//! the artifact for an interactive terminal, dispatching per variant. The
+//! reusable payload shapes [`TextOutput`], [`SuccessOutput`],
+//! [`KeyValueOutput`], and [`TableOutput`] remain available as command-side
+//! data structs.
 
 mod output_types;
 mod render;
@@ -168,9 +169,9 @@ impl From<CliArtifact> for CommandOutput {
     }
 }
 
-/// Turn a JSON value into card sections: one section per top-level object field.
-/// Scalars render as their display string; nested arrays/objects as compact
-/// JSON. A non-object value yields a single `Value` section.
+/// Turn a JSON value into card sections: one section per top-level object
+/// field. Scalars render as their display string; nested arrays/objects as
+/// compact JSON. A non-object value yields a single `Value` section.
 fn sections_from_value(value: &JsonValue) -> Vec<CardSection> {
     match value {
         JsonValue::Object(map) => map
