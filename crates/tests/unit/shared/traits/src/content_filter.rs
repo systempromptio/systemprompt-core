@@ -220,7 +220,7 @@ fn repository_internal_display() {
 
 #[test]
 fn repository_database_constructor() {
-    let io_err = std::io::Error::new(std::io::ErrorKind::Other, "db down");
+    let io_err = std::io::Error::other("db down");
     let e = RepositoryError::database(io_err);
     assert!(format!("{e}").contains("database error"));
     assert!(format!("{e}").contains("db down"));

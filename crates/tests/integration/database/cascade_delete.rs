@@ -129,7 +129,7 @@ async fn cascade_delete_user_transitively_removes_dependents() {
     let api_keys = fx.t("api_key");
     let sessions = fx.t("session");
     let fed = fx.t("fed_id");
-    let user_id = format!("u_{}", &fx.suffix);
+    let user_id = format!("u_{}", fx.suffix);
 
     sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
         .bind(&user_id)
@@ -139,16 +139,16 @@ async fn cascade_delete_user_transitively_removes_dependents() {
     sqlx::query(&format!(
         "INSERT INTO {api_keys}(id, user_id) VALUES ($1, $2), ($3, $2)"
     ))
-    .bind(format!("k1_{}", &fx.suffix))
+    .bind(format!("k1_{}", fx.suffix))
     .bind(&user_id)
-    .bind(format!("k2_{}", &fx.suffix))
+    .bind(format!("k2_{}", fx.suffix))
     .execute(&fx.pool)
     .await
     .unwrap();
     sqlx::query(&format!(
         "INSERT INTO {sessions}(id, user_id) VALUES ($1, $2)"
     ))
-    .bind(format!("s1_{}", &fx.suffix))
+    .bind(format!("s1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
@@ -156,7 +156,7 @@ async fn cascade_delete_user_transitively_removes_dependents() {
     sqlx::query(&format!(
         "INSERT INTO {fed}(id, user_id, provider) VALUES ($1, $2, 'github')"
     ))
-    .bind(format!("f1_{}", &fx.suffix))
+    .bind(format!("f1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
@@ -184,7 +184,7 @@ async fn cascade_delete_user_transitively_removes_dependents() {
         "SET NULL must clear the FK column on dependent sessions, not delete them"
     );
     assert_eq!(
-        fx.count(&sessions, &format!("id = 's1_{}'", &fx.suffix))
+        fx.count(&sessions, &format!("id = 's1_{}'", fx.suffix))
             .await,
         1,
         "SET NULL dependent row itself must survive the parent delete"
@@ -205,7 +205,7 @@ async fn soft_delete_inactive_does_not_cascade() {
     let users = fx.t("user");
     let api_keys = fx.t("api_key");
     let sessions = fx.t("session");
-    let user_id = format!("u_{}", &fx.suffix);
+    let user_id = format!("u_{}", fx.suffix);
 
     sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
         .bind(&user_id)
@@ -215,7 +215,7 @@ async fn soft_delete_inactive_does_not_cascade() {
     sqlx::query(&format!(
         "INSERT INTO {api_keys}(id, user_id) VALUES ($1, $2)"
     ))
-    .bind(format!("k1_{}", &fx.suffix))
+    .bind(format!("k1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
@@ -223,7 +223,7 @@ async fn soft_delete_inactive_does_not_cascade() {
     sqlx::query(&format!(
         "INSERT INTO {sessions}(id, user_id) VALUES ($1, $2)"
     ))
-    .bind(format!("s1_{}", &fx.suffix))
+    .bind(format!("s1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
@@ -269,7 +269,7 @@ async fn audit_trail_survives_user_cascade_delete() {
 
     let users = fx.t("user");
     let audit = fx.t("audit");
-    let user_id = format!("u_{}", &fx.suffix);
+    let user_id = format!("u_{}", fx.suffix);
 
     sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
         .bind(&user_id)
@@ -280,7 +280,7 @@ async fn audit_trail_survives_user_cascade_delete() {
         sqlx::query(&format!(
             "INSERT INTO {audit}(id, user_id, action) VALUES ($1, $2, $3)"
         ))
-        .bind(format!("a{n}_{}", &fx.suffix))
+        .bind(format!("a{n}_{}", fx.suffix))
         .bind(&user_id)
         .bind("authz.deny")
         .execute(&fx.pool)
@@ -325,7 +325,7 @@ async fn no_orphaned_fk_references_after_cascade() {
 
     // Two users, each with children.
     for u in ["alpha", "beta"] {
-        let user_id = format!("u_{u}_{}", &fx.suffix);
+        let user_id = format!("u_{u}_{}", fx.suffix);
         sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
             .bind(&user_id)
             .execute(&fx.pool)
@@ -334,7 +334,7 @@ async fn no_orphaned_fk_references_after_cascade() {
         sqlx::query(&format!(
             "INSERT INTO {api_keys}(id, user_id) VALUES ($1, $2)"
         ))
-        .bind(format!("k_{u}_{}", &fx.suffix))
+        .bind(format!("k_{u}_{}", fx.suffix))
         .bind(&user_id)
         .execute(&fx.pool)
         .await
@@ -342,7 +342,7 @@ async fn no_orphaned_fk_references_after_cascade() {
         sqlx::query(&format!(
             "INSERT INTO {sessions}(id, user_id) VALUES ($1, $2)"
         ))
-        .bind(format!("s_{u}_{}", &fx.suffix))
+        .bind(format!("s_{u}_{}", fx.suffix))
         .bind(&user_id)
         .execute(&fx.pool)
         .await
@@ -350,7 +350,7 @@ async fn no_orphaned_fk_references_after_cascade() {
         sqlx::query(&format!(
             "INSERT INTO {fed}(id, user_id, provider) VALUES ($1, $2, $3)"
         ))
-        .bind(format!("f_{u}_{}", &fx.suffix))
+        .bind(format!("f_{u}_{}", fx.suffix))
         .bind(&user_id)
         .bind(u)
         .execute(&fx.pool)
@@ -359,7 +359,7 @@ async fn no_orphaned_fk_references_after_cascade() {
     }
 
     sqlx::query(&format!("DELETE FROM {users} WHERE id = $1"))
-        .bind(format!("u_alpha_{}", &fx.suffix))
+        .bind(format!("u_alpha_{}", fx.suffix))
         .execute(&fx.pool)
         .await
         .unwrap();
