@@ -40,8 +40,8 @@ async fn generate_parses_text_response() {
     let p = provider(server.uri());
     let messages = msgs();
     let sampling = sampling();
-    let params = GenerationParams::new(&messages, "claude-sonnet-4-6", 256)
-        .with_sampling(&sampling);
+    let params =
+        GenerationParams::new(&messages, "claude-sonnet-4-6", 256).with_sampling(&sampling);
     let resp = p.generate(params).await.expect("ok");
     assert!(resp.content.contains("hello there"));
 }
@@ -152,11 +152,8 @@ async fn generate_with_web_search_returns_grounded() {
     let server = mock_http::anthropic_messages_success(body).await;
     let p = provider(server.uri()).with_web_search();
     let messages = msgs();
-    let params = SearchGenerationParams::new(GenerationParams::new(
-        &messages,
-        "claude-sonnet-4-6",
-        64,
-    ));
+    let params =
+        SearchGenerationParams::new(GenerationParams::new(&messages, "claude-sonnet-4-6", 64));
     let resp = p.generate_with_google_search(params).await;
     assert!(resp.is_ok() || resp.is_err());
 }

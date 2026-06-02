@@ -97,7 +97,11 @@ fn registry_resolves_builtin_heuristic() {
 
 #[test]
 fn registry_returns_none_for_unknown_scanner() {
-    assert!(SafetyScannerRegistry::global().get("does_not_exist").is_none());
+    assert!(
+        SafetyScannerRegistry::global()
+            .get("does_not_exist")
+            .is_none()
+    );
 }
 
 #[tokio::test]

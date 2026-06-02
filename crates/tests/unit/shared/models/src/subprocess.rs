@@ -13,7 +13,11 @@ fn environ(vars: &[&str]) -> Vec<u8> {
 
 #[test]
 fn matches_agent_child_with_marker_and_name() {
-    let env = environ(&["PATH=/usr/bin", "SYSTEMPROMPT_SUBPROCESS=1", "AGENT_NAME=greeter"]);
+    let env = environ(&[
+        "PATH=/usr/bin",
+        "SYSTEMPROMPT_SUBPROCESS=1",
+        "AGENT_NAME=greeter",
+    ]);
     assert!(environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
 }
 
