@@ -87,6 +87,7 @@ fn test_oauth_client_row_deserialize() {
         "client_name": "Deserialized Client",
         "name": null,
         "token_endpoint_auth_method": null,
+        "application_type": "web",
         "client_uri": null,
         "logo_uri": null,
         "is_active": true,
