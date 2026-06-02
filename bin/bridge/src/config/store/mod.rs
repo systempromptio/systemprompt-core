@@ -9,6 +9,9 @@ mod windows_registry;
 pub enum ConfigStoreError {
     #[error("config store: {0}")]
     Backend(String),
+
+    #[error("administrator rights required to write {subkey} under {hive}")]
+    AccessDenied { hive: String, subkey: String },
 }
 
 #[derive(Debug, Default)]

@@ -235,6 +235,19 @@ pub(crate) fn on_profile_generate_finished(
     finish(app, bridge_result, reply_to);
 }
 
+fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        host.config_format() == crate::integration::ConfigFormat::Reg
+            && !crate::winproc::is_elevated()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = host;
+        false
+    }
+}
+
 pub(crate) fn on_profile_install_requested(
     app: &mut GuiApp,
     host_id: &str,
@@ -252,6 +265,13 @@ pub(crate) fn on_profile_install_requested(
         return;
     };
     app.append_log(format!("[{host_id}] installing {path}…"));
+    if needs_elevation_notice(host) {
+        app.append_log(format!(
+            "[{host_id}] administrator approval is required to write the machine-wide Claude \
+             policy (HKLM\\SOFTWARE\\Policies\\Claude). A Windows UAC prompt will appear — \
+             approve it to continue."
+        ));
+    }
     let host_id_owned = host_id.to_string();
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
@@ -295,13 +315,19 @@ pub(crate) fn on_profile_install_finished(
             Ok(json!({ "path": path }))
         },
         Err(e) => {
-            let line = format!("[{host_id}] profile install failed: {e}");
+            let (code, line) = match e.as_ref() {
+                GuiError::Profile { source, .. }
+                    if source.kind() == std::io::ErrorKind::PermissionDenied =>
+                {
+                    (ErrorCode::Unauthorized, format!("[{host_id}] {source}"))
+                },
+                _ => (
+                    ErrorCode::Internal,
+                    format!("[{host_id}] profile install failed: {e}"),
+                ),
+            };
             app.append_log(&line);
-            Err(BridgeError::new(
-                ErrorScope::Host,
-                ErrorCode::Internal,
-                line,
-            ))
+            Err(BridgeError::new(ErrorScope::Host, code, line))
         },
     };
     _ = app

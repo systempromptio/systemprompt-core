@@ -1,6 +1,8 @@
 pub mod reg_profile;
 mod shared;
 
+#[cfg(target_os = "windows")]
+pub(crate) mod elevate;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "windows")]

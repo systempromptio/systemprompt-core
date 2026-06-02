@@ -5,6 +5,7 @@ pub mod diagnostics;
 mod doctor;
 mod gui;
 mod install;
+mod install_claude_policy;
 mod login;
 mod logout;
 mod oauth_client;
@@ -34,6 +35,7 @@ pub fn run() -> ExitCode {
         Some("status") => status::cmd_status(),
         Some("whoami") => whoami::cmd_whoami(),
         Some("install") => install::cmd_install(&args),
+        Some("__install-claude-policy") => install_claude_policy::cmd(&args),
         Some("sync") => sync::cmd_sync(&args),
         Some("oauth-client") => oauth_client::cmd_oauth_client(&args),
         Some("validate") => validate::cmd_validate(),

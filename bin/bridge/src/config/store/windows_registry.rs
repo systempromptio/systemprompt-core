@@ -6,7 +6,9 @@
 
 use std::collections::BTreeMap;
 
-use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_MORE_DATA, ERROR_SUCCESS};
+use windows_sys::Win32::Foundation::{
+    ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND, ERROR_MORE_DATA, ERROR_SUCCESS,
+};
 use windows_sys::Win32::System::Registry::{
     HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY, KEY_WRITE,
     REG_OPTION_NON_VOLATILE, REG_SZ, REG_VALUE_TYPE, RegCloseKey, RegCreateKeyExW, RegOpenKeyExW,
@@ -179,9 +181,9 @@ pub(crate) fn write_managed_policy_values(
         value_count = entries.len(),
         "writing managed Claude policy via in-process registry FFI"
     );
-    let key = create_policy_key(hive)?;
+    let key = create_policy_key(hive, hive_label)?;
     for (name, value) in entries {
-        set_string_value(key.0, name, value)?;
+        set_string_value(key.0, hive_label, name, value)?;
         tracing::debug!(
             hive = hive_label,
             name = name.as_str(),
@@ -191,7 +193,7 @@ pub(crate) fn write_managed_policy_values(
     Ok(())
 }
 
-fn create_policy_key(hive: HKEY) -> Result<OwnedKey, ConfigStoreError> {
+fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigStoreError> {
     let subkey: Vec<u16> = POLICY_SUBKEY
         .encode_utf16()
         .chain(std::iter::once(0))
@@ -212,6 +214,8 @@ fn create_policy_key(hive: HKEY) -> Result<OwnedKey, ConfigStoreError> {
     };
     if status == ERROR_SUCCESS {
         Ok(OwnedKey(handle))
+    } else if status == ERROR_ACCESS_DENIED {
+        Err(access_denied(hive_label))
     } else {
         Err(ConfigStoreError::Backend(format!(
             "RegCreateKeyExW({POLICY_SUBKEY}) failed with status {status}"
@@ -219,7 +223,21 @@ fn create_policy_key(hive: HKEY) -> Result<OwnedKey, ConfigStoreError> {
     }
 }
 
-fn set_string_value(key: HKEY, name: &str, value: &str) -> Result<(), ConfigStoreError> {
+// The `SOFTWARE\Policies` subtree is ACL-protected in both hives: a standard
+// token has read-only access, so a non-elevated create/set returns status 5.
+fn access_denied(hive_label: &str) -> ConfigStoreError {
+    ConfigStoreError::AccessDenied {
+        hive: hive_label.to_string(),
+        subkey: POLICY_SUBKEY.to_string(),
+    }
+}
+
+fn set_string_value(
+    key: HKEY,
+    hive_label: &str,
+    name: &str,
+    value: &str,
+) -> Result<(), ConfigStoreError> {
     let name_w: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let data_w: Vec<u16> = value.encode_utf16().chain(std::iter::once(0)).collect();
     let byte_len = u32::try_from(std::mem::size_of_val(data_w.as_slice())).map_err(|_| {
@@ -237,6 +255,8 @@ fn set_string_value(key: HKEY, name: &str, value: &str) -> Result<(), ConfigStor
     };
     if status == ERROR_SUCCESS {
         Ok(())
+    } else if status == ERROR_ACCESS_DENIED {
+        Err(access_denied(hive_label))
     } else {
         Err(ConfigStoreError::Backend(format!(
             "RegSetValueExW({name}) failed with status {status}"

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.7] - 2026-06-02
+
+### Fixed
+
+- Installing the Claude Desktop managed-policy profile now elevates on demand instead of failing on a standard account. The policy lives under `SOFTWARE\Policies\Claude`, an ACL-protected subtree that a non-elevated token cannot create in either hive, so the in-process write introduced in 0.10.6 returned `ERROR_ACCESS_DENIED` (status 5) for every unprivileged install — including the `HKEY_CURRENT_USER` fallback. When the bridge is not already elevated it now relaunches its own executable under a Windows UAC consent prompt to write the policy machine-wide (`HKEY_LOCAL_MACHINE`); the activity log explains the prompt before it appears, a declined prompt surfaces an "administrator approval was declined" message instead of a raw status code, and an access-denied write now reports which hive and subkey require administrator rights.
+
 ## [0.10.6] - 2026-06-02
 
 ### Changed

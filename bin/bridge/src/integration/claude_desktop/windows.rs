@@ -57,7 +57,9 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let (payload_uuid, profile_uuid) = make_uuids();
     let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
 
-    let body = super::reg_profile::render_reg(winproc::is_elevated(), inputs);
+    // The install path always writes machine-wide (HKLM), elevating on demand, so
+    // the staged preview the operator inspects must show the HKLM hive.
+    let body = super::reg_profile::render_reg(true, inputs);
     std::fs::File::create(&path)?.write_all(body.as_bytes())?;
 
     Ok(GeneratedProfile {
@@ -84,10 +86,14 @@ pub(super) fn install_profile(path: &str) -> std::io::Result<()> {
             "staged registry profile contained no policy values",
         ));
     }
-    crate::config::store::write_managed_claude_policy(elevated, &entries).map_err(|e| {
-        tracing::error!(error = %e, path, "managed Claude policy write failed");
-        std::io::Error::other(e.to_string())
-    })?;
+    if elevated {
+        crate::config::store::write_managed_claude_policy(true, &entries).map_err(|e| {
+            tracing::error!(error = %e, path, "managed Claude policy write failed");
+            std::io::Error::other(e.to_string())
+        })?;
+    } else {
+        super::elevate::elevate_and_install(path)?;
+    }
     tracing::info!(
         value_count = entries.len(),
         "Claude Desktop profile installed"
