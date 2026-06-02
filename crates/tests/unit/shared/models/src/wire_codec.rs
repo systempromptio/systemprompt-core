@@ -5,10 +5,26 @@
 
 use serde_json::{Value, json};
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, ReasoningEffort, ResponseFormat, Role,
-    SearchConfig,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
+    ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 use systemprompt_models::wire::{anthropic, gemini, openai_chat};
+
+fn tool_with_unsupported_keywords() -> CanonicalTool {
+    CanonicalTool {
+        name: "do_thing".to_owned(),
+        description: Some("d".to_owned()),
+        input_schema: json!({
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": false,
+            "propertyNames": {"pattern": "^[a-z]+$"},
+            "properties": {
+                "count": {"type": "integer", "exclusiveMinimum": 0}
+            }
+        }),
+    }
+}
 
 fn base_request() -> CanonicalRequest {
     CanonicalRequest {
@@ -159,6 +175,71 @@ fn gemini_parse_surfaces_grounding_sources_and_queries() {
     assert_eq!(grounding.sources[0].uri, "https://example.com");
     assert_eq!(grounding.queries, vec!["rust async".to_owned()]);
     assert_eq!(response.usage.total_tokens, 7);
+}
+
+#[test]
+fn gemini_tools_strip_unsupported_schema_keywords() {
+    let mut req = base_request();
+    req.tools = vec![tool_with_unsupported_keywords()];
+    let body = gemini::build_request_body(&req, Some(24576));
+    let params = &body["tools"][0]["functionDeclarations"][0]["parameters"];
+    assert!(params.get("$schema").is_none(), "$schema must be stripped");
+    assert!(
+        params.get("additionalProperties").is_none(),
+        "additionalProperties must be stripped"
+    );
+    assert!(
+        params.get("propertyNames").is_none(),
+        "propertyNames must be stripped"
+    );
+    assert!(
+        params["properties"]["count"].get("exclusiveMinimum").is_none(),
+        "exclusiveMinimum must be stripped from nested properties"
+    );
+    // The structural fields the parser does accept survive.
+    assert_eq!(params["type"], "object");
+    assert_eq!(params["properties"]["count"]["type"], "integer");
+}
+
+#[test]
+fn anthropic_tools_keep_supported_keywords_but_drop_schema_metadata() {
+    let mut req = base_request();
+    req.tools = vec![tool_with_unsupported_keywords()];
+    let body = anthropic::build_request_body(&req, "upstream");
+    let schema = &body["tools"][0]["input_schema"];
+    // Anthropic accepts these; only the $schema metadata is removed.
+    assert!(schema.get("$schema").is_none(), "$schema metadata stripped");
+    assert_eq!(schema["additionalProperties"], json!(false));
+    assert!(schema.get("propertyNames").is_some());
+    assert_eq!(schema["properties"]["count"]["exclusiveMinimum"], json!(0));
+}
+
+#[test]
+fn gemini_clamps_thinking_budget_to_model_card_cap() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(31999),
+    });
+    let body = gemini::build_request_body(&req, Some(24576));
+    assert_eq!(
+        body["generationConfig"]["thinkingConfig"]["thinkingBudget"],
+        json!(24576)
+    );
+}
+
+#[test]
+fn gemini_leaves_thinking_budget_unclamped_without_cap() {
+    let mut req = base_request();
+    req.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: Some(8192),
+    });
+    let body = gemini::build_request_body(&req, None);
+    assert_eq!(
+        body["generationConfig"]["thinkingConfig"]["thinkingBudget"],
+        json!(8192)
+    );
 }
 
 #[test]
