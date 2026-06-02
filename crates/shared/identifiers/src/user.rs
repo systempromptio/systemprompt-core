@@ -7,3 +7,9 @@
 //! than fabricate one.
 
 crate::define_id!(UserId, schema);
+
+impl UserId {
+    pub fn anonymous() -> Self {
+        Self("anonymous".to_owned())
+    }
+}
