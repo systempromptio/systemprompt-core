@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1] - 2026-06-02
+
+### Fixed
+
+- Windows: `managedMcpServers` (which embeds the rotating loopback secret) is now written only to the per-user `HKCU\…\Policies\Claude` hive — the same hive the GUI already owns for `inferenceGatewayApiKey` — instead of the machine-wide `HKLM` MDM policy. Pinning the secret in HKLM was a latent split-brain bug: once the secret rotated under a non-elevated bridge run (which cannot rewrite or delete HKLM), the stale HKLM value outranked HKCU, so Cowork connected with the old secret and failed every MCP call with `forbidden: bad loopback secret`. `managedMcpServers` is dropped from `windows_policy_values` (the HKLM policy now carries only stable, secret-free keys), and the writer best-effort purges any stale HKLM copy left by older builds.
+- Windows: `bridge --uninstall` now actually clears the managed registry policy — `remove_managed_profile` was a no-op on Windows, so a stale, secret-bearing `managedMcpServers` survived "clean" reinstalls. It now removes the bridge-owned `HKCU\…\Policies\Claude` key and best-effort deletes `HKLM\…\managedMcpServers`, so a reinstall starts from a clean registry.
+
 ## [0.10.0] - 2026-06-01
 
 ### Changed

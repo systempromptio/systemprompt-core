@@ -27,6 +27,16 @@ pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
     }
 }
 
+// Uninstall hook: remove the bridge-owned Windows managed policy (HKCU key +
+// best-effort HKLM `managedMcpServers`). Wired into `install::uninstall` so a
+// reinstall starts from a clean registry — previously a no-op on Windows, which
+// left a stale secret-bearing `managedMcpServers` behind across "clean"
+// installs.
+#[cfg(target_os = "windows")]
+pub(crate) fn remove_windows_policy() -> Result<bool, String> {
+    windows::remove_policy()
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 fn write_empty_managed_mcp_servers() -> Result<String, String> {
     #[cfg(target_os = "windows")]
@@ -129,10 +139,18 @@ pub(crate) fn windows_policy_values(
         ("disableNonessentialServices", "REG_SZ", "true".into()),
         ("disableAutoUpdates", "REG_SZ", "true".into()),
         ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
-        // MCP-server lockdown: managed-only source, loopback-only egress. The
-        // `managedMcpServers` value itself is filled in below; these two flags
-        // make Cowork ignore user-added MCP servers and refuse non-loopback
-        // egress so all traffic flows through the bridge proxy.
+        // MCP-server lockdown: managed-only source, loopback-only egress. These
+        // two flags make Cowork ignore user-added MCP servers and refuse
+        // non-loopback egress so all traffic flows through the bridge proxy.
+        //
+        // NOTE: `managedMcpServers` is deliberately NOT written here. It embeds
+        // the rotating loopback secret, so it is per-user *runtime* state (like
+        // `inferenceGatewayApiKey`), not stable machine policy. It is owned by
+        // HKCU via `write_managed_mcp_servers_value`. Pinning the secret in the
+        // HKLM machine-policy hive was a bug: once the secret rotated under a
+        // non-elevated run (which cannot rewrite or delete HKLM), the stale
+        // HKLM value outranked HKCU and broke MCP auth with "bad loopback
+        // secret".
         ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
         (
             "coworkEgressAllowedHosts",
@@ -140,8 +158,6 @@ pub(crate) fn windows_policy_values(
             r#"["127.0.0.1"]"#.into(),
         ),
     ];
-    let managed = managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
-    values.push(("managedMcpServers", "REG_SZ", managed));
     if let Some(pk) = pubkey {
         values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_string()));
     }

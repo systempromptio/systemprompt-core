@@ -172,7 +172,21 @@ fn remove_managed_profile() -> ManagedProfileOutcome {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+fn remove_managed_profile() -> ManagedProfileOutcome {
+    match mdm::remove_windows_policy() {
+        Ok(true) => {
+            ManagedProfileOutcome::Removed("HKCU Policies\\Claude (+ HKLM managedMcpServers)")
+        },
+        Ok(false) => ManagedProfileOutcome::NotInstalled("Windows Policies\\Claude"),
+        Err(e) => {
+            diag(&e);
+            ManagedProfileOutcome::RemoveFailed(e)
+        },
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 const fn remove_managed_profile() -> ManagedProfileOutcome {
     ManagedProfileOutcome::NotApplicable
 }
