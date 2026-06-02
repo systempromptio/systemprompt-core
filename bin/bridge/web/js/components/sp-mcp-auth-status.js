@@ -35,6 +35,7 @@ function sectionLabel(state) {
 function detailRows(srv) {
   return [
     srv.url ? ["url", escapeHtml(srv.url)] : null,
+    srv.session_id ? ["session", escapeHtml(srv.session_id)] : null,
     srv.http_status != null ? ["http", String(srv.http_status)] : null,
     srv.latency_ms != null ? ["latency", `${srv.latency_ms} ms`] : null,
     srv.error ? ["error", escapeHtml(srv.error)] : null,
@@ -66,6 +67,7 @@ function card(srv) {
         ${srv.state === "Authenticated" ? `<span class="sp-kpi-card__unit">${toolCount === 1 ? "tool" : "tools"}</span>` : ""}
       </div>
       <div class="sp-kpi-card__label">${escapeHtml(view.label)}</div>
+      ${srv.session_id ? `<p class="sp-kpi-card__label">session <code>${escapeHtml(srv.session_id)}</code></p>` : ""}
       ${srv.error ? `<p class="sp-kpi-card__error">${escapeHtml(srv.error)}</p>` : ""}
       ${toolsBlock(srv)}
       ${rows.length ? `<details><summary>Details</summary><dl class="sp-kpi-card__details">${rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${v}</dd>`).join("")}</dl></details>` : ""}
@@ -112,9 +114,15 @@ export class SpMcpAuthStatus extends SpElement {
     const snap = this.snapshot || {};
     const servers = snap.mcp_auth || [];
     const probing = !!snap.mcp_auth_probe_in_flight;
-    let overall = probing ? "probing" : "unknown";
-    for (const srv of servers) { overall = rollUp(overall, viewFor(srv.state).s); }
-    if (servers.length === 0 && !probing) { overall = "warn"; }
+    // Derive the section state from the servers' worst state. (Don't seed with
+    // "unknown" — rollUp ranks unknown above ok, so an authenticated server
+    // would never lift the badge to green.)
+    let overall;
+    if (servers.length) {
+      overall = servers.map((srv) => viewFor(srv.state).s).reduce(rollUp);
+    } else {
+      overall = probing ? "probing" : "warn";
+    }
     publishSectionState(this, overall, sectionLabel(overall));
   }
 }

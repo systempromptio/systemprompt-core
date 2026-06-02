@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.5] - 2026-06-02
+
+### Fixed
+
+- The Status tab's **MCP servers** section badge no longer stays "UNKNOWN" when a server is authenticated. `sp-mcp-auth-status.js` seeded the section rollup with `"unknown"`, which `rollUp` ranks above `ok`, so an authenticated server could never lift the badge to green; the section state is now derived from the servers' worst state.
+- The MCP auth probe now captures the backend's `Mcp-Session-Id` from `initialize` and surfaces it on the server card (`McpServerAuth.session_id`), confirming a session was established and aiding session-lifecycle debugging.
+
 ## [0.10.4] - 2026-06-02
 
 ### Fixed

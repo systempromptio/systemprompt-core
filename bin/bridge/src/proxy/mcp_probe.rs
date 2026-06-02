@@ -30,6 +30,9 @@ pub struct McpServerAuth {
     pub http_status: Option<u16>,
     pub latency_ms: Option<u64>,
     pub error: Option<String>,
+    /// `Mcp-Session-Id` the backend returned on `initialize` (Authenticated
+    /// only) — confirms a session was established and aids debugging.
+    pub session_id: Option<String>,
     pub probed_at_unix: u64,
 }
 
@@ -76,6 +79,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
             http_status: None,
             latency_ms: None,
             error: None,
+            session_id: None,
             probed_at_unix,
         }];
     }
@@ -96,6 +100,7 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
                     http_status: None,
                     latency_ms: None,
                     error: Some(format!("probe client build failed: {e}")),
+                    session_id: None,
                     probed_at_unix,
                 })
                 .collect();
@@ -206,6 +211,7 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
         http_status: Some(http),
         latency_ms: Some(latency),
         error: None,
+        session_id: session,
         probed_at_unix,
     }
 }
@@ -333,6 +339,7 @@ fn result(
         http_status,
         latency_ms,
         error,
+        session_id: None,
         probed_at_unix,
     }
 }
