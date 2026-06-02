@@ -9,3 +9,4 @@
 //! - artifact_type_to_string (all variants)
 
 mod artifact_transformer;
+mod transformer_full;
