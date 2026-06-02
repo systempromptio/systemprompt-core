@@ -35,7 +35,7 @@ impl HostSync for ClaudeCodePluginSync {
     }
 }
 
-pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "auto_install";
+pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 
 // Pure JSON renderer for the synthetic plugin's `plugin.json`, built on the
 // shared `PluginManifest` contract. Separated from the IO path so unit tests
@@ -48,10 +48,14 @@ pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json:
         author: None,
         hooks: None,
         keywords: Vec::new(),
-        // Why: under MDM + custom inference gateway, the default `"available"`
-        // surfaces Cowork's "Contact an organization owner to install connectors"
-        // tooltip — the user cannot install. `"auto_install"` auto-installs the
-        // plugin on first session-load while still allowing user-initiated uninstall.
+        // Why `"required"`: the org plugin must install-by-default like the
+        // managed MCP server, not sit behind a user "Add" click. Per the Cowork
+        // 3P docs, `"available"` (default) is opt-in, `"auto_install"` installs
+        // once at sign-in but treats a later removal as a sticky user-uninstall
+        // (so a cleared install record is NOT re-created), and `"required"` is
+        // forced deployment — installs at every sign-in, reinstalls if removed,
+        // no user uninstall. `"required"` is the org-plugin equivalent of the
+        // `managedMcpServers` policy, so skills/agents/hooks land automatically.
         // Docs: https://claude.com/docs/cowork/3p/extensions
         installation_preference: Some(PLUGIN_INSTALLATION_PREFERENCE.to_owned()),
     };
