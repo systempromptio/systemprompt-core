@@ -58,6 +58,37 @@ mod job_status_tests {
         let debug = format!("{:?}", JobStatus::Success);
         assert!(debug.contains("Success"));
     }
+
+    #[test]
+    fn running_deserializes_from_lowercase() {
+        let status: JobStatus = serde_json::from_str("\"running\"").unwrap();
+        assert_eq!(status, JobStatus::Running);
+    }
+
+    #[test]
+    fn all_variants_round_trip_through_serde() {
+        for variant in [JobStatus::Success, JobStatus::Failed, JobStatus::Running] {
+            let json = serde_json::to_string(&variant).unwrap();
+            let back: JobStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(variant, back);
+        }
+    }
+
+    #[test]
+    fn as_str_round_trips_via_deserialize() {
+        for variant in [JobStatus::Success, JobStatus::Failed, JobStatus::Running] {
+            let quoted = format!("\"{}\"", variant.as_str());
+            let back: JobStatus = serde_json::from_str(&quoted).unwrap();
+            assert_eq!(variant, back);
+        }
+    }
+
+    #[test]
+    fn copy_semantics() {
+        let a = JobStatus::Success;
+        let b = a;
+        assert_eq!(a, b);
+    }
 }
 
 mod scheduler_error_tests {

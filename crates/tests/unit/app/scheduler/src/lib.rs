@@ -24,7 +24,13 @@ mod models;
 #[cfg(test)]
 mod orchestration;
 #[cfg(test)]
+mod posix_backend;
+#[cfg(test)]
 mod process_cleanup;
+#[cfg(test)]
+mod repository_db;
+#[cfg(test)]
+mod service_config_manifest;
 #[cfg(test)]
 mod state_transitions;
 #[cfg(test)]
