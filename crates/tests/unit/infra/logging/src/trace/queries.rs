@@ -221,12 +221,15 @@ async fn insert_mcp_execution(pool: &sqlx::PgPool, trace_id: &str, status: &str)
 }
 
 async fn insert_log(pool: &sqlx::PgPool, trace_id: &str, level: &str) {
-    sqlx::query("INSERT INTO logs (level, module, message, trace_id) VALUES ($1, 'm', 'msg', $2)")
-        .bind(level)
-        .bind(trace_id)
-        .execute(pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO logs (level, module, message, trace_id, user_id, session_id) \
+         VALUES ($1, 'm', 'msg', $2, 'test-user', 'test-session')",
+    )
+    .bind(level)
+    .bind(trace_id)
+    .execute(pool)
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
