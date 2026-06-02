@@ -91,7 +91,7 @@ impl AgentLifecycle {
         let status = self.db_service.get_status(agent_name).await?;
 
         if let AgentStatus::Running { pid, .. } = status {
-            if process::kill_process(pid) {
+            if process::kill_process_verified(pid, agent_name) {
                 tracing::debug!(agent_name = %agent_name, pid = %pid, "Killed process");
                 self.publish_event(AgentEvent::AgentStopped {
                     agent_id: AgentId::new(agent_name),
@@ -135,7 +135,7 @@ impl AgentLifecycle {
 
         let status = self.db_service.get_status(agent_name).await?;
         if let AgentStatus::Running { pid, .. } = status {
-            match process::terminate_gracefully(pid, 5).await {
+            match process::terminate_gracefully_verified(pid, agent_name, 5).await {
                 Ok(()) => {
                     tracing::debug!(agent_name = %agent_name, pid = %pid, "Gracefully terminated process");
                 },

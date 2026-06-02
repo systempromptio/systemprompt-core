@@ -142,7 +142,7 @@ async fn terminate_service_child(
         return;
     }
 
-    if !pid_is_our_child(pid, name_key, name) {
+    if !systemprompt_models::subprocess::live_pid_is_subprocess(pid, name_key, name) {
         tracing::warn!(
             service = %name,
             pid,
@@ -159,28 +159,4 @@ async fn terminate_service_child(
     } else {
         tracing::warn!(service = %name, pid, "Child process group survived shutdown signal");
     }
-}
-
-/// Fail-closed: a PID whose `/proc/<pid>/environ` markers cannot be read and
-/// matched is reported as not-ours, so an unverified process is never
-/// signalled.
-#[cfg(target_os = "linux")]
-fn pid_is_our_child(pid: u32, name_key: &str, name: &str) -> bool {
-    match std::fs::read(format!("/proc/{pid}/environ")) {
-        Ok(environ) => {
-            systemprompt_models::subprocess::environ_identifies_child(&environ, name_key, name)
-        },
-        Err(e) => {
-            tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
-            false
-        },
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-fn pid_is_our_child(_pid: u32, _name_key: &str, _name: &str) -> bool {
-    // Identity verification reads `/proc/<pid>/environ`, which only exists on
-    // Linux — the sole server target. Off Linux, refuse to claim ownership so
-    // the recycled-PID group-kill can never fire.
-    false
 }

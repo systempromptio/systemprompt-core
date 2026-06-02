@@ -156,10 +156,11 @@ pub async fn delete_disabled_services(
     for service in all_services {
         if !enabled_names.contains(service.name.as_str()) {
             if let Some(pid) = service.pid {
-                let pid_u32 = pid as u32;
-                if utils::process_exists(pid_u32) {
-                    utils::terminate_gracefully(pid_u32, 500).await;
-                }
+                crate::services::process::ProcessService::terminate_gracefully_verified(
+                    pid as u32,
+                    &service.name,
+                )
+                .await?;
             }
 
             repository.delete_service(&service.name).await?;

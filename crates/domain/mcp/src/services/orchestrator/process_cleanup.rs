@@ -45,7 +45,7 @@ async fn kill_orphaned_process(
         "Found orphaned process"
     );
 
-    ProcessService::force_kill(orphaned_pid)?;
+    ProcessService::terminate_gracefully_verified(orphaned_pid, &server.name).await?;
 
     tracing::info!(
         service_name = %server.name,
@@ -127,7 +127,7 @@ async fn kill_and_unregister(
     service_info: &ServiceInfo,
 ) -> McpDomainResult<()> {
     if let Some(pid) = service_info.pid {
-        ProcessService::force_kill(pid as u32)?;
+        ProcessService::terminate_gracefully_verified(pid as u32, &server.name).await?;
     }
     database.unregister_service(&server.name).await
 }

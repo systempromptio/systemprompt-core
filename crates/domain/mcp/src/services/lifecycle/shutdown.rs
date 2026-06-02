@@ -51,14 +51,7 @@ async fn perform_graceful_shutdown(
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, pid = pid, "Performing graceful shutdown");
 
-    ProcessService::terminate_gracefully(pid)?;
-
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-    if ProcessService::is_running(pid) {
-        tracing::debug!(service = %config.name, pid = pid, "Force killing process");
-        ProcessService::force_kill(pid)?;
-    }
+    ProcessService::terminate_gracefully_verified(pid, &config.name).await?;
 
     manager.network().wait_for_port_release(config.port).await?;
 

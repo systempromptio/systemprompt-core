@@ -168,12 +168,10 @@ async fn kill_single_server(
                     tracing::warn!(error = %e, "Failed to send cleanup notification");
                 }
             }
-            if let Err(e) = ProcessService::terminate_gracefully(pid as u32) {
-                tracing::warn!(pid = pid, error = %e, "Failed to terminate process gracefully");
-            }
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-            if let Err(e) = ProcessService::force_kill(pid as u32) {
-                tracing::warn!(pid = pid, error = %e, "Failed to force kill process");
+            if let Err(e) =
+                ProcessService::terminate_gracefully_verified(pid as u32, server_name).await
+            {
+                tracing::warn!(pid = pid, error = %e, "Failed to terminate process");
             }
         }
         if let Err(e) = database.unregister_service(server_name).await {

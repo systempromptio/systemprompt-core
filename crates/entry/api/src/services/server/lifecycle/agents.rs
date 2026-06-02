@@ -192,7 +192,7 @@ async fn enforce_clean_agent_state(
                     )
                 };
                 events.agent_cleanup(agent.to_owned(), reason);
-                if let Err(e) = process::terminate_gracefully(pid, 5).await {
+                if let Err(e) = process::terminate_gracefully_verified(pid, agent, 5).await {
                     tracing::warn!(error = %e, agent = %agent, "Failed to terminate agent process gracefully");
                 }
                 if let Err(e) = orchestrator.delete_agent(agent).await {

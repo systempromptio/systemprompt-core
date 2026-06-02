@@ -3,7 +3,9 @@
 //! - `command` builds the `Command` for an agent subprocess and rotates its log
 //!   file.
 //! - `signals` cross-platform `process_exists`, `terminate_process`,
-//!   `force_kill_process`, `terminate_gracefully`, `kill_process`.
+//!   `force_kill_process`, `terminate_gracefully`, `kill_process`, and their
+//!   identity-gated forms `terminate_gracefully_verified` /
+//!   `kill_process_verified` that refuse to signal a recycled PID.
 
 mod command;
 mod signals;
@@ -16,7 +18,8 @@ use systemprompt_models::{AppPaths, Config};
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
 pub use signals::{
-    force_kill_process, kill_process, process_exists, terminate_gracefully, terminate_process,
+    force_kill_process, kill_process, kill_process_verified, process_exists, terminate_gracefully,
+    terminate_gracefully_verified, terminate_process,
 };
 
 pub fn spawn_detached(paths: &AppPaths, agent_name: &str, port: u16) -> OrchestrationResult<u32> {

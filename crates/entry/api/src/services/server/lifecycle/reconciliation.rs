@@ -192,22 +192,22 @@ async fn cleanup_stale_service_entries(
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
     use systemprompt_database::ServiceRepository;
-    use systemprompt_scheduler::ProcessCleanup;
+    use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
 
     let repo = ServiceRepository::new(ctx.db_pool())?;
     let mut deleted_count = 0u64;
 
     let mcp_services = repo.get_mcp_services().await?;
     for service in mcp_services {
-        let should_delete = match service.status.as_str() {
-            "running" => service
-                .pid
-                .is_none_or(|pid| !ProcessCleanup::process_exists(pid as u32)),
-            "error" | "stopped" => true,
-            _ => false,
-        };
-
-        if should_delete && repo.delete_service(&service.name).await.is_ok() {
+        if !service_row_is_stale(
+            service.status.as_str(),
+            service.pid,
+            MCP_SERVICE_ID_ENV,
+            &service.name,
+        ) {
+            continue;
+        }
+        if repo.delete_service(&service.name).await.is_ok() {
             deleted_count += 1;
             events.mcp_service_cleanup(
                 service.name.clone(),
@@ -222,15 +222,15 @@ async fn cleanup_stale_service_entries(
     let agent_service_names = repo.get_all_agent_service_names().await?;
     for service_name in agent_service_names {
         if let Ok(Some(service)) = repo.get_service_by_name(&service_name).await {
-            let should_delete = match service.status.as_str() {
-                "running" => service
-                    .pid
-                    .is_none_or(|pid| !ProcessCleanup::process_exists(pid as u32)),
-                "error" | "stopped" => true,
-                _ => false,
-            };
-
-            if should_delete && repo.delete_service(&service_name).await.is_ok() {
+            if !service_row_is_stale(
+                service.status.as_str(),
+                service.pid,
+                AGENT_NAME_ENV,
+                &service_name,
+            ) {
+                continue;
+            }
+            if repo.delete_service(&service_name).await.is_ok() {
                 deleted_count += 1;
                 events.agent_cleanup(
                     service_name.clone(),
@@ -244,4 +244,26 @@ async fn cleanup_stale_service_entries(
     }
 
     Ok(deleted_count)
+}
+
+/// A `running` row is stale unless its recorded PID is alive *and* still names
+/// our child — a recycled PID that now belongs to an unrelated process must be
+/// dropped, never adopted (and never signalled on the next reap). `error` /
+/// `stopped` rows are always stale; any other status is left untouched.
+fn service_row_is_stale(status: &str, pid: Option<i32>, name_key: &str, name: &str) -> bool {
+    use systemprompt_scheduler::ProcessCleanup;
+
+    match status {
+        "running" => {
+            let Some(pid) = pid.and_then(|p| u32::try_from(p).ok()) else {
+                return true;
+            };
+            if !ProcessCleanup::process_exists(pid) {
+                return true;
+            }
+            !systemprompt_models::subprocess::live_pid_is_subprocess(pid, name_key, name)
+        },
+        "error" | "stopped" => true,
+        _ => false,
+    }
 }

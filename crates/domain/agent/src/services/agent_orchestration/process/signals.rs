@@ -163,6 +163,69 @@ pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
     )))
 }
 
+/// True only if `pid` is alive and still ours.
+///
+/// Matches this agent's spawn markers (`SYSTEMPROMPT_SUBPROCESS=1` +
+/// `AGENT_NAME=<service_name>`) in `/proc/<pid>/environ`.
+/// Registry PIDs outlive the processes that minted them and are recycled by the
+/// kernel; every signal aimed at a PID believed to be "our agent `<name>`" must
+/// gate on this, so `kill`/`force_kill` can never reach an unrelated process.
+fn pid_is_agent_child(pid: u32, service_name: &str) -> bool {
+    systemprompt_models::subprocess::live_pid_is_subprocess(
+        pid,
+        systemprompt_models::subprocess::AGENT_NAME_ENV,
+        service_name,
+    )
+}
+
+/// Identity-gated [`terminate_gracefully`].
+///
+/// Refuses to signal a PID that no longer names this agent (recycled/stale): a
+/// PID that fails the marker check is left untouched and reported as
+/// terminated, so the caller clears the stale registry row and respawns.
+pub async fn terminate_gracefully_verified(
+    pid: u32,
+    service_name: &str,
+    timeout_secs: u64,
+) -> Result<()> {
+    if !process_exists(pid) {
+        return Ok(());
+    }
+
+    if !pid_is_agent_child(pid, service_name) {
+        tracing::warn!(
+            pid,
+            service = %service_name,
+            "Recorded PID is alive but is not our child (recycled/stale); skipping signal"
+        );
+        return Ok(());
+    }
+
+    terminate_gracefully(pid, timeout_secs).await
+}
+
 pub fn kill_process(pid: u32) -> bool {
     terminate_process(pid).is_ok()
+}
+
+/// SIGKILL `pid` only if it still names this agent.
+///
+/// A dead PID, or a recycled one that is no longer ours, counts as already-gone
+/// (`true`) and is left unsignalled — so the caller proceeds with registry
+/// cleanup without ever killing a stranger.
+pub fn kill_process_verified(pid: u32, service_name: &str) -> bool {
+    if !process_exists(pid) {
+        return true;
+    }
+
+    if !pid_is_agent_child(pid, service_name) {
+        tracing::warn!(
+            pid,
+            service = %service_name,
+            "Recorded PID is alive but is not our child (recycled/stale); skipping signal"
+        );
+        return true;
+    }
+
+    kill_process(pid)
 }

@@ -1,5 +1,5 @@
 use systemprompt_models::subprocess::{
-    AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, environ_identifies_child,
+    AGENT_NAME_ENV, MCP_SERVICE_ID_ENV, environ_identifies_child, live_pid_is_subprocess,
 };
 
 fn environ(vars: &[&str]) -> Vec<u8> {
@@ -54,4 +54,19 @@ fn rejects_empty_environ() {
 fn rejects_unrelated_process() {
     let env = environ(&["PATH=/usr/bin", "HOME=/root", "TERM=xterm"]);
     assert!(!environ_identifies_child(&env, AGENT_NAME_ENV, "greeter"));
+}
+
+#[test]
+fn live_pid_without_proc_entry_is_not_our_child() {
+    assert!(!live_pid_is_subprocess(
+        4_000_000,
+        AGENT_NAME_ENV,
+        "greeter"
+    ));
+}
+
+#[test]
+fn live_pid_self_is_not_claimed() {
+    let me = std::process::id();
+    assert!(!live_pid_is_subprocess(me, AGENT_NAME_ENV, "greeter"));
 }

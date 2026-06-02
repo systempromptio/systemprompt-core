@@ -50,4 +50,11 @@ impl ProcessService {
     pub fn force_kill(pid: u32) -> McpDomainResult<()> {
         cleanup::force_kill(pid)
     }
+
+    pub async fn terminate_gracefully_verified(
+        pid: u32,
+        service_name: &str,
+    ) -> McpDomainResult<()> {
+        cleanup::terminate_gracefully_verified(pid, service_name).await
+    }
 }

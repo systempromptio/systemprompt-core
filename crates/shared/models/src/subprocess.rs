@@ -46,3 +46,29 @@ pub fn environ_identifies_child(environ: &[u8], name_key: &str, service_name: &s
 
     has_marker && has_name
 }
+
+/// Confirm a *live* PID still names this installation's child by reading its
+/// `/proc/<pid>/environ` and matching the spawn markers.
+///
+/// Fail-closed: an unreadable environ — or any non-Linux target, where
+/// `/proc` does not exist — yields `false`, so an unverified PID is never
+/// signalled. Callers must use this before any `kill`/`kill(-pid)` on a PID
+/// loaded from the persisted service registry, because those PIDs outlive the
+/// processes that minted them and are recycled by the kernel.
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
+    match std::fs::read(format!("/proc/{pid}/environ")) {
+        Ok(environ) => environ_identifies_child(&environ, name_key, service_name),
+        Err(e) => {
+            tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
+            false
+        },
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[must_use]
+pub fn live_pid_is_subprocess(_pid: u32, _name_key: &str, _service_name: &str) -> bool {
+    false
+}

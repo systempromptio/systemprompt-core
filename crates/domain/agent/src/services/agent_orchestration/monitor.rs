@@ -104,7 +104,7 @@ impl AgentMonitor {
             if let Some(pid) = pid_opt {
                 tracing::warn!(agent_id = %agent_id, pid = %pid, "Killing unresponsive agent");
 
-                if process::kill_process(pid) {
+                if process::kill_process_verified(pid, &agent_id) {
                     self.db_service.mark_crashed(&agent_id).await?;
                     cleaned_up += 1;
                     tracing::info!(agent_id = %agent_id, "Cleaned up agent");
