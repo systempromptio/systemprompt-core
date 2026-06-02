@@ -69,10 +69,7 @@ impl Database {
     /// is an extension HTTP router that is handed an `Arc<PgPool>` and needs to
     /// construct core data services (which require a `Database`) without a URL.
     #[must_use]
-    pub fn from_pools(
-        read: Arc<sqlx::PgPool>,
-        write: Option<Arc<sqlx::PgPool>>,
-    ) -> Self {
+    pub fn from_pools(read: Arc<sqlx::PgPool>, write: Option<Arc<sqlx::PgPool>>) -> Self {
         let write_provider = write.map(|pool| -> Arc<dyn DatabaseProvider> {
             Arc::new(PostgresProvider::from_pool(pool))
         });
