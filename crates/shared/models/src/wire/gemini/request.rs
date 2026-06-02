@@ -8,26 +8,36 @@ use super::wire::{
     GeminiPart, GeminiRequest, GeminiSystemInstruction, GeminiThinkingConfig, GeminiTool,
     GeminiToolConfig,
 };
+use crate::profile::WireProtocol;
+use crate::schema::SchemaSanitizer;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
     ResponseFormat, Role,
 };
 
+/// Render a [`CanonicalRequest`] into a Gemini `generateContent` body.
+///
+/// `max_thinking_budget` is the upstream model's thinking-budget ceiling (from
+/// its model card); the requested budget is clamped to it so Gemini does not
+/// reject an out-of-range `thinkingBudget`. `None` leaves the budget untouched.
 #[must_use]
-pub fn build_request_body(request: &CanonicalRequest) -> Value {
+pub fn build_request_body(request: &CanonicalRequest, max_thinking_budget: Option<u32>) -> Value {
     let body = GeminiRequest {
         contents: contents(request),
         system_instruction: request.system.as_ref().map(|s| GeminiSystemInstruction {
             parts: vec![GeminiPart::Text { text: s.clone() }],
         }),
-        generation_config: Some(generation_config(request)),
+        generation_config: Some(generation_config(request, max_thinking_budget)),
         tools: tools(request),
         tool_config: request.tool_choice.as_ref().map(tool_config),
     };
     serde_json::to_value(&body).unwrap_or(Value::Null)
 }
 
-fn generation_config(request: &CanonicalRequest) -> GeminiGenerationConfig {
+fn generation_config(
+    request: &CanonicalRequest,
+    max_thinking_budget: Option<u32>,
+) -> GeminiGenerationConfig {
     let (response_mime_type, response_schema) = match &request.response_format {
         Some(ResponseFormat::JsonSchema { schema, .. }) => {
             (Some("application/json".to_owned()), Some(schema.clone()))
@@ -47,17 +57,24 @@ fn generation_config(request: &CanonicalRequest) -> GeminiGenerationConfig {
         },
         response_mime_type,
         response_schema,
-        thinking_config: thinking_config(request),
+        thinking_config: thinking_config(request, max_thinking_budget),
     }
 }
 
-fn thinking_config(request: &CanonicalRequest) -> Option<GeminiThinkingConfig> {
+fn thinking_config(
+    request: &CanonicalRequest,
+    max_thinking_budget: Option<u32>,
+) -> Option<GeminiThinkingConfig> {
     let thinking = request.thinking?;
     if !thinking.enabled {
         return None;
     }
+    let thinking_budget = match (thinking.budget_tokens, max_thinking_budget) {
+        (Some(requested), Some(cap)) => Some(requested.min(cap)),
+        (requested, _) => requested,
+    };
     Some(GeminiThinkingConfig {
-        thinking_budget: thinking.budget_tokens,
+        thinking_budget,
         include_thoughts: None,
     })
 }
@@ -65,13 +82,14 @@ fn thinking_config(request: &CanonicalRequest) -> Option<GeminiThinkingConfig> {
 fn tools(request: &CanonicalRequest) -> Option<Vec<GeminiTool>> {
     let mut tools: Vec<GeminiTool> = Vec::new();
     if !request.tools.is_empty() {
+        let sanitizer = SchemaSanitizer::new(WireProtocol::Gemini.schema_capabilities());
         let declarations = request
             .tools
             .iter()
             .map(|t| GeminiFunctionDeclaration {
                 name: t.name.clone(),
                 description: t.description.clone(),
-                parameters: t.input_schema.clone(),
+                parameters: sanitizer.sanitize(t.input_schema.clone()),
             })
             .collect();
         tools.push(GeminiTool::Functions {

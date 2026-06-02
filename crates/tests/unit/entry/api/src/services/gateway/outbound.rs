@@ -101,6 +101,7 @@ async fn anthropic_outbound_buffered_parses_text() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     match outcome {
@@ -130,6 +131,7 @@ async fn anthropic_outbound_buffered_propagates_upstream_error() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let res = adapter.send(ctx).await;
     assert!(res.is_err());
@@ -158,6 +160,7 @@ async fn anthropic_outbound_streaming_returns_stream() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     match outcome {
@@ -202,6 +205,7 @@ async fn openai_chat_outbound_buffered_parses_response() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -231,6 +235,7 @@ async fn openai_chat_outbound_streaming_returns_stream() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Streaming(mut stream) = outcome {
@@ -263,6 +268,7 @@ async fn openai_chat_outbound_buffered_propagates_upstream_error() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let res = adapter.send(ctx).await;
     assert!(res.is_err());
@@ -297,6 +303,7 @@ async fn openai_responses_outbound_buffered_parses_response() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -338,6 +345,7 @@ async fn anthropic_outbound_buffered_handles_rich_request() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {
@@ -368,6 +376,7 @@ async fn anthropic_outbound_buffered_handles_invalid_json() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let res = adapter.send(ctx).await;
     assert!(res.is_err());
@@ -406,6 +415,7 @@ async fn openai_chat_outbound_buffered_covers_tool_choice_variants() {
             api_key: "k",
             request: &req,
             upstream_model: "upstream-1",
+            model_limits: None,
         };
         let _ = adapter.send(ctx).await.expect("ok");
     }
@@ -434,6 +444,7 @@ async fn anthropic_outbound_buffered_covers_tool_choice_variants() {
             api_key: "k",
             request: &req,
             upstream_model: "upstream-1",
+            model_limits: None,
         };
         let _ = adapter.send(ctx).await.expect("ok");
     }
@@ -479,6 +490,7 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = adapter.send(ctx).await.expect("ok");
     if let OutboundOutcome::Buffered(r) = outcome {

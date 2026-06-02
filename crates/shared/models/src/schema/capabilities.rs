@@ -1,3 +1,13 @@
+//! Per-provider JSON-Schema capability matrices.
+//!
+//! [`ProviderCapabilities`] declares which JSON-Schema constructs a provider's
+//! tool/output schema parser accepts. It is the input to
+//! [`super::SchemaSanitizer`], which strips everything a provider does not
+//! support. The matrices live here in `shared/models` so both the gateway wire
+//! codecs and the agent-flow provider clients resolve the same authority; the
+//! wire protocol picks one via
+//! [`crate::profile::WireProtocol::schema_capabilities`].
+
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,6 +25,12 @@ pub struct SchemaFeatures {
     pub definitions: bool,
     pub additional_properties: bool,
     pub const_values: bool,
+    /// `exclusiveMinimum` / `exclusiveMaximum` numeric bounds. Gemini's
+    /// OpenAPI-subset parser rejects these; Anthropic and `OpenAI` accept them.
+    pub exclusive_bounds: bool,
+    /// `propertyNames` / `patternProperties` object constraints. Rejected by
+    /// Gemini's parser; accepted by Anthropic and `OpenAI`.
+    pub property_names: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +54,8 @@ impl ProviderCapabilities {
                 definitions: true,
                 additional_properties: true,
                 const_values: true,
+                exclusive_bounds: true,
+                property_names: true,
             },
         }
     }
@@ -56,6 +74,8 @@ impl ProviderCapabilities {
                 definitions: true,
                 additional_properties: true,
                 const_values: true,
+                exclusive_bounds: true,
+                property_names: true,
             },
         }
     }
@@ -74,6 +94,8 @@ impl ProviderCapabilities {
                 definitions: false,
                 additional_properties: false,
                 const_values: false,
+                exclusive_bounds: false,
+                property_names: false,
             },
         }
     }

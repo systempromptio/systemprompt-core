@@ -59,6 +59,14 @@ pub struct ModelLimits {
 
     #[serde(default)]
     pub max_output_tokens: u32,
+
+    /// Maximum extended-thinking / reasoning budget (in tokens) the upstream
+    /// accepts for this model. `None` means the provider validates the budget
+    /// itself (Anthropic) or maps it to an effort bucket (`OpenAI`); set it for
+    /// providers that reject an out-of-range numeric budget (Gemini: 24576 for
+    /// flash, 32768 for pro). The gateway clamps the requested budget to this.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_thinking_budget: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]

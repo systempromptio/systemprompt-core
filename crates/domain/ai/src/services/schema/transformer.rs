@@ -7,8 +7,7 @@
 //! function name.
 
 use super::analyzer::DiscriminatedUnion;
-use super::capabilities::ProviderCapabilities;
-use super::sanitizer::SchemaSanitizer;
+use super::{ProviderCapabilities, SchemaSanitizer};
 use crate::error::Result;
 use crate::models::tools::McpTool;
 use serde_json::{Map, Value, json};

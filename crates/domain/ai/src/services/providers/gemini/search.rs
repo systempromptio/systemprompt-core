@@ -97,7 +97,7 @@ pub(super) async fn generate_with_google_search(
     .with_search(Some(search))
     .into_request();
 
-    let body = gemini::build_request_body(&canonical);
+    let body = gemini::build_request_body(&canonical, None);
     let value: Value = transport::post(provider, &body, params.model, false)
         .await?
         .json()

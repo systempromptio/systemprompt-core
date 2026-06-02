@@ -32,7 +32,10 @@ impl OutboundAdapter for GeminiOutbound {
     }
 
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = gemini::build_request_body(ctx.request);
+        let body = gemini::build_request_body(
+            ctx.request,
+            ctx.model_limits.and_then(|l| l.max_thinking_budget),
+        );
         let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
         let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
 

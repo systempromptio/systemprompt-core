@@ -9,6 +9,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::schema::ProviderCapabilities;
+
 /// The wire-format family a provider's endpoint speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum WireProtocol {
@@ -31,6 +33,18 @@ impl WireProtocol {
             Self::OpenAiChat => "openai-chat",
             Self::OpenAiResponses => "openai-responses",
             Self::Gemini => "gemini",
+        }
+    }
+
+    /// The JSON-Schema constructs this protocol's tool/output schema parser
+    /// accepts. The wire codecs feed this to [`crate::schema::SchemaSanitizer`]
+    /// so every tool schema is reduced to a shape the upstream will accept.
+    #[must_use]
+    pub const fn schema_capabilities(self) -> ProviderCapabilities {
+        match self {
+            Self::Anthropic => ProviderCapabilities::anthropic(),
+            Self::OpenAiChat | Self::OpenAiResponses => ProviderCapabilities::openai(),
+            Self::Gemini => ProviderCapabilities::gemini(),
         }
     }
 }

@@ -4,6 +4,8 @@
 // JSON.
 use serde_json::{Map, Value, json};
 
+use crate::profile::WireProtocol;
+use crate::schema::SchemaSanitizer;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
     ResponseFormat, Role,
@@ -36,6 +38,7 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
         obj.insert("stream_options".into(), json!({ "include_usage": true }));
     }
     if !request.tools.is_empty() {
+        let sanitizer = SchemaSanitizer::new(WireProtocol::OpenAiChat.schema_capabilities());
         let tools: Vec<Value> = request
             .tools
             .iter()
@@ -45,7 +48,7 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
                     "function": {
                         "name": t.name,
                         "description": t.description,
-                        "parameters": t.input_schema,
+                        "parameters": sanitizer.sanitize(t.input_schema.clone()),
                     },
                 })
             })

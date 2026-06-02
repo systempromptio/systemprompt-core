@@ -17,6 +17,8 @@ pub use sse::event_from_sse;
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
+use crate::profile::WireProtocol;
+use crate::schema::SchemaSanitizer;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageSource, ResponseFormat, Role, SearchConfig,
@@ -141,12 +143,16 @@ fn web_search_tool(search: &SearchConfig) -> Value {
 }
 
 fn tool_to_anthropic(tool: &CanonicalTool) -> Value {
+    let sanitizer = SchemaSanitizer::new(WireProtocol::Anthropic.schema_capabilities());
     let mut tobj = Map::new();
     tobj.insert("name".into(), Value::String(tool.name.clone()));
     if let Some(d) = &tool.description {
         tobj.insert("description".into(), Value::String(d.clone()));
     }
-    tobj.insert("input_schema".into(), tool.input_schema.clone());
+    tobj.insert(
+        "input_schema".into(),
+        sanitizer.sanitize(tool.input_schema.clone()),
+    );
     Value::Object(tobj)
 }
 

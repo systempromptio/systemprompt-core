@@ -3,6 +3,8 @@
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
+use crate::profile::WireProtocol;
+use crate::schema::SchemaSanitizer;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
     ResponseFormat, Role, SearchConfig,
@@ -34,6 +36,7 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
     if request.stream {
         obj.insert("stream".into(), Value::Bool(true));
     }
+    let sanitizer = SchemaSanitizer::new(WireProtocol::OpenAiResponses.schema_capabilities());
     let mut tools: Vec<Value> = request
         .tools
         .iter()
@@ -42,7 +45,7 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
                 "type": "function",
                 "name": t.name,
                 "description": t.description,
-                "parameters": t.input_schema,
+                "parameters": sanitizer.sanitize(t.input_schema.clone()),
             })
         })
         .collect();

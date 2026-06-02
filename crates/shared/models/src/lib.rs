@@ -73,6 +73,7 @@ pub mod paths;
 pub mod profile;
 pub mod repository;
 pub mod routing;
+pub mod schema;
 pub mod secrets;
 pub mod services;
 pub mod subprocess;

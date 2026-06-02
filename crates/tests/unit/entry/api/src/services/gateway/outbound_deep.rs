@@ -129,6 +129,7 @@ async fn anthropic_outbound_with_rich_request_and_extra_headers() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = AnthropicOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -159,6 +160,7 @@ async fn openai_chat_outbound_with_rich_request() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = OpenAiChatOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -190,6 +192,7 @@ async fn openai_responses_outbound_with_rich_request_buffered() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = OpenAiResponsesOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -211,6 +214,7 @@ async fn openai_responses_outbound_propagates_upstream_error() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let res = OpenAiResponsesOutbound.send(ctx).await;
     assert!(res.is_err());
@@ -232,6 +236,7 @@ async fn openai_responses_outbound_handles_invalid_json() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let res = OpenAiResponsesOutbound.send(ctx).await;
     assert!(res.is_err());
@@ -280,6 +285,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = AnthropicOutbound.send(ctx).await.expect("ok");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
@@ -307,6 +313,7 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
         api_key: "k",
         request: &req,
         upstream_model: "upstream-1",
+        model_limits: None,
     };
     let outcome = OpenAiChatOutbound.send(ctx).await.expect("ok");
     if let OutboundOutcome::Streaming(_s) = outcome {

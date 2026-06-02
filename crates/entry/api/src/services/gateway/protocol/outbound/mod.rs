@@ -18,6 +18,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use systemprompt_models::profile::GatewayRoute;
+use systemprompt_models::services::ai::ModelLimits;
 
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};
@@ -29,6 +30,10 @@ pub struct OutboundCtx<'a> {
     pub api_key: &'a str,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
+    /// Limits from the resolved upstream model card, when the requested model
+    /// maps to a known catalog entry. Codecs use this to clamp provider-specific
+    /// values (e.g. Gemini's `thinkingBudget`) to what the upstream accepts.
+    pub model_limits: Option<ModelLimits>,
 }
 
 #[expect(

@@ -192,12 +192,14 @@ impl GatewayService {
         }
 
         let upstream_model = route.effective_upstream_model(&request.model).to_owned();
+        let model_limits = provider.find_model(&upstream_model).map(|m| m.limits);
         let outbound_ctx = OutboundCtx {
             route: route.as_ref(),
             endpoint: &provider.endpoint,
             api_key: upstream_api_key,
             request: &request,
             upstream_model: &upstream_model,
+            model_limits,
         };
 
         let outcome = match upstream.send(outbound_ctx).await {

@@ -109,6 +109,14 @@ impl SchemaSanitizer {
         if !self.capabilities.features.additional_properties {
             obj.remove("additionalProperties");
         }
+        if !self.capabilities.features.exclusive_bounds {
+            obj.remove("exclusiveMinimum");
+            obj.remove("exclusiveMaximum");
+        }
+        if !self.capabilities.features.property_names {
+            obj.remove("propertyNames");
+            obj.remove("patternProperties");
+        }
     }
 
     fn remove_metadata_fields(obj: &mut Map<String, Value>) {
