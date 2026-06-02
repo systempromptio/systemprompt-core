@@ -1,8 +1,9 @@
-//! Bootstrap job that ingests the access-control YAML baseline into the
-//! database.
+//! Bootstrap job that projects the access-control baseline into the database:
+//! the YAML grants at `access-control/config.yaml` plus the marketplace-access
+//! grants declared in the services config.
 //!
 //! Mirrors [`super::ContentSyncJob`] but with a fixed direction
-//! (YAML → DB). Disabled by default; operators wire it in via
+//! (config → DB). Disabled by default; operators wire it in via
 //! `scheduler_config.bootstrap_jobs` so it runs once at startup.
 
 use std::path::PathBuf;
@@ -11,6 +12,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_models::AppPaths;
+use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 use crate::local::AccessControlLocalSync;
@@ -68,22 +70,42 @@ impl Job for AccessControlSyncJob {
         );
 
         let sync = AccessControlLocalSync::new(Arc::<Database>::clone(db_pool), yaml_path);
-        let result = sync
+        let acl = sync
             .sync_to_db(override_existing, delete_orphans)
             .await
             .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
 
+        let services = systemprompt_loader::ConfigLoader::load().map_err(|e| {
+            ProviderError::Configuration(format!("Failed to load services config: {e}"))
+        })?;
+        let svc = AccessControlIngestionService::new(db_pool)
+            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let mkt = svc
+            .ingest_marketplace_access(
+                &services.marketplaces,
+                IngestOptions {
+                    override_existing,
+                    delete_orphans,
+                },
+            )
+            .await
+            .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
+
+        let items_synced = acl.items_synced + mkt.inserted + mkt.updated;
+        let items_skipped = acl.items_skipped + mkt.skipped;
+        let items_deleted = acl.items_deleted + mkt.deleted;
+
         let duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
         tracing::info!(
-            items_synced = result.items_synced,
-            items_skipped = result.items_skipped,
-            items_deleted = result.items_deleted,
+            items_synced,
+            items_skipped,
+            items_deleted,
             duration_ms,
             "access_control_sync job completed",
         );
 
         Ok(JobResult::success()
-            .with_stats(result.items_synced as u64, result.errors.len() as u64)
+            .with_stats(items_synced as u64, acl.errors.len() as u64)
             .with_duration(duration_ms))
     }
 }

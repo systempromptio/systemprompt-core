@@ -10,7 +10,7 @@ use std::time::Duration;
 use systemprompt_security::authz::types::EntityKind;
 use systemprompt_security::authz::{
     AccessControlConfig, AccessControlIngestionService, AccessControlRepository, IngestOptions,
-    RuleEntry,
+    RuleEntry, RuleTarget,
 };
 
 use crate::support::{try_db, wipe_rules};
@@ -20,8 +20,8 @@ fn cfg(entity_id: &str, rules: Vec<RuleEntry>) -> AccessControlConfig {
         rules: rules
             .into_iter()
             .map(|mut r| {
-                if r.entity_id.is_empty() {
-                    r.entity_id = entity_id.to_owned();
+                if matches!(&r.target, RuleTarget::Id(id) if id.is_empty()) {
+                    r.target = RuleTarget::Id(entity_id.to_owned());
                 }
                 r
             })
@@ -32,12 +32,13 @@ fn cfg(entity_id: &str, rules: Vec<RuleEntry>) -> AccessControlConfig {
 fn role_rule(entity_id: &str, role: &str, allow: bool) -> RuleEntry {
     RuleEntry {
         entity_type: EntityKind::McpServer,
-        entity_id: entity_id.to_owned(),
+        target: RuleTarget::Id(entity_id.to_owned()),
         access: if allow {
             systemprompt_security::authz::types::Access::Allow
         } else {
             systemprompt_security::authz::types::Access::Deny
         },
+        default_included: false,
         roles: vec![role.to_owned()],
         justification: None,
     }

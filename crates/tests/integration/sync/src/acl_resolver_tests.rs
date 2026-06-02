@@ -6,7 +6,7 @@ use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_security::authz::types::{Access, Decision, EntityKind, EntityRef};
 use systemprompt_security::authz::{
     AccessControlConfig, AccessControlIngestionService, AccessControlRepository, IngestOptions,
-    ResolveInput, RuleEntry, resolve,
+    ResolveInput, RuleEntry, RuleTarget, resolve,
 };
 
 use crate::support::{try_db, wipe_rules};
@@ -27,15 +27,17 @@ async fn role_deny_overrides_role_allow_for_same_subject() {
     let cfg = yaml_with(vec![
         RuleEntry {
             entity_type: EntityKind::McpServer,
-            entity_id: entity_id.to_owned(),
+            target: RuleTarget::Id(entity_id.to_owned()),
             access: Access::Allow,
+            default_included: false,
             roles: vec!["engineer".to_owned()],
             justification: None,
         },
         RuleEntry {
             entity_type: EntityKind::McpServer,
-            entity_id: entity_id.to_owned(),
+            target: RuleTarget::Id(entity_id.to_owned()),
             access: Access::Deny,
+            default_included: false,
             roles: vec!["engineer".to_owned()],
             justification: Some("emergency lockout".to_owned()),
         },
@@ -87,8 +89,9 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
 
     let cfg = yaml_with(vec![RuleEntry {
         entity_type: EntityKind::McpServer,
-        entity_id: entity_id.to_owned(),
+        target: RuleTarget::Id(entity_id.to_owned()),
         access: Access::Allow,
+        default_included: false,
         roles: vec!["admin".to_owned()],
         justification: None,
     }]);
@@ -213,15 +216,17 @@ async fn yaml_rule_ordering_does_not_change_decision() {
     let make = |id: &str, allow_first: bool| {
         let allow = RuleEntry {
             entity_type: EntityKind::McpServer,
-            entity_id: id.to_owned(),
+            target: RuleTarget::Id(id.to_owned()),
             access: Access::Allow,
+            default_included: false,
             roles: vec!["dev".to_owned()],
             justification: None,
         };
         let deny = RuleEntry {
             entity_type: EntityKind::McpServer,
-            entity_id: id.to_owned(),
+            target: RuleTarget::Id(id.to_owned()),
             access: Access::Deny,
+            default_included: false,
             roles: vec!["dev".to_owned()],
             justification: None,
         };

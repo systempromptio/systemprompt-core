@@ -63,10 +63,6 @@ async fn access_control_local_sync_invalid_yaml_returns_invalid_input() {
 
 #[tokio::test]
 async fn access_control_local_sync_empty_config_succeeds_with_zero_synced() {
-    // sync_to_db reaches into the process-wide profile to load the services
-    // config (for marketplace-access ingestion), so the bootstrap must be
-    // initialised before the happy path can run.
-    let _ = systemprompt_test_fixtures::ensure_test_bootstrap();
     let Some(db) = crate::support::try_db().await else {
         return;
     };

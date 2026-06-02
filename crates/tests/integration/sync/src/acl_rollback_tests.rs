@@ -4,7 +4,7 @@
 use systemprompt_security::authz::types::{Access, EntityKind};
 use systemprompt_security::authz::{
     AccessControlConfig, AccessControlIngestionService, AccessControlRepository, IngestOptions,
-    RuleEntry,
+    RuleEntry, RuleTarget,
 };
 
 use crate::support::{try_db, wipe_rules};
@@ -24,8 +24,9 @@ async fn invalid_yaml_leaves_existing_rules_untouched() {
     let seed = AccessControlConfig {
         rules: vec![RuleEntry {
             entity_type: EntityKind::McpServer,
-            entity_id: entity_id.to_owned(),
+            target: RuleTarget::Id(entity_id.to_owned()),
             access: Access::Allow,
+            default_included: false,
             roles: vec!["seeded-role".to_owned()],
             justification: None,
         }],
@@ -44,15 +45,17 @@ async fn invalid_yaml_leaves_existing_rules_untouched() {
         rules: vec![
             RuleEntry {
                 entity_type: EntityKind::McpServer,
-                entity_id: entity_id.to_owned(),
+                target: RuleTarget::Id(entity_id.to_owned()),
                 access: Access::Allow,
+                default_included: false,
                 roles: vec!["new-role".to_owned()],
                 justification: None,
             },
             RuleEntry {
                 entity_type: EntityKind::McpServer,
-                entity_id: entity_id.to_owned(),
+                target: RuleTarget::Id(entity_id.to_owned()),
                 access: Access::Allow,
+                default_included: false,
                 roles: vec![],
                 justification: None,
             },

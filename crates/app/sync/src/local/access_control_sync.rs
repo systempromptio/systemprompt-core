@@ -67,22 +67,11 @@ impl AccessControlLocalSync {
             .await
             .map_err(SyncError::internal)?;
 
-        let services = systemprompt_loader::ConfigLoader::load().map_err(|e| {
-            SyncError::invalid_input(format!("Failed to load services config: {e}"))
-        })?;
-        let marketplace_report = svc
-            .ingest_marketplace_access(&services.marketplaces, options)
-            .await
-            .map_err(SyncError::internal)?;
-
         Ok(LocalSyncResult {
-            items_synced: report.inserted
-                + report.updated
-                + marketplace_report.inserted
-                + marketplace_report.updated,
-            items_skipped: report.skipped + marketplace_report.skipped,
+            items_synced: report.inserted + report.updated,
+            items_skipped: report.skipped,
             items_skipped_modified: 0,
-            items_deleted: report.deleted + marketplace_report.deleted,
+            items_deleted: report.deleted,
             errors: Vec::new(),
             direction: LocalSyncDirection::ToDatabase,
         })
