@@ -15,6 +15,22 @@ use std::path::Path;
 use super::config;
 use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs};
 
+// Why: the staging path must be unique per call. A shared directory plus a
+// second-granularity timestamp let two concurrent `generate_profile` calls
+// (e.g. parallel test processes) resolve the same path and race on
+// `File::create`, so a reader could observe a truncated or empty file. The pid
+// and a monotonic counter make every staged filename distinct.
+fn unique_stem() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    format!(
+        "{}-{}-{}",
+        config::now_unix(),
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
     let dir = std::env::temp_dir().join("systemprompt-bridge");
     std::fs::create_dir_all(&dir)?;
@@ -23,7 +39,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let toml_text = render::managed_toml(inputs)?;
 
     if cfg!(target_os = "macos") {
-        let path = dir.join(format!("codex-bridge-{}.mobileconfig", config::now_unix()));
+        let path = dir.join(format!("codex-bridge-{}.mobileconfig", unique_stem()));
         let xml = render::mobileconfig(&toml_text, &payload_uuid, &profile_uuid);
         std::fs::File::create(&path)?.write_all(xml.as_bytes())?;
         Ok(GeneratedProfile {
@@ -33,10 +49,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
             profile_uuid,
         })
     } else {
-        let path = dir.join(format!(
-            "codex-bridge-{}-managed_config.toml",
-            config::now_unix()
-        ));
+        let path = dir.join(format!("codex-bridge-{}-managed_config.toml", unique_stem()));
         std::fs::File::create(&path)?.write_all(toml_text.as_bytes())?;
         Ok(GeneratedProfile {
             path: path.display().to_string(),
