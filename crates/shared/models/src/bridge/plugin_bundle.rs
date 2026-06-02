@@ -49,8 +49,8 @@ pub struct ManifestAuthor {
     pub email: String,
 }
 
-pub fn bundle_has_manifest<'a>(paths: impl IntoIterator<Item = &'a str>) -> bool {
+pub fn bundle_has_manifest<S: AsRef<str>>(paths: impl IntoIterator<Item = S>) -> bool {
     paths
         .into_iter()
-        .any(|path| path == PLUGIN_MANIFEST_RELPATH)
+        .any(|path| path.as_ref() == PLUGIN_MANIFEST_RELPATH)
 }
