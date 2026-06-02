@@ -28,6 +28,7 @@ fn test_well_known_response_serialization() {
         subject_types_supported: vec!["public".to_string()],
         id_token_signing_alg_values_supported: vec!["HS256".to_string()],
         claims_supported: vec!["sub".to_string(), "email".to_string()],
+        authorization_response_iss_parameter_supported: true,
     };
 
     let json = serde_json::to_value(&response).unwrap();
@@ -58,6 +59,7 @@ fn test_well_known_response_optional_registration_endpoint() {
         subject_types_supported: vec![],
         id_token_signing_alg_values_supported: vec![],
         claims_supported: vec![],
+        authorization_response_iss_parameter_supported: true,
     };
 
     let json = serde_json::to_value(&response).unwrap();
