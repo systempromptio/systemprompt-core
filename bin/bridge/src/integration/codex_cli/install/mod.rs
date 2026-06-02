@@ -49,7 +49,10 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
             profile_uuid,
         })
     } else {
-        let path = dir.join(format!("codex-bridge-{}-managed_config.toml", unique_stem()));
+        let path = dir.join(format!(
+            "codex-bridge-{}-managed_config.toml",
+            unique_stem()
+        ));
         std::fs::File::create(&path)?.write_all(toml_text.as_bytes())?;
         Ok(GeneratedProfile {
             path: path.display().to_string(),
