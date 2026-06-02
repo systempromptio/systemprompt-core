@@ -7,6 +7,7 @@
 - OAuth dynamic client registration accepts and persists the RFC 7591 `application_type` (defaulting to `"web"`). The field is stored on `oauth_clients` (migration 011), carried on `OAuthClientRow` / `OAuthClient`, and surfaced through registration and the client-config endpoints.
 - MCP sessions survive a server restart. A Postgres-backed `SessionStore` records each session's `initialize` params in `mcp_sessions` and restores them on demand, so the streamable HTTP service transparently re-creates a session whose in-memory worker was lost to a restart or eviction instead of returning `404 Session not found` and provoking a client reconnect storm. Persistence is best-effort: a store error degrades to the re-initialize path.
 - The gateway propagates Anthropic extended-thinking signatures. A `signature_delta` SSE frame is parsed into a canonical `SignatureDelta` event, accumulated onto the in-flight thinking block, and rendered back out on the Anthropic and OpenAI Responses inbound surfaces.
+- `Database::from_pools` and `PostgresProvider::from_pool` build a database handle from already-open `PgPool`s, letting an extension construct core data services from a pool it already holds without re-dialing the database.
 
 ### Changed
 

@@ -62,6 +62,11 @@ impl PostgresProvider {
         })
     }
 
+    #[must_use]
+    pub const fn from_pool(pool: Arc<PgPool>) -> Self {
+        Self { pool }
+    }
+
     fn get_cert_path() -> Option<std::path::PathBuf> {
         std::env::var("PGCA_CERT_PATH")
             .ok()
