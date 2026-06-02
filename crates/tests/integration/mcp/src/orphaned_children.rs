@@ -13,7 +13,10 @@ fn sigkill(pid: u32) {
 
 #[tokio::test]
 async fn grandchild_outlives_parent_and_is_not_auto_reaped_by_orchestrator() {
-    let (parent_pid, grandchild_pid) = spawn_with_orphan_child(30);
+    // A short lifetime still outlives the sub-second assertions below, but
+    // bounds how long the detached grandchild lingers if the test is killed
+    // (e.g. by the nextest timeout) before reaching the force_kill.
+    let (parent_pid, grandchild_pid) = spawn_with_orphan_child(5);
 
     tokio::time::sleep(Duration::from_millis(150)).await;
 
