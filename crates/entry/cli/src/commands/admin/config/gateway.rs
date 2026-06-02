@@ -104,12 +104,12 @@ pub async fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<(
 
     validate_gateway(&profile)?;
     save_profile(&profile, profile_path)?;
-    super::reconcile::reconcile_authz(&profile, profile_path).await;
+    let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
     render_result(
         &CommandResult::text(ConfigMutationOutput {
             field: "gateway".to_owned(),
-            message,
+            message: super::reconcile::append_reconcile_notice(message, &outcome),
         })
         .with_title("Gateway Updated"),
     );

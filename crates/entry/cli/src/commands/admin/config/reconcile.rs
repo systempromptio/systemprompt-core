@@ -17,18 +17,47 @@ use std::sync::Arc;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::RouteId;
 use systemprompt_models::{Config, Profile};
-use systemprompt_security::authz::{AccessControlRepository, reconcile_gateway_entities};
+use systemprompt_security::authz::{
+    AccessControlIngestionService, AccessControlRepository, IngestOptions,
+    reconcile_gateway_entities,
+};
 use systemprompt_sync::AccessControlLocalSync;
 
 const ROLES_YAML_RELATIVE: &str = "access-control/roles.yaml";
 
-pub(super) async fn reconcile_authz(profile: &Profile, profile_path: &str) {
-    if let Err(err) = try_reconcile(profile, profile_path).await {
-        tracing::warn!(
-            error = %err,
-            "profile saved, but the authz catalog could not be reconciled now; it will be \
-             reconciled on the next app start"
-        );
+/// Result of a post-edit authz reconciliation. `Deferred` carries the reason
+/// the catalog could not be re-materialised now (e.g. the database was
+/// unreachable during an offline edit); the profile write has already succeeded
+/// regardless.
+pub(super) enum ReconcileOutcome {
+    Reconciled,
+    Deferred(String),
+}
+
+pub(super) async fn reconcile_authz(profile: &Profile, profile_path: &str) -> ReconcileOutcome {
+    match try_reconcile(profile, profile_path).await {
+        Ok(()) => ReconcileOutcome::Reconciled,
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                "profile saved, but the authz catalog could not be reconciled now; it will be \
+                 reconciled on the next app start"
+            );
+            ReconcileOutcome::Deferred(err.to_string())
+        },
+    }
+}
+
+/// Append a visible deferral notice to a mutation's success message when the
+/// post-edit reconciliation could not run, so the operator sees that the live
+/// catalog is stale until the next app start (or a retry with the DB up).
+pub(super) fn append_reconcile_notice(message: String, outcome: &ReconcileOutcome) -> String {
+    match outcome {
+        ReconcileOutcome::Reconciled => message,
+        ReconcileOutcome::Deferred(reason) => format!(
+            "{message}\n\n⚠ authz reconcile deferred: {reason}\nThe profile was saved; the authz \
+             catalog will be reconciled on the next app start."
+        ),
     }
 }
 
@@ -55,9 +84,20 @@ async fn try_reconcile(profile: &Profile, profile_path: &str) -> anyhow::Result<
 
     let roles_yaml = Path::new(&profile.paths.services).join(ROLES_YAML_RELATIVE);
     if roles_yaml.exists() {
-        AccessControlLocalSync::new(database, roles_yaml)
+        AccessControlLocalSync::new(Arc::clone(&database), roles_yaml)
             .sync_to_db(true, false)
             .await?;
+
+        let services = systemprompt_loader::ConfigLoader::load()?;
+        let svc = AccessControlIngestionService::new(&database)?;
+        svc.ingest_marketplace_access(
+            &services.marketplaces,
+            IngestOptions {
+                override_existing: true,
+                delete_orphans: false,
+            },
+        )
+        .await?;
     }
     Ok(())
 }
