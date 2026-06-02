@@ -37,9 +37,15 @@ fn transform_from_json_builds_artifact() {
     assert_eq!(artifact.id.as_str(), "art-xform-1");
     assert_eq!(artifact.title.as_deref(), Some("writer-tool"));
     assert_eq!(artifact.metadata.artifact_type, "text");
-    assert_eq!(artifact.metadata.mcp_execution_id.as_deref(), Some("exec-xform-1"));
+    assert_eq!(
+        artifact.metadata.mcp_execution_id.as_deref(),
+        Some("exec-xform-1")
+    );
     assert!(artifact.metadata.fingerprint.is_some());
-    assert_eq!(artifact.metadata.skill_id.as_ref().map(|s| s.as_str()), Some("skill-7"));
+    assert_eq!(
+        artifact.metadata.skill_id.as_ref().map(|s| s.as_str()),
+        Some("skill-7")
+    );
     assert_eq!(artifact.parts.len(), 1);
     assert!(matches!(artifact.parts[0], Part::Data(_)));
     assert!(!artifact.extensions.is_empty());

@@ -49,7 +49,12 @@ fn task_state_to_db_string_all_variants() {
     );
 }
 
-fn make_message(role: MessageRole, context_id: &ContextId, task_id: &TaskId, text: &str) -> Message {
+fn make_message(
+    role: MessageRole,
+    context_id: &ContextId,
+    task_id: &TaskId,
+    text: &str,
+) -> Message {
     Message {
         role,
         parts: vec![Part::Text(TextPart {

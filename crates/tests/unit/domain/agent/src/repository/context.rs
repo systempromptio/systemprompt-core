@@ -177,7 +177,10 @@ async fn delete_context() {
         .expect("delete");
     assert!(repo.get_context(&context_id, &user_id).await.is_err());
 
-    let err = repo.delete_context(&context_id, &user_id).await.unwrap_err();
+    let err = repo
+        .delete_context(&context_id, &user_id)
+        .await
+        .unwrap_err();
     assert!(matches!(
         err,
         systemprompt_traits::RepositoryError::NotFound(_)

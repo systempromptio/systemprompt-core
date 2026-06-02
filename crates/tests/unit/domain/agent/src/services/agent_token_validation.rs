@@ -23,9 +23,7 @@ struct StubJwtProvider {
 
 impl JwtValidationProvider for StubJwtProvider {
     fn validate_token(&self, _token: &str) -> JwtResult<AgentJwtClaims> {
-        self.claims
-            .clone()
-            .ok_or(JwtProviderError::InvalidToken)
+        self.claims.clone().ok_or(JwtProviderError::InvalidToken)
     }
     fn generate_token(&self, _params: GenerateTokenParams) -> JwtResult<String> {
         Ok("token".to_string())

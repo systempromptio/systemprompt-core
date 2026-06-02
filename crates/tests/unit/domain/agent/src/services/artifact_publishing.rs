@@ -16,9 +16,7 @@ use systemprompt_test_fixtures::ensure_test_bootstrap;
 
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
 
-async fn publishing_service(
-    pool: &systemprompt_database::DbPool,
-) -> ArtifactPublishingService {
+async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
     ensure_test_bootstrap();
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
     ArtifactPublishingService::new(pool).expect("publishing service")
@@ -139,11 +137,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
     .expect("publish agentic");
 
     // Agentic path persists the artifact but does NOT create messages.
-    let messages = r
-        .tasks
-        .get_messages_by_task(&tid)
-        .await
-        .expect("messages");
+    let messages = r.tasks.get_messages_by_task(&tid).await.expect("messages");
     assert!(messages.is_empty());
 
     r.tasks.delete_task(&tid).await.ok();
@@ -176,11 +170,7 @@ async fn publish_from_mcp_direct_creates_messages() {
     .expect("publish direct");
 
     // Direct path creates a synthetic user message + an agent response message.
-    let messages = r
-        .tasks
-        .get_messages_by_task(&tid)
-        .await
-        .expect("messages");
+    let messages = r.tasks.get_messages_by_task(&tid).await.expect("messages");
     assert_eq!(messages.len(), 2);
 
     r.tasks.delete_task(&tid).await.ok();

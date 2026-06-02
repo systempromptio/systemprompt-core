@@ -84,10 +84,7 @@ async fn mark_crashed_clears_pid() {
         .await
         .expect("register");
 
-    r.agent_services
-        .mark_crashed(&name)
-        .await
-        .expect("crash");
+    r.agent_services.mark_crashed(&name).await.expect("crash");
     let status = r
         .agent_services
         .get_agent_status(&name)
@@ -112,10 +109,7 @@ async fn mark_stopped_and_error_clear_pid() {
         .register_agent(&stopped, 5, 9103)
         .await
         .expect("register");
-    r.agent_services
-        .mark_stopped(&stopped)
-        .await
-        .expect("stop");
+    r.agent_services.mark_stopped(&stopped).await.expect("stop");
     let s = r
         .agent_services
         .get_agent_status(&stopped)
@@ -130,10 +124,7 @@ async fn mark_stopped_and_error_clear_pid() {
         .register_agent(&errored, 6, 9104)
         .await
         .expect("register");
-    r.agent_services
-        .mark_error(&errored)
-        .await
-        .expect("error");
+    r.agent_services.mark_error(&errored).await.expect("error");
     let s = r
         .agent_services
         .get_agent_status(&errored)

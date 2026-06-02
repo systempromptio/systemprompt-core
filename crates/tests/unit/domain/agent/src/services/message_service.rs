@@ -27,11 +27,7 @@ fn text_msg(role: MessageRole, ctx: &ContextId, tid: &TaskId, text: &str) -> Mes
     }
 }
 
-fn request_context(
-    ctx: &ContextId,
-    session: &SessionId,
-    user: &UserId,
-) -> RequestContext {
+fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> RequestContext {
     let mut rc = RequestContext::new(
         session.clone(),
         TraceId::generate(),
@@ -98,11 +94,7 @@ async fn persist_messages_assigns_increasing_sequence_numbers() {
     assert_eq!(seqs.len(), 2);
     assert!(seqs[1] > seqs[0]);
 
-    let read = r
-        .tasks
-        .get_messages_by_task(&tid)
-        .await
-        .expect("messages");
+    let read = r.tasks.get_messages_by_task(&tid).await.expect("messages");
     assert_eq!(read.len(), 2);
 
     r.tasks.delete_task(&tid).await.ok();
@@ -133,11 +125,7 @@ async fn create_tool_execution_message_persists_synthetic_user_message() {
     assert!(!message_id.is_empty());
     assert_eq!(seq, 0);
 
-    let read = r
-        .tasks
-        .get_messages_by_task(&tid)
-        .await
-        .expect("messages");
+    let read = r.tasks.get_messages_by_task(&tid).await.expect("messages");
     assert_eq!(read.len(), 1);
     assert_eq!(read[0].role, MessageRole::User);
     let parts = &read[0].parts;

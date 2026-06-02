@@ -78,7 +78,13 @@ async fn text_part_roundtrip() {
         })],
     );
     save_pair(
-        &pool, &user_id, &session_id, &context_id, &task_id, &user_msg, &agent_msg,
+        &pool,
+        &user_id,
+        &session_id,
+        &context_id,
+        &task_id,
+        &user_msg,
+        &agent_msg,
     )
     .await;
 
@@ -123,7 +129,13 @@ async fn file_part_roundtrip() {
         })],
     );
     save_pair(
-        &pool, &user_id, &session_id, &context_id, &task_id, &user_msg, &agent_msg,
+        &pool,
+        &user_id,
+        &session_id,
+        &context_id,
+        &task_id,
+        &user_msg,
+        &agent_msg,
     )
     .await;
 
@@ -169,7 +181,13 @@ async fn data_part_roundtrip() {
     );
     let agent_msg = msg_with_parts(MessageRole::Agent, &context_id, &task_id, vec![data_part]);
     save_pair(
-        &pool, &user_id, &session_id, &context_id, &task_id, &user_msg, &agent_msg,
+        &pool,
+        &user_id,
+        &session_id,
+        &context_id,
+        &task_id,
+        &user_msg,
+        &agent_msg,
     )
     .await;
 
@@ -225,7 +243,13 @@ async fn mixed_parts_preserve_order() {
         })],
     );
     save_pair(
-        &pool, &user_id, &session_id, &context_id, &task_id, &user_msg, &agent_msg,
+        &pool,
+        &user_id,
+        &session_id,
+        &context_id,
+        &task_id,
+        &user_msg,
+        &agent_msg,
     )
     .await;
 

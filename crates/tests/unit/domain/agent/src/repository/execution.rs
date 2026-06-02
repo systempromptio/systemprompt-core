@@ -11,11 +11,8 @@ async fn create_and_get_tool_execution_step() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
-    let step = ExecutionStep::tool_execution(
-        task_id.clone(),
-        "search",
-        serde_json::json!({"q": "rust"}),
-    );
+    let step =
+        ExecutionStep::tool_execution(task_id.clone(), "search", serde_json::json!({"q": "rust"}));
     let step_id = step.step_id.clone();
     r.execution_steps.create(&step).await.expect("create");
 
