@@ -159,3 +159,15 @@ mod routes_health_discovery;
 #[cfg(test)]
 #[path = "routes_agent_webhook.rs"]
 mod routes_agent_webhook;
+
+#[cfg(test)]
+#[path = "routes_proxy_forward.rs"]
+mod routes_proxy_forward;
+
+#[cfg(test)]
+#[path = "routes_sync_files.rs"]
+mod routes_sync_files;
+
+#[cfg(test)]
+#[path = "routes_agent_artifacts.rs"]
+mod routes_agent_artifacts;

@@ -5,7 +5,11 @@
 
 #[cfg(test)]
 mod common;
+#[cfg(test)]
+mod mock_server;
 
+#[cfg(test)]
+mod client_live;
 #[cfg(test)]
 mod fd_handling;
 #[cfg(test)]

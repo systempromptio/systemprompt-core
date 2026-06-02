@@ -179,6 +179,9 @@ sha2 = "0.10"
 
 # Testing utilities
 wiremock = "0.6"
+tar = "0.4"
+flate2 = "1.1"
+hex = "0.4"
 
 # Property-based testing
 proptest = "1.6"
