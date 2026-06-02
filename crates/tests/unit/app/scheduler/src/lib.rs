@@ -40,4 +40,8 @@ mod service_management_db;
 #[cfg(test)]
 mod state_transitions;
 #[cfg(test)]
+mod jobs_seeded_db;
+#[cfg(test)]
+mod state_verifier_seeded_db;
+#[cfg(test)]
 mod unit_tests;
