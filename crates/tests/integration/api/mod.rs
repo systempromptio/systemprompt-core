@@ -139,3 +139,23 @@ mod session_middleware_persists_anon;
 #[cfg(test)]
 #[path = "routes_mcp_unauth_challenge.rs"]
 mod routes_mcp_unauth_challenge;
+
+#[cfg(test)]
+#[path = "routes_oauth_callback.rs"]
+mod routes_oauth_callback;
+
+#[cfg(test)]
+#[path = "routes_oauth_webauthn_complete.rs"]
+mod routes_oauth_webauthn_complete;
+
+#[cfg(test)]
+#[path = "routes_oauth_token_exchange.rs"]
+mod routes_oauth_token_exchange;
+
+#[cfg(test)]
+#[path = "routes_health_discovery.rs"]
+mod routes_health_discovery;
+
+#[cfg(test)]
+#[path = "routes_agent_webhook.rs"]
+mod routes_agent_webhook;
