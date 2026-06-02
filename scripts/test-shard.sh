@@ -9,17 +9,19 @@ group_prefixes() {
     shared)      echo "/tests/unit/shared/" ;;
     infra)       echo "/tests/unit/infra/" ;;
     domain)      echo "/tests/unit/domain/" ;;
-    app-runtime) echo "/tests/unit/app/runtime/" ;;
-    app-rest)    echo "/tests/unit/app/scheduler/ /tests/unit/app/sync/ /tests/unit/app/generator/" ;;
-    entry-api)   echo "/tests/unit/entry/api/" ;;
-    entry-cli)   echo "/tests/unit/entry/cli/" ;;
-    bridge)      echo "/tests/unit/bridge/" ;;
-    integration) echo "/tests/integration/" ;;
-    edge)        echo "/tests/concurrency/ /tests/property/ /tests/contract/" ;;
+    app-runtime)   echo "/tests/unit/app/runtime/" ;;
+    app-scheduler) echo "/tests/unit/app/scheduler/" ;;
+    app-sync)      echo "/tests/unit/app/sync/" ;;
+    app-generator) echo "/tests/unit/app/generator/" ;;
+    entry-api)     echo "/tests/unit/entry/api/" ;;
+    entry-cli)     echo "/tests/unit/entry/cli/" ;;
+    bridge)        echo "/tests/unit/bridge/" ;;
+    integration)   echo "/tests/integration/" ;;
+    edge)          echo "/tests/concurrency/ /tests/property/ /tests/contract/" ;;
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }
-SHARD_GROUPS="shared infra domain app-runtime app-rest entry-api entry-cli bridge integration edge"
+SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-sync app-generator entry-api entry-cli bridge integration edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
 group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true
