@@ -143,5 +143,8 @@ fn tool_result_content(result: &CallToolResult) -> Vec<CanonicalContent> {
 }
 
 fn tool_result_meta(result: &CallToolResult) -> Option<Value> {
-    result.meta.as_ref().and_then(|m| serde_json::to_value(m).ok())
+    result
+        .meta
+        .as_ref()
+        .and_then(|m| serde_json::to_value(m).ok())
 }
