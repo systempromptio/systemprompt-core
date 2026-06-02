@@ -56,3 +56,5 @@ mod services;
 mod state;
 #[cfg(test)]
 mod tool_executor;
+#[cfg(test)]
+mod tool_handler;
