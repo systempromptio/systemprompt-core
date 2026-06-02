@@ -31,8 +31,9 @@ pub struct OutboundCtx<'a> {
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
     /// Limits from the resolved upstream model card, when the requested model
-    /// maps to a known catalog entry. Codecs use this to clamp provider-specific
-    /// values (e.g. Gemini's `thinkingBudget`) to what the upstream accepts.
+    /// maps to a known catalog entry. Codecs use this to clamp
+    /// provider-specific values (e.g. Gemini's `thinkingBudget`) to what
+    /// the upstream accepts.
     pub model_limits: Option<ModelLimits>,
 }
 
