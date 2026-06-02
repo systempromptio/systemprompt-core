@@ -1,11 +1,18 @@
 # Changelog
 
-## [0.14.1] - 2026-06-01
+## [0.14.1] - 2026-06-02
 
 ### Added
 
 - The AI gateway now resolves `policy.safety.scanners` against a scanner registry and **enforces** `policy.safety.block_categories`. Request-phase scanners selected by policy run before the upstream call; if any finding's category is listed in `block_categories`, the request is denied with `403` and an `ai_safety_findings` audit row, with no upstream dispatch. Response-phase scanning remains audit-only (the response is already streaming). Scanners are a Rust extension point: the built-in `heuristic` scanner ships in-tree, and extensions contribute additional scanners via `systemprompt-ai`'s `register_safety_scanner!`. An empty `scanners` list runs nothing — scanning is now fully config-driven.
 - Access-control rules can target entities by `*`-glob (`entity_match`) in addition to a literal `entity_id`; each glob is expanded against the entities already in the catalog for that `EntityKind`, one resolved rule per match. Gateway routes are now first-class authz entities — `GatewayState::resolved_route_ids` materialises their content-addressed ids straight from the typed profile, and a new `systemprompt admin config reconcile` command upserts the gateway-route entity rows so glob rules can resolve against them.
+- Per-model thinking-budget ceilings. A provider model card may declare `max_thinking_budget`; the gateway clamps a request's extended-thinking / reasoning budget to it before dispatch, so an out-of-range budget no longer makes the upstream reject the call (notably Gemini's `thinkingBudget`). Omitting it leaves budget validation to the provider.
+- `admin config gateway` and `admin config catalog` now report when the post-edit authz reconcile could not run (e.g. the database was unreachable during an offline edit): the success output carries a deferral notice so the operator knows the live catalog stays stale until the next app start or a retry.
+
+### Changed
+
+- JSON-Schema handling for provider tool/output schemas is unified. The capability matrices (`ProviderCapabilities`) and the sanitiser (`SchemaSanitizer`) move to `systemprompt-models` (`schema::`) so the gateway wire codecs and the agent-flow provider clients reduce tool schemas through one authority; each `WireProtocol` resolves its matrix via `WireProtocol::schema_capabilities`. `systemprompt-ai` re-exports the types from `services::schema`, but code importing the old `services::schema::{capabilities, sanitizer}` submodules directly must switch to the re-export (or `systemprompt-models::schema`).
+- Scheduler job names are validated against the registered `inventory` catalog. A name in `jobs` or `bootstrap_jobs` that was never registered via `submit_job!` now fails startup with `SchedulerError::UnknownJob` instead of being silently skipped, and a bootstrap job with no explicit owner entry defaults to the system admin. `Extension::jobs` is documented as an introspection-only manifest that the scheduler does not consult.
 
 ### Fixed
 
