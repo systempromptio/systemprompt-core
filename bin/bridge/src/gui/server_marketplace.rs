@@ -1,4 +1,5 @@
 use crate::config::paths;
+use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::{LastSyncState, read_last_sync};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -89,9 +90,13 @@ struct McpServerEntry {
     args: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     transport: Option<String>,
+    /// Tool names the server exposed on the last MCP auth probe (empty until a
+    /// probe has run). Lets the marketplace detail list the server's tools.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    tools: Vec<String>,
 }
 
-pub fn build_listing() -> MarketplaceListing {
+pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
     let loc = paths::org_plugins_effective();
     let plugins_dir = loc.as_ref().map(|l| l.path.display().to_string());
 
@@ -107,7 +112,7 @@ pub fn build_listing() -> MarketplaceListing {
             let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);
             let skills = list_skills(&synthetic.join("skills"));
             let agents = list_agents(&synthetic.join("agents"));
-            let mcp = list_registry_mcp();
+            let mcp = list_registry_mcp(mcp_auth);
             let hooks = Vec::new();
             (plugins, skills, hooks, mcp, agents)
         },
@@ -348,7 +353,7 @@ fn unquote(s: &str) -> &str {
 // MCP channel), so reading that removed file always yielded zero. The registry
 // is populated by an in-process sync, so this lists servers once the running
 // GUI has synced — the same timing as the policy value itself.
-fn list_registry_mcp() -> Vec<MarketplaceItem> {
+fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceItem> {
     let registry = crate::mcp_registry::snapshot();
     let mut out = Vec::with_capacity(registry.len());
     for (slug, upstream) in registry.iter() {
@@ -356,6 +361,13 @@ fn list_registry_mcp() -> Vec<MarketplaceItem> {
         // `managed_mcp_servers_json`), while keeping the upstream gateway URL in
         // `path` for provenance.
         let proxy_url = crate::proxy::mcp_url(slug);
+        // Attach the tools the last MCP auth probe enumerated for this server,
+        // matched by slug, so the marketplace detail can list them.
+        let tools = mcp_auth
+            .iter()
+            .find(|s| s.id == *slug)
+            .map(|s| s.tools.clone())
+            .unwrap_or_default();
         out.push(MarketplaceItem {
             id: slug.clone(),
             name: slug.clone(),
@@ -369,6 +381,7 @@ fn list_registry_mcp() -> Vec<MarketplaceItem> {
                 command: None,
                 args: Vec::new(),
                 transport: Some("http".to_string()),
+                tools,
             }),
         });
     }

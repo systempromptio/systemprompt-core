@@ -45,6 +45,12 @@ export class SpMarketplaceDetail extends SpElement {
     const versionChip = selected.version ? `<span class="sp-mkt-chip sp-mkt-chip--mono">v${escapeHtml(selected.version)}</span>` : "";
     const summary = selected.summary ? `<p class="sp-mkt-detail__summary">${escapeHtml(selected.summary)}</p>` : "";
     const readme = selected.readme ? `<section class="sp-mkt-detail__section"><h3>${escapeHtml(t("marketplace-detail-readme") || "README")}</h3><div class="sp-mkt-detail__readme">${escapeHtml(selected.readme)}</div></section>` : "";
+    const tools = (selected.extra && Array.isArray(selected.extra.tools)) ? selected.extra.tools : [];
+    const toolsSection = tools.length ? `
+      <section class="sp-mkt-detail__section">
+        <h3>${escapeHtml(t("marketplace-detail-tools") || "Tools")} (${tools.length})</h3>
+        <div class="sp-chip-list">${tools.map((tool) => `<span class="sp-chip">${escapeHtml(tool)}</span>`).join("")}</div>
+      </section>` : "";
     const copyLabel = this.copied ? (t("marketplace-detail-copied") || "Copied") : (t("marketplace-detail-copy") || "Copy");
     const pathSection = selected.path ? `
       <section class="sp-mkt-detail__section">
@@ -65,6 +71,7 @@ export class SpMarketplaceDetail extends SpElement {
       </div>
       ${summary}
       ${readme}
+      ${toolsSection}
       ${pathSection}
     </article>`;
   }

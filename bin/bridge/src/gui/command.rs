@@ -93,7 +93,7 @@ fn meta_dispatch(
         "state.snapshot" => {
             CommandOutcome::Sync(Ok(server_json::snapshot_value(&app.state.snapshot())))
         },
-        "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing())),
+        "marketplace.list" => CommandOutcome::Sync(Ok(marketplace_listing(app))),
         "setup.complete" => {
             send(app, UiEvent::SetupComplete);
             CommandOutcome::Sync(Ok(json!({})))
@@ -402,8 +402,9 @@ fn send(app: &GuiApp, event: UiEvent) {
     _ = app.proxy.send_event(event);
 }
 
-fn marketplace_listing() -> Value {
-    let listing = crate::gui::server_marketplace::build_listing();
+fn marketplace_listing(app: &GuiApp) -> Value {
+    let snap = app.state.snapshot();
+    let listing = crate::gui::server_marketplace::build_listing(&snap.mcp_auth);
     crate::gui::server_marketplace::listing_to_value(&listing).unwrap_or(Value::Null)
 }
 
