@@ -4,6 +4,9 @@ target/
 **/*.rs.bk
 **/*.profraw
 **/*.cov-bak
+
+# Bridge release packaging artifact
+/systemprompt-bridge.zip
 docs
 docs/
 docs/*
