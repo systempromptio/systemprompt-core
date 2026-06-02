@@ -9,14 +9,16 @@ group_prefixes() {
     shared)      echo "/tests/unit/shared/" ;;
     infra)       echo "/tests/unit/infra/" ;;
     domain)      echo "/tests/unit/domain/" ;;
-    app-entry)   echo "/tests/unit/app/ /tests/unit/entry/" ;;
+    app)         echo "/tests/unit/app/" ;;
+    entry-api)   echo "/tests/unit/entry/api/" ;;
+    entry-cli)   echo "/tests/unit/entry/cli/" ;;
     bridge)      echo "/tests/unit/bridge/" ;;
     integration) echo "/tests/integration/" ;;
     edge)        echo "/tests/concurrency/ /tests/property/ /tests/contract/" ;;
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }
-SHARD_GROUPS="shared infra domain app-entry bridge integration edge"
+SHARD_GROUPS="shared infra domain app entry-api entry-cli bridge integration edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
 group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true

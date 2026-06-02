@@ -695,7 +695,7 @@ install-nextest:
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
 # drops+recreates the target DB so cross-run pollution can't occur. Override the
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`.
-# Groups: shared infra domain app-entry bridge integration edge
+# Groups: shared infra domain app entry-api entry-cli bridge integration edge
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail

@@ -290,7 +290,7 @@ MCP implementation in `crates/domain/mcp/`:
 Tests are in a separate workspace at `crates/tests/` (66 crates, ~12k tests),
 excluded from the main workspace. The suite is too large to compile in one pass
 (`cargo test --workspace` links all 66 test binaries at once and OOMs the host),
-so it runs **sharded** under `cargo-nextest` — the same 7-shard split CI uses.
+so it runs **sharded** under `cargo-nextest` — the same 9-shard split CI uses.
 The shard definitions live in `scripts/test-shard.sh`, the single source of
 truth shared by CI and the `just` recipes below.
 
@@ -304,10 +304,10 @@ disposable `systemprompt_test`).
 just install-nextest
 
 # Run one shard (bounded compile + run memory, fresh migrated DB).
-# Groups: shared infra domain app-entry bridge integration edge
+# Groups: shared infra domain app entry-api entry-cli bridge integration edge
 just test-shard shared
 
-# Run all 7 shards sequentially (each against its own fresh DB)
+# Run all 9 shards sequentially (each against its own fresh DB)
 just test-all-shards
 
 # Iterate on a single crate
