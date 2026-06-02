@@ -211,12 +211,16 @@ async fn stop_agent_process(
         agent_name, port
     ));
 
-    let killed = ProcessCleanup::kill_port(port);
-    if killed.is_empty() {
-        tracing::warn!(agent = %agent_name, port, "Failed to kill process on port");
+    let Some(pid) = ProcessCleanup::check_port(port) else {
+        tracing::warn!(agent = %agent_name, port, "No process found on port to stop");
+        return false;
+    };
+
+    if !ProcessCleanup::kill_process(pid) {
+        tracing::warn!(agent = %agent_name, port, pid, "Failed to kill process on port");
         return false;
     }
 
-    tracing::debug!(agent = %agent_name, port, pids = ?killed, "Killed processes on port");
+    tracing::debug!(agent = %agent_name, port, pid, "Killed process on port");
     true
 }

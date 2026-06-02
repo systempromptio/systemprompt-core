@@ -38,7 +38,7 @@ pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutp
     }
 
     ProcessCleanup::terminate_gracefully(pid, 100).await;
-    ProcessCleanup::kill_port(port);
+    ProcessCleanup::kill_port(port, pid);
 
     ProcessCleanup::wait_for_port_free(port, 5, 500).await?;
 

@@ -41,20 +41,40 @@ impl ProcessCleanup {
         winnt::check_port(port)
     }
 
-    pub fn kill_port(port: u16) -> Vec<u32> {
+    pub fn kill_port(port: u16, owner: u32) -> Vec<u32> {
         if PROTECTED_PORTS.contains(&port) {
             return vec![];
         }
 
-        let mut killed = vec![];
+        let Some(holder) = Self::check_port(port) else {
+            return vec![];
+        };
 
-        if let Some(pid) = Self::check_port(port) {
-            if Self::kill_process(pid) {
-                killed.push(pid);
-            }
+        if holder != owner && Self::process_group(holder) != Some(owner) {
+            tracing::warn!(
+                port,
+                holder,
+                owner,
+                "port held by a process that is not the service being stopped; leaving it untouched",
+            );
+            return vec![];
         }
 
-        killed
+        if Self::kill_process(holder) {
+            vec![holder]
+        } else {
+            vec![]
+        }
+    }
+
+    #[cfg(unix)]
+    fn process_group(pid: u32) -> Option<u32> {
+        posix::process_group(pid)
+    }
+
+    #[cfg(windows)]
+    fn process_group(pid: u32) -> Option<u32> {
+        winnt::process_group(pid)
     }
 
     #[cfg(unix)]

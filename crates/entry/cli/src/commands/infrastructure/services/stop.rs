@@ -78,9 +78,9 @@ async fn stop_api(force: bool, quiet: bool) -> Result<()> {
         } else {
             ProcessCleanup::terminate_gracefully(pid, 100).await;
         }
+        ProcessCleanup::kill_port(port, pid);
     }
 
-    ProcessCleanup::kill_port(port);
     ProcessCleanup::wait_for_port_free(port, 5, 200).await?;
 
     if !quiet {

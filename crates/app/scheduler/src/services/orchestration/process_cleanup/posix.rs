@@ -43,6 +43,13 @@ pub(super) fn kill_process(pid: u32) -> bool {
     signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL).is_ok()
 }
 
+pub(super) fn process_group(pid: u32) -> Option<u32> {
+    use nix::unistd::{Pid, getpgid};
+    getpgid(Some(Pid::from_raw(pid as i32)))
+        .ok()
+        .map(|pgid| pgid.as_raw() as u32)
+}
+
 pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;

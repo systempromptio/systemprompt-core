@@ -1253,7 +1253,7 @@ fn test_check_port_protected_pgbouncer() {
 fn test_kill_port_protected_postgres() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    let result = ProcessCleanup::kill_port(5432);
+    let result = ProcessCleanup::kill_port(5432, u32::MAX);
     assert!(
         result.is_empty(),
         "Should not kill processes on protected PostgreSQL port"
@@ -1264,7 +1264,7 @@ fn test_kill_port_protected_postgres() {
 fn test_kill_port_protected_pgbouncer() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    let result = ProcessCleanup::kill_port(6432);
+    let result = ProcessCleanup::kill_port(6432, u32::MAX);
     assert!(
         result.is_empty(),
         "Should not kill processes on protected PgBouncer port"

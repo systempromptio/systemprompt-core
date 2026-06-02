@@ -53,14 +53,15 @@ impl ServiceManagementService {
 
     pub async fn stop_service(&self, service: &ServiceConfig, force: bool) -> SchedulerResult<()> {
         if let Some(pid) = service.pid {
+            let pid = pid as u32;
             if force {
-                ProcessCleanup::kill_process(pid as u32);
+                ProcessCleanup::kill_process(pid);
             } else {
-                ProcessCleanup::terminate_gracefully(pid as u32, 100).await;
+                ProcessCleanup::terminate_gracefully(pid, 100).await;
             }
+            ProcessCleanup::kill_port(service.port as u16, pid);
         }
 
-        ProcessCleanup::kill_port(service.port as u16);
         if let Err(e) = self.mark_service_stopped(&service.name).await {
             warn!(service = %service.name, error = %e, "Failed to mark service stopped");
         }
@@ -79,7 +80,7 @@ impl ServiceManagementService {
             }
 
             ProcessCleanup::terminate_gracefully(pid, 100).await;
-            ProcessCleanup::kill_port(service.port as u16);
+            ProcessCleanup::kill_port(service.port as u16, pid);
             if let Err(e) = self.mark_service_stopped(&service.name).await {
                 warn!(service = %service.name, error = %e, "Failed to mark terminated service stopped");
             }

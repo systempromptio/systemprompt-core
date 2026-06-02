@@ -91,6 +91,10 @@ pub(super) async fn terminate_group_gracefully(pid: u32, grace_period_ms: u64) -
     }
 }
 
+pub(super) fn process_group(_pid: u32) -> Option<u32> {
+    None
+}
+
 pub(super) fn process_exists(pid: u32) -> bool {
     match Command::new("tasklist")
         .args(["/FI", &format!("PID eq {}", pid), "/NH"])

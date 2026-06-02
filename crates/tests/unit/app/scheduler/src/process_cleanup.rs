@@ -29,13 +29,13 @@ fn check_port_returns_none_for_unbound_port() {
 
 #[test]
 fn kill_port_protected_returns_empty() {
-    assert!(ProcessCleanup::kill_port(POSTGRES_PORT).is_empty());
-    assert!(ProcessCleanup::kill_port(PGBOUNCER_PORT).is_empty());
+    assert!(ProcessCleanup::kill_port(POSTGRES_PORT, NONEXISTENT_PID).is_empty());
+    assert!(ProcessCleanup::kill_port(PGBOUNCER_PORT, NONEXISTENT_PID).is_empty());
 }
 
 #[test]
 fn kill_port_unbound_returns_empty() {
-    assert!(ProcessCleanup::kill_port(UNLIKELY_PORT).is_empty());
+    assert!(ProcessCleanup::kill_port(UNLIKELY_PORT, NONEXISTENT_PID).is_empty());
 }
 
 #[test]

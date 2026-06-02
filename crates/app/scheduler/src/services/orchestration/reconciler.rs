@@ -176,8 +176,8 @@ impl ServiceReconciler {
     async fn stop_service(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
         if let Some(pid) = state.pid {
             ProcessCleanup::terminate_gracefully(pid, 100).await;
+            ProcessCleanup::kill_port(state.port, pid);
         }
-        ProcessCleanup::kill_port(state.port);
         ProcessCleanup::wait_for_port_free(state.port, 5, 200).await?;
         self.update_service_stopped(&state.name).await
     }
@@ -185,8 +185,8 @@ impl ServiceReconciler {
     async fn cleanup_process(&self, state: &VerifiedServiceState) {
         if let Some(pid) = state.pid {
             ProcessCleanup::terminate_gracefully(pid, 100).await;
+            ProcessCleanup::kill_port(state.port, pid);
         }
-        ProcessCleanup::kill_port(state.port);
     }
 
     async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
