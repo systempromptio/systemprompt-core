@@ -15,6 +15,7 @@ fn create_test_client_row() -> OAuthClientRow {
         client_name: "Test Client".to_string(),
         name: Some("Display Name".to_string()),
         token_endpoint_auth_method: Some("client_secret_post".to_string()),
+        application_type: "web".to_owned(),
         client_uri: Some("https://example.com".to_string()),
         logo_uri: Some("https://example.com/logo.png".to_string()),
         is_active: Some(true),

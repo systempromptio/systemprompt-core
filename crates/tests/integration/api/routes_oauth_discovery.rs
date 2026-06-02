@@ -11,7 +11,7 @@ use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
 use tower::ServiceExt;
 
-use super::common::{empty_get, setup_ctx};
+use super::common::{body_to_string, empty_get, setup_ctx};
 
 static CONFIG_INSTALL: Once = Once::new();
 
@@ -91,6 +91,22 @@ async fn well_known_returns_openid_config() -> anyhow::Result<()> {
         .oneshot(empty_get("/.well-known/openid-configuration"))
         .await?;
     assert!(resp.status().is_success(), "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn well_known_advertises_iss_parameter_support() -> anyhow::Result<()> {
+    let app = discovery_app().await?;
+    let resp = app
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(
+        json["authorization_response_iss_parameter_supported"],
+        serde_json::Value::Bool(true)
+    );
     Ok(())
 }
 

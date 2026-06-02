@@ -218,6 +218,38 @@ fn test_get_token_endpoint_auth_method_empty_defaults_to_basic() {
 }
 
 #[test]
+fn test_get_application_type_missing_defaults_to_web() {
+    let json = r#"{}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    assert_eq!(request.get_application_type().expect("expected web"), "web");
+}
+
+#[test]
+fn test_get_application_type_empty_defaults_to_web() {
+    let json = r#"{"application_type": ""}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    assert_eq!(request.get_application_type().expect("expected web"), "web");
+}
+
+#[test]
+fn test_get_application_type_native_accepted() {
+    let json = r#"{"application_type": "native"}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    assert_eq!(
+        request.get_application_type().expect("expected native"),
+        "native"
+    );
+}
+
+#[test]
+fn test_get_application_type_unknown_rejected() {
+    let json = r#"{"application_type": "foo"}"#;
+    let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
+    let err = request.get_application_type().unwrap_err();
+    assert!(err.contains("application_type"));
+}
+
+#[test]
 fn test_dynamic_registration_request_debug() {
     let request = create_valid_request();
     let debug_str = format!("{:?}", request);
@@ -234,6 +266,7 @@ fn create_valid_response() -> DynamicRegistrationResponse {
         response_types: vec!["code".to_string()],
         scope: "openid profile".to_string(),
         token_endpoint_auth_method: "client_secret_post".to_string(),
+        application_type: "web".to_string(),
         client_uri: Some("https://example.com".to_string()),
         logo_uri: Some("https://example.com/logo.png".to_string()),
         contacts: Some(vec!["admin@example.com".to_string()]),
@@ -263,6 +296,7 @@ fn test_dynamic_registration_response_without_optional_fields() {
         response_types: vec!["code".to_string()],
         scope: "openid".to_string(),
         token_endpoint_auth_method: "none".to_string(),
+        application_type: "web".to_string(),
         client_uri: None,
         logo_uri: None,
         contacts: None,
@@ -299,6 +333,7 @@ fn test_dynamic_registration_response_serialize_skips_none_optional_fields() {
         response_types: vec!["code".to_string()],
         scope: "openid".to_string(),
         token_endpoint_auth_method: "none".to_string(),
+        application_type: "web".to_string(),
         client_uri: None,
         logo_uri: None,
         contacts: None,

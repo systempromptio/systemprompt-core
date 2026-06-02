@@ -296,6 +296,61 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
 }
 
 #[tokio::test]
+async fn register_client_echoes_native_application_type() -> anyhow::Result<()> {
+    use axum::Extension;
+    use systemprompt_identifiers::UserId;
+    use uuid::Uuid;
+
+    ensure_config();
+    let (pool, ctx) = setup_ctx().await?;
+
+    let user_id = UserId::new(format!("dcr-apptype-{}", Uuid::new_v4()));
+    {
+        let p = pool.pool_arc().expect("read pool");
+        sqlx::query(
+            "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
+        )
+        .bind(user_id.as_str())
+        .bind(format!("{}@dcr-fixture.invalid", user_id.as_str()))
+        .execute(p.as_ref())
+        .await?;
+    }
+
+    let mut req_ctx = super::common::request_context("ignored");
+    req_ctx.auth.actor.user_id = user_id.clone();
+
+    let state = OAuthState::new(
+        Arc::clone(ctx.db_pool()),
+        ctx.analytics_provider().expect("analytics"),
+        ctx.user_provider().expect("user"),
+    );
+    let app = systemprompt_api::routes::oauth::public_router()
+        .with_state(state)
+        .layer(Extension(req_ctx));
+
+    let body = serde_json::json!({
+        "client_name": "native-probe",
+        "redirect_uris": ["myapp://callback"],
+        "application_type": "native",
+    });
+    let resp = app.oneshot(json_post("/register", body)).await?;
+    let status = resp.status();
+    let (_, body_str) = super::common::body_to_string(resp).await?;
+    assert_eq!(
+        status.as_u16(),
+        201,
+        "expected 201 Created, got {status}: {body_str}"
+    );
+
+    let json: serde_json::Value = serde_json::from_str(&body_str)?;
+    assert_eq!(
+        json["application_type"], "native",
+        "application_type must echo the requested value; got {body_str}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn get_client_configuration_unknown_returns_4xx() -> anyhow::Result<()> {
     let app = authenticated_app().await?;
     let resp = app.oneshot(empty_get("/register/unknown_client")).await?;
