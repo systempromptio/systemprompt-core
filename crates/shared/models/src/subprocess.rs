@@ -23,7 +23,10 @@ pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
 /// letting a single-PID request escalate into a group or session-wide kill.
 #[must_use]
 pub fn signalable_pid(pid: u32) -> Option<i32> {
-    (pid != 0 && pid <= i32::MAX as u32).then_some(pid as i32)
+    if pid == 0 {
+        return None;
+    }
+    i32::try_from(pid).ok()
 }
 
 #[must_use]
