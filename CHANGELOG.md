@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.4] - 2026-06-02
+
+### Fixed
+
+- The bridge installs the Claude Desktop managed-policy profile under a UAC prompt instead of failing on a standard Windows account. The policy lives under `SOFTWARE\Policies\Claude`, an ACL-protected subtree no non-elevated token can create in either hive, so the in-process registry write returned `ERROR_ACCESS_DENIED` (status 5) for every unprivileged install. The bridge now relaunches itself elevated to write the policy machine-wide (`HKEY_LOCAL_MACHINE`) when it is not already elevated, explains the upcoming prompt in the activity log, and reports a declined prompt or an access-denied write with an actionable message rather than a raw status code. (bridge 0.10.7)
+
 ## [0.14.3] - 2026-06-02
 
 ### Fixed
