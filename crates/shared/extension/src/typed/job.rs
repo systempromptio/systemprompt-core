@@ -1,5 +1,9 @@
-//! [`JobExtensionTyped`] — typed contract for extensions that contribute
-//! scheduled jobs.
+//! [`JobExtensionTyped`] — typed capability manifest for extensions that
+//! contribute jobs.
+//!
+//! This is introspection only. The scheduler discovers and runs jobs from the
+//! `inventory` catalog (`submit_job!`); it never reads this trait. The manifest
+//! exists so CLI/plugin tooling can attribute a job to its owning extension.
 
 use std::sync::Arc;
 

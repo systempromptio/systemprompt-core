@@ -76,6 +76,22 @@ mod additional_variants {
     }
 
     #[test]
+    fn unknown_job_lists_offending_names() {
+        let err = SchedulerError::UnknownJob {
+            names: "governance_bootstrap, typo_job".to_string(),
+        };
+        let msg = err.to_string();
+        assert!(
+            msg.contains("governance_bootstrap") && msg.contains("typo_job"),
+            "UnknownJob message must list every offending name"
+        );
+        assert!(
+            msg.contains("submit_job!"),
+            "UnknownJob message should point at the inventory registration macro"
+        );
+    }
+
+    #[test]
     fn io_error_from_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
         let scheduler_err = SchedulerError::from(io_err);

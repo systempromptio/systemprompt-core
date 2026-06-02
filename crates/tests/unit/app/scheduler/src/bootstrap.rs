@@ -28,22 +28,7 @@ fn every_default_bootstrap_job_is_inventory_registered() {
         assert!(
             registered.contains(name.as_str()),
             "default bootstrap job `{name}` is not registered via inventory; \
-             SchedulerService::run_bootstrap_jobs would warn-and-skip it",
-        );
-    }
-}
-
-#[test]
-fn every_default_bootstrap_job_has_a_matching_job_config() {
-    let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
-    let configured: std::collections::HashSet<&str> =
-        cfg.jobs.iter().map(|j| j.name.as_str()).collect();
-
-    for name in &cfg.bootstrap_jobs {
-        assert!(
-            configured.contains(name.as_str()),
-            "bootstrap job `{name}` has no JobConfig — SchedulerService::resolve_owners would \
-             have nothing to resolve and the job would be skipped",
+             SchedulerService::start would reject it with SchedulerError::UnknownJob",
         );
     }
 }

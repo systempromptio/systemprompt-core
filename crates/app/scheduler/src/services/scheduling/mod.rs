@@ -91,6 +91,7 @@ impl SchedulerService {
         let resolved_owners = Self::resolve_owners(&self.db_pool, &self.config.jobs).await?;
 
         let registered_jobs = Self::discover_jobs();
+        self.validate_configured_jobs(&registered_jobs)?;
 
         debug!(
             "Discovered {} jobs via inventory, {} configured",
@@ -147,6 +148,36 @@ impl SchedulerService {
             .collect()
     }
 
+    /// Fails loud if any name in `jobs` or `bootstrap_jobs` is absent from the
+    /// inventory catalog. The inventory is authoritative — a configured name
+    /// with no `submit_job!` registration is a wiring typo, not a silent skip.
+    /// (A registered job absent from `jobs` is fine: an intentional cron
+    /// opt-out.)
+    fn validate_configured_jobs(
+        &self,
+        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
+    ) -> SchedulerResult<()> {
+        let mut unknown: Vec<&str> = Vec::new();
+        for name in self
+            .config
+            .jobs
+            .iter()
+            .map(|job| job.name.as_str())
+            .chain(self.config.bootstrap_jobs.iter().map(String::as_str))
+        {
+            if !registered_jobs.contains_key(name) && !unknown.contains(&name) {
+                unknown.push(name);
+            }
+        }
+        if unknown.is_empty() {
+            Ok(())
+        } else {
+            Err(SchedulerError::UnknownJob {
+                names: unknown.join(", "),
+            })
+        }
+    }
+
     async fn register_jobs(&self, ctx: &RegistrationCtx<'_>) -> SchedulerResult<()> {
         for job_config in &self.config.jobs {
             self.register_single_job(ctx, job_config).await?;
@@ -182,6 +213,14 @@ impl SchedulerService {
             .clone()
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| registered_job.schedule().to_owned());
+
+        if schedule.is_empty() {
+            info!(
+                job = %job_config.name,
+                "Job has an empty schedule; bootstrap/manual-only, not cron-scheduled"
+            );
+            return Ok(());
+        }
 
         self.repository
             .upsert_job(&job_config.name, &schedule, job_config.enabled)

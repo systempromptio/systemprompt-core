@@ -20,6 +20,12 @@ pub enum SchedulerError {
     #[error("Job not found: {job_name}")]
     JobNotFound { job_name: String },
 
+    #[error(
+        "Scheduler config references job(s) not present in the inventory catalog: {names}. \
+         Every name in `jobs`/`bootstrap_jobs` must be registered via `submit_job!`."
+    )]
+    UnknownJob { names: String },
+
     #[error("Invalid cron schedule: {schedule}")]
     InvalidSchedule { schedule: String },
 

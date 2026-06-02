@@ -34,6 +34,13 @@ pub trait Extension: Send + Sync + 'static {
         None
     }
 
+    /// Per-extension job manifest, for CLI/plugin attribution only.
+    ///
+    /// The scheduler does **not** consult this method: it discovers runnable
+    /// jobs from the `inventory` catalog populated by `submit_job!`. This list
+    /// is used by `jobs list` and plugin-capability commands to attribute a job
+    /// to the extension that owns it; an entry here that is never
+    /// `submit_job!`d is invisible to scheduling.
     fn jobs(&self) -> Vec<Arc<dyn Job>> {
         vec![]
     }
