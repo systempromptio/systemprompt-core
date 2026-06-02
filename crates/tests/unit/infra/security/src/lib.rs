@@ -3,6 +3,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod acl_glob;
+#[cfg(test)]
 mod at_rest;
 #[cfg(test)]
 mod error_display;
