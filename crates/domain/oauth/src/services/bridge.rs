@@ -247,6 +247,7 @@ pub async fn provision_bridge_oauth_client(
             response_types: Some(Vec::new()),
             scopes: scopes.clone(),
             token_endpoint_auth_method: Some("client_secret_post".to_owned()),
+            application_type: "web".to_owned(),
             client_uri: None,
             logo_uri: None,
             contacts: None,

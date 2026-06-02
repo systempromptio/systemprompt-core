@@ -53,6 +53,7 @@ pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthC
         response_types: Some(vec!["code".to_owned()]),
         scopes: vec!["openid".to_owned(), "profile".to_owned()],
         token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,

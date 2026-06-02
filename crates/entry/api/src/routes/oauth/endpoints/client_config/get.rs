@@ -54,6 +54,7 @@ pub async fn get_client_configuration(
         response_types: client.response_types,
         scope: client.scopes.join(" "),
         token_endpoint_auth_method: client.token_endpoint_auth_method,
+        application_type: client.application_type,
         client_uri: client.client_uri,
         logo_uri: client.logo_uri,
         contacts: client.contacts,

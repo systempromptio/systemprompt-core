@@ -24,6 +24,7 @@ pub struct OAuthClientRow {
     pub client_name: String,
     pub name: Option<String>,
     pub token_endpoint_auth_method: Option<String>,
+    pub application_type: String,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
     pub is_active: Option<bool>,
@@ -44,6 +45,7 @@ pub struct OAuthClient {
     pub response_types: Vec<String>,
     pub scopes: Vec<String>,
     pub token_endpoint_auth_method: String,
+    pub application_type: String,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
     pub contacts: Option<Vec<String>>,
@@ -67,6 +69,7 @@ impl OAuthClient {
             token_endpoint_auth_method: row
                 .token_endpoint_auth_method
                 .unwrap_or_else(|| "client_secret_post".to_owned()),
+            application_type: row.application_type,
             client_uri: row.client_uri,
             logo_uri: row.logo_uri,
             contacts: relations.contacts,

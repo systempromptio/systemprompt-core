@@ -340,6 +340,7 @@ async fn seed_client_with_scopes(scopes: Vec<&str>) -> anyhow::Result<OAuthClien
         response_types: Some(vec![]),
         scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
         token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,

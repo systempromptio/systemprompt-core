@@ -59,6 +59,7 @@ pub async fn update_client_configuration(
         response_types: existing_client.response_types,
         scope: existing_client.scopes.join(" "),
         token_endpoint_auth_method: existing_client.token_endpoint_auth_method,
+        application_type: existing_client.application_type,
         client_uri: request.client_uri,
         logo_uri: request.logo_uri,
         contacts: request.contacts,

@@ -14,7 +14,9 @@ use std::sync::Arc;
 
 use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::services::request_base_url::RequestBaseUrl;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
@@ -79,6 +81,7 @@ async fn verify_completion(
 
 pub async fn handle_webauthn_complete(
     headers: HeaderMap,
+    base: RequestBaseUrl,
     Query(params): Query<WebAuthnCompleteQuery>,
     State(state): State<OAuthState>,
     OAuthRepo(repo): OAuthRepo,
@@ -93,11 +96,17 @@ pub async fn handle_webauthn_complete(
     let authorization_code = generate_secure_token("auth_code");
     store_authorization_code(&repo, &authorization_code, &params).await?;
 
+    // RFC 9207: the authorization response carries `iss` so the client can bind the
+    // code to this issuer. Derive it the same way discovery does, so the emitted
+    // value is byte-identical to the advertised `issuer`.
+    let issuer = OAuthServerConfig::from_api_server_url(base.as_str()).issuer;
+
     Ok(create_successful_response(
         &headers,
         &redirect_uri,
         &authorization_code,
         &params,
+        &issuer,
     ))
 }
 
@@ -162,6 +171,7 @@ fn create_successful_response(
     redirect_uri: &str,
     authorization_code: &str,
     params: &WebAuthnCompleteQuery,
+    issuer: &str,
 ) -> Response {
     let state = params.state.as_deref().filter(|s| !s.is_empty());
 
@@ -178,6 +188,7 @@ fn create_successful_response(
         if let Some(state_val) = state {
             target.push_str(&format!("&state={}", urlencoding::encode(state_val)));
         }
+        target.push_str(&format!("&iss={}", urlencoding::encode(issuer)));
         Redirect::to(&target).into_response()
     } else {
         let response_data = WebAuthnCompleteResponse {

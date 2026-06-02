@@ -32,6 +32,7 @@ async fn create_test_client(db: &systemprompt_database::DbPool, client_id: &Clie
         response_types: None,
         scopes: vec!["openid".to_string()],
         token_endpoint_auth_method: None,
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,

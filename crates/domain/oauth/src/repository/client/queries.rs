@@ -11,8 +11,8 @@ impl ClientRepository {
         let row = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
-                    client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, \
-             owner_user_id
+                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
+             last_used_at, owner_user_id
              FROM oauth_clients WHERE client_id = $1 AND is_active = true",
             client_id_str
         )
@@ -33,8 +33,8 @@ impl ClientRepository {
         let row = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
-                    client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, \
-             owner_user_id
+                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
+             last_used_at, owner_user_id
              FROM oauth_clients WHERE client_id = $1",
             client_id_str
         )
@@ -54,8 +54,8 @@ impl ClientRepository {
         let rows = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
-                    client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, \
-             owner_user_id
+                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
+             last_used_at, owner_user_id
              FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC"
         )
         .fetch_all(&*self.pool)
@@ -70,8 +70,8 @@ impl ClientRepository {
         let rows = sqlx::query_as!(
             OAuthClientRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
-                    client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, \
-             owner_user_id
+                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
+             last_used_at, owner_user_id
              FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC
              LIMIT $1 OFFSET $2",
             limit_i64,
@@ -95,7 +95,7 @@ impl ClientRepository {
         let row = sqlx::query_as!(
             OAuthClientRow,
             r#"SELECT c.client_id, c.client_secret_hash, c.client_name, c.name,
-                      c.token_endpoint_auth_method, c.client_uri, c.logo_uri,
+                      c.token_endpoint_auth_method, c.application_type, c.client_uri, c.logo_uri,
                       c.is_active, c.created_at, c.updated_at, c.last_used_at, c.owner_user_id
              FROM oauth_clients c
              INNER JOIN oauth_client_redirect_uris r ON c.client_id = r.client_id

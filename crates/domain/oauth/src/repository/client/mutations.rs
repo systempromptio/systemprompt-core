@@ -35,9 +35,10 @@ impl ClientRepository {
             r#"
             WITH new_client AS (
                 INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
-                                           token_endpoint_auth_method, client_uri, logo_uri,
+                                           token_endpoint_auth_method, application_type,
+                                           client_uri, logo_uri,
                                            is_active, created_at, updated_at, owner_user_id)
-                VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7, $13)
+                VALUES ($1, $2, $3, $4, $14, $5, $6, true, $7, $7, $13)
             ),
             new_uris AS (
                 INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
@@ -73,6 +74,7 @@ impl ClientRepository {
             &params.scopes,
             contacts_list,
             params.owner_user_id.as_str(),
+            params.application_type,
         )
         .execute(&*self.write_pool)
         .await?;
@@ -83,6 +85,7 @@ impl ClientRepository {
             client_name: params.client_name,
             name: None,
             token_endpoint_auth_method: Some(auth_method.to_owned()),
+            application_type: params.application_type,
             client_uri: params.client_uri,
             logo_uri: params.logo_uri,
             is_active: Some(true),

@@ -45,6 +45,7 @@ pub async fn create_client(
         response_types: Some(vec!["code".to_owned()]),
         scopes: request.scopes.clone(),
         token_endpoint_auth_method: Some("client_secret_basic".to_owned()),
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,

@@ -28,6 +28,7 @@ pub struct WellKnownResponse {
     pub subject_types_supported: Vec<String>,
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub claims_supported: Vec<String>,
+    pub authorization_response_iss_parameter_supported: bool,
 }
 
 pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
@@ -66,6 +67,7 @@ pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
             "aud".to_owned(),
             "jti".to_owned(),
         ],
+        authorization_response_iss_parameter_supported: true,
     };
 
     (StatusCode::OK, Json(response)).into_response()

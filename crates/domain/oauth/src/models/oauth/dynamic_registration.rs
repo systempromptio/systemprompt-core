@@ -12,6 +12,7 @@ pub struct DynamicRegistrationRequest {
     pub response_types: Option<Vec<String>>,
     pub scope: Option<String>,
     pub token_endpoint_auth_method: Option<String>,
+    pub application_type: Option<String>,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
     pub contacts: Option<Vec<String>>,
@@ -29,6 +30,7 @@ pub struct DynamicRegistrationResponse {
     pub response_types: Vec<String>,
     pub scope: String,
     pub token_endpoint_auth_method: String,
+    pub application_type: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_uri: Option<String>,
@@ -99,5 +101,17 @@ impl DynamicRegistrationRequest {
             // RFC 7591 §2: server defaults this when client omits it; client_secret_basic is the
             // spec default.
             .unwrap_or_else(|| "client_secret_basic".to_owned())
+    }
+
+    pub fn get_application_type(&self) -> Result<String, String> {
+        match self.application_type.as_deref().filter(|t| !t.is_empty()) {
+            // OIDC Dynamic Client Registration §2: the only registered values are "web" and
+            // "native"; "web" is the default when the client omits the field.
+            None => Ok("web".to_owned()),
+            Some(t @ ("web" | "native")) => Ok(t.to_owned()),
+            Some(other) => Err(format!(
+                "application_type must be \"web\" or \"native\", got {other:?}"
+            )),
+        }
     }
 }

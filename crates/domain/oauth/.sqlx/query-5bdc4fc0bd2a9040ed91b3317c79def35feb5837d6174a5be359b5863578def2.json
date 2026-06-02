@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,\n                    client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, owner_user_id\n             FROM oauth_clients WHERE client_id = $1 AND is_active = true",
+  "query": "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,\n                    application_type, client_uri, logo_uri, is_active, created_at, updated_at, last_used_at, owner_user_id\n             FROM oauth_clients WHERE client_id = $1 AND is_active = true",
   "describe": {
     "columns": [
       {
@@ -30,36 +30,41 @@
       },
       {
         "ordinal": 5,
-        "name": "client_uri",
+        "name": "application_type",
         "type_info": "Text"
       },
       {
         "ordinal": 6,
-        "name": "logo_uri",
+        "name": "client_uri",
         "type_info": "Text"
       },
       {
         "ordinal": 7,
+        "name": "logo_uri",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
         "name": "is_active",
         "type_info": "Bool"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "updated_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "last_used_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "owner_user_id",
         "type_info": "Text"
       }
@@ -75,6 +80,7 @@
       false,
       true,
       true,
+      false,
       true,
       true,
       false,
@@ -84,5 +90,5 @@
       false
     ]
   },
-  "hash": "1d82938f6774b97be27001104693810ba75eeffd642b3656d079da78d552f8d7"
+  "hash": "5bdc4fc0bd2a9040ed91b3317c79def35feb5837d6174a5be359b5863578def2"
 }

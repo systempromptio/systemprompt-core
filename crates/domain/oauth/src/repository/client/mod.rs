@@ -37,6 +37,7 @@ pub struct CreateClientParams {
     pub response_types: Option<Vec<String>>,
     pub scopes: Vec<String>,
     pub token_endpoint_auth_method: Option<String>,
+    pub application_type: String,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
     pub contacts: Option<Vec<String>>,

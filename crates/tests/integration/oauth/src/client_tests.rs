@@ -33,6 +33,7 @@ async fn test_client_lifecycle() {
         response_types: Some(response_types),
         scopes: scopes.clone(),
         token_endpoint_auth_method: Some("client_secret_post".to_string()),
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,
@@ -117,6 +118,7 @@ async fn test_client_update() {
         response_types: None,
         scopes: original_scopes,
         token_endpoint_auth_method: None,
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,
@@ -170,6 +172,7 @@ async fn test_client_secret_update() {
         response_types: None,
         scopes: vec!["openid".to_string()],
         token_endpoint_auth_method: None,
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,
@@ -213,6 +216,7 @@ async fn test_client_counting() {
         response_types: None,
         scopes: vec!["openid".to_string()],
         token_endpoint_auth_method: None,
+        application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
         contacts: None,
@@ -244,4 +248,40 @@ async fn test_client_counting() {
         count_after_delete >= 0,
         "Count should be non-negative after delete"
     );
+}
+
+#[tokio::test]
+async fn test_application_type_round_trip() {
+    let db = setup_test_db().await;
+    let repo = ClientRepository::new(&db).expect("Failed to create repository");
+
+    let client_id = test_client_id();
+
+    let create_params = CreateClientParams {
+        client_id: client_id.clone(),
+        owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
+        client_secret_hash: "hash".to_string(),
+        client_name: "Native App".to_string(),
+        redirect_uris: vec!["myapp://callback".to_string()],
+        grant_types: None,
+        response_types: None,
+        scopes: vec!["openid".to_string()],
+        token_endpoint_auth_method: None,
+        application_type: "native".to_owned(),
+        client_uri: None,
+        logo_uri: None,
+        contacts: None,
+    };
+
+    let created = repo.create(create_params).await.expect("create client");
+    assert_eq!(created.application_type, "native");
+
+    let fetched = repo
+        .get_by_client_id(&client_id)
+        .await
+        .expect("query client")
+        .expect("client present");
+    assert_eq!(fetched.application_type, "native");
+
+    repo.delete(&client_id).await.ok();
 }

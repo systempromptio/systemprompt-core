@@ -55,6 +55,9 @@ pub async fn register_client(
     let scopes = determine_scopes(&request)
         .map_err(|e| OAuthHttpError::invalid_client_metadata(format!("Invalid scopes: {e}")))?;
     let token_endpoint_auth_method = request.get_token_endpoint_auth_method();
+    let application_type = request
+        .get_application_type()
+        .map_err(OAuthHttpError::invalid_client_metadata)?;
 
     let params = CreateClientParams {
         client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
@@ -66,6 +69,7 @@ pub async fn register_client(
         response_types: Some(response_types.clone()),
         scopes: scopes.clone(),
         token_endpoint_auth_method: Some(token_endpoint_auth_method.clone()),
+        application_type: application_type.clone(),
         client_uri: request.client_uri.clone(),
         logo_uri: request.logo_uri.clone(),
         contacts: request.contacts.clone(),
@@ -89,6 +93,7 @@ pub async fn register_client(
         response_types,
         scope: scopes.join(" "),
         token_endpoint_auth_method,
+        application_type,
         client_uri: request.client_uri,
         logo_uri: request.logo_uri,
         contacts: request.contacts,

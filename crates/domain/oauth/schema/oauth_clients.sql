@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
     client_name VARCHAR(255) NOT NULL,
     name VARCHAR(255) DEFAULT NULL,
     token_endpoint_auth_method TEXT DEFAULT 'client_secret_post',
+    application_type TEXT NOT NULL DEFAULT 'web',
     client_uri TEXT,
     logo_uri TEXT,
     is_active BOOLEAN NOT NULL DEFAULT true,
