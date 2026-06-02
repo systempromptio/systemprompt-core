@@ -19,8 +19,8 @@ pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
 /// A `u32` above `i32::MAX` wraps to a negative `i32`, and `kill(2)` reads a
 /// negative pid as a *process group* — `-1` broadcasts to **every** process the
 /// caller may signal, and `0` means the caller's own group. Routing every pid
-/// through this guard turns those cases into a no-op (`None`) instead of letting
-/// a single-PID request escalate into a group or session-wide kill.
+/// through this guard turns those cases into a no-op (`None`) instead of
+/// letting a single-PID request escalate into a group or session-wide kill.
 #[must_use]
 pub fn signalable_pid(pid: u32) -> Option<i32> {
     (pid != 0 && pid <= i32::MAX as u32).then_some(pid as i32)
