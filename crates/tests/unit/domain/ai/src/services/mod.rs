@@ -1,6 +1,7 @@
 //! Tests for services module.
 
 mod config;
+mod core;
 mod gateway;
 mod providers;
 mod schema;
