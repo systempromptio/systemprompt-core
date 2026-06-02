@@ -188,3 +188,89 @@ fn filter_value_types() {
         .with_level("WARN".to_owned())
         .with_since(Utc::now() - ChronoDuration::hours(1));
 }
+
+async fn insert_ai_request(pool: &sqlx::PgPool, trace_id: &str, status: &str) {
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    sqlx::query(
+        "INSERT INTO ai_requests \
+         (id, request_id, user_id, provider, model, actor_kind, actor_id, trace_id, status) \
+         VALUES ($1, $2, 'u', 'test', 'test', 'user', 'u', $3, $4)",
+    )
+    .bind(&id)
+    .bind(&id)
+    .bind(trace_id)
+    .bind(status)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+async fn insert_mcp_execution(pool: &sqlx::PgPool, trace_id: &str, status: &str) {
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    sqlx::query(
+        "INSERT INTO mcp_tool_executions \
+         (mcp_execution_id, tool_name, server_name, started_at, input, user_id, trace_id, status) \
+         VALUES ($1, 't', 's', now(), '{}', 'u', $2, $3)",
+    )
+    .bind(&id)
+    .bind(trace_id)
+    .bind(status)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+async fn insert_log(pool: &sqlx::PgPool, trace_id: &str, level: &str) {
+    sqlx::query("INSERT INTO logs (level, module, message, trace_id) VALUES ($1, 'm', 'msg', $2)")
+        .bind(level)
+        .bind(trace_id)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn list_traces_derives_status_for_non_agent_traces() {
+    let Some(pool) = pool_arc().await else { return };
+
+    let suffix = uuid::Uuid::new_v4().simple().to_string();
+    let tid = |label: &str| format!("t-{label}-{suffix}");
+
+    let ai_completed = tid("ai-done");
+    let ai_failed = tid("ai-fail");
+    let ai_pending = tid("ai-run");
+    let mcp_ok = tid("mcp-ok");
+    let mcp_timeout = tid("mcp-timeout");
+    let log_err = tid("log-err");
+    let log_info = tid("log-info");
+
+    insert_ai_request(&pool, &ai_completed, "completed").await;
+    insert_ai_request(&pool, &ai_failed, "failed").await;
+    insert_ai_request(&pool, &ai_pending, "pending").await;
+    insert_mcp_execution(&pool, &mcp_ok, "success").await;
+    insert_mcp_execution(&pool, &mcp_timeout, "timeout").await;
+    insert_log(&pool, &log_err, "ERROR").await;
+    insert_log(&pool, &log_info, "INFO").await;
+
+    let svc = TraceQueryService::new(std::sync::Arc::clone(&pool));
+    let items = svc.list_traces(&TraceListFilter::new(1000)).await.unwrap();
+
+    let by_id: std::collections::HashMap<String, String> = items
+        .into_iter()
+        .map(|i| (i.trace_id.as_str().to_owned(), i.status))
+        .collect();
+
+    let status_of = |id: &str| by_id.get(id).map(String::as_str);
+    assert_eq!(status_of(&ai_completed), Some("completed"));
+    assert_eq!(status_of(&ai_failed), Some("failed"));
+    assert_eq!(status_of(&ai_pending), Some("running"));
+    assert_eq!(status_of(&mcp_ok), Some("completed"));
+    assert_eq!(status_of(&mcp_timeout), Some("failed"));
+    assert_eq!(status_of(&log_err), Some("failed"));
+    assert_eq!(status_of(&log_info), Some("completed"));
+
+    assert!(
+        !by_id.values().any(|s| s == "unknown"),
+        "trace status must never fall back to the 'unknown' sentinel"
+    );
+}

@@ -13,7 +13,7 @@ struct TraceRow {
     first_timestamp: DateTime<Utc>,
     last_timestamp: DateTime<Utc>,
     agent: Option<String>,
-    status: Option<String>,
+    status: String,
     ai_requests: Option<i64>,
     mcp_calls: Option<i64>,
 }
@@ -72,9 +72,28 @@ pub(super) async fn list_traces(
                 (SELECT at.agent_name FROM agent_tasks at
                     WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
                     ORDER BY at.updated_at DESC LIMIT 1) as agent,
-                (SELECT at.status FROM agent_tasks at
-                    WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
-                    ORDER BY at.updated_at DESC LIMIT 1) as status,
+                COALESCE(
+                    CASE WHEN
+                           EXISTS (SELECT 1 FROM agent_tasks at WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
+                                   AND at.status IN ('TASK_STATE_PENDING','TASK_STATE_SUBMITTED','TASK_STATE_WORKING',
+                                                     'TASK_STATE_INPUT_REQUIRED','TASK_STATE_AUTH_REQUIRED'))
+                        OR EXISTS (SELECT 1 FROM ai_requests ar WHERE ar.trace_id = t.trace_id AND ar.status = 'pending')
+                        OR EXISTS (SELECT 1 FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id AND mte.status = 'pending')
+                           THEN 'running' END,
+                    CASE WHEN
+                           EXISTS (SELECT 1 FROM agent_tasks at WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
+                                   AND at.status IN ('TASK_STATE_FAILED','TASK_STATE_REJECTED'))
+                        OR EXISTS (SELECT 1 FROM ai_requests ar WHERE ar.trace_id = t.trace_id AND ar.status = 'failed')
+                        OR EXISTS (SELECT 1 FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id AND mte.status IN ('failed','timeout'))
+                        OR (    NOT EXISTS (SELECT 1 FROM agent_tasks at WHERE at.trace_id = t.trace_id AND at.trace_id <> '')
+                            AND NOT EXISTS (SELECT 1 FROM ai_requests ar WHERE ar.trace_id = t.trace_id)
+                            AND NOT EXISTS (SELECT 1 FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id)
+                            AND EXISTS (SELECT 1 FROM logs l WHERE l.trace_id = t.trace_id AND l.level = 'ERROR'))
+                           THEN 'failed' END,
+                    CASE WHEN EXISTS (SELECT 1 FROM agent_tasks at WHERE at.trace_id = t.trace_id AND at.trace_id <> ''
+                                      AND at.status = 'TASK_STATE_CANCELED') THEN 'canceled' END,
+                    'completed'
+                ) as status,
                 (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as ai_requests,
                 (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as mcp_calls
             FROM all_traces t
@@ -85,7 +104,7 @@ pub(super) async fn list_traces(
             first_ts as "first_timestamp!",
             last_ts as "last_timestamp!",
             agent as "agent",
-            status as "status",
+            status as "status!",
             ai_requests as "ai_requests",
             mcp_calls as "mcp_calls"
         FROM grouped

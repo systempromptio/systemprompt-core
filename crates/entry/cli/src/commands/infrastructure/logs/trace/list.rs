@@ -76,7 +76,7 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
                 trace_id: r.trace_id,
                 timestamp: r.first_timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
                 agent: r.agent,
-                status: r.status.unwrap_or_else(|| "unknown".to_owned()),
+                status: r.status,
                 duration_ms: (duration_ms > 0).then_some(duration_ms),
                 ai_requests: r.ai_requests,
                 mcp_calls: r.mcp_calls,

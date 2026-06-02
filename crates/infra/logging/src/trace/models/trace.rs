@@ -56,7 +56,7 @@ pub struct TraceListItem {
     pub first_timestamp: DateTime<Utc>,
     pub last_timestamp: DateTime<Utc>,
     pub agent: Option<String>,
-    pub status: Option<String>,
+    pub status: String,
     pub ai_requests: i64,
     pub mcp_calls: i64,
 }
