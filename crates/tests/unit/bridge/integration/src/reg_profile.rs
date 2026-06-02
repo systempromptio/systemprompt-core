@@ -45,20 +45,19 @@ fn empty_models_falls_back_to_defaults() {
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))
         .collect();
-    let parsed: Vec<String> =
-        serde_json::from_str(value_of(&entries, "inferenceModels")).expect("models is a json array");
-    assert!(parsed.len() >= 2, "expected default model list, got {parsed:?}");
+    let parsed: Vec<String> = serde_json::from_str(value_of(&entries, "inferenceModels"))
+        .expect("models is a json array");
+    assert!(
+        parsed.len() >= 2,
+        "expected default model list, got {parsed:?}"
+    );
     assert!(parsed.iter().any(|m| m == "claude-opus-4-7"));
 }
 
 #[test]
 fn render_targets_hkcu_unelevated_and_hklm_elevated() {
-    assert!(
-        render_reg(false, &inputs()).contains(r"[HKEY_CURRENT_USER\SOFTWARE\Policies\Claude]")
-    );
-    assert!(
-        render_reg(true, &inputs()).contains(r"[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]")
-    );
+    assert!(render_reg(false, &inputs()).contains(r"[HKEY_CURRENT_USER\SOFTWARE\Policies\Claude]"));
+    assert!(render_reg(true, &inputs()).contains(r"[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]"));
 }
 
 #[test]
@@ -91,5 +90,8 @@ fn parser_ignores_header_and_section_lines() {
     let parsed = parse_reg_entries(
         "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\SOFTWARE\\Policies\\Claude]\r\n\"inferenceProvider\"=\"gateway\"\r\n",
     );
-    assert_eq!(parsed, vec![("inferenceProvider".to_string(), "gateway".to_string())]);
+    assert_eq!(
+        parsed,
+        vec![("inferenceProvider".to_string(), "gateway".to_string())]
+    );
 }

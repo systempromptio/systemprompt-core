@@ -182,7 +182,11 @@ pub(crate) fn write_managed_policy_values(
     let key = create_policy_key(hive)?;
     for (name, value) in entries {
         set_string_value(key.0, name, value)?;
-        tracing::debug!(hive = hive_label, name, "wrote REG_SZ policy value");
+        tracing::debug!(
+            hive = hive_label,
+            name = name.as_str(),
+            "wrote REG_SZ policy value"
+        );
     }
     Ok(())
 }
@@ -198,7 +202,7 @@ fn create_policy_key(hive: HKEY) -> Result<OwnedKey, ConfigStoreError> {
             hive,
             subkey.as_ptr(),
             0,
-            std::ptr::null_mut(),
+            std::ptr::null(),
             REG_OPTION_NON_VOLATILE,
             KEY_WRITE | KEY_WOW64_64KEY,
             std::ptr::null(),

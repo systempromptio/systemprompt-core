@@ -1,10 +1,10 @@
 //! `.reg` serialisation for the Claude Desktop managed-policy profile.
 //!
 //! [`render_reg`] and [`parse_reg_entries`] are inverses: the GUI stages a
-//! `.reg` file for the operator to inspect, then the install path parses it back
-//! into the `(name, value)` pairs it writes to the registry in-process. Keeping
-//! both halves platform-independent lets the round-trip be unit-tested on every
-//! target while the Windows-only registry write stays in `windows.rs`.
+//! `.reg` file for the operator to inspect, then the install path parses it
+//! back into the `(name, value)` pairs it writes to the registry in-process.
+//! Keeping both halves platform-independent lets the round-trip be unit-tested
+//! on every target while the Windows-only registry write stays in `windows.rs`.
 
 use super::shared::{ProfileGenInputs, default_models};
 
