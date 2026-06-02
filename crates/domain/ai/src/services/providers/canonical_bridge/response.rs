@@ -39,7 +39,9 @@ pub fn tool_calls(response: &CanonicalResponse) -> Vec<ToolCall> {
         .content
         .iter()
         .filter_map(|part| match part {
-            CanonicalContent::ToolUse { id, name, input } => Some(ToolCall {
+            CanonicalContent::ToolUse {
+                id, name, input, ..
+            } => Some(ToolCall {
                 ai_tool_call_id: AiToolCallId::new(id.clone()),
                 name: name.clone(),
                 arguments: input.clone(),

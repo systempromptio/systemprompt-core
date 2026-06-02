@@ -87,6 +87,7 @@ pub(super) async fn generate_with_tool_results(
             id: tc.ai_tool_call_id.as_str().to_owned(),
             name: tc.name.clone(),
             input: tc.arguments.clone(),
+            signature: None,
         })
         .collect();
     if !assistant.is_empty() {
