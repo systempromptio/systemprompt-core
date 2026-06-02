@@ -28,9 +28,15 @@ mod posix_backend;
 #[cfg(test)]
 mod process_cleanup;
 #[cfg(test)]
+mod jobs_db;
+#[cfg(test)]
+mod reconciler_db;
+#[cfg(test)]
 mod repository_db;
 #[cfg(test)]
 mod service_config_manifest;
+#[cfg(test)]
+mod service_management_db;
 #[cfg(test)]
 mod state_transitions;
 #[cfg(test)]
