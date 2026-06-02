@@ -1,6 +1,8 @@
 //! Tests for error module types and implementations.
 
+use std::time::Duration;
 use systemprompt_ai::error::{AiError, RepositoryError};
+use systemprompt_database::resilience::Outcome;
 use systemprompt_identifiers::McpServerId;
 use uuid::Uuid;
 
@@ -255,5 +257,111 @@ mod repository_error_tests {
         let err = RepositoryError::PoolInitialization("connection timeout".to_string());
         let msg = err.to_string();
         assert!(msg.contains("connection timeout"));
+    }
+}
+
+mod classify_tests {
+    use super::*;
+
+    #[test]
+    fn http_status_429_is_transient_with_retry_after() {
+        let err = AiError::HttpStatus {
+            provider: "anthropic".to_string(),
+            status: 429,
+            retry_after: Some(Duration::from_secs(30)),
+            body: "slow down".to_string(),
+        };
+        assert!(matches!(
+            err.classify(),
+            Outcome::Transient {
+                retry_after: Some(d)
+            } if d == Duration::from_secs(30)
+        ));
+        assert!(err.to_string().contains("429"));
+    }
+
+    #[test]
+    fn http_status_400_is_permanent() {
+        let err = AiError::HttpStatus {
+            provider: "openai".to_string(),
+            status: 400,
+            retry_after: None,
+            body: "bad request".to_string(),
+        };
+        assert!(matches!(err.classify(), Outcome::Permanent));
+    }
+
+    #[test]
+    fn http_status_503_is_transient() {
+        let err = AiError::HttpStatus {
+            provider: "gemini".to_string(),
+            status: 503,
+            retry_after: None,
+            body: String::new(),
+        };
+        assert!(matches!(
+            err.classify(),
+            Outcome::Transient { retry_after: None }
+        ));
+    }
+
+    #[test]
+    fn rate_limit_is_transient() {
+        let err = AiError::RateLimit {
+            provider: "anthropic".to_string(),
+            details: "tpm exceeded".to_string(),
+        };
+        assert!(matches!(
+            err.classify(),
+            Outcome::Transient { retry_after: None }
+        ));
+    }
+
+    #[test]
+    fn timeout_is_transient_and_displays_provider() {
+        let err = AiError::Timeout {
+            provider: "openai".to_string(),
+            after_ms: 5000,
+        };
+        assert!(matches!(
+            err.classify(),
+            Outcome::Transient { retry_after: None }
+        ));
+        let msg = err.to_string();
+        assert!(msg.contains("openai"));
+        assert!(msg.contains("5000"));
+    }
+
+    #[test]
+    fn circuit_open_is_permanent() {
+        let err = AiError::CircuitOpen {
+            provider: "openai".to_string(),
+        };
+        assert!(matches!(err.classify(), Outcome::Permanent));
+        assert!(err.to_string().contains("Circuit breaker open"));
+    }
+
+    #[test]
+    fn dependency_unavailable_displays_and_is_permanent() {
+        let err = AiError::DependencyUnavailable {
+            provider: "gemini".to_string(),
+        };
+        assert!(matches!(err.classify(), Outcome::Permanent));
+        assert!(err.to_string().contains("concurrency limit"));
+    }
+
+    #[test]
+    fn internal_error_displays_message() {
+        let err = AiError::Internal("unexpected state".to_string());
+        assert!(err.to_string().contains("unexpected state"));
+        assert!(matches!(err.classify(), Outcome::Permanent));
+    }
+
+    #[test]
+    fn io_error_from_std_io() {
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "missing file");
+        let err: AiError = io.into();
+        assert!(err.to_string().contains("I/O error"));
+        assert!(matches!(err.classify(), Outcome::Permanent));
     }
 }

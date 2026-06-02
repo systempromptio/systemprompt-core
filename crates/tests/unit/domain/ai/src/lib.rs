@@ -14,4 +14,7 @@ mod extension;
 mod models;
 
 #[cfg(test)]
+mod repository;
+
+#[cfg(test)]
 mod services;

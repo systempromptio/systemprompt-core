@@ -5,13 +5,18 @@
 use std::time::Instant;
 
 use systemprompt_ai::models::ai::{AiContentPart, AiMessage, MessageRole, SamplingParams};
+use systemprompt_ai::models::ai::{ResponseFormat as AgentResponseFormat, StreamChunk};
+use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::canonical_bridge::{
-    BridgeProvider, CanonicalBuild, to_ai_response, to_code_execution, to_search_grounded,
+    BridgeProvider, CanonicalBuild, agent_response_format, event_to_chunk, text_content,
+    to_ai_response, to_code_execution, to_search_grounded, tool_calls, tools_to_canonical,
 };
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalResponse, CanonicalUsage, CodeExecutionOutput, GroundedSource,
-    Grounding, ImageSource,
+    CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
+    CodeExecutionOutput, GroundedSource, Grounding, ImageSource, ResponseFormat,
 };
+use serde_json::json;
 use uuid::Uuid;
 
 fn msg(role: MessageRole, content: &str) -> AiMessage {
@@ -211,4 +216,199 @@ fn to_code_execution_reports_failure_outcome() {
     let exec = to_code_execution(Instant::now(), &response);
     assert!(!exec.success);
     assert!(exec.error.is_some());
+}
+
+#[test]
+fn text_content_concatenates_only_text_parts() {
+    let response = CanonicalResponse {
+        id: "r".to_owned(),
+        model: "m".to_owned(),
+        content: vec![
+            CanonicalContent::Text("hello ".to_owned()),
+            CanonicalContent::ToolUse {
+                id: "t1".to_owned(),
+                name: "search".to_owned(),
+                input: json!({}),
+                signature: None,
+            },
+            CanonicalContent::Text("world".to_owned()),
+        ],
+        stop_reason: None,
+        usage: CanonicalUsage::default(),
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
+    };
+    assert_eq!(text_content(&response), "hello world");
+}
+
+#[test]
+fn tool_calls_extracts_tool_use_parts() {
+    let response = CanonicalResponse {
+        id: "r".to_owned(),
+        model: "m".to_owned(),
+        content: vec![
+            CanonicalContent::Text("ignored".to_owned()),
+            CanonicalContent::ToolUse {
+                id: "call-1".to_owned(),
+                name: "lookup".to_owned(),
+                input: json!({"q": "x"}),
+                signature: None,
+            },
+        ],
+        stop_reason: None,
+        usage: CanonicalUsage::default(),
+        grounding: None,
+        code_execution: None,
+        raw_finish_reason: None,
+    };
+    let calls = tool_calls(&response);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].name, "lookup");
+    assert_eq!(calls[0].ai_tool_call_id.as_str(), "call-1");
+    assert_eq!(calls[0].arguments, json!({"q": "x"}));
+}
+
+#[test]
+fn agent_response_format_text_maps_to_none() {
+    assert!(agent_response_format(&AgentResponseFormat::Text).is_none());
+}
+
+#[test]
+fn agent_response_format_json_object_maps_through() {
+    assert!(matches!(
+        agent_response_format(&AgentResponseFormat::JsonObject),
+        Some(ResponseFormat::JsonObject)
+    ));
+}
+
+#[test]
+fn agent_response_format_json_schema_defaults_name_and_strict() {
+    let format = AgentResponseFormat::JsonSchema {
+        schema: json!({"type": "object"}),
+        name: None,
+        strict: None,
+    };
+    match agent_response_format(&format) {
+        Some(ResponseFormat::JsonSchema { name, strict, .. }) => {
+            assert_eq!(name, "structured_output");
+            assert!(strict);
+        },
+        other => panic!("expected JsonSchema, got {other:?}"),
+    }
+}
+
+#[test]
+fn tools_to_canonical_fills_empty_schema_default() {
+    let tools = vec![
+        McpTool::new("with_schema", McpServerId::new("svc")),
+        {
+            let mut t = McpTool::new("with_schema", McpServerId::new("svc"));
+            t.input_schema = Some(json!({"type": "object", "properties": {"a": {}}}));
+            t
+        },
+    ];
+    let canonical = tools_to_canonical(tools);
+    assert_eq!(canonical.len(), 2);
+    // First tool had no schema, so it gets the empty-object default.
+    assert_eq!(
+        canonical[0].input_schema,
+        json!({"type": "object", "properties": {}})
+    );
+    assert_eq!(
+        canonical[1].input_schema,
+        json!({"type": "object", "properties": {"a": {}}})
+    );
+}
+
+#[test]
+fn event_to_chunk_text_delta_becomes_text() {
+    let chunk = event_to_chunk(CanonicalEvent::TextDelta {
+        index: 0,
+        text: "hi".to_owned(),
+    });
+    assert!(matches!(chunk, Some(StreamChunk::Text(t)) if t == "hi"));
+}
+
+#[test]
+fn event_to_chunk_empty_text_delta_is_dropped() {
+    let chunk = event_to_chunk(CanonicalEvent::TextDelta {
+        index: 0,
+        text: String::new(),
+    });
+    assert!(chunk.is_none());
+}
+
+#[test]
+fn event_to_chunk_usage_delta_carries_token_totals() {
+    let usage = CanonicalUsage {
+        input_tokens: 12,
+        output_tokens: 8,
+        cache_read_tokens: 3,
+        cache_creation_tokens: 0,
+        total_tokens: 20,
+    };
+    match event_to_chunk(CanonicalEvent::UsageDelta(usage)) {
+        Some(StreamChunk::Usage {
+            input_tokens,
+            output_tokens,
+            tokens_used,
+            cache_read_tokens,
+            cache_creation_tokens,
+            finish_reason,
+        }) => {
+            assert_eq!(input_tokens, Some(12));
+            assert_eq!(output_tokens, Some(8));
+            assert_eq!(tokens_used, Some(20));
+            assert_eq!(cache_read_tokens, Some(3));
+            assert_eq!(cache_creation_tokens, None);
+            assert!(finish_reason.is_none());
+        },
+        other => panic!("expected Usage chunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_to_chunk_message_stop_maps_finish_reason() {
+    match event_to_chunk(CanonicalEvent::MessageStop {
+        id: "m".to_owned(),
+        stop_reason: Some(CanonicalStopReason::MaxTokens),
+    }) {
+        Some(StreamChunk::Usage { finish_reason, .. }) => {
+            assert_eq!(finish_reason.as_deref(), Some("length"));
+        },
+        other => panic!("expected Usage chunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_to_chunk_tool_use_stop_reason_maps_to_tool_calls() {
+    match event_to_chunk(CanonicalEvent::MessageStop {
+        id: "m".to_owned(),
+        stop_reason: Some(CanonicalStopReason::ToolUse),
+    }) {
+        Some(StreamChunk::Usage { finish_reason, .. }) => {
+            assert_eq!(finish_reason.as_deref(), Some("tool_calls"));
+        },
+        other => panic!("expected Usage chunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_to_chunk_end_turn_maps_to_stop() {
+    match event_to_chunk(CanonicalEvent::MessageStop {
+        id: "m".to_owned(),
+        stop_reason: Some(CanonicalStopReason::EndTurn),
+    }) {
+        Some(StreamChunk::Usage { finish_reason, .. }) => {
+            assert_eq!(finish_reason.as_deref(), Some("stop"));
+        },
+        other => panic!("expected Usage chunk, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_to_chunk_other_events_are_dropped() {
+    assert!(event_to_chunk(CanonicalEvent::Error("boom".to_owned())).is_none());
+    assert!(event_to_chunk(CanonicalEvent::ContentBlockStop { index: 0 }).is_none());
 }
