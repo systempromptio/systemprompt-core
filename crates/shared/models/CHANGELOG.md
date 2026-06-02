@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.1] - 2026-06-01
+
+### Removed
+
+- `services::ai::AiProviderConfig.default_image_resolution` is removed. The field was parsed and stored but never read by any provider client; image resolution is governed by `ModelCapabilities.image_resolution_config` on the registry model.
+
 ## [0.14.0] - 2026-06-01
 
 ### Breaking

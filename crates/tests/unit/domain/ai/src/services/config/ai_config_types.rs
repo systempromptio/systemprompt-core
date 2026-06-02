@@ -53,7 +53,6 @@ mod ai_config_serde {
                 enabled: true,
                 default_model: "gpt-4".to_string(),
                 default_image_model: "dall-e-3".to_string(),
-                default_image_resolution: "1024x1024".to_string(),
                 google_search_enabled: false,
                 ..AiProviderConfig::default()
             },
@@ -178,7 +177,6 @@ mod ai_provider_config_tests {
         assert!(config.enabled);
         assert!(config.default_model.is_empty());
         assert!(config.default_image_model.is_empty());
-        assert!(config.default_image_resolution.is_empty());
         assert!(!config.google_search_enabled);
     }
 
@@ -195,7 +193,6 @@ mod ai_provider_config_tests {
             enabled: true,
             default_model: "gpt-4".to_string(),
             default_image_model: "dall-e-3".to_string(),
-            default_image_resolution: "1024x1024".to_string(),
             google_search_enabled: true,
             ..AiProviderConfig::default()
         };
@@ -204,7 +201,6 @@ mod ai_provider_config_tests {
         let deserialized: AiProviderConfig = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(deserialized.default_model, "gpt-4");
         assert_eq!(deserialized.default_image_model, "dall-e-3");
-        assert_eq!(deserialized.default_image_resolution, "1024x1024");
         assert!(deserialized.google_search_enabled);
     }
 }

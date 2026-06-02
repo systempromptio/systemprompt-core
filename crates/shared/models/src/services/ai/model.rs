@@ -104,9 +104,6 @@ pub struct AiProviderConfig {
     pub default_image_model: String,
 
     #[serde(default)]
-    pub default_image_resolution: String,
-
-    #[serde(default)]
     pub google_search_enabled: bool,
 
     /// Resilience policy applied to outbound AI provider calls (timeouts,
@@ -121,7 +118,6 @@ impl Default for AiProviderConfig {
             enabled: true,
             default_model: String::new(),
             default_image_model: String::new(),
-            default_image_resolution: String::new(),
             google_search_enabled: false,
             resilience: ResilienceSettings::default(),
         }

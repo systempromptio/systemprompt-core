@@ -18,7 +18,6 @@ fn create_valid_config() -> AiConfig {
             enabled: true,
             default_model: "gpt-4".to_string(),
             default_image_model: String::new(),
-            default_image_resolution: String::new(),
             google_search_enabled: false,
             ..AiProviderConfig::default()
         },
@@ -117,7 +116,6 @@ mod validate_providers_tests {
                 enabled: true,
                 default_model: "claude-3".to_string(),
                 default_image_model: String::new(),
-                default_image_resolution: String::new(),
                 google_search_enabled: false,
                 ..AiProviderConfig::default()
             },
@@ -140,7 +138,6 @@ mod validate_providers_tests {
                 enabled: true,
                 default_model: "claude-3".to_string(),
                 default_image_model: String::new(),
-                default_image_resolution: String::new(),
                 google_search_enabled: false,
                 ..AiProviderConfig::default()
             },
