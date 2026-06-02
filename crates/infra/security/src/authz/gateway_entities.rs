@@ -29,9 +29,7 @@ pub async fn reconcile_gateway_entities(
     route_ids: &[&str],
     source: &str,
 ) -> AuthzResult<usize> {
-    for id in route_ids {
-        repo.upsert_entity(EntityKind::GatewayRoute, id, false, source)
-            .await?;
-    }
+    repo.upsert_entities(EntityKind::GatewayRoute, route_ids, false, source)
+        .await?;
     Ok(route_ids.len())
 }

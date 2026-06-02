@@ -42,3 +42,11 @@ fn overlapping_prefix_and_suffix_does_not_false_match() {
     assert!(!glob_matches("abc*xyz", "abc"));
     assert!(glob_matches("abc*xyz", "abcxyz"));
 }
+
+#[test]
+fn multibyte_candidate_does_not_panic() {
+    assert!(glob_matches("*", "café-☕-server"));
+    assert!(glob_matches("café-*", "café-server"));
+    assert!(glob_matches("*-☕-*", "a-☕-b"));
+    assert!(!glob_matches("café-*", "tea-server"));
+}

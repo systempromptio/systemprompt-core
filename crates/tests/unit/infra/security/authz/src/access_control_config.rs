@@ -83,6 +83,46 @@ rules:
 }
 
 #[test]
+fn rejects_both_entity_id_and_match() {
+    let bad = r#"
+rules:
+  - entity_type: gateway_route
+    entity_id: claude-star
+    entity_match: "claude-*"
+    roles: [user]
+"#;
+    let err = serde_yaml::from_str::<AccessControlConfig>(bad)
+        .expect_err("setting both entity_id and entity_match must fail");
+    assert!(err.to_string().contains("both"), "got: {err}");
+}
+
+#[test]
+fn rejects_neither_entity_id_nor_match() {
+    let bad = r#"
+rules:
+  - entity_type: gateway_route
+    roles: [user]
+"#;
+    let err = serde_yaml::from_str::<AccessControlConfig>(bad)
+        .expect_err("setting neither entity_id nor entity_match must fail");
+    assert!(err.to_string().contains("neither"), "got: {err}");
+}
+
+#[test]
+fn parses_entity_match_glob_rule() {
+    let yaml = r#"
+rules:
+  - entity_type: gateway_route
+    entity_match: "*"
+    default_included: true
+    roles: [user]
+"#;
+    let cfg: AccessControlConfig = serde_yaml::from_str(yaml).expect("yaml parses");
+    assert_eq!(cfg.rules.len(), 1);
+    cfg.validate().expect("glob rule is valid");
+}
+
+#[test]
 fn empty_config_validates() {
     let cfg = AccessControlConfig::default();
     cfg.validate().expect("empty config is valid");

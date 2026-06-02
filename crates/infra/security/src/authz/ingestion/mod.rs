@@ -49,7 +49,6 @@ pub struct IngestReport {
 
 #[derive(Debug, Clone)]
 pub struct AccessControlIngestionService {
-    pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }
 
@@ -66,22 +65,24 @@ struct ResolvedRule<'a> {
 
 impl AccessControlIngestionService {
     pub fn new(db: &DbPool) -> AuthzResult<Self> {
-        let pool = db
-            .pool_arc()
-            .map_err(|err| AuthzError::Validation(err.to_string()))?;
         let write_pool = db
             .write_pool_arc()
             .map_err(|err| AuthzError::Validation(err.to_string()))?;
-        Ok(Self { pool, write_pool })
+        Ok(Self { write_pool })
     }
 
-    pub fn from_pool(pool: Arc<PgPool>) -> Self {
-        Self {
-            pool: Arc::clone(&pool),
-            write_pool: pool,
-        }
+    pub const fn from_pool(pool: Arc<PgPool>) -> Self {
+        Self { write_pool: pool }
     }
 
+    /// Projects [`AccessControlConfig`] into the authz tables.
+    ///
+    /// `entity_match` globs are resolved against rows **already present** in
+    /// `access_control_entities` for the rule's kind — entity bootstrap
+    /// (publish pipeline, gateway reconciliation) must therefore run before
+    /// ingestion, or a glob has nothing to expand over. Glob resolution reads
+    /// on the same transaction as the subsequent writes, so a concurrent writer
+    /// cannot insert a matching entity between the read and the commit.
     pub async fn ingest_config(
         &self,
         cfg: &AccessControlConfig,
@@ -89,9 +90,8 @@ impl AccessControlIngestionService {
     ) -> AuthzResult<IngestReport> {
         cfg.validate()?;
 
-        let resolved = self.resolve_rules(&cfg.rules).await?;
-
         let mut tx = self.write_pool.begin().await?;
+        let resolved = Self::resolve_rules(&mut tx, &cfg.rules).await?;
         let mut report = IngestReport::default();
 
         if options.delete_orphans {
@@ -168,7 +168,7 @@ impl AccessControlIngestionService {
     }
 
     async fn resolve_rules<'a>(
-        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         rules: &'a [RuleEntry],
     ) -> AuthzResult<Vec<ResolvedRule<'a>>> {
         let mut catalog_cache: HashMap<EntityKind, Vec<String>> = HashMap::new();
@@ -185,7 +185,7 @@ impl AccessControlIngestionService {
                     if let std::collections::hash_map::Entry::Vacant(entry) =
                         catalog_cache.entry(rule.entity_type)
                     {
-                        entry.insert(self.list_entity_ids(rule.entity_type).await?);
+                        entry.insert(Self::list_entity_ids(tx, rule.entity_type).await?);
                     }
                     catalog_cache[&rule.entity_type]
                         .iter()
@@ -207,7 +207,10 @@ impl AccessControlIngestionService {
         Ok(out)
     }
 
-    async fn list_entity_ids(&self, kind: EntityKind) -> AuthzResult<Vec<String>> {
+    async fn list_entity_ids(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        kind: EntityKind,
+    ) -> AuthzResult<Vec<String>> {
         let rows = sqlx::query!(
             r#"
             SELECT entity_id
@@ -216,7 +219,7 @@ impl AccessControlIngestionService {
             "#,
             kind.as_str(),
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&mut **tx)
         .await?;
         Ok(rows.into_iter().map(|row| row.entity_id).collect())
     }

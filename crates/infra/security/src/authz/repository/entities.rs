@@ -65,6 +65,41 @@ impl AccessControlRepository {
         Ok(())
     }
 
+    /// Upsert many entity catalog rows of one kind in a single round-trip,
+    /// sharing the same `default_included` and `source`. Equivalent to calling
+    /// [`Self::upsert_entity`] once per id but issues one statement instead of
+    /// `ids.len()` awaits.
+    pub async fn upsert_entities(
+        &self,
+        entity_type: EntityKind,
+        ids: &[&str],
+        default_included: bool,
+        source: &str,
+    ) -> AuthzResult<()> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let ids_owned: Vec<String> = ids.iter().map(|id| (*id).to_owned()).collect();
+        sqlx::query!(
+            r#"
+            INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
+            SELECT $1, id, $3, $4
+            FROM UNNEST($2::text[]) AS id
+            ON CONFLICT (entity_type, entity_id) DO UPDATE
+            SET default_included = EXCLUDED.default_included,
+                source = EXCLUDED.source,
+                updated_at = NOW()
+            "#,
+            entity_type.as_str(),
+            &ids_owned,
+            default_included,
+            source,
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
+
     /// Bulk-fetch every catalog row for a given kind. Used by the CLI lint and
     /// the publish-pipeline validator to detect rules pointing at entities
     /// the bootstrap pass never registered.

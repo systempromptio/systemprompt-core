@@ -1,4 +1,6 @@
-use systemprompt_security::authz::{Access, AccessControlConfig, EntityKind, RuleEntry};
+use systemprompt_security::authz::{
+    Access, AccessControlConfig, EntityKind, RuleEntry, RuleTarget,
+};
 
 fn make_rule(
     entity_id: &str,
@@ -8,8 +10,9 @@ fn make_rule(
 ) -> RuleEntry {
     RuleEntry {
         entity_type,
-        entity_id: entity_id.to_owned(),
+        target: RuleTarget::Id(entity_id.to_owned()),
         access,
+        default_included: false,
         roles: roles.iter().map(|s| s.to_string()).collect(),
         justification: None,
     }
@@ -120,13 +123,48 @@ fn multiple_validation_errors_join() {
 fn rule_entry_with_justification() {
     let rule = RuleEntry {
         entity_type: EntityKind::Hook,
-        entity_id: "my-hook".to_owned(),
+        target: RuleTarget::Id("my-hook".to_owned()),
         access: Access::Deny,
+        default_included: false,
         roles: vec!["external".to_owned()],
         justification: Some("ITAR restriction".to_owned()),
     };
     let cfg = AccessControlConfig { rules: vec![rule] };
     assert!(cfg.validate().is_ok());
+}
+
+#[test]
+fn entity_match_rule_validates() {
+    let cfg = AccessControlConfig {
+        rules: vec![RuleEntry {
+            entity_type: EntityKind::GatewayRoute,
+            target: RuleTarget::Match("*".to_owned()),
+            access: Access::Allow,
+            default_included: true,
+            roles: vec!["user".to_owned()],
+            justification: None,
+        }],
+    };
+    assert!(cfg.validate().is_ok());
+}
+
+#[test]
+fn empty_entity_match_fails() {
+    let cfg = AccessControlConfig {
+        rules: vec![RuleEntry {
+            entity_type: EntityKind::GatewayRoute,
+            target: RuleTarget::Match("   ".to_owned()),
+            access: Access::Allow,
+            default_included: false,
+            roles: vec!["user".to_owned()],
+            justification: None,
+        }],
+    };
+    let err = cfg.validate().unwrap_err();
+    assert!(
+        err.to_string().contains("entity_match is empty"),
+        "got: {err}"
+    );
 }
 
 #[test]
@@ -142,7 +180,7 @@ fn config_serde_roundtrip() {
     let s = serde_json::to_string(&cfg).unwrap();
     let back: AccessControlConfig = serde_json::from_str(&s).unwrap();
     assert_eq!(back.rules.len(), 1);
-    assert_eq!(back.rules[0].entity_id, "marketplace-1");
+    assert!(matches!(&back.rules[0].target, RuleTarget::Id(id) if id == "marketplace-1"));
     assert_eq!(back.rules[0].roles.len(), 2);
 }
 

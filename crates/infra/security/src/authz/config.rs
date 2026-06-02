@@ -20,20 +20,18 @@
 //! with no `roles:` set. Per-tenant attribute rules live in extension-owned
 //! tables and are evaluated by an extension `AuthzDecisionHook`.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize, Serializer};
 
 use super::error::AuthzError;
 use super::types::{Access, EntityKind};
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AccessControlConfig {
     #[serde(default)]
     pub rules: Vec<RuleEntry>,
 }
 
-/// The subject set a rule applies to: a literal id, or a `*`-glob over the
-/// catalog. Exactly one is set; the deserializer rejects zero or both.
 #[derive(Debug, Clone)]
 pub enum RuleTarget {
     Id(String),
@@ -70,6 +68,42 @@ struct RuleEntryWire {
 
 const fn default_allow() -> Access {
     Access::Allow
+}
+
+#[derive(Serialize)]
+struct RuleEntryOut<'a> {
+    entity_type: EntityKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entity_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entity_match: Option<&'a str>,
+    access: Access,
+    default_included: bool,
+    roles: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    justification: Option<&'a str>,
+}
+
+impl Serialize for RuleEntry {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let (entity_id, entity_match) = match &self.target {
+            RuleTarget::Id(id) => (Some(id.as_str()), None),
+            RuleTarget::Match(pattern) => (None, Some(pattern.as_str())),
+        };
+        RuleEntryOut {
+            entity_type: self.entity_type,
+            entity_id,
+            entity_match,
+            access: self.access,
+            default_included: self.default_included,
+            roles: &self.roles,
+            justification: self.justification.as_deref(),
+        }
+        .serialize(serializer)
+    }
 }
 
 impl<'de> Deserialize<'de> for RuleEntry {
