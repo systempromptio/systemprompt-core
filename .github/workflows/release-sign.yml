@@ -30,14 +30,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - run: cargo fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
+      # Scope the gate to the bridge package: `--all` formats/lints the whole
+      # enclosing workspace, so unrelated crates (committed by other work, and
+      # subject to nightly rustfmt churn) would block a bridge release.
+      - run: cargo fmt --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge -- --check
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: bin/bridge
-      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets -- -D warnings
+      - run: cargo clippy --manifest-path bin/bridge/Cargo.toml -p systemprompt-bridge --all-targets -- -D warnings
 
   build:
     name: Build ${{ matrix.target }}
