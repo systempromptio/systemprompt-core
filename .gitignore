@@ -104,7 +104,10 @@ internal/
 /assets/
 
 # Local-only scripts
-scripts/
+scripts/*
+# ...except the committed shard runner, the single source of truth shared by CI
+# (.github/workflows/ci.yml) and the local `just test-shard` recipes.
+!scripts/test-shard.sh
 
 # Local-only review notes
 review/

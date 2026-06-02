@@ -666,6 +666,52 @@ test-rust *args:
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         cargo test --manifest-path crates/tests/Cargo.toml --workspace --lib {{args}}
 
+# Install the prebuilt cargo-nextest binary (no compile) into CARGO_HOME/bin.
+# Required by `just test-shard` / `just test-all-shards`.
+install-nextest:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bin="${CARGO_HOME:-$HOME/.cargo}/bin"
+    echo "▶ installing cargo-nextest into ${bin}"
+    curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C "${bin}"
+    "${bin}/cargo-nextest" nextest --version
+
+# Run one CI shard locally against a fresh, freshly-migrated database.
+# Mirrors the CI `test` job exactly: the shard group→crate mapping and the
+# nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
+# drops+recreates the target DB so cross-run pollution can't occur. Override the
+# DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`.
+# Groups: shared infra domain app-entry bridge integration edge
+test-shard GROUP *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v cargo-nextest >/dev/null 2>&1 || {
+        echo "cargo-nextest not found — run 'just install-nextest' first" >&2
+        exit 1
+    }
+    db="${TEST_DATABASE_URL:-postgres://postgres:postgres@localhost:5432/systemprompt_test}"
+    base="${db%/*}"
+    name="${db##*/}"
+    echo "▶ resetting test database: ${name}"
+    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
+    psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
+    echo "▶ applying extension schemas (offline build)"
+    SQLX_OFFLINE=true DATABASE_URL="${db}" \
+        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --release
+    echo "▶ running shard {{GROUP}} (live against migrated schema)"
+    SQLX_OFFLINE=false DATABASE_URL="${db}" \
+        bash scripts/test-shard.sh {{GROUP}} {{args}}
+
+# Run every CI shard sequentially, each against its own fresh database.
+# Bounded compile + run memory per shard (no OOM); same definitions as CI.
+test-all-shards:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for g in $(scripts/test-shard.sh --list); do
+        echo "═══ shard: ${g} ═══"
+        just test-shard "${g}"
+    done
+
 # Initialize test database (REQUIRED before running tests)
 test-setup:
     #!/usr/bin/env bash

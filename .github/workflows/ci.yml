@@ -63,16 +63,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Prefixes are anchored at the test-workspace root (`/tests/`) so the
-          # bridge `integration` crate is not double-matched by `/integration/`.
-          - { group: shared, prefixes: "/tests/unit/shared/" }
-          - { group: infra, prefixes: "/tests/unit/infra/" }
-          - { group: domain, prefixes: "/tests/unit/domain/" }
-          - { group: app-entry, prefixes: "/tests/unit/app/ /tests/unit/entry/" }
-          - { group: bridge, prefixes: "/tests/unit/bridge/" }
-          - { group: integration, prefixes: "/tests/integration/" }
-          - { group: edge, prefixes: "/tests/concurrency/ /tests/property/ /tests/contract/" }
+        # Group names only; the group→prefix mapping, package selection, and
+        # nextest invocation live in scripts/test-shard.sh so CI and the local
+        # `just test-shard` recipes share one source of truth.
+        group: [shared, infra, domain, app-entry, bridge, integration, edge]
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
     # Drop debuginfo and incremental artifacts: each shard's compile footprint
@@ -144,17 +138,5 @@ jobs:
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           SQLX_OFFLINE: "false"
-        run: |
-          PKGS=$(cargo metadata --no-deps --format-version 1 \
-                   --manifest-path crates/tests/Cargo.toml \
-                 | jq -r --arg ps "${{ matrix.prefixes }}" '
-                     ($ps | split(" ") | map(select(length > 0))) as $prefixes
-                     | .packages[]
-                     | .manifest_path as $m
-                     | select($prefixes | any(. as $p | $m | contains($p)))
-                     | "-p \(.name)"' | tr '\n' ' ')
-          echo "shard packages: $PKGS"
-          test -n "$PKGS"
-          cargo nextest run --profile ci \
-            --manifest-path crates/tests/Cargo.toml \
-            --lib $PKGS --test-threads 4
+          NEXTEST_PROFILE: ci
+        run: bash scripts/test-shard.sh "${{ matrix.group }}"

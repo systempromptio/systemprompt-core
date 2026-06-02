@@ -287,15 +287,35 @@ MCP implementation in `crates/domain/mcp/`:
 
 ## Testing
 
-Tests are in a separate workspace at `crates/tests/` (excluded from main workspace):
+Tests are in a separate workspace at `crates/tests/` (66 crates, ~12k tests),
+excluded from the main workspace. The suite is too large to compile in one pass
+(`cargo test --workspace` links all 66 test binaries at once and OOMs the host),
+so it runs **sharded** under `cargo-nextest` — the same 7-shard split CI uses.
+The shard definitions live in `scripts/test-shard.sh`, the single source of
+truth shared by CI and the `just` recipes below.
+
+Each shard runs against a **fresh, freshly-migrated database** — never the dev
+`systemprompt-web` DB (its web-project triggers break core tests). The recipes
+drop+recreate the target DB (override with `TEST_DATABASE_URL`; default is a
+disposable `systemprompt_test`).
 
 ```bash
-# Run all tests
-cargo test --manifest-path crates/tests/Cargo.toml --workspace
+# One-time: install the prebuilt nextest binary (no compile)
+just install-nextest
 
-# Run specific test crate
-cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-agent-tests
+# Run one shard (bounded compile + run memory, fresh migrated DB).
+# Groups: shared infra domain app-entry bridge integration edge
+just test-shard shared
+
+# Run all 7 shards sequentially (each against its own fresh DB)
+just test-all-shards
+
+# Iterate on a single crate
+just unit-test-crate systemprompt-agent-tests
 ```
+
+The OOM-prone `just unit-test` / `just test-rust --workspace` forms still exist
+but are not the recommended path.
 
 ## Building
 
