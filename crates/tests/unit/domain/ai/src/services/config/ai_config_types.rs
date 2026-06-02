@@ -264,11 +264,13 @@ mod model_limits_tests {
         let limits = ModelLimits {
             context_window: 200000,
             max_output_tokens: 16384,
+            max_thinking_budget: Some(24576),
         };
         let json = serde_json::to_string(&limits).expect("serialize");
         let deserialized: ModelLimits = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(deserialized.context_window, 200000);
         assert_eq!(deserialized.max_output_tokens, 16384);
+        assert_eq!(deserialized.max_thinking_budget, Some(24576));
     }
 }
 
@@ -332,6 +334,7 @@ mod model_definition_tests {
             limits: ModelLimits {
                 context_window: 1000000,
                 max_output_tokens: 65536,
+                max_thinking_budget: None,
             },
             pricing: ModelPricing {
                 input_per_million: 3.0,
