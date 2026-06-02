@@ -186,3 +186,21 @@ mod services_includable;
 
 #[cfg(test)]
 mod paths_tests;
+
+#[cfg(test)]
+mod schema_sanitizer;
+
+#[cfg(test)]
+mod validators_driven;
+
+#[cfg(test)]
+mod wire_streaming;
+
+#[cfg(test)]
+mod profile_validation;
+
+#[cfg(test)]
+mod auth_claims;
+
+#[cfg(test)]
+mod canonical_request;
