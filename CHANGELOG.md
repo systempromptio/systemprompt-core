@@ -2,6 +2,11 @@
 
 ## [0.14.1] - 2026-06-01
 
+### Added
+
+- The AI gateway now resolves `policy.safety.scanners` against a scanner registry and **enforces** `policy.safety.block_categories`. Request-phase scanners selected by policy run before the upstream call; if any finding's category is listed in `block_categories`, the request is denied with `403` and an `ai_safety_findings` audit row, with no upstream dispatch. Response-phase scanning remains audit-only (the response is already streaming). Scanners are a Rust extension point: the built-in `heuristic` scanner ships in-tree, and extensions contribute additional scanners via `systemprompt-ai`'s `register_safety_scanner!`. An empty `scanners` list runs nothing — scanning is now fully config-driven.
+- Access-control rules can target entities by `*`-glob (`entity_match`) in addition to a literal `entity_id`; each glob is expanded against the entities already in the catalog for that `EntityKind`, one resolved rule per match. Gateway routes are now first-class authz entities — `GatewayState::resolved_route_ids` materialises their content-addressed ids straight from the typed profile, and a new `systemprompt admin config reconcile` command upserts the gateway-route entity rows so glob rules can resolve against them.
+
 ### Fixed
 
 - Process liveness checks now treat a zombie (exited-but-unreaped) child as dead. The MCP orchestrator's `is_process_running` previously reported a defunct server as alive because its PID still answered `kill(pid, 0)`; it now also rejects processes in state `Z`.
