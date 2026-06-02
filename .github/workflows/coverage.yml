@@ -115,6 +115,7 @@ jobs:
           echo "profraw count: $(find ${{ github.workspace }}/coverage-profraw -name '*.profraw' | wc -l)"
 
       - name: Merge profdata and render
+        if: always()
         run: |
           LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
           LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
@@ -146,6 +147,7 @@ jobs:
             > lcov.info
 
       - name: Upload coverage artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage
@@ -155,6 +157,7 @@ jobs:
             lcov.info
 
       - name: Upload coverage to Codecov
+        if: always()
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
