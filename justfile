@@ -62,7 +62,21 @@ bundle-bridge-mac TARGET="":
 sqlx-prepare:
     cargo sqlx prepare --workspace
 
-# Prepare per-crate SQLx caches for publishing (requires running database)
+# Prepare per-crate SQLx caches for publishing (requires running database).
+#
+# Each published crate ships its own `.sqlx/` so crates.io can build it offline.
+# `entry/api` is intentionally absent: it issues no SQL via `query!` macros, so
+# it needs no cache at all (confirmed by `sqlx-verify-offline`).
+#
+# Note on cache contents: single-crate `cargo sqlx prepare` runs `cargo check`,
+# which re-expands path-dependency `query!` macros, so each crate's `.sqlx/`
+# also captures a subset of its dependencies' queries. This overlap is inherent
+# to preparing individually-published workspace crates (workspace-mode prepare
+# would dedupe into one root cache, but crates.io builds each crate standalone).
+# The extra entries are inert — a crate only looks up hashes for macros it
+# actually compiles. Only regenerate when SQL changed, and review `git diff`:
+# pure churn with no SQL change is the prepare's non-determinism, not a real
+# delta, and need not be committed. `sqlx-verify-offline` is the correctness gate.
 sqlx-prepare-publish:
     #!/usr/bin/env bash
     set -e
@@ -72,7 +86,7 @@ sqlx-prepare-publish:
                  crates/domain/analytics crates/domain/agent crates/domain/oauth \
                  crates/domain/users crates/domain/content crates/domain/files \
                  crates/domain/ai crates/domain/mcp crates/app/scheduler \
-                 crates/app/sync crates/entry/cli crates/entry/api; do
+                 crates/app/sync crates/entry/cli; do
         echo "  Preparing $crate..."
         (cd "$crate" && cargo sqlx prepare)
     done
