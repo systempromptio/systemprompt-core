@@ -66,7 +66,7 @@ jobs:
         # Group names only; the group→prefix mapping, package selection, and
         # nextest invocation live in scripts/test-shard.sh so CI and the local
         # `just test-shard` recipes share one source of truth.
-        group: [shared, infra, domain, app, entry-api, entry-cli, bridge, integration, edge]
+        group: [shared, infra, domain, app-runtime, app-rest, entry-api, entry-cli, bridge, integration, edge]
     # This job verifies tests pass; linting the (separate) test workspace
     # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
     # Drop debuginfo and incremental artifacts: each shard's compile footprint
