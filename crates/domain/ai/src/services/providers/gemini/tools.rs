@@ -8,6 +8,7 @@
 use std::time::Instant;
 
 use rmcp::model::RawContent;
+use serde_json::Value;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalToolChoice, Role, SearchConfig,
 };
@@ -102,8 +103,10 @@ pub(super) async fn generate_with_tool_results(
         .map(|(tc, tr)| CanonicalContent::ToolResult {
             // Gemini matches a functionResponse to its call by name, not id.
             tool_use_id: tc.name.clone(),
-            content: vec![CanonicalContent::Text(tool_result_text(tr))],
+            content: tool_result_content(tr),
             is_error: tr.is_error.unwrap_or(false),
+            structured_content: tr.structured_content.clone(),
+            meta: tool_result_meta(tr),
         })
         .collect();
     if !results.is_empty() {
@@ -128,14 +131,17 @@ pub(super) async fn generate_with_tool_results(
     ))
 }
 
-fn tool_result_text(result: &CallToolResult) -> String {
+fn tool_result_content(result: &CallToolResult) -> Vec<CanonicalContent> {
     result
         .content
         .iter()
         .filter_map(|c| match &c.raw {
-            RawContent::Text(text) => Some(text.text.as_str()),
+            RawContent::Text(text) => Some(CanonicalContent::Text(text.text.clone())),
             _ => None,
         })
-        .collect::<Vec<_>>()
-        .join("\n")
+        .collect()
+}
+
+fn tool_result_meta(result: &CallToolResult) -> Option<Value> {
+    result.meta.as_ref().and_then(|m| serde_json::to_value(m).ok())
 }

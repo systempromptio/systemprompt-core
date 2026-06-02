@@ -201,6 +201,7 @@ fn parse_content_block_tool_result_text_content() {
             tool_use_id,
             content,
             is_error,
+            ..
         }) => {
             assert_eq!(tool_use_id, "tu_1");
             assert!(!is_error);

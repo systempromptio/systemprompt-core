@@ -174,6 +174,8 @@ fn parse_function_call_output(item: &Value) -> CanonicalMessage {
             tool_use_id,
             content: vec![CanonicalContent::Text(output_text)],
             is_error: false,
+            structured_content: None,
+            meta: None,
         }],
     }
 }

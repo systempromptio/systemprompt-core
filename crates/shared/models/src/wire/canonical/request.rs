@@ -69,6 +69,8 @@ pub enum CanonicalContent {
         tool_use_id: String,
         content: Vec<Self>,
         is_error: bool,
+        structured_content: Option<Value>,
+        meta: Option<Value>,
     },
     Thinking {
         text: String,

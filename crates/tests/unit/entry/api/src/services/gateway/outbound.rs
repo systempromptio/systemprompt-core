@@ -482,6 +482,8 @@ async fn openai_chat_outbound_buffered_covers_messages_with_tools_and_images() {
             tool_use_id: "t1".into(),
             content: vec![CanonicalContent::Text("res".into())],
             is_error: false,
+            structured_content: None,
+            meta: None,
         }],
     });
     let ctx = OutboundCtx {

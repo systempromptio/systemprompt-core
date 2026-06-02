@@ -197,14 +197,22 @@ pub fn content_to_anthropic_block(part: &CanonicalContent) -> Value {
             tool_use_id,
             content,
             is_error,
+            structured_content,
+            meta,
         } => {
             let inner: Vec<Value> = content.iter().map(content_to_anthropic_block).collect();
-            json!({
-                "type": "tool_result",
-                "tool_use_id": tool_use_id,
-                "is_error": is_error,
-                "content": inner,
-            })
+            let mut obj = Map::new();
+            obj.insert("type".into(), Value::String("tool_result".into()));
+            obj.insert("tool_use_id".into(), Value::String(tool_use_id.clone()));
+            obj.insert("is_error".into(), Value::Bool(*is_error));
+            obj.insert("content".into(), Value::Array(inner));
+            if let Some(sc) = structured_content {
+                obj.insert("structuredContent".into(), sc.clone());
+            }
+            if let Some(m) = meta {
+                obj.insert("_meta".into(), m.clone());
+            }
+            Value::Object(obj)
         },
         CanonicalContent::Image(src) => match src {
             ImageSource::Base64 {

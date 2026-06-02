@@ -78,6 +78,8 @@ fn rich_request() -> CanonicalRequest {
                     tool_use_id: "tu1".into(),
                     content: vec![CanonicalContent::Text("results".into())],
                     is_error: false,
+                    structured_content: None,
+                    meta: None,
                 }],
             },
         ],

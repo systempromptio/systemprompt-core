@@ -68,6 +68,8 @@ fn content_block_helpers_cover_all_variants() {
             tool_use_id: "tu".into(),
             content: vec![CanonicalContent::Text("ok".into())],
             is_error: false,
+            structured_content: None,
+            meta: None,
         },
         CanonicalContent::Image(ImageSource::Base64 {
             media_type: "image/png".into(),

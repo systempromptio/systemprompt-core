@@ -142,6 +142,7 @@ fn parse_function_call_output_becomes_tool_result() {
             tool_use_id,
             content,
             is_error,
+            ..
         }) => {
             assert_eq!(tool_use_id, "call_1");
             assert!(!is_error);

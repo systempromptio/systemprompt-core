@@ -27,6 +27,8 @@ fn sample_response() -> CanonicalResponse {
                 tool_use_id: "t1".into(),
                 content: vec![],
                 is_error: false,
+                structured_content: None,
+                meta: None,
             },
         ],
         stop_reason: Some(CanonicalStopReason::EndTurn),

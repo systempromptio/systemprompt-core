@@ -167,7 +167,14 @@ fn content_to_part(part: &CanonicalContent) -> Option<GeminiPart> {
             tool_use_id,
             content,
             is_error,
-        } => Some(tool_result_part(tool_use_id, content, *is_error)),
+            structured_content,
+            ..
+        } => Some(tool_result_part(
+            tool_use_id,
+            content,
+            *is_error,
+            structured_content.as_ref(),
+        )),
         CanonicalContent::Thinking { .. } => None,
     }
 }
@@ -188,12 +195,18 @@ fn image_part(src: &ImageSource) -> GeminiPart {
     }
 }
 
-fn tool_result_part(tool_use_id: &str, content: &[CanonicalContent], is_error: bool) -> GeminiPart {
-    let text = flatten_text(content);
+fn tool_result_part(
+    tool_use_id: &str,
+    content: &[CanonicalContent],
+    is_error: bool,
+    structured_content: Option<&Value>,
+) -> GeminiPart {
     let response = if is_error {
-        json!({ "error": text })
+        json!({ "error": flatten_text(content) })
+    } else if let Some(sc) = structured_content {
+        json!({ "result": sc })
     } else {
-        json!({ "result": text })
+        json!({ "result": flatten_text(content) })
     };
     GeminiPart::FunctionResponse {
         function_response: GeminiFunctionResponse {

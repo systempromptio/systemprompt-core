@@ -106,6 +106,8 @@ fn parse_content_block(value: &Value) -> Result<CanonicalContent, InboundParseEr
                     .get("is_error")
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
+                structured_content: value.get("structuredContent").cloned(),
+                meta: value.get("_meta").cloned(),
             })
         },
         "thinking" => Ok(CanonicalContent::Thinking {
