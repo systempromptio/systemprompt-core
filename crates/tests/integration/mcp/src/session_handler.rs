@@ -1,8 +1,5 @@
-//! Integration tests for [`DatabaseSessionHandler`].
-//!
-//! Drives the real `SessionManager` lifecycle (create / has / accept / close /
-//! resume) against a real DbPool so the database-persistence branches (which
-//! the lifecycle integration tests do not touch) get exercised.
+//! `DatabaseSessionHandler` create/has/close lifecycle against a real
+//! `DbPool`, exercising the database-persistence branches.
 
 #![cfg(unix)]
 

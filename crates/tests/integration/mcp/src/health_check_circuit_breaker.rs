@@ -1,11 +1,6 @@
-//! Health-check circuit breaker — repeated `HealthCheckFailed` events must
-//! eventually flip into a `ServiceRestartRequested` event after the
-//! documented threshold (N = 3, per `HealthCheckHandler::new`).
-//!
-//! Contract under test: the handler must NOT infinite-retry — it must (a)
-//! emit a restart request exactly when failures cross the threshold and
-//! (b) reset its counter when a `ServiceStarted` event arrives so the next
-//! failure cycle starts cleanly.
+//! `HealthCheckFailed` trips a bounded `ServiceRestartRequested` once
+//! failures cross the threshold (N = 3) and resets on `ServiceStarted` —
+//! never an infinite retry.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -57,12 +52,10 @@ async fn health_check_below_threshold_does_not_request_restart() {
         .expect("publish");
     }
 
-    // Drain the two HealthCheckFailed echoes from the broadcast.
     for _ in 0..2 {
         let _ = rx.recv().await;
     }
 
-    // No restart request should arrive; assert the channel is empty.
     match rx.try_recv() {
         Err(TryRecvError::Empty) => {},
         other => panic!("expected empty bus, got {other:?}"),
@@ -114,7 +107,6 @@ async fn health_check_does_not_request_restart_in_infinite_loop() {
         .expect("publish");
     }
 
-    // Drain everything within a bounded window; count restart requests.
     let mut restart_count = 0usize;
     let deadline = tokio::time::Instant::now() + Duration::from_millis(500);
     while tokio::time::Instant::now() < deadline {
@@ -132,8 +124,6 @@ async fn health_check_does_not_request_restart_in_infinite_loop() {
         restart_count >= 1,
         "at least one restart request must fire on a 10-failure storm, got {restart_count}"
     );
-    // Permits ≤ 8 fires (one per failure past the threshold). The point is
-    // *bounded*, not zero: the handler does not silently grow its backlog.
     assert!(
         restart_count <= 10,
         "restart fires must be bounded by failure count, got {restart_count}"
@@ -144,7 +134,6 @@ async fn health_check_does_not_request_restart_in_infinite_loop() {
 async fn service_started_event_resets_failure_counter() {
     let (bus, mut rx) = build_bus_with_health_check();
 
-    // Two failures — below the threshold.
     for _ in 0..2 {
         bus.publish(McpEvent::HealthCheckFailed {
             service_name: "delta".to_owned(),
@@ -154,7 +143,6 @@ async fn service_started_event_resets_failure_counter() {
         .expect("publish");
     }
 
-    // A recovery resets the counter.
     bus.publish(McpEvent::ServiceStarted {
         service_name: "delta".to_owned(),
         process_id: 1,
@@ -163,8 +151,6 @@ async fn service_started_event_resets_failure_counter() {
     .await
     .expect("publish");
 
-    // Two more failures — should still NOT trigger restart (counter is 2,
-    // not 5, after the reset).
     for _ in 0..2 {
         bus.publish(McpEvent::HealthCheckFailed {
             service_name: "delta".to_owned(),
@@ -174,7 +160,6 @@ async fn service_started_event_resets_failure_counter() {
         .expect("publish");
     }
 
-    // Drain everything within a bounded window; assert no restart.
     let deadline = tokio::time::Instant::now() + Duration::from_millis(300);
     while tokio::time::Instant::now() < deadline {
         if let Ok(Ok(McpEvent::ServiceRestartRequested { service_name, .. })) =
