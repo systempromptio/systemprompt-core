@@ -85,7 +85,11 @@ export class SpSetup extends SpElement {
     const version = this.dataset.version || "";
     const platform = this.dataset.platform || "linux";
     const platformDisplay = this.dataset.platformDisplay || "";
-    const finishDisabled = this.anyInstalled ? "" : "disabled";
+    // Finish is always enabled. Host install-state is probe-driven and can lag
+    // or misreport (e.g. the card shows "Installed ✓" while `anyInstalled` is
+    // still false), which trapped the user on this step with no way forward.
+    // Installing agents is optional, so never block completing setup.
+    const finishDisabled = "";
     return `
       <div class="sp-setup__card">
         <div class="sp-setup__hero">

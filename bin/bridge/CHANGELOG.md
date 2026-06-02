@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.4] - 2026-06-02
+
+### Fixed
+
+- The setup wizard's **Finish** button is no longer gated on `anyInstalled`. Host install-state is probe-driven and can lag or misreport (the agent card shows "Installed ✓" while the parent's `anyInstalled` flag is still `false`), which trapped the user on step 2 with a permanently disabled Finish and no way into the app. Finish is now always enabled — installing agents is optional.
+
 ## [0.10.3] - 2026-06-02
 
 ### Fixed
