@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.6] - 2026-06-02
+
+### Changed
+
+- Installing the Claude Desktop managed-policy profile no longer shells out to `reg import`. The install path parses the staged `.reg` profile and writes each policy value directly through the Windows registry API (`RegCreateKeyExW`/`RegSetValueExW`), choosing `HKEY_LOCAL_MACHINE` when elevated and `HKEY_CURRENT_USER` otherwise, which removes the dependency on an external binary and surfaces a structured error on failure. The `.reg` render and parse halves move to a platform-independent module so the round-trip is unit-tested on every target.
+
 ## [0.10.5] - 2026-06-02
 
 ### Fixed
