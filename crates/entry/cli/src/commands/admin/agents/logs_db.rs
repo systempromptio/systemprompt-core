@@ -8,12 +8,9 @@ use systemprompt_runtime::AppContext;
 use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute_db_mode(
-    args: &LogsArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AgentLogsOutput>> {
+pub(super) async fn execute_db_mode(args: &LogsArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = Arc::new(
         AppContext::new()
             .await
@@ -52,13 +49,15 @@ pub(super) async fn execute_db_mode(
 
     let agent_label = args.agent.clone().unwrap_or_else(|| "all".to_owned());
 
-    Ok(CommandResult::text(AgentLogsOutput {
-        agent: Some(agent_label.clone()),
-        source: "database".to_owned(),
-        logs,
-        log_files: vec![],
-    })
-    .with_title(format!("Agent Logs (DB): {}", agent_label)))
+    Ok(CommandOutput::card_value(
+        format!("Agent Logs (DB): {}", agent_label),
+        &AgentLogsOutput {
+            agent: Some(agent_label),
+            source: "database".to_owned(),
+            logs,
+            log_files: vec![],
+        },
+    ))
 }
 
 fn build_agent_patterns(agent: &str) -> Vec<String> {

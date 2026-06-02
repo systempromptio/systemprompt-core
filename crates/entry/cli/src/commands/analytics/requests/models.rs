@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{ModelUsageRow, ModelsOutput};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ModelsArgs {
@@ -35,10 +35,7 @@ pub struct ModelsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: ModelsArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ModelsOutput>> {
+pub(super) async fn execute(args: ModelsArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -48,7 +45,7 @@ pub(super) async fn execute_with_pool(
     args: ModelsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<ModelsOutput>> {
+) -> Result<CommandOutput> {
     let repo = RequestAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -56,7 +53,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: ModelsArgs,
     repo: &RequestAnalyticsRepository,
-) -> Result<CommandResult<ModelsOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.list_models(start, end, args.limit).await?;
@@ -98,26 +95,43 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.models, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "provider",
+                "model",
+                "request_count",
+                "total_tokens",
+                "total_cost_microdollars",
+            ],
+            &output.models,
+        )
+        .with_skip_render());
     }
 
     if output.models.is_empty() {
         CliService::warning("No models found in the specified time range");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "provider",
+                "model",
+                "request_count",
+                "total_tokens",
+                "total_cost_microdollars",
+            ],
+            &output.models,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "provider".to_owned(),
-            "model".to_owned(),
-            "request_count".to_owned(),
-            "total_tokens".to_owned(),
-            "total_cost_microdollars".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Model Usage")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec![
+            "provider",
+            "model",
+            "request_count",
+            "total_tokens",
+            "total_cost_microdollars",
+        ],
+        &output.models,
+    )
+    .with_title("Model Usage"))
 }

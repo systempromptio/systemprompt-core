@@ -11,11 +11,9 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
-use crate::shared::{CommandResult, truncate_with_ellipsis};
+use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
-use super::types::{
-    ListOrDetail, SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config,
-};
+use super::types::{SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config};
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -29,7 +27,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let skills_path = get_skills_path()?;
 
     if let Some(name) = args.name {
@@ -53,15 +51,11 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
 
     let output = SkillListOutput { skills: filtered };
 
-    Ok(CommandResult::table(ListOrDetail::List(output))
-        .with_title("Skills")
-        .with_columns(vec![
-            "skill_id".to_owned(),
-            "name".to_owned(),
-            "enabled".to_owned(),
-            "tags".to_owned(),
-            "file_path".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["skill_id", "name", "enabled", "tags", "file_path"],
+        &output.skills,
+    )
+    .with_title("Skills"))
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
@@ -69,7 +63,7 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 
-fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandResult<ListOrDetail>> {
+fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {
     let skill_dir = skills_path.join(skill_name);
 
     if !skill_dir.exists() {
@@ -102,8 +96,10 @@ fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandResu
         instructions_preview,
     };
 
-    Ok(CommandResult::card(ListOrDetail::Detail(output))
-        .with_title(format!("Skill: {}", skill_name)))
+    Ok(CommandOutput::card_value(
+        format!("Skill: {}", skill_name),
+        &output,
+    ))
 }
 
 fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {

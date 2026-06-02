@@ -1,7 +1,7 @@
 use super::types::DeleteOutput;
 use crate::cli_settings::CliConfig;
 use crate::interactive::require_confirmation;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::ContentRepository;
@@ -24,7 +24,7 @@ pub struct DeleteArgs {
     pub dry_run: bool,
 }
 
-pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<DeleteOutput>> {
+pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
@@ -61,7 +61,10 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
                 content.title, content.id
             )),
         };
-        return Ok(CommandResult::card(output).with_title("Content Delete (Dry Run)"));
+        return Ok(CommandOutput::card_value(
+            "Content Delete (Dry Run)",
+            &output,
+        ));
     }
 
     if config.is_interactive() && !args.yes {
@@ -81,5 +84,5 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
         message: None,
     };
 
-    Ok(CommandResult::card(output).with_title("Content Deleted"))
+    Ok(CommandOutput::card_value("Content Deleted", &output))
 }

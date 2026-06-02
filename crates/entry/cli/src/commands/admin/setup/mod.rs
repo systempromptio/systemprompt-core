@@ -20,7 +20,7 @@ mod wizard;
 mod wizard_dry_run;
 mod wizard_prompts;
 
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 
@@ -143,9 +143,6 @@ impl SetupArgs {
     }
 }
 
-pub async fn execute(
-    args: SetupArgs,
-    config: &crate::CliConfig,
-) -> Result<CommandResult<SetupOutput>> {
+pub async fn execute(args: SetupArgs, config: &crate::CliConfig) -> Result<CommandOutput> {
     wizard::execute(args, config).await
 }

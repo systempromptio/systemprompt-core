@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, ClapArgs)]
 pub struct Args {
@@ -18,10 +18,7 @@ pub struct Args {
     pub expires_minutes: u32,
 }
 
-pub(super) async fn execute(
-    args: Args,
-    _config: &CliConfig,
-) -> Result<CommandResult<WebauthnSetupTokenOutput>> {
+pub(super) async fn execute(args: Args, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let oauth_repo = OAuthRepository::new(ctx.db_pool())?;
 
@@ -53,5 +50,8 @@ pub(super) async fn execute(
         expires_minutes: args.expires_minutes,
     };
 
-    Ok(CommandResult::copy_paste(output).with_title("WebAuthn Setup Token"))
+    Ok(CommandOutput::copy_paste_titled(
+        "WebAuthn Setup Token",
+        output.registration_url,
+    ))
 }

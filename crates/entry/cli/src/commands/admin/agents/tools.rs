@@ -10,7 +10,7 @@ use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
 use crate::commands::plugins::mcp::types::McpToolEntry;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
@@ -27,10 +27,7 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(
-    args: ToolsArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentToolsOutput>> {
+pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = if let Some(n) = args.name {
@@ -59,8 +56,10 @@ pub(super) async fn execute(
             },
             unavailable_servers: Vec::new(),
         };
-        return Ok(CommandResult::card(output)
-            .with_title(format!("Agent Tools: {} (no MCP servers configured)", name)));
+        return Ok(CommandOutput::card_value(
+            format!("Agent Tools: {} (no MCP servers configured)", name),
+            &output,
+        ));
     }
 
     let session_ctx = get_or_create_session(config).await?;
@@ -158,9 +157,10 @@ pub(super) async fn execute(
         "parameters_count".to_owned(),
     ];
 
-    Ok(CommandResult::table(output)
-        .with_title(format!("Agent Tools: {}", name))
-        .with_columns(columns))
+    Ok(
+        CommandOutput::table_of(columns, &output.tools)
+            .with_title(format!("Agent Tools: {}", name)),
+    )
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

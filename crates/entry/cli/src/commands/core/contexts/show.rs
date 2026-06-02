@@ -9,7 +9,7 @@ use super::resolve::resolve_context;
 use super::types::ContextSummary;
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -17,10 +17,7 @@ pub struct ShowArgs {
     pub context: String,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextSummary>> {
+pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, &session_ctx.session, ctx.db_pool(), config).await
@@ -31,7 +28,7 @@ pub(super) async fn execute_with_pool(
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<ContextSummary>> {
+) -> Result<CommandOutput> {
     let repo = ContextRepository::new(pool)?;
 
     let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
@@ -85,5 +82,5 @@ pub(super) async fn execute_with_pool(
         CliService::key_value("Active", if output.is_active { "Yes" } else { "No" });
     }
 
-    Ok(CommandResult::card(output).with_title("Context Details"))
+    Ok(CommandOutput::card_value("Context Details", &output))
 }

@@ -15,7 +15,7 @@ use systemprompt_oauth::services::generation::{
 };
 use systemprompt_users::UserService;
 
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssuePluginTokenArgs {
@@ -53,9 +53,7 @@ pub(super) struct IssuePluginTokenOutput {
     pub token: String,
 }
 
-pub(super) async fn execute(
-    args: IssuePluginTokenArgs,
-) -> Result<CommandResult<IssuePluginTokenOutput>> {
+pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
 
@@ -129,10 +127,10 @@ pub(super) async fn execute(
 
     if args.token_only {
         CliService::output(&token);
-        return Ok(CommandResult::text(output).with_skip_render());
+        return Ok(CommandOutput::card_value("Plugin-scope JWT", &output).with_skip_render());
     }
 
-    Ok(CommandResult::card(output).with_title("Plugin-scope JWT"))
+    Ok(CommandOutput::card_value("Plugin-scope JWT", &output))
 }
 
 async fn resolve_email() -> Result<String> {

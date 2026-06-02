@@ -13,7 +13,7 @@ use super::types::{
     write_yaml_file,
 };
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {
@@ -55,19 +55,25 @@ pub fn execute(cmd: ProviderCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         ProviderCommands::List(_args) => {
             let result = list_providers()?;
-            render_result(&CommandResult::table(result).with_title("AI Providers"));
+            render_result(
+                &CommandOutput::table_of(
+                    vec!["name", "enabled", "is_default", "model", "endpoint"],
+                    &result.providers,
+                )
+                .with_title("AI Providers"),
+            );
         },
         ProviderCommands::Set(args) => {
             let result = set_default_provider(&args.provider)?;
-            render_result(&CommandResult::card(result).with_title("Provider Updated"));
+            render_result(&CommandOutput::card_value("Provider Updated", &result));
         },
         ProviderCommands::Enable(args) => {
             let result = set_provider_enabled(&args.provider, true)?;
-            render_result(&CommandResult::card(result).with_title("Provider Enabled"));
+            render_result(&CommandOutput::card_value("Provider Enabled", &result));
         },
         ProviderCommands::Disable(args) => {
             let result = set_provider_enabled(&args.provider, false)?;
-            render_result(&CommandResult::card(result).with_title("Provider Disabled"));
+            render_result(&CommandOutput::card_value("Provider Disabled", &result));
         },
     }
     Ok(())

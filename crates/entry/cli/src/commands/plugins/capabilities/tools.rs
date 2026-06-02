@@ -3,7 +3,7 @@ use clap::Args;
 use crate::CliConfig;
 use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{ToolWithExtension, ToolsListOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ToolsArgs {
@@ -11,7 +11,7 @@ pub struct ToolsArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsListOutput> {
+pub(super) fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let tools: Vec<ToolWithExtension> = registry
@@ -35,7 +35,6 @@ pub(super) fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<To
 
     let output = ToolsListOutput { tools, total };
 
-    CommandResult::table(output)
+    CommandOutput::table_of(vec!["extension_id", "tool_name"], &output.tools)
         .with_title("Tools Across Extensions")
-        .with_columns(vec!["extension_id".to_owned(), "tool_name".to_owned()])
 }

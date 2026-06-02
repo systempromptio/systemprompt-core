@@ -7,7 +7,7 @@ use systemprompt_users::UserService;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::BulkUpdateOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
@@ -55,10 +55,7 @@ pub(super) enum UpdateResult {
     Executed(BulkUpdateOutput),
 }
 
-pub(super) async fn execute(
-    args: UpdateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<UpdateResult>> {
+pub(super) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will update multiple users. Use --yes to confirm or --dry-run to preview."
@@ -97,7 +94,10 @@ pub(super) async fn execute(
             updated: 0,
             message: "No users match the specified filters".to_owned(),
         };
-        return Ok(CommandResult::text(UpdateResult::Executed(output)).with_title("Bulk Update"));
+        return Ok(CommandOutput::card_value(
+            "Bulk Update",
+            &UpdateResult::Executed(output),
+        ));
     }
 
     if args.dry_run {
@@ -111,9 +111,10 @@ pub(super) async fn execute(
                 args.set_status
             ),
         };
-        return Ok(
-            CommandResult::text(UpdateResult::DryRun(output)).with_title("Bulk Update (Dry Run)")
-        );
+        return Ok(CommandOutput::card_value(
+            "Bulk Update (Dry Run)",
+            &UpdateResult::DryRun(output),
+        ));
     }
 
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
@@ -129,5 +130,8 @@ pub(super) async fn execute(
         ),
     };
 
-    Ok(CommandResult::text(UpdateResult::Executed(output)).with_title("Bulk Update"))
+    Ok(CommandOutput::card_value(
+        "Bulk Update",
+        &UpdateResult::Executed(output),
+    ))
 }

@@ -35,14 +35,19 @@ pub struct CopyPasteTextArtifact {
 impl CopyPasteTextArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "copy_paste_text";
 
-    pub fn new(content: impl Into<String>, ctx: &RequestContext) -> Self {
+    pub fn new(content: impl Into<String>) -> Self {
         Self {
             artifact_type: "copy_paste_text".to_owned(),
             content: content.into(),
             title: None,
             language: None,
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_title(mut self, title: impl Into<String>) -> Self {

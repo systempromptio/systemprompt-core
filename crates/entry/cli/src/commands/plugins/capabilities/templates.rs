@@ -3,7 +3,7 @@ use clap::Args;
 use crate::CliConfig;
 use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{TemplateWithExtension, TemplatesListOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct TemplatesArgs {
@@ -11,10 +11,7 @@ pub struct TemplatesArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(
-    args: &TemplatesArgs,
-    _config: &CliConfig,
-) -> CommandResult<TemplatesListOutput> {
+pub(super) fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let templates: Vec<TemplateWithExtension> = registry
@@ -48,11 +45,9 @@ pub(super) fn execute(
 
     let output = TemplatesListOutput { templates, total };
 
-    CommandResult::table(output)
-        .with_title("Templates Across Extensions")
-        .with_columns(vec![
-            "extension_id".to_owned(),
-            "template_name".to_owned(),
-            "description".to_owned(),
-        ])
+    CommandOutput::table_of(
+        vec!["extension_id", "template_name", "description"],
+        &output.templates,
+    )
+    .with_title("Templates Across Extensions")
 }

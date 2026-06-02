@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use super::types::{McpListOutput, McpServerSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use crate::shared::project::ProjectRoot;
 use systemprompt_loader::ConfigLoader;
 
@@ -19,7 +19,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let project_root = ProjectRoot::discover().ok();
 
@@ -71,16 +71,18 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
 
     let output = McpListOutput { servers };
 
-    Ok(CommandResult::table(output)
-        .with_title("MCP Servers")
-        .with_columns(vec![
-            "name".to_owned(),
-            "port".to_owned(),
-            "enabled".to_owned(),
-            "status".to_owned(),
-            "binary_debug".to_owned(),
-            "binary_release".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "name",
+            "port",
+            "enabled",
+            "status",
+            "binary_debug",
+            "binary_release",
+        ],
+        &output.servers,
+    )
+    .with_title("MCP Servers"))
 }
 
 fn get_binary_info(

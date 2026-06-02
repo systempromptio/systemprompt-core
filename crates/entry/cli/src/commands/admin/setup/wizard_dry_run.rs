@@ -1,5 +1,5 @@
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use std::path::Path;
 use systemprompt_logging::CliService;
 
@@ -11,7 +11,7 @@ pub(super) fn execute_dry_run(
     env_name: &str,
     systemprompt_dir: &Path,
     config: &CliConfig,
-) -> CommandResult<SetupOutput> {
+) -> CommandOutput {
     if !config.is_json_output() {
         CliService::section("Dry Run - No changes will be made");
     }
@@ -51,7 +51,7 @@ pub(super) fn execute_dry_run(
         message: "Dry run completed - no changes made".to_owned(),
     };
 
-    let result = CommandResult::text(output).with_title("Setup Dry Run");
+    let result = CommandOutput::card_value("Setup Dry Run", &output);
     if config.is_json_output() {
         result
     } else {

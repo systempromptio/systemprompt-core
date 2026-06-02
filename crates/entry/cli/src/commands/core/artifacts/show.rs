@@ -12,7 +12,7 @@ use systemprompt_runtime::AppContext;
 use super::types::{ArtifactPartOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -26,10 +26,7 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ArtifactSummary>> {
+pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let _session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
@@ -39,7 +36,7 @@ pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<ArtifactSummary>> {
+) -> Result<CommandOutput> {
     let repo = ArtifactRepository::new(pool)?;
 
     let artifact_id = resolve_artifact_id(&args.artifact, &repo).await?;
@@ -89,7 +86,7 @@ pub(super) async fn execute_with_pool(
         render_artifact(&artifact, &parts, args.full);
     }
 
-    Ok(CommandResult::card(output).with_title("Artifact Details"))
+    Ok(CommandOutput::card_value("Artifact Details", &output))
 }
 
 fn render_artifact(artifact: &Artifact, parts: &[ArtifactPartOutput], full: bool) {

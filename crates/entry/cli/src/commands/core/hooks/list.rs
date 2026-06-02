@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookEntry, HookListOutput};
@@ -11,25 +11,18 @@ use super::types::{HookEntry, HookListOutput};
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
 
-pub(super) fn execute(
-    _args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<HookListOutput>> {
+pub(super) fn execute(_args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let hooks_path = std::path::PathBuf::from(profile.paths.hooks());
 
     let hooks = scan_hooks(&hooks_path)?;
     let output = HookListOutput { hooks };
 
-    Ok(CommandResult::table(output)
-        .with_title("Hooks")
-        .with_columns(vec![
-            "plugin_id".to_owned(),
-            "event".to_owned(),
-            "matcher".to_owned(),
-            "hook_type".to_owned(),
-            "command".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["plugin_id", "event", "matcher", "hook_type", "command"],
+        &output.hooks,
+    )
+    .with_title("Hooks"))
 }
 
 fn scan_hooks(hooks_path: &Path) -> Result<Vec<HookEntry>> {

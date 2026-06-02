@@ -15,9 +15,18 @@ use super::helpers::{
 use crate::cli_settings::CliConfig;
 use crate::commands::cloud::tenant::get_credentials;
 use crate::commands::cloud::types::SecretsOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
+use systemprompt_models::artifacts::ListItem;
 
-pub(super) async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
+fn secrets_list(output: &SecretsOutput) -> Vec<ListItem> {
+    output
+        .keys
+        .iter()
+        .map(|key| ListItem::new(key.clone(), String::new(), String::new()))
+        .collect()
+}
+
+pub(super) async fn sync_secrets(config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("Sync Secrets");
     }
@@ -34,7 +43,7 @@ pub(super) async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<Sec
         if !config.is_json_output() {
             CliService::warning("No secrets found in secrets.json");
         }
-        return Ok(CommandResult::list(output).with_title("Sync Secrets"));
+        return Ok(CommandOutput::list(secrets_list(&output)).with_title("Sync Secrets"));
     }
 
     let env_secrets = map_secrets_to_env_vars(secrets);
@@ -71,13 +80,13 @@ pub(super) async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<Sec
         rejected_keys: None,
     };
 
-    Ok(CommandResult::list(output).with_title("Sync Secrets"))
+    Ok(CommandOutput::list(secrets_list(&output)).with_title("Sync Secrets"))
 }
 
 pub(super) async fn set_secrets(
     key_values: Vec<String>,
     config: &CliConfig,
-) -> Result<CommandResult<SecretsOutput>> {
+) -> Result<CommandOutput> {
     use systemprompt_cloud::constants::env_vars;
 
     if !config.is_json_output() {
@@ -146,13 +155,10 @@ pub(super) async fn set_secrets(
         },
     };
 
-    Ok(CommandResult::list(output).with_title("Set Secrets"))
+    Ok(CommandOutput::list(secrets_list(&output)).with_title("Set Secrets"))
 }
 
-pub(super) async fn unset_secrets(
-    keys: Vec<String>,
-    config: &CliConfig,
-) -> Result<CommandResult<SecretsOutput>> {
+pub(super) async fn unset_secrets(keys: Vec<String>, config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("Remove Secrets");
     }
@@ -215,10 +221,10 @@ pub(super) async fn unset_secrets(
         rejected_keys: None,
     };
 
-    Ok(CommandResult::list(output).with_title("Remove Secrets"))
+    Ok(CommandOutput::list(secrets_list(&output)).with_title("Remove Secrets"))
 }
 
-pub(super) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
+pub(super) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("Cleanup System-Managed Secrets");
     }
@@ -280,5 +286,5 @@ pub(super) async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<
         rejected_keys: None,
     };
 
-    Ok(CommandResult::list(output).with_title("Cleanup Secrets"))
+    Ok(CommandOutput::list(secrets_list(&output)).with_title("Cleanup Secrets"))
 }

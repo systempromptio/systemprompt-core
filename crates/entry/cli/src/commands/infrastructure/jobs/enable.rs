@@ -6,7 +6,7 @@ use systemprompt_scheduler::JobRepository;
 use systemprompt_traits::Job;
 
 use super::types::JobEnableOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnableArgs {
@@ -14,7 +14,7 @@ pub struct EnableArgs {
     pub job_name: String,
 }
 
-pub(super) async fn execute(args: EnableArgs) -> Result<CommandResult<JobEnableOutput>> {
+pub(super) async fn execute(args: EnableArgs) -> Result<CommandOutput> {
     let job = inventory::iter::<&'static dyn Job>
         .into_iter()
         .find(|&j| j.name() == args.job_name)
@@ -39,5 +39,5 @@ pub(super) async fn execute(args: EnableArgs) -> Result<CommandResult<JobEnableO
         message: format!("Job '{}' has been enabled", args.job_name),
     };
 
-    Ok(CommandResult::text(output).with_title("Job Enabled"))
+    Ok(CommandOutput::card_value("Job Enabled", &output))
 }

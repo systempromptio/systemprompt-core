@@ -128,8 +128,7 @@ pub use api::{
 };
 pub use artifacts::{
     Alignment, Artifact, ArtifactSchema, ArtifactType, AudioArtifact, AxisType, ChartArtifact,
-    ChartDataset, ChartType, CliArtifact, CliArtifactType, Column, ColumnType, CommandResultRaw,
-    ConversionError, ExecutionMetadata, ImageArtifact, RenderingHints,
+    ChartDataset, ChartType, CliArtifact, Column, ColumnType, ExecutionMetadata, ImageArtifact,
     SortOrder as ArtifactSortOrder, TableArtifact, TableHints, ToolResponse, VideoArtifact,
 };
 pub use auth::{

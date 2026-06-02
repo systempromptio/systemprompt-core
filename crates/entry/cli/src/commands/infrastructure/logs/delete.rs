@@ -6,7 +6,7 @@ use systemprompt_runtime::AppContext;
 use super::LogDeleteOutput;
 use crate::CliConfig;
 use crate::interactive::require_confirmation;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct DeleteArgs {
@@ -34,7 +34,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> 
         vacuum_performed: false,
     };
 
-    let result = CommandResult::card(output).with_title("Logs Deleted");
+    let result = CommandOutput::card_value("Logs Deleted", &output);
 
     render_result(&result);
 

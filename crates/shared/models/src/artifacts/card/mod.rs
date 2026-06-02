@@ -123,7 +123,7 @@ fn default_card_artifact_type() -> String {
 impl PresentationCardArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "presentation_card";
 
-    pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
+    pub fn new(title: impl Into<String>) -> Self {
         Self {
             artifact_type: "presentation_card".to_owned(),
             title: title.into(),
@@ -134,8 +134,13 @@ impl PresentationCardArtifact {
             execution_id: None,
             skill_id: None,
             skill_name: None,
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_subtitle(mut self, subtitle: impl Into<String>) -> Self {

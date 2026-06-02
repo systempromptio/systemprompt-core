@@ -1,4 +1,4 @@
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 use serde_json::Value;
 use systemprompt_logging::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
@@ -74,6 +74,7 @@ pub(super) fn print_json(
         }
     });
 
-    let result = CommandResult::copy_paste(output).with_title("Trace JSON");
+    let content = serde_json::to_string_pretty(&output).unwrap_or_else(|_| output.to_string());
+    let result = CommandOutput::copy_paste_titled("Trace JSON", content);
     render_result(&result);
 }

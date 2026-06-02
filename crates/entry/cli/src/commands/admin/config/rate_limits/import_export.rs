@@ -8,14 +8,11 @@ use super::helpers::{load_profile_for_edit, save_profile};
 use super::{ExportArgs, ImportArgs};
 use crate::CliConfig;
 use crate::interactive::require_confirmation;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::super::types::{ExportOutput, ImportOutput};
 
-pub(super) fn execute_export(
-    args: &ExportArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ExportOutput>> {
+pub(super) fn execute_export(args: &ExportArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 
@@ -37,13 +34,10 @@ pub(super) fn execute_export(
         message: format!("Exported rate limits to {}", args.output),
     };
 
-    Ok(CommandResult::text(output).with_title("Rate Limits Exported"))
+    Ok(CommandOutput::card_value("Rate Limits Exported", &output))
 }
 
-pub(super) fn execute_import(
-    args: &ImportArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ImportOutput>> {
+pub(super) fn execute_import(args: &ImportArgs, config: &CliConfig) -> Result<CommandOutput> {
     let path = Path::new(&args.file);
     if !path.exists() {
         bail!("File not found: {}", args.file);
@@ -80,5 +74,5 @@ pub(super) fn execute_import(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Rate Limits Imported"))
+    Ok(CommandOutput::card_value("Rate Limits Imported", &output))
 }

@@ -1,8 +1,8 @@
 use anyhow::{Result, anyhow};
-use systemprompt_database::{QueryExecutor, QueryResult};
+use systemprompt_database::QueryExecutor;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::helpers::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;
@@ -17,7 +17,7 @@ pub(super) async fn execute_query(
     executor: &QueryExecutor,
     params: &QueryParams<'_>,
     _config: &CliConfig,
-) -> Result<CommandResult<QueryResult>> {
+) -> Result<CommandOutput> {
     let final_sql = match (params.limit, params.offset) {
         (None, None) => params.sql.to_owned(),
         (limit, offset) => {
@@ -50,16 +50,14 @@ pub(super) async fn execute_query(
 
     let columns = result.columns.clone();
 
-    Ok(CommandResult::table(result)
-        .with_title("Query Results")
-        .with_columns(columns))
+    Ok(CommandOutput::table_of(columns, &result.rows).with_title("Query Results"))
 }
 
 pub(super) async fn execute_write(
     executor: &QueryExecutor,
     sql: &str,
     _config: &CliConfig,
-) -> Result<CommandResult<DbExecuteOutput>> {
+) -> Result<CommandOutput> {
     let result = executor
         .execute_write(sql)
         .await
@@ -74,5 +72,5 @@ pub(super) async fn execute_write(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Query Executed"))
+    Ok(CommandOutput::card_value("Query Executed", &output))
 }

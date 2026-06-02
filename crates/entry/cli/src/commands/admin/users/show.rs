@@ -6,7 +6,7 @@ use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -19,10 +19,7 @@ pub struct ShowArgs {
     pub activity: bool,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<UserDetailOutput>> {
+pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -31,7 +28,7 @@ pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<UserDetailOutput>> {
+) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -91,5 +88,8 @@ pub(super) async fn execute_with_pool(
         activity,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("User: {}", user.name)))
+    Ok(CommandOutput::card_value(
+        format!("User: {}", user.name),
+        &output,
+    ))
 }

@@ -5,7 +5,7 @@ use systemprompt_users::UserService;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::SessionCleanupOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
@@ -16,10 +16,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: CleanupArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SessionCleanupOutput>> {
+pub(super) async fn execute(args: CleanupArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
 
@@ -40,5 +37,5 @@ pub(super) async fn execute(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Session Cleanup"))
+    Ok(CommandOutput::card_value("Session Cleanup", &output))
 }

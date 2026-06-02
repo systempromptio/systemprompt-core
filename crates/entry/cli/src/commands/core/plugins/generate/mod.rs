@@ -15,7 +15,7 @@ use clap::Args;
 use std::path::{Path, PathBuf};
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_models::PluginConfigFile;
 
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};
@@ -38,10 +38,7 @@ struct PluginGenerateContext<'a> {
     output_dir_override: Option<&'a str>,
 }
 
-pub(super) fn execute(
-    args: &GenerateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<PluginGenerateAllOutput>> {
+pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = PathBuf::from(profile.paths.plugins());
     let skills_path = PathBuf::from(profile.paths.skills());
@@ -86,7 +83,10 @@ pub(super) fn execute(
         install_command: install_hint,
     };
 
-    Ok(CommandResult::text(output).with_title("Plugin Generation Complete"))
+    Ok(CommandOutput::card_value(
+        "Plugin Generation Complete",
+        &output,
+    ))
 }
 
 fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {

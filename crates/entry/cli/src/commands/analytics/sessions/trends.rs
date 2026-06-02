@@ -12,7 +12,8 @@ use crate::commands::analytics::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, resolve_export_path,
     truncate_to_period,
 };
-use crate::shared::{ChartType, CommandResult};
+use crate::shared::{ChartType, CommandOutput};
+use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {
@@ -38,10 +39,7 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: TrendsArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SessionTrendsOutput>> {
+pub(super) async fn execute(args: TrendsArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -51,7 +49,7 @@ pub(super) async fn execute_with_pool(
     args: TrendsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<SessionTrendsOutput>> {
+) -> Result<CommandOutput> {
     let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -59,7 +57,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: TrendsArgs,
     repo: &CliSessionAnalyticsRepository,
-) -> Result<CommandResult<SessionTrendsOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_sessions_for_trends(start, end).await?;
@@ -108,13 +106,33 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.points, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::chart(output, ChartType::Line).with_skip_render());
+        return Ok(CommandOutput::chart(build_chart(&output)).with_skip_render());
     }
 
     if output.points.is_empty() {
         CliService::warning("No data found in the specified time range");
-        return Ok(CommandResult::chart(output, ChartType::Line).with_skip_render());
+        return Ok(CommandOutput::chart(build_chart(&output)).with_skip_render());
     }
 
-    Ok(CommandResult::chart(output, ChartType::Line).with_title("Session Trends"))
+    Ok(CommandOutput::chart(build_chart(&output)))
+}
+
+fn build_chart(output: &SessionTrendsOutput) -> ChartArtifact {
+    let labels: Vec<String> = output.points.iter().map(|p| p.timestamp.clone()).collect();
+    let sessions: Vec<f64> = output
+        .points
+        .iter()
+        .map(|p| p.session_count as f64)
+        .collect();
+    let users: Vec<f64> = output
+        .points
+        .iter()
+        .map(|p| p.active_users as f64)
+        .collect();
+    ChartArtifact::new("Session Trends", ChartType::Line)
+        .with_labels(labels)
+        .with_datasets(vec![
+            ChartDataset::new("sessions", sessions),
+            ChartDataset::new("active_users", users),
+        ])
 }

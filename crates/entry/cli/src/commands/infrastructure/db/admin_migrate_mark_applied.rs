@@ -8,7 +8,7 @@ use systemprompt_models::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
 use super::types::MigrateMarkAppliedOutput;
@@ -99,7 +99,7 @@ async fn run_mark_applied(
     };
 
     if json || config.is_json_output() {
-        let result = CommandResult::text(output).with_title("Migration Mark Applied");
+        let result = CommandOutput::card_value("Migration Mark Applied", &output);
         render_result(&result);
     } else {
         CliService::success(&message);

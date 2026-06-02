@@ -10,7 +10,7 @@ use systemprompt_logging::TraceQueryService;
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandResult, RenderingHints, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -107,10 +107,7 @@ async fn execute_with_pool_inner(
     };
 
     if config.is_json_output() {
-        let hints = RenderingHints::default();
-        let result = CommandResult::card(output)
-            .with_title("AI Request Statistics")
-            .with_hints(hints);
+        let result = CommandOutput::card_value("AI Request Statistics", &output);
         render_result(&result);
     } else {
         render_text_output(&output);

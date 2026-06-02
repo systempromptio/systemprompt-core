@@ -7,13 +7,13 @@ use systemprompt_logging::CliService;
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::RotateCredentialsOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 pub async fn rotate_credentials(
     id: Option<String>,
     skip_confirm: bool,
     config: &CliConfig,
-) -> Result<CommandResult<RotateCredentialsOutput>> {
+) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -64,7 +64,7 @@ pub async fn rotate_credentials(
                 internal_database_url: String::new(),
                 external_database_url: String::new(),
             };
-            return Ok(CommandResult::card(output).with_title("Rotate Credentials"));
+            return Ok(CommandOutput::card_value("Rotate Credentials", &output));
         }
     }
 
@@ -113,5 +113,5 @@ pub async fn rotate_credentials(
         CliService::key_value("External URL", &response.external_database_url);
     }
 
-    Ok(CommandResult::card(output).with_title("Rotate Credentials"))
+    Ok(CommandOutput::card_value("Rotate Credentials", &output))
 }

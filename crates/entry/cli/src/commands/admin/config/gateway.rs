@@ -19,7 +19,8 @@ use systemprompt_models::profile::{GatewayConfigSpec, GatewayRoute, GatewayState
 use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
+use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Subcommand)]
 pub enum GatewayCommands {
@@ -106,13 +107,13 @@ pub async fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<(
     save_profile(&profile, profile_path)?;
     let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
-    render_result(
-        &CommandResult::text(ConfigMutationOutput {
+    render_result(&CommandOutput::card_value(
+        "Gateway Updated",
+        &ConfigMutationOutput {
             field: "gateway".to_owned(),
             message: super::reconcile::append_reconcile_notice(message, &outcome),
-        })
-        .with_title("Gateway Updated"),
-    );
+        },
+    ));
     Ok(())
 }
 
@@ -182,14 +183,16 @@ fn validate_gateway(profile: &Profile) -> Result<()> {
 fn list_routes() -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let profile = load_profile(profile_path)?;
-    let routes: Vec<String> = profile
+    let items: Vec<ListItem> = profile
         .gateway
         .map(|state| state.into_spec().routes)
         .unwrap_or_default()
         .iter()
-        .map(|r| format!("{} -> {}", r.model_pattern, r.provider.as_str()))
+        .map(|r| {
+            let route = format!("{} -> {}", r.model_pattern, r.provider.as_str());
+            ListItem::new(route, String::new(), String::new())
+        })
         .collect();
-
-    render_result(&CommandResult::list(routes).with_title("Gateway Routes"));
+    render_result(&CommandOutput::list(items).with_title("Gateway Routes"));
     Ok(())
 }

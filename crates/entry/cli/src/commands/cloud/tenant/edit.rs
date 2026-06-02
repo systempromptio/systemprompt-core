@@ -7,12 +7,9 @@ use systemprompt_logging::CliService;
 use super::select::select_tenant;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::TenantDetailOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub fn edit_tenant(
-    id: Option<String>,
-    config: &CliConfig,
-) -> Result<CommandResult<TenantDetailOutput>> {
+pub fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant edit requires interactive mode.\nUse specific commands to modify tenant \
@@ -75,9 +72,7 @@ pub fn edit_tenant(
     store.save_to_path(&tenants_path)?;
     CliService::success(&format!("Tenant '{}' updated", new_name));
 
-    Ok(CommandResult::card(output)
-        .with_title(format!("Tenant: {}", new_name))
-        .with_skip_render())
+    Ok(CommandOutput::card_value(format!("Tenant: {}", new_name), &output).with_skip_render())
 }
 
 fn edit_local_tenant_database(tenant: &mut StoredTenant) -> Result<()> {

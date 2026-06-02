@@ -49,7 +49,7 @@ pub struct VideoArtifact {
 impl VideoArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "video";
 
-    pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
+    pub fn new(src: impl Into<String>) -> Self {
         Self {
             artifact_type: "video".to_owned(),
             src: src.into(),
@@ -60,8 +60,13 @@ impl VideoArtifact {
             autoplay: false,
             loop_playback: false,
             muted: false,
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_mime_type(mut self, mime_type: impl Into<String>) -> Self {

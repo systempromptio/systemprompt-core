@@ -6,9 +6,9 @@ use super::types::{
     ServerOverview,
 };
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub fn execute(_config: &CliConfig) -> Result<CommandResult<ConfigOverviewOutput>> {
+pub fn execute(_config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get()?;
     let profile_path = ProfileBootstrap::get_path()?;
 
@@ -47,5 +47,5 @@ pub fn execute(_config: &CliConfig) -> Result<CommandResult<ConfigOverviewOutput
         },
     };
 
-    Ok(CommandResult::card(output).with_title("Configuration Overview"))
+    Ok(CommandOutput::card_value("Configuration Overview", &output))
 }

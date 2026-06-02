@@ -17,13 +17,6 @@ pub struct SkillListOutput {
     pub skills: Vec<SkillSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(untagged)]
-pub enum ListOrDetail {
-    List(SkillListOutput),
-    Detail(SkillDetailOutput),
-}
-
 #[derive(Debug)]
 pub struct ParsedSkill {
     pub name: String,

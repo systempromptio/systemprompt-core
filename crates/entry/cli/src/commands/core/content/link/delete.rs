@@ -1,7 +1,7 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDeleteOutput;
 use crate::interactive::require_confirmation;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::services::LinkGenerationService;
@@ -18,10 +18,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<LinkDeleteOutput>> {
+pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let link_id = LinkId::new(args.link_id.clone());
 
     if config.is_interactive() && !args.yes {
@@ -45,5 +42,5 @@ pub async fn execute(
 
     let output = LinkDeleteOutput { deleted, link_id };
 
-    Ok(CommandResult::card(output).with_title("Link Deleted"))
+    Ok(CommandOutput::card_value("Link Deleted", &output))
 }

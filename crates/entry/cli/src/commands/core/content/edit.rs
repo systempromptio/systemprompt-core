@@ -4,7 +4,7 @@ use super::edit_apply::{
 use super::types::UpdateOutput;
 use crate::cli_settings::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use dialoguer::Select;
@@ -39,10 +39,7 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<UpdateOutput>> {
+pub(super) async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -51,7 +48,7 @@ pub(super) async fn execute_with_pool(
     args: EditArgs,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<UpdateOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
 
     let identifier = resolve_required(args.identifier.clone(), "identifier", config, || {
@@ -123,7 +120,7 @@ pub(super) async fn execute_with_pool(
         success: true,
     };
 
-    Ok(CommandResult::text(output).with_title("Content Updated"))
+    Ok(CommandOutput::card_value("Content Updated", &output))
 }
 
 fn prompt_content_selection(

@@ -1,6 +1,6 @@
 use super::types::{ContentStatusRow, StatusOutput};
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
@@ -24,7 +24,7 @@ pub struct StatusArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: StatusArgs, config: &CliConfig) -> Result<CommandResult<StatusOutput>> {
+pub async fn execute(args: StatusArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -33,7 +33,7 @@ pub async fn execute_with_pool(
     args: StatusArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<StatusOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
 
     let source = SourceId::new(args.source.clone());
@@ -87,13 +87,9 @@ pub async fn execute_with_pool(
         issues,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Content Status")
-        .with_columns(vec![
-            "slug".to_owned(),
-            "title".to_owned(),
-            "is_public".to_owned(),
-            "prerendered".to_owned(),
-            "last_updated".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["slug", "title", "is_public", "prerendered", "last_updated"],
+        &output.items,
+    )
+    .with_title("Content Status"))
 }

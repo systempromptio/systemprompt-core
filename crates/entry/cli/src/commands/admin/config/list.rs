@@ -2,7 +2,7 @@ use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection, read_yaml_file};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -10,7 +10,7 @@ pub struct ListArgs {
     pub errors_only: bool,
 }
 
-pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandResult<ConfigListOutput> {
+pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandOutput {
     let mut files = Vec::new();
     let mut valid_count = 0;
     let mut invalid_count = 0;
@@ -62,5 +62,9 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandResult<ConfigListO
         files,
     };
 
-    CommandResult::table(output).with_title("Configuration Files")
+    CommandOutput::table_of(
+        vec!["path", "section", "exists", "valid", "error"],
+        &output.files,
+    )
+    .with_title("Configuration Files")
 }

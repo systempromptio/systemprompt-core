@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::content_config::ContentConfigRaw;
 
@@ -19,10 +19,7 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentTypeDetailOutput>> {
+pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -75,5 +72,8 @@ pub(super) fn execute(
         }),
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Content Type: {}", name)))
+    Ok(CommandOutput::card_value(
+        format!("Content Type: {}", name),
+        &output,
+    ))
 }

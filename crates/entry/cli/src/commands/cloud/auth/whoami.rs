@@ -7,9 +7,9 @@ use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::WhoamiOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOutput>> {
+pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
 
     if !cloud_paths.exists(CloudPath::Credentials) {
@@ -28,7 +28,7 @@ pub(super) async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOu
             cloud_tenants: 0,
         };
 
-        return Ok(CommandResult::card(output).with_title("Cloud Identity"));
+        return Ok(CommandOutput::card_value("Cloud Identity", &output));
     }
 
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
@@ -81,7 +81,7 @@ pub(super) async fn execute(config: &CliConfig) -> Result<CommandResult<WhoamiOu
         CliService::key_value("Cloud tenants", &cloud_count.to_string());
     }
 
-    Ok(CommandResult::card(output).with_title("Cloud Identity"))
+    Ok(CommandOutput::card_value("Cloud Identity", &output))
 }
 
 async fn fetch_cloud_tenant_count(creds: &CloudCredentials) -> usize {

@@ -8,7 +8,7 @@ use systemprompt_users::UserService;
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CountArgs {
@@ -23,10 +23,7 @@ pub(super) enum CountResult {
     Breakdown(UserCountBreakdownOutput),
 }
 
-pub(super) async fn execute(
-    args: CountArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<CountResult>> {
+pub(super) async fn execute(args: CountArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -35,7 +32,7 @@ pub(super) async fn execute_with_pool(
     args: CountArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<CountResult>> {
+) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
 
     if args.breakdown {
@@ -47,11 +44,17 @@ pub(super) async fn execute_with_pool(
             by_role: breakdown.by_role,
         };
 
-        Ok(CommandResult::card(CountResult::Breakdown(output)).with_title("User Count Breakdown"))
+        Ok(CommandOutput::card_value(
+            "User Count Breakdown",
+            &CountResult::Breakdown(output),
+        ))
     } else {
         let count = user_service.count().await?;
         let output = UserCountOutput { count };
 
-        Ok(CommandResult::text(CountResult::Simple(output)).with_title("User Count"))
+        Ok(CommandOutput::card_value(
+            "User Count",
+            &CountResult::Simple(output),
+        ))
     }
 }

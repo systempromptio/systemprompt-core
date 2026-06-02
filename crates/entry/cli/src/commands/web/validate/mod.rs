@@ -13,7 +13,6 @@ use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
 use systemprompt_config::ProfileBootstrap;
 
 use super::paths::WebPaths;
@@ -35,10 +34,7 @@ pub struct ValidateArgs {
     pub only: Option<ValidationCategory>,
 }
 
-pub(super) fn execute(
-    args: &ValidateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ValidationOutput>> {
+pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<ValidationOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let web_paths = WebPaths::resolve_from_profile(profile)?;
 
@@ -81,12 +77,10 @@ pub(super) fn execute(
         _ => 1,
     };
 
-    let output = ValidationOutput {
+    Ok(ValidationOutput {
         valid,
         items_checked,
         errors,
         warnings,
-    };
-
-    Ok(CommandResult::card(output).with_title("Web Configuration Validation"))
+    })
 }

@@ -11,7 +11,7 @@ use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
 use crate::CliConfig;
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ViewArgs {
@@ -37,10 +37,7 @@ pub struct ViewArgs {
     pub since: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: ViewArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<LogViewOutput>> {
+pub(super) async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(ctx.db_pool())?;
     execute_inner(args, &service, config).await
@@ -50,7 +47,7 @@ pub(super) async fn execute_with_pool(
     args: ViewArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-) -> Result<CommandResult<LogViewOutput>> {
+) -> Result<CommandOutput> {
     let service = LoggingMaintenanceService::new(db_ctx.db_pool())?;
     execute_inner(args, &service, config).await
 }
@@ -59,30 +56,21 @@ async fn execute_inner(
     args: ViewArgs,
     service: &LoggingMaintenanceService,
     config: &CliConfig,
-) -> Result<CommandResult<LogViewOutput>> {
+) -> Result<CommandOutput> {
     let logs = get_logs(service, &args).await?;
     let output = build_output(&logs, &args);
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "id".to_owned(),
-            "trace_id".to_owned(),
-            "timestamp".to_owned(),
-            "level".to_owned(),
-            "module".to_owned(),
-            "message".to_owned(),
-        ]),
-        ..Default::default()
-    };
-    let result = CommandResult::table(output)
-        .with_title("Log Entries")
-        .with_hints(hints);
+    let result = CommandOutput::table_of(
+        vec!["id", "trace_id", "timestamp", "level", "module", "message"],
+        &output.logs,
+    )
+    .with_title("Log Entries");
 
     if config.is_json_output() {
         return Ok(result);
     }
 
-    render_logs(&result.data);
+    render_logs(&output);
     Ok(result.with_skip_render())
 }
 

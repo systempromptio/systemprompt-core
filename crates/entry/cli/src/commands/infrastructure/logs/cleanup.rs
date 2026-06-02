@@ -8,7 +8,7 @@ use super::LogCleanupOutput;
 use super::duration::parse_duration;
 use crate::CliConfig;
 use crate::interactive::require_confirmation;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct CleanupArgs {
@@ -68,7 +68,7 @@ pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()>
             vacuum_performed: false,
         };
 
-        let result = CommandResult::card(output).with_title("Cleanup Preview (Dry Run)");
+        let result = CommandOutput::card_value("Cleanup Preview (Dry Run)", &output);
         render_result(&result);
         return Ok(());
     }
@@ -94,7 +94,7 @@ pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()>
         vacuum_performed: false,
     };
 
-    let result = CommandResult::card(output).with_title("Logs Cleaned Up");
+    let result = CommandOutput::card_value("Logs Cleaned Up", &output);
     render_result(&result);
 
     Ok(())

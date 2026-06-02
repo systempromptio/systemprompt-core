@@ -15,7 +15,7 @@ use super::types::{McpCallOutput, McpToolContent};
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::session::{CliSessionContext, get_or_create_session};
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 #[command(
@@ -37,10 +37,7 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(
-    args: CallArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<McpCallOutput>> {
+pub(super) async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let session_ctx = get_or_create_session(config).await?;
 
@@ -162,7 +159,7 @@ pub(super) async fn execute(
         },
     };
 
-    let card = CommandResult::card(output).with_title(format!("Tool Execution: {}", tool_name));
+    let card = CommandOutput::card_value(format!("Tool Execution: {}", tool_name), &output);
 
     if let Some(msg) = failure {
         render_result(&card);

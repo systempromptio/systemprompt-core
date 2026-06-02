@@ -1,156 +1,136 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cli::shared::{ArtifactType, ChartType, CommandResult, RenderingHints};
+use systemprompt_cli::shared::{ChartType, CommandOutput};
+use systemprompt_models::artifacts::{
+    ChartArtifact, CliArtifact, DashboardArtifact, ListItem, PresentationCardArtifact,
+};
 
 #[test]
-fn test_command_result_table() {
-    let result: CommandResult<String> = CommandResult::table("test data".to_string());
-    assert!(matches!(result.artifact_type, ArtifactType::Table));
-    assert_eq!(result.data, "test data");
-    assert!(result.title.is_none());
-    assert!(result.hints.is_none());
+fn test_command_output_table() {
+    let output = CommandOutput::table(vec!["col"], vec![serde_json::json!({"col": "v"})]);
+    assert!(matches!(output.artifact(), CliArtifact::Table { .. }));
+    assert!(!output.should_skip_render());
 }
 
 #[test]
-fn test_command_result_list() {
-    let result: CommandResult<Vec<i32>> = CommandResult::list(vec![1, 2, 3]);
-    assert!(matches!(result.artifact_type, ArtifactType::List));
-    assert_eq!(result.data.len(), 3);
+fn test_command_output_list() {
+    let output = CommandOutput::list(vec![ListItem::new("title", "summary", "link")]);
+    assert!(matches!(output.artifact(), CliArtifact::List { .. }));
 }
 
 #[test]
-fn test_command_result_card() {
-    let result: CommandResult<&str> = CommandResult::card("card content");
+fn test_command_output_card() {
+    let output = CommandOutput::card(PresentationCardArtifact::new("card content"));
     assert!(matches!(
-        result.artifact_type,
-        ArtifactType::PresentationCard
+        output.artifact(),
+        CliArtifact::PresentationCard { .. }
     ));
 }
 
 #[test]
-fn test_command_result_text() {
-    let result: CommandResult<&str> = CommandResult::text("plain text");
-    assert!(matches!(result.artifact_type, ArtifactType::Text));
+fn test_command_output_card_value() {
+    let output = CommandOutput::card_value("title", &serde_json::json!({"k": "v"}));
+    assert!(matches!(
+        output.artifact(),
+        CliArtifact::PresentationCard { .. }
+    ));
 }
 
 #[test]
-fn test_command_result_copy_paste() {
-    let result: CommandResult<&str> = CommandResult::copy_paste("copyable text");
-    assert!(matches!(result.artifact_type, ArtifactType::CopyPasteText));
+fn test_command_output_text() {
+    let output = CommandOutput::text("plain text");
+    assert!(matches!(output.artifact(), CliArtifact::Text { .. }));
 }
 
 #[test]
-fn test_command_result_chart() {
-    let result: CommandResult<Vec<i32>> = CommandResult::chart(vec![10, 20, 30], ChartType::Bar);
-    assert!(matches!(result.artifact_type, ArtifactType::Chart));
-    let hints = result.hints.expect("chart should have hints");
-    assert!(matches!(hints.chart_type, Some(ChartType::Bar)));
+fn test_command_output_text_titled() {
+    let output = CommandOutput::text_titled("Greeting", "hello");
+    assert!(matches!(output.artifact(), CliArtifact::Text { .. }));
 }
 
 #[test]
-fn test_command_result_form() {
-    let result: CommandResult<&str> = CommandResult::form("form data");
-    assert!(matches!(result.artifact_type, ArtifactType::Form));
+fn test_command_output_copy_paste() {
+    let output = CommandOutput::copy_paste("copyable text");
+    assert!(matches!(output.artifact(), CliArtifact::CopyPasteText { .. }));
 }
 
 #[test]
-fn test_command_result_dashboard() {
-    let result: CommandResult<&str> = CommandResult::dashboard("dashboard data");
-    assert!(matches!(result.artifact_type, ArtifactType::Dashboard));
+fn test_command_output_copy_paste_titled() {
+    let output = CommandOutput::copy_paste_titled("Title", "copyable text");
+    assert!(matches!(output.artifact(), CliArtifact::CopyPasteText { .. }));
 }
 
 #[test]
-fn test_command_result_with_title() {
-    let result = CommandResult::table("data").with_title("My Title");
-    assert_eq!(result.title.as_ref().unwrap(), "My Title");
+fn test_command_output_chart() {
+    let output = CommandOutput::chart(ChartArtifact::new("Sales", ChartType::Bar));
+    assert!(matches!(output.artifact(), CliArtifact::Chart { .. }));
 }
 
 #[test]
-fn test_command_result_with_title_into_string() {
-    let result = CommandResult::table("data").with_title(String::from("String Title"));
-    assert_eq!(result.title.as_ref().unwrap(), "String Title");
+fn test_command_output_dashboard() {
+    let output = CommandOutput::dashboard(DashboardArtifact::new("dashboard"));
+    assert!(matches!(output.artifact(), CliArtifact::Dashboard { .. }));
 }
 
 #[test]
-fn test_command_result_with_hints() {
-    let hints = RenderingHints {
-        theme: Some("dark".to_string()),
-        ..Default::default()
-    };
-    let result = CommandResult::table("data").with_hints(hints);
-    let result_hints = result.hints.expect("should have hints after with_hints");
-    assert_eq!(result_hints.theme.as_ref().unwrap(), "dark");
+fn test_command_output_with_title() {
+    let output = CommandOutput::text("data").with_title("My Title");
+    // Title is terminal-only presentation state; the artifact variant is unchanged.
+    assert!(matches!(output.artifact(), CliArtifact::Text { .. }));
 }
 
 #[test]
-fn test_command_result_with_columns() {
-    let result =
-        CommandResult::table("data").with_columns(vec!["col1".to_string(), "col2".to_string()]);
-    let result_hints = result.hints.expect("should have hints after with_columns");
-    let columns = result_hints.columns.as_ref().unwrap();
-    assert_eq!(columns.len(), 2);
-    assert_eq!(columns[0], "col1");
-    assert_eq!(columns[1], "col2");
+fn test_command_output_with_title_into_string() {
+    let output = CommandOutput::text("data").with_title(String::from("String Title"));
+    assert!(matches!(output.artifact(), CliArtifact::Text { .. }));
 }
 
 #[test]
-fn test_command_result_with_columns_preserves_existing_hints() {
-    let hints = RenderingHints {
-        theme: Some("dark".to_string()),
-        ..Default::default()
-    };
-    let result = CommandResult::table("data")
-        .with_hints(hints)
-        .with_columns(vec!["col1".to_string()]);
+fn test_command_output_skip_render() {
+    let output = CommandOutput::text("data");
+    assert!(!output.should_skip_render());
 
-    let final_hints = result.hints.expect("should have hints after chaining");
-    assert_eq!(final_hints.theme.as_ref().unwrap(), "dark");
-    final_hints
-        .columns
-        .expect("should have columns after with_columns");
+    let output = output.with_skip_render();
+    assert!(output.should_skip_render());
 }
 
 #[test]
-fn test_command_result_skip_render() {
-    let result = CommandResult::table("data");
-    assert!(!result.should_skip_render());
-
-    let result = result.with_skip_render();
-    assert!(result.should_skip_render());
-}
-
-#[test]
-fn test_command_result_builder_chain() {
-    let result = CommandResult::chart(vec![1, 2, 3], ChartType::Line)
+fn test_command_output_builder_chain() {
+    let output = CommandOutput::chart(ChartArtifact::new("Sales Data", ChartType::Line))
         .with_title("Sales Data")
-        .with_columns(vec!["month".to_string(), "value".to_string()]);
+        .with_skip_render();
 
-    assert!(matches!(result.artifact_type, ArtifactType::Chart));
-    assert_eq!(result.title.as_ref().unwrap(), "Sales Data");
-    result
-        .hints
-        .expect("chart with builder chain should have hints");
+    assert!(matches!(output.artifact(), CliArtifact::Chart { .. }));
+    assert!(output.should_skip_render());
 }
 
 #[test]
-fn test_command_result_serialize_basic() {
-    let result = CommandResult::text("hello");
-    let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"data\":\"hello\""));
+fn test_command_output_table_of() {
+    #[derive(serde::Serialize)]
+    struct Row {
+        name: String,
+        value: u32,
+    }
+    let rows = vec![Row {
+        name: "a".into(),
+        value: 1,
+    }];
+    let output = CommandOutput::table_of(vec!["name", "value"], &rows);
+    assert!(matches!(output.artifact(), CliArtifact::Table { .. }));
+}
+
+#[test]
+fn test_command_output_serialize_artifact() {
+    let output = CommandOutput::text("hello");
+    let json = serde_json::to_string(output.artifact()).unwrap();
+    // The wire form is the tagged CliArtifact union.
     assert!(json.contains("\"artifact_type\":\"text\""));
+    assert!(json.contains("hello"));
 }
 
 #[test]
-fn test_command_result_serialize_with_title() {
-    let result = CommandResult::text("hello").with_title("Greeting");
-    let json = serde_json::to_string(&result).unwrap();
-    assert!(json.contains("\"title\":\"Greeting\""));
-}
-
-#[test]
-fn test_command_result_serialize_skips_none_fields() {
-    let result = CommandResult::text("hello");
-    let json = serde_json::to_string(&result).unwrap();
-    assert!(!json.contains("\"title\":"));
-    assert!(!json.contains("\"hints\":"));
+fn test_command_output_from_cli_artifact() {
+    let artifact = CliArtifact::text(systemprompt_models::artifacts::TextArtifact::new("x"));
+    let output: CommandOutput = artifact.into();
+    assert!(matches!(output.artifact(), CliArtifact::Text { .. }));
 }

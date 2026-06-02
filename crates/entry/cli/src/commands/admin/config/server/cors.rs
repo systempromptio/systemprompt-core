@@ -9,7 +9,8 @@ use super::super::types::{CorsListOutput, CorsModifyOutput};
 use super::{load_profile, save_profile};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
+use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Subcommand)]
 pub enum CorsCommands {
@@ -51,7 +52,12 @@ fn execute_list() -> Result<()> {
         count: profile.server.cors_allowed_origins.len(),
     };
 
-    render_result(&CommandResult::list(output).with_title("CORS Allowed Origins"));
+    let items: Vec<ListItem> = output
+        .origins
+        .into_iter()
+        .map(|origin| ListItem::new(origin, String::new(), String::new()))
+        .collect();
+    render_result(&CommandOutput::list(items).with_title("CORS Allowed Origins"));
 
     Ok(())
 }
@@ -66,7 +72,7 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
             origin: args.origin.clone(),
             message: format!("Origin {} already exists", args.origin),
         };
-        render_result(&CommandResult::text(output).with_title("CORS Origin"));
+        render_result(&CommandOutput::card_value("CORS Origin", &output));
         return Ok(());
     }
 
@@ -81,7 +87,7 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Added CORS origin: {}", args.origin),
     };
-    render_result(&CommandResult::text(output).with_title("CORS Origin Added"));
+    render_result(&CommandOutput::card_value("CORS Origin Added", &output));
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -106,7 +112,7 @@ fn execute_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
             origin: args.origin.clone(),
             message: format!("Origin {} not found", args.origin),
         };
-        render_result(&CommandResult::text(output).with_title("CORS Origin"));
+        render_result(&CommandOutput::card_value("CORS Origin", &output));
         return Ok(());
     }
 
@@ -117,7 +123,7 @@ fn execute_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Removed CORS origin: {}", args.origin),
     };
-    render_result(&CommandResult::text(output).with_title("CORS Origin Removed"));
+    render_result(&CommandOutput::card_value("CORS Origin Removed", &output));
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

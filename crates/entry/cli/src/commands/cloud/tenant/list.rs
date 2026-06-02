@@ -16,9 +16,9 @@ use systemprompt_logging::CliService;
 use super::select::get_credentials;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{TenantListOutput, TenantSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantListOutput>> {
+pub async fn list_tenants(config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
@@ -48,14 +48,11 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
                 "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
             );
         }
-        return Ok(CommandResult::table(output)
-            .with_title("Tenants")
-            .with_columns(vec![
-                "id".to_owned(),
-                "name".to_owned(),
-                "tenant_type".to_owned(),
-                "has_database".to_owned(),
-            ]));
+        return Ok(CommandOutput::table_of(
+            vec!["id", "name", "tenant_type", "has_database"],
+            &output.tenants,
+        )
+        .with_title("Tenants"));
     }
 
     if !config.is_json_output() {
@@ -118,14 +115,11 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
         }
     }
 
-    Ok(CommandResult::table(output)
-        .with_title("Tenants")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "tenant_type".to_owned(),
-            "has_database".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "tenant_type", "has_database"],
+        &output.tenants,
+    )
+    .with_title("Tenants"))
 }
 
 fn display_tenant_details(tenant: &StoredTenant) {

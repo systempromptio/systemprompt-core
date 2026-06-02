@@ -10,7 +10,7 @@ use tabled::{Table, Tabled};
 use super::types::{ArtifactListOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::{CommandResult, truncate_with_ellipsis};
+use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -40,10 +40,7 @@ pub(super) struct ArtifactRow {
     created_at: String,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ArtifactListOutput>> {
+pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(args, &session_ctx.session.user_id, ctx.db_pool(), config).await
@@ -54,7 +51,7 @@ pub(super) async fn execute_with_pool(
     user_id: &systemprompt_identifiers::UserId,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<ArtifactListOutput>> {
+) -> Result<CommandOutput> {
     let repo = ArtifactRepository::new(pool)?;
 
     let artifacts = if let Some(ref ctx_id) = args.context {
@@ -114,13 +111,9 @@ pub(super) async fn execute_with_pool(
         }
     }
 
-    Ok(CommandResult::table(output)
-        .with_title("Artifacts")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "artifact_type".to_owned(),
-            "tool_name".to_owned(),
-            "created_at".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "artifact_type", "tool_name", "created_at"],
+        &output.artifacts,
+    )
+    .with_title("Artifacts"))
 }

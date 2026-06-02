@@ -12,7 +12,7 @@ use tokio::fs;
 
 use super::types::FileUploadOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct UploadArgs {
@@ -32,10 +32,7 @@ pub struct UploadArgs {
     pub ai: bool,
 }
 
-pub async fn execute(
-    args: UploadArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<FileUploadOutput>> {
+pub async fn execute(args: UploadArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let files_config = FilesConfig::get()?;
     let service = FileUploadService::new(ctx.db_pool(), files_config.clone())?;
@@ -87,7 +84,7 @@ pub async fn execute(
         checksum_sha256,
     };
 
-    Ok(CommandResult::card(output).with_title("File Uploaded"))
+    Ok(CommandOutput::card_value("File Uploaded", &output))
 }
 
 const EXTENSION_MIME_TABLE: &[(&[&str], &str)] = &[

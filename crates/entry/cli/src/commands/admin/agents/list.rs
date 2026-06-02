@@ -3,7 +3,7 @@ use clap::Args;
 
 use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Clone, Args)]
@@ -25,7 +25,7 @@ pub(super) enum ListOrDetail {
     Detail(AgentDetailOutput),
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     if let Some(name) = args.name {
@@ -55,8 +55,10 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
             skills_count: agent.metadata.skills.include.len(),
         };
 
-        return Ok(CommandResult::card(ListOrDetail::Detail(output))
-            .with_title(format!("Agent: {}", name)));
+        return Ok(CommandOutput::card_value(
+            format!("Agent: {}", name),
+            &ListOrDetail::Detail(output),
+        ));
     }
 
     let mut agents: Vec<AgentSummary> = services_config
@@ -76,16 +78,21 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResu
 
     agents.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let output = AgentListOutput { agents };
+    let output = ListOrDetail::List(AgentListOutput { agents });
+    let ListOrDetail::List(list) = &output else {
+        unreachable!("output is constructed as List above")
+    };
 
-    Ok(CommandResult::table(ListOrDetail::List(output))
-        .with_title("Agents")
-        .with_columns(vec![
-            "name".to_owned(),
-            "display_name".to_owned(),
-            "port".to_owned(),
-            "enabled".to_owned(),
-            "is_primary".to_owned(),
-            "is_default".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "name",
+            "display_name",
+            "port",
+            "enabled",
+            "is_primary",
+            "is_default",
+        ],
+        &list.agents,
+    )
+    .with_title("Agents"))
 }

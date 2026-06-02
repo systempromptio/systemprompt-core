@@ -10,13 +10,13 @@ use super::ai_display::{
 use super::ai_mcp::print_mcp_executions;
 use super::show::ShowArgs;
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceViewOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 pub(super) async fn execute_ai_trace(
     service: &AiTraceService,
     task_id: &TaskId,
     args: &ShowArgs,
-) -> Result<CommandResult<TraceViewOutput>> {
+) -> Result<CommandOutput> {
     if !args.json {
         CliService::section(&format!("Trace: {}", task_id.as_str()));
     }
@@ -65,9 +65,7 @@ pub(super) async fn execute_ai_trace(
 
     let output = build_trace_output(task_id, &task_info, &ai_requests, &mcp_executions, &steps);
 
-    Ok(CommandResult::card(output)
-        .with_title("AI Trace Details")
-        .with_skip_render())
+    Ok(CommandOutput::card_value("AI Trace Details", &output).with_skip_render())
 }
 
 fn ai_summary(ai_requests: &[systemprompt_logging::AiRequestInfo]) -> AiSummaryRow {

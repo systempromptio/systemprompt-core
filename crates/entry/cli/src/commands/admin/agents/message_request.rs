@@ -6,7 +6,6 @@ use systemprompt_models::a2a::Task;
 
 use super::message::extract_text_from_parts;
 use super::types::MessageOutput;
-use crate::shared::CommandResult;
 
 pub(super) struct NonStreamingRequest<'a> {
     pub agent: &'a str,
@@ -19,7 +18,7 @@ pub(super) struct NonStreamingRequest<'a> {
 
 pub(super) async fn execute_non_streaming(
     params: NonStreamingRequest<'_>,
-) -> Result<CommandResult<MessageOutput>> {
+) -> Result<MessageOutput> {
     let NonStreamingRequest {
         agent,
         agent_url,
@@ -90,5 +89,5 @@ pub(super) async fn execute_non_streaming(
         response,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
+    Ok(output)
 }

@@ -9,7 +9,7 @@ use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
@@ -31,10 +31,7 @@ pub struct CreateArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(
-    args: CreateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentCreateOutput>> {
+pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
     let name = resolve_required(args.name, "name", config, prompt_name)?;
 
     validate_agent_name(&name)?;
@@ -169,7 +166,7 @@ pub(super) fn execute(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Agent Created"))
+    Ok(CommandOutput::card_value("Agent Created", &output))
 }
 
 fn validate_agent_name(name: &str) -> Result<()> {

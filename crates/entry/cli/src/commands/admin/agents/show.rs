@@ -6,7 +6,7 @@ use dialoguer::theme::ColorfulTheme;
 use super::types::AgentDetailOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Args)]
@@ -15,10 +15,7 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentDetailOutput>> {
+pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name, "name", config, || {
@@ -54,7 +51,10 @@ pub(super) fn execute(
         skills_count: agent.metadata.skills.include.len(),
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Agent: {}", name)))
+    Ok(CommandOutput::card_value(
+        format!("Agent: {}", name),
+        &output,
+    ))
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

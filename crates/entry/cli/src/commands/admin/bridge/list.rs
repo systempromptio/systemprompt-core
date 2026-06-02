@@ -8,7 +8,7 @@ use systemprompt_oauth::repository::{BridgeSessionRepository, BridgeSessionRow};
 use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 const DEFAULT_WITHIN_SECS: u64 = 120;
 
@@ -42,10 +42,7 @@ pub(super) struct BridgeSessionSummary {
     pub forwarded_total: i64,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<BridgeListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = BridgeSessionRepository::new(ctx.db_pool())?;
     let within = Duration::from_secs(args.within_secs);
@@ -67,7 +64,7 @@ pub(super) async fn execute(
         sessions: summaries,
     };
 
-    Ok(CommandResult::text(output).with_title(title))
+    Ok(CommandOutput::card_value(title, &output))
 }
 
 fn summary(row: BridgeSessionRow) -> BridgeSessionSummary {

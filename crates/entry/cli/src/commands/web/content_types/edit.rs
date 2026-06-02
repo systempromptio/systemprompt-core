@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
@@ -46,10 +46,7 @@ pub struct EditArgs {
     pub description: Option<String>,
 }
 
-pub(super) fn execute(
-    args: &EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentTypeEditOutput>> {
+pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -98,7 +95,10 @@ pub(super) fn execute(
         changes,
     };
 
-    Ok(CommandResult::text(output).with_title(format!("Edit Content Type: {}", name)))
+    Ok(CommandOutput::card_value(
+        format!("Edit Content Type: {}", name),
+        &output,
+    ))
 }
 
 fn apply_basic_flags(

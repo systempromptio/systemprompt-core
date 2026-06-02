@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{GenerateLinkOutput, UtmParamsOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
 use systemprompt_content::models::{LinkType as DomainLinkType, UtmParams};
@@ -60,10 +60,7 @@ pub struct GenerateArgs {
 
 const DEFAULT_BASE_URL: &str = "https://systemprompt.io";
 
-pub async fn execute(
-    args: GenerateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<GenerateLinkOutput>> {
+pub async fn execute(args: GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if args.url.is_empty() {
         return Err(anyhow!("URL is required"));
     }
@@ -125,5 +122,5 @@ pub async fn execute(
         utm_params: utm_output,
     };
 
-    Ok(CommandResult::card(output).with_title("Generated Link"))
+    Ok(CommandOutput::card_value("Generated Link", &output))
 }

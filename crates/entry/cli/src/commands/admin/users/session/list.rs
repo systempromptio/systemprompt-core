@@ -6,7 +6,7 @@ use systemprompt_users::{UserAdminService, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::{SessionListOutput, SessionSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -20,10 +20,7 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<SessionListOutput>> {
+pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -32,7 +29,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<SessionListOutput>> {
+) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
@@ -67,13 +64,15 @@ pub(super) async fn execute_with_pool(
         sessions: summaries,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("User Sessions")
-        .with_columns(vec![
-            "session_id".to_owned(),
-            "ip_address".to_owned(),
-            "device_type".to_owned(),
-            "started_at".to_owned(),
-            "is_active".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "session_id",
+            "ip_address",
+            "device_type",
+            "started_at",
+            "is_active",
+        ],
+        &output.sessions,
+    )
+    .with_title("User Sessions"))
 }

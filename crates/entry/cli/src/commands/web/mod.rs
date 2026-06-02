@@ -16,7 +16,7 @@ use clap::Subcommand;
 
 use crate::CliConfig;
 use crate::cli_settings::get_global_config;
-use crate::shared::render_result;
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum WebCommands {
@@ -48,13 +48,16 @@ pub fn execute_with_config(command: WebCommands, config: &CliConfig) -> Result<(
         WebCommands::Assets(cmd) => assets::execute(cmd, config),
         WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config),
         WebCommands::Validate(args) => {
-            let result = validate::execute(&args, config)?;
-            let valid = result.data.valid;
-            let error_count = result.data.errors.len();
-            render_result(&result);
+            let output = validate::execute(&args, config)?;
+            let valid = output.valid;
+            let error_count = output.errors.len();
+            render_result(&CommandOutput::card_value(
+                "Web Configuration Validation",
+                &output,
+            ));
             if !valid {
                 return Err(anyhow::anyhow!(
-                    "web configuration is invalid: {error_count} error(s) — see report above",
+                    "web configuration is invalid: {error_count} error(s), see report above",
                 ));
             }
             Ok(())

@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_to_csv, format_date_range, parse_time_range, resolve_export_path,
 };
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct GeoArgs {
@@ -33,10 +33,7 @@ pub struct GeoArgs {
     pub include_all: bool,
 }
 
-pub(super) async fn execute(
-    args: GeoArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<GeoOutput>> {
+pub(super) async fn execute(args: GeoArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -46,7 +43,7 @@ pub(super) async fn execute_with_pool(
     args: GeoArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<GeoOutput>> {
+) -> Result<CommandOutput> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -54,7 +51,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: GeoArgs,
     repo: &TrafficAnalyticsRepository,
-) -> Result<CommandResult<GeoOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let engaged_only = !args.include_all;
 
@@ -90,19 +87,16 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.countries, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec!["country", "session_count", "percentage"],
+            &output.countries,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "country".to_owned(),
-            "session_count".to_owned(),
-            "percentage".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Geographic Distribution")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec!["country", "session_count", "percentage"],
+        &output.countries,
+    )
+    .with_title("Geographic Distribution"))
 }

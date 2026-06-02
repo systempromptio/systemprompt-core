@@ -9,7 +9,7 @@ use super::client::{A2aCall, ensure_agent_exists, send_a2a_request};
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct TaskArgs {
@@ -35,7 +35,7 @@ pub struct TaskArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<Task>> {
+pub(super) async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
 
     let agent = resolve_required(args.agent, "agent", config, || {
@@ -75,5 +75,5 @@ pub(super) async fn execute(args: TaskArgs, config: &CliConfig) -> Result<Comman
     })
     .await?;
 
-    Ok(CommandResult::card(task).with_title("Task Details"))
+    Ok(CommandOutput::card_value("Task Details", &task))
 }

@@ -5,7 +5,7 @@ use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::BanAddOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 const CLI_BAN_SOURCE: &str = "cli";
 
@@ -23,10 +23,7 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub(super) async fn execute(
-    args: AddArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<BanAddOutput>> {
+pub(super) async fn execute(args: AddArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
 
@@ -50,7 +47,7 @@ pub(super) async fn execute(
         message: format!("IP address '{}' has been banned", args.ip),
     };
 
-    Ok(CommandResult::text(output).with_title("IP Banned"))
+    Ok(CommandOutput::card_value("IP Banned", &output))
 }
 
 fn parse_duration(duration_str: Option<&str>) -> Result<BanDuration> {

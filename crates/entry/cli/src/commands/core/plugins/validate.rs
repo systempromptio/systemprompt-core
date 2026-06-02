@@ -9,7 +9,7 @@ use clap::Args;
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
 
@@ -19,10 +19,7 @@ pub struct ValidateArgs {
     pub id: Option<String>,
 }
 
-pub(super) fn execute(
-    args: ValidateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<PluginValidateAllOutput>> {
+pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = std::path::PathBuf::from(profile.paths.plugins());
     let skills_path = std::path::PathBuf::from(profile.paths.skills());
@@ -47,14 +44,11 @@ pub(super) fn execute(
 
     let output = PluginValidateAllOutput { results };
 
-    Ok(CommandResult::table(output)
-        .with_title("Plugin Validation Results")
-        .with_columns(vec![
-            "plugin_id".to_owned(),
-            "valid".to_owned(),
-            "errors".to_owned(),
-            "warnings".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["plugin_id", "valid", "errors", "warnings"],
+        &output.results,
+    )
+    .with_title("Plugin Validation Results"))
 }
 
 fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {

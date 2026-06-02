@@ -5,12 +5,9 @@ use systemprompt_logging::CliService;
 use super::select::select_tenant;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::TenantDetailOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub fn show_tenant(
-    id: Option<&String>,
-    config: &CliConfig,
-) -> Result<CommandResult<TenantDetailOutput>> {
+pub fn show_tenant(id: Option<&String>, config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -67,5 +64,8 @@ pub fn show_tenant(
         }
     }
 
-    Ok(CommandResult::card(output).with_title(format!("Tenant: {}", tenant.name)))
+    Ok(CommandOutput::card_value(
+        format!("Tenant: {}", tenant.name),
+        &output,
+    ))
 }

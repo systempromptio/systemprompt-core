@@ -8,7 +8,7 @@ use std::sync::Arc;
 use super::types::AgentDeleteOutput;
 use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_config::ProfileBootstrap;
@@ -33,10 +33,7 @@ pub struct DeleteArgs {
     pub force: bool,
 }
 
-pub(super) async fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentDeleteOutput>> {
+pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let agents_to_delete: Vec<String> = if args.all {
@@ -74,11 +71,13 @@ pub(super) async fn execute(
                 Ok(p) => Arc::new(p),
                 Err(e) => {
                     tracing::debug!(error = %e, "Failed to create JWT provider");
-                    return Ok(CommandResult::text(AgentDeleteOutput {
-                        deleted: vec![],
-                        message: format!("Failed to initialize: {e}"),
-                    })
-                    .with_title("Delete Failed"));
+                    return Ok(CommandOutput::card_value(
+                        "Delete Failed",
+                        &AgentDeleteOutput {
+                            deleted: vec![],
+                            message: format!("Failed to initialize: {e}"),
+                        },
+                    ));
                 },
             };
             let agent_state = Arc::new(AgentState::new(
@@ -154,7 +153,7 @@ pub(super) async fn execute(
 
     let output = AgentDeleteOutput { deleted, message };
 
-    Ok(CommandResult::text(output).with_title("Delete Agent"))
+    Ok(CommandOutput::card_value("Delete Agent", &output))
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

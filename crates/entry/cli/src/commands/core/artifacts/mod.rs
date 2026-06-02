@@ -2,7 +2,7 @@
 //!
 //! Dispatches the [`ArtifactsCommands`] subcommands (list, show) against either
 //! a freshly bootstrapped [`AppContext`](systemprompt_runtime::AppContext) or a
-//! supplied [`DbPool`], rendering each command's `CommandResult` to the
+//! supplied [`DbPool`], rendering each command's `CommandOutput` to the
 //! configured output sink.
 
 mod list;

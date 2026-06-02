@@ -6,7 +6,7 @@ use systemprompt_users::{UserAdminService, UserService, UserStatus};
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
@@ -29,10 +29,7 @@ pub struct UpdateArgs {
     pub email_verified: Option<bool>,
 }
 
-pub(super) async fn execute(
-    args: UpdateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<UserUpdatedOutput>> {
+pub(super) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
@@ -85,5 +82,5 @@ pub(super) async fn execute(
         message: format!("User '{}' updated successfully", user.name),
     };
 
-    Ok(CommandResult::text(output).with_title("User Updated"))
+    Ok(CommandOutput::card_value("User Updated", &output))
 }

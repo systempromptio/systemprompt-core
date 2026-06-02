@@ -8,7 +8,7 @@ use std::time::Duration;
 use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseService;
@@ -33,10 +33,7 @@ pub struct ValidateArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(
-    args: ValidateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<McpBatchValidateOutput>> {
+pub(super) async fn execute(args: ValidateArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let ctx = AppContext::new()
@@ -102,7 +99,7 @@ pub(super) async fn execute(
         )
     };
 
-    Ok(CommandResult::card(output).with_title(title))
+    Ok(CommandOutput::card_value(title, &output))
 }
 
 async fn validate_single_service(

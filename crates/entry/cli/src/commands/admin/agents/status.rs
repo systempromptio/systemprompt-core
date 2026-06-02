@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_loader::ConfigLoader;
@@ -17,10 +17,7 @@ pub struct StatusArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: StatusArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AgentStatusOutput>> {
+pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let ctx = AppContext::new()
@@ -75,13 +72,9 @@ pub(super) async fn execute(
 
     let output = AgentStatusOutput { agents };
 
-    Ok(CommandResult::table(output)
-        .with_title("Agent Status")
-        .with_columns(vec![
-            "name".to_owned(),
-            "enabled".to_owned(),
-            "is_running".to_owned(),
-            "pid".to_owned(),
-            "port".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["name", "enabled", "is_running", "pid", "port"],
+        &output.agents,
+    )
+    .with_title("Agent Status"))
 }

@@ -14,7 +14,7 @@ use systemprompt_logging::CliService;
 use tabled::{Table, Tabled};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::helpers::format_bytes;
 use super::types::{
@@ -62,9 +62,9 @@ pub(super) async fn execute_tables(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("Schema")
-            .with_columns(vec!["name".into(), "row_count".into(), "size_bytes".into()]);
+        let result =
+            CommandOutput::table_of(vec!["name", "row_count", "size_bytes"], &output.tables)
+                .with_title("Schema");
         render_result(&result);
     } else {
         CliService::section("Tables");
@@ -139,14 +139,11 @@ pub(super) async fn execute_describe(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("Schema")
-            .with_columns(vec![
-                "name".into(),
-                "data_type".into(),
-                "nullable".into(),
-                "primary_key".into(),
-            ]);
+        let result = CommandOutput::table_of(
+            vec!["name", "data_type", "nullable", "primary_key"],
+            &output.columns,
+        )
+        .with_title("Schema");
         render_result(&result);
     } else {
         CliService::section(&format!("Table: {} ({} rows)", table_name, row_count));
@@ -187,7 +184,7 @@ pub(super) async fn execute_info(admin: &DatabaseAdminService, config: &CliConfi
     };
 
     if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("Database Schema");
+        let result = CommandOutput::card_value("Database Schema", &output);
         render_result(&result);
     } else {
         CliService::section("Database Info");
@@ -223,7 +220,7 @@ pub(super) async fn execute_count(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::text(output).with_title("Row Count");
+        let result = CommandOutput::card_value("Row Count", &output);
         render_result(&result);
     } else {
         CliService::info(&format!("{}: {} rows", table_name, count));

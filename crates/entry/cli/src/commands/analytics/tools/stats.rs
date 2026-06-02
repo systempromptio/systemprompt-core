@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -32,10 +32,7 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: StatsArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ToolStatsOutput>> {
+pub(super) async fn execute(args: StatsArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -45,7 +42,7 @@ pub(super) async fn execute_with_pool(
     args: StatsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<ToolStatsOutput>> {
+) -> Result<CommandOutput> {
     let repo = ToolAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -53,7 +50,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: StatsArgs,
     repo: &ToolAnalyticsRepository,
-) -> Result<CommandResult<ToolStatsOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let row = repo.get_stats(start, end, args.tool.as_deref()).await?;
@@ -84,8 +81,8 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_single_to_csv(&output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::card(output).with_skip_render());
+        return Ok(CommandOutput::card_value("Tool Statistics", &output).with_skip_render());
     }
 
-    Ok(CommandResult::card(output).with_title("Tool Statistics"))
+    Ok(CommandOutput::card_value("Tool Statistics", &output))
 }

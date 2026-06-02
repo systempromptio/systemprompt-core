@@ -9,13 +9,14 @@ use super::logs::LogsArgs;
 use super::types::AgentLogsOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
+use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<CommandResult<AgentLogsOutput>> {
+) -> Result<CommandOutput> {
     if !logs_path.exists() {
         return Err(anyhow!(
             "Logs directory does not exist: {}",
@@ -25,13 +26,18 @@ pub(super) fn execute_disk_mode(
 
     if args.agent.is_none() && !config.is_interactive() {
         let log_files = list_agent_log_files(logs_path)?;
-        return Ok(CommandResult::list(AgentLogsOutput {
+        let output = AgentLogsOutput {
             agent: None,
             source: "disk".to_owned(),
             logs: vec![],
             log_files,
-        })
-        .with_title("Available Agent Log Files"));
+        };
+        let items: Vec<ListItem> = output
+            .log_files
+            .iter()
+            .map(|file| ListItem::new(file.clone(), String::new(), file.clone()))
+            .collect();
+        return Ok(CommandOutput::list(items).with_title("Available Agent Log Files"));
     }
 
     let agent = resolve_required(args.agent.clone(), "agent", config, || {
@@ -41,20 +47,22 @@ pub(super) fn execute_disk_mode(
     let log_file = find_log_file(logs_path, &agent)?;
     let logs = read_log_lines(&log_file, args.lines)?;
 
-    Ok(CommandResult::text(AgentLogsOutput {
-        agent: Some(agent.clone()),
-        source: "disk".to_owned(),
-        logs,
-        log_files: vec![],
-    })
-    .with_title(format!("Agent Logs (Disk): {}", agent)))
+    Ok(CommandOutput::card_value(
+        format!("Agent Logs (Disk): {}", agent),
+        &AgentLogsOutput {
+            agent: Some(agent),
+            source: "disk".to_owned(),
+            logs,
+            log_files: vec![],
+        },
+    ))
 }
 
 pub(super) fn execute_follow_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<CommandResult<AgentLogsOutput>> {
+) -> Result<CommandOutput> {
     if !logs_path.exists() {
         return Err(anyhow!(
             "Logs directory does not exist: {}",
@@ -78,13 +86,15 @@ pub(super) fn execute_follow_mode(
         return Err(anyhow!("tail -f exited with non-zero status"));
     }
 
-    Ok(CommandResult::text(AgentLogsOutput {
-        agent: Some(agent),
-        source: "disk".to_owned(),
-        logs: vec![],
-        log_files: vec![],
-    })
-    .with_title("Agent Logs"))
+    Ok(CommandOutput::card_value(
+        "Agent Logs",
+        &AgentLogsOutput {
+            agent: Some(agent),
+            source: "disk".to_owned(),
+            logs: vec![],
+            log_files: vec![],
+        },
+    ))
 }
 
 fn list_agent_log_files(logs_dir: &Path) -> Result<Vec<String>> {

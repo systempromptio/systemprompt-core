@@ -5,7 +5,7 @@ use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::UserMergeOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct MergeArgs {
@@ -19,10 +19,7 @@ pub struct MergeArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: MergeArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<UserMergeOutput>> {
+pub(super) async fn execute(args: MergeArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will merge the source user into the target user and DELETE the source. Use \
@@ -66,5 +63,5 @@ pub(super) async fn execute(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Users Merged"))
+    Ok(CommandOutput::card_value("Users Merged", &output))
 }

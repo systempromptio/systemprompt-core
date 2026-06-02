@@ -1,6 +1,6 @@
 //! Cross-command CLI utilities shared across command modules.
 //!
-//! Aggregates the [`CommandResult`] artifact model and its output types,
+//! Aggregates the [`CommandOutput`] artifact model and its output types,
 //! profile resolution ([`resolve_profile_path`],
 //! [`resolve_profile_with_data`]), argument parsers, and text helpers. Also
 //! defines the `define_pool_command!` macro used by the log commands to
@@ -16,8 +16,8 @@ pub mod project;
 pub mod text;
 
 pub use command_result::{
-    ArtifactType, ChartType, CommandResult, KeyValueItem, KeyValueOutput, RenderingHints,
-    SuccessOutput, TableOutput, TextOutput, render_result,
+    ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
+    render_result,
 };
 pub use parsers::{parse_email, parse_profile_name};
 pub use profile::{

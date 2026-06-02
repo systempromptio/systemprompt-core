@@ -5,7 +5,7 @@ use systemprompt_users::BannedIpRepository;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::BanRemoveOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RemoveArgs {
@@ -15,10 +15,7 @@ pub struct RemoveArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: RemoveArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<BanRemoveOutput>> {
+pub(super) async fn execute(args: RemoveArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will remove the IP ban. Use --yes to confirm."
@@ -40,5 +37,5 @@ pub(super) async fn execute(
         },
     };
 
-    Ok(CommandResult::text(output).with_title("Ban Removed"))
+    Ok(CommandOutput::card_value("Ban Removed", &output))
 }

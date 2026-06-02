@@ -20,12 +20,9 @@ use crate::cloud::types::{
     LoginCustomerInfo, LoginOutput, LoginTenantInfo, LoginUserInfo, TenantPlanInfo,
 };
 use crate::cloud::{Environment, OAuthProvider};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute(
-    environment: Environment,
-    config: &CliConfig,
-) -> Result<CommandResult<LoginOutput>> {
+pub(super) async fn execute(environment: Environment, config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_interactive() {
         return Err(anyhow!(
             "OAuth login requires interactive mode.\n\nAlternatives:\n- Set \
@@ -104,9 +101,7 @@ pub(super) async fn execute(
 
     let output = build_login_output(&response, &save_path, &tenants_path);
 
-    Ok(CommandResult::card(output)
-        .with_title("Cloud Login")
-        .with_skip_render())
+    Ok(CommandOutput::card_value("Cloud Login", &output).with_skip_render())
 }
 
 fn build_login_output(

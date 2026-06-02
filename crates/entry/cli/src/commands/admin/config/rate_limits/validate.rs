@@ -6,7 +6,7 @@ use systemprompt_models::profile::TierMultipliers;
 use super::helpers::apply_multiplier;
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{CompareOutput, EndpointComparison, ValidateOutput};
 
@@ -99,7 +99,10 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
         warnings,
     };
 
-    render_result(&CommandResult::card(output).with_title("Rate Limits Validation"));
+    render_result(&CommandOutput::card_value(
+        "Rate Limits Validation",
+        &output,
+    ));
 
     if config.output_format() == OutputFormat::Table {
         if valid {
@@ -133,7 +136,13 @@ pub(super) fn execute_compare(config: &CliConfig) -> Result<()> {
 
     let output = CompareOutput { endpoints };
 
-    render_result(&CommandResult::table(output).with_title("Rate Limits Comparison"));
+    render_result(
+        &CommandOutput::table_of(
+            vec!["endpoint", "admin", "user", "a2a", "mcp", "service", "anon"],
+            &output.endpoints,
+        )
+        .with_title("Rate Limits Comparison"),
+    );
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");

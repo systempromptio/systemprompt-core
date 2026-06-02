@@ -1,7 +1,4 @@
 use serde_json::json;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
-
-const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 use systemprompt_models::artifacts::chart::ChartDataset;
 use systemprompt_models::artifacts::dashboard::{
     DashboardHints, DashboardSection, DatabaseStatus, ErrorCounts, ItemList, LayoutMode,
@@ -13,19 +10,7 @@ use systemprompt_models::artifacts::research::SourceCitation;
 use systemprompt_models::artifacts::table::{Column, TableHints};
 use systemprompt_models::artifacts::traits::ArtifactSchema;
 use systemprompt_models::artifacts::types::SortOrder as ArtifactSortOrder;
-use systemprompt_models::{
-    Alignment, ArtifactType, AxisType, ChartType, CliArtifact, ColumnType, RenderingHints,
-    RequestContext,
-};
-
-fn test_context() -> RequestContext {
-    RequestContext::new(
-        SessionId::new("test-session"),
-        TraceId::new("test-trace"),
-        ContextId::new(TEST_CONTEXT_ID_A),
-        AgentName::new("test-agent"),
-    )
-}
+use systemprompt_models::{Alignment, ArtifactType, AxisType, ChartType, CliArtifact, ColumnType};
 
 #[test]
 fn column_new_basic() {
@@ -411,24 +396,6 @@ fn source_citation_serde_roundtrip() {
 }
 
 #[test]
-fn rendering_hints_default() {
-    let hints = RenderingHints::default();
-    assert!(hints.columns.is_none());
-    assert!(hints.chart_type.is_none());
-    assert!(hints.theme.is_none());
-    assert!(hints.extra.is_empty());
-}
-
-#[test]
-fn rendering_hints_serde_roundtrip() {
-    let json_str = r#"{"columns":["a","b"],"chart_type":"bar","theme":"dark"}"#;
-    let hints: RenderingHints = serde_json::from_str(json_str).unwrap();
-    assert_eq!(hints.columns.as_ref().unwrap().len(), 2);
-    assert_eq!(hints.chart_type.as_deref(), Some("bar"));
-    assert_eq!(hints.theme.as_deref(), Some("dark"));
-}
-
-#[test]
 fn dashboard_section_new() {
     let section = DashboardSection::new("section-1", "Overview", SectionType::MetricsCards);
     assert_eq!(section.section_id, "section-1");
@@ -566,33 +533,29 @@ fn dashboard_list_item_with_badge() {
 
 #[test]
 fn cli_artifact_type_str_table() {
-    let ctx = test_context();
-    let table = systemprompt_models::TableArtifact::new(vec![], &ctx);
+    let table = systemprompt_models::TableArtifact::new(vec![]);
     let cli = CliArtifact::table(table);
     assert_eq!(cli.artifact_type_str(), "table");
 }
 
 #[test]
 fn cli_artifact_type_str_text() {
-    let ctx = test_context();
-    let text = systemprompt_models::artifacts::text::TextArtifact::new("hello", &ctx);
+    let text = systemprompt_models::artifacts::text::TextArtifact::new("hello");
     let cli = CliArtifact::text(text);
     assert_eq!(cli.artifact_type_str(), "text");
 }
 
 #[test]
 fn cli_artifact_title_for_text() {
-    let ctx = test_context();
-    let text = systemprompt_models::artifacts::text::TextArtifact::new("content", &ctx)
-        .with_title("My Title");
+    let text =
+        systemprompt_models::artifacts::text::TextArtifact::new("content").with_title("My Title");
     let cli = CliArtifact::text(text);
     assert_eq!(cli.title().as_deref(), Some("My Title"));
 }
 
 #[test]
 fn cli_artifact_title_for_table_is_none() {
-    let ctx = test_context();
-    let table = systemprompt_models::TableArtifact::new(vec![], &ctx);
+    let table = systemprompt_models::TableArtifact::new(vec![]);
     let cli = CliArtifact::table(table);
     assert!(cli.title().is_none());
 }

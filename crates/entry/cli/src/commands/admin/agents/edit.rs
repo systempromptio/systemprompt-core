@@ -12,7 +12,7 @@ use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
@@ -45,10 +45,7 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(
-    args: &EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentEditOutput>> {
+pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
@@ -105,7 +102,10 @@ pub(super) fn execute(
         changes,
     };
 
-    Ok(CommandResult::text(output).with_title(format!("Edit Agent: {}", name)))
+    Ok(CommandOutput::card_value(
+        format!("Edit Agent: {}", name),
+        &output,
+    ))
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

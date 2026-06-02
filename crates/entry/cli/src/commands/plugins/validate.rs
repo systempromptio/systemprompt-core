@@ -3,7 +3,7 @@ use clap::Args;
 use super::discover_registry;
 use super::types::{ExtensionValidationOutput, ValidationError, ValidationWarning};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs {
@@ -11,10 +11,7 @@ pub struct ValidateArgs {
     pub verbose: bool,
 }
 
-pub(super) fn execute(
-    args: &ValidateArgs,
-    _config: &CliConfig,
-) -> CommandResult<ExtensionValidationOutput> {
+pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -75,5 +72,5 @@ pub(super) fn execute(
         warnings,
     };
 
-    CommandResult::card(output).with_title("Extension Validation")
+    CommandOutput::card_value("Extension Validation", &output)
 }

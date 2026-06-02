@@ -39,7 +39,7 @@ pub struct ImageArtifact {
 impl ImageArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "image";
 
-    pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
+    pub fn new(src: impl Into<String>) -> Self {
         Self {
             artifact_type: "image".to_owned(),
             src: src.into(),
@@ -47,8 +47,13 @@ impl ImageArtifact {
             caption: None,
             width: None,
             height: None,
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_alt(mut self, alt: impl Into<String>) -> Self {

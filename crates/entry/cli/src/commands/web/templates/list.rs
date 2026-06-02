@@ -3,10 +3,10 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::super::paths::WebPaths;
-use super::super::types::{TemplateListOutput, TemplateSummary, TemplatesConfig};
+use super::super::types::{TemplateSummary, TemplatesConfig};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -14,25 +14,18 @@ pub struct ListArgs {
     pub missing: bool,
 }
 
-pub(super) fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<TemplateListOutput>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     if !templates_yaml_path.exists() {
-        return Ok(
-            CommandResult::table(TemplateListOutput { templates: vec![] })
-                .with_title("Templates")
-                .with_columns(vec![
-                    "name".to_owned(),
-                    "content_types".to_owned(),
-                    "file_exists".to_owned(),
-                    "file_path".to_owned(),
-                ]),
-        );
+        let empty: Vec<TemplateSummary> = vec![];
+        return Ok(CommandOutput::table_of(
+            vec!["name", "content_types", "file_exists", "file_path"],
+            &empty,
+        )
+        .with_title("Templates"));
     }
 
     let content = fs::read_to_string(&templates_yaml_path).with_context(|| {
@@ -68,14 +61,9 @@ pub(super) fn execute(
 
     templates.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let output = TemplateListOutput { templates };
-
-    Ok(CommandResult::table(output)
-        .with_title("Templates")
-        .with_columns(vec![
-            "name".to_owned(),
-            "content_types".to_owned(),
-            "file_exists".to_owned(),
-            "file_path".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["name", "content_types", "file_exists", "file_path"],
+        &templates,
+    )
+    .with_title("Templates"))
 }

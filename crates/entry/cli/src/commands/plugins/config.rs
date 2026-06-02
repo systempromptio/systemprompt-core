@@ -1,11 +1,10 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use serde::Serialize;
 use systemprompt_extension::ExtensionRegistry;
 
 use super::types::{ExtensionConfigListOutput, ExtensionConfigOutput, ExtensionConfigSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ConfigArgs {
@@ -13,17 +12,7 @@ pub struct ConfigArgs {
     pub id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
-pub(super) enum ConfigResult {
-    Single(ExtensionConfigOutput),
-    List(ExtensionConfigListOutput),
-}
-
-pub(super) fn execute(
-    args: &ConfigArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ConfigResult>> {
+pub(super) fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let registry = ExtensionRegistry::discover()?;
 
     if let Some(id) = &args.id {
@@ -38,8 +27,10 @@ pub(super) fn execute(
             has_config: ext.has_config(),
         };
 
-        Ok(CommandResult::card(ConfigResult::Single(output))
-            .with_title(format!("Extension Config: {}", id)))
+        Ok(CommandOutput::card_value(
+            format!("Extension Config: {}", id),
+            &output,
+        ))
     } else {
         let mut extensions: Vec<ExtensionConfigSummary> = registry
             .extensions()
@@ -56,12 +47,10 @@ pub(super) fn execute(
 
         let output = ExtensionConfigListOutput { extensions, total };
 
-        Ok(CommandResult::table(ConfigResult::List(output))
-            .with_title("Extension Configurations")
-            .with_columns(vec![
-                "extension_id".to_owned(),
-                "config_prefix".to_owned(),
-                "has_config".to_owned(),
-            ]))
+        Ok(CommandOutput::table_of(
+            vec!["extension_id", "config_prefix", "has_config"],
+            &output.extensions,
+        )
+        .with_title("Extension Configurations"))
     }
 }

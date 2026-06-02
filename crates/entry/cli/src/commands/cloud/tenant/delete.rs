@@ -18,12 +18,9 @@ use super::docker::{
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::TenantDeleteArgs;
-use crate::shared::{CommandResult, SuccessOutput};
+use crate::shared::{CommandOutput, SuccessOutput};
 
-pub async fn delete_tenant(
-    args: TenantDeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<SuccessOutput>> {
+pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -82,7 +79,7 @@ pub async fn delete_tenant(
             if !config.is_json_output() {
                 CliService::info("Cancelled");
             }
-            return Ok(CommandResult::text(output).with_title("Delete Tenant"));
+            return Ok(CommandOutput::text_titled("Delete Tenant", output.message));
         }
     }
 
@@ -114,7 +111,7 @@ pub async fn delete_tenant(
         CliService::success(&format!("Deleted tenant: {}", tenant_id));
     }
 
-    Ok(CommandResult::text(output).with_title("Delete Tenant"))
+    Ok(CommandOutput::text_titled("Delete Tenant", output.message))
 }
 
 fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {

@@ -3,11 +3,11 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::content_config::ContentConfigRaw;
 
-use super::super::types::{ContentTypeListOutput, ContentTypeSummary};
+use super::super::types::ContentTypeSummary;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -25,10 +25,7 @@ pub struct ListArgs {
     pub category: Option<String>,
 }
 
-pub(super) fn execute(
-    args: &ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ContentTypeListOutput>> {
+pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -67,16 +64,16 @@ pub(super) fn execute(
 
     content_types.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let output = ContentTypeListOutput { content_types };
-
-    Ok(CommandResult::table(output)
-        .with_title("Content Types")
-        .with_columns(vec![
-            "name".to_owned(),
-            "source_id".to_owned(),
-            "category_id".to_owned(),
-            "enabled".to_owned(),
-            "path".to_owned(),
-            "url_pattern".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "name",
+            "source_id",
+            "category_id",
+            "enabled",
+            "path",
+            "url_pattern",
+        ],
+        &content_types,
+    )
+    .with_title("Content Types"))
 }

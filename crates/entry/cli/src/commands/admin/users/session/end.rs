@@ -6,7 +6,7 @@ use systemprompt_users::{UserAdminService, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::SessionEndOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {
@@ -32,10 +32,7 @@ pub struct EndArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: EndArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SessionEndOutput>> {
+pub(super) async fn execute(args: EndArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will end user session(s). Use --yes to confirm."
@@ -64,7 +61,7 @@ pub(super) async fn execute(
             message: format!("{} session(s) ended for user '{}'", count, user.name),
         };
 
-        return Ok(CommandResult::text(output).with_title("Sessions Ended"));
+        return Ok(CommandOutput::card_value("Sessions Ended", &output));
     }
 
     let session_id_str = args.session.ok_or_else(|| {
@@ -91,5 +88,5 @@ pub(super) async fn execute(
         },
     };
 
-    Ok(CommandResult::text(output).with_title("Sessions Ended"))
+    Ok(CommandOutput::card_value("Sessions Ended", &output))
 }

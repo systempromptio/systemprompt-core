@@ -48,15 +48,20 @@ pub struct DashboardArtifact {
 impl DashboardArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "dashboard";
 
-    pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
+    pub fn new(title: impl Into<String>) -> Self {
         Self {
             artifact_type: "dashboard".to_owned(),
             title: title.into(),
             description: None,
             sections: Vec::new(),
             hints: DashboardHints::default(),
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_description(mut self, description: impl Into<String>) -> Self {

@@ -13,7 +13,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -35,10 +35,7 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AgentShowOutput>> {
+pub(super) async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -48,7 +45,7 @@ pub(super) async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<AgentShowOutput>> {
+) -> Result<CommandOutput> {
     let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -56,7 +53,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: ShowArgs,
     repo: &AgentAnalyticsRepository,
-) -> Result<CommandResult<AgentShowOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let count = repo.agent_exists(&args.agent, start, end).await?;
@@ -141,8 +138,13 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_single_to_csv(&output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::card(output).with_skip_render());
+        return Ok(
+            CommandOutput::card_value(format!("Agent: {}", args.agent), &output).with_skip_render(),
+        );
     }
 
-    Ok(CommandResult::card(output).with_title(format!("Agent: {}", args.agent)))
+    Ok(CommandOutput::card_value(
+        format!("Agent: {}", args.agent),
+        &output,
+    ))
 }

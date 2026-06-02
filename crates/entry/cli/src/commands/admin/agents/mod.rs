@@ -4,7 +4,7 @@
 //! validate, create, edit, delete, status, logs — plus A2A interaction
 //! (registry discovery, message, task, tools) and direct `run`. Each variant
 //! dispatches to a sibling module that returns a
-//! [`crate::shared::CommandResult`].
+//! [`crate::shared::CommandOutput`].
 
 pub mod types;
 

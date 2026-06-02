@@ -7,7 +7,7 @@ use systemprompt_users::UserService;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::BulkDeleteOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -51,10 +51,7 @@ pub(super) enum DeleteResult {
     Executed(BulkDeleteOutput),
 }
 
-pub(super) async fn execute(
-    args: DeleteArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<DeleteResult>> {
+pub(super) async fn execute(args: DeleteArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will permanently delete users. Use --yes to confirm or --dry-run to preview."
@@ -84,7 +81,10 @@ pub(super) async fn execute(
             deleted: 0,
             message: "No users match the specified filters".to_owned(),
         };
-        return Ok(CommandResult::text(DeleteResult::Executed(output)).with_title("Bulk Delete"));
+        return Ok(CommandOutput::card_value(
+            "Bulk Delete",
+            &DeleteResult::Executed(output),
+        ));
     }
 
     if args.dry_run {
@@ -93,9 +93,10 @@ pub(super) async fn execute(
             would_delete: users.len(),
             message: format!("Would delete {} user(s)", users.len()),
         };
-        return Ok(
-            CommandResult::text(DeleteResult::DryRun(output)).with_title("Bulk Delete (Dry Run)")
-        );
+        return Ok(CommandOutput::card_value(
+            "Bulk Delete (Dry Run)",
+            &DeleteResult::DryRun(output),
+        ));
     }
 
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
@@ -106,5 +107,8 @@ pub(super) async fn execute(
         message: format!("Deleted {} user(s)", deleted),
     };
 
-    Ok(CommandResult::text(DeleteResult::Executed(output)).with_title("Bulk Delete"))
+    Ok(CommandOutput::card_value(
+        "Bulk Delete",
+        &DeleteResult::Executed(output),
+    ))
 }

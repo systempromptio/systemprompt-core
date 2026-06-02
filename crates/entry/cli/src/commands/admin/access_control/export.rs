@@ -7,16 +7,15 @@ use systemprompt_security::authz::repository::AccessControlRepository;
 
 use super::ExportYamlArgs;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn run(
-    _args: ExportYamlArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<String>> {
+pub(super) async fn run(_args: ExportYamlArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let yaml = render_yaml_snapshot(ctx.db_pool()).await?;
-    Ok(CommandResult::raw_text(yaml)
-        .with_title("Access-control baseline (paste into services/access-control YAML)"))
+    Ok(CommandOutput::text_titled(
+        "Access-control baseline (paste into services/access-control YAML)",
+        yaml,
+    ))
 }
 
 async fn render_yaml_snapshot(pool: &DbPool) -> Result<String> {

@@ -5,7 +5,7 @@ use systemprompt_database::CleanupRepository;
 use systemprompt_runtime::AppContext;
 
 use super::types::LogCleanupOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct LogCleanupArgs {
@@ -16,7 +16,7 @@ pub struct LogCleanupArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOutput>> {
+pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
     let write_pool = ctx.db_pool().write_pool_arc()?;
     let repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
@@ -32,7 +32,7 @@ pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCle
                 count, args.days
             ),
         };
-        return Ok(CommandResult::text(output).with_title("Log Cleanup (Dry Run)"));
+        return Ok(CommandOutput::card_value("Log Cleanup (Dry Run)", &output));
     }
 
     let deleted_count = repo.delete_old_logs(args.days).await? as i64;
@@ -45,5 +45,5 @@ pub(super) async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCle
             deleted_count, args.days
         ),
     };
-    Ok(CommandResult::text(output).with_title("Log Cleanup"))
+    Ok(CommandOutput::card_value("Log Cleanup", &output))
 }

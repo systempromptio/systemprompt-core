@@ -3,7 +3,7 @@ use clap::Args;
 use crate::CliConfig;
 use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{LlmProviderWithExtension, LlmProvidersListOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct LlmProvidersArgs {
@@ -11,10 +11,7 @@ pub struct LlmProvidersArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(
-    args: &LlmProvidersArgs,
-    _config: &CliConfig,
-) -> CommandResult<LlmProvidersListOutput> {
+pub(super) fn execute(args: &LlmProvidersArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let providers: Vec<LlmProviderWithExtension> = registry
@@ -38,7 +35,6 @@ pub(super) fn execute(
 
     let output = LlmProvidersListOutput { providers, total };
 
-    CommandResult::table(output)
+    CommandOutput::table_of(vec!["extension_id", "provider_name"], &output.providers)
         .with_title("LLM Providers Across Extensions")
-        .with_columns(vec!["extension_id".to_owned(), "provider_name".to_owned()])
 }

@@ -17,7 +17,7 @@ use super::display::{print_event, print_table};
 use super::json::print_json;
 use super::summary::{SummaryContext, print_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -68,7 +68,7 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_logging::ExecutionStepSummary,
 }
 
-pub(super) async fn execute(args: ShowArgs) -> Result<CommandResult<TraceViewOutput>> {
+pub(super) async fn execute(args: ShowArgs) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool).await
@@ -77,7 +77,7 @@ pub(super) async fn execute(args: ShowArgs) -> Result<CommandResult<TraceViewOut
 pub(super) async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
-) -> Result<CommandResult<TraceViewOutput>> {
+) -> Result<CommandOutput> {
     let pool = db_ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool).await
 }
@@ -85,7 +85,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-) -> Result<CommandResult<TraceViewOutput>> {
+) -> Result<CommandOutput> {
     let ai_service = AiTraceService::new(Arc::clone(pool));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
@@ -94,10 +94,7 @@ async fn execute_with_pool_inner(
     execute_trace_view(&args, pool).await
 }
 
-async fn execute_trace_view(
-    args: &ShowArgs,
-    pool: &Arc<sqlx::PgPool>,
-) -> Result<CommandResult<TraceViewOutput>> {
+async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result<CommandOutput> {
     let service = TraceQueryService::new(Arc::clone(pool));
 
     let (
@@ -134,7 +131,7 @@ async fn execute_trace_view(
     };
     let output = build_trace_output(&args.id, &events, &summaries, task_id.as_ref(), duration_ms);
 
-    let result = CommandResult::card(output).with_title("Trace Details");
+    let result = CommandOutput::card_value("Trace Details", &output);
 
     if events.is_empty() {
         if ai_summary.request_count > 0 || mcp_summary.execution_count > 0 {

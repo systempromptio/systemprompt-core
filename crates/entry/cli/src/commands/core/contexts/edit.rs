@@ -8,7 +8,7 @@ use super::resolve::resolve_context;
 use super::types::ContextUpdatedOutput;
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
@@ -19,10 +19,7 @@ pub struct EditArgs {
     pub name: String,
 }
 
-pub(super) async fn execute(
-    args: EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextUpdatedOutput>> {
+pub(super) async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
 
@@ -46,5 +43,5 @@ pub(super) async fn execute(
         CliService::key_value("Name", &args.name);
     }
 
-    Ok(CommandResult::card(output).with_title("Context Updated"))
+    Ok(CommandOutput::card_value("Context Updated", &output))
 }

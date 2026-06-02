@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::types::{PluginListOutput, PluginSummary};
 
@@ -16,10 +16,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub(super) fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<PluginListOutput>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let plugins_path = get_plugins_path()?;
     let plugins = scan_plugins(&plugins_path)?;
 
@@ -38,16 +35,18 @@ pub(super) fn execute(
 
     let output = PluginListOutput { plugins: filtered };
 
-    Ok(CommandResult::table(output)
-        .with_title("Plugins")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "display_name".to_owned(),
-            "enabled".to_owned(),
-            "skill_count".to_owned(),
-            "agent_count".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "id",
+            "name",
+            "display_name",
+            "enabled",
+            "skill_count",
+            "agent_count",
+        ],
+        &output.plugins,
+    )
+    .with_title("Plugins"))
 }
 
 fn get_plugins_path() -> Result<std::path::PathBuf> {

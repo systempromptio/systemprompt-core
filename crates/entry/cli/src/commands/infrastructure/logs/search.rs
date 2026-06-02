@@ -14,7 +14,7 @@ use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -60,13 +60,13 @@ pub(super) struct CombinedSearchOutput {
     pub filters: LogFilters,
 }
 
-crate::define_pool_command!(SearchArgs => CommandResult<CombinedSearchOutput>, with_config);
+crate::define_pool_command!(SearchArgs => CommandOutput, with_config);
 
 async fn execute_with_pool_inner(
     args: SearchArgs,
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
-) -> Result<CommandResult<CombinedSearchOutput>> {
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
     let pattern = format!("%{}%", args.pattern);
@@ -146,18 +146,17 @@ async fn execute_with_pool_inner(
         filters,
     };
 
-    let result = CommandResult::table(output).with_title("Search Results");
+    let result = CommandOutput::table_of(
+        vec!["id", "trace_id", "timestamp", "level", "module", "message"],
+        &output.logs,
+    )
+    .with_title("Search Results");
 
     if config.is_json_output() {
         return Ok(result);
     }
 
-    render_combined_results(
-        &result.data.logs,
-        &result.data.tools,
-        &args.pattern,
-        &result.data.filters,
-    );
+    render_combined_results(&output.logs, &output.tools, &args.pattern, &output.filters);
     Ok(result.with_skip_render())
 }
 

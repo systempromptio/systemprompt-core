@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{ConversationListOutput, ConversationListRow};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -30,10 +30,7 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ConversationListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ConversationAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -43,7 +40,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<ConversationListOutput>> {
+) -> Result<CommandOutput> {
     let repo = ConversationAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -51,7 +48,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: ListArgs,
     repo: &ConversationAnalyticsRepository,
-) -> Result<CommandResult<ConversationListOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let rows = repo.list_agent_contexts(start, end, args.limit).await?;
 
@@ -76,25 +73,25 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.conversations, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec!["context_id", "name", "task_count", "message_count"],
+            &output.conversations,
+        )
+        .with_skip_render());
     }
 
     if output.conversations.is_empty() {
         CliService::warning("No conversations found");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec!["context_id", "name", "task_count", "message_count"],
+            &output.conversations,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "context_id".to_owned(),
-            "name".to_owned(),
-            "task_count".to_owned(),
-            "message_count".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Conversations")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec!["context_id", "name", "task_count", "message_count"],
+        &output.conversations,
+    )
+    .with_title("Conversations"))
 }

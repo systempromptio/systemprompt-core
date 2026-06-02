@@ -4,15 +4,12 @@ use systemprompt_files::{FilePersistenceMode, FilesConfig};
 
 use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ConfigArgs;
 
-pub(super) fn execute(
-    _args: ConfigArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<FileConfigOutput>> {
+pub(super) fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let files_config = FilesConfig::get()?;
     let upload_config = files_config.upload();
 
@@ -55,5 +52,8 @@ pub(super) fn execute(
         storage_paths,
     };
 
-    Ok(CommandResult::card(output).with_title("File Upload Configuration"))
+    Ok(CommandOutput::card_value(
+        "File Upload Configuration",
+        &output,
+    ))
 }

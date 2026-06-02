@@ -5,7 +5,8 @@ use clap::Args;
 
 use super::types::McpPackagesOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
+use systemprompt_models::artifacts::ListItem;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -14,10 +15,7 @@ pub struct ListPackagesArgs {
     pub raw: bool,
 }
 
-pub(super) async fn execute(
-    args: ListPackagesArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<McpPackagesOutput>> {
+pub(super) async fn execute(args: ListPackagesArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new()
         .await
         .context("Failed to bootstrap AppContext")?;
@@ -41,8 +39,16 @@ pub(super) async fn execute(
     };
 
     if args.raw {
-        Ok(CommandResult::copy_paste(output).with_title("MCP Packages (raw)"))
+        Ok(CommandOutput::copy_paste_titled(
+            "MCP Packages (raw)",
+            output.raw_packages.unwrap_or_default(),
+        ))
     } else {
-        Ok(CommandResult::list(output).with_title("MCP Packages"))
+        let items: Vec<ListItem> = output
+            .packages
+            .iter()
+            .map(|name| ListItem::new(name.clone(), String::new(), name.clone()))
+            .collect();
+        Ok(CommandOutput::list(items).with_title("MCP Packages"))
     }
 }

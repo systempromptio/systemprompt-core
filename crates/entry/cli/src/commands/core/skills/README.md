@@ -469,7 +469,7 @@ sp --json core skills status | jq '.skills[] | select(.synced == false)'
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
+- [x] All commands return `CommandOutput` with proper artifact type
 - [x] `delete` command requires `--yes` / `-y` flag
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
 - [x] No `println!` / `eprintln!` - uses `render_result()`

@@ -9,14 +9,14 @@ use systemprompt_logging::CliService;
 use systemprompt_users::{User, UserService};
 
 use super::login::{LoginArgs, LoginOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 pub(super) async fn try_use_existing_session(
     sessions_dir: &Path,
     session_key: &SessionKey,
     args: &LoginArgs,
     db_pool: &DbPool,
-) -> Result<Option<CommandResult<LoginOutput>>> {
+) -> Result<Option<CommandOutput>> {
     let mut store = SessionStore::load_or_create(sessions_dir)?;
 
     let Some(session) = store.get_valid_session(session_key) else {
@@ -58,13 +58,13 @@ pub(super) async fn try_use_existing_session(
 
     if args.token_only {
         CliService::output(session_token.as_str());
-        return Ok(Some(CommandResult::text(output).with_skip_render()));
+        return Ok(Some(
+            CommandOutput::card_value("Admin Session", &output).with_skip_render(),
+        ));
     }
 
     CliService::success("Using existing valid session");
-    Ok(Some(
-        CommandResult::card(output).with_title("Admin Session"),
-    ))
+    Ok(Some(CommandOutput::card_value("Admin Session", &output)))
 }
 
 pub(super) async fn fetch_admin_user(

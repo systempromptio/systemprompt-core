@@ -10,7 +10,7 @@ use super::types::ContextSwitchedOutput;
 use crate::cli_settings::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct UseArgs {
@@ -18,10 +18,7 @@ pub struct UseArgs {
     pub context: String,
 }
 
-pub(super) async fn execute(
-    args: UseArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextSwitchedOutput>> {
+pub(super) async fn execute(args: UseArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
 
@@ -62,5 +59,5 @@ pub(super) async fn execute(
         CliService::key_value("Name", &context.name);
     }
 
-    Ok(CommandResult::card(output).with_title("Context Switched"))
+    Ok(CommandOutput::card_value("Context Switched", &output))
 }

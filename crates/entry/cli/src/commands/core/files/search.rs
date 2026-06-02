@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use super::types::{FileSearchOutput, FileSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct SearchArgs {
@@ -18,10 +18,7 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(
-    args: SearchArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<FileSearchOutput>> {
+pub(super) async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -30,7 +27,7 @@ pub(super) async fn execute_with_pool(
     args: SearchArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<FileSearchOutput>> {
+) -> Result<CommandOutput> {
     if args.query.trim().is_empty() {
         return Err(anyhow!("Search query cannot be empty"));
     }
@@ -59,13 +56,9 @@ pub(super) async fn execute_with_pool(
         total,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("File Search Results")
-        .with_columns(vec![
-            "id".to_owned(),
-            "path".to_owned(),
-            "mime_type".to_owned(),
-            "size_bytes".to_owned(),
-            "created_at".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "path", "mime_type", "size_bytes", "created_at"],
+        &output.files,
+    )
+    .with_title("File Search Results"))
 }

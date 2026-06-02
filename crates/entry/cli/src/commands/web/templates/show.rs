@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader};
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDetailOutput, TemplatesConfig};
@@ -22,10 +22,7 @@ pub struct ShowArgs {
     pub preview_lines: usize,
 }
 
-pub(super) fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<TemplateDetailOutput>> {
+pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -85,7 +82,10 @@ pub(super) fn execute(
         preview_lines,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Template: {}", name)))
+    Ok(CommandOutput::card_value(
+        format!("Template: {}", name),
+        &output,
+    ))
 }
 
 fn extract_template_variables(content: &str) -> Vec<String> {

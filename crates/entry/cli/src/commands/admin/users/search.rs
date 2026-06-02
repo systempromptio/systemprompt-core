@@ -6,7 +6,7 @@ use systemprompt_users::UserService;
 
 use super::types::{UserListOutput, UserSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -16,10 +16,7 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(
-    args: SearchArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<UserListOutput>> {
+pub(super) async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -28,7 +25,7 @@ pub(super) async fn execute_with_pool(
     args: SearchArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<UserListOutput>> {
+) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
 
     let users = user_service.search(&args.query, args.limit).await?;
@@ -51,13 +48,9 @@ pub(super) async fn execute_with_pool(
         offset: 0,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("User Search Results")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "email".to_owned(),
-            "status".to_owned(),
-            "roles".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "email", "status", "roles"],
+        &output.users,
+    )
+    .with_title("User Search Results"))
 }

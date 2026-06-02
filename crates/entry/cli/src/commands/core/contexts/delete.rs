@@ -8,7 +8,7 @@ use super::resolve::resolve_context;
 use super::types::ContextDeletedOutput;
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -19,10 +19,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextDeletedOutput>> {
+pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
 
@@ -55,11 +52,14 @@ pub(super) async fn execute(
             .interact()?
         {
             CliService::info("Deletion cancelled");
-            return Ok(CommandResult::card(ContextDeletedOutput {
+            let cancelled = ContextDeletedOutput {
                 id: context_id,
                 message: "Deletion cancelled".to_owned(),
-            })
-            .with_title("Context Delete Cancelled"));
+            };
+            return Ok(CommandOutput::card_value(
+                "Context Delete Cancelled",
+                &cancelled,
+            ));
         }
     }
 
@@ -76,5 +76,5 @@ pub(super) async fn execute(
         CliService::success(&output.message);
     }
 
-    Ok(CommandResult::card(output).with_title("Context Deleted"))
+    Ok(CommandOutput::card_value("Context Deleted", &output))
 }

@@ -1,6 +1,6 @@
 use super::types::{SearchOutput, SearchResultRow};
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::{SearchFilters, SearchRequest, SearchService};
@@ -23,7 +23,7 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandResult<SearchOutput>> {
+pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -32,7 +32,7 @@ pub async fn execute_with_pool(
     args: SearchArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<SearchOutput>> {
+) -> Result<CommandOutput> {
     let service = SearchService::new(pool)?;
 
     let filters = args.category.as_ref().map(|cat| SearchFilters {
@@ -78,12 +78,8 @@ pub async fn execute_with_pool(
         query: args.query,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Search Results")
-        .with_columns(vec![
-            "id".to_owned(),
-            "title".to_owned(),
-            "slug".to_owned(),
-            "source_id".to_owned(),
-        ]))
+    Ok(
+        CommandOutput::table_of(vec!["id", "title", "slug", "source_id"], &output.results)
+            .with_title("Search Results"),
+    )
 }

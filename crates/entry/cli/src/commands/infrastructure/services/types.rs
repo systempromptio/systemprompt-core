@@ -26,7 +26,7 @@ pub(super) struct CleanupOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RestartOutput {
+pub(super) struct RestartOutput {
     pub service_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service_name: Option<String>,

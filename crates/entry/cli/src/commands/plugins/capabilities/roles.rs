@@ -3,7 +3,7 @@ use clap::Args;
 use crate::CliConfig;
 use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{RoleWithExtension, RolesListOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct RolesArgs {
@@ -11,7 +11,7 @@ pub struct RolesArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesListOutput> {
+pub(super) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let roles: Vec<RoleWithExtension> = registry
@@ -37,12 +37,9 @@ pub(super) fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<Ro
 
     let output = RolesListOutput { roles, total };
 
-    CommandResult::table(output)
-        .with_title("Roles Across Extensions")
-        .with_columns(vec![
-            "extension_id".to_owned(),
-            "role_name".to_owned(),
-            "display_name".to_owned(),
-            "description".to_owned(),
-        ])
+    CommandOutput::table_of(
+        vec!["extension_id", "role_name", "display_name", "description"],
+        &output.roles,
+    )
+    .with_title("Roles Across Extensions")
 }

@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_to_csv, format_date_range, parse_time_range, resolve_export_path,
 };
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DevicesArgs {
@@ -33,10 +33,7 @@ pub struct DevicesArgs {
     pub include_all: bool,
 }
 
-pub(super) async fn execute(
-    args: DevicesArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<DevicesOutput>> {
+pub(super) async fn execute(args: DevicesArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -46,7 +43,7 @@ pub(super) async fn execute_with_pool(
     args: DevicesArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<DevicesOutput>> {
+) -> Result<CommandOutput> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -54,7 +51,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: DevicesArgs,
     repo: &TrafficAnalyticsRepository,
-) -> Result<CommandResult<DevicesOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let engaged_only = !args.include_all;
 
@@ -91,19 +88,16 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.devices, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec!["device_type", "browser", "session_count"],
+            &output.devices,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "device_type".to_owned(),
-            "browser".to_owned(),
-            "session_count".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Device Breakdown")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec!["device_type", "browser", "session_count"],
+        &output.devices,
+    )
+    .with_title("Device Breakdown"))
 }

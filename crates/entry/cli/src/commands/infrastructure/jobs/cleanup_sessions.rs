@@ -5,7 +5,7 @@ use systemprompt_analytics::{SessionCleanupService, SessionRepository};
 use systemprompt_runtime::AppContext;
 
 use super::types::SessionCleanupOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupSessionsArgs {
@@ -20,9 +20,7 @@ pub struct CleanupSessionsArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(
-    args: CleanupSessionsArgs,
-) -> Result<CommandResult<SessionCleanupOutput>> {
+pub(super) async fn execute(args: CleanupSessionsArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
 
     if args.dry_run {
@@ -39,7 +37,10 @@ pub(super) async fn execute(
             ),
         };
 
-        return Ok(CommandResult::text(output).with_title("Session Cleanup (Dry Run)"));
+        return Ok(CommandOutput::card_value(
+            "Session Cleanup (Dry Run)",
+            &output,
+        ));
     }
 
     let cleanup_service = SessionCleanupService::new(ctx.db_pool())?;
@@ -54,5 +55,5 @@ pub(super) async fn execute(
         message: format!("Cleaned up {} inactive session(s)", closed_count),
     };
 
-    Ok(CommandResult::text(output).with_title("Session Cleanup"))
+    Ok(CommandOutput::card_value("Session Cleanup", &output))
 }

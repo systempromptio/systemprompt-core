@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{ClickRow, ClicksOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
@@ -20,7 +20,7 @@ pub struct ClicksArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: ClicksArgs, config: &CliConfig) -> Result<CommandResult<ClicksOutput>> {
+pub async fn execute(args: ClicksArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -29,7 +29,7 @@ pub async fn execute_with_pool(
     args: ClicksArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<ClicksOutput>> {
+) -> Result<CommandOutput> {
     let service = LinkAnalyticsService::new(pool)?;
 
     let link_id = LinkId::new(args.link_id.clone());
@@ -60,13 +60,15 @@ pub async fn execute_with_pool(
         total,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Link Clicks")
-        .with_columns(vec![
-            "click_id".to_owned(),
-            "session_id".to_owned(),
-            "clicked_at".to_owned(),
-            "device_type".to_owned(),
-            "country".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "click_id",
+            "session_id",
+            "clicked_at",
+            "device_type",
+            "country",
+        ],
+        &output.clicks,
+    )
+    .with_title("Link Clicks"))
 }

@@ -3,12 +3,12 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
 
-use super::super::types::{SitemapRoute, SitemapShowOutput};
+use super::super::types::SitemapRoute;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ShowArgs {
@@ -16,10 +16,7 @@ pub struct ShowArgs {
     pub preview: bool,
 }
 
-pub(super) fn execute(
-    args: ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SitemapShowOutput>> {
+pub(super) fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -67,26 +64,15 @@ pub(super) fn execute(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let total_routes = routes.len();
-
     if args.preview {
         let xml = generate_xml_preview(&routes);
         CliService::output(&xml);
     }
 
-    let output = SitemapShowOutput {
-        routes,
-        total_routes,
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Sitemap Configuration")
-        .with_columns(vec![
-            "url".to_owned(),
-            "priority".to_owned(),
-            "changefreq".to_owned(),
-            "source".to_owned(),
-        ]))
+    Ok(
+        CommandOutput::table_of(vec!["url", "priority", "changefreq", "source"], &routes)
+            .with_title("Sitemap Configuration"),
+    )
 }
 
 fn generate_xml_preview(routes: &[SitemapRoute]) -> String {

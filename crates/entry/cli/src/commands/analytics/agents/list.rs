@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{AgentListOutput, AgentListRow};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum AgentSortBy {
@@ -63,10 +63,7 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AgentListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -76,7 +73,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<AgentListOutput>> {
+) -> Result<CommandOutput> {
     let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -84,7 +81,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: ListArgs,
     repo: &AgentAnalyticsRepository,
-) -> Result<CommandResult<AgentListOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let rows = repo
         .list_agents(start, end, args.limit, args.sort_by.as_str())
@@ -119,26 +116,43 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.agents, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "agent_name",
+                "task_count",
+                "success_rate",
+                "avg_execution_time_ms",
+                "total_cost_microdollars",
+            ],
+            &output.agents,
+        )
+        .with_skip_render());
     }
 
     if output.agents.is_empty() {
         CliService::warning("No agents found in the specified time range");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "agent_name",
+                "task_count",
+                "success_rate",
+                "avg_execution_time_ms",
+                "total_cost_microdollars",
+            ],
+            &output.agents,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "agent_name".to_owned(),
-            "task_count".to_owned(),
-            "success_rate".to_owned(),
-            "avg_execution_time_ms".to_owned(),
-            "total_cost_microdollars".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Agent List")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec![
+            "agent_name",
+            "task_count",
+            "success_rate",
+            "avg_execution_time_ms",
+            "total_cost_microdollars",
+        ],
+        &output.agents,
+    )
+    .with_title("Agent List"))
 }

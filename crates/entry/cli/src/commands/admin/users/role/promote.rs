@@ -5,17 +5,14 @@ use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct PromoteArgs {
     pub identifier: String,
 }
 
-pub(super) async fn execute(
-    args: PromoteArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<RoleAssignOutput>> {
+pub(super) async fn execute(args: PromoteArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service);
@@ -28,7 +25,7 @@ pub(super) async fn execute(
                 roles: new_roles,
                 message: format!("User '{}' promoted to admin", user.name),
             };
-            Ok(CommandResult::text(output).with_title("User Promoted"))
+            Ok(CommandOutput::card_value("User Promoted", &output))
         },
         PromoteResult::AlreadyAdmin(user) => {
             let output = RoleAssignOutput {
@@ -37,7 +34,7 @@ pub(super) async fn execute(
                 roles: user.roles.clone(),
                 message: format!("User '{}' is already an admin", user.name),
             };
-            Ok(CommandResult::text(output).with_title("User Already Admin"))
+            Ok(CommandOutput::card_value("User Already Admin", &output))
         },
         PromoteResult::UserNotFound => Err(anyhow!("User not found: {}", args.identifier)),
     }

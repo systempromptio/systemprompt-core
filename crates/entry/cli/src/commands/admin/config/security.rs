@@ -8,7 +8,7 @@ use super::profile_io::{load_profile, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum SecurityCommands {
@@ -87,7 +87,10 @@ pub(super) fn execute_show() -> Result<()> {
             .collect(),
     };
 
-    render_result(&CommandResult::card(output).with_title("Security Configuration"));
+    render_result(&CommandOutput::card_value(
+        "Security Configuration",
+        &output,
+    ));
 
     Ok(())
 }
@@ -221,7 +224,7 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, config: &CliConfig) -
 
 fn render_changes(changes: &[SecuritySetOutput], config: &CliConfig) {
     for change in changes {
-        render_result(&CommandResult::text(change.clone()).with_title("Security Updated"));
+        render_result(&CommandOutput::card_value("Security Updated", change));
     }
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

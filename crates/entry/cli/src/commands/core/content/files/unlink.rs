@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::ContentUnlinkOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct UnlinkArgs {
@@ -28,10 +28,7 @@ pub struct UnlinkArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(
-    args: UnlinkArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentUnlinkOutput>> {
+pub(super) async fn execute(args: UnlinkArgs, config: &CliConfig) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
     let content_id = ContentId::new(args.content.clone());
 
@@ -64,7 +61,7 @@ pub(super) async fn execute(
                 args.file, args.content
             ),
         };
-        return Ok(CommandResult::card(output).with_title("File Unlink (Dry Run)"));
+        return Ok(CommandOutput::card_value("File Unlink (Dry Run)", &output));
     }
 
     let ctx = AppContext::new().await?;
@@ -78,7 +75,7 @@ pub(super) async fn execute(
         message: "File unlinked from content successfully".to_owned(),
     };
 
-    Ok(CommandResult::card(output).with_title("File Unlinked"))
+    Ok(CommandOutput::card_value("File Unlinked", &output))
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {

@@ -5,7 +5,7 @@ use super::types::{
     parse_config_path, parse_value_string, read_yaml_file, set_yaml_value, write_yaml_file,
     yaml_to_json, yaml_to_json_opt, ConfigSetOutput,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
@@ -17,7 +17,7 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub fn execute(args: SetArgs, _config: &CliConfig) -> Result<CommandResult<ConfigSetOutput>> {
+pub fn execute(args: SetArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let (section, key) = parse_config_path(&args.path)?;
 
     if key.is_empty() {
@@ -51,5 +51,5 @@ pub fn execute(args: SetArgs, _config: &CliConfig) -> Result<CommandResult<Confi
         file_path: file_path.display().to_string(),
     };
 
-    Ok(CommandResult::card(output).with_title("Config Updated"))
+    Ok(CommandOutput::card_value("Config Updated", &output))
 }

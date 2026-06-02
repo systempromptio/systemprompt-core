@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkPerformanceOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
@@ -13,10 +13,7 @@ pub struct PerformanceArgs {
     pub link_id: String,
 }
 
-pub async fn execute(
-    args: PerformanceArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<LinkPerformanceOutput>> {
+pub async fn execute(args: PerformanceArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = LinkAnalyticsService::new(ctx.db_pool())?;
 
@@ -34,5 +31,5 @@ pub async fn execute(
         conversion_rate: performance.conversion_rate.unwrap_or(0.0),
     };
 
-    Ok(CommandResult::card(output).with_title("Link Performance"))
+    Ok(CommandOutput::card_value("Link Performance", &output))
 }

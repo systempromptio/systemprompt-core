@@ -1,5 +1,5 @@
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
@@ -9,7 +9,7 @@ use systemprompt_scheduler::ProcessCleanup;
 
 use super::super::types::RestartOutput;
 
-pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutput>> {
+pub async fn execute_api(config: &CliConfig) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
 
     if !quiet {
@@ -30,7 +30,7 @@ pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutp
             failed_count: 0,
             message: "API server started (was not running)".to_owned(),
         };
-        return Ok(CommandResult::card(output).with_title("Restart API Server"));
+        return Ok(CommandOutput::card_value("Restart API Server", &output));
     };
 
     if !quiet {
@@ -62,14 +62,14 @@ pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutp
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Restart API Server"))
+    Ok(CommandOutput::card_value("Restart API Server", &output))
 }
 
 pub async fn execute_agent(
     ctx: &Arc<AppContext>,
     agent: &str,
     config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
+) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
 
     if !quiet {
@@ -96,7 +96,7 @@ pub async fn execute_agent(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Restart Agent"))
+    Ok(CommandOutput::card_value("Restart Agent", &output))
 }
 
 pub async fn execute_mcp(
@@ -104,7 +104,7 @@ pub async fn execute_mcp(
     server_name: &str,
     build: bool,
     config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
+) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
     let action = if build {
         "Building and restarting"
@@ -146,5 +146,5 @@ pub async fn execute_mcp(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Restart MCP Server"))
+    Ok(CommandOutput::card_value("Restart MCP Server", &output))
 }

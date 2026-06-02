@@ -5,9 +5,8 @@ use clap::{Args, ValueEnum};
 
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use super::types::McpLogsOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
 
@@ -69,10 +68,7 @@ fn get_default_logs_dir() -> PathBuf {
         .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
-pub(super) async fn execute(
-    args: LogsArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<McpLogsOutput>> {
+pub(super) async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandOutput> {
     let logs_path = args
         .logs_dir
         .as_ref()

@@ -10,7 +10,7 @@ use systemprompt_logging::TraceQueryService;
 
 use super::duration::parse_since;
 use crate::CliConfig;
-use crate::shared::{CommandResult, RenderingHints, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct SummaryArgs {
@@ -111,10 +111,7 @@ async fn execute_with_pool_inner(
     };
 
     if config.is_json_output() {
-        let hints = RenderingHints::default();
-        let result = CommandResult::card(output)
-            .with_title("Logs Summary")
-            .with_hints(hints);
+        let result = CommandOutput::card_value("Logs Summary", &output);
         render_result(&result);
     } else {
         render_text_output(&output);

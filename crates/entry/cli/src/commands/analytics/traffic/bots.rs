@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, format_date_range, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct BotsArgs {
@@ -30,10 +30,7 @@ pub struct BotsArgs {
     pub include_all: bool,
 }
 
-pub(super) async fn execute(
-    args: BotsArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<BotsOutput>> {
+pub(super) async fn execute(args: BotsArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -43,7 +40,7 @@ pub(super) async fn execute_with_pool(
     args: BotsArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<BotsOutput>> {
+) -> Result<CommandOutput> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -51,7 +48,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: BotsArgs,
     repo: &TrafficAnalyticsRepository,
-) -> Result<CommandResult<BotsOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let engaged_only = !args.include_all;
@@ -93,8 +90,8 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_single_to_csv(&output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::card(output).with_skip_render());
+        return Ok(CommandOutput::card_value("Bot Traffic Analysis", &output).with_skip_render());
     }
 
-    Ok(CommandResult::card(output).with_title("Bot Traffic Analysis"))
+    Ok(CommandOutput::card_value("Bot Traffic Analysis", &output))
 }

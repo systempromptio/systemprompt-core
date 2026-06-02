@@ -6,7 +6,7 @@ use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams};
 
 use super::types::DeviceCertEnrolledOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnrollCertArgs {
@@ -24,10 +24,7 @@ pub struct EnrollCertArgs {
     pub label: String,
 }
 
-pub(super) async fn execute(
-    args: EnrollCertArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<DeviceCertEnrolledOutput>> {
+pub(super) async fn execute(args: EnrollCertArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = DeviceCertService::new(ctx.db_pool())?;
 
@@ -55,5 +52,5 @@ pub(super) async fn execute(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Device Cert Enrolled"))
+    Ok(CommandOutput::card_value("Device Cert Enrolled", &output))
 }

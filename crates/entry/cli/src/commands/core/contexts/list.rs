@@ -9,7 +9,7 @@ use tabled::{Table, Tabled};
 use super::types::{ContextListOutput, ContextSummary};
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::{CommandResult, truncate_with_ellipsis};
+use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
@@ -30,10 +30,7 @@ struct ContextRow {
     active: String,
 }
 
-pub(super) async fn execute(
-    _args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextListOutput>> {
+pub(super) async fn execute(_args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
     execute_with_pool(&session_ctx.session, ctx.db_pool(), config).await
@@ -43,7 +40,7 @@ pub(super) async fn execute_with_pool(
     session: &systemprompt_cloud::CliSession,
     pool: &DbPool,
     config: &CliConfig,
-) -> Result<CommandResult<ContextListOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContextRepository::new(pool)?;
 
     let contexts = repo
@@ -104,14 +101,16 @@ pub(super) async fn execute_with_pool(
         }
     }
 
-    Ok(CommandResult::table(output)
-        .with_title("Contexts")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "task_count".to_owned(),
-            "message_count".to_owned(),
-            "updated_at".to_owned(),
-            "is_active".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "id",
+            "name",
+            "task_count",
+            "message_count",
+            "updated_at",
+            "is_active",
+        ],
+        &output.contexts,
+    )
+    .with_title("Contexts"))
 }

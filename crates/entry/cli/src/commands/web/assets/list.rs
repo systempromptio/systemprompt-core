@@ -4,10 +4,10 @@ use clap::{Args, ValueEnum};
 use walkdir::WalkDir;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::super::paths::WebPaths;
-use super::super::types::{AssetListOutput, AssetSummary, AssetType};
+use super::super::types::{AssetSummary, AssetType};
 use super::asset_type::determine_asset_type;
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
@@ -27,22 +27,17 @@ pub struct ListArgs {
     pub asset_type: AssetTypeFilter,
 }
 
-pub(super) fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AssetListOutput>> {
+pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let assets_dir = &web_paths.assets;
 
     if !assets_dir.exists() {
-        return Ok(CommandResult::table(AssetListOutput { assets: vec![] })
-            .with_title("Assets")
-            .with_columns(vec![
-                "path".to_owned(),
-                "asset_type".to_owned(),
-                "size_bytes".to_owned(),
-                "modified".to_owned(),
-            ]));
+        let empty: Vec<AssetSummary> = vec![];
+        return Ok(CommandOutput::table_of(
+            vec!["path", "asset_type", "size_bytes", "modified"],
+            &empty,
+        )
+        .with_title("Assets"));
     }
 
     let mut assets: Vec<AssetSummary> = Vec::new();
@@ -90,16 +85,11 @@ pub(super) fn execute(
 
     assets.sort_by(|a, b| a.path.cmp(&b.path));
 
-    let output = AssetListOutput { assets };
-
-    Ok(CommandResult::table(output)
-        .with_title("Assets")
-        .with_columns(vec![
-            "path".to_owned(),
-            "asset_type".to_owned(),
-            "size_bytes".to_owned(),
-            "modified".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["path", "asset_type", "size_bytes", "modified"],
+        &assets,
+    )
+    .with_title("Assets"))
 }
 
 fn matches_filter(asset_type: AssetType, filter: AssetTypeFilter) -> bool {

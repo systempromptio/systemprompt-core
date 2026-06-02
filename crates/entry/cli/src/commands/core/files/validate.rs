@@ -7,7 +7,7 @@ use systemprompt_files::{FileValidator, FilesConfig};
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
@@ -15,10 +15,7 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub(super) fn execute(
-    args: &ValidateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<FileValidationOutput>> {
+pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let file_path = args
         .file_path
         .canonicalize()
@@ -49,5 +46,5 @@ pub(super) fn execute(
 
     let title = if valid { "File Valid" } else { "File Invalid" };
 
-    Ok(CommandResult::card(output).with_title(title))
+    Ok(CommandOutput::card_value(title, &output))
 }

@@ -5,17 +5,14 @@ use systemprompt_users::{DemoteResult, UserAdminService, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DemoteArgs {
     pub identifier: String,
 }
 
-pub(super) async fn execute(
-    args: DemoteArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<RoleAssignOutput>> {
+pub(super) async fn execute(args: DemoteArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service);
@@ -28,7 +25,7 @@ pub(super) async fn execute(
                 roles: new_roles,
                 message: format!("User '{}' demoted from admin", user.name),
             };
-            Ok(CommandResult::text(output).with_title("User Demoted"))
+            Ok(CommandOutput::card_value("User Demoted", &output))
         },
         DemoteResult::NotAdmin(user) => {
             let output = RoleAssignOutput {
@@ -37,7 +34,7 @@ pub(super) async fn execute(
                 roles: user.roles.clone(),
                 message: format!("User '{}' is not an admin", user.name),
             };
-            Ok(CommandResult::text(output).with_title("User Not Admin"))
+            Ok(CommandOutput::card_value("User Not Admin", &output))
         },
         DemoteResult::UserNotFound => Err(anyhow!("User not found: {}", args.identifier)),
     }

@@ -1,5 +1,5 @@
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
@@ -19,7 +19,7 @@ pub(super) async fn execute(
     target: ServiceTarget,
     force: bool,
     config: &CliConfig,
-) -> Result<CommandResult<StopServiceOutput>> {
+) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
     let service_mgmt = ServiceManagementService::new(ctx.db_pool())?;
 
@@ -63,7 +63,7 @@ pub(super) async fn execute(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Stop Services"))
+    Ok(CommandOutput::card_value("Stop Services", &output))
 }
 
 async fn stop_api(force: bool, quiet: bool) -> Result<()> {
@@ -158,7 +158,7 @@ pub(super) async fn execute_individual_agent(
     agent: &str,
     force: bool,
     config: &CliConfig,
-) -> Result<CommandResult<StopIndividualOutput>> {
+) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section(&format!("Stopping Agent: {}", agent));
     }
@@ -195,7 +195,7 @@ pub(super) async fn execute_individual_agent(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Stop Agent"))
+    Ok(CommandOutput::card_value("Stop Agent", &output))
 }
 
 pub(super) async fn execute_individual_mcp(
@@ -203,7 +203,7 @@ pub(super) async fn execute_individual_mcp(
     server_name: &str,
     _force: bool,
     config: &CliConfig,
-) -> Result<CommandResult<StopIndividualOutput>> {
+) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section(&format!("Stopping MCP Server: {}", server_name));
     }
@@ -229,5 +229,5 @@ pub(super) async fn execute_individual_mcp(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Stop MCP Server"))
+    Ok(CommandOutput::card_value("Stop MCP Server", &output))
 }

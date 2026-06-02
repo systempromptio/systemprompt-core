@@ -9,7 +9,15 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{ActiveSessionRow, LiveSessionsOutput};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints, render_result};
+use crate::shared::{CommandOutput, render_result};
+
+const LIVE_SESSION_COLUMNS: [&str; 5] = [
+    "session_id",
+    "user_type",
+    "started_at",
+    "duration_seconds",
+    "request_count",
+];
 
 #[derive(Debug, Clone, Args)]
 pub struct LiveArgs {
@@ -31,10 +39,7 @@ pub struct LiveArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: LiveArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<LiveSessionsOutput>> {
+pub(super) async fn execute(args: LiveArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo, config).await
@@ -44,7 +49,7 @@ pub(super) async fn execute_with_pool(
     args: LiveArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-) -> Result<CommandResult<LiveSessionsOutput>> {
+) -> Result<CommandOutput> {
     let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
     let mut args = args;
     args.no_refresh = true;
@@ -55,35 +60,32 @@ async fn execute_internal(
     args: LiveArgs,
     repo: &CliSessionAnalyticsRepository,
     config: &CliConfig,
-) -> Result<CommandResult<LiveSessionsOutput>> {
+) -> Result<CommandOutput> {
     if let Some(ref path) = args.export {
         let resolved_path = resolve_export_path(path)?;
         let output = fetch_live_sessions(repo, args.limit).await?;
         export_to_csv(&output.sessions, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(
+            CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
+                .with_skip_render(),
+        );
     }
 
     if args.no_refresh || !config.is_interactive() {
         let output = fetch_live_sessions(repo, args.limit).await?;
         if output.sessions.is_empty() {
             CliService::warning("No active sessions");
-            return Ok(CommandResult::table(output).with_skip_render());
+            return Ok(
+                CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
+                    .with_skip_render(),
+            );
         }
 
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "session_id".to_owned(),
-                "user_type".to_owned(),
-                "started_at".to_owned(),
-                "duration_seconds".to_owned(),
-                "request_count".to_owned(),
-            ]),
-            ..Default::default()
-        };
-        return Ok(CommandResult::table(output)
-            .with_title("Live Sessions")
-            .with_hints(hints));
+        return Ok(
+            CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
+                .with_title("Live Sessions"),
+        );
     }
 
     loop {
@@ -134,19 +136,8 @@ async fn fetch_live_sessions(
 }
 
 fn render_output(output: &LiveSessionsOutput, config: &CliConfig) {
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "session_id".to_owned(),
-            "user_type".to_owned(),
-            "started_at".to_owned(),
-            "duration_seconds".to_owned(),
-            "request_count".to_owned(),
-        ]),
-        ..Default::default()
-    };
-    let result = CommandResult::table(output.clone())
-        .with_title("Live Sessions")
-        .with_hints(hints);
+    let result = CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
+        .with_title("Live Sessions");
     render_result(&result);
 
     if !config.is_json_output() && output.sessions.is_empty() {

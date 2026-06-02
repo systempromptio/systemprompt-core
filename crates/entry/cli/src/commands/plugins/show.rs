@@ -8,7 +8,7 @@ use super::types::{
     TemplateInfo, ToolInfo,
 };
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -16,10 +16,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub(super) fn execute(
-    args: &ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ExtensionDetailOutput>> {
+pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let registry = ExtensionRegistry::discover()?;
     let needle = args.id.to_lowercase();
 
@@ -123,10 +120,13 @@ pub(super) fn execute(
         storage_paths,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Extension: {}", args.id)))
+    Ok(CommandOutput::card_value(
+        format!("Extension: {}", args.id),
+        &output,
+    ))
 }
 
-fn show_manifest(id: &str) -> Option<Result<CommandResult<ExtensionDetailOutput>>> {
+fn show_manifest(id: &str) -> Option<Result<CommandOutput>> {
     let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
     let needle = id.to_lowercase();
     let ext = ExtensionLoader::discover(&project_root)
@@ -152,7 +152,8 @@ fn show_manifest(id: &str) -> Option<Result<CommandResult<ExtensionDetailOutput>
         storage_paths: vec![],
     };
 
-    Some(Ok(
-        CommandResult::card(output).with_title(format!("Extension: {}", name))
-    ))
+    Some(Ok(CommandOutput::card_value(
+        format!("Extension: {}", name),
+        &output,
+    )))
 }

@@ -5,7 +5,7 @@ use systemprompt_users::UserService;
 
 use super::types::UserCreatedOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -25,10 +25,7 @@ pub struct CreateArgs {
     pub if_not_exists: bool,
 }
 
-pub(super) async fn execute(
-    args: CreateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<UserCreatedOutput>> {
+pub(super) async fn execute(args: CreateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
 
@@ -48,7 +45,7 @@ pub(super) async fn execute(
                 email: existing.email.clone(),
                 message: format!("User '{}' already exists", existing.name),
             };
-            return Ok(CommandResult::text(output).with_title("User Exists"));
+            return Ok(CommandOutput::card_value("User Exists", &output));
         }
     }
 
@@ -68,5 +65,5 @@ pub(super) async fn execute(
         message: format!("User '{}' created successfully", user.name),
     };
 
-    Ok(CommandResult::text(output).with_title("User Created"))
+    Ok(CommandOutput::card_value("User Created", &output))
 }

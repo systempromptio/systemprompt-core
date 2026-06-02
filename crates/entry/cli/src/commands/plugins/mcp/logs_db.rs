@@ -8,12 +8,9 @@ use systemprompt_runtime::AppContext;
 use super::logs::{LogLevel, LogsArgs};
 use super::types::McpLogsOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute_db_mode(
-    args: &LogsArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<McpLogsOutput>> {
+pub(super) async fn execute_db_mode(args: &LogsArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = Arc::new(
         AppContext::new()
             .await
@@ -64,13 +61,17 @@ pub(super) async fn execute_db_mode(
         format!(" [{}+]", format!("{:?}", l).to_uppercase())
     });
 
-    Ok(CommandResult::text(McpLogsOutput {
+    let output = McpLogsOutput {
         service: Some(service_label.clone()),
         source: "database".to_owned(),
         logs,
         log_files: vec![],
-    })
-    .with_title(format!("MCP Logs (DB): {}{}", service_label, level_label)))
+    };
+
+    Ok(CommandOutput::card_value(
+        format!("MCP Logs (DB): {}{}", service_label, level_label),
+        &output,
+    ))
 }
 
 fn build_service_patterns(service: &str) -> Vec<String> {

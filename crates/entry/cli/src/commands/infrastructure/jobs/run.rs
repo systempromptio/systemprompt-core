@@ -15,7 +15,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext};
 
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
@@ -40,7 +40,7 @@ pub struct RunArgs {
     pub params: Vec<String>,
 }
 
-pub(super) async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOutput>> {
+pub(super) async fn execute(args: RunArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
     let registry = ExtensionRegistry::discover()?;
 
@@ -92,7 +92,11 @@ pub(super) async fn execute(args: RunArgs) -> Result<CommandResult<BatchJobRunOu
         jobs_run: results,
     };
 
-    Ok(CommandResult::table(output).with_title("Job Execution Results"))
+    Ok(CommandOutput::table_of(
+        vec!["job_name", "status", "duration_ms", "result"],
+        &output.jobs_run,
+    )
+    .with_title("Job Execution Results"))
 }
 
 fn parse_params(params: &[String]) -> Result<HashMap<String, String>> {

@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{JourneyNode, JourneyOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
@@ -16,10 +16,7 @@ pub struct JourneyArgs {
     pub offset: i64,
 }
 
-pub async fn execute(
-    args: JourneyArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<JourneyOutput>> {
+pub async fn execute(args: JourneyArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -28,7 +25,7 @@ pub async fn execute_with_pool(
     args: JourneyArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<JourneyOutput>> {
+) -> Result<CommandOutput> {
     let service = LinkAnalyticsService::new(pool)?;
 
     let nodes = service
@@ -48,11 +45,9 @@ pub async fn execute_with_pool(
         nodes: journey_nodes,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Content Journey")
-        .with_columns(vec![
-            "source_content_id".to_owned(),
-            "target_url".to_owned(),
-            "click_count".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["source_content_id", "target_url", "click_count"],
+        &output.nodes,
+    )
+    .with_title("Content Journey"))
 }

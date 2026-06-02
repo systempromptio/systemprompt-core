@@ -6,7 +6,7 @@ use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 use crate::commands::infrastructure::db::types::DbValidateOutput;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 pub(in crate::commands::infrastructure::db) async fn execute_validate(
     admin: &DatabaseAdminService,
@@ -53,7 +53,7 @@ pub(in crate::commands::infrastructure::db) async fn execute_validate(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::text(output).with_title("Schema Validation");
+        let result = CommandOutput::card_value("Schema Validation", &output);
         render_result(&result);
     } else {
         CliService::section("Schema Validation");

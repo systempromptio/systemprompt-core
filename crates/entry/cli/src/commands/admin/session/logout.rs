@@ -8,7 +8,7 @@ use systemprompt_loader::ProfileLoader;
 use super::types::LogoutOutput;
 use crate::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {
@@ -22,21 +22,20 @@ pub struct LogoutArgs {
     pub all: bool,
 }
 
-pub(super) fn execute(
-    args: &LogoutArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<LogoutOutput>> {
+pub(super) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     if store.is_empty() {
-        return Ok(CommandResult::text(LogoutOutput {
-            action: "none".to_owned(),
-            target: "all".to_owned(),
-            message: "No sessions to remove".to_owned(),
-        })
-        .with_title("Logout"));
+        return Ok(CommandOutput::card_value(
+            "Logout",
+            &LogoutOutput {
+                action: "none".to_owned(),
+                target: "all".to_owned(),
+                message: "No sessions to remove".to_owned(),
+            },
+        ));
     }
 
     if args.all {
@@ -53,31 +52,37 @@ pub(super) fn execute(
             .interact()?;
 
         if !confirmed {
-            return Ok(CommandResult::text(LogoutOutput {
-                action: "cancelled".to_owned(),
-                target: display_name,
-                message: "Operation cancelled".to_owned(),
-            })
-            .with_title("Logout"));
+            return Ok(CommandOutput::card_value(
+                "Logout",
+                &LogoutOutput {
+                    action: "cancelled".to_owned(),
+                    target: display_name,
+                    message: "Operation cancelled".to_owned(),
+                },
+            ));
         }
     }
 
     let removed = store.remove_session(&session_key);
     if removed.is_some() {
         store.save(&sessions_dir)?;
-        Ok(CommandResult::text(LogoutOutput {
-            action: "removed".to_owned(),
-            target: display_name.clone(),
-            message: format!("Session removed for '{}'", display_name),
-        })
-        .with_title("Logout"))
+        Ok(CommandOutput::card_value(
+            "Logout",
+            &LogoutOutput {
+                action: "removed".to_owned(),
+                target: display_name.clone(),
+                message: format!("Session removed for '{}'", display_name),
+            },
+        ))
     } else {
-        Ok(CommandResult::text(LogoutOutput {
-            action: "not_found".to_owned(),
-            target: display_name.clone(),
-            message: format!("No session found for '{}'", display_name),
-        })
-        .with_title("Logout"))
+        Ok(CommandOutput::card_value(
+            "Logout",
+            &LogoutOutput {
+                action: "not_found".to_owned(),
+                target: display_name.clone(),
+                message: format!("No session found for '{}'", display_name),
+            },
+        ))
     }
 }
 
@@ -86,7 +91,7 @@ fn remove_all_sessions(
     sessions_dir: &std::path::Path,
     args: &LogoutArgs,
     config: &CliConfig,
-) -> Result<CommandResult<LogoutOutput>> {
+) -> Result<CommandOutput> {
     let count = store.len();
 
     if !args.yes {
@@ -100,24 +105,28 @@ fn remove_all_sessions(
             .interact()?;
 
         if !confirmed {
-            return Ok(CommandResult::text(LogoutOutput {
-                action: "cancelled".to_owned(),
-                target: "all".to_owned(),
-                message: "Operation cancelled".to_owned(),
-            })
-            .with_title("Logout"));
+            return Ok(CommandOutput::card_value(
+                "Logout",
+                &LogoutOutput {
+                    action: "cancelled".to_owned(),
+                    target: "all".to_owned(),
+                    message: "Operation cancelled".to_owned(),
+                },
+            ));
         }
     }
 
     let new_store = SessionStore::new();
     new_store.save(sessions_dir)?;
 
-    Ok(CommandResult::text(LogoutOutput {
-        action: "removed_all".to_owned(),
-        target: "all".to_owned(),
-        message: format!("Removed {} session(s)", count),
-    })
-    .with_title("Logout"))
+    Ok(CommandOutput::card_value(
+        "Logout",
+        &LogoutOutput {
+            action: "removed_all".to_owned(),
+            target: "all".to_owned(),
+            message: format!("Removed {} session(s)", count),
+        },
+    ))
 }
 
 fn resolve_target_key(

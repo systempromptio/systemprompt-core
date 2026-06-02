@@ -102,13 +102,18 @@ pub struct ListArtifact {
 impl ListArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "list";
 
-    pub fn new(ctx: &RequestContext) -> Self {
+    pub fn new() -> Self {
         Self {
             artifact_type: "list".to_owned(),
             items: Vec::new(),
             count: 0,
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_items(mut self, items: Vec<ListItem>) -> Self {
@@ -130,6 +135,12 @@ impl ListArtifact {
         self.metadata.skill_id = Some(skill_id.into());
         self.metadata.skill_name = Some(skill_name.into());
         self
+    }
+}
+
+impl Default for ListArtifact {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

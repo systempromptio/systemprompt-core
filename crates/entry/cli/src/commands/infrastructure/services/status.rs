@@ -1,5 +1,5 @@
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -50,10 +50,10 @@ impl From<&VerifiedServiceState> for ServiceStatusRow {
     }
 }
 
-fn execute_command(
+fn build_status_output(
     states: &[VerifiedServiceState],
     include_health: bool,
-) -> CommandResult<ServiceStatusOutput> {
+) -> ServiceStatusOutput {
     let running = states
         .iter()
         .filter(|s| s.runtime_status == RuntimeStatus::Running)
@@ -75,27 +75,24 @@ fn execute_command(
         })
         .collect();
 
-    let output = ServiceStatusOutput {
+    ServiceStatusOutput {
         services,
         summary: StatusSummary {
             total,
             running,
             stopped: total - running,
         },
-    };
+    }
+}
 
-    CommandResult::table(output)
-        .with_title("Service Status")
-        .with_hints(RenderingHints {
-            columns: Some(vec![
-                "name".to_owned(),
-                "service_type".to_owned(),
-                "status".to_owned(),
-                "pid".to_owned(),
-                "action".to_owned(),
-            ]),
-            ..Default::default()
-        })
+fn execute_command(states: &[VerifiedServiceState], include_health: bool) -> CommandOutput {
+    let output = build_status_output(states, include_health);
+
+    CommandOutput::table_of(
+        vec!["name", "service_type", "status", "pid", "action"],
+        &output.services,
+    )
+    .with_title("Service Status")
 }
 
 pub(super) async fn execute(
@@ -103,7 +100,7 @@ pub(super) async fn execute(
     json: bool,
     health: bool,
     config: &CliConfig,
-) -> Result<CommandResult<ServiceStatusOutput>> {
+) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
 
     let Ok(configs) = super::load_service_configs() else {
@@ -136,13 +133,11 @@ pub(super) async fn execute(
 }
 
 fn render_table_output(states: &[VerifiedServiceState], include_health: bool) {
-    let result = execute_command(states, include_health);
+    let output = build_status_output(states, include_health);
 
-    if let Some(title) = &result.title {
-        CliService::section(title);
-    }
+    CliService::section("Service Status");
 
-    for service in &result.data.services {
+    for service in &output.services {
         let pid_str = service
             .pid
             .map_or_else(|| "-".to_owned(), |p| p.to_string());
@@ -157,7 +152,7 @@ fn render_table_output(states: &[VerifiedServiceState], include_health: bool) {
 
     CliService::info(&format!(
         "{}/{} services running",
-        result.data.summary.running, result.data.summary.total
+        output.summary.running, output.summary.total
     ));
 }
 

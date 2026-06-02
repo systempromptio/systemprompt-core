@@ -10,7 +10,7 @@ use systemprompt_models::Config;
 use systemprompt_users::{UserRole, UserService, UserStatus};
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct BootstrapArgs {
@@ -34,10 +34,7 @@ pub struct BootstrapOutput {
     pub message: String,
 }
 
-pub async fn execute(
-    args: BootstrapArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<BootstrapOutput>> {
+pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let configured = Config::get()?.system_admin_username.clone();
     if configured.trim().is_empty() {
         return Err(anyhow!(
@@ -142,5 +139,5 @@ pub async fn execute(
     } else {
         "Admin Verified"
     };
-    Ok(CommandResult::text(output).with_title(title))
+    Ok(CommandOutput::card_value(title, &output))
 }

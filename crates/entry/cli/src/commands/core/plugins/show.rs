@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::types::{PluginComponentRef, PluginDetailOutput};
 
@@ -13,10 +13,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub(super) fn execute(
-    args: &ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<PluginDetailOutput>> {
+pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let plugins_path = get_plugins_path()?;
     let plugin_dir = plugins_path.join(&args.id);
 
@@ -57,7 +54,10 @@ pub(super) fn execute(
         author: plugin.author.name.clone(),
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Plugin: {}", args.id)))
+    Ok(CommandOutput::card_value(
+        format!("Plugin: {}", args.id),
+        &output,
+    ))
 }
 
 fn get_plugins_path() -> Result<std::path::PathBuf> {

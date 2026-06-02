@@ -6,7 +6,7 @@ use systemprompt_runtime::AppContext;
 
 use super::types::ExchangeCodeIssuedOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct IssueCodeArgs {
@@ -14,10 +14,7 @@ pub struct IssueCodeArgs {
     pub user_id: UserId,
 }
 
-pub(super) async fn execute(
-    args: IssueCodeArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ExchangeCodeIssuedOutput>> {
+pub(super) async fn execute(args: IssueCodeArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
 
     let user_id = args.user_id;
@@ -37,5 +34,5 @@ pub(super) async fn execute(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Bridge Exchange Code"))
+    Ok(CommandOutput::card_value("Bridge Exchange Code", &output))
 }

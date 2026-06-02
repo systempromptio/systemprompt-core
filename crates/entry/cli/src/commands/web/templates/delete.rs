@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
@@ -23,10 +23,7 @@ pub struct DeleteArgs {
     pub delete_file: bool,
 }
 
-pub(super) fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<TemplateDeleteOutput>> {
+pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -101,5 +98,5 @@ pub(super) fn execute(
         message,
     };
 
-    Ok(CommandResult::text(output).with_title("Template Deleted"))
+    Ok(CommandOutput::card_value("Template Deleted", &output))
 }

@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_to_csv, format_date_range, parse_time_range, resolve_export_path,
 };
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct TopArgs {
@@ -32,10 +32,7 @@ pub struct TopArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: TopArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<TopContentOutput>> {
+pub(super) async fn execute(args: TopArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ContentAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -45,7 +42,7 @@ pub(super) async fn execute_with_pool(
     args: TopArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<TopContentOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContentAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -53,7 +50,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: TopArgs,
     repo: &ContentAnalyticsRepository,
-) -> Result<CommandResult<TopContentOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_top_content(start, end, args.limit).await?;
@@ -81,28 +78,49 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.content, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "slug",
+                "title",
+                "source",
+                "views",
+                "unique_visitors",
+                "avg_time_seconds",
+                "trend",
+            ],
+            &output.content,
+        )
+        .with_skip_render());
     }
 
     if output.content.is_empty() {
         CliService::warning("No content found");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "slug",
+                "title",
+                "source",
+                "views",
+                "unique_visitors",
+                "avg_time_seconds",
+                "trend",
+            ],
+            &output.content,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "slug".to_owned(),
-            "title".to_owned(),
-            "source".to_owned(),
-            "views".to_owned(),
-            "unique_visitors".to_owned(),
-            "avg_time_seconds".to_owned(),
-            "trend".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Top Content")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec![
+            "slug",
+            "title",
+            "source",
+            "views",
+            "unique_visitors",
+            "avg_time_seconds",
+            "trend",
+        ],
+        &output.content,
+    )
+    .with_title("Top Content"))
 }

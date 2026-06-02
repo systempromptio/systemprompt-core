@@ -58,15 +58,20 @@ fn default_artifact_type() -> String {
 impl TableArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "table";
 
-    pub fn new(columns: Vec<Column>, ctx: &RequestContext) -> Self {
+    pub fn new(columns: Vec<Column>) -> Self {
         Self {
             artifact_type: "table".to_owned(),
             columns,
             items: Vec::new(),
             hints: None,
             hints_builder: TableHints::default(),
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_rows(mut self, items: Vec<JsonValue>) -> Self {

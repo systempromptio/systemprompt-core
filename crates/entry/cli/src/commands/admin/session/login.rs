@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cli_settings::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CredentialsBootstrap, SessionKey};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
@@ -57,7 +57,7 @@ pub struct LoginOutput {
     pub expires_in_hours: i64,
 }
 
-pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
+pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
@@ -70,7 +70,7 @@ pub async fn login_for_profile(
     profile_path: &str,
     secrets: &Secrets,
     args: &LoginArgs,
-) -> Result<CommandResult<LoginOutput>> {
+) -> Result<CommandOutput> {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
@@ -163,14 +163,14 @@ pub async fn login_for_profile(
 
     if args.token_only {
         CliService::output(session_token.as_str());
-        return Ok(CommandResult::text(output).with_skip_render());
+        return Ok(CommandOutput::card_value("Admin Session", &output).with_skip_render());
     }
 
     CliService::success(&format!(
         "Session saved to {}/index.json",
         sessions_dir.display()
     ));
-    Ok(CommandResult::card(output).with_title("Admin Session"))
+    Ok(CommandOutput::card_value("Admin Session", &output))
 }
 
 fn session_key_for_profile(profile: &Profile) -> SessionKey {

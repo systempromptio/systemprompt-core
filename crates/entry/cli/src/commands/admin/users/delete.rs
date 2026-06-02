@@ -5,7 +5,7 @@ use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::UserDeletedOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -16,10 +16,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: DeleteArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<UserDeletedOutput>> {
+pub(super) async fn execute(args: DeleteArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
@@ -42,5 +39,5 @@ pub(super) async fn execute(
         message: format!("User '{}' deleted successfully", user.name),
     };
 
-    Ok(CommandResult::text(output).with_title("User Deleted"))
+    Ok(CommandOutput::card_value("User Deleted", &output))
 }

@@ -9,7 +9,7 @@ use systemprompt_logging::{AiTraceService, CliService, TraceQueryService};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -26,13 +26,13 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-crate::define_pool_command!(ShowArgs => CommandResult<RequestShowOutput>, with_config);
+crate::define_pool_command!(ShowArgs => CommandOutput, with_config);
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
-) -> Result<CommandResult<RequestShowOutput>> {
+) -> Result<CommandOutput> {
     let service = TraceQueryService::new(Arc::clone(pool));
     let Some(row) = service.find_ai_request_detail(&args.request_id).await? else {
         if !config.is_json_output() {
@@ -54,9 +54,9 @@ async fn execute_with_pool_inner(
             messages: Vec::new(),
             linked_mcp_calls: Vec::new(),
         };
-        return Ok(CommandResult::card(empty_output)
-            .with_title("AI Request Details")
-            .with_skip_render());
+        return Ok(
+            CommandOutput::card_value("AI Request Details", &empty_output).with_skip_render(),
+        );
     };
 
     let request_id = row.id.to_string();
@@ -98,13 +98,13 @@ async fn execute_with_pool_inner(
         linked_mcp_calls,
     };
 
-    let result = CommandResult::card(output).with_title("AI Request Details");
+    let result = CommandOutput::card_value("AI Request Details", &output);
 
     if config.is_json_output() {
         return Ok(result);
     }
 
-    render_text_output(&result.data, args.full);
+    render_text_output(&output, args.full);
     Ok(result.with_skip_render())
 }
 

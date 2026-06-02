@@ -6,7 +6,7 @@ use systemprompt_logging::{CliService, TraceQueryService};
 use super::{RequestListOutput, RequestListRow};
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
@@ -32,13 +32,13 @@ pub struct ListArgs {
     pub provider: Option<String>,
 }
 
-crate::define_pool_command!(ListArgs => CommandResult<RequestListOutput>, with_config);
+crate::define_pool_command!(ListArgs => CommandOutput, with_config);
 
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
-) -> Result<CommandResult<RequestListOutput>> {
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let model_pattern = args.model.as_ref().map(|m| format!("%{m}%"));
     let provider_pattern = args.provider.as_ref().map(|p| format!("%{p}%"));
@@ -84,20 +84,22 @@ async fn execute_with_pool_inner(
         requests,
     };
 
-    let result = CommandResult::table(output)
-        .with_title("AI Requests")
-        .with_columns(vec![
-            "request_id".to_owned(),
-            "timestamp".to_owned(),
-            "provider".to_owned(),
-            "model".to_owned(),
-            "tokens".to_owned(),
-            "cost".to_owned(),
-            "latency_ms".to_owned(),
-            "status".to_owned(),
-        ]);
+    let result = CommandOutput::table_of(
+        vec![
+            "request_id",
+            "timestamp",
+            "provider",
+            "model",
+            "tokens",
+            "cost",
+            "latency_ms",
+            "status",
+        ],
+        &output.requests,
+    )
+    .with_title("AI Requests");
 
-    if result.data.requests.is_empty() {
+    if output.requests.is_empty() {
         if !config.is_json_output() {
             CliService::warning("No AI requests found");
         }
@@ -108,7 +110,7 @@ async fn execute_with_pool_inner(
         return Ok(result);
     }
 
-    render_text_output(&result.data, single_trace_id.as_deref());
+    render_text_output(&output, single_trace_id.as_deref());
     Ok(result.with_skip_render())
 }
 

@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use dialoguer::Input;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_logging::CliService;
@@ -26,10 +26,7 @@ pub struct CreateArgs {
     pub content: Option<String>,
 }
 
-pub(super) fn execute(
-    args: CreateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<TemplateCreateOutput>> {
+pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -126,7 +123,7 @@ pub(super) fn execute(
         message,
     };
 
-    Ok(CommandResult::text(output).with_title("Template Created"))
+    Ok(CommandOutput::card_value("Template Created", &output))
 }
 
 fn prompt_name() -> Result<String> {

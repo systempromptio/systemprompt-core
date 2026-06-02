@@ -18,7 +18,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::shared::{CsvBuilder, parse_time_range, resolve_export_path};
 use crate::CliConfig;
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct OverviewArgs {
@@ -88,10 +88,7 @@ pub struct CostMetrics {
     pub change_percent: Option<f64>,
 }
 
-pub async fn execute(
-    args: OverviewArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<OverviewOutput>> {
+pub async fn execute(args: OverviewArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = OverviewAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -101,7 +98,7 @@ pub async fn execute_with_pool(
     args: OverviewArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<OverviewOutput>> {
+) -> Result<CommandOutput> {
     let repo = OverviewAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -109,7 +106,7 @@ pub async fn execute_with_pool(
 async fn execute_internal(
     args: OverviewArgs,
     repo: &OverviewAnalyticsRepository,
-) -> Result<CommandResult<OverviewOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_overview_data(repo, start, end).await?;
 
@@ -117,12 +114,10 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_overview_csv(&output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::dashboard(output).with_skip_render());
+        return Ok(CommandOutput::card_value("Analytics Overview", &output).with_skip_render());
     }
 
-    Ok(CommandResult::dashboard(output)
-        .with_title("Analytics Overview")
-        .with_hints(RenderingHints::default()))
+    Ok(CommandOutput::card_value("Analytics Overview", &output))
 }
 
 async fn fetch_overview_data(

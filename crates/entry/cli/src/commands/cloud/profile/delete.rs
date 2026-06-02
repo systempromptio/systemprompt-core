@@ -6,12 +6,9 @@ use systemprompt_logging::CliService;
 
 use super::DeleteArgs;
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, SuccessOutput};
+use crate::shared::{CommandOutput, SuccessOutput};
 
-pub(super) fn execute(
-    args: &DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<SuccessOutput>> {
+pub(super) fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section(&format!("Delete Profile: {}", args.name));
     }
@@ -58,7 +55,7 @@ pub(super) fn execute(
                 CliService::info("Cancelled.");
             }
             let output = SuccessOutput::new("Cancelled");
-            return Ok(CommandResult::text(output).with_title("Delete Profile"));
+            return Ok(CommandOutput::text_titled("Delete Profile", output.message));
         }
     }
 
@@ -71,5 +68,5 @@ pub(super) fn execute(
         CliService::success(&format!("Deleted profile: {}", args.name));
     }
 
-    Ok(CommandResult::text(output).with_title("Delete Profile"))
+    Ok(CommandOutput::text_titled("Delete Profile", output.message))
 }

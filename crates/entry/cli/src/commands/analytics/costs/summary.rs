@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct SummaryArgs {
@@ -29,10 +29,7 @@ pub struct SummaryArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: SummaryArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<CostSummaryOutput>> {
+pub(super) async fn execute(args: SummaryArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -42,7 +39,7 @@ pub(super) async fn execute_with_pool(
     args: SummaryArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<CostSummaryOutput>> {
+) -> Result<CommandOutput> {
     let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -50,7 +47,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: SummaryArgs,
     repo: &CostAnalyticsRepository,
-) -> Result<CommandResult<CostSummaryOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let period_duration = end - start;
@@ -90,8 +87,8 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_single_to_csv(&output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::card(output).with_skip_render());
+        return Ok(CommandOutput::card_value("Cost Summary", &output).with_skip_render());
     }
 
-    Ok(CommandResult::card(output).with_title("Cost Summary"))
+    Ok(CommandOutput::card_value("Cost Summary", &output))
 }

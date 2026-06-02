@@ -4,7 +4,7 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 
 use super::super::paths::WebPaths;
@@ -17,10 +17,7 @@ pub struct ShowArgs {
     pub path: String,
 }
 
-pub(super) fn execute(
-    args: &ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AssetDetailOutput>> {
+pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let web_paths = WebPaths::resolve()?;
     let assets_dir = &web_paths.assets;
@@ -58,7 +55,10 @@ pub(super) fn execute(
         referenced_in,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Asset: {}", args.path)))
+    Ok(CommandOutput::card_value(
+        format!("Asset: {}", args.path),
+        &output,
+    ))
 }
 
 fn find_config_references(asset_path: &str, profile: &systemprompt_models::Profile) -> Vec<String> {

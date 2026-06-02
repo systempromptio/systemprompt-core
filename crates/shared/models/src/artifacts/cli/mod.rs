@@ -1,74 +1,17 @@
-//! CLI artifact envelope and raw-result conversion.
+//! CLI artifact envelope.
 //!
 //! [`CliArtifact`] is the tagged union of every renderable artifact a CLI
-//! command can emit (table, list, text, dashboard, chart, media, card).
-//! [`CommandResultRaw`] is the untyped intake shape — data plus a declared
-//! [`CliArtifactType`] and [`RenderingHints`] — converted into a
-//! [`CliArtifact`] by the [`conversion`] submodule. [`ConversionError`] covers
-//! the failure modes.
-
-pub mod conversion;
+//! command can emit (table, list, text, dashboard, chart, media, card). The CLI
+//! builds it, the wire carries it, and the MCP server deserializes it verbatim
+//! — the `artifact_type` tag is intrinsic to the serde representation.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
-use std::collections::HashMap;
-use thiserror::Error;
 
 use super::{
     AudioArtifact, ChartArtifact, CopyPasteTextArtifact, DashboardArtifact, ImageArtifact,
     ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact, VideoArtifact,
 };
-
-#[derive(Debug, Error)]
-pub enum ConversionError {
-    #[error("Missing columns hint for table artifact")]
-    MissingColumns,
-
-    #[error("No array found in data for table/list conversion")]
-    NoArrayFound,
-
-    #[error("JSON serialization error: {0}")]
-    Json(#[from] serde_json::Error),
-
-    #[error("Unsupported artifact type: {0}")]
-    UnsupportedType(String),
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CliArtifactType {
-    Table,
-    List,
-    PresentationCard,
-    Text,
-    CopyPasteText,
-    Chart,
-    Form,
-    Dashboard,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct RenderingHints {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub columns: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chart_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub theme: Option<String>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, JsonValue>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CommandResultRaw {
-    pub data: JsonValue,
-    pub artifact_type: CliArtifactType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hints: Option<RenderingHints>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "artifact_type", rename_all = "snake_case")]

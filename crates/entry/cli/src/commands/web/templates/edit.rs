@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
@@ -31,10 +31,7 @@ pub struct EditArgs {
     pub content_types: Option<String>,
 }
 
-pub(super) fn execute(
-    args: EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<TemplateEditOutput>> {
+pub(super) fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -142,5 +139,8 @@ pub(super) fn execute(
         changes,
     };
 
-    Ok(CommandResult::text(output).with_title(format!("Edit Template: {}", name)))
+    Ok(CommandOutput::card_value(
+        format!("Edit Template: {}", name),
+        &output,
+    ))
 }

@@ -18,7 +18,7 @@ pub mod video;
 
 pub use card::{CardCta, CardSection, PresentationCardArtifact, PresentationCardResponse};
 pub use chart::{ChartArtifact, ChartDataset};
-pub use cli::{CliArtifact, CliArtifactType, CommandResultRaw, ConversionError, RenderingHints};
+pub use cli::CliArtifact;
 pub use copy_paste_text::CopyPasteTextArtifact;
 pub use dashboard::{
     ChartSectionData, DashboardArtifact, DashboardHints, DashboardSection, DatabaseStatus,

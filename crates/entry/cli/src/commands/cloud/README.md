@@ -805,7 +805,7 @@ sp --json cloud secrets list | jq '.secrets[] | select(.configured == true)'
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
+- [x] All commands return `CommandOutput` with proper artifact type
 - [x] `delete` commands require `--yes` / `-y` flag
 - [x] Destructive operations (`restart`, `rotate`) require `--yes` / `-y`
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`

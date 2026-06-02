@@ -6,7 +6,7 @@ use systemprompt_logging::{CliService, ToolExecutionFilter, TraceQueryService};
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -72,16 +72,18 @@ async fn execute_with_pool_inner(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("MCP Tool Executions")
-            .with_columns(vec![
-                "timestamp".to_owned(),
-                "trace_id".to_owned(),
-                "tool_name".to_owned(),
-                "server".to_owned(),
-                "status".to_owned(),
-                "duration_ms".to_owned(),
-            ]);
+        let result = CommandOutput::table_of(
+            vec![
+                "timestamp",
+                "trace_id",
+                "tool_name",
+                "server",
+                "status",
+                "duration_ms",
+            ],
+            &output.executions,
+        )
+        .with_title("MCP Tool Executions");
         render_result(&result);
     } else {
         render_tool_list(&output, &args);

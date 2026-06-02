@@ -14,7 +14,7 @@ use systemprompt_models::Secrets;
 use super::profile_io::{load_profile, profile_dir};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 const RESERVED: &[&str] = &[
     "oauth_at_rest_pepper",
@@ -71,13 +71,13 @@ pub fn execute(command: &SecretCommands, _config: &CliConfig) -> Result<()> {
     std::fs::write(&secrets_file, serialized)
         .with_context(|| format!("Failed to write {}", secrets_file.display()))?;
 
-    render_result(
-        &CommandResult::text(ConfigMutationOutput {
+    render_result(&CommandOutput::card_value(
+        "Secret Updated",
+        &ConfigMutationOutput {
             field: "secrets".to_owned(),
             message: format!("Secret '{}' set", args.name),
-        })
-        .with_title("Secret Updated"),
-    );
+        },
+    ));
     Ok(())
 }
 

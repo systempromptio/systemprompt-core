@@ -3,7 +3,7 @@ use clap::Args;
 
 use super::types::{ValidationIssue, ValidationOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_loader::ConfigLoader;
 
@@ -13,10 +13,7 @@ pub struct ValidateArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(
-    args: &ValidateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ValidationOutput>> {
+pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let registry = &ProfileBootstrap::get()
         .context("Failed to access bootstrapped profile for provider registry")?
@@ -160,5 +157,5 @@ pub(super) fn execute(
         warnings,
     };
 
-    Ok(CommandResult::table(output).with_title("Validation Results"))
+    Ok(CommandOutput::card_value("Validation Results", &output))
 }

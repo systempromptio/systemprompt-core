@@ -9,13 +9,14 @@ use super::logs::{LogLevel, LogsArgs};
 use super::types::McpLogsOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
+use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<CommandResult<McpLogsOutput>> {
+) -> Result<CommandOutput> {
     if !logs_path.exists() {
         return Err(anyhow!(
             "Logs directory does not exist: {}",
@@ -25,13 +26,11 @@ pub(super) fn execute_disk_mode(
 
     if args.server.is_none() && !config.is_interactive() {
         let log_files = list_mcp_log_files(logs_path)?;
-        return Ok(CommandResult::list(McpLogsOutput {
-            service: None,
-            source: "disk".to_owned(),
-            logs: vec![],
-            log_files,
-        })
-        .with_title("Available MCP Log Files"));
+        let items: Vec<ListItem> = log_files
+            .iter()
+            .map(|file| ListItem::new(file.clone(), String::new(), file.clone()))
+            .collect();
+        return Ok(CommandOutput::list(items).with_title("Available MCP Log Files"));
     }
 
     let service = resolve_required(args.server.clone(), "server", config, || {
@@ -45,20 +44,24 @@ pub(super) fn execute_disk_mode(
         format!(" [{}+]", format!("{:?}", l).to_uppercase())
     });
 
-    Ok(CommandResult::text(McpLogsOutput {
+    let output = McpLogsOutput {
         service: Some(service.clone()),
         source: "disk".to_owned(),
         logs,
         log_files: vec![],
-    })
-    .with_title(format!("MCP Logs (Disk): {}{}", service, level_label)))
+    };
+
+    Ok(CommandOutput::card_value(
+        format!("MCP Logs (Disk): {}{}", service, level_label),
+        &output,
+    ))
 }
 
 pub(super) fn execute_follow_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<CommandResult<McpLogsOutput>> {
+) -> Result<CommandOutput> {
     if !logs_path.exists() {
         return Err(anyhow!(
             "Logs directory does not exist: {}",
@@ -82,13 +85,14 @@ pub(super) fn execute_follow_mode(
         return Err(anyhow!("tail -f exited with non-zero status"));
     }
 
-    Ok(CommandResult::text(McpLogsOutput {
+    let output = McpLogsOutput {
         service: Some(service),
         source: "disk".to_owned(),
         logs: vec![],
         log_files: vec![],
-    })
-    .with_title("MCP Logs"))
+    };
+
+    Ok(CommandOutput::card_value("MCP Logs", &output))
 }
 
 fn list_mcp_log_files(logs_dir: &Path) -> Result<Vec<String>> {

@@ -66,7 +66,7 @@ pub struct ChartArtifact {
 impl ChartArtifact {
     pub const ARTIFACT_TYPE_STR: &'static str = "chart";
 
-    pub fn new(title: impl Into<String>, chart_type: ChartType, ctx: &RequestContext) -> Self {
+    pub fn new(title: impl Into<String>, chart_type: ChartType) -> Self {
         Self {
             artifact_type: "chart".to_owned(),
             labels: Vec::new(),
@@ -77,8 +77,13 @@ impl ChartArtifact {
             y_axis_label: "Y".to_owned(),
             x_axis_type: AxisType::Category,
             y_axis_type: AxisType::Linear,
-            metadata: ExecutionMetadata::with_request(ctx),
+            metadata: ExecutionMetadata::default(),
         }
+    }
+
+    pub fn with_request(mut self, ctx: &RequestContext) -> Self {
+        self.metadata = ExecutionMetadata::with_request(ctx);
+        self
     }
 
     pub fn with_x_axis_labels(mut self, labels: Vec<String>) -> Self {

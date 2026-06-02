@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
@@ -21,10 +21,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentTypeDeleteOutput>> {
+pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -73,5 +70,5 @@ pub(super) fn execute(
         message: format!("Content type '{}' deleted successfully", name),
     };
 
-    Ok(CommandResult::text(output).with_title("Content Type Deleted"))
+    Ok(CommandOutput::card_value("Content Type Deleted", &output))
 }

@@ -11,7 +11,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AccessControlCommands {
@@ -43,7 +43,7 @@ pub async fn execute(cmd: AccessControlCommands, config: &CliConfig) -> Result<(
         },
         AccessControlCommands::Lint(args) => {
             let (text, exit_nonzero) = lint::run(args, config).await?;
-            let result = CommandResult::raw_text(text).with_title("Access-control lint");
+            let result = CommandOutput::text_titled("Access-control lint", text);
             render_result(&result);
             if exit_nonzero {
                 anyhow::bail!("access-control lint failed; see report above");

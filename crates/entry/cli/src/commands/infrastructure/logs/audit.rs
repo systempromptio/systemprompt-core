@@ -10,7 +10,7 @@ use systemprompt_logging::TraceQueryService;
 use super::audit_display::render_text_output;
 use super::types::MessageRow;
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct AuditArgs {
@@ -97,7 +97,7 @@ async fn execute_with_pool_inner(
     };
 
     if config.is_json_output() || args.json {
-        let result = CommandResult::card(output).with_title("AI Request Audit");
+        let result = CommandOutput::card_value("AI Request Audit", &output);
         render_result(&result);
     } else {
         render_text_output(&output, args.full);

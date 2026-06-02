@@ -1,6 +1,6 @@
 use super::types::{ContentSummary, PopularOutput};
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::ContentRepository;
@@ -41,10 +41,7 @@ pub struct PopularArgs {
     pub limit: i64,
 }
 
-pub async fn execute(
-    args: PopularArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<PopularOutput>> {
+pub async fn execute(args: PopularArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -53,7 +50,7 @@ pub async fn execute_with_pool(
     args: PopularArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<PopularOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
 
     let source = SourceId::new(args.source.clone());
@@ -85,12 +82,8 @@ pub async fn execute_with_pool(
         days: days_i64,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Popular Content")
-        .with_columns(vec![
-            "id".to_owned(),
-            "title".to_owned(),
-            "kind".to_owned(),
-            "published_at".to_owned(),
-        ]))
+    Ok(
+        CommandOutput::table_of(vec!["id", "title", "kind", "published_at"], &output.items)
+            .with_title("Popular Content"),
+    )
 }

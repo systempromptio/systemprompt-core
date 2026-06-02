@@ -10,7 +10,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -62,10 +62,7 @@ pub(super) struct RequestListOutput {
     pub requests: Vec<RequestListRowOutput>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<RequestListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -75,7 +72,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<RequestListOutput>> {
+) -> Result<CommandOutput> {
     let repo = RequestAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -83,7 +80,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: ListArgs,
     repo: &RequestAnalyticsRepository,
-) -> Result<CommandResult<RequestListOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let rows = repo
         .list_requests(start, end, args.limit, args.model.as_deref())
@@ -116,30 +113,55 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.requests, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "created_at",
+                "status",
+                "user_id",
+                "provider",
+                "model",
+                "input_tokens",
+                "output_tokens",
+                "latency_ms",
+                "error_message",
+            ],
+            &output.requests,
+        )
+        .with_skip_render());
     }
 
     if output.requests.is_empty() {
         CliService::warning("No requests found in the specified time range");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "created_at",
+                "status",
+                "user_id",
+                "provider",
+                "model",
+                "input_tokens",
+                "output_tokens",
+                "latency_ms",
+                "error_message",
+            ],
+            &output.requests,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "created_at".to_owned(),
-            "status".to_owned(),
-            "user_id".to_owned(),
-            "provider".to_owned(),
-            "model".to_owned(),
-            "input_tokens".to_owned(),
-            "output_tokens".to_owned(),
-            "latency_ms".to_owned(),
-            "error_message".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("AI Requests")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec![
+            "created_at",
+            "status",
+            "user_id",
+            "provider",
+            "model",
+            "input_tokens",
+            "output_tokens",
+            "latency_ms",
+            "error_message",
+        ],
+        &output.requests,
+    )
+    .with_title("AI Requests"))
 }

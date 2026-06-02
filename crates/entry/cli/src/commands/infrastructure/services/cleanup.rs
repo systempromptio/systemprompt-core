@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::interactive::require_confirmation;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
@@ -10,11 +10,7 @@ use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 use super::get_api_port;
 use super::types::CleanupOutput;
 
-pub(super) async fn execute(
-    yes: bool,
-    dry_run: bool,
-    config: &CliConfig,
-) -> Result<CommandResult<CleanupOutput>> {
+pub(super) async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
     if !quiet {
         CliService::section("Cleaning Up Services");
@@ -60,21 +56,23 @@ pub(super) async fn execute(
         dry_run: false,
         message,
     };
-    Ok(CommandResult::card(output).with_title("Service Cleanup"))
+    Ok(CommandOutput::card_value("Service Cleanup", &output))
 }
 
-fn no_services_result(quiet: bool, dry_run: bool) -> CommandResult<CleanupOutput> {
+fn no_services_result(quiet: bool, dry_run: bool) -> CommandOutput {
     let message = "No running services found".to_owned();
     if !quiet {
         CliService::info(&message);
     }
-    CommandResult::card(CleanupOutput {
-        services_cleaned: 0,
-        stale_entries_removed: 0,
-        dry_run,
-        message,
-    })
-    .with_title("Service Cleanup")
+    CommandOutput::card_value(
+        "Service Cleanup",
+        &CleanupOutput {
+            services_cleaned: 0,
+            stale_entries_removed: 0,
+            dry_run,
+            message,
+        },
+    )
 }
 
 fn dry_run_result(
@@ -82,7 +80,7 @@ fn dry_run_result(
     api_pid: Option<u32>,
     api_port: u16,
     quiet: bool,
-) -> CommandResult<CleanupOutput> {
+) -> CommandOutput {
     if !quiet {
         CliService::section("Dry Run - Would clean the following:");
         for service in running_services {
@@ -97,13 +95,15 @@ fn dry_run_result(
         CliService::info("Run without --dry-run to execute cleanup");
     }
     let service_count = running_services.len() + usize::from(api_pid.is_some());
-    CommandResult::card(CleanupOutput {
-        services_cleaned: service_count,
-        stale_entries_removed: 0,
-        dry_run: true,
-        message: format!("Would clean {} service(s)", service_count),
-    })
-    .with_title("Service Cleanup (Dry Run)")
+    CommandOutput::card_value(
+        "Service Cleanup (Dry Run)",
+        &CleanupOutput {
+            services_cleaned: service_count,
+            stale_entries_removed: 0,
+            dry_run: true,
+            message: format!("Would clean {} service(s)", service_count),
+        },
+    )
 }
 
 fn log_service_state(service: &systemprompt_database::ServiceConfig) {

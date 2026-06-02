@@ -5,7 +5,7 @@ use systemprompt_identifiers::SkillId;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 use super::types::{SkillDetailOutput, parse_skill_from_config};
 
@@ -15,10 +15,7 @@ pub struct ShowArgs {
     pub name: String,
 }
 
-pub(super) fn execute(
-    args: &ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SkillDetailOutput>> {
+pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let skills_path = get_skills_path()?;
     show_skill_detail(&args.name, &skills_path)
 }
@@ -28,10 +25,7 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 
-fn show_skill_detail(
-    skill_name: &str,
-    skills_path: &Path,
-) -> Result<CommandResult<SkillDetailOutput>> {
+fn show_skill_detail(skill_name: &str, skills_path: &Path) -> Result<CommandOutput> {
     let skill_dir = skills_path.join(skill_name);
 
     if !skill_dir.exists() {
@@ -69,5 +63,8 @@ fn show_skill_detail(
         instructions_preview,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Skill: {}", skill_name)))
+    Ok(CommandOutput::card_value(
+        format!("Skill: {}", skill_name),
+        &output,
+    ))
 }

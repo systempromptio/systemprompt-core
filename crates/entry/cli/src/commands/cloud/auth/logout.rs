@@ -8,12 +8,9 @@ use systemprompt_models::modules::ApiPaths;
 use super::LogoutArgs;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::LogoutOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute(
-    args: LogoutArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<LogoutOutput>> {
+pub(super) async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
@@ -27,7 +24,7 @@ pub(super) async fn execute(
             CliService::success("Already logged out (no credentials found)");
         }
 
-        return Ok(CommandResult::text(output).with_title("Logout"));
+        return Ok(CommandOutput::card_value("Logout", &output));
     }
 
     if !args.yes {
@@ -52,7 +49,7 @@ pub(super) async fn execute(
                 CliService::info("Cancelled.");
             }
 
-            return Ok(CommandResult::text(output).with_title("Logout"));
+            return Ok(CommandOutput::card_value("Logout", &output));
         }
     }
 
@@ -82,5 +79,5 @@ pub(super) async fn execute(
         tracing::debug!(error = %e, "Failed to report logout activity");
     }
 
-    Ok(CommandResult::text(output).with_title("Logout"))
+    Ok(CommandOutput::card_value("Logout", &output))
 }

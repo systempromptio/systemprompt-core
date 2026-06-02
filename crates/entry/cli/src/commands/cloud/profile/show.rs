@@ -14,7 +14,7 @@ use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result, resolve_profile_path};
+use crate::shared::{CommandOutput, render_result, resolve_profile_path};
 
 pub(super) fn execute(
     name: Option<&str>,
@@ -204,7 +204,7 @@ pub(super) fn load_content_config(paths: &AppPaths) -> Option<ContentConfigRaw> 
 
 fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) {
     if json_output {
-        let result = CommandResult::card(config).with_title("Profile Configuration");
+        let result = CommandOutput::card_value("Profile Configuration", config);
         render_result(&result);
     } else if yaml_output {
         CliService::yaml(config);

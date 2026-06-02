@@ -5,17 +5,14 @@ use systemprompt_users::UserService;
 
 use super::types::UserStatsOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute(config: &CliConfig) -> Result<CommandResult<UserStatsOutput>> {
+pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(ctx.db_pool(), config).await
 }
 
-pub(super) async fn execute_with_pool(
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandResult<UserStatsOutput>> {
+pub(super) async fn execute_with_pool(pool: &DbPool, _config: &CliConfig) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
 
     let stats = user_service.get_stats().await?;
@@ -34,5 +31,5 @@ pub(super) async fn execute_with_pool(
         newest_user: stats.newest_user,
     };
 
-    Ok(CommandResult::card(output).with_title("User Statistics"))
+    Ok(CommandOutput::card_value("User Statistics", &output))
 }

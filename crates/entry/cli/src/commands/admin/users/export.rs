@@ -9,7 +9,7 @@ use systemprompt_users::UserService;
 
 use super::types::{UserExportItem, UserExportOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ExportArgs {
@@ -34,10 +34,7 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(
-    args: ExportArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<UserExportOutput>> {
+pub(super) async fn execute(args: ExportArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -46,7 +43,7 @@ pub(super) async fn execute_with_pool(
     args: ExportArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<UserExportOutput>> {
+) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
 
     let users = user_service
@@ -82,14 +79,18 @@ pub(super) async fn execute_with_pool(
         exported_at: Utc::now(),
     };
 
+    let json = serde_json::to_string_pretty(&output)?;
+
     if let Some(path) = args.output {
-        let json = serde_json::to_string_pretty(&output)?;
         let mut file = File::create(&path)?;
         file.write_all(json.as_bytes())?;
 
         let total = output.total;
-        Ok(CommandResult::text(output).with_title(format!("Exported {total} users to {path}")))
+        Ok(CommandOutput::card_value(
+            format!("Exported {total} users to {path}"),
+            &output,
+        ))
     } else {
-        Ok(CommandResult::copy_paste(output).with_title("User Export"))
+        Ok(CommandOutput::copy_paste_titled("User Export", json))
     }
 }

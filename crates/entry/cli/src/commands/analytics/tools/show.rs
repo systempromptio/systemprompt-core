@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -32,10 +32,7 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ToolShowOutput>> {
+pub(super) async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -45,15 +42,12 @@ pub(super) async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<ToolShowOutput>> {
+) -> Result<CommandOutput> {
     let repo = ToolAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
 
-async fn execute_internal(
-    args: ShowArgs,
-    repo: &ToolAnalyticsRepository,
-) -> Result<CommandResult<ToolShowOutput>> {
+async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let count = repo.tool_exists(&args.tool, start, end).await?;
@@ -142,8 +136,13 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_single_to_csv(&output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::card(output).with_skip_render());
+        return Ok(
+            CommandOutput::card_value(format!("Tool: {}", args.tool), &output).with_skip_render(),
+        );
     }
 
-    Ok(CommandResult::card(output).with_title(format!("Tool: {}", args.tool)))
+    Ok(CommandOutput::card_value(
+        format!("Tool: {}", args.tool),
+        &output,
+    ))
 }

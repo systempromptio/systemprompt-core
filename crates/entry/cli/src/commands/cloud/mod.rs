@@ -191,9 +191,10 @@ fn execute_dockerfile(config: &CliConfig) -> Result<()> {
     };
 
     if config.is_json_output() {
-        crate::shared::render_result(
-            &crate::shared::CommandResult::copy_paste(output).with_title("Dockerfile"),
-        );
+        crate::shared::render_result(&crate::shared::CommandOutput::copy_paste_titled(
+            "Dockerfile",
+            output.content,
+        ));
     } else {
         systemprompt_logging::CliService::output(&content);
     }

@@ -1,6 +1,6 @@
 use super::types::VerifyOutput;
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
@@ -26,7 +26,7 @@ pub struct VerifyArgs {
     pub url_pattern: Option<String>,
 }
 
-pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandResult<VerifyOutput>> {
+pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
@@ -95,5 +95,5 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
         last_updated: content.updated_at,
     };
 
-    Ok(CommandResult::card(output).with_title("Content Verification"))
+    Ok(CommandOutput::card_value("Content Verification", &output))
 }

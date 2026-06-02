@@ -14,7 +14,7 @@ use systemprompt_models::profile::{Environment, LogLevel, OutputFormat as Profil
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum RuntimeCommands {
@@ -58,7 +58,7 @@ pub(super) fn execute_show() -> Result<()> {
         non_interactive: profile.runtime.non_interactive,
     };
 
-    render_result(&CommandResult::card(output).with_title("Runtime Configuration"));
+    render_result(&CommandOutput::card_value("Runtime Configuration", &output));
 
     Ok(())
 }
@@ -131,7 +131,7 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     save_profile(&profile, profile_path)?;
 
     for change in &changes {
-        render_result(&CommandResult::text(change.clone()).with_title("Runtime Updated"));
+        render_result(&CommandOutput::card_value("Runtime Updated", change));
     }
 
     if config.output_format() == OutputFormat::Table {

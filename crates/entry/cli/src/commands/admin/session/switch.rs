@@ -8,12 +8,9 @@ use super::login::{self, LoginArgs};
 use super::types::SwitchOutput;
 use crate::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
-pub(super) async fn execute(
-    profile_name: &str,
-    _config: &CliConfig,
-) -> Result<CommandResult<SwitchOutput>> {
+pub(super) async fn execute(profile_name: &str, _config: &CliConfig) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
 
@@ -70,7 +67,7 @@ pub(super) async fn execute(
         message: format!("Switched to profile '{}'", profile_name),
     };
 
-    Ok(CommandResult::text(output).with_title("Switch Profile"))
+    Ok(CommandOutput::card_value("Switch Profile", &output))
 }
 
 fn load_profile(path: &std::path::Path) -> Result<Profile> {

@@ -7,7 +7,7 @@ use systemprompt_logging::CliService;
 
 use super::types::CoreBuildOutput;
 use crate::CliConfig;
-use crate::shared::command_result::CommandResult;
+use crate::shared::command_result::CommandOutput;
 use crate::shared::project::ProjectRoot;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -19,10 +19,7 @@ pub struct CoreArgs {
     pub offline: bool,
 }
 
-pub(super) fn execute(
-    args: CoreArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<CoreBuildOutput>> {
+pub(super) fn execute(args: CoreArgs, config: &CliConfig) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover()?;
     let root = project_root.as_path();
 
@@ -67,5 +64,5 @@ pub(super) fn execute(
         CliService::success(&format!("Core built successfully in {:.1}s", duration));
     }
 
-    Ok(CommandResult::card(output).with_title("Core Build"))
+    Ok(CommandOutput::card_value("Core Build", &output))
 }

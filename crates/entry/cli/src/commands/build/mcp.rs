@@ -9,7 +9,7 @@ use systemprompt_models::BuildType;
 
 use super::types::{BuildExtensionRow, BuildOutput};
 use crate::CliConfig;
-use crate::shared::command_result::CommandResult;
+use crate::shared::command_result::CommandOutput;
 use crate::shared::project::ProjectRoot;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -18,7 +18,7 @@ pub struct McpArgs {
     pub release: bool,
 }
 
-pub(super) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult<BuildOutput>> {
+pub(super) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let root = project_root.as_path();
 
@@ -31,9 +31,11 @@ pub(super) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult
             successful: 0,
             release_mode: args.release,
         };
-        return Ok(CommandResult::table(output)
-            .with_title("Build MCP Extensions")
-            .with_columns(vec!["name".into(), "build_type".into(), "status".into()]));
+        return Ok(CommandOutput::table_of(
+            vec!["name", "build_type", "status"],
+            &output.extensions,
+        )
+        .with_title("Build MCP Extensions"));
     }
 
     if !config.is_json_output() {
@@ -96,9 +98,10 @@ pub(super) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult
         }
     }
 
-    Ok(CommandResult::table(output)
-        .with_title("Build MCP Extensions")
-        .with_columns(vec!["name".into(), "build_type".into(), "status".into()]))
+    Ok(
+        CommandOutput::table_of(vec!["name", "build_type", "status"], &output.extensions)
+            .with_title("Build MCP Extensions"),
+    )
 }
 
 fn build_workspace_crate(

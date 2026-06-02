@@ -1,5 +1,5 @@
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_agent::services::registry::AgentRegistry;
@@ -12,7 +12,7 @@ use super::super::types::RestartOutput;
 pub async fn execute_all_agents(
     ctx: &Arc<AppContext>,
     config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
+) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
 
     if !quiet {
@@ -64,13 +64,10 @@ pub async fn execute_all_agents(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Restart All Agents"))
+    Ok(CommandOutput::card_value("Restart All Agents", &output))
 }
 
-pub async fn execute_all_mcp(
-    ctx: &Arc<AppContext>,
-    config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
+pub async fn execute_all_mcp(ctx: &Arc<AppContext>, config: &CliConfig) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
 
     if !quiet {
@@ -127,13 +124,13 @@ pub async fn execute_all_mcp(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Restart All MCP Servers"))
+    Ok(CommandOutput::card_value(
+        "Restart All MCP Servers",
+        &output,
+    ))
 }
 
-pub async fn execute_failed(
-    ctx: &Arc<AppContext>,
-    config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
+pub async fn execute_failed(ctx: &Arc<AppContext>, config: &CliConfig) -> Result<CommandOutput> {
     let quiet = config.is_json_output();
 
     if !quiet {
@@ -175,7 +172,10 @@ pub async fn execute_failed(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Restart Failed Services"))
+    Ok(CommandOutput::card_value(
+        "Restart Failed Services",
+        &output,
+    ))
 }
 
 async fn restart_failed_agents(

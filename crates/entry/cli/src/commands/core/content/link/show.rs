@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDetailOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::services::LinkGenerationService;
@@ -14,10 +14,7 @@ pub struct ShowArgs {
     pub short_code: String,
 }
 
-pub async fn execute(
-    args: ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<LinkDetailOutput>> {
+pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = LinkGenerationService::new(ctx.db_pool())?;
 
@@ -49,5 +46,5 @@ pub async fn execute(
         created_at: link.created_at,
     };
 
-    Ok(CommandResult::card(output).with_title("Link Details"))
+    Ok(CommandOutput::card_value("Link Details", &output))
 }

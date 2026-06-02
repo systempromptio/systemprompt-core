@@ -1,7 +1,5 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
@@ -10,7 +8,7 @@ use crate::CliConfig;
 use crate::commands::core::files::types::{
     ContentFileRow, ContentFilesOutput, FileContentLinkRow, FileContentLinksOutput,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -21,17 +19,7 @@ pub struct ListArgs {
     pub file: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(untagged)]
-pub(super) enum ListOutput {
-    ContentFiles(ContentFilesOutput),
-    FileContentLinks(FileContentLinksOutput),
-}
-
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = FileRepository::new(ctx.db_pool())?;
 
@@ -53,15 +41,11 @@ pub(super) async fn execute(
 
             let output = ContentFilesOutput { content_id, files };
 
-            Ok(CommandResult::table(ListOutput::ContentFiles(output))
-                .with_title("Content Files")
-                .with_columns(vec![
-                    "file_id".to_owned(),
-                    "path".to_owned(),
-                    "mime_type".to_owned(),
-                    "role".to_owned(),
-                    "display_order".to_owned(),
-                ]))
+            Ok(CommandOutput::table_of(
+                vec!["file_id", "path", "mime_type", "role", "display_order"],
+                &output.files,
+            )
+            .with_title("Content Files"))
         },
         (None, Some(file_id_str)) => {
             let file_id = parse_file_id(file_id_str)?;
@@ -79,14 +63,11 @@ pub(super) async fn execute(
 
             let output = FileContentLinksOutput { file_id, links };
 
-            Ok(CommandResult::table(ListOutput::FileContentLinks(output))
-                .with_title("File Content Links")
-                .with_columns(vec![
-                    "content_id".to_owned(),
-                    "role".to_owned(),
-                    "display_order".to_owned(),
-                    "created_at".to_owned(),
-                ]))
+            Ok(CommandOutput::table_of(
+                vec!["content_id", "role", "display_order", "created_at"],
+                &output.links,
+            )
+            .with_title("File Content Links"))
         },
         (Some(_), Some(_)) => Err(anyhow!(
             "Cannot specify both --content and --file. Use one or the other."

@@ -8,7 +8,7 @@ use systemprompt_models::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbMigrateOutput;
 
@@ -90,7 +90,7 @@ async fn run_install(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::text(output).with_title("Database Admin");
+        let result = CommandOutput::card_value("Database Admin", &output);
         render_result(&result);
     } else {
         CliService::success(&output.message);

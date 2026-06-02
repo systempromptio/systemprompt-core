@@ -1,7 +1,7 @@
 use super::types::DeleteSourceOutput;
 use crate::cli_settings::CliConfig;
 use crate::interactive::require_confirmation;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::ContentRepository;
@@ -18,10 +18,7 @@ pub struct DeleteSourceArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
-    args: DeleteSourceArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<DeleteSourceOutput>> {
+pub async fn execute(args: DeleteSourceArgs, config: &CliConfig) -> Result<CommandOutput> {
     if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete ALL content from source: {}",
@@ -42,5 +39,5 @@ pub async fn execute(
         source_id: source,
     };
 
-    Ok(CommandResult::card(output).with_title("Source Content Deleted"))
+    Ok(CommandOutput::card_value("Source Content Deleted", &output))
 }

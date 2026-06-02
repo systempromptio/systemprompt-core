@@ -8,7 +8,7 @@ use super::tools_schema::print_schema_view;
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
 use crate::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
@@ -28,10 +28,7 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(
-    args: ToolsArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<McpToolsOutput>> {
+pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let session_ctx = get_or_create_session(config).await?;
@@ -125,14 +122,9 @@ pub(super) async fn execute(
         },
     };
 
-    let columns = vec![
-        "name".to_owned(),
-        "server".to_owned(),
-        "description".to_owned(),
-        "parameters_count".to_owned(),
-    ];
-
-    Ok(CommandResult::table(output)
-        .with_title("MCP Tools")
-        .with_columns(columns))
+    Ok(CommandOutput::table_of(
+        vec!["name", "server", "description", "parameters_count"],
+        &output.tools,
+    )
+    .with_title("MCP Tools"))
 }

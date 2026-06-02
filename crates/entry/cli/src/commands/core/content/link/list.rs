@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{LinkListOutput, LinkSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
@@ -16,7 +16,7 @@ pub struct ListArgs {
     pub content: Option<String>,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<LinkListOutput>> {
+pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     if args.campaign.is_none() && args.content.is_none() {
         return Err(anyhow!("Either --campaign or --content must be specified"));
     }
@@ -53,12 +53,9 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResul
         total,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Links")
-        .with_columns(vec![
-            "id".to_owned(),
-            "short_code".to_owned(),
-            "target_url".to_owned(),
-            "click_count".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "short_code", "target_url", "click_count"],
+        &output.links,
+    )
+    .with_title("Links"))
 }

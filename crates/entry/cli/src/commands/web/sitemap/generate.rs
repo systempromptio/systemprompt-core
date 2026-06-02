@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
@@ -25,10 +25,7 @@ pub struct GenerateArgs {
     pub include_dynamic: bool,
 }
 
-pub(super) fn execute(
-    args: &GenerateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SitemapGenerateOutput>> {
+pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -129,7 +126,7 @@ pub(super) fn execute(
         ),
     };
 
-    Ok(CommandResult::text(output).with_title("Sitemap Generated"))
+    Ok(CommandOutput::card_value("Sitemap Generated", &output))
 }
 
 fn extract_base_url(metadata_content: &str) -> Option<String> {

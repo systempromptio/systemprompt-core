@@ -8,7 +8,7 @@ use systemprompt_runtime::AppContext;
 use super::types::ContextCreatedOutput;
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -16,10 +16,7 @@ pub struct CreateArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: CreateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContextCreatedOutput>> {
+pub(super) async fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
 
@@ -50,5 +47,5 @@ pub(super) async fn execute(
         CliService::key_value("Name", &name);
     }
 
-    Ok(CommandResult::card(output).with_title("Context Created"))
+    Ok(CommandOutput::card_value("Context Created", &output))
 }

@@ -9,11 +9,10 @@ use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart, methods};
 use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
 use super::message_streaming::execute_streaming;
-use super::types::MessageOutput;
 use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 #[command(
@@ -69,10 +68,7 @@ pub(super) fn extract_text_from_parts(parts: &[Part]) -> String {
         .join("\n")
 }
 
-pub(super) async fn execute(
-    args: MessageArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<MessageOutput>> {
+pub(super) async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(config).await?;
 
     let agent = resolve_required(args.agent, "agent", config, || {
@@ -151,11 +147,13 @@ pub(super) async fn execute(
         .await?
     };
 
+    let output = result;
+    let card = CommandOutput::card_value(format!("Message sent to {}", output.agent), &output);
+
     if use_json {
-        return Ok(result);
+        return Ok(card);
     }
 
-    let output = result.data;
     CliService::output(output.response.as_deref().unwrap_or("No response"));
-    Ok(CommandResult::text(output).with_skip_render())
+    Ok(card.with_skip_render())
 }

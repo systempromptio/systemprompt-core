@@ -10,12 +10,12 @@ use super::select::get_credentials;
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::TenantCancelArgs;
 use crate::cloud::types::CancelSubscriptionOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 pub async fn cancel_subscription(
     args: TenantCancelArgs,
     config: &CliConfig,
-) -> Result<CommandResult<CancelSubscriptionOutput>> {
+) -> Result<CommandOutput> {
     if !config.is_interactive() {
         bail!(
             "Subscription cancellation requires interactive mode for safety.\nThis is an \
@@ -89,9 +89,7 @@ pub async fn cancel_subscription(
             tenant_name: tenant.name.clone(),
             message: "Cancellation aborted. Tenant name did not match.".to_owned(),
         };
-        return Ok(CommandResult::text(output)
-            .with_title("Cancel Subscription")
-            .with_skip_render());
+        return Ok(CommandOutput::card_value("Cancel Subscription", &output).with_skip_render());
     }
 
     let creds = get_credentials()?;
@@ -119,7 +117,5 @@ pub async fn cancel_subscription(
             .to_owned(),
     };
 
-    Ok(CommandResult::text(output)
-        .with_title("Cancel Subscription")
-        .with_skip_render())
+    Ok(CommandOutput::card_value("Cancel Subscription", &output).with_skip_render())
 }

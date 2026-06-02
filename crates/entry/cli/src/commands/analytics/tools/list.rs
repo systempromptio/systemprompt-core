@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{ToolListOutput, ToolListRow};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ToolSortBy {
@@ -64,10 +64,7 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ToolListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -77,15 +74,12 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<ToolListOutput>> {
+) -> Result<CommandOutput> {
     let repo = ToolAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
 
-async fn execute_internal(
-    args: ListArgs,
-    repo: &ToolAnalyticsRepository,
-) -> Result<CommandResult<ToolListOutput>> {
+async fn execute_internal(args: ListArgs, repo: &ToolAnalyticsRepository) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo
@@ -127,26 +121,43 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.tools, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "tool_name",
+                "server_name",
+                "execution_count",
+                "success_rate",
+                "avg_execution_time_ms",
+            ],
+            &output.tools,
+        )
+        .with_skip_render());
     }
 
     if output.tools.is_empty() {
         CliService::warning("No tools found in the specified time range");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "tool_name",
+                "server_name",
+                "execution_count",
+                "success_rate",
+                "avg_execution_time_ms",
+            ],
+            &output.tools,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "tool_name".to_owned(),
-            "server_name".to_owned(),
-            "execution_count".to_owned(),
-            "success_rate".to_owned(),
-            "avg_execution_time_ms".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Tool List")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec![
+            "tool_name",
+            "server_name",
+            "execution_count",
+            "success_rate",
+            "avg_execution_time_ms",
+        ],
+        &output.tools,
+    )
+    .with_title("Tool List"))
 }

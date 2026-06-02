@@ -16,7 +16,7 @@ use clap::{Args, Subcommand};
 use super::discover_registry;
 use super::types::CapabilitiesSummaryOutput;
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct CapabilitiesArgs {
@@ -71,7 +71,7 @@ pub(super) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
     }
 }
 
-fn execute_summary(_config: &CliConfig) -> CommandResult<CapabilitiesSummaryOutput> {
+fn execute_summary(_config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let mut jobs = 0;
@@ -105,5 +105,5 @@ fn execute_summary(_config: &CliConfig) -> CommandResult<CapabilitiesSummaryOutp
         extension_count,
     };
 
-    CommandResult::card(output).with_title("Capabilities Summary")
+    CommandOutput::card_value("Capabilities Summary", &output)
 }

@@ -764,7 +764,7 @@ sp --json core content popular --source blog | jq '.items[] | {title, kind}'
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
+- [x] All commands return `CommandOutput` with proper artifact type
 - [x] `delete` commands require `--yes` / `-y` flag
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
 - [x] No `println!` / `eprintln!` - uses `render_result()`

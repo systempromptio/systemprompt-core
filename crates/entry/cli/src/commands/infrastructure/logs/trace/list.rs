@@ -5,7 +5,7 @@ use systemprompt_logging::{CliService, TraceListFilter, TraceQueryService};
 
 use super::{TraceListOutput, TraceListRow};
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -94,17 +94,19 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
         return Ok(());
     }
 
-    let result = CommandResult::table(output)
-        .with_title("Recent Traces")
-        .with_columns(vec![
-            "trace_id".to_owned(),
-            "timestamp".to_owned(),
-            "agent".to_owned(),
-            "status".to_owned(),
-            "duration_ms".to_owned(),
-            "ai_requests".to_owned(),
-            "mcp_calls".to_owned(),
-        ]);
+    let result = CommandOutput::table_of(
+        vec![
+            "trace_id",
+            "timestamp",
+            "agent",
+            "status",
+            "duration_ms",
+            "ai_requests",
+            "mcp_calls",
+        ],
+        &output.traces,
+    )
+    .with_title("Recent Traces");
 
     render_result(&result);
 

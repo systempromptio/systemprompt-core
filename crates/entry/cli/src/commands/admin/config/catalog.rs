@@ -19,7 +19,8 @@ use systemprompt_models::profile::{ProviderEntry, ProviderModel, WireProtocol};
 use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
+use systemprompt_models::artifacts::ListItem;
 
 #[derive(Debug, Subcommand)]
 pub enum CatalogCommands {
@@ -111,13 +112,13 @@ pub async fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<(
     save_profile(&profile, profile_path)?;
     let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
-    render_result(
-        &CommandResult::text(ConfigMutationOutput {
+    render_result(&CommandOutput::card_value(
+        "Provider Registry Updated",
+        &ConfigMutationOutput {
             field: "providers".to_owned(),
             message: super::reconcile::append_reconcile_notice(message, &outcome),
-        })
-        .with_title("Provider Registry Updated"),
-    );
+        },
+    ));
     Ok(())
 }
 
@@ -213,23 +214,23 @@ fn remove_model(profile: &mut Profile, provider_name: &str, id: &str) -> Result<
 fn list_providers() -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let profile = load_profile(profile_path)?;
-    let rows: Vec<String> = profile
+    let items: Vec<ListItem> = profile
         .providers
         .providers
         .iter()
         .map(|p| {
             let models: Vec<&str> = p.models.iter().map(|m| m.id.as_str()).collect();
-            format!(
+            let row = format!(
                 "{} [{}] {} ({} models: {})",
                 p.name.as_str(),
                 p.protocol,
                 p.endpoint,
                 models.len(),
                 models.join(", ")
-            )
+            );
+            ListItem::new(row, String::new(), String::new())
         })
         .collect();
-
-    render_result(&CommandResult::list(rows).with_title("Provider Registry"));
+    render_result(&CommandOutput::list(items).with_title("Provider Registry"));
     Ok(())
 }

@@ -14,7 +14,7 @@ use systemprompt_logging::CliService;
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
@@ -62,7 +62,7 @@ pub(super) fn execute_show() -> Result<()> {
         }),
     };
 
-    render_result(&CommandResult::card(output).with_title("Paths Configuration"));
+    render_result(&CommandOutput::card_value("Paths Configuration", &output));
 
     Ok(())
 }
@@ -151,7 +151,10 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
         paths: validations,
     };
 
-    render_result(&CommandResult::table(output).with_title("Paths Validation"));
+    render_result(
+        &CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
+            .with_title("Paths Validation"),
+    );
 
     if config.output_format() == OutputFormat::Table {
         if valid {

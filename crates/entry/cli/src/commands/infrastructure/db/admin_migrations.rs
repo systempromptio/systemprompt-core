@@ -12,7 +12,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::MigrationsCommands;
 use super::types::{
@@ -91,14 +91,16 @@ async fn execute_migrations_status(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("Migration Status")
-            .with_columns(vec![
-                "extension_id".into(),
-                "total_defined".into(),
-                "total_applied".into(),
-                "pending_count".into(),
-            ]);
+        let result = CommandOutput::table_of(
+            vec![
+                "extension_id",
+                "total_defined",
+                "total_applied",
+                "pending_count",
+            ],
+            &output.extensions,
+        )
+        .with_title("Migration Status");
         render_result(&result);
     } else {
         if total_pending == 0 {
@@ -158,9 +160,9 @@ async fn execute_migrations_history(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("Migration History")
-            .with_columns(vec!["version".into(), "name".into(), "checksum".into()]);
+        let result =
+            CommandOutput::table_of(vec!["version", "name", "checksum"], &output.migrations)
+                .with_title("Migration History");
         render_result(&result);
     } else {
         CliService::info(&format!("Migration history for '{}':", extension_id));

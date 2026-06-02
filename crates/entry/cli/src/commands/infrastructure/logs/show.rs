@@ -10,7 +10,7 @@ use systemprompt_identifiers::{ContextId, LogId, SessionId, TaskId, TraceId, Use
 use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
 
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
@@ -100,7 +100,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     let output = entry_to_output(log);
 
     if config.is_json_output() || json {
-        let result = CommandResult::table(output).with_title("Log Entry Details");
+        let result = CommandOutput::card_value("Log Entry Details", &output);
         render_result(&result);
         return;
     }
@@ -159,7 +159,11 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
     };
 
     if config.is_json_output() || json {
-        let result = CommandResult::table(output).with_title("Logs for Trace");
+        let result = CommandOutput::table_of(
+            vec!["id", "trace_id", "timestamp", "level", "module", "message"],
+            &output.logs,
+        )
+        .with_title("Logs for Trace");
         render_result(&result);
         return;
     }

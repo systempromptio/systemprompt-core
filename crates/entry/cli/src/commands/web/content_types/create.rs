@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::CliConfig;
 use crate::interactive::resolve_required;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use systemprompt_config::ProfileBootstrap;
@@ -46,10 +46,7 @@ pub struct CreateArgs {
     pub changefreq: String,
 }
 
-pub(super) fn execute(
-    args: CreateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentTypeCreateOutput>> {
+pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -137,7 +134,7 @@ pub(super) fn execute(
         message: format!("Content type '{}' created successfully", name),
     };
 
-    Ok(CommandResult::text(output).with_title("Content Type Created"))
+    Ok(CommandOutput::card_value("Content Type Created", &output))
 }
 
 fn prompt_name() -> Result<String> {

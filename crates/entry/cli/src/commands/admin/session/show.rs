@@ -3,9 +3,9 @@ use systemprompt_cloud::{LOCAL_SESSION_KEY, SessionKey, SessionStore, TenantStor
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
 use crate::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) fn execute(_config: &CliConfig) -> CommandResult<SessionShowOutput> {
+pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     let paths = ResolvedPaths::discover();
 
     let sessions = collect_sessions(&paths);
@@ -13,7 +13,7 @@ pub(super) fn execute(_config: &CliConfig) -> CommandResult<SessionShowOutput> {
 
     let output = SessionShowOutput { sessions, routing };
 
-    CommandResult::card(output).with_title("Session Info")
+    CommandOutput::card_value("Session Info", &output)
 }
 
 fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {

@@ -5,7 +5,7 @@ use clap::Args;
 
 use super::types::McpStatusOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
@@ -19,10 +19,7 @@ pub struct StatusArgs {
     pub server: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: StatusArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<McpStatusOutput>> {
+pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let ctx = AppContext::new()
@@ -111,17 +108,17 @@ pub(super) async fn execute(
         },
     };
 
-    let columns = vec![
-        "name".to_owned(),
-        "port".to_owned(),
-        "enabled".to_owned(),
-        "running".to_owned(),
-        "pid".to_owned(),
-        "release_binary".to_owned(),
-        "debug_binary".to_owned(),
-    ];
-
-    Ok(CommandResult::table(output)
-        .with_title("MCP Server Status")
-        .with_columns(columns))
+    Ok(CommandOutput::table_of(
+        vec![
+            "name",
+            "port",
+            "enabled",
+            "running",
+            "pid",
+            "release_binary",
+            "debug_binary",
+        ],
+        &output.servers,
+    )
+    .with_title("MCP Server Status"))
 }

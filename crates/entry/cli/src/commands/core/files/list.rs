@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use super::types::{FileListOutput, FileSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -24,10 +24,7 @@ pub struct ListArgs {
     pub mime: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<FileListOutput>> {
+pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -36,7 +33,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<FileListOutput>> {
+) -> Result<CommandOutput> {
     let service = FileRepository::new(pool)?;
 
     let files = match &args.user {
@@ -76,16 +73,18 @@ pub(super) async fn execute_with_pool(
         offset: args.offset,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Files")
-        .with_columns(vec![
-            "id".to_owned(),
-            "path".to_owned(),
-            "mime_type".to_owned(),
-            "size_bytes".to_owned(),
-            "ai_content".to_owned(),
-            "created_at".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "id",
+            "path",
+            "mime_type",
+            "size_bytes",
+            "ai_content",
+            "created_at",
+        ],
+        &output.files,
+    )
+    .with_title("Files"))
 }
 
 fn matches_mime_pattern(mime_type: &str, pattern: &str) -> bool {

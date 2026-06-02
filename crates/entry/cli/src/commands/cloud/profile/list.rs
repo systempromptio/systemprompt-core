@@ -14,9 +14,9 @@ use systemprompt_logging::CliService;
 use super::{ShowFilter, show};
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{ProfileListOutput, ProfileSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
+pub(super) fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 
@@ -33,13 +33,11 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
             CliService::info("Run 'systemprompt cloud profile create <name>' to create a profile.");
         }
 
-        return Ok(CommandResult::table(output)
-            .with_title("Profiles")
-            .with_columns(vec![
-                "name".to_owned(),
-                "has_secrets".to_owned(),
-                "is_active".to_owned(),
-            ]));
+        return Ok(CommandOutput::table_of(
+            vec!["name", "has_secrets", "is_active"],
+            &output.profiles,
+        )
+        .with_title("Profiles"));
     }
 
     let current_profile = std::env::var("SYSTEMPROMPT_PROFILE").ok();
@@ -85,13 +83,11 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
             CliService::info("Run 'systemprompt cloud profile create <name>' to create a profile.");
         }
 
-        return Ok(CommandResult::table(output)
-            .with_title("Profiles")
-            .with_columns(vec![
-                "name".to_owned(),
-                "has_secrets".to_owned(),
-                "is_active".to_owned(),
-            ]));
+        return Ok(CommandOutput::table_of(
+            vec!["name", "has_secrets", "is_active"],
+            &output.profiles,
+        )
+        .with_title("Profiles"));
     }
 
     profiles.sort_by(|a, b| a.0.cmp(&b.0));
@@ -154,11 +150,8 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOut
         }
     }
 
-    Ok(CommandResult::table(output)
-        .with_title("Profiles")
-        .with_columns(vec![
-            "name".to_owned(),
-            "has_secrets".to_owned(),
-            "is_active".to_owned(),
-        ]))
+    Ok(
+        CommandOutput::table_of(vec!["name", "has_secrets", "is_active"], &output.profiles)
+            .with_title("Profiles"),
+    )
 }

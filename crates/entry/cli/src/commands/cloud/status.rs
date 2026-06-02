@@ -11,9 +11,9 @@ use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{CloudStatusOutput, CredentialsInfo, ProfileInfo, TenantStatusInfo};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutput>> {
+pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
     let (profile_info, tenant_id_from_profile) = load_profile_info();
     let (credentials_info, tenant_statuses) =
         load_credentials_and_tenants(config, tenant_id_from_profile.as_deref()).await?;
@@ -28,7 +28,7 @@ pub(super) async fn execute(config: &CliConfig) -> Result<CommandResult<CloudSta
         render_status(profile_info.as_ref(), &credentials_info, &tenant_statuses);
     }
 
-    Ok(CommandResult::card(output).with_title("Cloud Status"))
+    Ok(CommandOutput::card_value("Cloud Status", &output))
 }
 
 fn load_profile_info() -> (Option<ProfileInfo>, Option<String>) {

@@ -5,7 +5,7 @@ use systemprompt_users::{UserAdminService, UserService};
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::RoleAssignOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct AssignArgs {
@@ -16,10 +16,7 @@ pub struct AssignArgs {
     pub roles: Vec<String>,
 }
 
-pub(super) async fn execute(
-    args: AssignArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<RoleAssignOutput>> {
+pub(super) async fn execute(args: AssignArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
@@ -44,5 +41,5 @@ pub(super) async fn execute(
         message: format!("Roles assigned to user '{}'", user.name),
     };
 
-    Ok(CommandResult::text(output).with_title("Roles Assigned"))
+    Ok(CommandOutput::card_value("Roles Assigned", &output))
 }

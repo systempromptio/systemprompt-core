@@ -801,7 +801,7 @@ sp --json core files search uploads | jq '.data.files[] | select(.mime_type | st
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
+- [x] All commands return `CommandOutput` with proper artifact type
 - [x] `delete` commands require `--yes` / `-y` flag in non-interactive mode
 - [x] `unlink` commands require `--yes` / `-y` flag in non-interactive mode
 - [x] `--dry-run` support for destructive operations

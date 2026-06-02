@@ -1,6 +1,6 @@
 use super::types::{ContentListOutput, ContentSummary};
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::ContentRepository;
@@ -23,10 +23,7 @@ pub struct ListArgs {
     pub offset: i64,
 }
 
-pub async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentListOutput>> {
+pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -35,7 +32,7 @@ pub async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<ContentListOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
 
     let items = match &args.source {
@@ -75,13 +72,9 @@ pub async fn execute_with_pool(
         offset: args.offset,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Content")
-        .with_columns(vec![
-            "id".to_owned(),
-            "title".to_owned(),
-            "kind".to_owned(),
-            "source_id".to_owned(),
-            "published_at".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "title", "kind", "source_id", "published_at"],
+        &output.items,
+    )
+    .with_title("Content"))
 }

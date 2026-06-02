@@ -5,7 +5,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 
 use super::types::{JobHistoryEntry, JobHistoryOutput};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct HistoryArgs {
@@ -24,7 +24,7 @@ pub struct HistoryArgs {
     pub status: Option<String>,
 }
 
-pub(super) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput>> {
+pub(super) async fn execute(args: HistoryArgs) -> Result<CommandOutput> {
     let ctx = Arc::new(AppContext::new().await?);
     let repo = JobRepository::new(ctx.db_pool())?;
 
@@ -63,15 +63,9 @@ pub(super) async fn execute(args: HistoryArgs) -> Result<CommandResult<JobHistor
     let total = entries.len();
     let output = JobHistoryOutput { entries, total };
 
-    Ok(CommandResult::table(output)
-        .with_title("Job Execution History")
-        .with_hints(RenderingHints {
-            columns: Some(vec![
-                "job_name".to_owned(),
-                "status".to_owned(),
-                "run_at".to_owned(),
-                "error".to_owned(),
-            ]),
-            ..Default::default()
-        }))
+    Ok(CommandOutput::table_of(
+        vec!["job_name", "status", "run_at", "error"],
+        &output.entries,
+    )
+    .with_title("Job Execution History"))
 }

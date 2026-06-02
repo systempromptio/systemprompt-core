@@ -6,7 +6,7 @@ use systemprompt_users::BannedIpRepository;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::{BanListOutput, BanSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -17,10 +17,7 @@ pub struct ListArgs {
     pub source: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<BanListOutput>> {
+pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -29,7 +26,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<BanListOutput>> {
+) -> Result<CommandOutput> {
     let ban_repository = BannedIpRepository::new(pool)?;
 
     let bans = match args.source {
@@ -59,13 +56,15 @@ pub(super) async fn execute_with_pool(
         bans: summaries,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Banned IPs")
-        .with_columns(vec![
-            "ip_address".to_owned(),
-            "reason".to_owned(),
-            "banned_at".to_owned(),
-            "expires_at".to_owned(),
-            "is_permanent".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "ip_address",
+            "reason",
+            "banned_at",
+            "expires_at",
+            "is_permanent",
+        ],
+        &output.bans,
+    )
+    .with_title("Banned IPs"))
 }

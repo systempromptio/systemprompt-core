@@ -5,7 +5,7 @@
 //! optionally run migrations, returning a [`SetupOutput`]. The dry-run and
 //! cancellation paths short-circuit without touching the filesystem.
 
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::Result;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
@@ -33,10 +33,7 @@ fn should_write(path: &std::path::Path, force: bool, config: &CliConfig) -> bool
     false
 }
 
-pub(super) async fn execute(
-    args: SetupArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<SetupOutput>> {
+pub(super) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");
     }
@@ -148,7 +145,7 @@ pub(super) async fn execute(
         print_summary(&env_name, &profile_path);
     }
 
-    let result = CommandResult::text(output).with_title("Setup Complete");
+    let result = CommandOutput::card_value("Setup Complete", &output);
     if config.is_json_output() {
         Ok(result)
     } else {
@@ -156,11 +153,7 @@ pub(super) async fn execute(
     }
 }
 
-fn build_cancelled(
-    args: &SetupArgs,
-    env_name: &str,
-    config: &CliConfig,
-) -> CommandResult<SetupOutput> {
+fn build_cancelled(args: &SetupArgs, env_name: &str, config: &CliConfig) -> CommandOutput {
     let output = SetupOutput {
         environment: env_name.to_owned(),
         profile_path: String::new(),
@@ -186,7 +179,7 @@ fn build_cancelled(
         CliService::info("Setup cancelled");
     }
 
-    let result = CommandResult::text(output).with_title("Setup Cancelled");
+    let result = CommandOutput::card_value("Setup Cancelled", &output);
     if config.is_json_output() {
         result
     } else {

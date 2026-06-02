@@ -11,7 +11,7 @@ use super::helpers::{
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
 use crate::interactive::require_confirmation;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{ResetChange, ResetOutput};
 
@@ -103,7 +103,10 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
         message,
     };
 
-    render_result(&CommandResult::table(output).with_title("Rate Limits Reset"));
+    render_result(
+        &CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
+            .with_title("Rate Limits Reset"),
+    );
 
     if !args.dry_run && config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

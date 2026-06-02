@@ -8,7 +8,7 @@ use systemprompt_models::profile::RateLimitsConfig;
 use super::DiffArgs;
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{DiffEntry, DiffOutput};
 
@@ -39,6 +39,35 @@ pub(super) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
         bail!("Must specify --defaults or --file");
     };
 
+    let differences = collect_differences(current, &compare_with);
+    let count = differences.len();
+
+    let output = DiffOutput {
+        source,
+        identical: differences.is_empty(),
+        differences,
+    };
+
+    render_result(
+        &CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
+            .with_title("Rate Limits Diff"),
+    );
+
+    if config.output_format() == OutputFormat::Table {
+        if count == 0 {
+            CliService::success("No differences found");
+        } else {
+            CliService::info(&format!("{count} difference(s) found"));
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_differences(
+    current: &RateLimitsConfig,
+    compare_with: &RateLimitsConfig,
+) -> Vec<DiffEntry> {
     let mut differences: Vec<DiffEntry> = Vec::new();
 
     add_diff_if_different(
@@ -157,23 +186,7 @@ pub(super) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
         compare_with.tier_multipliers.anon,
     );
 
-    let output = DiffOutput {
-        source,
-        differences: differences.clone(),
-        identical: differences.is_empty(),
-    };
-
-    render_result(&CommandResult::table(output).with_title("Rate Limits Diff"));
-
-    if config.output_format() == OutputFormat::Table {
-        if differences.is_empty() {
-            CliService::success("No differences found");
-        } else {
-            CliService::info(&format!("{} difference(s) found", differences.len()));
-        }
-    }
-
-    Ok(())
+    differences
 }
 
 fn add_diff_if_different<T: std::fmt::Display + PartialEq>(

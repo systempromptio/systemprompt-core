@@ -3,7 +3,7 @@ use clap::Args;
 use crate::CliConfig;
 use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{SchemaWithExtension, SchemasListOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct SchemasArgs {
@@ -11,7 +11,7 @@ pub struct SchemasArgs {
     pub extension: Option<String>,
 }
 
-pub(super) fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<SchemasListOutput> {
+pub(super) fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let schemas: Vec<SchemaWithExtension> = registry
@@ -35,11 +35,6 @@ pub(super) fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<
 
     let output = SchemasListOutput { schemas, total };
 
-    CommandResult::table(output)
+    CommandOutput::table_of(vec!["extension_id", "table", "source"], &output.schemas)
         .with_title("Schemas Across Extensions")
-        .with_columns(vec![
-            "extension_id".to_owned(),
-            "table".to_owned(),
-            "source".to_owned(),
-        ])
 }

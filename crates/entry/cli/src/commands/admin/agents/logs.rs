@@ -5,9 +5,8 @@ use clap::Args;
 
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
-use super::types::AgentLogsOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
@@ -32,10 +31,7 @@ pub struct LogsArgs {
     pub logs_dir: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: LogsArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentLogsOutput>> {
+pub(super) async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandOutput> {
     let logs_path = match args.logs_dir.as_deref() {
         Some(dir) => PathBuf::from(dir),
         None => PathBuf::from(

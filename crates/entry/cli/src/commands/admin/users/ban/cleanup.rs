@@ -5,7 +5,7 @@ use systemprompt_users::BannedIpRepository;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::BanCleanupOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
@@ -13,10 +13,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(
-    args: CleanupArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<BanCleanupOutput>> {
+pub(super) async fn execute(args: CleanupArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
 
@@ -33,5 +30,5 @@ pub(super) async fn execute(
         message: format!("Cleaned up {} expired ban(s)", cleaned),
     };
 
-    Ok(CommandResult::text(output).with_title("Ban Cleanup"))
+    Ok(CommandOutput::card_value("Ban Cleanup", &output))
 }

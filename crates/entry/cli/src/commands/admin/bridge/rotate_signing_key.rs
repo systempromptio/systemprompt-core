@@ -7,15 +7,12 @@ use systemprompt_logging::CliService;
 
 use super::types::SigningKeyRotatedOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct RotateSigningKeyArgs;
 
-pub(super) fn execute(
-    _args: RotateSigningKeyArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<SigningKeyRotatedOutput>> {
+pub(super) fn execute(_args: RotateSigningKeyArgs, _config: &CliConfig) -> Result<CommandOutput> {
     SecretsBootstrap::try_init()?;
 
     let seed = SecretsBootstrap::rotate_manifest_signing_seed()?;
@@ -35,5 +32,8 @@ pub(super) fn execute(
         message: format!("Manifest signing key rotated; new pubkey {pubkey_b64}"),
     };
 
-    Ok(CommandResult::text(output).with_title("Bridge Signing Key Rotated"))
+    Ok(CommandOutput::card_value(
+        "Bridge Signing Key Rotated",
+        &output,
+    ))
 }

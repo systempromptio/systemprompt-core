@@ -10,7 +10,7 @@ use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
 use crate::interactive::require_confirmation;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{
     PresetApplyOutput, PresetInfo, PresetListOutput, PresetShowOutput, RateLimitsOutput,
@@ -48,7 +48,10 @@ fn execute_preset_list(_config: &CliConfig) {
     ];
 
     let output = PresetListOutput { presets };
-    render_result(&CommandResult::table(output).with_title("Available Presets"));
+    render_result(
+        &CommandOutput::table_of(vec!["name", "description", "builtin"], &output.presets)
+            .with_title("Available Presets"),
+    );
 }
 
 fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> {
@@ -83,7 +86,7 @@ fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> 
         },
     };
 
-    render_result(&CommandResult::card(output).with_title("Preset Configuration"));
+    render_result(&CommandOutput::card_value("Preset Configuration", &output));
 
     Ok(())
 }
@@ -146,7 +149,10 @@ fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()
         message: format!("Applied '{}' preset successfully", args.name),
     };
 
-    render_result(&CommandResult::table(output).with_title("Preset Applied"));
+    render_result(
+        &CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
+            .with_title("Preset Applied"),
+    );
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

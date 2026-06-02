@@ -6,15 +6,12 @@ use systemprompt_runtime::AppContext;
 
 use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct StatsArgs;
 
-pub(super) async fn execute(
-    args: StatsArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<FileStatsOutput>> {
+pub(super) async fn execute(args: StatsArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -23,7 +20,7 @@ pub(super) async fn execute_with_pool(
     _args: StatsArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<FileStatsOutput>> {
+) -> Result<CommandOutput> {
     let service = FileRepository::new(pool)?;
 
     let stats: FileStats = service.get_stats().await?;
@@ -56,5 +53,8 @@ pub(super) async fn execute_with_pool(
         },
     };
 
-    Ok(CommandResult::card(output).with_title("File Storage Statistics"))
+    Ok(CommandOutput::card_value(
+        "File Storage Statistics",
+        &output,
+    ))
 }

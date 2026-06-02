@@ -6,7 +6,7 @@ use systemprompt_users::{UserRole, UserService, UserStatus};
 
 use super::types::{UserListOutput, UserSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum RoleFilter {
@@ -63,10 +63,7 @@ pub struct ListArgs {
     pub status: Option<StatusFilter>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<UserListOutput>> {
+pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -75,7 +72,7 @@ pub(super) async fn execute_with_pool(
     args: ListArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<UserListOutput>> {
+) -> Result<CommandOutput> {
     let user_service = UserService::new(pool)?;
 
     let users = if let Some(role_filter) = args.role {
@@ -115,13 +112,9 @@ pub(super) async fn execute_with_pool(
         offset: args.offset,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Users")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "email".to_owned(),
-            "status".to_owned(),
-            "roles".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "name", "email", "status", "roles"],
+        &output.users,
+    )
+    .with_title("Users"))
 }

@@ -14,7 +14,7 @@ use systemprompt_models::profile::{
 use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
 use crate::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum GovernanceCommands {
@@ -94,13 +94,13 @@ fn execute_set(args: &SetArgs) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    render_result(
-        &CommandResult::text(ConfigMutationOutput {
+    render_result(&CommandOutput::card_value(
+        "Governance Updated",
+        &ConfigMutationOutput {
             field: "governance.authz".to_owned(),
             message: format!("Authz mode set to {}", args.mode.to_lowercase()),
-        })
-        .with_title("Governance Updated"),
-    );
+        },
+    ));
     Ok(())
 }
 
@@ -119,6 +119,9 @@ fn execute_show() -> Result<()> {
                 )
             },
         );
-    render_result(&CommandResult::text(summary).with_title("Governance Configuration"));
+    render_result(&CommandOutput::text_titled(
+        "Governance Configuration",
+        summary,
+    ));
     Ok(())
 }

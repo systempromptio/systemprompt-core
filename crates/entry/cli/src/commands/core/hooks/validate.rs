@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookValidateEntry, HookValidateOutput};
@@ -13,23 +13,17 @@ const PLUGIN_ROOT_VAR: &str = "${CLAUDE_PLUGIN_ROOT}";
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs;
 
-pub(super) fn execute(
-    _args: ValidateArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<HookValidateOutput>> {
+pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let hooks_path = std::path::PathBuf::from(profile.paths.hooks());
 
     let results = validate_all_hooks(&hooks_path)?;
     let output = HookValidateOutput { results };
 
-    Ok(CommandResult::table(output)
-        .with_title("Hook Validation Results")
-        .with_columns(vec![
-            "plugin_id".to_owned(),
-            "valid".to_owned(),
-            "errors".to_owned(),
-        ]))
+    Ok(
+        CommandOutput::table_of(vec!["plugin_id", "valid", "errors"], &output.results)
+            .with_title("Hook Validation Results"),
+    )
 }
 
 fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {

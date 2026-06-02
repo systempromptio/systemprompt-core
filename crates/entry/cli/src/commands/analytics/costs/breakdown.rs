@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{CostBreakdownItem, CostBreakdownOutput};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum BreakdownType {
@@ -45,10 +45,7 @@ pub struct BreakdownArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(
-    args: BreakdownArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<CostBreakdownOutput>> {
+pub(super) async fn execute(args: BreakdownArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
     execute_internal(args, &repo).await
@@ -58,7 +55,7 @@ pub(super) async fn execute_with_pool(
     args: BreakdownArgs,
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
-) -> Result<CommandResult<CostBreakdownOutput>> {
+) -> Result<CommandOutput> {
     let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
     execute_internal(args, &repo).await
 }
@@ -66,7 +63,7 @@ pub(super) async fn execute_with_pool(
 async fn execute_internal(
     args: BreakdownArgs,
     repo: &CostAnalyticsRepository,
-) -> Result<CommandResult<CostBreakdownOutput>> {
+) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = match args.by {
@@ -114,26 +111,43 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.items, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "name",
+                "cost_microdollars",
+                "request_count",
+                "tokens",
+                "percentage",
+            ],
+            &output.items,
+        )
+        .with_skip_render());
     }
 
     if output.items.is_empty() {
         CliService::warning("No data found in the specified time range");
-        return Ok(CommandResult::table(output).with_skip_render());
+        return Ok(CommandOutput::table_of(
+            vec![
+                "name",
+                "cost_microdollars",
+                "request_count",
+                "tokens",
+                "percentage",
+            ],
+            &output.items,
+        )
+        .with_skip_render());
     }
 
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "name".to_owned(),
-            "cost_microdollars".to_owned(),
-            "request_count".to_owned(),
-            "tokens".to_owned(),
-            "percentage".to_owned(),
-        ]),
-        ..Default::default()
-    };
-
-    Ok(CommandResult::table(output)
-        .with_title("Cost Breakdown")
-        .with_hints(hints))
+    Ok(CommandOutput::table_of(
+        vec![
+            "name",
+            "cost_microdollars",
+            "request_count",
+            "tokens",
+            "percentage",
+        ],
+        &output.items,
+    )
+    .with_title("Cost Breakdown"))
 }

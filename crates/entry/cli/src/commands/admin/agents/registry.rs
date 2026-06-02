@@ -6,7 +6,7 @@ use systemprompt_config::ProfileBootstrap;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
 use crate::CliConfig;
-use crate::shared::{CommandResult, truncate_with_ellipsis};
+use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
 const FALLBACK_GATEWAY_URL: &str = "http://localhost:8080";
 
@@ -70,10 +70,7 @@ struct SkillResponse {
     name: String,
 }
 
-pub(super) async fn execute(
-    args: RegistryArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<RegistryOutput>> {
+pub(super) async fn execute(args: RegistryArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile_url = ProfileBootstrap::get()
         .ok()
         .map(|p| p.server.api_external_url.clone());
@@ -147,16 +144,18 @@ pub(super) async fn execute(
         agents,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("Agent Registry")
-        .with_columns(vec![
-            "name".to_owned(),
-            "url".to_owned(),
-            "status".to_owned(),
-            "version".to_owned(),
-            "streaming".to_owned(),
-            "skills_count".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec![
+            "name",
+            "url",
+            "status",
+            "version",
+            "streaming",
+            "skills_count",
+        ],
+        &output.agents,
+    )
+    .with_title("Agent Registry"))
 }
 
 fn is_agent_running(agent: &AgentCardResponse) -> bool {

@@ -4,7 +4,7 @@ use systemprompt_loader::ExtensionLoader;
 use super::discover_registry;
 use super::types::{CapabilitySummary, ExtensionListOutput, ExtensionSource, ExtensionSummary};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -18,7 +18,7 @@ pub struct ListArgs {
     pub r#type: String,
 }
 
-pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionListOutput> {
+pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
     let mut extensions: Vec<ExtensionSummary> = Vec::new();
 
     let include_compiled = matches!(args.r#type.as_str(), "all" | "compiled");
@@ -126,14 +126,16 @@ pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<Ext
 
     let output = ExtensionListOutput { extensions, total };
 
-    CommandResult::table(output)
-        .with_title("Extensions")
-        .with_columns(vec![
-            "id".to_owned(),
-            "name".to_owned(),
-            "version".to_owned(),
-            "priority".to_owned(),
-            "source".to_owned(),
-            "capabilities".to_owned(),
-        ])
+    CommandOutput::table_of(
+        vec![
+            "id",
+            "name",
+            "version",
+            "priority",
+            "source",
+            "capabilities",
+        ],
+        &output.extensions,
+    )
+    .with_title("Extensions")
 }

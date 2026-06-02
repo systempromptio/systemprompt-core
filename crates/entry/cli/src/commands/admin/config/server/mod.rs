@@ -16,7 +16,7 @@ use systemprompt_models::Profile;
 use super::types::{ServerConfigOutput, ServerSetOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum ServerCommands {
@@ -72,7 +72,7 @@ pub(super) fn execute_show(_config: &CliConfig) -> Result<()> {
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
     };
 
-    render_result(&CommandResult::card(output).with_title("Server Configuration"));
+    render_result(&CommandOutput::card_value("Server Configuration", &output));
 
     Ok(())
 }
@@ -144,7 +144,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     save_profile(&profile, profile_path)?;
 
     for change in &changes {
-        render_result(&CommandResult::text(change.clone()).with_title("Server Updated"));
+        render_result(&CommandOutput::card_value("Server Updated", change));
     }
 
     if config.output_format() == OutputFormat::Table {

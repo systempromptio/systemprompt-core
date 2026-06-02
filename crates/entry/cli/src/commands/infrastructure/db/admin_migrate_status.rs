@@ -12,7 +12,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
 use super::types::{MigrateStatusOutput, MigrateStatusRow, MigrationDriftInfo};
@@ -51,15 +51,11 @@ async fn run_migrate_status(
     let output = collect_status(&extensions, &migration_service).await?;
 
     if json || config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("Migration Status")
-            .with_columns(vec![
-                "extension_id".into(),
-                "version".into(),
-                "name".into(),
-                "status".into(),
-                "applied_at".into(),
-            ]);
+        let result = CommandOutput::table_of(
+            vec!["extension_id", "version", "name", "status", "applied_at"],
+            &output.rows,
+        )
+        .with_title("Migration Status");
         render_result(&result);
     } else {
         render_status_text(&output);

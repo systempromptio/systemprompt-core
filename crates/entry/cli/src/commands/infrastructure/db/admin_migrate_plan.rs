@@ -6,7 +6,7 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::admin_migrate::select_extensions;
 use super::types::{MigratePlanOutput, PendingMigrationInfo};
@@ -67,15 +67,11 @@ async fn run_migrate_plan(
     };
 
     if json || config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("Migration Plan")
-            .with_columns(vec![
-                "extension_id".into(),
-                "version".into(),
-                "name".into(),
-                "checksum".into(),
-                "no_tx".into(),
-            ]);
+        let result = CommandOutput::table_of(
+            vec!["extension_id", "version", "name", "checksum", "no_tx"],
+            &output.pending,
+        )
+        .with_title("Migration Plan");
         render_result(&result);
     } else if output.pending.is_empty() {
         CliService::success("No pending migrations");

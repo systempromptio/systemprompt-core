@@ -6,7 +6,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::{AiFilesListOutput, FileSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -20,10 +20,7 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<AiFilesListOutput>> {
+pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = FileRepository::new(ctx.db_pool())?;
 
@@ -59,13 +56,9 @@ pub(super) async fn execute(
         offset: args.offset,
     };
 
-    Ok(CommandResult::table(output)
-        .with_title("AI-Generated Images")
-        .with_columns(vec![
-            "id".to_owned(),
-            "path".to_owned(),
-            "mime_type".to_owned(),
-            "size_bytes".to_owned(),
-            "created_at".to_owned(),
-        ]))
+    Ok(CommandOutput::table_of(
+        vec!["id", "path", "mime_type", "size_bytes", "created_at"],
+        &output.files,
+    )
+    .with_title("AI-Generated Images"))
 }

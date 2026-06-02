@@ -10,7 +10,7 @@ use super::types::{
     FileMetadataOutput, ImageMetadataOutput, VideoMetadataOutput,
 };
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -18,10 +18,7 @@ pub struct ShowArgs {
     pub identifier: String,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<FileDetailOutput>> {
+pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -30,7 +27,7 @@ pub(super) async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<FileDetailOutput>> {
+) -> Result<CommandOutput> {
     let service = FileRepository::new(pool)?;
 
     let file = find_file(&service, &args.identifier).await?;
@@ -53,7 +50,10 @@ pub(super) async fn execute_with_pool(
         updated_at: file.updated_at,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("File: {}", args.identifier)))
+    Ok(CommandOutput::card_value(
+        format!("File: {}", args.identifier),
+        &output,
+    ))
 }
 
 async fn find_file(service: &FileRepository, identifier: &str) -> Result<File> {

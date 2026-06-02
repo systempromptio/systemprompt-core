@@ -1,6 +1,6 @@
 use super::types::ContentDetailOutput;
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::ContentRepository;
@@ -20,10 +20,7 @@ pub struct ShowArgs {
     pub source: Option<String>,
 }
 
-pub async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<ContentDetailOutput>> {
+pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -32,7 +29,7 @@ pub async fn execute_with_pool(
     args: ShowArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<ContentDetailOutput>> {
+) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
     let locale = LocaleCode::new("en");
 
@@ -111,5 +108,5 @@ pub async fn execute_with_pool(
         updated_at: content.updated_at,
     };
 
-    Ok(CommandResult::card(output).with_title("Content Details"))
+    Ok(CommandOutput::card_value("Content Details", &output))
 }

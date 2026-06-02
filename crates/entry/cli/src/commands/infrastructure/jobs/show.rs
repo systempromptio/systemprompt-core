@@ -7,7 +7,7 @@ use systemprompt_traits::Job;
 
 use super::helpers::parse_cron_human;
 use super::types::JobShowOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -15,7 +15,7 @@ pub struct ShowArgs {
     pub job_name: String,
 }
 
-pub(super) async fn execute(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
+pub(super) async fn execute(args: ShowArgs) -> Result<CommandOutput> {
     let job = inventory::iter::<&'static dyn Job>
         .into_iter()
         .find(|&j| j.name() == args.job_name)
@@ -46,5 +46,8 @@ pub(super) async fn execute(args: ShowArgs) -> Result<CommandResult<JobShowOutpu
         run_count: db_job.as_ref().map_or(0, |j| j.run_count),
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Job: {}", args.job_name)))
+    Ok(CommandOutput::card_value(
+        format!("Job: {}", args.job_name),
+        &output,
+    ))
 }

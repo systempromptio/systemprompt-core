@@ -13,7 +13,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Serialize)]
 struct DoctorReport {
@@ -104,7 +104,7 @@ fn render(
                 })
                 .collect(),
         };
-        let result = CommandResult::text(report).with_title("Database Doctor");
+        let result = CommandOutput::card_value("Database Doctor", &report);
         render_result(&result);
         return;
     }

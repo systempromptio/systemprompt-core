@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use super::types::FileDeleteOutput;
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct DeleteArgs {
@@ -25,10 +25,7 @@ pub struct DeleteArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<FileDeleteOutput>> {
+pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
 
     let ctx = AppContext::new().await?;
@@ -47,7 +44,7 @@ pub(super) async fn execute(
                 file.path, args.file
             ),
         };
-        return Ok(CommandResult::card(output).with_title("File Delete (Dry Run)"));
+        return Ok(CommandOutput::card_value("File Delete (Dry Run)", &output));
     }
 
     if !args.yes {
@@ -77,7 +74,7 @@ pub(super) async fn execute(
         message: format!("File '{}' deleted successfully", file.path),
     };
 
-    Ok(CommandResult::card(output).with_title("File Deleted"))
+    Ok(CommandOutput::card_value("File Deleted", &output))
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {

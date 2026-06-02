@@ -3,7 +3,7 @@ use clap::Args;
 use crate::CliConfig;
 use crate::commands::plugins::discover_registry;
 use crate::commands::plugins::types::{JobWithExtension, JobsListOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct JobsArgs {
@@ -14,7 +14,7 @@ pub struct JobsArgs {
     pub enabled: bool,
 }
 
-pub(super) fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOutput> {
+pub(super) fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandOutput {
     let registry = discover_registry();
 
     let jobs: Vec<JobWithExtension> = registry
@@ -45,12 +45,9 @@ pub(super) fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<Job
 
     let output = JobsListOutput { jobs, total };
 
-    CommandResult::table(output)
-        .with_title("Jobs Across Extensions")
-        .with_columns(vec![
-            "extension_id".to_owned(),
-            "job_name".to_owned(),
-            "schedule".to_owned(),
-            "enabled".to_owned(),
-        ])
+    CommandOutput::table_of(
+        vec!["extension_id", "job_name", "schedule", "enabled"],
+        &output.jobs,
+    )
+    .with_title("Jobs Across Extensions")
 }

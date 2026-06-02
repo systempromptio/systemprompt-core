@@ -1,6 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::CampaignAnalyticsOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
@@ -14,10 +14,7 @@ pub struct CampaignArgs {
     pub campaign_id: String,
 }
 
-pub async fn execute(
-    args: CampaignArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<CampaignAnalyticsOutput>> {
+pub async fn execute(args: CampaignArgs, config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -26,7 +23,7 @@ pub async fn execute_with_pool(
     args: CampaignArgs,
     pool: &DbPool,
     _config: &CliConfig,
-) -> Result<CommandResult<CampaignAnalyticsOutput>> {
+) -> Result<CommandOutput> {
     let service = LinkAnalyticsService::new(pool)?;
 
     let campaign_id = CampaignId::new(args.campaign_id.clone());
@@ -43,5 +40,5 @@ pub async fn execute_with_pool(
         conversion_count: performance.conversion_count.unwrap_or(0),
     };
 
-    Ok(CommandResult::card(output).with_title("Campaign Analytics"))
+    Ok(CommandOutput::card_value("Campaign Analytics", &output))
 }

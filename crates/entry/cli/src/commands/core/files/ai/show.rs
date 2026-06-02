@@ -8,7 +8,7 @@ use crate::CliConfig;
 use crate::commands::core::files::types::{
     ChecksumsOutput, FileDetailOutput, FileMetadataOutput, ImageMetadataOutput,
 };
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -16,10 +16,7 @@ pub struct ShowArgs {
     pub file: String,
 }
 
-pub(super) async fn execute(
-    args: ShowArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<FileDetailOutput>> {
+pub(super) async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
 
     let ctx = AppContext::new().await?;
@@ -55,7 +52,10 @@ pub(super) async fn execute(
         updated_at: file.updated_at,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("AI Image: {}", args.file)))
+    Ok(CommandOutput::card_value(
+        format!("AI Image: {}", args.file),
+        &output,
+    ))
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {

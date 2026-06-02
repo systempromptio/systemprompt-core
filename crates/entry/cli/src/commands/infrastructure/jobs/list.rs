@@ -3,9 +3,9 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::Job;
 
 use super::types::{JobInfo, JobListOutput};
-use crate::shared::{CommandResult, RenderingHints};
+use crate::shared::CommandOutput;
 
-pub(super) fn execute() -> CommandResult<JobListOutput> {
+pub(super) fn execute() -> CommandOutput {
     let registry = ExtensionRegistry::discover().unwrap_or_else(|e| {
         tracing::error!(error = %e, "extension dependency cycle; using empty registry");
         ExtensionRegistry::new()
@@ -38,15 +38,9 @@ pub(super) fn execute() -> CommandResult<JobListOutput> {
     let total = jobs.len();
     let output = JobListOutput { jobs, total };
 
-    CommandResult::table(output)
-        .with_title("Available Jobs")
-        .with_hints(RenderingHints {
-            columns: Some(vec![
-                "name".to_owned(),
-                "description".to_owned(),
-                "schedule".to_owned(),
-                "enabled".to_owned(),
-            ]),
-            ..Default::default()
-        })
+    CommandOutput::table_of(
+        vec!["name", "description", "schedule", "enabled"],
+        &output.jobs,
+    )
+    .with_title("Available Jobs")
 }

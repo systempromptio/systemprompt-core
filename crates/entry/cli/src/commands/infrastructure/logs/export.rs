@@ -7,7 +7,7 @@ use systemprompt_logging::TraceQueryService;
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ExportFormat {
@@ -51,12 +51,12 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-crate::define_pool_command!(ExportArgs => CommandResult<LogExportOutput>, no_config);
+crate::define_pool_command!(ExportArgs => CommandOutput, no_config);
 
 async fn execute_with_pool_inner(
     args: ExportArgs,
     pool: &Arc<sqlx::PgPool>,
-) -> Result<CommandResult<LogExportOutput>> {
+) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
 
@@ -110,7 +110,7 @@ async fn execute_with_pool_inner(
             file_path: Some(path.display().to_string()),
         };
 
-        Ok(CommandResult::card(output).with_title("Logs Exported"))
+        Ok(CommandOutput::card_value("Logs Exported", &output))
     } else {
         std::io::stdout().write_all(content.as_bytes())?;
         std::io::stdout().write_all(b"\n")?;
@@ -121,9 +121,7 @@ async fn execute_with_pool_inner(
             file_path: None,
         };
 
-        Ok(CommandResult::text(output)
-            .with_title("Logs Exported")
-            .with_skip_render())
+        Ok(CommandOutput::card_value("Logs Exported", &output).with_skip_render())
     }
 }
 

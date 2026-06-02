@@ -17,7 +17,7 @@ use systemprompt_models::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::types::DbSquashOutput;
 
@@ -114,7 +114,7 @@ async fn run_squash(
     };
 
     if config.is_json_output() {
-        let result = CommandResult::text(output).with_title("Database Migration Squash");
+        let result = CommandOutput::card_value("Database Migration Squash", &output);
         render_result(&result);
     } else {
         render_squash_text(&plan, &baseline_path, &follow_up, &message, apply);

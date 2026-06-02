@@ -9,7 +9,6 @@ use systemprompt_models::a2a::Task;
 
 use super::message::extract_text_from_parts;
 use super::types::MessageOutput;
-use crate::shared::CommandResult;
 
 pub(super) async fn execute_streaming(
     agent: &str,
@@ -17,7 +16,7 @@ pub(super) async fn execute_streaming(
     auth_token: &str,
     request: &Request<MessageSendParams>,
     message_text: &str,
-) -> Result<CommandResult<MessageOutput>> {
+) -> Result<MessageOutput> {
     let client = Client::new();
     let http_request = client
         .post(agent_url)
@@ -119,5 +118,5 @@ pub(super) async fn execute_streaming(
         response,
     };
 
-    Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
+    Ok(output)
 }

@@ -6,7 +6,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::ContentLinkOutput;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum FileRoleArg {
@@ -44,10 +44,7 @@ pub struct LinkArgs {
     pub order: i32,
 }
 
-pub(super) async fn execute(
-    args: LinkArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ContentLinkOutput>> {
+pub(super) async fn execute(args: LinkArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = FileRepository::new(ctx.db_pool())?;
 
@@ -66,5 +63,5 @@ pub(super) async fn execute(
         message: "File linked to content successfully".to_owned(),
     };
 
-    Ok(CommandResult::card(output).with_title("File Linked"))
+    Ok(CommandOutput::card_value("File Linked", &output))
 }

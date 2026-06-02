@@ -7,13 +7,13 @@ use systemprompt_logging::CliService;
 use super::tenant::{get_credentials, resolve_tenant_id};
 use super::types::RestartOutput;
 use crate::cli_settings::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 pub(super) async fn execute(
     tenant: Option<String>,
     yes: bool,
     config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
+) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("Restart Tenant");
     }
@@ -58,7 +58,7 @@ pub(super) async fn execute(
                 tenant_name: tenant_name.clone(),
                 status: "cancelled".to_owned(),
             };
-            return Ok(CommandResult::text(output).with_title("Restart Tenant"));
+            return Ok(CommandOutput::card_value("Restart Tenant", &output));
         }
     }
 
@@ -91,5 +91,5 @@ pub(super) async fn execute(
         CliService::info("The tenant may take a few moments to become available again.");
     }
 
-    Ok(CommandResult::text(output).with_title("Restart Tenant"))
+    Ok(CommandOutput::card_value("Restart Tenant", &output))
 }

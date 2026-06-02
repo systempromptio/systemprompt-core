@@ -7,25 +7,33 @@ use systemprompt_models::Profile;
 use super::types::{ProfileInfo, ProfileListOutput};
 use crate::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
-pub(super) fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
+pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
     let project_ctx = ProjectContext::discover();
     let profiles_dir = project_ctx.profiles_dir();
 
     if !profiles_dir.exists() {
-        return CommandResult::table(ProfileListOutput {
+        let output = ProfileListOutput {
             profiles: Vec::new(),
-        })
+        };
+        return CommandOutput::table_of(
+            vec!["name", "routing", "is_active", "session_status"],
+            &output.profiles,
+        )
         .with_title("Available Profiles");
     }
 
     let discovered = discover_profiles(&profiles_dir);
 
     if discovered.is_empty() {
-        return CommandResult::table(ProfileListOutput {
+        let output = ProfileListOutput {
             profiles: Vec::new(),
-        })
+        };
+        return CommandOutput::table_of(
+            vec!["name", "routing", "is_active", "session_status"],
+            &output.profiles,
+        )
         .with_title("Available Profiles");
     }
 
@@ -41,14 +49,11 @@ pub(super) fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
 
     let output = ProfileListOutput { profiles };
 
-    CommandResult::table(output)
-        .with_title("Available Profiles")
-        .with_columns(vec![
-            "name".to_owned(),
-            "routing".to_owned(),
-            "is_active".to_owned(),
-            "session_status".to_owned(),
-        ])
+    CommandOutput::table_of(
+        vec!["name", "routing", "is_active", "session_status"],
+        &output.profiles,
+    )
+    .with_title("Available Profiles")
 }
 
 struct DiscoveredProfile {

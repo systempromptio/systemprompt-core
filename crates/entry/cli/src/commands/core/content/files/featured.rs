@@ -6,7 +6,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::{FeaturedImageOutput, FileSummary};
-use crate::shared::CommandResult;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct FeaturedArgs {
@@ -17,10 +17,7 @@ pub struct FeaturedArgs {
     pub set: Option<String>,
 }
 
-pub(super) async fn execute(
-    args: FeaturedArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<FeaturedImageOutput>> {
+pub(super) async fn execute(args: FeaturedArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
     let service = FileRepository::new(ctx.db_pool())?;
 
@@ -36,7 +33,7 @@ pub(super) async fn execute(
             message: "Featured image set successfully".to_owned(),
         };
 
-        return Ok(CommandResult::card(output).with_title("Featured Image Set"));
+        return Ok(CommandOutput::card_value("Featured Image Set", &output));
     }
 
     let file = service.find_featured_image(&content_id).await?;
@@ -62,5 +59,5 @@ pub(super) async fn execute(
         message,
     };
 
-    Ok(CommandResult::card(output).with_title("Featured Image"))
+    Ok(CommandOutput::card_value("Featured Image", &output))
 }

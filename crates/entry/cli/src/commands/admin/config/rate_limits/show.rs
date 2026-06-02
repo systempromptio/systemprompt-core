@@ -6,7 +6,7 @@ use super::TierArgs;
 use super::helpers::{apply_multiplier, get_tier_multiplier};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::shared::{CommandResult, render_result};
+use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{
     BaseRateRow, EffectiveLimitRow, EffectiveLimitsOutput, EndpointRateLimit, RateLimitsDocsOutput,
@@ -41,7 +41,7 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
         },
     };
 
-    render_result(&CommandResult::card(output).with_title("Rate Limits"));
+    render_result(&CommandOutput::card_value("Rate Limits", &output));
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");
@@ -109,7 +109,7 @@ pub(super) fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
         },
     };
 
-    render_result(&CommandResult::card(output).with_title("Tier Effective Limits"));
+    render_result(&CommandOutput::card_value("Tier Effective Limits", &output));
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");
@@ -235,7 +235,10 @@ pub(super) fn execute_docs(config: &CliConfig) -> Result<()> {
         disabled: limits.disabled,
     };
 
-    render_result(&CommandResult::table(output).with_title("Rate Limits Documentation"));
+    render_result(&CommandOutput::card_value(
+        "Rate Limits Documentation",
+        &output,
+    ));
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");
