@@ -1,4 +1,5 @@
-// DB-backed tests for AiRequestPayloadRepository upsert paths (FK to ai_requests).
+// DB-backed tests for AiRequestPayloadRepository upsert paths (FK to
+// ai_requests).
 
 use serde_json::json;
 use systemprompt_ai::repository::{AiRequestPayloadRepository, UpsertPayloadParams};

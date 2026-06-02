@@ -37,7 +37,9 @@ async fn find_for_global_returns_only_enabled() {
     };
     let enabled = unique_name();
     let disabled = unique_name();
-    repo.upsert(&enabled, &json!({}), true).await.expect("enabled");
+    repo.upsert(&enabled, &json!({}), true)
+        .await
+        .expect("enabled");
     repo.upsert(&disabled, &json!({}), false)
         .await
         .expect("disabled");

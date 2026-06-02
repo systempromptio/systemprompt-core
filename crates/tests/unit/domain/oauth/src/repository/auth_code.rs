@@ -4,8 +4,8 @@
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, pkce_pair, seed_oauth_client,
-    seed_user_row, unique_user_id, OAuthClientFixture, PkcePair,
+    OAuthClientFixture, PkcePair, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    pkce_pair, seed_oauth_client, seed_user_row, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -29,7 +29,9 @@ async fn setup() -> Option<Ctx> {
         client_id,
         redirect_uri,
         ..
-    } = seed_oauth_client(&pool, &user_id).await.expect("seed client");
+    } = seed_oauth_client(&pool, &user_id)
+        .await
+        .expect("seed client");
     Some(Ctx {
         repo,
         client_id,
@@ -98,28 +100,31 @@ async fn validate_is_single_use() {
         .expect("first use ok");
 
     // Second use is rejected (replay).
-    assert!(ctx
-        .repo
-        .validate_authorization_code(&code, &ctx.client_id, None, None)
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .validate_authorization_code(&code, &ctx.client_id, None, None)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
 async fn validate_unknown_code_errors() {
     let Some(ctx) = setup().await else { return };
     let code = AuthorizationCode::new(format!("never-{}", Uuid::new_v4()));
-    assert!(ctx
-        .repo
-        .validate_authorization_code(&code, &ctx.client_id, None, None)
-        .await
-        .is_err());
-    assert!(ctx
-        .repo
-        .get_client_id_from_auth_code(&code)
-        .await
-        .expect("lookup")
-        .is_none());
+    assert!(
+        ctx.repo
+            .validate_authorization_code(&code, &ctx.client_id, None, None)
+            .await
+            .is_err()
+    );
+    assert!(
+        ctx.repo
+            .get_client_id_from_auth_code(&code)
+            .await
+            .expect("lookup")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -140,16 +145,17 @@ async fn validate_redirect_uri_mismatch_errors() {
         .await
         .expect("store");
 
-    assert!(ctx
-        .repo
-        .validate_authorization_code(
-            &code,
-            &ctx.client_id,
-            Some("https://evil.invalid/cb"),
-            None
-        )
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .validate_authorization_code(
+                &code,
+                &ctx.client_id,
+                Some("https://evil.invalid/cb"),
+                None
+            )
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -176,11 +182,12 @@ async fn validate_pkce_s256_success_and_failure() {
         })
         .await
         .expect("store");
-    assert!(ctx
-        .repo
-        .validate_authorization_code(&code1, &ctx.client_id, None, Some("wrong-verifier"))
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .validate_authorization_code(&code1, &ctx.client_id, None, Some("wrong-verifier"))
+            .await
+            .is_err()
+    );
 
     // Correct verifier accepted (fresh code since the prior was consumed).
     let code2 = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
@@ -223,11 +230,12 @@ async fn validate_pkce_missing_verifier_errors() {
         })
         .await
         .expect("store");
-    assert!(ctx
-        .repo
-        .validate_authorization_code(&code, &ctx.client_id, None, None)
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .validate_authorization_code(&code, &ctx.client_id, None, None)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -250,9 +258,10 @@ async fn link_auth_code_to_dangling_refresh_token_errors() {
 
     // refresh_token_id carries a foreign key into oauth_refresh_tokens, so
     // linking an id with no matching token row is rejected by the database.
-    assert!(ctx
-        .repo
-        .link_auth_code_to_refresh_token(&code, "rt-id-value")
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .link_auth_code_to_refresh_token(&code, "rt-id-value")
+            .await
+            .is_err()
+    );
 }

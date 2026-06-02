@@ -61,6 +61,24 @@ fn render_targets_hkcu_unelevated_and_hklm_elevated() {
 }
 
 #[test]
+fn hklm_profile_parses_to_all_five_policy_values() {
+    let rendered = render_reg(true, &inputs());
+    assert!(rendered.contains(r"[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]"));
+    let parsed = parse_reg_entries(&rendered);
+    let names: Vec<&str> = parsed.iter().map(|(k, _)| k.as_str()).collect();
+    assert_eq!(
+        names,
+        vec![
+            "inferenceProvider",
+            "inferenceGatewayBaseUrl",
+            "inferenceGatewayApiKey",
+            "inferenceGatewayAuthScheme",
+            "inferenceModels",
+        ]
+    );
+}
+
+#[test]
 fn rendered_profile_round_trips_through_parser() {
     let probe = inputs();
     let rendered = render_reg(false, &probe);

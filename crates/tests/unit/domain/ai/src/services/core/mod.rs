@@ -81,7 +81,9 @@ pub(crate) fn service(pool: &DbPool, provider: &str, endpoint: String) -> AiServ
 pub(crate) async fn seeded_context(pool: &DbPool) -> (UserId, RequestContext) {
     let user_id = unique_user_id("ai-core");
     let email = format!("{}@ai-core.invalid", user_id.as_str());
-    seed_user_row(pool, &user_id, &email).await.expect("seed user");
+    seed_user_row(pool, &user_id, &email)
+        .await
+        .expect("seed user");
     let context = RequestContext::new(
         SessionId::generate(),
         TraceId::generate(),

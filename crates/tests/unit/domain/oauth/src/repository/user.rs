@@ -39,11 +39,12 @@ async fn find_user_by_email_missing_returns_none() {
     let Some((repo, _pool)) = repo().await else {
         return;
     };
-    assert!(repo
-        .find_user_by_email(&format!("missing-{}@ou.invalid", Uuid::new_v4()))
-        .await
-        .expect("find")
-        .is_none());
+    assert!(
+        repo.find_user_by_email(&format!("missing-{}@ou.invalid", Uuid::new_v4()))
+            .await
+            .expect("find")
+            .is_none()
+    );
 }
 
 #[tokio::test]

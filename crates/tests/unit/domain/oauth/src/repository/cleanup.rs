@@ -51,12 +51,13 @@ async fn make_client(ctx: &Ctx) -> ClientId {
 async fn cleanup_unused_clients_executes() {
     let Some(ctx) = setup().await else { return };
     let client_id = make_client(&ctx).await;
-    assert!(ctx
-        .repo
-        .find_client_by_id(&client_id)
-        .await
-        .expect("find")
-        .is_some());
+    assert!(
+        ctx.repo
+            .find_client_by_id(&client_id)
+            .await
+            .expect("find")
+            .is_some()
+    );
     ctx.repo
         .cleanup_unused_clients(0)
         .await
@@ -96,19 +97,24 @@ async fn inactive_clients_lifecycle() {
     // Deactivate via update path is unavailable on the façade; use delete_client
     // is not deactivation. Instead exercise list/cleanup of inactive which are
     // empty-safe even with no inactive rows.
-    let _ = ctx.repo.list_inactive_clients().await.expect("list_inactive");
+    let _ = ctx
+        .repo
+        .list_inactive_clients()
+        .await
+        .expect("list_inactive");
     let _ = ctx
         .repo
         .cleanup_inactive_clients()
         .await
         .expect("cleanup_inactive");
     // The active client is still findable.
-    assert!(ctx
-        .repo
-        .find_client_by_id(&client_id)
-        .await
-        .expect("find")
-        .is_some());
+    assert!(
+        ctx.repo
+            .find_client_by_id(&client_id)
+            .await
+            .expect("find")
+            .is_some()
+    );
 }
 
 #[tokio::test]

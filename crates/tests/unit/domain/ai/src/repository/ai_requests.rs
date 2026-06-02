@@ -136,8 +136,12 @@ async fn get_user_usage_aggregates_requests() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    repo.insert(&completed_record(&uid)).await.expect("insert 1");
-    repo.insert(&completed_record(&uid)).await.expect("insert 2");
+    repo.insert(&completed_record(&uid))
+        .await
+        .expect("insert 1");
+    repo.insert(&completed_record(&uid))
+        .await
+        .expect("insert 2");
 
     let usage = repo.get_user_usage(&uid).await.expect("usage");
     assert_eq!(usage.user_id, uid);
@@ -159,9 +163,11 @@ async fn get_provider_usage_groups_by_provider_model() {
 
     let usage = repo.get_provider_usage(30).await.expect("provider usage");
     // The aggregate spans the whole shard DB; our row must appear among them.
-    assert!(usage
-        .iter()
-        .any(|u| u.provider == "anthropic" && u.model == "claude-3-opus"));
+    assert!(
+        usage
+            .iter()
+            .any(|u| u.provider == "anthropic" && u.model == "claude-3-opus")
+    );
 }
 
 #[tokio::test]

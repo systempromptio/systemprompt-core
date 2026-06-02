@@ -38,7 +38,12 @@ fn protected_resource_metadata_serializes_null_documentation() {
     };
     let v: Value = serde_json::to_value(&meta).expect("serialize");
     assert!(v["resource_documentation"].is_null());
-    assert!(v["authorization_servers"].as_array().expect("array").is_empty());
+    assert!(
+        v["authorization_servers"]
+            .as_array()
+            .expect("array")
+            .is_empty()
+    );
 }
 
 #[test]
@@ -50,10 +55,7 @@ fn authorization_server_metadata_serializes_all_fields() {
         registration_endpoint: Some("https://gw.example/register".to_owned()),
         scopes_supported: vec!["user".to_owned()],
         response_types_supported: vec!["code".to_owned()],
-        grant_types_supported: vec![
-            "authorization_code".to_owned(),
-            "refresh_token".to_owned(),
-        ],
+        grant_types_supported: vec!["authorization_code".to_owned(), "refresh_token".to_owned()],
         code_challenge_methods_supported: vec!["S256".to_owned()],
         token_endpoint_auth_methods_supported: vec!["none".to_owned()],
         authorization_response_iss_parameter_supported: true,
@@ -64,7 +66,10 @@ fn authorization_server_metadata_serializes_all_fields() {
     assert_eq!(v["token_endpoint"], "https://gw.example/token");
     assert_eq!(v["registration_endpoint"], "https://gw.example/register");
     assert_eq!(v["response_types_supported"][0], "code");
-    assert_eq!(v["grant_types_supported"].as_array().expect("array").len(), 2);
+    assert_eq!(
+        v["grant_types_supported"].as_array().expect("array").len(),
+        2
+    );
     assert_eq!(v["code_challenge_methods_supported"][0], "S256");
     assert_eq!(v["authorization_response_iss_parameter_supported"], true);
 }

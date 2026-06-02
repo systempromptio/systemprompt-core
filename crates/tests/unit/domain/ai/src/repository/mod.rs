@@ -26,7 +26,9 @@ pub(crate) async fn pool() -> Option<DbPool> {
 // safety findings, messages, tool calls) have a valid FK target.
 pub(crate) async fn seed_request(pool: &DbPool, user_id: &UserId) -> AiRequestId {
     let email = format!("{}@ai.invalid", user_id.as_str());
-    seed_user_row(pool, user_id, &email).await.expect("seed user");
+    seed_user_row(pool, user_id, &email)
+        .await
+        .expect("seed user");
     let repo = systemprompt_ai::repository::AiRequestRepository::new(pool).expect("repo");
     let record = AiRequestRecord::builder(AiRequestId::generate(), user_id.clone())
         .provider("anthropic")

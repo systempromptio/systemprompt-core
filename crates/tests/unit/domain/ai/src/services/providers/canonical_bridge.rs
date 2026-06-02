@@ -4,8 +4,11 @@
 
 use std::time::Instant;
 
-use systemprompt_ai::models::ai::{AiContentPart, AiMessage, MessageRole, SamplingParams};
-use systemprompt_ai::models::ai::{ResponseFormat as AgentResponseFormat, StreamChunk};
+use serde_json::json;
+use systemprompt_ai::models::ai::{
+    AiContentPart, AiMessage, MessageRole, ResponseFormat as AgentResponseFormat, SamplingParams,
+    StreamChunk,
+};
 use systemprompt_ai::models::tools::McpTool;
 use systemprompt_ai::services::providers::canonical_bridge::{
     BridgeProvider, CanonicalBuild, agent_response_format, event_to_chunk, text_content,
@@ -16,7 +19,6 @@ use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
     CodeExecutionOutput, GroundedSource, Grounding, ImageSource, ResponseFormat,
 };
-use serde_json::json;
 use uuid::Uuid;
 
 fn msg(role: MessageRole, content: &str) -> AiMessage {
@@ -300,14 +302,11 @@ fn agent_response_format_json_schema_defaults_name_and_strict() {
 
 #[test]
 fn tools_to_canonical_fills_empty_schema_default() {
-    let tools = vec![
-        McpTool::new("with_schema", McpServerId::new("svc")),
-        {
-            let mut t = McpTool::new("with_schema", McpServerId::new("svc"));
-            t.input_schema = Some(json!({"type": "object", "properties": {"a": {}}}));
-            t
-        },
-    ];
+    let tools = vec![McpTool::new("with_schema", McpServerId::new("svc")), {
+        let mut t = McpTool::new("with_schema", McpServerId::new("svc"));
+        t.input_schema = Some(json!({"type": "object", "properties": {"a": {}}}));
+        t
+    }];
     let canonical = tools_to_canonical(tools);
     assert_eq!(canonical.len(), 2);
     // First tool had no schema, so it gets the empty-object default.

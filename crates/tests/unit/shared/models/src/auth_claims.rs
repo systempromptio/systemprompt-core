@@ -62,7 +62,10 @@ mod jwt_claims_methods {
 
     #[test]
     fn has_audience_checks_membership() {
-        let c = claims(vec![Permission::User], vec![JwtAudience::Api, JwtAudience::Mcp]);
+        let c = claims(
+            vec![Permission::User],
+            vec![JwtAudience::Api, JwtAudience::Mcp],
+        );
         assert!(c.has_audience(&JwtAudience::Api));
         assert!(!c.has_audience(&JwtAudience::Web));
     }
@@ -81,7 +84,10 @@ mod jwt_claims_serde {
 
     #[test]
     fn scope_serializes_as_space_string() {
-        let c = claims(vec![Permission::User, Permission::Mcp], vec![JwtAudience::Api]);
+        let c = claims(
+            vec![Permission::User, Permission::Mcp],
+            vec![JwtAudience::Api],
+        );
         let value = serde_json::to_value(&c).expect("serialize");
         let scope = value["scope"].as_str().expect("scope is a string");
         assert!(scope.contains("user"));
@@ -90,7 +96,10 @@ mod jwt_claims_serde {
 
     #[test]
     fn audiences_serialize_as_string_array() {
-        let c = claims(vec![Permission::User], vec![JwtAudience::Api, JwtAudience::Hook]);
+        let c = claims(
+            vec![Permission::User],
+            vec![JwtAudience::Api, JwtAudience::Hook],
+        );
         let value = serde_json::to_value(&c).expect("serialize");
         let auds = value["aud"].as_array().expect("aud is an array");
         let strs: Vec<&str> = auds.iter().filter_map(|v| v.as_str()).collect();
@@ -121,10 +130,16 @@ mod jwt_claims_serde {
 
     #[test]
     fn resource_audience_round_trips() {
-        let c = claims(vec![Permission::User], vec![JwtAudience::Resource("custom-aud".to_owned())]);
+        let c = claims(
+            vec![Permission::User],
+            vec![JwtAudience::Resource("custom-aud".to_owned())],
+        );
         let json = serde_json::to_string(&c).expect("serialize");
         let back: JwtClaims = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(back.aud, vec![JwtAudience::Resource("custom-aud".to_owned())]);
+        assert_eq!(
+            back.aud,
+            vec![JwtAudience::Resource("custom-aud".to_owned())]
+        );
     }
 
     #[test]

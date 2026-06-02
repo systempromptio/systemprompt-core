@@ -47,23 +47,25 @@ async fn create_then_consume_once() {
     assert_eq!(consumed, ctx.user_id);
 
     // Second consume yields None (single-use).
-    assert!(ctx
-        .repo
-        .consume_bridge_exchange_code(&hash)
-        .await
-        .expect("consume again")
-        .is_none());
+    assert!(
+        ctx.repo
+            .consume_bridge_exchange_code(&hash)
+            .await
+            .expect("consume again")
+            .is_none()
+    );
 }
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
     let Some(ctx) = setup().await else { return };
-    assert!(ctx
-        .repo
-        .consume_bridge_exchange_code(&format!("nope-{}", Uuid::new_v4()))
-        .await
-        .expect("consume")
-        .is_none());
+    assert!(
+        ctx.repo
+            .consume_bridge_exchange_code(&format!("nope-{}", Uuid::new_v4()))
+            .await
+            .expect("consume")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -78,10 +80,11 @@ async fn expired_code_cannot_be_consumed() {
         })
         .await
         .expect("create");
-    assert!(ctx
-        .repo
-        .consume_bridge_exchange_code(&hash)
-        .await
-        .expect("consume")
-        .is_none());
+    assert!(
+        ctx.repo
+            .consume_bridge_exchange_code(&hash)
+            .await
+            .expect("consume")
+            .is_none()
+    );
 }

@@ -21,7 +21,10 @@ async fn increment_creates_bucket_then_accumulates() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    let window_start = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).single().expect("ts");
+    let window_start = Utc
+        .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
+        .single()
+        .expect("ts");
 
     let first = repo
         .increment(IncrementParams {
@@ -69,8 +72,14 @@ async fn separate_windows_are_independent_buckets() {
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
         .await
         .expect("seed");
-    let w1 = Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).single().expect("ts");
-    let w2 = Utc.with_ymd_and_hms(2026, 2, 1, 1, 0, 0).single().expect("ts");
+    let w1 = Utc
+        .with_ymd_and_hms(2026, 2, 1, 0, 0, 0)
+        .single()
+        .expect("ts");
+    let w2 = Utc
+        .with_ymd_and_hms(2026, 2, 1, 1, 0, 0)
+        .single()
+        .expect("ts");
 
     repo.increment(IncrementParams {
         user_id: &uid,

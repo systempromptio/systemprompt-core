@@ -15,14 +15,20 @@ async fn upsert_then_list_enabled() {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp");
-    seed_user_row(&pool, &user_id, &format!("{}@bhp.invalid", user_id.as_str()))
-        .await
-        .expect("seed user");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
 
     let host_a = format!("host-{}", Uuid::new_v4().simple());
     let host_b = format!("host-{}", Uuid::new_v4().simple());
 
-    repo.upsert(&user_id, &host_a, true).await.expect("enable a");
+    repo.upsert(&user_id, &host_a, true)
+        .await
+        .expect("enable a");
     repo.upsert(&user_id, &host_b, false)
         .await
         .expect("disable b");
@@ -41,16 +47,31 @@ async fn upsert_toggles_enabled_flag() {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp");
-    seed_user_row(&pool, &user_id, &format!("{}@bhp.invalid", user_id.as_str()))
-        .await
-        .expect("seed user");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
 
     let host = format!("host-{}", Uuid::new_v4().simple());
     repo.upsert(&user_id, &host, true).await.expect("enable");
-    assert!(repo.list_enabled(&user_id).await.expect("list").contains(&host));
+    assert!(
+        repo.list_enabled(&user_id)
+            .await
+            .expect("list")
+            .contains(&host)
+    );
 
     repo.upsert(&user_id, &host, false).await.expect("disable");
-    assert!(!repo.list_enabled(&user_id).await.expect("list").contains(&host));
+    assert!(
+        !repo
+            .list_enabled(&user_id)
+            .await
+            .expect("list")
+            .contains(&host)
+    );
 }
 
 #[tokio::test]

@@ -95,7 +95,10 @@ mod capabilities_matrices {
         let a = ProviderCapabilities::anthropic();
         let b = a;
         assert_eq!(a, b);
-        assert_ne!(ProviderCapabilities::anthropic(), ProviderCapabilities::gemini());
+        assert_ne!(
+            ProviderCapabilities::anthropic(),
+            ProviderCapabilities::gemini()
+        );
     }
 }
 
@@ -295,8 +298,15 @@ mod sanitize_metadata_and_extensions {
         }));
         let obj = out.as_object().expect("object");
         for k in [
-            "$schema", "$id", "readOnly", "writeOnly", "deprecated", "examples",
-            "contentMediaType", "contentEncoding", "outputSchema",
+            "$schema",
+            "$id",
+            "readOnly",
+            "writeOnly",
+            "deprecated",
+            "examples",
+            "contentMediaType",
+            "contentEncoding",
+            "outputSchema",
         ] {
             assert!(!obj.contains_key(k), "{k} should be stripped");
         }

@@ -294,7 +294,9 @@ mod anthropic_parse_response {
             "fb",
         );
         match resp.content.first() {
-            Some(CanonicalContent::ToolUse { id, name, input, .. }) => {
+            Some(CanonicalContent::ToolUse {
+                id, name, input, ..
+            }) => {
                 assert_eq!(id, "c1");
                 assert_eq!(name, "go");
                 assert_eq!(input["x"], json!(1));
@@ -367,7 +369,9 @@ mod anthropic_parse_response {
         );
         match resp.content.first() {
             Some(CanonicalContent::Image(
-                systemprompt_models::wire::canonical::ImageSource::Base64 { media_type, data, .. },
+                systemprompt_models::wire::canonical::ImageSource::Base64 {
+                    media_type, data, ..
+                },
             )) => {
                 assert_eq!(media_type, "image/png");
                 assert_eq!(data, "QQ==");
@@ -415,12 +419,10 @@ mod openai_chat_streaming {
                 .iter()
                 .any(|e| matches!(e, CanonicalEvent::TextDelta { text, .. } if text == "hi"))
         );
-        assert!(
-            events
-                .iter()
-                .any(|e| matches!(e, CanonicalEvent::MessageStop { stop_reason, .. }
-                    if *stop_reason == Some(CanonicalStopReason::EndTurn)))
-        );
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::MessageStop { stop_reason, .. }
+                    if *stop_reason == Some(CanonicalStopReason::EndTurn))
+        ));
     }
 
     #[tokio::test]
@@ -519,7 +521,10 @@ mod openai_responses_streaming {
         let events = run(sse).await;
         assert!(events.iter().any(|e| matches!(
             e,
-            CanonicalEvent::ContentBlockStart { block: ContentBlockKind::Text, .. }
+            CanonicalEvent::ContentBlockStart {
+                block: ContentBlockKind::Text,
+                ..
+            }
         )));
         assert!(
             events
@@ -559,11 +564,9 @@ mod openai_responses_streaming {
                    data: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"thinking\"}\n\n"
             .to_owned();
         let events = run(sse).await;
-        assert!(
-            events
-                .iter()
-                .any(|e| matches!(e, CanonicalEvent::ThinkingDelta { text, .. } if text == "thinking"))
-        );
+        assert!(events.iter().any(
+            |e| matches!(e, CanonicalEvent::ThinkingDelta { text, .. } if text == "thinking")
+        ));
     }
 
     #[tokio::test]
@@ -594,7 +597,8 @@ mod openai_responses_streaming {
 
     #[tokio::test]
     async fn failed_event_emits_error() {
-        let sse = "data: {\"type\":\"response.failed\",\"error\":{\"message\":\"bad\"}}\n\n".to_owned();
+        let sse =
+            "data: {\"type\":\"response.failed\",\"error\":{\"message\":\"bad\"}}\n\n".to_owned();
         let events = run(sse).await;
         assert!(events.iter().any(|e| matches!(e, CanonicalEvent::Error(_))));
     }
@@ -627,7 +631,10 @@ mod gemini_streaming {
         assert!(matches!(events[0], CanonicalEvent::MessageStart { .. }));
         assert!(events.iter().any(|e| matches!(
             e,
-            CanonicalEvent::ContentBlockStart { block: ContentBlockKind::Text, .. }
+            CanonicalEvent::ContentBlockStart {
+                block: ContentBlockKind::Text,
+                ..
+            }
         )));
         assert!(
             events

@@ -96,10 +96,7 @@ async fn generate_with_tools_single_text_turn() {
     let (_user, ctx) = seeded_context(&pool).await;
     let request = user_request(ANTHROPIC_MODEL, ctx);
 
-    let response = svc
-        .generate_with_tools(&request)
-        .await
-        .expect("tools ok");
+    let response = svc.generate_with_tools(&request).await.expect("tools ok");
     assert!(response.content.contains("plain answer"));
 }
 
@@ -160,10 +157,7 @@ async fn generate_plan_tool_calls_when_present() {
     let request = user_request(ANTHROPIC_MODEL, ctx);
     let tools = vec![McpTool::new("search", McpServerId::new("svc"))];
 
-    let plan = svc
-        .generate_plan(&request, &tools)
-        .await
-        .expect("plan ok");
+    let plan = svc.generate_plan(&request, &tools).await.expect("plan ok");
     match plan {
         PlanningResult::ToolCalls { calls, .. } => {
             assert_eq!(calls.len(), 1);
@@ -193,10 +187,7 @@ async fn generate_response_synthesizes_final_text() {
         model: Some(ANTHROPIC_MODEL),
         max_output_tokens: Some(64),
     };
-    let text = svc
-        .generate_response(params)
-        .await
-        .expect("response ok");
+    let text = svc.generate_response(params).await.expect("response ok");
     assert!(text.contains("final synthesized answer"));
 }
 
@@ -329,14 +320,8 @@ async fn openai_protocol_drives_generate() {
         mock_http::openai_chat_success(mock_http::openai_response_body("openai answer")).await;
     let svc = service(&pool, OPENAI, server.uri());
     let (_user, ctx) = seeded_context(&pool).await;
-    let request = AiRequest::builder(
-        vec![AiMessage::user("hi")],
-        OPENAI,
-        OPENAI_MODEL,
-        64,
-        ctx,
-    )
-    .build();
+    let request =
+        AiRequest::builder(vec![AiMessage::user("hi")], OPENAI, OPENAI_MODEL, 64, ctx).build();
 
     let response = svc.generate(&request).await.expect("openai generate ok");
     assert!(response.content.contains("openai answer"));

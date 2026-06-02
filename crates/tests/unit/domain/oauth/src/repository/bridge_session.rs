@@ -1,4 +1,5 @@
-// DB-backed bridge-session repository tests (upsert, list-active, delete-stale).
+// DB-backed bridge-session repository tests (upsert, list-active,
+// delete-stale).
 
 use std::time::Duration;
 

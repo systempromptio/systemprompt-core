@@ -14,7 +14,10 @@ use uuid::Uuid;
 
 #[test]
 fn purpose_as_str_round_trips() {
-    assert_eq!(SetupTokenPurpose::CredentialLink.as_str(), "credential_link");
+    assert_eq!(
+        SetupTokenPurpose::CredentialLink.as_str(),
+        "credential_link"
+    );
     assert_eq!(SetupTokenPurpose::Recovery.as_str(), "recovery");
     assert_eq!(
         SetupTokenPurpose::from_str("credential_link").expect("parse"),
@@ -68,7 +71,12 @@ async fn store_then_validate_valid() {
         .await
         .expect("store");
 
-    match ctx.repo.validate_setup_token(&hash).await.expect("validate") {
+    match ctx
+        .repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate")
+    {
         TokenValidationResult::Valid(rec) => {
             assert_eq!(rec.user_id, ctx.user_id);
             assert_eq!(rec.purpose, SetupTokenPurpose::CredentialLink);
@@ -101,7 +109,11 @@ async fn validate_expired() {
         })
         .await
         .expect("store");
-    let result = ctx.repo.validate_setup_token(&hash).await.expect("validate");
+    let result = ctx
+        .repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate");
     assert!(matches!(result, TokenValidationResult::Expired));
 }
 
@@ -119,20 +131,35 @@ async fn consume_then_already_used() {
         .await
         .expect("store");
 
-    let token_id = match ctx.repo.validate_setup_token(&hash).await.expect("validate") {
+    let token_id = match ctx
+        .repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate")
+    {
         TokenValidationResult::Valid(rec) => rec.id,
         other => panic!("expected Valid, got {other:?}"),
     };
 
-    assert!(ctx.repo.consume_setup_token(&token_id).await.expect("consume"));
+    assert!(
+        ctx.repo
+            .consume_setup_token(&token_id)
+            .await
+            .expect("consume")
+    );
     // Consuming again is a no-op.
-    assert!(!ctx
-        .repo
-        .consume_setup_token(&token_id)
-        .await
-        .expect("consume again"));
+    assert!(
+        !ctx.repo
+            .consume_setup_token(&token_id)
+            .await
+            .expect("consume again")
+    );
 
-    let result = ctx.repo.validate_setup_token(&hash).await.expect("validate");
+    let result = ctx
+        .repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate");
     assert!(matches!(result, TokenValidationResult::AlreadyUsed));
 }
 
@@ -156,7 +183,11 @@ async fn revoke_user_setup_tokens_marks_used() {
         .await
         .expect("revoke");
     assert!(revoked >= 1);
-    let result = ctx.repo.validate_setup_token(&hash).await.expect("validate");
+    let result = ctx
+        .repo
+        .validate_setup_token(&hash)
+        .await
+        .expect("validate");
     assert!(matches!(result, TokenValidationResult::AlreadyUsed));
 }
 

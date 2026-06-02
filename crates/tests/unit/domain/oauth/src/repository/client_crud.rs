@@ -24,7 +24,10 @@ async fn setup() -> Option<Ctx> {
     Some(Ctx { repo, owner })
 }
 
-fn create_params(client_id: &ClientId, owner: &systemprompt_identifiers::UserId) -> CreateClientParams {
+fn create_params(
+    client_id: &ClientId,
+    owner: &systemprompt_identifiers::UserId,
+) -> CreateClientParams {
     CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner.clone(),
@@ -74,12 +77,13 @@ async fn create_then_get_by_client_id_loads_relations() {
 async fn get_missing_client_returns_none() {
     let Some(ctx) = setup().await else { return };
     let missing = ClientId::new(format!("missing-{}", Uuid::new_v4().simple()));
-    assert!(ctx
-        .repo
-        .get_by_client_id(&missing)
-        .await
-        .expect("get")
-        .is_none());
+    assert!(
+        ctx.repo
+            .get_by_client_id(&missing)
+            .await
+            .expect("get")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -93,27 +97,30 @@ async fn deactivate_hides_from_active_get_but_visible_to_any() {
 
     let n = ctx.repo.deactivate(&client_id).await.expect("deactivate");
     assert_eq!(n, 1);
-    assert!(ctx
-        .repo
-        .get_by_client_id(&client_id)
-        .await
-        .expect("active get")
-        .is_none());
-    assert!(ctx
-        .repo
-        .get_by_client_id_any(&client_id)
-        .await
-        .expect("any get")
-        .is_some());
+    assert!(
+        ctx.repo
+            .get_by_client_id(&client_id)
+            .await
+            .expect("active get")
+            .is_none()
+    );
+    assert!(
+        ctx.repo
+            .get_by_client_id_any(&client_id)
+            .await
+            .expect("any get")
+            .is_some()
+    );
 
     let n = ctx.repo.activate(&client_id).await.expect("activate");
     assert_eq!(n, 1);
-    assert!(ctx
-        .repo
-        .get_by_client_id(&client_id)
-        .await
-        .expect("active get")
-        .is_some());
+    assert!(
+        ctx.repo
+            .get_by_client_id(&client_id)
+            .await
+            .expect("active get")
+            .is_some()
+    );
 }
 
 #[tokio::test]
@@ -129,7 +136,10 @@ async fn update_replaces_relations() {
         client_id: client_id.clone(),
         client_name: "renamed".to_owned(),
         redirect_uris: vec!["https://new.invalid/cb".to_owned()],
-        grant_types: Some(vec!["authorization_code".to_owned(), "refresh_token".to_owned()]),
+        grant_types: Some(vec![
+            "authorization_code".to_owned(),
+            "refresh_token".to_owned(),
+        ]),
         response_types: Some(vec!["code".to_owned()]),
         scopes: vec!["openid".to_owned()],
         token_endpoint_auth_method: Some("none".to_owned()),
@@ -137,9 +147,17 @@ async fn update_replaces_relations() {
         logo_uri: None,
         contacts: None,
     };
-    let updated = ctx.repo.update(params).await.expect("update").expect("present");
+    let updated = ctx
+        .repo
+        .update(params)
+        .await
+        .expect("update")
+        .expect("present");
     assert_eq!(updated.client_name, "renamed");
-    assert_eq!(updated.redirect_uris, vec!["https://new.invalid/cb".to_owned()]);
+    assert_eq!(
+        updated.redirect_uris,
+        vec!["https://new.invalid/cb".to_owned()]
+    );
     assert_eq!(updated.scopes, vec!["openid".to_owned()]);
     assert!(updated.contacts.is_none() || updated.contacts.as_ref().is_some_and(Vec::is_empty));
 }
@@ -181,12 +199,13 @@ async fn update_secret_changes_hash() {
     assert_eq!(updated.client_id, client_id);
 
     let missing = ClientId::new(format!("missing-{}", Uuid::new_v4().simple()));
-    assert!(ctx
-        .repo
-        .update_secret(&missing, "h")
-        .await
-        .expect("update_secret missing")
-        .is_none());
+    assert!(
+        ctx.repo
+            .update_secret(&missing, "h")
+            .await
+            .expect("update_secret missing")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -200,12 +219,13 @@ async fn delete_removes_row() {
 
     let n = ctx.repo.delete(&client_id).await.expect("delete");
     assert_eq!(n, 1);
-    assert!(ctx
-        .repo
-        .get_by_client_id_any(&client_id)
-        .await
-        .expect("get")
-        .is_none());
+    assert!(
+        ctx.repo
+            .get_by_client_id_any(&client_id)
+            .await
+            .expect("get")
+            .is_none()
+    );
 
     let n = ctx.repo.delete(&client_id).await.expect("delete again");
     assert_eq!(n, 0);
@@ -253,19 +273,21 @@ async fn find_by_redirect_uri_and_scope() {
         .expect("present");
     assert_eq!(with_scope.client_id, client_id);
 
-    assert!(ctx
-        .repo
-        .find_by_redirect_uri_with_scope(&uri, &["does-not-exist"])
-        .await
-        .expect("find missing scope")
-        .is_none());
+    assert!(
+        ctx.repo
+            .find_by_redirect_uri_with_scope(&uri, &["does-not-exist"])
+            .await
+            .expect("find missing scope")
+            .is_none()
+    );
 
-    assert!(ctx
-        .repo
-        .find_by_redirect_uri("https://nobody.invalid/cb")
-        .await
-        .expect("find unknown")
-        .is_none());
+    assert!(
+        ctx.repo
+            .find_by_redirect_uri("https://nobody.invalid/cb")
+            .await
+            .expect("find unknown")
+            .is_none()
+    );
 }
 
 #[tokio::test]

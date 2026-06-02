@@ -362,8 +362,11 @@ mod web_validator {
             "branding": full_branding()
         }))
         .expect("web config");
-        let prov = provider(config_with_web_path("/tmp/web.yaml"), ServicesConfig::default())
-            .with_web_config(raw);
+        let prov = provider(
+            config_with_web_path("/tmp/web.yaml"),
+            ServicesConfig::default(),
+        )
+        .with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");
         let report = v.validate().expect("validate");
@@ -377,8 +380,11 @@ mod web_validator {
             "branding": full_branding()
         }))
         .expect("web config");
-        let prov = provider(config_with_web_path("/tmp/web.yaml"), ServicesConfig::default())
-            .with_web_config(raw);
+        let prov = provider(
+            config_with_web_path("/tmp/web.yaml"),
+            ServicesConfig::default(),
+        )
+        .with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");
         let report = v.validate().expect("validate");
@@ -392,8 +398,11 @@ mod web_validator {
             "base_url": "https://example.com"
         }))
         .expect("web config");
-        let prov = provider(config_with_web_path("/tmp/web.yaml"), ServicesConfig::default())
-            .with_web_config(raw);
+        let prov = provider(
+            config_with_web_path("/tmp/web.yaml"),
+            ServicesConfig::default(),
+        )
+        .with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");
         let report = v.validate().expect("validate");
@@ -408,8 +417,11 @@ mod web_validator {
             "branding": { "copyright": "© 2024" }
         }))
         .expect("web config");
-        let prov = provider(config_with_web_path("/tmp/web.yaml"), ServicesConfig::default())
-            .with_web_config(raw);
+        let prov = provider(
+            config_with_web_path("/tmp/web.yaml"),
+            ServicesConfig::default(),
+        )
+        .with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");
         let report = v.validate().expect("validate");
@@ -425,8 +437,11 @@ mod web_validator {
             "paths": {}
         }))
         .expect("web config");
-        let prov = provider(config_with_web_path("/tmp/web.yaml"), ServicesConfig::default())
-            .with_web_config(raw);
+        let prov = provider(
+            config_with_web_path("/tmp/web.yaml"),
+            ServicesConfig::default(),
+        )
+        .with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");
         let report = v.validate().expect("validate");
@@ -441,8 +456,11 @@ mod web_validator {
             "branding": full_branding()
         }))
         .expect("web config");
-        let prov = provider(config_with_web_path("/tmp/web.yaml"), ServicesConfig::default())
-            .with_web_config(raw);
+        let prov = provider(
+            config_with_web_path("/tmp/web.yaml"),
+            ServicesConfig::default(),
+        )
+        .with_web_config(raw);
         let mut v = WebConfigValidator::new();
         v.load(&prov).expect("load");
         let report = v.validate().expect("validate");

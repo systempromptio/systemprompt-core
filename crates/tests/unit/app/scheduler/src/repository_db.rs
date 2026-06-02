@@ -151,7 +151,10 @@ mod scheduler_repository {
             .expect("find")
             .expect("row exists");
         assert_eq!(job.last_status.as_deref(), Some("success"));
-        assert!(job.last_error.is_none(), "success run should null the error");
+        assert!(
+            job.last_error.is_none(),
+            "success run should null the error"
+        );
     }
 
     #[tokio::test]
@@ -303,10 +306,7 @@ mod job_repository {
             .await
             .expect("upsert");
 
-        let rows = repo
-            .list_recent_runs(1000)
-            .await
-            .expect("list recent");
+        let rows = repo.list_recent_runs(1000).await.expect("list recent");
         let names: Vec<&str> = rows.iter().map(|j| j.job_name.as_str()).collect();
         assert!(
             !names.contains(&name.as_str()),

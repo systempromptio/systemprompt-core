@@ -5,8 +5,8 @@ use chrono::{Duration, Utc};
 use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_oauth_client, seed_user_row,
-    unique_user_id, OAuthClientFixture,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    seed_oauth_client, seed_user_row, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -25,8 +25,9 @@ async fn setup() -> Option<Ctx> {
     seed_user_row(&pool, &user_id, &format!("{}@rt.invalid", user_id.as_str()))
         .await
         .expect("seed user");
-    let OAuthClientFixture { client_id, .. } =
-        seed_oauth_client(&pool, &user_id).await.expect("seed client");
+    let OAuthClientFixture { client_id, .. } = seed_oauth_client(&pool, &user_id)
+        .await
+        .expect("seed client");
     Some(Ctx {
         repo,
         client_id,
@@ -87,17 +88,19 @@ async fn store_then_validate() {
 async fn validate_unknown_token_errors() {
     let Some(ctx) = setup().await else { return };
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    assert!(ctx
-        .repo
-        .validate_refresh_token(&token, &ctx.client_id)
-        .await
-        .is_err());
-    assert!(ctx
-        .repo
-        .get_refresh_token_family(&token)
-        .await
-        .expect("family")
-        .is_none());
+    assert!(
+        ctx.repo
+            .validate_refresh_token(&token, &ctx.client_id)
+            .await
+            .is_err()
+    );
+    assert!(
+        ctx.repo
+            .get_refresh_token_family(&token)
+            .await
+            .expect("family")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -106,11 +109,12 @@ async fn validate_expired_token_errors() {
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
     let past = (Utc::now() - Duration::hours(1)).timestamp();
     store(&ctx, &token, past).await;
-    assert!(ctx
-        .repo
-        .validate_refresh_token(&token, &ctx.client_id)
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .validate_refresh_token(&token, &ctx.client_id)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -150,30 +154,33 @@ async fn consume_then_replay_revokes_family() {
     assert_eq!(consumed.family_id, family);
 
     // Replaying the consumed parent revokes the whole family (parent + child).
-    assert!(ctx
-        .repo
-        .consume_refresh_token(&parent, &ctx.client_id)
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .consume_refresh_token(&parent, &ctx.client_id)
+            .await
+            .is_err()
+    );
 
     // Child is now gone too.
-    assert!(ctx
-        .repo
-        .get_refresh_token_family(&child)
-        .await
-        .expect("child family")
-        .is_none());
+    assert!(
+        ctx.repo
+            .get_refresh_token_family(&child)
+            .await
+            .expect("child family")
+            .is_none()
+    );
 }
 
 #[tokio::test]
 async fn consume_unknown_token_errors() {
     let Some(ctx) = setup().await else { return };
     let token = RefreshTokenId::new(format!("rt-{}", Uuid::new_v4()));
-    assert!(ctx
-        .repo
-        .consume_refresh_token(&token, &ctx.client_id)
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .consume_refresh_token(&token, &ctx.client_id)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -183,16 +190,18 @@ async fn revoke_refresh_token_deletes() {
     store(&ctx, &token, future_exp()).await;
 
     assert!(ctx.repo.revoke_refresh_token(&token).await.expect("revoke"));
-    assert!(!ctx
-        .repo
-        .revoke_refresh_token(&token)
-        .await
-        .expect("revoke again"));
-    assert!(ctx
-        .repo
-        .validate_refresh_token(&token, &ctx.client_id)
-        .await
-        .is_err());
+    assert!(
+        !ctx.repo
+            .revoke_refresh_token(&token)
+            .await
+            .expect("revoke again")
+    );
+    assert!(
+        ctx.repo
+            .validate_refresh_token(&token, &ctx.client_id)
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]

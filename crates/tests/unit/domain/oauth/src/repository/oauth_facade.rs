@@ -63,20 +63,22 @@ async fn create_client_and_find_and_list_and_count() {
     assert_eq!(found.client_name, "facade");
 
     assert!(ctx.repo.count_clients().await.expect("count") >= 1);
-    assert!(ctx
-        .repo
-        .list_clients()
-        .await
-        .expect("list")
-        .iter()
-        .any(|c| c.client_id == client_id));
-    assert!(ctx
-        .repo
-        .list_clients_paginated(100, 0)
-        .await
-        .expect("paginated")
-        .iter()
-        .any(|c| c.client_id == client_id));
+    assert!(
+        ctx.repo
+            .list_clients()
+            .await
+            .expect("list")
+            .iter()
+            .any(|c| c.client_id == client_id)
+    );
+    assert!(
+        ctx.repo
+            .list_clients_paginated(100, 0)
+            .await
+            .expect("paginated")
+            .iter()
+            .any(|c| c.client_id == client_id)
+    );
 }
 
 #[tokio::test]
@@ -111,16 +113,17 @@ async fn update_client_rejects_empty_name() {
         .await
         .expect("create");
 
-    assert!(ctx
-        .repo
-        .update_client(
-            &client_id,
-            Some(""),
-            Some(&["https://x.invalid/cb".to_owned()]),
-            Some(&["openid".to_owned()]),
-        )
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .update_client(
+                &client_id,
+                Some(""),
+                Some(&["https://x.invalid/cb".to_owned()]),
+                Some(&["openid".to_owned()]),
+            )
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -132,11 +135,17 @@ async fn update_client_rejects_empty_redirect_uris() {
         .await
         .expect("create");
 
-    assert!(ctx
-        .repo
-        .update_client(&client_id, Some("n"), Some(&[]), Some(&["openid".to_owned()]))
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .update_client(
+                &client_id,
+                Some("n"),
+                Some(&[]),
+                Some(&["openid".to_owned()])
+            )
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -148,32 +157,34 @@ async fn update_client_rejects_empty_scopes() {
         .await
         .expect("create");
 
-    assert!(ctx
-        .repo
-        .update_client(
-            &client_id,
-            Some("n"),
-            Some(&["https://x.invalid/cb".to_owned()]),
-            Some(&[]),
-        )
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .update_client(
+                &client_id,
+                Some("n"),
+                Some(&["https://x.invalid/cb".to_owned()]),
+                Some(&[]),
+            )
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
 async fn update_client_missing_errors() {
     let Some(ctx) = setup().await else { return };
     let missing = ClientId::new(format!("missing-{}", Uuid::new_v4().simple()));
-    assert!(ctx
-        .repo
-        .update_client(
-            &missing,
-            Some("n"),
-            Some(&["https://x.invalid/cb".to_owned()]),
-            Some(&["openid".to_owned()]),
-        )
-        .await
-        .is_err());
+    assert!(
+        ctx.repo
+            .update_client(
+                &missing,
+                Some("n"),
+                Some(&["https://x.invalid/cb".to_owned()]),
+                Some(&["openid".to_owned()]),
+            )
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -213,11 +224,12 @@ async fn delete_client_returns_bool() {
         .expect("create");
 
     assert!(ctx.repo.delete_client(&client_id).await.expect("delete"));
-    assert!(!ctx
-        .repo
-        .delete_client(&client_id)
-        .await
-        .expect("delete again"));
+    assert!(
+        !ctx.repo
+            .delete_client(&client_id)
+            .await
+            .expect("delete again")
+    );
 }
 
 #[tokio::test]

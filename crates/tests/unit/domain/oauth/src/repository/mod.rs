@@ -7,9 +7,9 @@
 mod auth_code;
 mod bridge_host_prefs;
 mod bridge_session;
+mod cleanup;
 mod client_cleanup;
 mod client_crud;
-mod cleanup;
 mod exchange_code;
 mod jti_revocation;
 mod oauth_facade;

@@ -151,7 +151,10 @@ mod flatten_text {
     fn system_prompt_leads_the_flattened_text() {
         let mut req = empty_request();
         req.system = Some("you are helpful".to_owned());
-        req.messages = vec![msg(Role::User, vec![CanonicalContent::Text("hi".to_owned())])];
+        req.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Text("hi".to_owned())],
+        )];
         assert_eq!(req.flatten_text(), "you are helpful\nhi");
     }
 
@@ -238,7 +241,10 @@ mod flatten_message_text {
     #[test]
     fn returns_none_when_no_message_of_role() {
         let mut req = empty_request();
-        req.messages = vec![msg(Role::User, vec![CanonicalContent::Text("hi".to_owned())])];
+        req.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Text("hi".to_owned())],
+        )];
         assert!(req.flatten_message_text(Role::Assistant).is_none());
     }
 
@@ -247,11 +253,20 @@ mod flatten_message_text {
         let mut req = empty_request();
         req.messages = vec![
             msg(Role::User, vec![CanonicalContent::Text("u1".to_owned())]),
-            msg(Role::Assistant, vec![CanonicalContent::Text("a1".to_owned())]),
+            msg(
+                Role::Assistant,
+                vec![CanonicalContent::Text("a1".to_owned())],
+            ),
             msg(Role::User, vec![CanonicalContent::Text("u2".to_owned())]),
         ];
-        assert_eq!(req.flatten_message_text(Role::User), Some("u1\nu2".to_owned()));
-        assert_eq!(req.flatten_message_text(Role::Assistant), Some("a1".to_owned()));
+        assert_eq!(
+            req.flatten_message_text(Role::User),
+            Some("u1\nu2".to_owned())
+        );
+        assert_eq!(
+            req.flatten_message_text(Role::Assistant),
+            Some("a1".to_owned())
+        );
     }
 
     #[test]
@@ -281,7 +296,10 @@ mod derived_gateway_conversation_id {
     fn deterministic_for_same_leading_message() {
         let mut req = empty_request();
         req.system = Some("sys".to_owned());
-        req.messages = vec![msg(Role::User, vec![CanonicalContent::Text("hello".to_owned())])];
+        req.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Text("hello".to_owned())],
+        )];
         let a = req.derived_gateway_conversation_id().expect("id");
         let b = req.derived_gateway_conversation_id().expect("id");
         assert_eq!(a, b);
@@ -290,9 +308,15 @@ mod derived_gateway_conversation_id {
     #[test]
     fn differs_when_leading_content_differs() {
         let mut req_a = empty_request();
-        req_a.messages = vec![msg(Role::User, vec![CanonicalContent::Text("alpha".to_owned())])];
+        req_a.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Text("alpha".to_owned())],
+        )];
         let mut req_b = empty_request();
-        req_b.messages = vec![msg(Role::User, vec![CanonicalContent::Text("beta".to_owned())])];
+        req_b.messages = vec![msg(
+            Role::User,
+            vec![CanonicalContent::Text("beta".to_owned())],
+        )];
         assert_ne!(
             req_a.derived_gateway_conversation_id(),
             req_b.derived_gateway_conversation_id()

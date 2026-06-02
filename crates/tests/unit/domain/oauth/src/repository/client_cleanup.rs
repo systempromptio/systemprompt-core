@@ -18,9 +18,13 @@ async fn setup() -> Option<Ctx> {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = ClientRepository::new(&pool).expect("client repo");
     let owner = unique_user_id("cleanup-owner");
-    seed_user_row(&pool, &owner, &format!("{}@cleanup.invalid", owner.as_str()))
-        .await
-        .expect("seed owner");
+    seed_user_row(
+        &pool,
+        &owner,
+        &format!("{}@cleanup.invalid", owner.as_str()),
+    )
+    .await
+    .expect("seed owner");
     Some(Ctx { repo, owner })
 }
 
@@ -55,12 +59,13 @@ async fn cleanup_inactive_deletes_deactivated() {
 
     let removed = ctx.repo.cleanup_inactive().await.expect("cleanup_inactive");
     assert!(removed >= 1);
-    assert!(ctx
-        .repo
-        .get_by_client_id_any(&client_id)
-        .await
-        .expect("get")
-        .is_none());
+    assert!(
+        ctx.repo
+            .get_by_client_id_any(&client_id)
+            .await
+            .expect("get")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -82,12 +87,13 @@ async fn delete_unused_removes_never_used() {
     // just-created never-used client qualifies for deletion.
     let removed = ctx.repo.delete_unused(-3600).await.expect("delete_unused");
     assert!(removed >= 1);
-    assert!(ctx
-        .repo
-        .get_by_client_id_any(&client_id)
-        .await
-        .expect("get")
-        .is_none());
+    assert!(
+        ctx.repo
+            .get_by_client_id_any(&client_id)
+            .await
+            .expect("get")
+            .is_none()
+    );
 }
 
 #[tokio::test]

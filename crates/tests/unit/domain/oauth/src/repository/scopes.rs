@@ -10,7 +10,11 @@ fn validate_scopes_empty_returns_empty() {
 
 #[test]
 fn validate_scopes_all_valid() {
-    let req = vec!["user".to_owned(), "admin".to_owned(), "anonymous".to_owned()];
+    let req = vec![
+        "user".to_owned(),
+        "admin".to_owned(),
+        "anonymous".to_owned(),
+    ];
     let out = OAuthRepository::validate_scopes(&req).expect("valid ok");
     assert_eq!(out, req);
 }

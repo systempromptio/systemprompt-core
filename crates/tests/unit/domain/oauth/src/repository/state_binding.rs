@@ -61,21 +61,23 @@ async fn store_then_consume_once() {
     assert_eq!(row.redirect_uri, "https://app.invalid/cb");
 
     // Second consume yields None (single-use).
-    assert!(repo
-        .consume_state_binding(&token)
-        .await
-        .expect("consume again")
-        .is_none());
+    assert!(
+        repo.consume_state_binding(&token)
+            .await
+            .expect("consume again")
+            .is_none()
+    );
 }
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
     let Some(repo) = repo().await else { return };
-    assert!(repo
-        .consume_state_binding(&format!("nope-{}", Uuid::new_v4()))
-        .await
-        .expect("consume")
-        .is_none());
+    assert!(
+        repo.consume_state_binding(&format!("nope-{}", Uuid::new_v4()))
+            .await
+            .expect("consume")
+            .is_none()
+    );
 }
 
 #[tokio::test]
@@ -89,11 +91,12 @@ async fn expired_binding_cannot_be_consumed() {
     )
     .await
     .expect("store");
-    assert!(repo
-        .consume_state_binding(&token)
-        .await
-        .expect("consume")
-        .is_none());
+    assert!(
+        repo.consume_state_binding(&token)
+            .await
+            .expect("consume")
+            .is_none()
+    );
 }
 
 #[tokio::test]
