@@ -140,6 +140,10 @@ fn gateway_dispatch(
             send(app, UiEvent::GatewayProbeRequested { reply_to: reply_id });
             CommandOutcome::Async
         },
+        "mcp.auth.probe" => {
+            send(app, UiEvent::McpAuthProbeRequested { reply_to: reply_id });
+            CommandOutcome::Async
+        },
         _ => return None,
     })
 }

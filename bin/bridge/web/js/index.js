@@ -9,6 +9,7 @@ initI18n().catch((e) => console.warn("i18n init failed", e));
 
 import "/assets/js/components/sp-cloud-status.js";
 import "/assets/js/components/sp-proxy-status.js";
+import "/assets/js/components/sp-mcp-auth-status.js";
 import "/assets/js/components/sp-agent-presence.js";
 import "/assets/js/components/sp-agents-summary.js";
 import "/assets/js/components/sp-overall-badge.js";

@@ -6,6 +6,7 @@ use crate::auth::secret::Secret;
 use crate::gui::error::GuiError;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::state::{CancelScope, GatewayProbeOutcome};
+use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::SyncSummary;
 use crate::validate::ValidationReport;
 
@@ -43,6 +44,9 @@ pub enum UiEvent {
     GatewayProbeRequested {
         reply_to: ReplyId,
     },
+    McpAuthProbeRequested {
+        reply_to: ReplyId,
+    },
     Quit,
 
     SyncStarted,
@@ -68,6 +72,10 @@ pub enum UiEvent {
     },
     GatewayProbeFinished {
         outcome: GatewayProbeOutcome,
+        reply_to: ReplyId,
+    },
+    McpAuthProbeFinished {
+        results: Vec<McpServerAuth>,
         reply_to: ReplyId,
     },
     StateRefreshed,

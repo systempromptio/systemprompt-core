@@ -79,7 +79,10 @@ pub(crate) fn is_installed(
     windows_candidates: &[PathBuf],
     _linux_bin: &str,
 ) -> bool {
-    windows_candidates.iter().any(|p| p.exists()) || start_menu_present(windows_name)
+    if windows_candidates.iter().any(|p| p.exists()) {
+        return true;
+    }
+    start_menu_present_cached(windows_name)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -103,20 +106,69 @@ fn macos_bundles(name: &str) -> Vec<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
+fn start_menu_present_cached(display_name: &str) -> bool {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{Duration, Instant};
+
+    // Why: Get-StartApps cold-starts powershell and enumerates the shell app
+    // model (AV-scanned) — seconds per call — and host probes run on every
+    // tick. Cache per app (install state rarely changes during a session) so
+    // we spawn powershell at most once per TTL instead of every probe.
+    static CACHE: OnceLock<Mutex<HashMap<String, (bool, Instant)>>> = OnceLock::new();
+    const TTL: Duration = Duration::from_secs(300);
+
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(map) = cache.lock()
+        && let Some((present, at)) = map.get(display_name)
+        && at.elapsed() < TTL
+    {
+        return *present;
+    }
+    let present = start_menu_present(display_name);
+    if let Ok(mut map) = cache.lock() {
+        map.insert(display_name.to_string(), (present, Instant::now()));
+    }
+    present
+}
+
+#[cfg(target_os = "windows")]
 fn start_menu_present(display_name: &str) -> bool {
     use std::os::windows::process::CommandExt;
+    use std::time::{Duration, Instant};
 
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    // Bound the call: a probe must never block the UI (the post-install
+    // "Installed ✓" update waits on this snapshot). app_installed is a
+    // best-effort hint; the profile badge comes from the fast registry read.
+    const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
     let script = format!(
         "if (Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }}) {{ exit 0 }} else {{ exit 2 }}",
         name = ps_single_quote(display_name),
     );
-    Command::new("powershell")
+    let mut child = match Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .creation_flags(CREATE_NO_WINDOW)
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let deadline = Instant::now() + PROBE_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            },
+            Err(_) => return false,
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]

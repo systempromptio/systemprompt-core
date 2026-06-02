@@ -54,6 +54,7 @@ pub(crate) fn on_sync_finished(
 ) {
     app.state.set_sync_in_flight(false);
     app.state.clear_cancel(CancelScope::Sync);
+    let succeeded = result.is_ok();
     let bridge_result = match result {
         Ok(summary) => {
             let line = summary.one_line();
@@ -113,6 +114,14 @@ pub(crate) fn on_sync_finished(
     app.state.reload();
     app.refresh_ui();
     emit::emit_state(app);
+    // The registry was just (re)published by the sync apply, so re-probe MCP
+    // auth to refresh the Status panel. Best-effort: a dropped event loop means
+    // there is nothing to deliver to.
+    if succeeded {
+        _ = app
+            .proxy
+            .send_event(UiEvent::McpAuthProbeRequested { reply_to: None });
+    }
     finish_value(app, bridge_result, reply_to);
 }
 

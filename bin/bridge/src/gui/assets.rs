@@ -84,6 +84,10 @@ const JS_MODULES: &[(&str, &str)] = &[
         include_str!("../../web/js/components/sp-proxy-status.js"),
     ),
     (
+        "components/sp-mcp-auth-status",
+        include_str!("../../web/js/components/sp-mcp-auth-status.js"),
+    ),
+    (
         "components/sp-agent-presence",
         include_str!("../../web/js/components/sp-agent-presence.js"),
     ),

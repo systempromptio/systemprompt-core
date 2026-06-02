@@ -20,6 +20,7 @@ use crate::config::{self, paths};
 use crate::gui::hosts::state::HostsState;
 
 use crate::integration::{HostAppSnapshot, ProxyHealth};
+use crate::proxy::mcp_probe::McpServerAuth;
 use crate::validate::ValidationReport;
 
 use counters::{count_malformed_plugin_dirs, count_plugin_dirs};
@@ -92,6 +93,11 @@ pub struct AppStateSnapshot {
     pub enabled_hosts: Vec<String>,
 
     pub hosts: HostsState,
+
+    /// Per-server MCP authentication probe results (live round-trip through the
+    /// loopback proxy). Populated by the MCP-auth probe, not by `reload`.
+    pub mcp_auth: Vec<McpServerAuth>,
+    pub mcp_auth_probe_in_flight: bool,
 }
 
 impl AppStateSnapshot {
@@ -271,6 +277,23 @@ impl AppState {
         let mut guard = self.inner.write();
         guard.hosts.local_proxy = health;
         guard.hosts.proxy_probe_in_flight = false;
+    }
+
+
+    pub fn mark_mcp_auth_probing(&self) -> bool {
+        let mut guard = self.inner.write();
+        if guard.mcp_auth_probe_in_flight {
+            return false;
+        }
+        guard.mcp_auth_probe_in_flight = true;
+        true
+    }
+
+
+    pub fn apply_mcp_auth(&self, results: Vec<McpServerAuth>) {
+        let mut guard = self.inner.write();
+        guard.mcp_auth = results;
+        guard.mcp_auth_probe_in_flight = false;
     }
 
 

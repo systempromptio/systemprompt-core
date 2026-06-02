@@ -87,6 +87,17 @@
           <sp-proxy-status></sp-proxy-status>
         </section>
 
+        <section class="sp-status-group" data-group="mcp">
+          <header class="sp-status-group__header">
+            <div>
+              <h2 data-l10n-id="status-mcp-heading">MCP servers</h2>
+              <p class="sp-status-group__caption" data-l10n-id="status-mcp-caption">Whether managed MCP servers authenticate end-to-end through the proxy, and the tools they expose.</p>
+            </div>
+            <span class="sp-badge sp-badge--muted" data-section-badge>checking…</span>
+          </header>
+          <sp-mcp-auth-status></sp-mcp-auth-status>
+        </section>
+
         <section class="sp-status-group" data-group="agents-summary">
           <header class="sp-status-group__header">
             <div>

@@ -1,9 +1,10 @@
 use std::sync::atomic::Ordering;
 
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::gui::state::{AppStateSnapshot, CachedToken, GatewayStatus, VerifiedIdentity};
+use crate::proxy::mcp_probe::McpServerAuth;
 
 pub fn snapshot_value(snap: &AppStateSnapshot) -> Value {
     serde_json::to_value(StatePayload::from(snap)).unwrap_or(Value::Null)
@@ -23,6 +24,13 @@ pub fn single_host_value(snap: &AppStateSnapshot, host_id: &str) -> Value {
 
 pub fn local_proxy_value(snap: &AppStateSnapshot) -> Value {
     serde_json::to_value(&snap.hosts.local_proxy).unwrap_or(Value::Null)
+}
+
+pub fn mcp_auth_value(snap: &AppStateSnapshot) -> Value {
+    json!({
+        "servers": snap.mcp_auth,
+        "probing": snap.mcp_auth_probe_in_flight,
+    })
 }
 
 pub fn proxy_stats_value() -> Value {
@@ -48,6 +56,8 @@ struct StatePayload<'a> {
     signed_in: bool,
     last_probe_at_unix: Option<u64>,
     proxy_stats: ProxyStatsPayload,
+    mcp_auth: &'a [McpServerAuth],
+    mcp_auth_probe_in_flight: bool,
 
     #[serde(flatten)]
     hosts: crate::gui::hosts::serde::HostsPayload<'a>,
@@ -76,6 +86,8 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             signed_in: snap.signed_in(),
             last_probe_at_unix: snap.last_probe_at_unix,
             proxy_stats: ProxyStatsPayload::current(),
+            mcp_auth: &snap.mcp_auth,
+            mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
 
             hosts: crate::gui::hosts::serde::payload(snap),
         }

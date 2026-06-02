@@ -58,6 +58,12 @@ pub(crate) fn emit_proxy_changed(app: &GuiApp) {
     send_emit(app, "proxy.changed", &value);
 }
 
+pub(crate) fn emit_mcp_changed(app: &GuiApp) {
+    let snap = app.state.snapshot();
+    let value = crate::gui::server_json::mcp_auth_value(&snap);
+    send_emit(app, "mcp.changed", &value);
+}
+
 pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str>) {
     let value = json!({
         "phase": phase,
