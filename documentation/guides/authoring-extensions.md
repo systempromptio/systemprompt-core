@@ -13,7 +13,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.11", features = ["core"] }
+systemprompt = { version = "0.14", features = ["core"] }
 ```
 
 The trait, the macro, and the value types are re-exported through the facade prelude:
@@ -118,7 +118,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
 
    ```toml
    [build-dependencies]
-   systemprompt-extension = "0.11"
+   systemprompt-extension = "0.14"
    ```
 
 2. Add migration files. For example `schema/migrations/001_add_demo_items_label_index.sql`:

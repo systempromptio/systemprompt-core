@@ -8,14 +8,14 @@ The facade re-exports the workspace crates behind feature gates so a consumer de
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.11", features = ["api"] }
+systemprompt = { version = "0.14", features = ["api"] }
 ```
 
 The default feature set is `core`. To take only a non-default layer, disable defaults:
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.11", default-features = false, features = ["database"] }
+systemprompt = { version = "0.14", default-features = false, features = ["database"] }
 ```
 
 ## Flag matrix
