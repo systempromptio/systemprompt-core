@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::shared::{
-    DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, now_unix, redact_if_sensitive,
+    DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, redact_if_sensitive, unique_stem,
 };
 use crate::install::xml::escape;
 use crate::integration::host_app::GeneratedProfile;
@@ -71,7 +71,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let dir = std::env::temp_dir().join("systemprompt-bridge");
     std::fs::create_dir_all(&dir)?;
     let (payload_uuid, profile_uuid) = make_uuids();
-    let path = dir.join(format!("claude-bridge-{}.mobileconfig", now_unix()));
+    let path = dir.join(format!("claude-bridge-{}.mobileconfig", unique_stem()));
 
     let xml = render_profile(inputs, &payload_uuid, &profile_uuid);
     std::fs::File::create(&path)?.write_all(xml.as_bytes())?;

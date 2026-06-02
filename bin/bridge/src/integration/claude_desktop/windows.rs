@@ -3,8 +3,8 @@
 use std::io::Write;
 
 use super::shared::{
-    DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, now_unix,
-    redact_if_sensitive,
+    DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids,
+    redact_if_sensitive, unique_stem,
 };
 use crate::config::store::managed_policy_store;
 use crate::integration::host_app::GeneratedProfile;
@@ -55,7 +55,7 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let dir = std::env::temp_dir().join("systemprompt-bridge");
     std::fs::create_dir_all(&dir)?;
     let (payload_uuid, profile_uuid) = make_uuids();
-    let path = dir.join(format!("claude-bridge-{}.reg", now_unix()));
+    let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
 
     let body = render_reg(inputs);
     std::fs::File::create(&path)?.write_all(body.as_bytes())?;

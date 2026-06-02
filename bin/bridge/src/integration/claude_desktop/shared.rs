@@ -56,6 +56,22 @@ pub(super) fn now_unix() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
+// Why: staged profiles share one temp directory, so a second-granularity
+// timestamp alone lets two concurrent writers resolve the same path and race on
+// `File::create`, leaving a reader with a truncated or empty file. The pid and
+// a monotonic counter make every staged filename distinct.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(super) fn unique_stem() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    format!(
+        "{}-{}-{}",
+        now_unix(),
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    )
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
     if key == "inferenceGatewayApiKey" {
