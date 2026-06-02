@@ -5,8 +5,8 @@
 
 use serde_json::{Value, json};
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
-    ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalRequest, CanonicalTool,
+    ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 use systemprompt_models::wire::{anthropic, gemini, openai_chat};
 
@@ -258,4 +258,20 @@ fn gemini_parse_surfaces_code_execution_output() {
     assert_eq!(exec.code, "print(1)");
     assert_eq!(exec.result.as_deref(), Some("1"));
     assert_eq!(exec.outcome.as_deref(), Some("OUTCOME_OK"));
+}
+
+#[test]
+fn anthropic_sse_parses_thinking_signature_delta() {
+    let frame = json!({
+        "type": "content_block_delta",
+        "index": 1,
+        "delta": { "type": "signature_delta", "signature": "abc123==" },
+    });
+    match anthropic::event_from_sse(&frame, "msg_1") {
+        Some(CanonicalEvent::SignatureDelta { index, signature }) => {
+            assert_eq!(index, 1);
+            assert_eq!(signature, "abc123==");
+        },
+        other => panic!("expected SignatureDelta, got {other:?}"),
+    }
 }

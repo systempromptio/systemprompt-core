@@ -151,7 +151,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
                 "output_index": index,
             }),
         ),
-        CanonicalEvent::UsageDelta(_) => return None,
+        CanonicalEvent::UsageDelta(_) | CanonicalEvent::SignatureDelta { .. } => return None,
         CanonicalEvent::MessageStop { id, stop_reason } => (
             "response.completed",
             json!({

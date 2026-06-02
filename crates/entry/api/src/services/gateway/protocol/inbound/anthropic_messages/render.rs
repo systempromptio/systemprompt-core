@@ -67,6 +67,11 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
             "index": index,
             "delta": { "type": "thinking_delta", "thinking": text },
         }),
+        CanonicalEvent::SignatureDelta { index, signature } => json!({
+            "type": "content_block_delta",
+            "index": index,
+            "delta": { "type": "signature_delta", "signature": signature },
+        }),
         CanonicalEvent::ToolUseDelta {
             index,
             partial_json,

@@ -121,6 +121,10 @@ pub enum CanonicalEvent {
         index: u32,
         text: String,
     },
+    SignatureDelta {
+        index: u32,
+        signature: String,
+    },
     ToolUseDelta {
         index: u32,
         partial_json: String,

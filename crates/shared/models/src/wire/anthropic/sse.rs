@@ -83,6 +83,10 @@ fn convert_content_block_delta(value: &Value) -> Option<CanonicalEvent> {
             index,
             text: text_field("thinking"),
         }),
+        "signature_delta" => Some(CanonicalEvent::SignatureDelta {
+            index,
+            signature: text_field("signature"),
+        }),
         "input_json_delta" => Some(CanonicalEvent::ToolUseDelta {
             index,
             partial_json: text_field("partial_json"),

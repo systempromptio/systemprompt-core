@@ -151,6 +151,10 @@ fn render_event_covers_all_variants() {
             index: 0,
             text: "...".into(),
         },
+        CanonicalEvent::SignatureDelta {
+            index: 1,
+            signature: "sig==".into(),
+        },
         CanonicalEvent::ToolUseDelta {
             index: 2,
             partial_json: "{\"x\":1}".into(),
@@ -175,6 +179,26 @@ fn render_event_covers_all_variants() {
         let frame = inbound.render_event(&ev, "m").expect("frame");
         assert!(!frame.is_empty());
     }
+}
+
+#[test]
+fn render_event_emits_signature_delta_frame() {
+    let inbound = AnthropicMessagesInbound;
+    let ev = CanonicalEvent::SignatureDelta {
+        index: 1,
+        signature: "sig==".into(),
+    };
+    let frame = inbound.render_event(&ev, "m").expect("frame");
+    let text = String::from_utf8_lossy(&frame);
+    let data = text
+        .lines()
+        .find_map(|l| l.strip_prefix("data: "))
+        .expect("data line");
+    let v: Value = serde_json::from_str(data).expect("json");
+    assert_eq!(v["type"], "content_block_delta");
+    assert_eq!(v["index"], 1);
+    assert_eq!(v["delta"]["type"], "signature_delta");
+    assert_eq!(v["delta"]["signature"], "sig==");
 }
 
 #[test]

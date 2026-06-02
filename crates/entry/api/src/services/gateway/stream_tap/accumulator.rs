@@ -157,6 +157,13 @@ pub(super) fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
                 buf.push_str(text);
             }
         },
+        CanonicalEvent::SignatureDelta { index, signature } => {
+            if let Some(BlockAccumulator::Thinking { signature: sig, .. }) =
+                state.blocks.get_mut(*index as usize)
+            {
+                *sig = Some(signature.clone());
+            }
+        },
         CanonicalEvent::ToolUseDelta {
             index,
             partial_json,
