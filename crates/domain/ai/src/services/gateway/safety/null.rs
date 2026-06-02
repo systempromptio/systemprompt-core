@@ -1,7 +1,6 @@
 use async_trait::async_trait;
+use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
 
-use super::super::protocol::canonical::CanonicalRequest;
-use super::super::protocol::canonical_response::CanonicalResponse;
 use super::{Finding, SafetyScanner};
 
 #[derive(Debug, Clone, Copy, Default)]

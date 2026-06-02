@@ -10,9 +10,13 @@
 mod config;
 mod ingestion;
 mod loader;
+pub mod safety;
 mod spec;
 
 pub use config::{GatewayPolicyConfig, GatewayPolicyEntry};
 pub use ingestion::{GatewayPolicyIngestionService, IngestOptions, IngestReport};
 pub use loader::{GATEWAY_POLICIES_FILE, load_from_yaml};
+pub use safety::{
+    Finding, HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration, Severity,
+};
 pub use spec::{GatewayPolicySpec, QuotaWindow, SafetyConfig};

@@ -1,16 +1,21 @@
 //! Unit tests for the gateway safety scanners — `NullScanner` (no findings),
 //! `HeuristicScanner` (jailbreak phrases, email/PII detection, credit-card
-//! Luhn), and the `Severity::as_str` mapping.
+//! Luhn), the `Severity::as_str` mapping, and the `SafetyScannerRegistry`
+//! resolution that backs the policy-driven extension point.
 
+use std::sync::Arc;
+
+use systemprompt_ai::{
+    Finding, HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration, Severity,
+    register_safety_scanner,
+};
 use systemprompt_api::services::gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_api::services::gateway::protocol::canonical_response::{
     CanonicalResponse, CanonicalUsage,
 };
-use systemprompt_api::services::gateway::safety::{
-    HeuristicScanner, NullScanner, SafetyScanner, Severity,
-};
+use systemprompt_api::services::gateway::registry::SafetyScannerRegistry;
 
 fn req_with(text: &str) -> CanonicalRequest {
     CanonicalRequest {
@@ -52,11 +57,67 @@ fn resp_with(text: &str) -> CanonicalResponse {
     }
 }
 
+#[derive(Default)]
+struct StubSecretsScanner;
+
+#[async_trait::async_trait]
+impl SafetyScanner for StubSecretsScanner {
+    fn name(&self) -> &'static str {
+        "stub_secrets"
+    }
+    async fn scan_request(&self, _req: &CanonicalRequest) -> Vec<Finding> {
+        vec![Finding {
+            phase: "request",
+            severity: Severity::High,
+            category: "secret".to_owned(),
+            excerpt: None,
+            scanner: "stub_secrets",
+        }]
+    }
+    async fn scan_response_final(&self, _response: &CanonicalResponse) -> Vec<Finding> {
+        Vec::new()
+    }
+}
+
+register_safety_scanner!(StubSecretsScanner::default, name = "stub_secrets");
+
 #[test]
 fn severity_as_str() {
     assert_eq!(Severity::Low.as_str(), "low");
     assert_eq!(Severity::Medium.as_str(), "medium");
     assert_eq!(Severity::High.as_str(), "high");
+}
+
+#[test]
+fn registry_resolves_builtin_heuristic() {
+    let registry = SafetyScannerRegistry::global();
+    let scanner = registry.get("heuristic").expect("heuristic is built in");
+    assert_eq!(scanner.name(), "heuristic");
+}
+
+#[test]
+fn registry_returns_none_for_unknown_scanner() {
+    assert!(SafetyScannerRegistry::global().get("does_not_exist").is_none());
+}
+
+#[tokio::test]
+async fn registry_resolves_registered_extension_scanner() {
+    let registry = SafetyScannerRegistry::global();
+    let scanner = registry
+        .get("stub_secrets")
+        .expect("extension scanner is collected via inventory");
+    let findings = scanner.scan_request(&req_with("anything")).await;
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].category, "secret");
+}
+
+#[test]
+fn registration_factory_builds_scanner() {
+    let reg = SafetyScannerRegistration {
+        name: "stub_secrets",
+        factory: || Arc::new(StubSecretsScanner) as Arc<dyn SafetyScanner>,
+    };
+    assert_eq!((reg.factory)().name(), "stub_secrets");
 }
 
 #[tokio::test]

@@ -84,12 +84,6 @@ fn merge(rows: Vec<systemprompt_ai::GatewayPolicyRow>) -> GatewayPolicySpec {
             tracing::warn!(policy_id = %row.id, name = %row.name, "policy spec JSON malformed — skipped");
             continue;
         };
-        if spec.max_input_tokens_per_call.is_some() {
-            merged.max_input_tokens_per_call = spec.max_input_tokens_per_call;
-        }
-        if spec.max_tool_depth.is_some() {
-            merged.max_tool_depth = spec.max_tool_depth;
-        }
         if !spec.quota_windows.is_empty() {
             merged.quota_windows = spec.quota_windows;
         }

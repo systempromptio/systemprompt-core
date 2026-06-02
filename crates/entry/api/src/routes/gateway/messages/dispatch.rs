@@ -73,6 +73,9 @@ fn map_dispatch_error(e: &anyhow::Error) -> Result<Response<Body>, (StatusCode, 
     if let Some(denied) = e.downcast_ref::<crate::services::gateway::service::PolicyDenied>() {
         return Err((StatusCode::FORBIDDEN, denied.to_string()));
     }
+    if let Some(blocked) = e.downcast_ref::<crate::services::gateway::service::SafetyBlocked>() {
+        return Err((StatusCode::FORBIDDEN, blocked.to_string()));
+    }
     if let Some(quota) = e.downcast_ref::<crate::services::gateway::service::QuotaExceeded>() {
         let mut resp = build_error_response(StatusCode::TOO_MANY_REQUESTS, &quota.message);
         if let Ok(v) = HeaderValue::from_str(&quota.retry_after_seconds.to_string()) {

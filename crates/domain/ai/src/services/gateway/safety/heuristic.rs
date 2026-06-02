@@ -1,7 +1,6 @@
 use async_trait::async_trait;
+use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
-use super::super::protocol::canonical::{CanonicalContent, CanonicalRequest};
-use super::super::protocol::canonical_response::CanonicalResponse;
 use super::{Finding, SafetyScanner, Severity};
 
 const JAILBREAK_PHRASES: &[&str] = &[

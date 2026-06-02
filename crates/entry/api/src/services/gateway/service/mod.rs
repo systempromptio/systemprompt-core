@@ -49,6 +49,13 @@ pub struct QuotaExceeded {
     pub retry_after_seconds: i32,
 }
 
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct SafetyBlocked {
+    pub category: String,
+    pub message: String,
+}
+
 impl GatewayService {
     pub async fn dispatch(
         config: &GatewayConfig,
@@ -159,7 +166,30 @@ impl GatewayService {
             }
         }
 
-        run_request_safety_scan(db, &ai_request_id, &request).await;
+        let findings = run_request_safety_scan(db, &ai_request_id, &request, &policy.safety).await;
+        if let Some(finding) = findings
+            .iter()
+            .find(|f| policy.safety.block_categories.contains(&f.category))
+        {
+            let msg = format!(
+                "request blocked by safety policy: category '{}'",
+                finding.category
+            );
+            tracing::warn!(
+                ai_request_id = %ai_request_id,
+                category = %finding.category,
+                scanner = %finding.scanner,
+                "Gateway blocked request by safety policy"
+            );
+            if let Err(e) = audit.fail(&msg).await {
+                tracing::warn!(error = %e, "safety-block audit fail failed");
+            }
+            return Err(SafetyBlocked {
+                category: finding.category.clone(),
+                message: msg,
+            }
+            .into());
+        }
 
         let upstream_model = route.effective_upstream_model(&request.model).to_owned();
         let outbound_ctx = OutboundCtx {

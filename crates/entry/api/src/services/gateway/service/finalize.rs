@@ -7,8 +7,8 @@ use std::sync::Arc;
 use axum::body::Body;
 use axum::response::Response;
 use http::HeaderValue;
-use systemprompt_ai::InsertSafetyFinding;
 use systemprompt_ai::repository::AiSafetyFindingRepository;
+use systemprompt_ai::{Finding, InsertSafetyFinding, SafetyConfig};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 
@@ -18,7 +18,7 @@ use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::canonical_response::CanonicalResponse;
 use super::super::protocol::inbound::InboundAdapter;
 use super::super::protocol::outbound::OutboundOutcome;
-use super::super::safety::{Finding, HeuristicScanner, SafetyScanner};
+use super::super::registry::SafetyScannerRegistry;
 use super::super::{parse, quota, stream_tap};
 use super::REQUEST_ID_HEADER;
 
@@ -69,7 +69,8 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
                     },
                 )
                 .await;
-                run_response_safety_scan(&db, &ai_request_id, &canonical_for_task).await;
+                run_response_safety_scan(&db, &ai_request_id, &canonical_for_task, &policy.safety)
+                    .await;
             });
             Response::builder()
                 .status(http::StatusCode::OK)
@@ -90,33 +91,55 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     }
 }
 
+/// Run the policy-selected request scanners, persist any findings, and return
+/// them so the dispatch path can enforce `block_categories`.
+///
+/// Scanner names absent from the registry are warned and skipped; an empty
+/// `scanners` list runs nothing.
 pub(super) async fn run_request_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,
     request: &CanonicalRequest,
-) {
-    let scanner = HeuristicScanner;
-    let findings = scanner.scan_request(request).await;
-    if findings.is_empty() {
-        return;
+    safety: &SafetyConfig,
+) -> Vec<Finding> {
+    let registry = SafetyScannerRegistry::global();
+    let mut findings = Vec::new();
+    for name in &safety.scanners {
+        if let Some(scanner) = registry.get(name) {
+            findings.extend(scanner.scan_request(request).await);
+        } else {
+            tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
+        }
     }
-    persist_findings(db, ai_request_id, findings).await;
+    if !findings.is_empty() {
+        persist_findings(db, ai_request_id, &findings).await;
+    }
+    findings
 }
 
+// Response-phase scanning is audit-only: the response is already streaming to
+// the caller by the time it runs, so findings are recorded but never block.
 async fn run_response_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,
     response: &CanonicalResponse,
+    safety: &SafetyConfig,
 ) {
-    let scanner = HeuristicScanner;
-    let findings = scanner.scan_response_final(response).await;
-    if findings.is_empty() {
-        return;
+    let registry = SafetyScannerRegistry::global();
+    let mut findings = Vec::new();
+    for name in &safety.scanners {
+        if let Some(scanner) = registry.get(name) {
+            findings.extend(scanner.scan_response_final(response).await);
+        } else {
+            tracing::warn!(scanner = %name, "Unknown safety scanner in policy — skipped");
+        }
     }
-    persist_findings(db, ai_request_id, findings).await;
+    if !findings.is_empty() {
+        persist_findings(db, ai_request_id, &findings).await;
+    }
 }
 
-async fn persist_findings(db: &DbPool, ai_request_id: &AiRequestId, findings: Vec<Finding>) {
+async fn persist_findings(db: &DbPool, ai_request_id: &AiRequestId, findings: &[Finding]) {
     let repo = match AiSafetyFindingRepository::new(db) {
         Ok(r) => r,
         Err(e) => {

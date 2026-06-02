@@ -1,8 +1,8 @@
 //! Declarative gateway-policy specification.
 //!
 //! Spec payload of `ai_gateway_policies` rows, shared with the YAML schema in
-//! `services/gateway/policies.yaml`. Carries per-call ceilings, quota windows,
-//! and safety configuration.
+//! `services/gateway/policies.yaml`. Carries quota windows and safety
+//! configuration.
 //!
 //! Model exposure lives on the profile's gateway catalog, not here — see
 //! `GatewayConfig::is_model_exposed`.
@@ -30,10 +30,6 @@ pub struct SafetyConfig {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicySpec {
-    #[serde(default)]
-    pub max_input_tokens_per_call: Option<u32>,
-    #[serde(default)]
-    pub max_tool_depth: Option<u32>,
     #[serde(default)]
     pub quota_windows: Vec<QuotaWindow>,
     #[serde(default)]

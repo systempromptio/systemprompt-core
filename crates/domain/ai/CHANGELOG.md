@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.14.1] - 2026-06-02
+
+### Added
+
+- The gateway **safety-scanner extension point**. The `SafetyScanner` trait (with `Finding` / `Severity`), the built-in `HeuristicScanner` and `NullScanner`, the `SafetyScannerRegistration` inventory type, and the `register_safety_scanner!` macro now live in this crate's `services::gateway::safety` module and are re-exported at the crate root. Extensions register a scanner the same way they register gateway upstreams or marketplace filters; the consuming gateway resolves the scanner names a policy selects against the built-ins plus every registration. Scanners operate on the `systemprompt-models` canonical request/response types.
+
+### Removed
+
+- The unenforced `max_input_tokens_per_call` and `max_tool_depth` fields are dropped from `GatewayPolicySpec`. They were never applied; `quota_windows` and `safety` are unchanged.
+
 ## [0.14.0] - 2026-06-01
 
 ### Breaking

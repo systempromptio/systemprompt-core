@@ -57,9 +57,10 @@ pub use extension::AiExtension;
 pub use services::core::{AiService, ImageService};
 
 pub use services::gateway::{
-    GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyIngestionService,
-    GatewayPolicySpec, IngestOptions as GatewayPolicyIngestOptions,
-    IngestReport as GatewayPolicyIngestReport, QuotaWindow, SafetyConfig,
+    Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry,
+    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicScanner,
+    IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
+    NullScanner, QuotaWindow, SafetyConfig, SafetyScanner, SafetyScannerRegistration, Severity,
     load_from_yaml as load_gateway_policies_from_yaml,
 };
 pub use services::storage::{ImageStorage, StorageConfig};

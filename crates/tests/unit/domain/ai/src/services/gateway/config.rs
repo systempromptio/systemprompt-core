@@ -60,12 +60,15 @@ policies:
   - name: default
     enabled: true
     spec:
-      max_input_tokens_per_call: 1000
+      safety:
+        scanners: [heuristic]
+        block_categories: [secret]
 "#;
     let cfg: GatewayPolicyConfig = serde_yaml::from_str(yaml).expect("yaml parses");
     assert_eq!(cfg.policies.len(), 1);
     assert_eq!(cfg.policies[0].name, "default");
-    assert_eq!(cfg.policies[0].spec.max_input_tokens_per_call, Some(1000));
+    assert_eq!(cfg.policies[0].spec.safety.scanners, vec!["heuristic"]);
+    assert_eq!(cfg.policies[0].spec.safety.block_categories, vec!["secret"]);
 }
 
 #[test]
