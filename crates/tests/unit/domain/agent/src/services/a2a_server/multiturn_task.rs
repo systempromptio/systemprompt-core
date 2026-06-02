@@ -40,6 +40,124 @@ fn success_result(text: &str) -> CallToolResult {
     r
 }
 
+// A result whose structured_content is a valid A2A tool-response envelope, so
+// build_artifacts produces an actual artifact (is_error = Some(false)).
+fn artifact_result(artifact_id: &str, exec_id: &str) -> CallToolResult {
+    let mut r = CallToolResult::success(vec![Content::text("tool output".to_string())]);
+    r.structured_content = Some(serde_json::json!({
+        "artifact_id": artifact_id,
+        "mcp_execution_id": exec_id,
+        "artifact": {"x-artifact-type": "text", "value": "v"},
+        "_metadata": {}
+    }));
+    r
+}
+
+fn error_artifact_result(artifact_id: &str, exec_id: &str) -> CallToolResult {
+    let mut r = CallToolResult::error(vec![Content::text("tool failed".to_string())]);
+    r.structured_content = Some(serde_json::json!({
+        "artifact_id": artifact_id,
+        "mcp_execution_id": exec_id,
+        "artifact": {"x-artifact-type": "text", "value": "v"},
+        "_metadata": {}
+    }));
+    r
+}
+
+#[test]
+fn build_multiturn_produces_artifact_for_valid_envelope() {
+    let ctx = ContextId::generate();
+    let tid = TaskId::generate();
+    let task = build_multiturn_task(BuildMultiturnTaskParams {
+        context_id: ctx.clone(),
+        task_id: tid.clone(),
+        user_message: user_message(&ctx, &tid, "do"),
+        tool_calls: vec![call("alpha")],
+        tool_results: vec![artifact_result("art-mt-1", "exec-mt-1")],
+        final_response: "done".to_string(),
+        total_iterations: 1,
+    });
+    let artifacts = task.artifacts.expect("artifacts present");
+    assert_eq!(artifacts.len(), 1);
+    assert_eq!(artifacts[0].id.as_str(), "art-mt-1");
+    assert_eq!(artifacts[0].metadata.artifact_type, "tool_execution");
+    assert_eq!(artifacts[0].metadata.tool_name.as_deref(), Some("alpha"));
+    assert_eq!(artifacts[0].title.as_deref(), Some("tool_execution_1"));
+    // The data part records call_id, tool_name, output, status=success.
+    match &artifacts[0].parts[0] {
+        Part::Data(d) => {
+            assert_eq!(d.data.get("status"), Some(&serde_json::json!("success")));
+            assert_eq!(d.data.get("tool_name"), Some(&serde_json::json!("alpha")));
+        },
+        other => panic!("expected data part, got {other:?}"),
+    }
+}
+
+#[test]
+fn build_multiturn_marks_error_status_for_error_result() {
+    let ctx = ContextId::generate();
+    let tid = TaskId::generate();
+    let task = build_multiturn_task(BuildMultiturnTaskParams {
+        context_id: ctx.clone(),
+        task_id: tid.clone(),
+        user_message: user_message(&ctx, &tid, "do"),
+        tool_calls: vec![call("beta")],
+        tool_results: vec![error_artifact_result("art-mt-2", "exec-mt-2")],
+        final_response: "done".to_string(),
+        total_iterations: 1,
+    });
+    let artifacts = task.artifacts.expect("artifacts present");
+    assert_eq!(artifacts.len(), 1);
+    match &artifacts[0].parts[0] {
+        Part::Data(d) => {
+            assert_eq!(d.data.get("status"), Some(&serde_json::json!("error")));
+        },
+        other => panic!("expected data part, got {other:?}"),
+    }
+}
+
+#[test]
+fn build_multiturn_skips_artifact_for_invalid_envelope() {
+    let ctx = ContextId::generate();
+    let tid = TaskId::generate();
+    // structured_content present (is_error Some) but NOT a valid envelope, so
+    // parse_tool_response fails and the artifact is skipped.
+    let mut bad = CallToolResult::success(vec![Content::text("x".to_string())]);
+    bad.structured_content = Some(serde_json::json!({"not": "an envelope"}));
+    let task = build_multiturn_task(BuildMultiturnTaskParams {
+        context_id: ctx.clone(),
+        task_id: tid.clone(),
+        user_message: user_message(&ctx, &tid, "do"),
+        tool_calls: vec![call("gamma")],
+        tool_results: vec![bad],
+        final_response: "done".to_string(),
+        total_iterations: 1,
+    });
+    assert!(task.artifacts.is_none());
+}
+
+#[test]
+fn build_multiturn_two_artifacts_get_distinct_indices() {
+    let ctx = ContextId::generate();
+    let tid = TaskId::generate();
+    let task = build_multiturn_task(BuildMultiturnTaskParams {
+        context_id: ctx.clone(),
+        task_id: tid.clone(),
+        user_message: user_message(&ctx, &tid, "do"),
+        tool_calls: vec![call("a"), call("b")],
+        tool_results: vec![
+            artifact_result("art-x", "exec-x"),
+            artifact_result("art-y", "exec-y"),
+        ],
+        final_response: "done".to_string(),
+        total_iterations: 1,
+    });
+    let artifacts = task.artifacts.expect("artifacts");
+    assert_eq!(artifacts.len(), 2);
+    assert_eq!(artifacts[0].title.as_deref(), Some("tool_execution_1"));
+    assert_eq!(artifacts[1].title.as_deref(), Some("tool_execution_2"));
+}
+
 #[test]
 fn build_multiturn_no_tools_produces_user_and_final_history() {
     let ctx = ContextId::generate();

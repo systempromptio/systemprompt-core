@@ -23,6 +23,9 @@ pub(crate) static SKILLS_FIXTURE_LOCK: tokio::sync::RwLock<()> = tokio::sync::Rw
 mod error;
 
 #[cfg(test)]
+mod error_extended;
+
+#[cfg(test)]
 mod extension;
 
 #[cfg(test)]

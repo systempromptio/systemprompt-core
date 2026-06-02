@@ -6,8 +6,11 @@
 
 mod a2a_server;
 mod agent_orchestration;
+mod agent_token_validation;
+mod artifact_publishing;
 mod auth_validation;
 mod mcp;
+mod message_service;
 mod monitor;
 mod oauth_validation;
 mod plan_executor;
