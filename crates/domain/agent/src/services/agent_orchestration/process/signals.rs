@@ -8,7 +8,10 @@ use std::process::Command;
 pub fn process_exists(pid: u32) -> bool {
     use nix::sys::signal;
     use nix::unistd::Pid;
-    signal::kill(Pid::from_raw(pid as i32), None).is_ok()
+    let Some(pid) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return false;
+    };
+    signal::kill(Pid::from_raw(pid), None).is_ok()
 }
 
 #[cfg(windows)]
@@ -37,7 +40,13 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM).map_err(|e| {
+    let Some(raw) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return Err(AgentServiceError::Internal(format!(
+            "Refusing to signal non-signalable PID {pid}"
+        )));
+    };
+
+    signal::kill(Pid::from_raw(raw), Signal::SIGTERM).map_err(|e| {
         AgentServiceError::Internal(format!("Failed to send SIGTERM to PID {pid}: {e}"))
     })?;
 
@@ -69,7 +78,13 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL).map_err(|e| {
+    let Some(raw) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return Err(AgentServiceError::Internal(format!(
+            "Refusing to signal non-signalable PID {pid}"
+        )));
+    };
+
+    signal::kill(Pid::from_raw(raw), Signal::SIGKILL).map_err(|e| {
         AgentServiceError::Internal(format!("Failed to send SIGKILL to PID {pid}: {e}"))
     })?;
 
@@ -101,7 +116,11 @@ pub(super) fn verify_process_started(pid: u32) -> bool {
     use nix::sys::wait::{WaitPidFlag, WaitStatus, waitpid};
     use nix::unistd::Pid;
 
-    match waitpid(Pid::from_raw(pid as i32), Some(WaitPidFlag::WNOHANG)) {
+    let Some(raw) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return false;
+    };
+
+    match waitpid(Pid::from_raw(raw), Some(WaitPidFlag::WNOHANG)) {
         Ok(WaitStatus::StillAlive) => true,
         Ok(_) => false,
         Err(_) => process_exists(pid),

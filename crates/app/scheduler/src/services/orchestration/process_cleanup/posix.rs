@@ -40,12 +40,16 @@ pub(super) fn check_port(port: u16) -> Option<u32> {
 pub(super) fn kill_process(pid: u32) -> bool {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
-    signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL).is_ok()
+    let Some(pid) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return false;
+    };
+    signal::kill(Pid::from_raw(pid), Signal::SIGKILL).is_ok()
 }
 
 pub(super) fn process_group(pid: u32) -> Option<u32> {
     use nix::unistd::{Pid, getpgid};
-    getpgid(Some(Pid::from_raw(pid as i32)))
+    let pid = systemprompt_models::subprocess::signalable_pid(pid)?;
+    getpgid(Some(Pid::from_raw(pid)))
         .ok()
         .map(|pgid| pgid.as_raw() as u32)
 }
@@ -54,7 +58,11 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
 
-    if signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM).is_err() {
+    let Some(raw) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return false;
+    };
+
+    if signal::kill(Pid::from_raw(raw), Signal::SIGTERM).is_err() {
         return false;
     }
 
@@ -67,24 +75,26 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
     }
 }
 
+/// Signal a whole process group, escalating SIGTERM to SIGKILL after a grace
+/// period, but only when `pgid` still leads its own group — our children are
+/// placed in a fresh group (`process_group(0)`, pgid == pid), so a mismatch
+/// means the id is recycled and `kill(-pid)` would reach an unrelated session.
+/// In that case, and for any non-signalable id, it falls back to single-PID
+/// termination rather than broadcasting.
 pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) -> bool {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::{Pid, getpgid};
 
-    let leader = Pid::from_raw(pgid as i32);
+    let Some(raw) = systemprompt_models::subprocess::signalable_pid(pgid) else {
+        return false;
+    };
+    let leader = Pid::from_raw(raw);
 
-    // Only broadcast to a group whose leader is this exact PID. Our children
-    // are placed in a fresh group via `process_group(0)` (pgid == pid), so a
-    // mismatch means the PID is not one of ours — likely a recycled PID — and
-    // `kill(-pid)` would reach an unrelated group. Fall back to a single-PID
-    // signal in that case.
     if getpgid(Some(leader)) != Ok(leader) {
         return terminate_gracefully(pgid, grace_period_ms).await;
     }
 
-    // A negative target signals the whole process group, reaching any children
-    // the leader spawned (e.g. an agent's own a2a server).
-    let group = Pid::from_raw(-(pgid as i32));
+    let group = Pid::from_raw(-raw);
 
     if signal::kill(group, Signal::SIGTERM).is_err() {
         return terminate_gracefully(pgid, grace_period_ms).await;
@@ -102,7 +112,10 @@ pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) 
 pub(super) fn process_exists(pid: u32) -> bool {
     use nix::sys::signal;
     use nix::unistd::Pid;
-    signal::kill(Pid::from_raw(pid as i32), None).is_ok()
+    let Some(pid) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return false;
+    };
+    signal::kill(Pid::from_raw(pid), None).is_ok()
 }
 
 pub(super) fn kill_by_pattern(pattern: &str) -> usize {

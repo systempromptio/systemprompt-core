@@ -5,7 +5,10 @@ use std::process::Command;
 pub fn process_exists(pid: u32) -> bool {
     use nix::sys::signal;
     use nix::unistd::Pid;
-    signal::kill(Pid::from_raw(pid as i32), None).is_ok()
+    let Some(pid) = systemprompt_models::subprocess::signalable_pid(pid) else {
+        return false;
+    };
+    signal::kill(Pid::from_raw(pid), None).is_ok()
 }
 
 #[cfg(windows)]

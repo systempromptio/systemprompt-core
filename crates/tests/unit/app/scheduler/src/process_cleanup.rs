@@ -7,7 +7,7 @@
 use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::ProcessCleanupProvider;
 
-const NONEXISTENT_PID: u32 = 0xFFFF_FFFF;
+const NONEXISTENT_PID: u32 = i32::MAX as u32;
 const POSTGRES_PORT: u16 = 5432;
 const PGBOUNCER_PORT: u16 = 6432;
 const UNLIKELY_PORT: u16 = 1;
