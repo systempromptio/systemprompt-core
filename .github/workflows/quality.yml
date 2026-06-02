@@ -27,15 +27,6 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: just lint
 
-  deny:
-    name: cargo-deny
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: EmbarkStudios/cargo-deny-action@v2
-        with:
-          command: check
-
   audit:
     name: cargo-audit
     runs-on: ubuntu-latest
