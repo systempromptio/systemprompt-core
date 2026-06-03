@@ -9,13 +9,12 @@
 //! registry at use time.
 
 use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProviderId, RouteId};
 
 use super::super::providers::{ProviderEntry, ProviderRegistry};
+use crate::gateway_hash::fnv1a_segments;
 use crate::services::ai::ModelPricing;
 
 fn default_route_id() -> RouteId {
@@ -57,9 +56,6 @@ impl GatewayRoute {
     }
 }
 
-/// Slugify a model pattern for use in a stable route id: `*` becomes `star`,
-/// non-alphanumeric runs collapse to a single `-`, leading/trailing `-` are
-/// trimmed, and an empty result becomes `route`.
 #[must_use]
 pub fn slugify_pattern(pattern: &str) -> String {
     let mut out = String::with_capacity(pattern.len());
@@ -90,16 +86,22 @@ pub fn slugify_pattern(pattern: &str) -> String {
     out
 }
 
-// Format: <slug>-<6 hex chars> where the hex digest is the first 6 chars of
-// DefaultHasher over (model_pattern, provider). The collision check in
-// GatewayConfig::validate() guards against the vanishingly unlikely case of
-// two operator-authored patterns colliding on the 6-hex tail.
+// Format: <slug>-<6 hex chars> where the hex digest is the first 6 chars of an
+// FNV-1a 64 hash over the labelled (model_pattern, provider) segments. FNV-1a
+// is used deliberately over `std::hash::DefaultHasher`: the route id is
+// persisted in `access_control_entities`/`_rules` and the resolver is
+// fail-closed, so the id must be stable *by contract*. DefaultHasher's
+// algorithm is explicitly allowed to change between Rust releases; a toolchain
+// bump would silently re-key every route and resurrect `unknown to access
+// control` denials. FNV-1a never moves. The collision check in
+// GatewayConfig::validate() guards against the vanishingly unlikely case of two
+// operator-authored patterns colliding on the 6-hex tail.
 #[must_use]
 pub fn synthesize_route_id(model_pattern: &str, provider: &str) -> RouteId {
-    let mut hasher = DefaultHasher::new();
-    model_pattern.hash(&mut hasher);
-    provider.hash(&mut hasher);
-    let h = hasher.finish();
+    let h = fnv1a_segments(&[
+        ("model_pattern", model_pattern.as_bytes()),
+        ("provider", provider.as_bytes()),
+    ]);
     let hash6: String = format!("{h:016x}").chars().take(6).collect();
     RouteId::new(format!("{}-{}", slugify_pattern(model_pattern), hash6))
 }

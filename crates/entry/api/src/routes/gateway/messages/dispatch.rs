@@ -39,6 +39,7 @@ pub(super) async fn dispatch_to_provider(
         gateway_conversation_id: Some(gateway_conversation_id),
         trace_id: Some(principal.trace_id().clone()),
         provider,
+        requested_model: Some(gateway_request.model.clone()),
         model: upstream_model,
         max_tokens: Some(max_tokens),
         is_streaming,

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
-    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
+    ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
     ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol, default_resource_audiences,
     slugify_pattern, synthesize_route_id,
 };
@@ -81,6 +81,32 @@ fn synthesize_route_id_is_stable_and_input_dependent() {
     assert_ne!(a, d, "model_pattern change must produce a different id");
 }
 
+/// Golden digests pin the route-id hash to FNV-1a 64 by *contract*. Route ids
+/// are persisted in `access_control_entities` and the resolver is fail-closed,
+/// so the algorithm must never drift (a `std::hash::DefaultHasher` may change
+/// between Rust releases). If any of these change, a hash-algorithm change has
+/// silently re-keyed every gateway route; fix the regression, do not update the
+/// expected values.
+#[test]
+fn synthesize_route_id_matches_golden_fnv1a_digests() {
+    let cases = [
+        ("*", "minimax", "star-2a5453"),
+        ("*", "gemini", "star-aac356"),
+        ("claude-*", "anthropic", "claude-star-4203d1"),
+        ("claude-*", "openai", "claude-star-4f8d12"),
+        ("gpt-*", "anthropic", "gpt-star-f15ce8"),
+        ("claude-opus-4-8", "gemini", "claude-opus-4-8-46a2bc"),
+    ];
+    for (pattern, provider, expected) in cases {
+        assert_eq!(
+            synthesize_route_id(pattern, provider).as_str(),
+            expected,
+            "FNV-1a route id drifted for ({pattern}, {provider}): a hash-algorithm \
+             change has re-keyed gateway routes; fix the regression, do not rebaseline"
+        );
+    }
+}
+
 #[test]
 fn ensure_id_backfills_empty_id() {
     let mut r = route("claude-*");
@@ -98,7 +124,8 @@ fn registry_with_endpoint(endpoint: &str) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("test"),
-            protocol: WireProtocol::Anthropic,
+            wire: WireProtocol::Anthropic,
+            surface: ApiSurface::Anthropic,
             endpoint: endpoint.to_owned(),
             api_key_secret: SecretName::new("test"),
             extra_headers: HashMap::new(),
@@ -196,7 +223,8 @@ fn validate_rejects_duplicate_route_id() {
 fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new(name),
-        protocol: WireProtocol::Anthropic,
+        wire: WireProtocol::Anthropic,
+        surface: ApiSurface::Anthropic,
         endpoint: endpoint.to_owned(),
         api_key_secret: SecretName::new(name),
         extra_headers: HashMap::new(),
@@ -296,15 +324,41 @@ fn resolve_route_is_none_without_default_or_match() {
 }
 
 #[test]
-fn is_model_exposed_widens_with_default_provider() {
+fn is_model_exposed_is_closed_by_default_even_with_default_provider() {
     let registry = two_provider_registry();
     assert!(
         !two_provider_config(None).is_model_exposed(&registry, "some-unknown-model"),
         "closed gateway must deny unknown models"
     );
+    // A default provider authorizes the synthetic catch-all route, but it does
+    // NOT, on its own, expose an unlisted model to dispatch; the gateway stays
+    // a closed allowlist unless allow_unlisted_models is set.
     assert!(
-        two_provider_config(Some("gemini")).is_model_exposed(&registry, "some-unknown-model"),
-        "a default provider opens the gateway to unmatched models"
+        !two_provider_config(Some("gemini")).is_model_exposed(&registry, "some-unknown-model"),
+        "a default provider alone must not open the gateway to unlisted models"
+    );
+}
+
+#[test]
+fn is_model_exposed_opens_only_when_allow_unlisted_models() {
+    let registry = two_provider_registry();
+    let open = GatewayConfig {
+        allow_unlisted_models: true,
+        ..two_provider_config(Some("gemini"))
+    };
+    assert!(
+        open.is_model_exposed(&registry, "some-unknown-model"),
+        "allow_unlisted_models opts into forwarding unlisted models to default_provider"
+    );
+    // …but a routed model and a registry model are exposed regardless of the flag.
+    assert!(open.is_model_exposed(&registry, "claude-sonnet-4-20250514"));
+    let closed_no_default = GatewayConfig {
+        allow_unlisted_models: true,
+        ..two_provider_config(None)
+    };
+    assert!(
+        !closed_no_default.is_model_exposed(&registry, "some-unknown-model"),
+        "allow_unlisted_models without a default_provider still denies unknown models"
     );
 }
 
@@ -348,7 +402,10 @@ fn dispatchable_route_ids_cover_every_candidate_route() {
 
     for route in config.candidate_routes(&registry) {
         let id = route_id(route);
-        assert!(ids.contains(&id), "candidate {id:?} absent from catalog {ids:?}");
+        assert!(
+            ids.contains(&id),
+            "candidate {id:?} absent from catalog {ids:?}"
+        );
     }
 
     let resolved = config

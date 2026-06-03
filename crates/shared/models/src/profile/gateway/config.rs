@@ -17,10 +17,6 @@ use super::route::GatewayRoute;
 
 pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
-/// On-disk gateway configuration: the exact shape accepted under
-/// `gateway:` in a profile YAML document.
-///
-/// Project to the runtime [`GatewayConfig`] via [`Self::resolve`].
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayConfigSpec {
@@ -28,11 +24,17 @@ pub struct GatewayConfigSpec {
     pub enabled: bool,
     #[serde(default)]
     pub routes: Vec<GatewayRoute>,
-    /// Provider that absorbs any model not matched by an explicit `route`.
-    /// When set, the gateway stops being a closed allowlist: an unmatched
-    /// model is forwarded to this provider instead of denied.
+    /// Authorizes the synthetic catch-all route, but a model is only
+    /// *dispatched* to it when [`Self::allow_unlisted_models`] is also set; see
+    /// [`GatewayConfig::is_model_exposed`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_provider: Option<ProviderId>,
+    /// Closed allowlist when `false` (the default): a model matching no route
+    /// and absent from the registry is denied (`403`) rather than silently
+    /// billed against `default_provider`. Set `true` only to let the default
+    /// provider absorb arbitrary model strings.
+    #[serde(default)]
+    pub allow_unlisted_models: bool,
     #[serde(default = "default_auth_scheme")]
     pub auth_scheme: String,
     #[serde(default = "default_inference_path_prefix")]
@@ -45,6 +47,7 @@ impl Default for GatewayConfigSpec {
             enabled: false,
             routes: Vec::new(),
             default_provider: None,
+            allow_unlisted_models: false,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
         }
@@ -60,14 +63,13 @@ fn default_inference_path_prefix() -> String {
 }
 
 impl GatewayConfigSpec {
-    /// A pure field map: the gateway owns no catalog file, so resolution
-    /// performs no I/O.
     #[must_use]
     pub fn resolve(self) -> GatewayConfig {
         let Self {
             enabled,
             routes,
             default_provider,
+            allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,
         } = self;
@@ -76,6 +78,7 @@ impl GatewayConfigSpec {
             enabled,
             routes,
             default_provider,
+            allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,
         }
@@ -93,6 +96,7 @@ pub struct GatewayConfig {
     pub enabled: bool,
     pub routes: Vec<GatewayRoute>,
     pub default_provider: Option<ProviderId>,
+    pub allow_unlisted_models: bool,
     pub auth_scheme: String,
     pub inference_path_prefix: String,
 }
@@ -103,6 +107,7 @@ impl Default for GatewayConfig {
             enabled: false,
             routes: Vec::new(),
             default_provider: None,
+            allow_unlisted_models: false,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
         }
@@ -137,20 +142,19 @@ impl GatewayConfig {
     #[must_use]
     pub fn dispatchable_route_ids(&self, registry: &ProviderRegistry) -> Vec<RouteId> {
         let mut ids: Vec<RouteId> = Vec::new();
+        let mut seen: std::collections::HashSet<RouteId> = std::collections::HashSet::new();
         for route in self.candidate_routes(registry) {
             let mut route = route.into_owned();
             route.ensure_id();
-            if !ids.contains(&route.id) {
+            if seen.insert(route.id.clone()) {
                 ids.push(route.id);
             }
         }
         ids
     }
 
-    /// A catch-all route to [`Self::default_provider`], gated on the provider
-    /// existing in `registry`. `upstream_model` is left `None` so the requested
-    /// model name passes through unchanged; per-model upstream rewrites live in
-    /// the registry and are applied downstream.
+    /// `upstream_model` is left `None` so the requested model passes through
+    /// unchanged; per-model rewrites live in the registry, applied downstream.
     fn synthesize_default_route(&self, registry: &ProviderRegistry) -> Option<GatewayRoute> {
         let provider = self.default_provider.as_ref()?;
         registry.find_provider(provider.as_str())?;
@@ -166,16 +170,26 @@ impl GatewayConfig {
         Some(route)
     }
 
+    /// Closed-allowlist posture: a model matching no explicit route and not a
+    /// registered provider model is dispatchable only when `default_provider`
+    /// is set **and** [`Self::allow_unlisted_models`] opts in. Otherwise it
+    /// is denied before dispatch rather than silently billed.
     #[must_use]
     pub fn is_model_exposed(&self, registry: &ProviderRegistry, model: &str) -> bool {
-        self.default_provider.is_some()
-            || self.find_route(model).is_some()
-            || registry.contains_model(model)
+        if self.find_route(model).is_some() || registry.contains_model(model) {
+            return true;
+        }
+        if self.default_provider.is_some() && self.allow_unlisted_models {
+            tracing::warn!(
+                model,
+                "gateway forwarding an unlisted model to default_provider \
+                 (allow_unlisted_models=true): open allowlist posture"
+            );
+            return true;
+        }
+        false
     }
 
-    /// Validate the gateway's references into `registry`: route-id uniqueness,
-    /// and that `default_provider` (if set) and every route provider resolve to
-    /// a registry entry. The registry validates its own models separately.
     pub fn validate(&self, registry: &ProviderRegistry) -> GatewayResult<()> {
         let mut route_ids: std::collections::HashSet<&str> =
             std::collections::HashSet::with_capacity(self.routes.len());
@@ -204,14 +218,13 @@ impl GatewayConfig {
         Ok(())
     }
 
-    /// Round-trips a resolved config back to its on-disk spec for persisting a
-    /// profile to YAML.
     #[must_use]
     pub fn to_spec(&self) -> GatewayConfigSpec {
         GatewayConfigSpec {
             enabled: self.enabled,
             routes: self.routes.clone(),
             default_provider: self.default_provider.clone(),
+            allow_unlisted_models: self.allow_unlisted_models,
             auth_scheme: self.auth_scheme.clone(),
             inference_path_prefix: self.inference_path_prefix.clone(),
         }

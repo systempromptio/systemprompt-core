@@ -32,3 +32,6 @@ mod authz_extension_path_tests;
 
 #[cfg(test)]
 mod marketplace_ingestion_tests;
+
+#[cfg(test)]
+mod gateway_reconcile_tests;
