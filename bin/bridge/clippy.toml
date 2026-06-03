@@ -1,3 +1,25 @@
+# Clippy configuration for the bridge — mirrors the root clippy.toml thresholds
+# so the bridge workspace enforces the same code-quality bar as the main
+# workspace, plus a bridge-specific disallowed-types policy.
+
+avoid-breaking-exported-api = false
+
+cognitive-complexity-threshold = 30
+type-complexity-threshold = 250
+too-many-lines-threshold = 150
+too-many-arguments-threshold = 5
+trivial-copy-size-limit = 256
+single-char-binding-names-threshold = 4
+enum-variant-size-threshold = 200
+verbose-bit-mask-threshold = 1
+literal-representation-threshold = 10
+max-suggested-slice-pattern-length = 3
+missing-docs-in-crate-items = false
+vec-box-size-threshold = 4096
+future-size-threshold = 16384
+stack-size-threshold = 512000
+max-struct-bools = 5
+
 disallowed-types = [
     { path = "ureq::Agent", reason = "Use reqwest::Client (shared with proxy). The bridge has a single-runtime policy — see plan/03-phase3-native-polish.md §3.1." },
 ]
