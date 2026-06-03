@@ -12,6 +12,7 @@ use super::super::canonical::CanonicalRequest;
 use super::super::canonical_response::{CanonicalEvent, CanonicalResponse};
 use super::{InboundAdapter, InboundParseError};
 
+mod input;
 mod parse;
 mod render;
 
