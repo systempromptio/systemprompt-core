@@ -205,15 +205,7 @@ impl GatewayService {
         let outcome = match upstream.send(outbound_ctx).await {
             Ok(o) => o,
             Err(e) => {
-                tracing::warn!(
-                    provider = %upstream.provider_tag(),
-                    model = %request.model,
-                    error = %e,
-                    "gateway upstream call failed"
-                );
-                if let Err(audit_err) = audit.fail(&e.to_string()).await {
-                    tracing::warn!(error = %audit_err, "upstream audit fail failed");
-                }
+                audit_upstream_failure(&audit, upstream.provider_tag(), &request.model, &e).await;
                 return Err(e);
             },
         };
@@ -231,5 +223,22 @@ impl GatewayService {
         )
         .await;
         Ok(attach_request_id(response, &ai_request_id))
+    }
+}
+
+async fn audit_upstream_failure(
+    audit: &GatewayAudit,
+    provider: &str,
+    model: &str,
+    error: &anyhow::Error,
+) {
+    tracing::warn!(
+        provider = %provider,
+        model = %model,
+        error = %error,
+        "gateway upstream call failed"
+    );
+    if let Err(audit_err) = audit.fail(&error.to_string()).await {
+        tracing::warn!(error = %audit_err, "upstream audit fail failed");
     }
 }
