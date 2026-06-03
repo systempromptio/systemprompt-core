@@ -45,6 +45,16 @@ fn disable_removes_only_target_key() {
 }
 
 #[test]
+fn parse_settings_tolerates_utf8_bom() {
+    // A UTF-8 BOM-prefixed file (e.g. written by PowerShell `Set-Content -Encoding utf8`)
+    // must still parse, not fail with "expected value at line 1 column 1".
+    let mut bytes = vec![0xEF, 0xBB, 0xBF];
+    bytes.extend_from_slice(br#"{"enabledPlugins":{"p@mp":true}}"#);
+    let parsed = parse_settings(&bytes).unwrap();
+    assert_eq!(parsed["enabledPlugins"]["p@mp"], serde_json::json!(true));
+}
+
+#[test]
 fn render_then_parse_round_trip() {
     let mut root = serde_json::Map::new();
     enable_plugin(&mut root, "p", "mp").unwrap();

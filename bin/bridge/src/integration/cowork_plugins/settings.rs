@@ -19,6 +19,7 @@ pub struct SettingsReport {
 }
 
 pub fn parse_settings(bytes: &[u8]) -> Result<Map<String, Value>, CoworkPluginsError> {
+    let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     if bytes.iter().all(u8::is_ascii_whitespace) {
         return Ok(Map::new());
     }
