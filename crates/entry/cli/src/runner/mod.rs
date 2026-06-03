@@ -65,9 +65,7 @@ async fn run_inner() -> Result<()> {
 
     let cli_config = args::build_cli_config(&cli);
     cli_settings::set_global_config(cli_config.clone());
-    systemprompt_logging::set_structured_output(
-        cli_config.output_format() != OutputFormat::Table,
-    );
+    systemprompt_logging::set_structured_output(cli_config.output_format() != OutputFormat::Table);
 
     if cli.display.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);
