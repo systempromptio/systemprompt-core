@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.6] - 2026-06-03
+
+### Fixed
+
+- Ship the offline SQLx cache entry for the logging batch writer's `SET LOCAL synchronous_commit = off` statement. 0.14.5 added the statement but omitted its `.sqlx` entry, so `systemprompt-logging` 0.14.5 fails to compile under `SQLX_OFFLINE` — including the build crates.io and any offline consumer performs.
+
 ## [0.14.5] - 2026-06-03
 
 ### Added
