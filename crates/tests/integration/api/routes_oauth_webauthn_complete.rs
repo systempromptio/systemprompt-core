@@ -9,8 +9,7 @@
 use std::sync::{Arc, Once};
 
 use axum::Router;
-use axum::body::Body;
-use axum::body::to_bytes;
+use axum::body::{Body, to_bytes};
 use axum::http::Response;
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_models::Config;
@@ -126,8 +125,14 @@ async fn webauthn_complete_unverifiable_token_is_error() -> anyhow::Result<()> {
     // An unconsumable auth token never yields a success; the fixture context
     // has no usable WebAuthn relying-party config, so the route surfaces an
     // OAuth-shaped error (access_denied, or server_error if init fails first).
-    assert!(status.is_client_error() || status.is_server_error(), "{status} {v}");
-    assert!(v.get("error").and_then(|e| e.as_str()).is_some(), "missing error field: {v}");
+    assert!(
+        status.is_client_error() || status.is_server_error(),
+        "{status} {v}"
+    );
+    assert!(
+        v.get("error").and_then(|e| e.as_str()).is_some(),
+        "missing error field: {v}"
+    );
     Ok(())
 }
 

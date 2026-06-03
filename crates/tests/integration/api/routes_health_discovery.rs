@@ -50,8 +50,14 @@ async fn root_discovery_returns_endpoints() -> anyhow::Result<()> {
     assert!(status.is_success(), "{status} {body}");
     let v: serde_json::Value = serde_json::from_str(&body)?;
     let data = v.get("data").unwrap_or(&v);
-    assert!(data.get("endpoints").is_some(), "root discovery missing endpoints: {body}");
-    assert!(data.get("version").is_some(), "root discovery missing version: {body}");
+    assert!(
+        data.get("endpoints").is_some(),
+        "root discovery missing endpoints: {body}"
+    );
+    assert!(
+        data.get("version").is_some(),
+        "root discovery missing version: {body}"
+    );
     Ok(())
 }
 

@@ -339,8 +339,7 @@ async fn exchange_self_issued_subject_does_not_500() -> anyhow::Result<()> {
         assert_eq!(v.get("token_type").and_then(|x| x.as_str()), Some("Bearer"));
         let claims = decode_jwt_claims(access_token)?;
         assert!(
-            claims["roles"].is_null()
-                || claims["roles"].as_array().is_some_and(Vec::is_empty),
+            claims["roles"].is_null() || claims["roles"].as_array().is_some_and(Vec::is_empty),
             "delegated token must not carry scope strings as RBAC roles; got roles={}",
             claims["roles"]
         );
@@ -376,6 +375,9 @@ async fn exchange_unknown_client_does_not_500() -> anyhow::Result<()> {
     let resp = app.oneshot(form_post("/token", body)).await?;
     let status = resp.status();
     let v = read_json(resp).await?;
-    assert!(status.is_client_error(), "unknown client must be 4xx, got {status} {v}");
+    assert!(
+        status.is_client_error(),
+        "unknown client must be 4xx, got {status} {v}"
+    );
     Ok(())
 }

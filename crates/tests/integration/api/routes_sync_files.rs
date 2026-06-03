@@ -228,7 +228,9 @@ async fn upload_rejects_corrupt_gzip() -> anyhow::Result<()> {
     let ctx = ctx_with_services(tree.path()).await?;
 
     let mut not_gzip = Vec::new();
-    not_gzip.write_all(b"this is not a gzip stream").expect("write");
+    not_gzip
+        .write_all(b"this is not a gzip stream")
+        .expect("write");
     let resp = app(&ctx).oneshot(post_bytes("/files", not_gzip)).await?;
     let (status, _body) = read_json(resp).await?;
     assert!(

@@ -63,7 +63,11 @@ async fn record_page_view_persists_created() -> anyhow::Result<()> {
     // The minimal fixture's analytics store rejects the insert, so the handler
     // reaches the create-event call and returns success or a server error
     // (never a 4xx, which would mean the input failed to deserialize).
-    assert!(resp.status().is_success() || resp.status().is_server_error(), "{}", resp.status());
+    assert!(
+        resp.status().is_success() || resp.status().is_server_error(),
+        "{}",
+        resp.status()
+    );
     Ok(())
 }
 
@@ -87,7 +91,11 @@ async fn record_page_exit_fans_out_engagement() -> anyhow::Result<()> {
     // The minimal fixture's analytics store rejects the insert, so the handler
     // reaches the create-event call and returns success or a server error
     // (never a 4xx, which would mean the input failed to deserialize).
-    assert!(resp.status().is_success() || resp.status().is_server_error(), "{}", resp.status());
+    assert!(
+        resp.status().is_success() || resp.status().is_server_error(),
+        "{}",
+        resp.status()
+    );
     Ok(())
 }
 
@@ -109,7 +117,11 @@ async fn record_events_batch_with_events_persists() -> anyhow::Result<()> {
     // The minimal fixture's analytics store rejects the insert, so the handler
     // reaches the create-event call and returns success or a server error
     // (never a 4xx, which would mean the input failed to deserialize).
-    assert!(resp.status().is_success() || resp.status().is_server_error(), "{}", resp.status());
+    assert!(
+        resp.status().is_success() || resp.status().is_server_error(),
+        "{}",
+        resp.status()
+    );
     Ok(())
 }
 
@@ -128,6 +140,10 @@ async fn record_page_exit_without_time_skips_fanout() -> anyhow::Result<()> {
     // The minimal fixture's analytics store rejects the insert, so the handler
     // reaches the create-event call and returns success or a server error
     // (never a 4xx, which would mean the input failed to deserialize).
-    assert!(resp.status().is_success() || resp.status().is_server_error(), "{}", resp.status());
+    assert!(
+        resp.status().is_success() || resp.status().is_server_error(),
+        "{}",
+        resp.status()
+    );
     Ok(())
 }

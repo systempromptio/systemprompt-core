@@ -92,7 +92,10 @@ async fn agui_broadcast_runs_handler() -> anyhow::Result<()> {
         .with_state((*ctx).clone())
         .layer(Extension(request_context("webhook-user")));
     let resp = app
-        .oneshot(json_post("/agui", serde_json::json!({ "user_id": "webhook-user" })))
+        .oneshot(json_post(
+            "/agui",
+            serde_json::json!({ "user_id": "webhook-user" }),
+        ))
         .await?;
     let status = resp.status().as_u16();
     assert!((200..600).contains(&status), "{status}");
@@ -106,7 +109,10 @@ async fn a2a_broadcast_runs_handler() -> anyhow::Result<()> {
         .with_state((*ctx).clone())
         .layer(Extension(request_context("webhook-user")));
     let resp = app
-        .oneshot(json_post("/a2a", serde_json::json!({ "user_id": "webhook-user" })))
+        .oneshot(json_post(
+            "/a2a",
+            serde_json::json!({ "user_id": "webhook-user" }),
+        ))
         .await?;
     let status = resp.status().as_u16();
     assert!((200..600).contains(&status), "{status}");

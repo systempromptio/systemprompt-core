@@ -17,14 +17,14 @@
 use std::sync::Once;
 
 use axum::body::Body;
-use axum::http::{header, Request};
+use axum::http::{Request, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use systemprompt_api::routes::proxy::{agents, mcp};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::Config;
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, install_test_signing_key, mint_admin_jwt,
 };
