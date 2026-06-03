@@ -3,8 +3,6 @@ use std::path::Path;
 
 use super::{MarketplaceExtra, MarketplaceItem};
 
-// Hooks live in one `hooks/hooks.json` per synced plugin (written by
-// `sync::apply::hooks`), keyed by event then matcher, not one file per hook.
 pub(super) fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
     let path = dir.join("hooks.json");
     let Ok(bytes) = std::fs::read(&path) else {
@@ -13,7 +11,6 @@ pub(super) fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
     hook_items(&bytes, &path)
 }
 
-// Split from `list_hooks` so the parsing is exercisable without filesystem I/O.
 fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
     use crate::sync::apply::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 
@@ -91,8 +88,8 @@ fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
         }
 
         out.push(MarketplaceItem {
-            id: "systemprompt-governance".to_string(),
-            name: "Governance & tracking (active)".to_string(),
+            id: "systemprompt-governance".to_owned(),
+            name: "Governance & tracking (active)".to_owned(),
             source: "tenant",
             path: path.display().to_string(),
             summary: Some(summary_parts.join("; ")),

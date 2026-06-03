@@ -64,7 +64,7 @@ pub(crate) fn on_sync_finished(
             Ok(json!({ "summary": line }))
         },
         Err(msg) => {
-            let raw = format!("{:#}", msg);
+            let raw = format!("{msg:#}");
             tracing::error!(error = %raw, "sync failed");
             let cancelled = raw.contains("sync cancelled");
             let sync_err = match msg.as_ref() {
@@ -113,9 +113,6 @@ pub(crate) fn on_sync_finished(
     app.state.reload();
     app.refresh_ui();
     emit::emit_state(app);
-    // The registry was just (re)published by the sync apply, so re-probe MCP
-    // auth to refresh the Status panel. Best-effort: a dropped event loop means
-    // there is nothing to deliver to.
     if succeeded {
         _ = app
             .proxy

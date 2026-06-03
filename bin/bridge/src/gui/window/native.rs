@@ -82,7 +82,7 @@ impl SettingsWindow {
                 let body = req.into_body();
                 _ = ipc_proxy.send_event(UiEvent::IpcInbound(body));
             })
-            .with_custom_protocol(SP_PROTOCOL.to_string(), move |_id, request| {
+            .with_custom_protocol(SP_PROTOCOL.to_owned(), move |_id, request| {
                 serve_custom_asset(&request)
             })
             .with_navigation_handler(move |target| allow_navigation(&target, nav_legacy.as_deref()))
@@ -159,9 +159,9 @@ fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static,
     if !host_match {
         return not_found();
     }
-    let mut path = uri.path().to_string();
+    let mut path = uri.path().to_owned();
     if path.is_empty() || path == "/" {
-        path = "/index.html".to_string();
+        path = "/index.html".to_owned();
     }
     assets::lookup_path(&path).map_or_else(not_found, asset_response)
 }

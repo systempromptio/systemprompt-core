@@ -21,8 +21,6 @@ fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let results = mcp_probe::probe_all().await;
-        // Best-effort UI notification — if the event loop has shut down the
-        // receiver is gone and there is nothing to deliver the results to.
         _ = proxy.send_event(UiEvent::McpAuthProbeFinished { results, reply_to });
     });
 }

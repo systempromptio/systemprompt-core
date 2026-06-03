@@ -9,10 +9,6 @@ use crate::gui::server_util::{constant_time_eq, mint_csrf_token};
 use crate::gui::state::AppState;
 use crate::obs::output::diag;
 
-// Why: a 127.0.0.1 TCP listener + per-process CSRF token works identically on
-// all three platforms in <100 lines. A platform-native IPC (Unix sockets +
-// named pipe) would let the kernel's per-user namespace replace the CSRF
-// token, but the matrix isn't worth it for the single-instance focus channel.
 #[derive(Debug, Clone, Copy)]
 pub struct Server {
     port: u16,

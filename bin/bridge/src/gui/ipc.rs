@@ -1,6 +1,4 @@
 use serde::{Deserialize, Serialize};
-// JSON: the GUI IPC channel carries opaque, command-specific payloads to and
-// from the JavaScript front-end; `Value` is the protocol boundary type.
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -124,13 +122,13 @@ impl IpcReplyPayload {
 
 pub fn reply_script(id: u64, payload: &IpcReplyPayload) -> String {
     let body = serde_json::to_string(payload)
-        .unwrap_or_else(|_| r#"{"ok":false,"error":{"scope":"internal","code":"internal","message":"reply encode failed"}}"#.to_string());
+        .unwrap_or_else(|_| r#"{"ok":false,"error":{"scope":"internal","code":"internal","message":"reply encode failed"}}"#.to_owned());
     format!("window.__bridge && window.__bridge.reply && window.__bridge.reply({id}, {body});")
 }
 
 pub fn emit_script(channel: &str, payload: &Value) -> String {
-    let channel_json = serde_json::to_string(channel).unwrap_or_else(|_| "\"unknown\"".to_string());
-    let body = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_string());
+    let channel_json = serde_json::to_string(channel).unwrap_or_else(|_| "\"unknown\"".to_owned());
+    let body = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_owned());
     format!(
         "window.__bridge && window.__bridge.emit && window.__bridge.emit({channel_json}, {body});"
     )

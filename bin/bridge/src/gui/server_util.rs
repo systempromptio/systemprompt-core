@@ -7,7 +7,6 @@ pub(crate) fn mint_csrf_token() -> String {
     rand::rngs::OsRng.fill_bytes(&mut bytes);
     let mut out = String::with_capacity(bytes.len() * 2);
     for b in &bytes {
-        // hex write into a String never fails
         _ = write!(out, "{b:02x}");
     }
     out

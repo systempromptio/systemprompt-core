@@ -244,7 +244,7 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
         .and_then(|s| s.strip_suffix(".css"))
         && let Some((_, src)) = CSS_FILES.iter().find(|(n, _)| *n == name)
     {
-        return Some(Asset::text("text/css; charset=utf-8", (*src).to_string()));
+        return Some(Asset::text("text/css; charset=utf-8", (*src).to_owned()));
     }
     if let Some(name) = path
         .strip_prefix("/assets/js/")
@@ -253,7 +253,7 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
     {
         return Some(Asset::text(
             "application/javascript; charset=utf-8",
-            (*src).to_string(),
+            (*src).to_owned(),
         ));
     }
     if let Some(name) = path
@@ -261,7 +261,7 @@ pub fn lookup_path(path: &str) -> Option<Asset> {
         .and_then(|s| s.strip_suffix(".ftl"))
         && let Some((_, src)) = I18N_FILES.iter().find(|(n, _)| *n == name)
     {
-        return Some(Asset::text("text/plain; charset=utf-8", (*src).to_string()));
+        return Some(Asset::text("text/plain; charset=utf-8", (*src).to_owned()));
     }
     match path {
         "/assets/fonts/Inter-Regular.woff2" => Some(Asset::raw("font/woff2", FONT_INTER_REGULAR)),

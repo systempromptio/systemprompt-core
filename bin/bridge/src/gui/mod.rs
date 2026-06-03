@@ -111,10 +111,8 @@ pub(crate) struct GuiApp {
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
     pub(crate) last_state_hash: Option<u64>,
-    // The managed-MCP proxy registry (`crate::mcp_registry`) is in-memory and
-    // only populated by an in-process sync, so it starts empty on every launch
-    // and `/mcp/<slug>` 404s until a sync runs. We auto-sync once, as soon as
-    // the app is signed in, to rehydrate it without a manual "Sync now".
+    // The managed-MCP registry is in-memory and only populated by sync, so it
+    // starts empty each launch and `/mcp/<slug>` 404s until a sync runs.
     pub(crate) did_initial_sync: bool,
 }
 
@@ -246,9 +244,6 @@ impl ApplicationHandler<UiEvent> for GuiApp {
                 .send_event(UiEvent::GatewayProbeRequested { reply_to: None });
         }
 
-        // Rehydrate the in-memory managed-MCP registry once per launch, as soon
-        // as the startup gateway probe confirms we're signed in. Without this,
-        // `/mcp/<slug>` 404s after every restart until a manual "Sync now".
         if !self.did_initial_sync && snap.signed_in() && snap.pat_present && !snap.sync_in_flight {
             self.did_initial_sync = true;
             self.append_log("auto-sync on startup (rehydrating managed MCP registry)…");

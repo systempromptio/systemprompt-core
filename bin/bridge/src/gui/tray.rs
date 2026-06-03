@@ -115,8 +115,6 @@ pub fn refresh(handles: &mut TrayHandles, snap: &AppStateSnapshot) {
             TrayStatus::Normal => handles.icon_normal.clone(),
             TrayStatus::Alert => handles.icon_alert.clone(),
         };
-        // Why: tray icon refresh is cosmetic; a failed swap leaves the prior icon
-        // and must not abort the status-tracking update that follows.
         _ = handles.tray.set_icon(Some(icon));
         handles.status = target;
     }
@@ -147,8 +145,8 @@ pub fn drain(handles: &TrayHandles) -> Vec<UiEvent> {
 
 fn format_identity(snap: &AppStateSnapshot) -> String {
     match &snap.gateway_status {
-        GatewayStatus::Unknown | GatewayStatus::Probing => "Checking gateway…".to_string(),
-        GatewayStatus::Unreachable { .. } => "Gateway unreachable".to_string(),
+        GatewayStatus::Unknown | GatewayStatus::Probing => "Checking gateway…".to_owned(),
+        GatewayStatus::Unreachable { .. } => "Gateway unreachable".to_owned(),
         GatewayStatus::Reachable { .. } => match snap.verified_identity.as_ref() {
             Some(id) => {
                 let label = id
@@ -162,15 +160,15 @@ fn format_identity(snap: &AppStateSnapshot) -> String {
                     .unwrap_or("(verified)");
                 format!("Signed in as {label}")
             },
-            None if snap.pat_present => "PAT stored — verifying…".to_string(),
-            None => "Not signed in".to_string(),
+            None if snap.pat_present => "PAT stored — verifying…".to_owned(),
+            None => "Not signed in".to_owned(),
         },
     }
 }
 
 fn format_last_sync(snap: &AppStateSnapshot) -> String {
     snap.last_sync_summary.as_deref().map_or_else(
-        || "Last sync: never".to_string(),
+        || "Last sync: never".to_owned(),
         |s| format!("Last sync: {s}"),
     )
 }

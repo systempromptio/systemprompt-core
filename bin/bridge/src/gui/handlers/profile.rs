@@ -1,11 +1,5 @@
-//! Profile dashboard handler.
-//!
-//! Composes the response for the bridge dashboard's profile tab from three
-//! sources: the cached JWT-derived identity (in `AppStateSnapshot`), the
-//! gateway's `/v1/bridge/profile` (gateway-issued user info, allowed models,
-//! organization), and `/v1/bridge/profile/usage` (per-user token usage,
-//! favorite models, conversation summary). Local agent state is taken from
-//! the existing host snapshot so the page works offline for that section.
+//! Profile dashboard handler: composes the dashboard profile tab from the
+//! cached JWT identity, the gateway profile, and per-user usage.
 
 use std::sync::Arc;
 
@@ -23,8 +17,6 @@ pub(crate) fn on_profile_fetch_requested(app: &GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let result = build_profile(snapshot).await.map_err(Arc::new);
-        // Why: best-effort UI notification — once the event loop shuts down the
-        // receiver is dropped and there is nothing left to deliver the result to.
         _ = proxy.send_event(UiEvent::ProfileFetchFinished { result, reply_to });
     });
 }
@@ -37,7 +29,7 @@ pub(crate) fn on_profile_fetch_finished(
     let bridge_result = match result {
         Ok(value) => Ok(value),
         Err(err) => {
-            let raw = format!("{:#}", err);
+            let raw = format!("{err:#}");
             tracing::error!(error = %raw, "profile fetch failed");
             app.append_log(format!("profile fetch failed: {raw}"));
             Err(BridgeError::new(
@@ -74,7 +66,7 @@ async fn build_profile(snapshot: AppStateSnapshot) -> Result<Value, GuiError> {
     let bearer_value = crate::auth::cache::read_valid().map(|out| out.token);
     let bearer = bearer_value
         .as_ref()
-        .map(|s| s.expose().to_string())
+        .map(|s| s.expose().to_owned())
         .ok_or_else(|| {
             GuiError::Io(std::io::Error::other(
                 "no valid auth credential available; log in first",
@@ -111,10 +103,10 @@ fn identity_value(
     json!({
         "email": whoami.and_then(|w| w.email.clone())
             .or_else(|| id.and_then(|i| i.email.clone())),
-        "user_id": whoami.and_then(|w| w.user_id.as_ref().map(|u| u.as_str().to_string()))
-            .or_else(|| id.and_then(|i| i.user_id.as_ref().map(|u| u.as_str().to_string()))),
-        "tenant_id": whoami.and_then(|w| w.tenant_id.as_ref().map(|t| t.as_str().to_string()))
-            .or_else(|| id.and_then(|i| i.tenant_id.as_ref().map(|t| t.as_str().to_string()))),
+        "user_id": whoami.and_then(|w| w.user_id.as_ref().map(|u| u.as_str().to_owned()))
+            .or_else(|| id.and_then(|i| i.user_id.as_ref().map(|u| u.as_str().to_owned()))),
+        "tenant_id": whoami.and_then(|w| w.tenant_id.as_ref().map(|t| t.as_str().to_owned()))
+            .or_else(|| id.and_then(|i| i.tenant_id.as_ref().map(|t| t.as_str().to_owned()))),
         "display_name": whoami.and_then(|w| w.display_name.clone()),
         "provider": whoami.and_then(|w| w.provider.clone()),
         "roles": whoami.map(|w| w.roles.clone()).unwrap_or_default(),

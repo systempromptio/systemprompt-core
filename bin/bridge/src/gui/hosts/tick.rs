@@ -22,7 +22,7 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
         _ = app
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-                host_id: id.to_string(),
+                host_id: id.to_owned(),
                 cause: ProbeCause::Tick,
                 reply_to: None,
             }));
@@ -45,7 +45,7 @@ pub(crate) fn request_initial_probe(app: &GuiApp) {
         _ = app
             .proxy
             .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-                host_id: host.id().to_string(),
+                host_id: host.id().to_owned(),
                 cause: ProbeCause::Tick,
                 reply_to: None,
             }));

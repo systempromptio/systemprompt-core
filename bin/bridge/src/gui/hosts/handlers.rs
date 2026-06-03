@@ -33,10 +33,8 @@ pub(crate) fn on_probe_requested(
         return;
     };
     if cause == ProbeCause::Manual {
-        // User re-verify always wins: skip the in-flight gate so a click never gets
-        // dropped. Worst case we issue one redundant HEAD; the manual result
-        // lands last and overwrites the tick result, which is the desired "user
-        // action is authoritative" semantic.
+        // Manual re-verify bypasses the in-flight gate so a user click is never
+        // dropped; it lands last and overwrites any concurrent tick result.
         app.append_log(format!("[{host_id}] re-verifying profile and process"));
     } else if !app.state.mark_host_probing(host_id) {
         if let Some(id) = reply_to {
@@ -49,7 +47,7 @@ pub(crate) fn on_probe_requested(
         }
         return;
     }
-    let host_id_owned = host_id.to_string();
+    let host_id_owned = host_id.to_owned();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe())).await else {
@@ -127,11 +125,11 @@ const fn profile_state_kind(s: &ProfileState) -> &'static str {
 fn describe_snapshot(snap: &HostAppSnapshot) -> String {
     use crate::integration::ProfileState;
     let profile = match &snap.profile_state {
-        ProfileState::Installed => "profile installed".to_string(),
+        ProfileState::Installed => "profile installed".to_owned(),
         ProfileState::Partial { missing_required } => {
             format!("profile partial (missing: {})", missing_required.join(", "))
         },
-        ProfileState::Absent => "profile not installed".to_string(),
+        ProfileState::Absent => "profile not installed".to_owned(),
     };
     let process = if snap.host_running {
         "process running"
@@ -189,7 +187,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_t
         return;
     };
     app.append_log(format!("Generating profile for {}…", host.display_name()));
-    let host_id_owned = host_id.to_string();
+    let host_id_owned = host_id.to_owned();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let result = generate_profile_for(host).await.map_err(Arc::new);
@@ -269,7 +267,7 @@ pub(crate) fn on_profile_install_requested(
              approve it to continue."
         ));
     }
-    let host_id_owned = host_id.to_string();
+    let host_id_owned = host_id.to_owned();
     let path_clone = path.clone();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
@@ -331,7 +329,7 @@ pub(crate) fn on_profile_install_finished(
     _ = app
         .proxy
         .send_event(UiEvent::Host(HostUiEvent::ProbeRequested {
-            host_id: host_id.to_string(),
+            host_id: host_id.to_owned(),
             cause: ProbeCause::Manual,
             reply_to: None,
         }));

@@ -92,8 +92,6 @@ struct McpServerEntry {
     args: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     transport: Option<String>,
-    /// Tool names the server exposed on the last MCP auth probe (empty until a
-    /// probe has run). Lets the marketplace detail list the server's tools.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     tools: Vec<String>,
 }
@@ -162,7 +160,7 @@ fn annotate_plugins_with_diff(
                 name: removed_id.clone(),
                 source: "tenant",
                 path: String::new(),
-                summary: Some("Removed in last sync".to_string()),
+                summary: Some("Removed in last sync".to_owned()),
                 readme: None,
                 change: Some(ChangeKind::Removed),
                 extra: MarketplaceExtra::None,
@@ -209,7 +207,7 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
         let display_name = manifest
             .as_ref()
             .and_then(|m| m.name.clone())
-            .unwrap_or_else(|| name.to_string());
+            .unwrap_or_else(|| name.to_owned());
         let readme = read_first_existing(&[
             path.join("README.md"),
             path.join("readme.md"),
@@ -217,7 +215,7 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
         ]);
         let extra = manifest.map_or(MarketplaceExtra::None, MarketplaceExtra::Plugin);
         out.push(MarketplaceItem {
-            id: name.to_string(),
+            id: name.to_owned(),
             name: display_name,
             source: "tenant",
             path: path.display().to_string(),
@@ -253,13 +251,13 @@ fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
             .as_deref()
             .map_or((None, None), parse_skill_frontmatter);
         let extra = MarketplaceExtra::Frontmatter(FrontmatterExtra {
-            id: id.to_string(),
+            id: id.to_owned(),
             name: frontmatter_name.clone(),
             description: summary.clone(),
         });
         out.push(MarketplaceItem {
-            id: id.to_string(),
-            name: frontmatter_name.unwrap_or_else(|| id.to_string()),
+            id: id.to_owned(),
+            name: frontmatter_name.unwrap_or_else(|| id.to_owned()),
             source: "tenant",
             path: entry.path().display().to_string(),
             summary,
@@ -293,13 +291,13 @@ fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
             .as_deref()
             .map_or((None, None), parse_skill_frontmatter);
         let extra = MarketplaceExtra::Frontmatter(FrontmatterExtra {
-            id: stem.to_string(),
+            id: stem.to_owned(),
             name: frontmatter_name.clone(),
             description: summary.clone(),
         });
         out.push(MarketplaceItem {
-            id: stem.to_string(),
-            name: frontmatter_name.unwrap_or_else(|| stem.to_string()),
+            id: stem.to_owned(),
+            name: frontmatter_name.unwrap_or_else(|| stem.to_owned()),
             source: "tenant",
             path: path.display().to_string(),
             summary,
@@ -327,9 +325,9 @@ fn parse_skill_frontmatter(body: &str) -> (Option<String>, Option<String>) {
     for line in block.lines() {
         let line = line.trim();
         if let Some(v) = line.strip_prefix("name:") {
-            name = Some(unquote(v.trim()).to_string());
+            name = Some(unquote(v.trim()).to_owned());
         } else if let Some(v) = line.strip_prefix("description:") {
-            description = Some(unquote(v.trim()).to_string());
+            description = Some(unquote(v.trim()).to_owned());
         }
     }
     (name, description)
@@ -345,22 +343,11 @@ fn unquote(s: &str) -> &str {
     }
 }
 
-// MCP servers are sourced from the in-memory `mcp_registry` — the single source
-// of truth that also feeds the `managedMcpServers` policy Cowork reads. The
-// synthetic plugin no longer emits a `.mcp.json` (managedMcpServers is the sole
-// MCP channel), so reading that removed file always yielded zero. The registry
-// is populated by an in-process sync, so this lists servers once the running
-// GUI has synced — the same timing as the policy value itself.
 fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceItem> {
     let registry = crate::mcp_registry::snapshot();
     let mut out = Vec::with_capacity(registry.len());
     for (slug, upstream) in registry.iter() {
-        // Surface the loopback proxy URL Cowork actually connects to (mirrors
-        // `managed_mcp_servers_json`), while keeping the upstream gateway URL in
-        // `path` for provenance.
         let proxy_url = crate::proxy::mcp_url(slug);
-        // Attach the tools the last MCP auth probe enumerated for this server,
-        // matched by slug, so the marketplace detail can list them.
         let tools = mcp_auth
             .iter()
             .find(|s| s.id == *slug)
@@ -370,7 +357,7 @@ fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceItem> {
             id: slug.clone(),
             name: slug.clone(),
             source: "tenant",
-            path: upstream.url.as_str().to_string(),
+            path: upstream.url.as_str().to_owned(),
             summary: Some(proxy_url.clone()),
             readme: None,
             change: None,
@@ -378,7 +365,7 @@ fn list_registry_mcp(mcp_auth: &[McpServerAuth]) -> Vec<MarketplaceItem> {
                 url: Some(proxy_url),
                 command: None,
                 args: Vec::new(),
-                transport: Some("http".to_string()),
+                transport: Some("http".to_owned()),
                 tools,
             }),
         });

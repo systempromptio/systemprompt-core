@@ -18,7 +18,7 @@ pub struct HostsState {
 
 impl HostsState {
     pub fn entry(&mut self, host_id: &str) -> &mut HostState {
-        self.by_id.entry(host_id.to_string()).or_default()
+        self.by_id.entry(host_id.to_owned()).or_default()
     }
 
     pub fn get(&self, host_id: &str) -> Option<&HostState> {
