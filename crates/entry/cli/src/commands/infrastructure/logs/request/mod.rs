@@ -20,21 +20,21 @@ use crate::shared::render_result;
 #[derive(Debug, Subcommand)]
 pub enum RequestCommands {
     #[command(
-        about = "List recent AI requests",
+        about = "Operational list of recent AI requests. For dashboard metrics (time range, model filter, CSV export), use `analytics requests list`",
         after_help = "EXAMPLES:\n  systemprompt infra logs request list\n  systemprompt infra \
                       logs request list --model gpt-4 --since 1h"
     )]
     List(list::ListArgs),
 
     #[command(
-        about = "Show AI request details",
+        about = "Quick single-request view by request id (messages, linked MCP calls, status/error)",
         after_help = "EXAMPLES:\n  systemprompt infra logs request show abc123\n  systemprompt \
                       infra logs request show abc123 --messages --tools"
     )]
     Show(show::ShowArgs),
 
     #[command(
-        about = "Show aggregate AI request statistics",
+        about = "Operational request aggregate with by-provider / by-model breakdown. For range/model-filtered dashboards with export, use `analytics requests stats`",
         after_help = "EXAMPLES:\n  systemprompt infra logs request stats\n  systemprompt infra \
                       logs request stats --since 24h"
     )]

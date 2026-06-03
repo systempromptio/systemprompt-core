@@ -100,7 +100,7 @@ pub enum LogsCommands {
     Tools(tools::ToolsCommands),
 
     #[command(
-        about = "Full audit of an AI request with all messages and tool calls",
+        about = "Full chain reconstruction by request, task, or trace id (identity, policy, prompt/response, tool calls, cost)",
         after_help = "EXAMPLES:\n  systemprompt infra logs audit abc123\n  systemprompt infra \
                       logs audit abc123 --full\n  systemprompt infra logs audit task-xyz --json"
     )]

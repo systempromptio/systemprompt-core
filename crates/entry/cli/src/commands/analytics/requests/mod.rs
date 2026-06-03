@@ -21,10 +21,10 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum RequestsCommands {
-    #[command(about = "Aggregate AI request statistics")]
+    #[command(about = "Dashboard request metrics: time range, model filter, cache-hit rate, CSV export. For a quick operational aggregate, use `infra logs request stats`")]
     Stats(stats::StatsArgs),
 
-    #[command(about = "List individual AI requests")]
+    #[command(about = "Dashboard list of AI requests with time range, model filter, and CSV export. For a quick operational list, use `infra logs request list`")]
     List(list::ListArgs),
 
     #[command(about = "AI request trends over time")]
