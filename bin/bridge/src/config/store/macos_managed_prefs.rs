@@ -33,7 +33,7 @@ impl ConfigStore for MacOsManagedPrefsStore {
         let mut values: BTreeMap<String, String> = BTreeMap::new();
         for key in keys {
             if let Some(v) = copy_app_string(key) {
-                values.insert((*key).to_string(), v);
+                values.insert((*key).to_owned(), v);
             }
         }
         let source = if values.is_empty() {

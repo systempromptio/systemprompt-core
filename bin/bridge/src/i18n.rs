@@ -1,8 +1,6 @@
-// Tiny Fluent-subset loader for handler-emitted strings.
-// Mirrors web/js/i18n.js: parses `id = value` lines and `{ $arg }` placeables.
-// Locale negotiation reads the LANG env var; en-US is always available as
-// the embedded fallback. Drop a `web/i18n/<locale>/bridge.ftl` file and run
-// the bridge with `LANG=<locale>.UTF-8` to flip handler messages.
+//! Fluent-subset loader for handler-emitted strings: parses `id = value` lines
+//! and `{ $arg }` placeables. Locale negotiation reads `LANG`; en-US is the
+//! embedded fallback, overridable via `web/i18n/<locale>/bridge.ftl`.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -28,7 +26,7 @@ fn parse(src: &str) -> HashMap<String, String> {
         let id = trimmed[..eq].trim();
         let value = trimmed[eq + 1..].trim();
         if !id.is_empty() {
-            out.insert(id.to_string(), value.to_string());
+            out.insert(id.to_owned(), value.to_owned());
         }
     }
     out
@@ -67,7 +65,7 @@ pub fn t(id: &str) -> String {
         .messages
         .get(id)
         .cloned()
-        .unwrap_or_else(|| id.to_string())
+        .unwrap_or_else(|| id.to_owned())
 }
 
 pub fn t_args(id: &str, args: &[(&str, &str)]) -> String {

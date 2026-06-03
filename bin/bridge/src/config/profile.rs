@@ -54,7 +54,7 @@ fn read_policy_pubkey_native() -> Option<String> {
     if trimmed.is_empty() {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trimmed.to_owned())
     }
 }
 
@@ -67,7 +67,7 @@ pub fn persist_pinned_pubkey(pubkey: &str) -> std::io::Result<()> {
     }
     let existing = fs::read_to_string(&path).unwrap_or_default();
     let (before, _after) = strip_section(&existing, "[sync]");
-    let mut next = before.trim_end().to_string();
+    let mut next = before.trim_end().to_owned();
     if !next.is_empty() {
         next.push_str("\n\n");
     }

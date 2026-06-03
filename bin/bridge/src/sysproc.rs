@@ -1,10 +1,7 @@
 //! Subprocess-free process enumeration.
 //!
-//! Replaces `tasklist.exe` / `/bin/ps` shellouts that caused console flicker on
-//! Windows and a needless fork-per-probe on macOS/Linux. All platforms expose a
-//! uniform `list_processes()` returning image basename and (when available) the
-//! full executable path, which is what the integration-probe callers actually
-//! filter on.
+//! `list_processes()` returns the image basename and, when available, the full
+//! executable path on every platform.
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProcInfo {

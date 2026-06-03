@@ -40,9 +40,8 @@ impl ConfigStore for WindowsRegistryStore {
         &self,
         keys: &[&str],
     ) -> Result<ManagedPolicyRead, ConfigStoreError> {
-        // Merge HKLM (machine-wide policy) and HKCU (per-user policy). HKCU is read
-        // last so per-user values override machine defaults — matches how the running
-        // GUI publishes its live `inferenceGatewayBaseUrl` to HKCU.
+        // HKCU is read last so per-user values override machine-wide HKLM
+        // defaults, matching how the GUI publishes its live config to HKCU.
         let mut values: BTreeMap<String, String> = BTreeMap::new();
         let mut hives_with_data: Vec<&'static str> = Vec::new();
         for (hive, hive_label) in [(HKEY_LOCAL_MACHINE, "HKLM"), (HKEY_CURRENT_USER, "HKCU")] {
@@ -52,7 +51,7 @@ impl ConfigStore for WindowsRegistryStore {
             let mut hive_had_value = false;
             for key in keys {
                 if let Some(v) = read_string_value(handle.0, key)? {
-                    values.insert((*key).to_string(), v);
+                    values.insert((*key).to_owned(), v);
                     hive_had_value = true;
                 }
             }
@@ -227,8 +226,8 @@ fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigSto
 // token has read-only access, so a non-elevated create/set returns status 5.
 fn access_denied(hive_label: &str) -> ConfigStoreError {
     ConfigStoreError::AccessDenied {
-        hive: hive_label.to_string(),
-        subkey: POLICY_SUBKEY.to_string(),
+        hive: hive_label.to_owned(),
+        subkey: POLICY_SUBKEY.to_owned(),
     }
 }
 

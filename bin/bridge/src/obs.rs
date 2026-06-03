@@ -45,8 +45,6 @@ pub mod tracing_init {
             install_file_writer();
             let filter = EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("info,systemprompt_bridge::proxy=debug"));
-            // Why: try_init only fails if a global subscriber is already installed,
-            // which is benign — the existing subscriber stays.
             if json_format_requested() {
                 _ = tracing_subscriber::fmt()
                     .with_writer(TeeWriter)
@@ -63,7 +61,7 @@ pub mod tracing_init {
             }
             tracing::info!(
                 "log dir: {}",
-                log_dir().map_or_else(|| "<disabled>".to_string(), |p| p.display().to_string())
+                log_dir().map_or_else(|| "<disabled>".to_owned(), |p| p.display().to_string())
             );
         });
     }
@@ -107,8 +105,6 @@ pub mod tracing_init {
             },
         };
         let (writer, guard) = tracing_appender::non_blocking(appender);
-        // Why: OnceLock::set is idempotent — only fails if already initialised,
-        // which is benign during re-init in tests / subsequent calls.
         _ = GUARD.set(guard);
         _ = FILE_WRITER.set(writer);
     }
@@ -142,13 +138,13 @@ pub mod tracing_init {
             .map(|base| base.join("systemprompt-bridge"))
     }
 
-    // Why: must be installed before `init` so panics during subscriber setup
-    // are captured rather than lost to the default stderr handler.
+    // Must be installed before `init` so panics during subscriber setup are
+    // captured rather than lost to the default stderr handler.
     pub fn install_panic_hook() {
         std::panic::set_hook(Box::new(|info| {
             let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
             let location = info.location().map_or_else(
-                || "<unknown>".to_string(),
+                || "<unknown>".to_owned(),
                 |l| format!("{}:{}", l.file(), l.line()),
             );
             let payload = info
@@ -157,13 +153,13 @@ pub mod tracing_init {
                 .copied()
                 .map(str::to_string)
                 .or_else(|| info.payload().downcast_ref::<String>().cloned())
-                .unwrap_or_else(|| "<non-string panic payload>".to_string());
+                .unwrap_or_else(|| "<non-string panic payload>".to_owned());
             let backtrace = backtrace::Backtrace::new();
             let dump =
                 format!("panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n");
             if let Some(dir) = log_dir() {
-                // Why: panic hook is a best-effort dump path — recursing into tracing
-                // on a filesystem failure would itself become the failure mode.
+                // Best-effort dump: recursing into tracing on a filesystem
+                // failure would itself become the failure mode.
                 _ = std::fs::create_dir_all(&dir);
                 let path = dir.join(format!("bridge-crash-{ts}.log"));
                 _ = std::fs::write(&path, &dump);
@@ -207,10 +203,8 @@ pub mod tracing_init {
     }
 
     impl Write for TeeWriterImpl {
-        // Why: prefer file-only output when the rolling log is available — stderr
-        // tee was too noisy in the terminal once proxy=debug request logging
-        // landed. Fall back to stderr only when no file sink exists, so early
-        // bootstrap errors before `install_file_writer` are still visible.
+        // File-only when the rolling log is available; fall back to stderr so
+        // early bootstrap errors before `install_file_writer` stay visible.
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             if let Some(file) = self.file.as_mut() {
                 _ = file.write_all(buf);

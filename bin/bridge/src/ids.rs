@@ -20,7 +20,7 @@ macro_rules! bridge_define_id {
         }
 
         impl From<String> for $name { fn from(s: String) -> Self { Self(s) } }
-        impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_string()) } }
+        impl From<&str> for $name { fn from(s: &str) -> Self { Self(s.to_owned()) } }
 
         $crate::bridge_id_common!($name);
     };
@@ -156,7 +156,7 @@ macro_rules! bridge_define_token {
                 if len > 16 {
                     format!("{}...{}", &self.0[..8], &self.0[len - 4..])
                 } else {
-                    "***".to_string()
+                    "***".to_owned()
                 }
             }
         }
@@ -176,7 +176,7 @@ macro_rules! bridge_define_token {
         impl std::str::FromStr for $name {
             type Err = std::convert::Infallible;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Ok(Self(s.to_string()))
+                Ok(Self(s.to_owned()))
             }
         }
 
@@ -193,7 +193,7 @@ macro_rules! bridge_define_token {
         }
         impl From<&str> for $name {
             fn from(s: &str) -> Self {
-                Self(s.to_string())
+                Self(s.to_owned())
             }
         }
 

@@ -111,10 +111,6 @@ pub fn run() -> ExitCode {
     cli::run()
 }
 
-// One-shot cleanup of the pre-0.x per-host enable/disable file. Host enable
-// state now lives in the user's profile, not on local disk; remove the stale
-// file so it stops shadowing manifest-driven state. Drop this call once
-// fleets are confidently past the deprecation.
 fn purge_legacy_agents_state() {
     let Some(base) = dirs::config_dir() else {
         return;

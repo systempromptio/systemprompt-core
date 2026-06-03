@@ -28,7 +28,7 @@ fn redact(value: &mut toml::Value) {
         toml::Value::Table(map) => {
             for (k, v) in map.iter_mut() {
                 if is_sensitive_key(k) {
-                    *v = toml::Value::String(REDACTED.to_string());
+                    *v = toml::Value::String(REDACTED.to_owned());
                 } else {
                     redact(v);
                 }

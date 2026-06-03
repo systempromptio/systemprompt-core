@@ -1,11 +1,8 @@
 //! In-memory registry mapping `ManagedMcpServer` name → upstream URL + manifest
 //! headers.
 //!
-//! Cross-cutting bridge state. Populated by `sync::apply` after a successful
-//! manifest apply; consumed by `proxy::forward` (route `/mcp/<name>` to the
-//! registered upstream) and by `install::mdm::*` (emit the managed-server JSON
-//! for the platform MDM channel). Empty until a manifest is applied; an unknown
-//! name yields a 404 from the proxy.
+//! Populated by `sync::apply`; consumed by `proxy::forward` (routes
+//! `/mcp/<name>`) and `install::mdm::*`. An unknown name yields a 404.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock};
@@ -53,8 +50,8 @@ pub(crate) fn snapshot() -> Arc<McpRegistry> {
     slot().load_full()
 }
 
-// Must be stable + deterministic so the synthetic plugin writer and the proxy
-// router agree on the key for `/mcp/<slug>` routing.
+// Must be deterministic: the synthetic plugin writer and proxy router rely on
+// the same key for `/mcp/<slug>` routing.
 #[must_use]
 pub(crate) fn normalize_key(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
@@ -73,7 +70,7 @@ pub(crate) fn normalize_key(name: &str) -> String {
         out.pop();
     }
     if out.is_empty() {
-        "mcp-server".to_string()
+        "mcp-server".to_owned()
     } else {
         out
     }

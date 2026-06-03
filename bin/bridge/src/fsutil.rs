@@ -1,16 +1,7 @@
-//! Single owner of bridge filesystem helpers.
-//!
-//! Atomic 0600 writes, recursive copies, and optional reads were previously
-//! duplicated in three places (`auth::plugin_oauth`, `sync::apply::plugin`,
-//! `integration::cowork_plugins::emit`). They drifted in temp-file naming,
-//! permission handling, and parent-dir creation. This module is the canonical
-//! implementation; the call sites are migrated in later remediation stages.
+//! Canonical bridge filesystem helpers: atomic 0600 writes, recursive copies,
+//! and optional reads.
 
-#![allow(
-    dead_code,
-    reason = "Stage 1 lands these helpers without touching the three duplicate call sites (Stage \
-              3/4)"
-)]
+#![allow(dead_code, reason = "helpers not yet wired into all call sites")]
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};

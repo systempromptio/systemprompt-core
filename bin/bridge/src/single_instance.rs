@@ -200,7 +200,7 @@ fn read_running_instance() -> Option<RunningInstance> {
     let raw = fs::read_to_string(path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
     let port = u16::try_from(v.get("port")?.as_u64()?).ok()?;
-    let token = v.get("token")?.as_str()?.to_string();
+    let token = v.get("token")?.as_str()?.to_owned();
     Some(RunningInstance { port, token })
 }
 
