@@ -67,11 +67,14 @@ members = [
     "unit/entry/cli",
     # Unit tests - bridge binary
     "unit/bridge/manifest",
+    "unit/bridge/gateway-client",
     "unit/bridge/paths",
     "unit/bridge/install",
     "unit/bridge/sync",
+    "unit/bridge/sync-e2e",
     "unit/bridge/integration",
     "unit/bridge/proxy",
+    "unit/bridge/proxy-harness",
     "unit/bridge/auth",
     "unit/bridge/config",
     "unit/bridge/cowork-plugins",
@@ -84,6 +87,7 @@ members = [
     "unit/bridge/ids",
     "unit/bridge/activity",
     "unit/bridge/validate",
+    "unit/bridge/auth-e2e",
     "unit/bridge/cli",
     # Common test utilities
     "common/mocks",

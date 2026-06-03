@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-bridge-proxy-harness-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "End-to-end loopback-proxy request-path integration tests for systemprompt-bridge"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+wiremock = { workspace = true }
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["server", "tokio"] }
+http-body-util = "0.1"
+arc-swap = "1"

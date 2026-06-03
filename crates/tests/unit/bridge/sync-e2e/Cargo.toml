@@ -1,0 +1,26 @@
+[package]
+name = "systemprompt-bridge-sync-e2e-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "End-to-end integration tests for the systemprompt-bridge sync/apply pipeline"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+
+[dev-dependencies]
