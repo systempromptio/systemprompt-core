@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.0] - 2026-06-03
+
+### Added
+
+- Per-host compatible-model selection in the Status tab. Each managed host now exposes which wire protocol(s) it advertises, and the user can pin a host to a subset (or clear the override to fall back to the host's default). The choice is persisted through the gateway, carried back in the signed manifest as `host_model_protocols`, and applied when generating the host's policy profile so the host is offered only the models its client can drive. An empty selection means "all models".
+
+### Fixed
+
+- A profile fetch made while signed out is treated as the expected logged-out state on the login page instead of an error: no error log line and no toast. The handler now recognises a dedicated not-authenticated result and renders the logged-out view quietly.
+
 ## [0.10.8] - 2026-06-03
 
 ### Added

@@ -2,7 +2,7 @@
 
 [package]
 name = "systemprompt-bridge"
-version = "0.10.8"
+version = "0.11.0"
 edition = "2024"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
