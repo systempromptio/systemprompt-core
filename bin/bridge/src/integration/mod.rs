@@ -1,4 +1,5 @@
 pub(crate) mod app_launch;
+pub(crate) mod claude_code_cli;
 pub mod claude_desktop;
 pub mod codex_cli;
 pub mod cowork_plugins;

@@ -207,3 +207,18 @@ pub fn bridge_staging_dir() -> Option<PathBuf> {
 pub fn bridge_metadata_dir() -> Option<PathBuf> {
     bridge_working_dir().map(|p| p.join("metadata"))
 }
+
+#[must_use]
+pub fn claude_cli_home() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".claude"))
+}
+
+#[must_use]
+pub fn claude_cli_plugins_dir() -> Option<PathBuf> {
+    claude_cli_home().map(|h| h.join("plugins"))
+}
+
+#[must_use]
+pub fn claude_cli_settings_path() -> Option<PathBuf> {
+    claude_cli_home().map(|h| h.join("settings.json"))
+}

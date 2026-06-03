@@ -4,6 +4,7 @@
 
 ### Added
 
+- The bridge mirrors an organization's managed plugins into the standalone Claude Code CLI. Because the `claude` CLI does not read the Cowork org-plugins root, the bridge installs the managed skills, agents, and MCP servers into `~/.claude` as a directory-source marketplace plugin — writing the bundle, `marketplace.json`, and `known_marketplaces`/`installed_plugins` registry entries, then force-enabling it in `settings.json` — so the plugin appears in `claude plugin list` and its skills load as `/systemprompt-managed:<skill>`. Every registry file is updated in place, preserving the user's other marketplaces and plugins, and a manifest with no content removes the plugin again. (ships on the next `bridge-v*` release)
 - A `message` CLI artifact (`CliArtifact::Message`, carrying levelled notice lines) and a `CommandOutput::message(...)` constructor. In JSON/YAML output mode the CLI now guarantees every command finishes with exactly one structured artifact on stdout: levelled notices from `CliService::success`/`warning`/`error`/`info` are captured during the command and, when the command emitted no other artifact, flushed as a single `message` artifact (a default "completed" notice when there were none), instead of being written only to stderr.
 
 ### Fixed
