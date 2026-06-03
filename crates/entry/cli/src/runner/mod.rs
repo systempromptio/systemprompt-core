@@ -8,6 +8,7 @@ mod args;
 mod bootstrap;
 mod db_url;
 mod routing;
+mod structured_output;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
@@ -24,38 +25,10 @@ enum RoutingAction {
     ExternalDbUrl(String),
 }
 
-fn has_local_export_flag(command: Option<&args::Commands>) -> bool {
-    let is_analytics = matches!(command, Some(args::Commands::Analytics(_)));
-    if !is_analytics {
-        return false;
-    }
-    std::env::args().any(|arg| arg == "--export" || arg.starts_with("--export="))
-}
-
 pub async fn run() -> Result<()> {
     let outcome = Box::pin(run_inner()).await;
-    finalize_structured_output(&outcome);
+    structured_output::finalize(&outcome);
     outcome
-}
-
-fn finalize_structured_output(outcome: &Result<()>) {
-    use systemprompt_logging::{
-        CliService, drain_notices, is_structured_output, structured_was_emitted,
-    };
-    use systemprompt_models::artifacts::{CliArtifact, MessageArtifact, NoticeLine};
-
-    if outcome.is_err() || !is_structured_output() || structured_was_emitted() {
-        return;
-    }
-
-    let mut lines: Vec<NoticeLine> = drain_notices()
-        .into_iter()
-        .map(|n| NoticeLine::new(n.level, n.text))
-        .collect();
-    if lines.is_empty() {
-        lines.push(NoticeLine::new("success", "Command completed."));
-    }
-    CliService::json(&CliArtifact::message(MessageArtifact::new(lines)));
 }
 
 async fn run_inner() -> Result<()> {
@@ -108,7 +81,7 @@ async fn bootstrap_profile(
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
 ) -> Result<Option<String>> {
-    let has_export = has_local_export_flag(cli.command.as_ref());
+    let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, has_export)?;
 
     enforce_routing_policy(&ctx, cli, desc).await?;

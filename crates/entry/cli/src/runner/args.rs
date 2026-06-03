@@ -283,3 +283,10 @@ pub(super) fn reconstruct_args(cli: &Cli) -> Vec<String> {
 
     args
 }
+
+pub(super) fn has_local_export_flag(command: Option<&Commands>) -> bool {
+    if !matches!(command, Some(Commands::Analytics(_))) {
+        return false;
+    }
+    std::env::args().any(|arg| arg == "--export" || arg.starts_with("--export="))
+}
