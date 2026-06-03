@@ -1,0 +1,14 @@
+[package]
+name = "systemprompt-bridge-activity-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-bridge in-memory activity log"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }

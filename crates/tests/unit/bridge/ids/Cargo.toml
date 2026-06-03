@@ -1,0 +1,15 @@
+[package]
+name = "systemprompt-bridge-ids-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-bridge typed id and token wrappers"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+serde_json = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name = "systemprompt-bridge-i18n-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-bridge i18n fluent-subset string loader"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
