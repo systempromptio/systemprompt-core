@@ -65,10 +65,10 @@ pub fn start(
     let ctx = ProxyContext {
         runtime_config: runtime_config.clone(),
         secret: Arc::new(proxy_secret),
-        stats: stats.clone(),
+        stats: Arc::clone(&stats),
         client: client.clone(),
-        token_cache: token_cache.clone(),
-        session: session.clone(),
+        token_cache: Arc::clone(&token_cache),
+        session: Arc::clone(&session),
     };
 
     let (port_tx, port_rx) = oneshot::channel::<std::io::Result<u16>>();
@@ -95,10 +95,8 @@ pub fn start(
 
 fn build_upstream_client() -> std::io::Result<reqwest::Client> {
     reqwest::Client::builder()
-        // Same IPv4-first resolver the gateway client uses: a user-entered
-        // `localhost` gateway URL resolves to IPv6 `::1` first, but the WSL2
-        // localhost forwarder black-holes IPv6 SYNs, so without this every
-        // proxied MCP/inference call stalls the full connect timeout.
+        // IPv4-first: the WSL2 localhost forwarder black-holes IPv6 SYNs, so a
+        // `localhost` gateway resolving to `::1` first stalls every connect.
         .dns_resolver(Arc::new(crate::gateway::Ipv4FirstResolver))
         .pool_max_idle_per_host(16)
         .tcp_nodelay(true)

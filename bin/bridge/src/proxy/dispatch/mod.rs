@@ -44,8 +44,6 @@ pub(super) async fn forward_to_gateway(
     {
         Ok(response) => {
             let status = response.status().as_u16();
-            // Why: monotonic Instant elapsed cannot exceed u64::MAX in practice;
-            // saturate to keep the metric monotonic rather than wrap or fail.
             let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
             record_stats(&ctx.stats, status, latency_ms);
             tracing::info!(
@@ -63,7 +61,6 @@ pub(super) async fn forward_to_gateway(
             Ok(response)
         },
         Err(e) => {
-            // Why: see above — saturating cast keeps the latency metric monotonic.
             let latency_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
             record_stats(&ctx.stats, StatusCode::BAD_GATEWAY.as_u16(), latency_ms);
             if forward::is_client_disconnect(&e) {
@@ -137,8 +134,8 @@ pub(super) async fn handle_request(
     peer: SocketAddr,
 ) -> Result<Response<ProxyBody>, Infallible> {
     let method = req.method().clone();
-    let path = req.uri().path().to_string();
-    let query = req.uri().query().unwrap_or("").to_string();
+    let path = req.uri().path().to_owned();
+    let query = req.uri().query().unwrap_or("").to_owned();
     let req_id = mint_req_id();
     let host_hdr = header_str(&req, http::header::HOST);
     let user_agent = header_str(&req, http::header::USER_AGENT);
@@ -214,7 +211,7 @@ fn header_str(req: &Request<Incoming>, name: http::header::HeaderName) -> String
         .get(name)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
-        .to_string()
+        .to_owned()
 }
 
 fn is_unauthenticated_path(method: &Method, path: &str) -> bool {
@@ -243,7 +240,7 @@ fn mint_req_id() -> String {
 pub(crate) fn sha256_8(s: &str) -> String {
     use sha2::{Digest, Sha256};
     if s.is_empty() {
-        return "<empty>".to_string();
+        return "<empty>".to_owned();
     }
     let d = Sha256::digest(s.as_bytes());
     format!("{:08x}", u32::from_be_bytes([d[0], d[1], d[2], d[3]]))

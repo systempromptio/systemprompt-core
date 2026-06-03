@@ -47,7 +47,7 @@ pub(super) fn verify_loopback_secret(
                 .or_else(|| v.strip_prefix("bearer "))
                 .unwrap_or(v)
                 .trim()
-                .to_string()
+                .to_owned()
         })
         .unwrap_or_default();
     if !presented.is_empty() && secret::verify(&presented, ctx.secret.as_ref()) {
@@ -56,7 +56,7 @@ pub(super) fn verify_loopback_secret(
     let presented_fp = sha256_8(&presented);
     let expected_fp = sha256_8(ctx.secret.as_ref().as_str());
     let secret_path = secret::secret_path().map_or_else(
-        || "<no config dir>".to_string(),
+        || "<no config dir>".to_owned(),
         |p| p.display().to_string(),
     );
     tracing::warn!(

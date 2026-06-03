@@ -115,7 +115,7 @@ fn hostname_or_unknown() -> &'static str {
             hostname::get()
                 .ok()
                 .and_then(|os| os.into_string().ok())
-                .unwrap_or_else(|| "unknown".to_string())
+                .unwrap_or_else(|| "unknown".to_owned())
         })
         .as_str()
 }

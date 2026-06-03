@@ -70,10 +70,10 @@ impl TokenCache {
         let refresh = Arc::clone(&self.refresh);
         let token = tokio::time::timeout(REFRESH_TIMEOUT, refresh(refresh_threshold_secs))
             .await
-            .map_err(|_| ForwardError::AuthTimeout)?
+            .map_err(|_elapsed| ForwardError::AuthTimeout)?
             .ok_or_else(|| {
                 ForwardError::Auth(
-                    "no JWT available — sign in via systemprompt-bridge GUI".to_string(),
+                    "no JWT available — sign in via systemprompt-bridge GUI".to_owned(),
                 )
             })?;
 

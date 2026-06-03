@@ -95,8 +95,6 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
     let token_cache = Arc::new(TokenCache::default_for_runtime(
         session_context.session_id().clone(),
     ));
-    // Why: idempotent one-shot init — a prior set on a re-entered start() is
-    // already the correct value, so a returned-Err is the no-op we want.
     _ = TOKEN_CACHE.set(Arc::clone(&token_cache));
     let handle = match server::start(
         rt,
@@ -115,8 +113,6 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
 
     rt.spawn(refresh_loop(token_cache));
 
-    // Why: idempotent one-shot init — a prior set on a re-entered start() already
-    // holds a live handle, so a returned-Err is the no-op we want.
     _ = HANDLE.set(handle);
     HANDLE.get()
 }
@@ -146,8 +142,6 @@ async fn refresh_loop(cache: Arc<TokenCache>) {
     interval.tick().await;
     loop {
         interval.tick().await;
-        // Why: proactive cache warm-up; refresh failures are logged inside
-        // current() and the next tick retries, so the loop must not propagate them.
         _ = cache.current(REFRESH_THRESHOLD_SECS).await;
     }
 }

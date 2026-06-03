@@ -79,16 +79,13 @@ pub async fn forward(
     session_context: &SessionContext,
     stats: Arc<ProxyStats>,
 ) -> ForwardResult<Response<ProxyBody>> {
-    // The user's bridge JWT. Bearer for gateway/MCP routes, and the credential
-    // used to mint plugin hook tokens for hook routes.
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();
-    let request_path = parts.uri.path().to_string();
+    let request_path = parts.uri.path().to_owned();
 
-    // `is_hook`: a hook route carries a plugin-scoped `aud:hook` token, so an
-    // upstream 401 means that token is stale — not the bridge JWT — and must
-    // not invalidate the shared bridge token cache.
+    // A hook route's 401 means its plugin-scoped `aud:hook` token is stale, not
+    // the bridge JWT — so `is_hook` must suppress the shared-cache invalidation.
     let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
         RouteResolution::Gateway(url) => (
             Route {
@@ -100,10 +97,6 @@ pub async fn forward(
         ),
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned(), false),
         RouteResolution::Hook { url, plugin_id } => {
-            // Unified local broker: the proxy mints+injects the plugin hook
-            // token here (server-side) so Cowork never needs the env-var
-            // `$SYSTEMPROMPT_PLUGIN_TOKEN`. Reuses the per-plugin cached,
-            // auto-refreshing, 401-rotating mint path.
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone());
             let pid = systemprompt_identifiers::PluginId::new(plugin_id);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
@@ -199,9 +192,6 @@ enum RouteResolution {
     Gateway(String),
     Mcp(Route),
     UnknownMcp(String),
-    // A plugin governance/track hook call. Forwarded to the gateway like a
-    // Gateway route, but authenticated with that plugin's `aud:hook` token
-    // (minted by the bridge) instead of the user's bridge JWT — see `forward`.
     Hook { url: String, plugin_id: String },
 }
 
@@ -209,10 +199,10 @@ fn resolve_route(uri: &http::Uri, gateway_base: &ValidatedUrl) -> RouteResolutio
     if let Some(name) = parse_mcp_path(uri.path()) {
         let registry = mcp_registry::snapshot();
         return registry.get(name).map_or_else(
-            || RouteResolution::UnknownMcp(name.to_string()),
+            || RouteResolution::UnknownMcp(name.to_owned()),
             |entry| {
                 RouteResolution::Mcp(Route {
-                    url: entry.url.as_str().to_string(),
+                    url: entry.url.as_str().to_owned(),
                     extra_headers: entry.headers.clone(),
                 })
             },
@@ -235,13 +225,11 @@ fn parse_mcp_path(path: &str) -> Option<&str> {
     if name.is_empty() { None } else { Some(name) }
 }
 
-// The hook URL the bridge writes carries `?plugin_id=<id>`; the gateway's
-// govern/track guard matches it against the token's `plugin_id` claim, so the
-// proxy must mint the token for exactly this plugin.
+// Token must be minted for the `?plugin_id=<id>` the gateway guard matches.
 fn parse_hook_plugin_id(uri: &http::Uri) -> Option<String> {
     uri.query()?.split('&').find_map(|kv| {
         let (k, v) = kv.split_once('=')?;
-        (k == "plugin_id" && !v.is_empty()).then(|| v.to_string())
+        (k == "plugin_id" && !v.is_empty()).then(|| v.to_owned())
     })
 }
 
@@ -260,10 +248,8 @@ fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     )
 }
 
-// Why: OTLP exporters (Codex telemetry) POST to `/otel` without the `/v1`
-// prefix every other gateway path uses. The gateway router is nested under
-// `/v1`, so we have to add it here or the exporter sees a 404 for every
-// batch.
+// OTLP exporters POST to `/otel` without the `/v1` prefix the gateway router is
+// nested under, so it must be added here or every batch 404s.
 fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
     let (path, suffix) = path_and_query
         .split_once('?')

@@ -21,7 +21,7 @@ pub fn secret_path() -> Option<PathBuf> {
 pub fn load(path: &std::path::Path) -> std::io::Result<Option<LoopbackSecret>> {
     match fs::read(path) {
         Ok(bytes) => {
-            let s = String::from_utf8_lossy(&bytes).trim().to_string();
+            let s = String::from_utf8_lossy(&bytes).trim().to_owned();
             if s.is_empty() {
                 tracing::warn!(
                     path = %path.display(),

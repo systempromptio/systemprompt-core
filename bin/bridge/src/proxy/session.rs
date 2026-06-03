@@ -65,13 +65,9 @@ impl SessionContext {
     }
 }
 
-/// Compute a stable conversation-prefix hash from a request body.
-///
-/// Recognises Anthropic Messages (`{system, messages}`), `OpenAI` Chat
-/// Completions (`{messages}`) and `OpenAI` Responses (`{instructions,
-/// input}`) shapes. Returns `None` when the body is not parseable JSON
-/// or has no first turn — callers fall back to letting the gateway
-/// derive the conversation id from the canonical request.
+/// Stable conversation-prefix hash from a request body, recognising Anthropic
+/// Messages, `OpenAI` Chat, and `OpenAI` Responses shapes; `None` when there is
+/// no parseable first turn (the gateway then derives the id itself).
 #[must_use]
 pub fn derive_gateway_conversation_id(body: &[u8]) -> Option<u64> {
     let probe: PrefixProbe = serde_json::from_slice(body).ok()?;
@@ -125,7 +121,7 @@ impl PrefixProbe {
                 .as_deref()
                 .is_none_or(|r| !r.eq_ignore_ascii_case("system"))
         })?;
-        let role = first.role.clone().unwrap_or_else(|| "user".to_string());
+        let role = first.role.clone().unwrap_or_else(|| "user".to_owned());
         let content = content_text(first.content.as_ref());
         Some((system, role, content))
     }
@@ -152,7 +148,7 @@ fn content_text(value: Option<&serde_json::Value>) -> String {
                 serde_json::Value::Object(map) => map
                     .get("text")
                     .and_then(serde_json::Value::as_str)
-                    .map(str::to_string),
+                    .map(str::to_owned),
                 _ => None,
             })
             .collect::<Vec<_>>()

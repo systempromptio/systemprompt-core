@@ -1,12 +1,7 @@
-//! Live MCP authentication probe.
-//!
-//! For each managed MCP server in [`crate::mcp_registry`], performs a real
-//! `initialize` → `tools/list` round-trip **through the bridge's own loopback
-//! proxy** (`http://127.0.0.1:<port>/mcp/<slug>` with the loopback bearer). This
-//! exercises the full auth chain the host app (Cowork) uses — loopback-secret
-//! verification, gateway-JWT injection, upstream forwarding — so the GUI can
-//! surface exactly the failures we otherwise only saw in Cowork's `main.log`
-//! (e.g. `forbidden: bad loopback secret`, gateway `401`).
+//! Live MCP auth probe: an `initialize` → `tools/list` round-trip through the
+//! bridge's own loopback proxy, exercising the full auth chain (loopback-secret,
+//! gateway-JWT injection, upstream forwarding) the host app uses, so the GUI can
+//! surface failures otherwise only visible in the host's logs.
 
 use std::time::{Duration, Instant};
 
@@ -18,9 +13,8 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
 const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 const SESSION_HEADER: &str = "mcp-session-id";
 
-/// Per-server result of an MCP auth probe. Shape mirrors
-/// [`crate::integration::proxy_probe::ProxyHealth`] so the frontend renders it
-/// with the same card pattern.
+/// Shape mirrors [`crate::integration::proxy_probe::ProxyHealth`] so the
+/// frontend renders it with the same card pattern.
 #[derive(Debug, Clone, Serialize)]
 pub struct McpServerAuth {
     pub id: String,
@@ -30,39 +24,28 @@ pub struct McpServerAuth {
     pub http_status: Option<u16>,
     pub latency_ms: Option<u64>,
     pub error: Option<String>,
-    /// `Mcp-Session-Id` the backend returned on `initialize` (Authenticated
-    /// only) — confirms a session was established and aids debugging.
     pub session_id: Option<String>,
     pub probed_at_unix: u64,
 }
 
-/// Auth verdict for a single MCP server. Serialized by variant name (e.g.
-/// `"Authenticated"`), which the frontend keys off for its status dot.
+/// Serialized by variant name, which the frontend keys off for its status dot.
 #[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
 pub enum McpAuthState {
     #[default]
     Unknown,
-    /// Registry is empty — nothing to authenticate against yet.
     NoServers,
-    /// `initialize` succeeded through the proxy.
     Authenticated,
-    /// Proxy returned 403 — the presented loopback secret was rejected.
+    /// Proxy 403 — presented loopback secret rejected.
     LoopbackMismatch,
-    /// Gateway returned 401 — the injected bridge JWT was rejected.
+    /// Gateway 401 — injected bridge JWT rejected.
     GatewayUnauthorized,
-    /// Proxy returned 404 — the slug is not in the proxy's live registry.
+    /// Proxy 404 — slug not in the proxy's live registry.
     NotRegistered,
-    /// Any other non-2xx HTTP status from the proxy/upstream.
     UpstreamError,
-    /// The proxy port did not accept the connection (refused/timeout).
     ProxyUnreachable,
-    /// A reachable endpoint replied in a way we could not interpret.
     ProtocolError,
 }
 
-/// Probe every registered MCP server.
-///
-/// Runs sequentially — there is typically one server and the registry is small.
 /// Returns one synthetic `NoServers` entry when the registry is empty, so the
 /// GUI can render an explicit "nothing to check" card.
 #[must_use]
@@ -192,8 +175,7 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
         );
     }
 
-    // Authenticated. Capture the session id, then enumerate tools (best-effort:
-    // a tools/list failure does not downgrade the auth verdict).
+    // A tools/list failure is best-effort and must not downgrade the auth verdict.
     let session = resp
         .headers()
         .get(SESSION_HEADER)
@@ -222,7 +204,6 @@ async fn list_tools(
     bearer: &str,
     session: Option<&str>,
 ) -> Vec<String> {
-    // Per the MCP lifecycle, acknowledge initialization before the first call.
     let initialized = with_session(
         client
             .post(url)
@@ -287,9 +268,6 @@ fn initialize_body() -> Value {
     })
 }
 
-/// Extract tool names from a JSON-RPC `tools/list` response. The MCP
-/// streamable-HTTP transport may return either `application/json` or an SSE
-/// (`text/event-stream`) body, so handle both.
 fn parse_tool_names(content_type: &str, body: &str) -> Vec<String> {
     let Some(value) = parse_jsonrpc(content_type, body) else {
         return Vec::new();
@@ -308,7 +286,6 @@ fn parse_tool_names(content_type: &str, body: &str) -> Vec<String> {
 
 fn parse_jsonrpc(content_type: &str, body: &str) -> Option<Value> {
     if content_type.contains("text/event-stream") {
-        // Concatenate the `data:` payload lines of the (single) SSE event.
         let mut data = String::new();
         for line in body.lines() {
             if let Some(rest) = line.strip_prefix("data:") {
@@ -321,7 +298,6 @@ fn parse_jsonrpc(content_type: &str, body: &str) -> Option<Value> {
     }
 }
 
-// Flat constructor for the non-authenticated result paths.
 fn result(
     slug: &str,
     url: &str,
