@@ -4061,7 +4061,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -4120,7 +4120,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "axum",
  "inventory",
@@ -4135,7 +4135,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "chrono",
  "schemars",
@@ -4147,7 +4147,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "async-trait",
  "base64",
@@ -4178,7 +4178,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4193,7 +4193,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "async-trait",
  "axum",

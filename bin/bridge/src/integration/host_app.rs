@@ -8,6 +8,11 @@ pub struct ProfileGenInputs {
     pub api_key: String,
     pub models: Vec<String>,
     pub organization_uuid: Option<String>,
+    /// Extra HTTP headers the host attaches to every inference request, written
+    /// into the managed policy's `inferenceCustomHeaders`. Carries
+    /// `x-inference-protocol` so the gateway scopes `/v1/models` to the host's
+    /// wire protocol; empty means the host sends none.
+    pub headers: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

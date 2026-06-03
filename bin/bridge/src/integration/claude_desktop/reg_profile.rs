@@ -15,13 +15,18 @@ pub fn profile_entries(inputs: &ProfileGenInputs) -> Vec<(&'static str, String)>
         inputs.models.clone()
     };
     let models_json = serde_json::to_string(&models).unwrap_or_else(|_| "[]".into());
-    vec![
+    let mut entries = vec![
         ("inferenceProvider", "gateway".to_owned()),
         ("inferenceGatewayBaseUrl", inputs.gateway_base_url.clone()),
         ("inferenceGatewayApiKey", inputs.api_key.clone()),
         ("inferenceGatewayAuthScheme", "bearer".to_owned()),
         ("inferenceModels", models_json),
-    ]
+    ];
+    if !inputs.headers.is_empty() {
+        let headers_json = serde_json::to_string(&inputs.headers).unwrap_or_else(|_| "{}".into());
+        entries.push(("inferenceCustomHeaders", headers_json));
+    }
+    entries
 }
 
 #[must_use]

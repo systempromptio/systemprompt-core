@@ -379,11 +379,21 @@ async fn generate_profile_for(
         server_profile.models
     };
 
+    let mut headers = std::collections::BTreeMap::new();
+    let protocols = host.accepted_protocols();
+    if !protocols.is_empty() {
+        headers.insert(
+            systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
+            protocols.join(","),
+        );
+    }
+
     let inputs = ProfileGenInputs {
         gateway_base_url: format!("http://127.0.0.1:{port}"),
         api_key: loopback_secret,
         models,
         organization_uuid: server_profile.organization_uuid,
+        headers,
     };
     host.generate_profile(&inputs)
         .map_err(|e| GuiError::Profile {

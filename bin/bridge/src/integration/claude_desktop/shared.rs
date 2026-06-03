@@ -15,7 +15,7 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceGatewayBaseUrl",
     "inferenceGatewayApiKey",
     "inferenceGatewayAuthScheme",
-    "inferenceGatewayHeaders",
+    "inferenceCustomHeaders",
     "inferenceModels",
 ];
 

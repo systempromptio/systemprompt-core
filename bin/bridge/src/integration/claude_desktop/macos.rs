@@ -166,4 +166,21 @@ fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &
         .replace("{base_url}", &escape(&inputs.gateway_base_url))
         .replace("{api_key}", &escape(&inputs.api_key))
         .replace("{models_xml}", &models_xml)
+        .replace("{headers_xml}", &render_headers_xml(&inputs.headers))
+}
+
+fn render_headers_xml(headers: &std::collections::BTreeMap<String, String>) -> String {
+    if headers.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("        <key>inferenceCustomHeaders</key>\n        <dict>\n");
+    for (name, value) in headers {
+        out.push_str(&format!(
+            "          <key>{}</key>\n          <string>{}</string>\n",
+            escape(name),
+            escape(value)
+        ));
+    }
+    out.push_str("        </dict>\n");
+    out
 }

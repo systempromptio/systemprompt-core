@@ -9,6 +9,7 @@ fn inputs() -> ProfileGenInputs {
         api_key: "sp-secret-key".to_string(),
         models: vec!["claude-opus-4-7".to_string()],
         organization_uuid: Some("org-abc".to_string()),
+        headers: Default::default(),
     }
 }
 
@@ -52,6 +53,31 @@ fn empty_models_falls_back_to_defaults() {
         "expected default model list, got {parsed:?}"
     );
     assert!(parsed.iter().any(|m| m == "claude-opus-4-7"));
+}
+
+#[test]
+fn headers_emit_inference_custom_headers_key() {
+    let mut probe = inputs();
+    probe
+        .headers
+        .insert("x-inference-protocol".to_string(), "anthropic".to_string());
+    let entries: Vec<(String, String)> = profile_entries(&probe)
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+    let raw = value_of(&entries, "inferenceCustomHeaders");
+    let parsed: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(raw).expect("headers is a json object");
+    assert_eq!(
+        parsed.get("x-inference-protocol").map(String::as_str),
+        Some("anthropic")
+    );
+}
+
+#[test]
+fn no_headers_key_when_absent() {
+    let entries = profile_entries(&inputs());
+    assert!(!entries.iter().any(|(k, _)| *k == "inferenceCustomHeaders"));
 }
 
 #[test]

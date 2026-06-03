@@ -27,6 +27,7 @@ fn codex_inputs() -> ProfileGenInputs {
         api_key: "sp-test-key".to_string(),
         models: vec!["claude-opus-4-7".to_string()],
         organization_uuid: Some("org-abc".to_string()),
+        headers: Default::default(),
     }
 }
 

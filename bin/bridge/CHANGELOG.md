@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.8] - 2026-06-03
+
+### Added
+
+- A managed host's policy profile now carries an `inferenceCustomHeaders` entry that pins the host's wire protocol on every inference request (`x-inference-protocol`). The gateway uses it to scope the advertised model list to the protocol the host's client actually speaks, so a single shared gateway offers Claude Desktop its Anthropic models and Codex CLI its OpenAI models rather than handing every host the same flat list. A host that accepts no specific protocol sends no extra headers. The header is emitted by all three Claude Desktop profile forms (macOS `.mobileconfig`, Windows `.reg`, and the in-process registry write).
+
 ## [0.10.7] - 2026-06-03
 
 ### Added
