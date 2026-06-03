@@ -46,6 +46,12 @@ pub struct SignedManifest {
     pub revocations: Vec<String>,
     #[serde(default)]
     pub enabled_hosts: Vec<String>,
+    /// Optional per-host wire-protocol filter, keyed by host id. A present
+    /// entry overrides the host's built-in default `accepted_protocols`; an
+    /// empty value means "all models" (no restriction). An absent entry leaves
+    /// the host on its default.
+    #[serde(default)]
+    pub host_model_protocols: BTreeMap<String, Vec<String>>,
     /// Detached ed25519 signature of the canonicalised payload (every
     /// field above this one). Always present on the wire even for
     /// unsigned manifests, where it is the empty string.

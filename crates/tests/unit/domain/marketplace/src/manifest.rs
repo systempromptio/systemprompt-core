@@ -1,4 +1,5 @@
-use std::sync::Once;
+use std::collections::BTreeMap;
+use std::sync::{LazyLock, Once};
 
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -11,6 +12,8 @@ use systemprompt_test_fixtures::fixture_user_id;
 use crate::helpers::{access, config_with, include, marketplace};
 
 static INIT_SECRETS: Once = Once::new();
+static EMPTY_HOST_MODEL_PROTOCOLS: LazyLock<BTreeMap<String, Vec<String>>> =
+    LazyLock::new(BTreeMap::new);
 
 fn ensure_bootstrap() {
     INIT_SECRETS.call_once(|| {
@@ -105,6 +108,7 @@ fn sample_view<'a>(
         managed_mcp_servers: &[],
         revocations: &[],
         enabled_hosts: &[],
+        host_model_protocols: &EMPTY_HOST_MODEL_PROTOCOLS,
     }
 }
 

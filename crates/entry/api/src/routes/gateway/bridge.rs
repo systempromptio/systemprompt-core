@@ -64,6 +64,80 @@ pub async fn set_enabled_host(
     }))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct HostModelFilterRequest {
+    pub host_id: String,
+    /// Wire-protocol tags the host should advertise. `None` clears the override
+    /// (host falls back to its built-in default); `Some(empty)` means "all
+    /// models" (no restriction).
+    #[serde(default)]
+    pub model_protocols: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HostModelFilterResponse {
+    pub host_id: String,
+    pub model_protocols: Option<Vec<String>>,
+}
+
+pub async fn set_host_model_filter(
+    jwt_extractor: Arc<JwtContextExtractor>,
+    ctx: systemprompt_runtime::AppContext,
+    headers: HeaderMap,
+    Json(body): Json<HostModelFilterRequest>,
+) -> Result<Json<HostModelFilterResponse>, (StatusCode, String)> {
+    let credential = extract_credential(&headers).ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Missing Authorization or x-api-key credential".to_owned(),
+        )
+    })?;
+    let (claims, _user) = jwt_extractor
+        .decode_for_gateway(&JwtToken::new(credential))
+        .await
+        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+
+    if !KNOWN_HOSTS.iter().any(|h| *h == body.host_id) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!("unknown host: {}", body.host_id),
+        ));
+    }
+
+    let normalized = body
+        .model_protocols
+        .as_ref()
+        .map(|tags| {
+            tags.iter()
+                .map(|tag| {
+                    WireProtocol::from_tag(tag)
+                        .map(|p| p.as_tag().to_owned())
+                        .ok_or_else(|| {
+                            (
+                                StatusCode::BAD_REQUEST,
+                                format!("unknown wire protocol: {tag}"),
+                            )
+                        })
+                })
+                .collect::<Result<Vec<String>, _>>()
+        })
+        .transpose()?;
+
+    bridge_data::set_host_model_protocols(
+        &ctx,
+        &claims.user_id,
+        &body.host_id,
+        normalized.as_deref(),
+    )
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(HostModelFilterResponse {
+        host_id: body.host_id,
+        model_protocols: normalized,
+    }))
+}
+
 pub async fn pubkey() -> impl IntoResponse {
     match manifest_signing::pubkey_b64() {
         Ok(b64) => (StatusCode::OK, Json(json!({ "pubkey": b64 }))).into_response(),

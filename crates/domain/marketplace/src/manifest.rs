@@ -40,6 +40,7 @@ pub struct CanonicalView<'a> {
     pub managed_mcp_servers: &'a [ManagedMcpServer],
     pub revocations: &'a [String],
     pub enabled_hosts: &'a [String],
+    pub host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Default, Clone, Copy)]

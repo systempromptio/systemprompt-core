@@ -42,6 +42,26 @@ pub async fn upsert_host_pref(
     Ok(())
 }
 
+pub async fn load_host_model_protocols(
+    ctx: &AppContext,
+    user_id: &UserId,
+) -> anyhow::Result<Vec<(String, Vec<String>)>> {
+    let repo = BridgeHostPrefsRepository::new(ctx.db_pool())?;
+    Ok(repo.load_model_protocols(user_id).await?)
+}
+
+pub async fn set_host_model_protocols(
+    ctx: &AppContext,
+    user_id: &UserId,
+    host_id: &str,
+    protocols: Option<&[String]>,
+) -> anyhow::Result<()> {
+    let repo = BridgeHostPrefsRepository::new(ctx.db_pool())?;
+    repo.set_model_protocols(user_id, host_id, protocols)
+        .await?;
+    Ok(())
+}
+
 pub fn load_services_config() -> anyhow::Result<ServicesConfig> {
     ConfigLoader::load().map_err(|e| anyhow::anyhow!("services config load: {e}"))
 }

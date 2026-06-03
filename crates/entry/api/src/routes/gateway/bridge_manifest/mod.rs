@@ -57,6 +57,7 @@ pub async fn manifest(
         user,
         revocations,
         enabled_hosts,
+        host_model_protocols,
     } = load_per_user_context(&ctx, &claims.user_id).await;
 
     let canonical = CanonicalView {
@@ -73,6 +74,7 @@ pub async fn manifest(
         managed_mcp_servers: &managed_mcp_servers,
         revocations: &revocations,
         enabled_hosts: &enabled_hosts,
+        host_model_protocols: &host_model_protocols,
     };
 
     let signature = sign_canonical(&canonical)?;
@@ -91,6 +93,7 @@ pub async fn manifest(
         managed_mcp_servers,
         revocations,
         enabled_hosts,
+        host_model_protocols,
         signature,
     }))
 }
@@ -123,6 +126,7 @@ struct PerUserContext {
     user: Option<UserInfo>,
     revocations: Vec<String>,
     enabled_hosts: Vec<String>,
+    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserContext {
@@ -154,10 +158,22 @@ async fn load_per_user_context(ctx: &AppContext, user_id: &UserId) -> PerUserCon
         },
     };
 
+    let host_model_protocols = match bridge_data::load_host_model_protocols(ctx, user_id).await {
+        Ok(rows) => rows.into_iter().collect(),
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "manifest: host model-protocol prefs load failed; continuing with defaults"
+            );
+            std::collections::BTreeMap::new()
+        },
+    };
+
     PerUserContext {
         user,
         revocations,
         enabled_hosts,
+        host_model_protocols,
     }
 }
 
