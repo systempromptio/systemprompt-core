@@ -1,10 +1,11 @@
 # Changelog
 
-## [0.14.4] - 2026-06-02
+## [0.14.4] - 2026-06-03
 
 ### Added
 
 - `GET /v1/bridge/profile` reports per-provider health: each provider's wire protocol, the models it serves, and whether its credential secret resolves. The bridge uses this to present the models compatible with each managed host and to flag a provider that is missing its API key.
+- `GET /v1/models` honours an `x-inference-protocol` request header and scopes the advertised model list to the named wire protocol(s) (comma-separated `anthropic`, `openai-chat`, `openai-responses`, `gemini`). An absent or empty header lists the full catalog; an unrecognised tag fails with `400` rather than silently widening the set. A managed bridge host pins its protocol through this header (carried in the policy profile's `inferenceCustomHeaders`) so it is offered only the models its client can actually drive.
 
 ### Changed
 
@@ -15,6 +16,7 @@
 
 - The bridge profile advertises only Anthropic models in `inferenceModels`. Claude Desktop and Cowork run the gateway in Anthropic-protocol mode and reject the entire enterprise configuration when any advertised model is not an Anthropic model, so a profile that also registered an OpenAI or Gemini provider left those hosts unable to start tasks. Non-Anthropic providers remain routable through the gateway; they are no longer advertised as front-door models the host addresses directly.
 - The bridge installs the Claude Desktop managed-policy profile under a UAC prompt instead of failing on a standard Windows account. The policy lives under `SOFTWARE\Policies\Claude`, an ACL-protected subtree no non-elevated token can create in either hive, so the in-process registry write returned `ERROR_ACCESS_DENIED` (status 5) for every unprivileged install. The bridge now relaunches itself elevated to write the policy machine-wide (`HKEY_LOCAL_MACHINE`) when it is not already elevated, explains the upcoming prompt in the activity log, and reports a declined prompt or an access-denied write with an actionable message rather than a raw status code. (bridge 0.10.7)
+- Secret-valued log fields are redacted on the console sink as well as the database sink, and the two sinks share one redaction rule. Both now route every field value through a single `sanitize` module: a field whose name carries a secret marker (`password`, `secret`, `token`, `cookie`, `authorization`, `credential`, `api_key`, `private_key`, `bearer`, a `_cert`/`_pem` suffix, or an exact `auth`/`cert`/`pem`) renders as `[REDACTED]`, and control characters are escaped so a value cannot break the line-oriented console format. Previously only the database visitor redacted and only on an exact field-name match, so a secret logged on the console — or carried under a compound name such as `client_secret` — could be written in full.
 
 ## [0.14.3] - 2026-06-02
 
