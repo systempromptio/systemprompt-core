@@ -130,6 +130,15 @@ impl Extension for OauthExtension {
                 "host_id".into(),
                 "enabled".into(),
             ]),
+            SchemaDefinition::new(
+                "bridge_user_host_model_prefs",
+                include_str!("../schema/bridge_user_host_model_prefs.sql"),
+            )
+            .with_required_columns(vec![
+                "user_id".into(),
+                "host_id".into(),
+                "model_protocols".into(),
+            ]),
         ]
     }
 
