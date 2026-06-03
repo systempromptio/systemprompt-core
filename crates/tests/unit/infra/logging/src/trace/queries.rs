@@ -191,15 +191,15 @@ fn filter_value_types() {
 
 async fn insert_ai_request(pool: &sqlx::PgPool, trace_id: &str, status: &str) {
     let id = uuid::Uuid::new_v4().simple().to_string();
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO ai_requests \
          (id, request_id, user_id, provider, model, actor_kind, actor_id, trace_id, status) \
          VALUES ($1, $2, 'u', 'test', 'test', 'user', 'u', $3, $4)",
+        id.as_str(),
+        id.as_str(),
+        trace_id,
+        status,
     )
-    .bind(&id)
-    .bind(&id)
-    .bind(trace_id)
-    .bind(status)
     .execute(pool)
     .await
     .unwrap();
@@ -207,26 +207,26 @@ async fn insert_ai_request(pool: &sqlx::PgPool, trace_id: &str, status: &str) {
 
 async fn insert_mcp_execution(pool: &sqlx::PgPool, trace_id: &str, status: &str) {
     let id = uuid::Uuid::new_v4().simple().to_string();
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO mcp_tool_executions \
          (mcp_execution_id, tool_name, server_name, started_at, input, user_id, trace_id, status) \
          VALUES ($1, 't', 's', now(), '{}', 'u', $2, $3)",
+        id.as_str(),
+        trace_id,
+        status,
     )
-    .bind(&id)
-    .bind(trace_id)
-    .bind(status)
     .execute(pool)
     .await
     .unwrap();
 }
 
 async fn insert_log(pool: &sqlx::PgPool, trace_id: &str, level: &str) {
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO logs (level, module, message, trace_id, user_id, session_id) \
          VALUES ($1, 'm', 'msg', $2, 'test-user', 'test-session')",
+        level,
+        trace_id,
     )
-    .bind(level)
-    .bind(trace_id)
     .execute(pool)
     .await
     .unwrap();
