@@ -1,6 +1,10 @@
 use systemprompt_bridge::auth::types::ProviderHealth;
 use systemprompt_bridge::integration::host_app::{HostModelView, host_model_view};
 
+fn protos(tags: &[&str]) -> Vec<String> {
+    tags.iter().map(|s| (*s).to_owned()).collect()
+}
+
 fn ph(name: &str, protocol: &str, configured: bool, models: &[&str]) -> ProviderHealth {
     ProviderHealth {
         name: name.to_owned(),
@@ -20,11 +24,11 @@ fn filters_to_accepted_protocol() {
     ];
 
     assert_eq!(
-        host_model_view(&health, &["anthropic"]).compatible_models,
+        host_model_view(&health, &protos(&["anthropic"])).compatible_models,
         vec!["claude-sonnet-4-6".to_owned()]
     );
     assert_eq!(
-        host_model_view(&health, &["openai-chat", "openai-responses"]).compatible_models,
+        host_model_view(&health, &protos(&["openai-chat", "openai-responses"])).compatible_models,
         vec!["gpt-5".to_owned()]
     );
 }
@@ -33,7 +37,7 @@ fn filters_to_accepted_protocol() {
 fn flags_unconfigured_matching_provider() {
     let health = vec![ph("anthropic", "anthropic", false, &["claude-sonnet-4-6"])];
 
-    let view = host_model_view(&health, &["anthropic"]);
+    let view = host_model_view(&health, &protos(&["anthropic"]));
     assert!(view.checked);
     assert!(!view.available);
     assert_eq!(view.unconfigured_providers, vec!["anthropic".to_owned()]);
@@ -46,7 +50,7 @@ fn available_only_counts_matching_protocol() {
         ph("anthropic", "anthropic", false, &["claude-sonnet-4-6"]),
     ];
 
-    let view = host_model_view(&health, &["anthropic"]);
+    let view = host_model_view(&health, &protos(&["anthropic"]));
     assert!(!view.available);
     assert_eq!(view.compatible_models, vec!["claude-sonnet-4-6".to_owned()]);
 }
@@ -54,7 +58,7 @@ fn available_only_counts_matching_protocol() {
 #[test]
 fn unchecked_when_no_health() {
     assert_eq!(
-        host_model_view(&[], &["anthropic"]),
+        host_model_view(&[], &protos(&["anthropic"])),
         HostModelView::default()
     );
 }

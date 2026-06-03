@@ -30,6 +30,23 @@ export class SpHostCard extends SpElement {
         try { await bridge.openExternalUrl(url); } catch (e) { console.warn("download", e); }
       }
     });
+    this.registerAction("saveModelFilter", async () => {
+      if (!this.host) { return; }
+      const allEl = this.querySelector("[data-model-all]");
+      const all = allEl ? allEl.checked : false;
+      const protocols = all
+        ? []
+        : Array.from(this.querySelectorAll("[data-proto]"))
+            .filter((el) => el.checked)
+            .map((el) => el.dataset.proto);
+      try { await bridge.hostModelFilterSet(this.host.id, protocols); }
+      catch (e) { console.warn("saveModelFilter", e); }
+    });
+    this.registerAction("resetModelFilter", async () => {
+      if (!this.host) { return; }
+      try { await bridge.hostModelFilterSet(this.host.id, null); }
+      catch (e) { console.warn("resetModelFilter", e); }
+    });
   }
 
   render() {
@@ -129,6 +146,28 @@ export class SpHostCard extends SpElement {
         }</td></tr>`
       : "";
 
+    const WIRE_PROTOCOLS = ["anthropic", "openai-chat", "openai-responses", "gemini"];
+    const effectiveProtocols = Array.isArray(host.model_protocols) ? host.model_protocols : [];
+    const allModels = effectiveProtocols.length === 0;
+    const overridden = !!host.model_protocols_overridden;
+    const protocolChecks = WIRE_PROTOCOLS.map((p) =>
+      `<label class="sp-host-card__proto"><input type="checkbox" data-proto="${escapeHtml(p)}" ${effectiveProtocols.includes(p) ? "checked" : ""}> <span class="sp-u-mono">${escapeHtml(p)}</span></label>`
+    ).join("");
+    const filterStateText = overridden
+      ? (t("host-model-filter-custom") || "custom override")
+      : (t("host-model-filter-default") || "host default");
+    const modelFilterRow = modelsChecked
+      ? `<tr><th>${escapeHtml(t("host-model-filter") || "Model filter")}</th><td>
+          <label class="sp-host-card__proto"><input type="checkbox" data-model-all ${allModels ? "checked" : ""}> <span>${escapeHtml(t("host-model-filter-all") || "All models")}</span></label>
+          <div class="sp-host-card__protos">${protocolChecks}</div>
+          <div class="sp-status__detail sp-u-muted">${escapeHtml(filterStateText)}</div>
+          <div class="sp-host-card__filter-actions">
+            <button class="sp-btn-ghost" type="button" data-action="saveModelFilter">${escapeHtml(t("host-model-filter-save") || "Save filter")}</button>
+            <button class="sp-btn-ghost" type="button" data-action="resetModelFilter">${escapeHtml(t("host-model-filter-reset") || "Reset to default")}</button>
+          </div>
+        </td></tr>`
+      : "";
+
     const installLabelRow = host.install_action_label
       ? `<tr><th>${escapeHtml(t("host-install-label") || "Install action")}</th><td><div class="sp-status__detail">${escapeHtml(host.install_action_label)}</div></td></tr>`
       : "";
@@ -182,6 +221,7 @@ export class SpHostCard extends SpElement {
           ${profileUuidRow}
           ${payloadUuidRow}
           ${compatibleModelsRow}
+          ${modelFilterRow}
           ${hostKindRow}
           ${configFormatRow}
           ${installLabelRow}

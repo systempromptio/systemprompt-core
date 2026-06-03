@@ -49,6 +49,7 @@ fn canonical_payload_includes_not_before_in_position() {
         managed_mcp_servers: vec![],
         revocations: vec![],
         enabled_hosts: vec![],
+        host_model_protocols: Default::default(),
         signature: ManifestSignature::new("ignored"),
     };
     let p = canonical_payload(&m).unwrap();

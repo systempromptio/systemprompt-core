@@ -6,8 +6,8 @@ mod manifest;
 mod replay;
 
 pub use apply::{
-    ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError, render_plugin_json,
-    write_synthetic_plugin,
+    ApplyError, HostFailure, PLUGIN_INSTALLATION_PREFERENCE, TomlError, prune_stale_locations_in,
+    render_plugin_json, write_synthetic_plugin,
 };
 pub use error::SyncError;
 pub(crate) use hash::safe_id_segment;
@@ -181,6 +181,7 @@ fn persist_last_sync(
         hook_count: manifest.hooks.len(),
         user: manifest.user.as_ref().map(|u| u.email.as_str()),
         enabled_hosts: &manifest.enabled_hosts,
+        host_model_protocols: &manifest.host_model_protocols,
     };
     let bytes = match serde_json::to_vec_pretty(&sentinel) {
         Ok(b) => b,
@@ -230,6 +231,7 @@ struct LastSyncSentinel<'a> {
     hook_count: usize,
     user: Option<&'a str>,
     enabled_hosts: &'a [String],
+    host_model_protocols: &'a std::collections::BTreeMap<String, Vec<String>>,
 }
 
 fn current_iso8601() -> String {

@@ -45,6 +45,7 @@ fn manifest_with(
         managed_mcp_servers: mcp,
         revocations: vec![],
         enabled_hosts,
+        host_model_protocols: Default::default(),
         signature: ManifestSignature::new("ignored"),
     }
 }

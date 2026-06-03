@@ -6,9 +6,8 @@ pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
 }
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
-    // `managedMcpServers` embeds the rotating loopback secret, so it is per-user
-    // runtime state owned in HKCU — the hive the non-elevated GUI can always
-    // rewrite as the secret rotates.
+    // HKCU: the per-user hive the non-elevated GUI can rewrite as the secret
+    // rotates.
     let key = r"HKCU\SOFTWARE\Policies\Claude";
     let status = crate::winproc::reg_command()
         .args([
@@ -30,9 +29,8 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
             status.code().unwrap_or(-1)
         ));
     }
-    // A stale `managedMcpServers` in the HKLM hive OUTRANKS HKCU and shadows the
-    // live secret, breaking MCP auth. Best-effort purge any left by older builds
-    // (clearing HKLM needs elevation, so this may no-op when unelevated).
+    // A stale HKLM copy outranks HKCU and breaks MCP auth; purge it (needs
+    // elevation, may no-op).
     let stale = r"HKLM\SOFTWARE\Policies\Claude";
     _ = crate::winproc::reg_command()
         .args(["delete", stale, "/v", "managedMcpServers", "/f"])
@@ -68,7 +66,8 @@ pub(super) fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, 
     } else {
         r"HKCU\SOFTWARE\Policies\Claude"
     };
-    let values = super::windows_policy_values(gateway, pubkey);
+    let org_uuid = crate::config::load().deployment_organization_uuid;
+    let values = super::windows_policy_values(gateway, pubkey, org_uuid.as_deref());
     let mut summary = Vec::with_capacity(values.len() + 2);
     summary.push(format!("registry key: {key}"));
     for (name, kind, data) in values {

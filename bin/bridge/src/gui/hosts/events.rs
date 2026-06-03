@@ -49,4 +49,15 @@ pub enum HostUiEvent {
         health: Box<ProxyHealth>,
         reply_to: ReplyId,
     },
+    ModelFilterSetRequested {
+        host_id: String,
+        /// `None` clears the override; `Some([])` means "all models".
+        protocols: Option<Vec<String>>,
+        reply_to: ReplyId,
+    },
+    ModelFilterSetFinished {
+        host_id: String,
+        result: Result<(), Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
 }

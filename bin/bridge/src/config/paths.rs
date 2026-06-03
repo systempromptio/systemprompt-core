@@ -40,10 +40,8 @@ pub fn org_plugins_user() -> Option<PathBuf> {
     })
 }
 
-// Why: Cowork's filesystem plugin scanner (NF() in app.asar) reads
-// %ProgramFiles%\Claude\org-plugins only — writing under %ProgramData% leaves
-// the plugin invisible to Cowork even when the manifest and enable key are
-// otherwise correct.
+// Cowork scans %ProgramFiles%\Claude\org-plugins only; %ProgramData% is
+// invisible to it.
 #[cfg(target_os = "windows")]
 pub fn org_plugins_system() -> Option<PathBuf> {
     std::env::var_os("ProgramFiles")
@@ -100,6 +98,41 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     }
 }
 
+/// Non-canonical roots a prior bridge generation may have populated; cleanup
+/// only.
+#[cfg(target_os = "windows")]
+#[must_use]
+pub fn legacy_org_plugins_roots() -> Vec<PathBuf> {
+    std::env::var_os("ProgramData")
+        .map(|p| vec![PathBuf::from(p).join("Claude").join("org-plugins")])
+        .unwrap_or_default()
+}
+
+#[cfg(not(target_os = "windows"))]
+#[must_use]
+pub const fn legacy_org_plugins_roots() -> Vec<PathBuf> {
+    Vec::new()
+}
+
+/// Every root any bridge generation could have populated, for stale-copy
+/// pruning.
+#[must_use]
+pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
+    let mut roots = Vec::new();
+    if let Some(p) = org_plugins_system() {
+        roots.push(p);
+    }
+    if let Some(p) = org_plugins_user() {
+        roots.push(p);
+    }
+    roots.extend(legacy_org_plugins_roots());
+    roots
+}
+
+/// Stale metadata dirs prior generations left in org-plugins roots; safe to
+/// prune.
+pub const LEGACY_ORG_PLUGINS_METADATA: &[&str] = &[".systemprompt-bridge", ".systemprompt-cowork"];
+
 #[cfg(not(target_os = "macos"))]
 fn probe_writable(path: &std::path::Path) -> bool {
     if let Ok(metadata) = std::fs::metadata(path) {
@@ -113,8 +146,8 @@ fn probe_writable(path: &std::path::Path) -> bool {
     false
 }
 
-// `None` means no Cowork install detected — callers MUST treat as no-op,
-// not as an error.
+// `None` means no Cowork install detected; callers must treat as a no-op, not
+// an error.
 #[must_use]
 pub fn cowork3p_sessions_root() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -145,8 +178,7 @@ pub fn cowork3p_sessions_root() -> Option<PathBuf> {
 
 pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 
-// Bridge-owned working dir: always user-writable. The org-plugins root is
-// admin-write-only on Windows, so bridge-internal scratch cannot live there.
+// Always user-writable, unlike the admin-only org-plugins root on Windows.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {

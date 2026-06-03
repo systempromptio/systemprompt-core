@@ -17,7 +17,9 @@ impl HostSync for ClaudeCodePluginSync {
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), super::ApplyError> {
-        write_synthetic_plugin(ctx.org_plugins_root, ctx.manifest)
+        write_synthetic_plugin(ctx.org_plugins_root, ctx.manifest)?;
+        prune_stale_locations(ctx.org_plugins_root);
+        Ok(())
     }
 
     fn clear(&self) -> Result<(), super::ApplyError> {
@@ -45,12 +47,16 @@ pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json:
         author: None,
         hooks: None,
         keywords: Vec::new(),
-        // `"required"` forces deployment (installs every sign-in, reinstalls if
-        // removed, no user uninstall) — unlike `"available"`/`"auto_install"`,
-        // which are opt-in or treat removal as a sticky uninstall.
+        // `"required"` force-installs every sign-in with no user uninstall.
         installation_preference: Some(PLUGIN_INSTALLATION_PREFERENCE.to_owned()),
     };
     serde_json::to_vec_pretty(&manifest)
+}
+
+// Cowork re-syncs only when this `version` changes; track plugin.json's
+// manifest version.
+fn render_version_json(manifest_version: &str) -> Result<Vec<u8>, serde_json::Error> {
+    serde_json::to_vec_pretty(&serde_json::json!({ "version": manifest_version }))
 }
 
 #[tracing::instrument(level = "debug", skip(manifest))]
@@ -60,10 +66,8 @@ pub fn write_synthetic_plugin(
 ) -> Result<(), super::ApplyError> {
     let root = org_plugins_root.join(paths::SYNTHETIC_PLUGIN_NAME);
 
-    // MCP servers are owned by the `managedMcpServers` policy (the `install::mdm`
-    // emitter), NOT bundled here: declaring a server in both collides on name and
-    // leaves a ghost "not connected" connector. This plugin carries skills,
-    // agents, and hooks only.
+    // MCP servers ride the `managedMcpServers` policy; bundling here collides and
+    // leaves a ghost connector.
     let has_content =
         !manifest.skills.is_empty() || !manifest.agents.is_empty() || !manifest.hooks.is_empty();
 
@@ -89,6 +93,7 @@ pub fn write_synthetic_plugin(
     })?;
 
     write_plugin_json(&root, manifest)?;
+    write_version_json(&root, manifest)?;
 
     for skill in &manifest.skills {
         write_skill(&root, skill)?;
@@ -105,6 +110,54 @@ pub fn write_synthetic_plugin(
     Ok(())
 }
 
+/// Removes stale synthetic-plugin copies and legacy metadata from non-effective
+/// roots so the plugin never appears duplicated. Best-effort per root.
+fn prune_stale_locations(effective_root: &Path) {
+    prune_stale_locations_in(&paths::all_known_org_plugins_roots(), effective_root);
+}
+
+/// Roots taken explicitly so the prune logic is testable without process env.
+pub fn prune_stale_locations_in(roots: &[PathBuf], effective_root: &Path) {
+    for root in roots {
+        if !paths_equal(root, effective_root) {
+            remove_if_present(
+                &root.join(paths::SYNTHETIC_PLUGIN_NAME),
+                "stale org-plugin copy",
+            );
+        }
+        // Legacy metadata never belongs in an org-plugins root; prune from every one.
+        for marker in paths::LEGACY_ORG_PLUGINS_METADATA {
+            remove_if_present(&root.join(marker), "legacy bridge metadata dir");
+        }
+    }
+}
+
+fn paths_equal(a: &Path, b: &Path) -> bool {
+    match (a.canonicalize(), b.canonicalize()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
+}
+
+fn remove_if_present(path: &Path, what: &str) {
+    if !path.exists() {
+        return;
+    }
+    match fs::remove_dir_all(path) {
+        Ok(()) => tracing::info!(
+            target: "bridge::sync",
+            path = %path.display(),
+            "pruned {what}"
+        ),
+        Err(e) => tracing::warn!(
+            target: "bridge::sync",
+            path = %path.display(),
+            error = %e,
+            "could not prune {what} (likely permissions); skipping"
+        ),
+    }
+}
+
 fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super::ApplyError> {
     let dir = root.join(".claude-plugin");
     fs::create_dir_all(&dir).map_err(|e| super::ApplyError::Io {
@@ -118,6 +171,20 @@ fn write_plugin_json(root: &Path, manifest: &SignedManifest) -> Result<(), super
         }
     })?;
     let path = dir.join("plugin.json");
+    fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })
+}
+
+fn write_version_json(root: &Path, manifest: &SignedManifest) -> Result<(), super::ApplyError> {
+    let bytes = render_version_json(manifest.manifest_version.as_str()).map_err(|e| {
+        super::ApplyError::Serialize {
+            what: "version.json".into(),
+            source: e,
+        }
+    })?;
+    let path = root.join("version.json");
     fs::write(&path, bytes).map_err(|e| super::ApplyError::Io {
         context: format!("write {}", path.display()),
         source: e,

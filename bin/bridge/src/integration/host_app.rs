@@ -8,10 +8,8 @@ pub struct ProfileGenInputs {
     pub api_key: String,
     pub models: Vec<String>,
     pub organization_uuid: Option<String>,
-    /// Extra HTTP headers the host attaches to every inference request, written
-    /// into the managed policy's `inferenceCustomHeaders`. Carries
-    /// `x-inference-protocol` so the gateway scopes `/v1/models` to the host's
-    /// wire protocol; empty means the host sends none.
+    /// Written into `inferenceCustomHeaders`; carries `x-inference-protocol` so
+    /// the gateway scopes `/v1/models` to the host's wire protocol.
     pub headers: BTreeMap<String, String>,
 }
 
@@ -137,9 +135,8 @@ pub trait HostApp: Send + Sync + 'static {
 }
 
 /// A host's view of the gateway's providers, filtered to its wire protocols.
-///
-/// `checked` is false when there was no provider health to evaluate, letting
-/// the UI distinguish "nothing usable" from "not yet checked".
+/// `checked` is false when there was no provider health to evaluate
+/// (distinguishes "nothing usable" from "not yet checked").
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct HostModelView {
@@ -149,14 +146,13 @@ pub struct HostModelView {
     pub unconfigured_providers: Vec<String>,
 }
 
-/// Project per-provider `health` onto one host, keeping only providers whose
-/// wire protocol the host speaks (`accepted`; empty means no restriction),
-/// preserving model order and dropping duplicates.
+/// Keeps only providers whose wire protocol the host speaks (`accepted`; empty
+/// means no restriction), preserving model order and dropping duplicates.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn host_model_view(
     health: &[crate::auth::types::ProviderHealth],
-    accepted: &[&str],
+    accepted: &[String],
 ) -> HostModelView {
     let mut seen = std::collections::HashSet::new();
     let mut view = HostModelView {
@@ -164,7 +160,7 @@ pub fn host_model_view(
         ..HostModelView::default()
     };
     for provider in health {
-        let speaks = accepted.is_empty() || accepted.contains(&provider.protocol.as_str());
+        let speaks = accepted.is_empty() || accepted.iter().any(|p| p == &provider.protocol);
         if !speaks {
             continue;
         }
@@ -180,4 +176,30 @@ pub fn host_model_view(
         }
     }
     view
+}
+
+/// A synced per-host override wins over the host's built-in default; an empty
+/// result means "all models".
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[must_use]
+pub fn effective_protocols(
+    host_id: &str,
+    default: &[&'static str],
+    overrides: &std::collections::BTreeMap<String, Vec<String>>,
+) -> Vec<String> {
+    overrides.get(host_id).cloned().unwrap_or_else(|| {
+        default
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect::<Vec<String>>()
+    })
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[must_use]
+pub fn has_protocol_override(
+    host_id: &str,
+    overrides: &std::collections::BTreeMap<String, Vec<String>>,
+) -> bool {
+    overrides.contains_key(host_id)
 }

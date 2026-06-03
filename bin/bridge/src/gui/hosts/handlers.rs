@@ -34,7 +34,7 @@ pub(crate) fn on_probe_requested(
     };
     if cause == ProbeCause::Manual {
         // Manual re-verify bypasses the in-flight gate so a user click is never
-        // dropped; it lands last and overwrites any concurrent tick result.
+        // dropped.
         app.append_log(format!("[{host_id}] re-verifying profile and process"));
     } else if !app.state.mark_host_probing(host_id) {
         if let Some(id) = reply_to {
@@ -188,9 +188,12 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_t
     };
     app.append_log(format!("Generating profile for {}…", host.display_name()));
     let host_id_owned = host_id.to_owned();
+    let overrides = app.state.snapshot().host_model_protocols.clone();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
-        let result = generate_profile_for(host).await.map_err(Arc::new);
+        let result = generate_profile_for(host, &overrides)
+            .await
+            .map_err(Arc::new);
         _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProfileGenerateFinished {
             host_id: host_id_owned,
             result,
@@ -336,8 +339,93 @@ pub(crate) fn on_profile_install_finished(
     finish(app, bridge_result, reply_to);
 }
 
+pub(crate) fn on_model_filter_set_requested(
+    app: &GuiApp,
+    host_id: &str,
+    protocols: Option<Vec<String>>,
+    reply_to: ReplyId,
+) {
+    if find_host_by_id(host_id).is_none() {
+        let err = BridgeError::new(
+            ErrorScope::Host,
+            ErrorCode::NotFound,
+            format!("unknown host: {host_id}"),
+        );
+        finish(app, Err(err), reply_to);
+        return;
+    }
+    match &protocols {
+        Some(list) if list.is_empty() => {
+            app.append_log(format!("[{host_id}] model filter → all models"));
+        },
+        Some(list) => {
+            app.append_log(format!("[{host_id}] model filter → {}", list.join(", ")));
+        },
+        None => app.append_log(format!("[{host_id}] model filter cleared (host default)")),
+    }
+    let host_id_owned = host_id.to_owned();
+    let proxy = app.proxy.clone();
+    app.runtime.spawn(async move {
+        let result = push_model_filter(&host_id_owned, protocols.as_deref())
+            .await
+            .map_err(Arc::new);
+        _ = proxy.send_event(UiEvent::Host(HostUiEvent::ModelFilterSetFinished {
+            host_id: host_id_owned,
+            result,
+            reply_to,
+        }));
+    });
+}
+
+async fn push_model_filter(host_id: &str, protocols: Option<&[String]>) -> GuiResult<()> {
+    let cfg = config::load();
+    let bearer = crate::auth::cache::read_valid().ok_or_else(|| GuiError::Profile {
+        context: "model filter".into(),
+        source: std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "not signed in; cannot update host model filter",
+        ),
+    })?;
+    let gateway_base = config::gateway_url_or_default(&cfg);
+    GatewayClient::new(gateway_base)
+        .set_host_model_filter(bearer.token.expose(), host_id, protocols)
+        .await
+        .map_err(|e| GuiError::Profile {
+            context: "host model filter".into(),
+            source: std::io::Error::other(e.to_string()),
+        })
+}
+
+pub(crate) fn on_model_filter_set_finished(
+    app: &mut GuiApp,
+    host_id: &str,
+    result: Result<(), Arc<GuiError>>,
+    reply_to: ReplyId,
+) {
+    let bridge_result = match result {
+        Ok(()) => {
+            app.append_log(format!("[{host_id}] model filter saved; re-syncing"));
+            _ = app
+                .proxy
+                .send_event(UiEvent::SyncRequested { reply_to: None });
+            Ok(json!({ "host_id": host_id }))
+        },
+        Err(e) => {
+            let line = format!("[{host_id}] model filter update failed: {e}");
+            app.append_log(&line);
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::Internal,
+                line,
+            ))
+        },
+    };
+    finish(app, bridge_result, reply_to);
+}
+
 async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
+    overrides: &std::collections::BTreeMap<String, Vec<String>>,
 ) -> GuiResult<GeneratedProfile> {
     let cfg = config::load();
 
@@ -367,10 +455,12 @@ async fn generate_profile_for(
         .fetch_bridge_profile()
         .await?;
 
-    let view = crate::integration::host_app::host_model_view(
-        &server_profile.providers,
+    let protocols = crate::integration::host_app::effective_protocols(
+        host.id(),
         host.accepted_protocols(),
+        overrides,
     );
+    let view = crate::integration::host_app::host_model_view(&server_profile.providers, &protocols);
     let models = if !view.compatible_models.is_empty() {
         view.compatible_models
     } else if server_profile.models.is_empty() {
@@ -380,7 +470,6 @@ async fn generate_profile_for(
     };
 
     let mut headers = std::collections::BTreeMap::new();
-    let protocols = host.accepted_protocols();
     if !protocols.is_empty() {
         headers.insert(
             systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),

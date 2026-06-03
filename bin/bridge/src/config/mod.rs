@@ -43,6 +43,14 @@ pub struct Config {
     pub sync: Option<SyncConfig>,
     #[serde(default)]
     pub claude: Option<ClaudeConfig>,
+    /// Deployment/organization UUID written to the Cowork managed-config policy
+    /// as `deploymentOrganizationUuid` (see
+    /// <https://claude.com/docs/cowork/3p/configuration>). Identifies this
+    /// deployment for telemetry/support attribution; when unset, Cowork falls
+    /// back to the shared placeholder UUID
+    /// `00000000-0000-4000-8000-000000000001`.
+    #[serde(default)]
+    pub deployment_organization_uuid: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

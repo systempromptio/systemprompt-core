@@ -65,6 +65,7 @@ export const bridge = {
   hostProfileGenerate:  (hostId)            => invoke("host.profile.generate", { hostId }),
   hostProfileInstall:   (hostId, path)      => invoke("host.profile.install", { hostId, path }),
   hostProxyProbe:       ()                  => invoke("host.proxy.probe"),
+  hostModelFilterSet:   (hostId, protocols) => invoke("host.model-filter.set", { hostId, protocols }),
   agentUninstall:       (hostId)            => invoke("agent.uninstall", { hostId }),
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),
   agentOpen:            (hostId)            => invoke("agent.open", { hostId }),

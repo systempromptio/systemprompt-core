@@ -9,7 +9,8 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
 };
-use systemprompt_bridge::sync::write_synthetic_plugin;
+use systemprompt_bridge::config::paths::LEGACY_ORG_PLUGINS_METADATA;
+use systemprompt_bridge::sync::{prune_stale_locations_in, write_synthetic_plugin};
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn tempdir() -> PathBuf {
@@ -49,6 +50,7 @@ fn manifest_with(
         managed_mcp_servers: mcp,
         revocations: vec![],
         enabled_hosts: vec![],
+        host_model_protocols: Default::default(),
         signature: ManifestSignature::new("ignored"),
     }
 }
@@ -243,4 +245,55 @@ fn does_not_touch_sibling_real_plugin_dir() {
     write_synthetic_plugin(&root, &m).unwrap();
 
     assert!(real.join(".claude-plugin").join("plugin.json").is_file());
+}
+
+#[test]
+fn version_json_carries_only_the_manifest_version() {
+    let root = tempdir();
+    let m = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
+    write_synthetic_plugin(&root, &m).unwrap();
+
+    let raw = fs::read(synthetic_root(&root).join("version.json")).unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+    assert_eq!(v["version"], version().as_str());
+    assert_eq!(v.as_object().unwrap().len(), 1, "only the version key");
+}
+
+#[test]
+fn prune_removes_stale_copies_and_metadata_but_keeps_effective() {
+    let base = tempdir();
+    let effective = base.join("effective");
+    let stale = base.join("stale");
+    fs::create_dir_all(synthetic_root(&effective)).unwrap();
+    fs::create_dir_all(effective.join(LEGACY_ORG_PLUGINS_METADATA[0])).unwrap();
+    fs::create_dir_all(synthetic_root(&stale)).unwrap();
+    fs::create_dir_all(stale.join(LEGACY_ORG_PLUGINS_METADATA[1])).unwrap();
+
+    prune_stale_locations_in(&[effective.clone(), stale.clone()], &effective);
+
+    assert!(
+        synthetic_root(&effective).exists(),
+        "canonical copy is preserved"
+    );
+    assert!(
+        !effective.join(LEGACY_ORG_PLUGINS_METADATA[0]).exists(),
+        "legacy metadata pruned from every root"
+    );
+    assert!(
+        !synthetic_root(&stale).exists(),
+        "stale duplicate copy removed"
+    );
+    assert!(
+        !stale.join(LEGACY_ORG_PLUGINS_METADATA[1]).exists(),
+        "orphaned metadata removed"
+    );
+}
+
+#[test]
+fn prune_is_noop_when_nothing_present() {
+    let base = tempdir();
+    let effective = base.join("effective");
+    fs::create_dir_all(&effective).unwrap();
+    prune_stale_locations_in(&[effective.clone()], &effective);
+    assert!(effective.exists());
 }

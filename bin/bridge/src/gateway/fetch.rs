@@ -1,10 +1,5 @@
-//! Read-only gateway endpoints.
-//!
-//! GET-style operations the bridge uses to discover gateway state: signing
-//! pubkey, signed manifest, plugin file payloads, the caller's identity
-//! (`whoami`), the bridge profile snapshot, and the liveness probe. All
-//! results decode into types from `types` or `manifest`. Auth-mutating
-//! exchanges live in `auth`.
+//! Read-only gateway endpoints: pubkey, signed manifest, plugin files, whoami,
+//! bridge profile, and the liveness probe.
 
 use std::time::Instant;
 
@@ -144,6 +139,41 @@ impl GatewayClient {
         resp.json::<WhoamiResponse>()
             .await
             .map_err(|e| GatewayError::WhoamiDecode(Box::new(e)))
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip(self, bearer),
+        fields(endpoint = "host-model-filter", status, latency_ms)
+    )]
+    pub async fn set_host_model_filter(
+        &self,
+        bearer: &str,
+        host_id: &str,
+        protocols: Option<&[String]>,
+    ) -> Result<(), GatewayError> {
+        let url = self.url("/v1/bridge/profile/host-model-filter");
+        let body = serde_json::json!({
+            "host_id": host_id,
+            "model_protocols": protocols,
+        });
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .post(&url)
+            .bearer_auth(bearer)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
+        record_span(&resp, started);
+        if !resp.status().is_success() {
+            return Err(GatewayError::HttpStatus {
+                status: resp.status(),
+                endpoint: "host-model-filter",
+            });
+        }
+        Ok(())
     }
 
     #[tracing::instrument(

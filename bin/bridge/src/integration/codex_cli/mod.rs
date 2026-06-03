@@ -94,6 +94,6 @@ impl HostApp for CodexCliHost {
     }
 
     fn accepted_protocols(&self) -> &'static [&'static str] {
-        &["openai-chat", "openai-responses"]
+        &[]
     }
 }

@@ -161,6 +161,7 @@ fn synthetic_manifest(
         managed_mcp_servers: vec![],
         revocations: vec![],
         enabled_hosts: vec![],
+        host_model_protocols: Default::default(),
         signature: ManifestSignature::new("ignored"),
     }
 }
@@ -375,6 +376,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             managed_mcp_servers: vec![mcp("Primary MCP", "http://127.0.0.1:9911/mcp")],
             revocations: vec![],
             enabled_hosts: vec!["claude-code".into()],
+            host_model_protocols: Default::default(),
             signature: ManifestSignature::new("unused-when-allow-unsigned"),
         };
 
@@ -476,6 +478,7 @@ fn run_once_empty_manifest_writes_no_synthetic_plugin() {
             managed_mcp_servers: vec![],
             revocations: vec![],
             enabled_hosts: vec!["claude-code".into()],
+            host_model_protocols: Default::default(),
             signature: ManifestSignature::new(""),
         };
 
@@ -527,6 +530,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             managed_mcp_servers: vec![],
             revocations: vec![],
             enabled_hosts: vec![],
+            host_model_protocols: Default::default(),
             signature: ManifestSignature::new(""),
         };
 

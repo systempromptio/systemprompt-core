@@ -33,6 +33,8 @@ struct LastSyncRecord {
     manifest_version: Option<String>,
     #[serde(default)]
     enabled_hosts: Vec<String>,
+    #[serde(default)]
+    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -96,12 +98,14 @@ pub struct AppStateSnapshot {
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
     pub enabled_hosts: Vec<String>,
+    /// Per-host synced override; empty value means "all models", absent keeps
+    /// the default.
+    pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     pub provider_health: Vec<crate::auth::types::ProviderHealth>,
 
     pub hosts: HostsState,
 
-    /// Per-server MCP authentication probe results (live round-trip through the
-    /// loopback proxy). Populated by the MCP-auth probe, not by `reload`.
+    /// MCP auth probe results; populated by the probe, not by `reload`.
     pub mcp_auth: Vec<McpServerAuth>,
     pub mcp_auth_probe_in_flight: bool,
 }
@@ -353,6 +357,7 @@ impl AppState {
         snap.plugin_count = None;
         snap.malformed_plugin_count = None;
         snap.enabled_hosts.clear();
+        snap.host_model_protocols.clear();
         if crate::auth::has_credential_source(&cfg) {
             snap.cached_token = cache::read_valid().map(|out| CachedToken {
                 ttl_seconds: out.ttl,
@@ -376,6 +381,7 @@ impl AppState {
                 let manifest_version = record.manifest_version.as_deref().unwrap_or("?");
                 snap.last_sync_summary = Some(format!("{when} (manifest {manifest_version})"));
                 snap.enabled_hosts = record.enabled_hosts;
+                snap.host_model_protocols = record.host_model_protocols;
             }
 
             let synthetic = loc.path.join(paths::SYNTHETIC_PLUGIN_NAME);

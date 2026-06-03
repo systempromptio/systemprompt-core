@@ -33,6 +33,9 @@ pub(crate) struct HostEntryPayload<'a> {
     pub models_checked: bool,
     pub compatible_models_available: bool,
     pub unconfigured_providers: Vec<String>,
+    /// Wire-protocol filter in force; empty means "all models".
+    pub model_protocols: Vec<String>,
+    pub model_protocols_overridden: bool,
 }
 
 fn build_entry<'a>(
@@ -40,10 +43,14 @@ fn build_entry<'a>(
     host: &'static dyn crate::integration::HostApp,
 ) -> HostEntryPayload<'a> {
     let st = snap.hosts.get(host.id());
-    let view = crate::integration::host_app::host_model_view(
-        &snap.provider_health,
+    let effective = crate::integration::host_app::effective_protocols(
+        host.id(),
         host.accepted_protocols(),
+        &snap.host_model_protocols,
     );
+    let overridden =
+        crate::integration::host_app::has_protocol_override(host.id(), &snap.host_model_protocols);
+    let view = crate::integration::host_app::host_model_view(&snap.provider_health, &effective);
     HostEntryPayload {
         id: host.id(),
         display_name: host.display_name(),
@@ -61,6 +68,8 @@ fn build_entry<'a>(
         models_checked: view.checked,
         compatible_models_available: view.available,
         unconfigured_providers: view.unconfigured_providers,
+        model_protocols: effective,
+        model_protocols_overridden: overridden,
     }
 }
 

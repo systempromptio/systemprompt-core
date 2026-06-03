@@ -61,3 +61,20 @@ inference_gateway_base_url = ""
     let result: Result<Config, _> = toml::from_str(toml_input);
     assert!(result.is_err(), "empty ValidatedUrl must fail validation");
 }
+
+#[test]
+fn deserializes_deployment_organization_uuid() {
+    let cfg: Config =
+        toml::from_str(r#"deployment_organization_uuid = "f8e4d915-f8ad-5304-ab0d-c1bf895df963""#)
+            .expect("parse toml");
+    assert_eq!(
+        cfg.deployment_organization_uuid.as_deref(),
+        Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963")
+    );
+}
+
+#[test]
+fn deployment_organization_uuid_defaults_to_none() {
+    let cfg: Config = toml::from_str("").expect("parse empty toml");
+    assert!(cfg.deployment_organization_uuid.is_none());
+}

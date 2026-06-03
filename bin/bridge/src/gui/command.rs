@@ -50,6 +50,15 @@ struct OpenExternalUrlArgs {
     url: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct HostModelFilterArgs {
+    #[serde(rename = "hostId")]
+    host_id: String,
+    /// `None` clears the override; `Some([])` means "all models".
+    #[serde(default)]
+    protocols: Option<Vec<String>>,
+}
+
 fn is_safe_external_url(url: &str) -> bool {
     url.starts_with("https://")
 }
@@ -230,6 +239,20 @@ fn host_dispatch(
         "host.probe" => host_probe(app, args, reply_id),
         "host.profile.generate" => host_profile_generate(app, args, reply_id),
         "host.profile.install" => host_profile_install(app, args, reply_id),
+        "host.model-filter.set" => match parse::<HostModelFilterArgs>(args) {
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::Host(HostUiEvent::ModelFilterSetRequested {
+                        host_id: a.host_id,
+                        protocols: a.protocols,
+                        reply_to: reply_id,
+                    }),
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
         "host.proxy.probe" => {
             send(
                 app,

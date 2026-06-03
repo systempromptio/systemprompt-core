@@ -7,6 +7,15 @@ use crate::schedule::Os;
 
 const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("../templates/mdm_macos_snippet.tmpl");
 
+/// True only for the bare hyphenated UUID shape `deploymentOrganizationUuid`
+/// requires; rejects braced/URN forms.
+#[must_use]
+pub fn is_uuid_like(s: &str) -> bool {
+    s.len() == 36
+        && s.bytes().filter(|&b| b == b'-').count() == 4
+        && uuid::Uuid::try_parse(s).is_ok()
+}
+
 pub(crate) const fn os_label(os: Os) -> &'static str {
     match os {
         Os::Mac => "macOS",
@@ -117,15 +126,13 @@ pub(crate) fn apply_mdm(
 
 #[cfg(target_os = "windows")]
 #[must_use]
-pub(crate) fn windows_policy_values(
+pub fn windows_policy_values(
     _gateway: &str,
     pubkey: Option<&str>,
+    org_uuid: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
-    // `managedMcpServers`, `inferenceGatewayBaseUrl`, and
-    // `inferenceGatewayApiKey` are deliberately omitted: they carry per-user
-    // runtime state (the rotating loopback secret / live proxy port) owned by
-    // the GUI in HKCU. A stale copy in the HKLM machine-policy hive outranks
-    // HKCU and a non-elevated run cannot rewrite it, breaking MCP auth.
+    // `managedMcpServers`/`inferenceGateway*` are omitted: a stale HKLM copy
+    // outranks per-user HKCU and a non-elevated run cannot fix it.
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
         ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
@@ -144,14 +151,15 @@ pub(crate) fn windows_policy_values(
     if let Some(pk) = pubkey {
         values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_owned()));
     }
+    // Drop a malformed value so Cowork keeps its placeholder, not a junk org id.
+    if let Some(uuid) = org_uuid.filter(|u| is_uuid_like(u)) {
+        values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
+    }
     values
 }
 
-// Each entry points Cowork at the bridge's loopback proxy with a static
-// loopback-secret header rather than at the upstream gateway with `oauth:
-// true`: the proxy strips that header and injects the rotating gateway JWT,
-// avoiding Cowork's OAuth flow which hard-rejects the gateway's non-HTTPS
-// authorize URL.
+// Points Cowork at the loopback proxy (which injects the gateway JWT), avoiding
+// Cowork's OAuth flow that rejects the gateway's non-HTTPS authorize URL.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub(crate) fn managed_mcp_servers_json() -> Option<String> {
@@ -208,6 +216,9 @@ Windows Registry Editor Version 5.00
 "disableNonessentialServices"="true"
 "disableAutoUpdates"="true"
 "disableDeploymentModeChooser"="true"
+; Optional: identify this deployment to your org for telemetry/support.
+; Omit to use Anthropic's shared placeholder UUID. Standard hyphenated form only.
+; "deploymentOrganizationUuid"="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ; inferenceGatewayBaseUrl and inferenceGatewayApiKey are written to HKCU by the
 ; running Bridge GUI when it binds the loopback proxy. Do not pin them here.
 "#

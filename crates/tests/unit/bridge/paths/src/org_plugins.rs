@@ -2,7 +2,34 @@ use std::path::PathBuf;
 
 #[cfg(target_os = "macos")]
 use systemprompt_bridge::config::paths::{Scope, org_plugins_effective};
-use systemprompt_bridge::config::paths::{org_plugins_system, org_plugins_user};
+#[cfg(not(target_os = "windows"))]
+use systemprompt_bridge::config::paths::legacy_org_plugins_roots;
+use systemprompt_bridge::config::paths::{
+    LEGACY_ORG_PLUGINS_METADATA, all_known_org_plugins_roots, org_plugins_system, org_plugins_user,
+};
+
+#[test]
+fn all_known_roots_include_the_system_root() {
+    let roots = all_known_org_plugins_roots();
+    assert!(!roots.is_empty());
+    if let Some(sys) = org_plugins_system() {
+        assert!(roots.contains(&sys), "system root must be a known root");
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+#[test]
+fn legacy_roots_are_empty_off_windows() {
+    assert!(legacy_org_plugins_roots().is_empty());
+}
+
+#[test]
+fn legacy_metadata_markers_are_dotfiles() {
+    assert!(!LEGACY_ORG_PLUGINS_METADATA.is_empty());
+    for marker in LEGACY_ORG_PLUGINS_METADATA {
+        assert!(marker.starts_with('.'), "{marker} should be a dotfile");
+    }
+}
 
 #[test]
 fn both_scopes_resolvable() {

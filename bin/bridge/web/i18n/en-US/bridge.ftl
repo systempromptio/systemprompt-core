@@ -166,6 +166,17 @@ host-payload-uuid = Payload UUID
 host-kind = Host kind
 host-config-format = Config format
 host-install-label = Install action
+host-compatible-models = Compatible models
+host-no-compatible-models = none available
+host-badge-no-models = no compatible model
+host-models-none = No compatible model is available for this host
+host-models-unconfigured = No usable model — provider(s) missing an API key: { $providers }
+host-model-filter = Model filter
+host-model-filter-all = All models
+host-model-filter-custom = custom override
+host-model-filter-default = host default
+host-model-filter-save = Save filter
+host-model-filter-reset = Reset to default
 
 # Agents (tab summary + setup) ------------------------------------------------
 setup-agents-empty = No agents available on this platform.

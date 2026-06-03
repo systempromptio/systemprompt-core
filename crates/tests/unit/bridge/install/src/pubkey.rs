@@ -40,6 +40,7 @@ fn windows_policy_values_includes_pubkey_when_provided() {
     let values = systemprompt_bridge::install::windows_policy_values(
         "https://gateway.example",
         Some("BASE64-PUBKEY"),
+        None,
     );
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(names.contains(&"inferenceManifestPubkey"));
@@ -55,9 +56,64 @@ fn windows_policy_values_includes_pubkey_when_provided() {
 #[test]
 fn windows_policy_values_omits_pubkey_when_absent() {
     let values =
-        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None);
+        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None, None);
     let names: Vec<&str> = values.iter().map(|(n, _, _)| *n).collect();
     assert!(!names.contains(&"inferenceManifestPubkey"));
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_policy_values_includes_valid_org_uuid() {
+    let values = systemprompt_bridge::install::windows_policy_values(
+        "https://gateway.example",
+        None,
+        Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963"),
+    );
+    assert!(values.iter().any(|(k, _, v)| *k == "deploymentOrganizationUuid"
+        && v == "f8e4d915-f8ad-5304-ab0d-c1bf895df963"));
+}
+
+#[cfg(target_os = "windows")]
+#[test]
+fn windows_policy_values_omits_missing_or_invalid_org_uuid() {
+    let none =
+        systemprompt_bridge::install::windows_policy_values("https://gateway.example", None, None);
+    assert!(
+        !none
+            .iter()
+            .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
+    );
+    let bad = systemprompt_bridge::install::windows_policy_values(
+        "https://gateway.example",
+        None,
+        Some("garbage"),
+    );
+    assert!(
+        !bad.iter()
+            .any(|(k, _, _)| *k == "deploymentOrganizationUuid")
+    );
+}
+
+#[test]
+fn is_uuid_like_accepts_standard_hyphenated() {
+    assert!(systemprompt_bridge::install::is_uuid_like(
+        "f8e4d915-f8ad-5304-ab0d-c1bf895df963"
+    ));
+    assert!(systemprompt_bridge::install::is_uuid_like(
+        "00000000-0000-4000-8000-000000000001"
+    ));
+}
+
+#[test]
+fn is_uuid_like_rejects_malformed() {
+    assert!(!systemprompt_bridge::install::is_uuid_like(""));
+    assert!(!systemprompt_bridge::install::is_uuid_like("not-a-uuid"));
+    assert!(!systemprompt_bridge::install::is_uuid_like(
+        "{f8e4d915-f8ad-5304-ab0d-c1bf895df963}"
+    ));
+    assert!(!systemprompt_bridge::install::is_uuid_like(
+        "f8e4d915f8ad5304ab0dc1bf895df963"
+    ));
 }
 
 #[cfg(target_os = "macos")]

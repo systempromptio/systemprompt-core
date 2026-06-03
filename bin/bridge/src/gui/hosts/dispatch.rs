@@ -39,5 +39,15 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
         HostUiEvent::ProxyProbeFinished { health, reply_to } => {
             handlers::on_proxy_probe_finished(app, *health, reply_to);
         },
+        HostUiEvent::ModelFilterSetRequested {
+            host_id,
+            protocols,
+            reply_to,
+        } => handlers::on_model_filter_set_requested(app, &host_id, protocols, reply_to),
+        HostUiEvent::ModelFilterSetFinished {
+            host_id,
+            result,
+            reply_to,
+        } => handlers::on_model_filter_set_finished(app, &host_id, result, reply_to),
     }
 }
