@@ -34,7 +34,11 @@ pub struct ProxyStats {
 }
 
 #[derive(Clone)]
-pub(super) struct ProxyContext {
+#[expect(
+    missing_debug_implementations,
+    reason = "holds a TokenCache whose RefreshFn (Box<dyn Fn>) cannot derive Debug"
+)]
+pub struct ProxyContext {
     pub runtime_config: SharedRuntimeConfig,
     pub secret: Arc<ProxySecret>,
     pub stats: Arc<ProxyStats>,
@@ -44,7 +48,7 @@ pub(super) struct ProxyContext {
 }
 
 impl ProxyContext {
-    pub(super) fn snapshot(&self) -> Arc<RuntimeConfig> {
+    pub fn snapshot(&self) -> Arc<RuntimeConfig> {
         self.runtime_config.load_full()
     }
 }

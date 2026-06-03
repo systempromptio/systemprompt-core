@@ -63,7 +63,7 @@ pub(super) fn cmd_doctor() -> ExitCode {
     }
 }
 
-async fn run_checks() -> (Vec<Check>, bool) {
+pub async fn run_checks() -> (Vec<Check>, bool) {
     let cfg = config::load();
     let mut checks: Vec<Check> = Vec::new();
     checks.push(auth::check_config_file());

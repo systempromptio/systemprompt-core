@@ -130,7 +130,7 @@ fn now_unix() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-pub(super) async fn handle_request(
+pub async fn handle_request(
     req: Request<Incoming>,
     ctx: ProxyContext,
     peer: SocketAddr,
