@@ -385,7 +385,7 @@ async fn token_client_credentials_service_scope_does_not_require_owner_role() ->
         .unwrap_or_else(|| panic!("service-tier grant must mint a token; got {s} {v}"));
     let claims = decode_jwt_claims(access_token)?;
     assert!(
-        claims["roles"].is_null() || claims["roles"].as_array().is_some_and(<[_]>::is_empty),
+        claims["roles"].is_null() || claims["roles"].as_array().is_some_and(Vec::is_empty),
         "service token must not carry RBAC roles; got roles={}",
         claims["roles"]
     );

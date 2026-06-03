@@ -340,7 +340,7 @@ async fn exchange_self_issued_subject_does_not_500() -> anyhow::Result<()> {
         let claims = decode_jwt_claims(access_token)?;
         assert!(
             claims["roles"].is_null()
-                || claims["roles"].as_array().is_some_and(<[_]>::is_empty),
+                || claims["roles"].as_array().is_some_and(Vec::is_empty),
             "delegated token must not carry scope strings as RBAC roles; got roles={}",
             claims["roles"]
         );
