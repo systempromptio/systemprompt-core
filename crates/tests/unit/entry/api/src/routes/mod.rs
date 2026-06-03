@@ -10,6 +10,7 @@ mod bridge_profile_models;
 mod gateway_auth_responses;
 mod gateway_authz_request;
 mod gateway_extract_credential;
+mod gateway_upstream_status_mapping;
 mod oauth;
 mod proxy_mcp_metadata;
 mod sync_types;

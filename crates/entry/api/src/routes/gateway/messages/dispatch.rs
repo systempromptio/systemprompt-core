@@ -95,14 +95,17 @@ fn map_dispatch_error(e: &anyhow::Error) -> Result<Response<Body>, (StatusCode, 
 /// so it passes through; auth, 5xx, timeout, and transport failures are the
 /// gateway/provider's problem and collapse to 502/504 without leaking the
 /// upstream's credential-level detail.
-fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
+pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     let UpstreamError::Status {
         provider,
         status,
         message,
     } = e
     else {
-        return (StatusCode::BAD_GATEWAY, "upstream provider unreachable".to_owned());
+        return (
+            StatusCode::BAD_GATEWAY,
+            "upstream provider unreachable".to_owned(),
+        );
     };
     let mapped = match *status {
         400 | 404 | 422 => StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_REQUEST),
@@ -113,7 +116,10 @@ fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     if mapped.is_server_error() {
         (mapped, "upstream provider error".to_owned())
     } else {
-        (mapped, format!("{provider} rejected the request: {message}"))
+        (
+            mapped,
+            format!("{provider} rejected the request: {message}"),
+        )
     }
 }
 

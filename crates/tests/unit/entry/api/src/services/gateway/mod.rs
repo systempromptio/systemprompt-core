@@ -14,3 +14,4 @@ mod parse;
 mod pricing;
 mod registry;
 mod safety;
+mod upstream_error;

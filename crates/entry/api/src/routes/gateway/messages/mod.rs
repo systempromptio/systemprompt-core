@@ -11,6 +11,7 @@ mod dispatch;
 mod extract;
 mod rejection;
 
+pub use dispatch::map_upstream_error;
 pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential};
 
 use axum::body::Body;
