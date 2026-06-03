@@ -1,7 +1,8 @@
 use systemprompt_api::services::gateway::pricing::{cost_microdollars, resolve};
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
+    WireProtocol,
 };
 use systemprompt_models::services::ModelPricing;
 
@@ -21,6 +22,7 @@ fn gateway_with(routes: Vec<GatewayRoute>) -> GatewayConfig {
         enabled: true,
         routes,
         default_provider: None,
+        allow_unlisted_models: false,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
     }
@@ -55,7 +57,8 @@ fn registry_pricing_used_when_no_route_override() {
     let registry = ProviderRegistry {
         providers: vec![ProviderEntry {
             name: ProviderId::new("anthropic"),
-            protocol: WireProtocol::Anthropic,
+            wire: WireProtocol::Anthropic,
+            surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com".to_owned(),
             api_key_secret: SecretName::new("anthropic"),
             extra_headers: Default::default(),

@@ -8,7 +8,9 @@
 use systemprompt_api::routes::gateway::bridge::provider_health;
 use systemprompt_api::routes::gateway::models::model_entries;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::profile::{ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol};
+use systemprompt_models::profile::{
+    ApiSurface, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+};
 
 fn model(id: &str, aliases: &[&str]) -> ProviderModel {
     ProviderModel {
@@ -21,19 +23,30 @@ fn model(id: &str, aliases: &[&str]) -> ProviderModel {
     }
 }
 
-fn provider(name: &str, protocol: WireProtocol, models: Vec<ProviderModel>) -> ProviderEntry {
-    provider_with_secret(name, protocol, name, models)
+fn provider(name: &str, wire: WireProtocol, models: Vec<ProviderModel>) -> ProviderEntry {
+    provider_with_secret(name, wire, name, models)
 }
 
 fn provider_with_secret(
     name: &str,
-    protocol: WireProtocol,
+    wire: WireProtocol,
+    secret: &str,
+    models: Vec<ProviderModel>,
+) -> ProviderEntry {
+    provider_with_surface(name, wire, wire.surface(), secret, models)
+}
+
+fn provider_with_surface(
+    name: &str,
+    wire: WireProtocol,
+    surface: ApiSurface,
     secret: &str,
     models: Vec<ProviderModel>,
 ) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new(name),
-        protocol,
+        wire,
+        surface,
         endpoint: "https://example.invalid/v1".to_owned(),
         api_key_secret: SecretName::new(secret),
         extra_headers: Default::default(),
@@ -54,7 +67,7 @@ fn includes_anthropic_ids_and_aliases() {
         )],
     };
 
-    let models = registry.advertised_model_ids(&[WireProtocol::Anthropic]);
+    let models = registry.advertised_model_ids(&[ApiSurface::Anthropic]);
 
     assert_eq!(
         models,
@@ -88,7 +101,7 @@ fn excludes_non_anthropic_providers() {
         ],
     };
 
-    let models = registry.advertised_model_ids(&[WireProtocol::Anthropic]);
+    let models = registry.advertised_model_ids(&[ApiSurface::Anthropic]);
 
     assert_eq!(models, vec!["claude-sonnet-4-6".to_owned()]);
     assert!(!models.iter().any(|m| m.starts_with("gemini")));
@@ -107,7 +120,7 @@ fn empty_when_no_anthropic_provider() {
 
     assert!(
         registry
-            .advertised_model_ids(&[WireProtocol::Anthropic])
+            .advertised_model_ids(&[ApiSurface::Anthropic])
             .is_empty()
     );
 }
@@ -152,7 +165,7 @@ fn model_entries_scope_to_requested_protocol() {
         ],
     };
 
-    let entries = model_entries(&registry, &[WireProtocol::Anthropic]);
+    let entries = model_entries(&registry, &[ApiSurface::Anthropic]);
 
     let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
     assert_eq!(ids, vec!["claude-sonnet-4-6"]);
@@ -176,7 +189,7 @@ fn provider_health_reports_configured_and_models() {
     assert_eq!(health.len(), 1);
     let entry = &health[0];
     assert_eq!(entry.name, "anthropic");
-    assert_eq!(entry.protocol, WireProtocol::Anthropic);
+    assert_eq!(entry.surface, ApiSurface::Anthropic);
     assert!(entry.configured);
     assert!(entry.config_issue.is_none());
     assert_eq!(
@@ -215,4 +228,38 @@ fn provider_health_flags_missing_secret() {
 
     let anthropic = health.iter().find(|h| h.name == "anthropic").unwrap();
     assert!(anthropic.configured);
+}
+
+#[test]
+fn provider_health_excludes_backend_provider() {
+    let registry = ProviderRegistry {
+        providers: vec![
+            provider_with_secret(
+                "anthropic",
+                WireProtocol::Anthropic,
+                "anthropic_key",
+                vec![model("claude-3-7-sonnet-20250219", &[])],
+            ),
+            provider_with_surface(
+                "minimax",
+                WireProtocol::Anthropic,
+                ApiSurface::Backend,
+                "minimax_key",
+                vec![model("MiniMax-M2", &[])],
+            ),
+        ],
+    };
+
+    let health = provider_health(&registry, |_| true);
+
+    assert!(
+        health.iter().all(|h| h.name != "minimax"),
+        "backend provider must never appear in bridge profile provider health"
+    );
+    assert!(
+        !health
+            .iter()
+            .flat_map(|h| h.models.iter())
+            .any(|m| m == "MiniMax-M2")
+    );
 }

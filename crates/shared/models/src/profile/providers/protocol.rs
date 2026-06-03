@@ -9,9 +9,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::surface::ApiSurface;
 use crate::schema::ProviderCapabilities;
 
-/// The wire-format family a provider's endpoint speaks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
 pub enum WireProtocol {
     #[serde(rename = "anthropic")]
@@ -25,7 +25,6 @@ pub enum WireProtocol {
 }
 
 impl WireProtocol {
-    /// The stable string tag used to resolve a codec/adapter for this protocol.
     #[must_use]
     pub const fn as_tag(self) -> &'static str {
         match self {
@@ -36,10 +35,6 @@ impl WireProtocol {
         }
     }
 
-    /// Parse a wire-protocol tag back into the enum. Inverse of
-    /// [`Self::as_tag`], and accepts the same alias spellings serde allows
-    /// so a header value and a profile value resolve identically. Returns
-    /// `None` for an unknown tag.
     #[must_use]
     pub fn from_tag(tag: &str) -> Option<Self> {
         match tag {
@@ -51,9 +46,18 @@ impl WireProtocol {
         }
     }
 
-    /// The JSON-Schema constructs this protocol's tool/output schema parser
-    /// accepts. The wire codecs feed this to [`crate::schema::SchemaSanitizer`]
-    /// so every tool schema is reduced to a shape the upstream will accept.
+    /// The *implied* default surface only — the authoritative one is the
+    /// explicit [`super::ProviderEntry::surface`] field, which can advertise a
+    /// provider under a different family or none at all (`backend`).
+    #[must_use]
+    pub const fn surface(self) -> ApiSurface {
+        match self {
+            Self::Anthropic => ApiSurface::Anthropic,
+            Self::OpenAiChat | Self::OpenAiResponses => ApiSurface::OpenAi,
+            Self::Gemini => ApiSurface::Gemini,
+        }
+    }
+
     #[must_use]
     pub const fn schema_capabilities(self) -> ProviderCapabilities {
         match self {

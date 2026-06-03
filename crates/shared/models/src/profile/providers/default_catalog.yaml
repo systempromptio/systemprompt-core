@@ -20,7 +20,8 @@
 
 providers:
   - name: anthropic
-    protocol: anthropic
+    wire: anthropic
+    surface: anthropic
     endpoint: https://api.anthropic.com/v1
     api_key_secret: anthropic
     models:
@@ -66,7 +67,8 @@ providers:
         limits: { context_window: 200000, max_output_tokens: 32000 }
 
   - name: openai
-    protocol: openai-chat
+    wire: openai-chat
+    surface: openai
     endpoint: https://api.openai.com/v1
     api_key_secret: openai
     models:
@@ -142,7 +144,8 @@ providers:
         capabilities: { image_generation: true }
 
   - name: gemini
-    protocol: gemini
+    wire: gemini
+    surface: gemini
     endpoint: https://generativelanguage.googleapis.com/v1beta
     api_key_secret: gemini
     models:

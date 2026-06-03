@@ -20,7 +20,7 @@ use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider, Resil
 #[derive(Debug)]
 pub struct ProviderClientParams<'a> {
     pub name: &'a str,
-    pub protocol: WireProtocol,
+    pub wire: WireProtocol,
     pub endpoint: &'a str,
     pub api_key: String,
     pub google_search_enabled: bool,
@@ -37,7 +37,7 @@ impl ProviderFactory {
         params: &ProviderClientParams<'_>,
         db_pool: Option<DbPool>,
     ) -> Result<Arc<dyn AiProvider>> {
-        let inner: Arc<dyn AiProvider> = match params.protocol {
+        let inner: Arc<dyn AiProvider> = match params.wire {
             WireProtocol::Anthropic => {
                 let provider = AnthropicProvider::with_endpoint(
                     params.api_key.clone(),

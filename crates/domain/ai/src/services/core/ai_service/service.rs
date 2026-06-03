@@ -148,7 +148,7 @@ impl AiService {
     ) -> Result<Arc<dyn AiProvider>> {
         let params = ProviderClientParams {
             name: entry.name.as_str(),
-            protocol: entry.protocol,
+            wire: entry.wire,
             endpoint: &entry.endpoint,
             api_key,
             google_search_enabled: policy.google_search_enabled,

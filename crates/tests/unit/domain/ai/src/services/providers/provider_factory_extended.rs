@@ -13,7 +13,7 @@ fn seed_models(provider: &str) -> Vec<ProviderModel> {
 
 fn create(
     name: &str,
-    protocol: WireProtocol,
+    wire: WireProtocol,
     endpoint: &str,
     google_search_enabled: bool,
 ) -> std::sync::Arc<dyn AiProvider> {
@@ -21,7 +21,7 @@ fn create(
     let resilience = ResilienceSettings::default();
     let params = ProviderClientParams {
         name,
-        protocol,
+        wire,
         endpoint,
         api_key: "test-key".to_owned(),
         google_search_enabled,

@@ -15,6 +15,7 @@
 
 mod error;
 mod protocol;
+mod surface;
 
 use std::collections::{HashMap, HashSet};
 
@@ -25,10 +26,8 @@ use crate::services::ai::{ModelCapabilities, ModelLimits, ModelPricing};
 
 pub use error::{ProviderRegistryError, ProviderRegistryResult};
 pub use protocol::WireProtocol;
+pub use surface::ApiSurface;
 
-/// The canonical out-of-the-box provider catalog, embedded at build time. The
-/// single seed source shared by the setup wizard, cloud-init scaffolding, and
-/// the catalog-parity tests — see [`ProviderRegistry::default_seed`].
 const DEFAULT_CATALOG_YAML: &str = include_str!("default_catalog.yaml");
 
 #[derive(Deserialize)]
@@ -36,11 +35,6 @@ struct DefaultCatalogFile {
     providers: Vec<ProviderEntry>,
 }
 
-/// One model served by a provider: identity, routing, and economics.
-///
-/// A model's full description lives here exactly once: identity and routing
-/// (id, aliases, `upstream_model`, pricing) alongside agent-side capabilities
-/// and limits.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderModel {
@@ -77,13 +71,19 @@ impl ProviderModel {
     }
 }
 
-/// One upstream provider declared once: connectivity + the models it serves.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderEntry {
     pub name: ProviderId,
 
-    pub protocol: WireProtocol,
+    /// The wire codec the gateway speaks to reach this provider. Selects the
+    /// outbound adapter only — never which client API advertises these models.
+    pub wire: WireProtocol,
+
+    /// The client API family these models are advertised under. Required and
+    /// without a default: advertising a backend vendor as Anthropic must mean
+    /// literally writing `surface: anthropic`, not falling through a default.
+    pub surface: ApiSurface,
 
     pub endpoint: String,
 
@@ -103,7 +103,6 @@ impl ProviderEntry {
     }
 }
 
-/// The `profile.providers` section: the registry of upstream providers.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(transparent)]
 pub struct ProviderRegistry {
@@ -111,9 +110,6 @@ pub struct ProviderRegistry {
 }
 
 impl ProviderRegistry {
-    /// Parse the embedded `DEFAULT_CATALOG_YAML` into the canonical seed
-    /// registry (every known provider + its full model catalog). Errs only if
-    /// the in-tree YAML is malformed — a build-time bug caught by tests.
     pub fn default_seed() -> ProviderRegistryResult<Self> {
         let file: DefaultCatalogFile = serde_yaml::from_str(DEFAULT_CATALOG_YAML)
             .map_err(|e| ProviderRegistryError::InvalidDefaultCatalog(e.to_string()))?;
@@ -134,21 +130,27 @@ impl ProviderRegistry {
             .any(|p| p.find_model(requested).is_some())
     }
 
-    /// Model ids (each model's `id` plus its `aliases`) advertised for the
-    /// given wire protocols; an empty `protocols` slice means the full
-    /// catalog.
+    /// The one place the advertisement rule is applied to the registry.
     ///
-    /// This is the single source of truth for "which models may a {protocol}
-    /// client see". A gateway front door (e.g. Cowork in Anthropic mode)
-    /// rejects its whole config if advertised models include a name from
-    /// another wire family, so a caller scopes the list to its own
-    /// protocol; routes may still proxy those names to a different provider
-    /// underneath.
-    #[must_use]
-    pub fn advertised_model_ids(&self, protocols: &[WireProtocol]) -> Vec<String> {
+    /// A `surface: backend` provider (e.g. `minimax`) can never leak into a
+    /// client catalog through a hand-rolled flatten. Routing/admin paths that
+    /// must still see backend providers iterate `self.providers` directly.
+    pub fn advertised_providers(&self) -> impl Iterator<Item = &ProviderEntry> {
         self.providers
             .iter()
-            .filter(|entry| protocols.is_empty() || protocols.contains(&entry.protocol))
+            .filter(|entry| entry.surface.is_advertised())
+    }
+
+    /// An empty `surfaces` slice means the full catalog.
+    ///
+    /// A gateway front door (e.g. Cowork in Anthropic mode) rejects its whole
+    /// config if advertised models include a name from another vendor family,
+    /// so a caller scopes the list to its own surface; routes may still
+    /// proxy those names to a different provider underneath.
+    #[must_use]
+    pub fn advertised_model_ids(&self, surfaces: &[ApiSurface]) -> Vec<String> {
+        self.advertised_providers()
+            .filter(|entry| surfaces.is_empty() || surfaces.contains(&entry.surface))
             .flat_map(|entry| {
                 entry.models.iter().flat_map(|m| {
                     std::iter::once(m.id.as_str().to_owned())

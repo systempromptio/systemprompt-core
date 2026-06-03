@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_models::profile::{ProviderRegistry, WireProtocol};
+use systemprompt_models::profile::{ApiSurface, ProviderRegistry};
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -55,8 +55,8 @@ pub async fn list(headers: HeaderMap) -> Result<Json<ModelsResponse>, (StatusCod
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
-    let protocols = protocols_from_header(&headers)?;
-    let entries = model_entries(&profile.providers, &protocols);
+    let surfaces = surfaces_from_header(&headers)?;
+    let entries = model_entries(&profile.providers, &surfaces);
     let first_id = entries.first().map(|e| e.id.clone());
     let last_id = entries.last().map(|e| e.id.clone());
 
@@ -68,33 +68,36 @@ pub async fn list(headers: HeaderMap) -> Result<Json<ModelsResponse>, (StatusCod
     }))
 }
 
-/// Resolve the `x-inference-protocol` selection header into wire protocols. An
-/// absent or empty header yields the full catalog (empty slice); a present but
-/// unrecognised tag is a misconfiguration and fails with `400` rather than
-/// silently widening the advertised set.
-fn protocols_from_header(headers: &HeaderMap) -> Result<Vec<WireProtocol>, (StatusCode, String)> {
+/// Resolve the `x-inference-protocol` selection header into API surfaces. An
+/// absent or empty header yields the full catalog (empty slice); an
+/// unrecognised tag, or `backend` (never a client surface), is a
+/// misconfiguration and fails with `400` rather than silently widening or
+/// leaking the advertised set.
+fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (StatusCode, String)> {
     let Some(raw) = headers
         .get(INFERENCE_PROTOCOL)
         .and_then(|v| v.to_str().ok())
     else {
         return Ok(Vec::new());
     };
-    let mut protocols = Vec::new();
+    let mut surfaces = Vec::new();
     for tag in raw.split(',').map(str::trim).filter(|t| !t.is_empty()) {
-        let protocol = WireProtocol::from_tag(tag).ok_or_else(|| {
-            (
-                StatusCode::BAD_REQUEST,
-                format!("unknown {INFERENCE_PROTOCOL} value: {tag}"),
-            )
-        })?;
-        protocols.push(protocol);
+        let surface = ApiSurface::from_tag(tag)
+            .filter(|s| *s != ApiSurface::Backend)
+            .ok_or_else(|| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    format!("unknown {INFERENCE_PROTOCOL} value: {tag}"),
+                )
+            })?;
+        surfaces.push(surface);
     }
-    Ok(protocols)
+    Ok(surfaces)
 }
 
-pub fn model_entries(registry: &ProviderRegistry, protocols: &[WireProtocol]) -> Vec<ModelEntry> {
+pub fn model_entries(registry: &ProviderRegistry, surfaces: &[ApiSurface]) -> Vec<ModelEntry> {
     let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
-    for id in registry.advertised_model_ids(protocols) {
+    for id in registry.advertised_model_ids(surfaces) {
         by_id.insert(
             id.clone(),
             ModelEntry {

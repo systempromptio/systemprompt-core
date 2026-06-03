@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use serde::Serialize;
+use systemprompt_models::profile::ApiSurface;
 
 #[derive(Debug, Clone)]
 pub struct ProfileGenInputs {
@@ -127,14 +128,13 @@ pub trait HostApp: Send + Sync + 'static {
         ""
     }
 
-    /// Wire-protocol tags whose provider models this host can use; empty means
-    /// no restriction.
-    fn accepted_protocols(&self) -> &'static [&'static str] {
+    /// API surfaces whose provider models this host can use; empty means no
+    /// restriction.
+    fn accepted_surfaces(&self) -> &'static [ApiSurface] {
         &[]
     }
 }
 
-/// A host's view of the gateway's providers, filtered to its wire protocols.
 /// `checked` is false when there was no provider health to evaluate
 /// (distinguishes "nothing usable" from "not yet checked").
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -146,13 +146,13 @@ pub struct HostModelView {
     pub unconfigured_providers: Vec<String>,
 }
 
-/// Keeps only providers whose wire protocol the host speaks (`accepted`; empty
-/// means no restriction), preserving model order and dropping duplicates.
+/// Empty `accepted` means no restriction. Preserves model order and drops
+/// duplicates across providers.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn host_model_view(
     health: &[crate::auth::types::ProviderHealth],
-    accepted: &[String],
+    accepted: &[ApiSurface],
 ) -> HostModelView {
     let mut seen = std::collections::HashSet::new();
     let mut view = HostModelView {
@@ -160,7 +160,7 @@ pub fn host_model_view(
         ..HostModelView::default()
     };
     for provider in health {
-        let speaks = accepted.is_empty() || accepted.iter().any(|p| p == &provider.protocol);
+        let speaks = accepted.is_empty() || accepted.contains(&provider.surface);
         if !speaks {
             continue;
         }
@@ -179,27 +179,27 @@ pub fn host_model_view(
 }
 
 /// A synced per-host override wins over the host's built-in default; an empty
-/// result means "all models".
+/// result means "all models". Override tags are parsed to [`ApiSurface`]; an
+/// unrecognised tag is dropped rather than failing the whole host.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
-pub fn effective_protocols(
+pub fn effective_surfaces(
     host_id: &str,
-    default: &[&'static str],
-    overrides: &std::collections::BTreeMap<String, Vec<String>>,
-) -> Vec<String> {
-    overrides.get(host_id).cloned().unwrap_or_else(|| {
-        default
-            .iter()
-            .map(|s| (*s).to_owned())
-            .collect::<Vec<String>>()
-    })
+    default: &[ApiSurface],
+    overrides: &BTreeMap<String, Vec<String>>,
+) -> Vec<ApiSurface> {
+    overrides.get(host_id).map_or_else(
+        || default.to_vec(),
+        |tags| {
+            tags.iter()
+                .filter_map(|t| ApiSurface::from_tag(t))
+                .collect()
+        },
+    )
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
-pub fn has_protocol_override(
-    host_id: &str,
-    overrides: &std::collections::BTreeMap<String, Vec<String>>,
-) -> bool {
+pub fn has_surface_override(host_id: &str, overrides: &BTreeMap<String, Vec<String>>) -> bool {
     overrides.contains_key(host_id)
 }

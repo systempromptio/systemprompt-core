@@ -34,7 +34,7 @@ impl ImageProviderFactory {
             )));
         }
 
-        match params.entry.protocol {
+        match params.entry.wire {
             WireProtocol::Gemini => Ok(Self::create_gemini(params)),
             WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => {
                 Ok(Self::create_openai(params))

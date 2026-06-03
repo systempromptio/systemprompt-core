@@ -43,13 +43,13 @@ fn build_entry<'a>(
     host: &'static dyn crate::integration::HostApp,
 ) -> HostEntryPayload<'a> {
     let st = snap.hosts.get(host.id());
-    let effective = crate::integration::host_app::effective_protocols(
+    let effective = crate::integration::host_app::effective_surfaces(
         host.id(),
-        host.accepted_protocols(),
+        host.accepted_surfaces(),
         &snap.host_model_protocols,
     );
     let overridden =
-        crate::integration::host_app::has_protocol_override(host.id(), &snap.host_model_protocols);
+        crate::integration::host_app::has_surface_override(host.id(), &snap.host_model_protocols);
     let view = crate::integration::host_app::host_model_view(&snap.provider_health, &effective);
     HostEntryPayload {
         id: host.id(),
@@ -68,7 +68,7 @@ fn build_entry<'a>(
         models_checked: view.checked,
         compatible_models_available: view.available,
         unconfigured_providers: view.unconfigured_providers,
-        model_protocols: effective,
+        model_protocols: effective.iter().map(|s| s.as_tag().to_owned()).collect(),
         model_protocols_overridden: overridden,
     }
 }

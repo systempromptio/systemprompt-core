@@ -114,8 +114,8 @@ impl HostApp for ClaudeDesktopHost {
         "https://claude.ai/download"
     }
 
-    fn accepted_protocols(&self) -> &'static [&'static str] {
-        &["anthropic"]
+    fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
+        &[systemprompt_models::profile::ApiSurface::Anthropic]
     }
 }
 

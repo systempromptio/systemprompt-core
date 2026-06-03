@@ -455,25 +455,23 @@ async fn generate_profile_for(
         .fetch_bridge_profile()
         .await?;
 
-    let protocols = crate::integration::host_app::effective_protocols(
+    let surfaces = crate::integration::host_app::effective_surfaces(
         host.id(),
-        host.accepted_protocols(),
+        host.accepted_surfaces(),
         overrides,
     );
-    let view = crate::integration::host_app::host_model_view(&server_profile.providers, &protocols);
-    let models = if !view.compatible_models.is_empty() {
-        view.compatible_models
-    } else if server_profile.models.is_empty() {
-        crate::integration::claude_desktop::default_models()
-    } else {
-        server_profile.models
-    };
+    let view = crate::integration::host_app::host_model_view(&server_profile.providers, &surfaces);
+    let models = view.compatible_models;
 
     let mut headers = std::collections::BTreeMap::new();
-    if !protocols.is_empty() {
+    if !surfaces.is_empty() {
         headers.insert(
             systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
-            protocols.join(","),
+            surfaces
+                .iter()
+                .map(|s| s.as_tag())
+                .collect::<Vec<_>>()
+                .join(","),
         );
     }
 

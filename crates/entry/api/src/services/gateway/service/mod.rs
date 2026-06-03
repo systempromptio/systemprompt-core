@@ -115,11 +115,11 @@ impl GatewayService {
             })?;
 
         let upstream = GatewayUpstreamRegistry::global()
-            .get(provider.protocol.as_tag())
+            .get(provider.wire.as_tag())
             .ok_or_else(|| {
                 anyhow!(
                     "Gateway has no outbound adapter for wire protocol '{}'",
-                    provider.protocol.as_tag()
+                    provider.wire.as_tag()
                 )
             })?;
 

@@ -14,7 +14,7 @@ use clap::{Args, Subcommand};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use systemprompt_models::Profile;
-use systemprompt_models::profile::{ProviderEntry, ProviderModel, WireProtocol};
+use systemprompt_models::profile::{ApiSurface, ProviderEntry, ProviderModel, WireProtocol};
 
 use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
@@ -63,9 +63,14 @@ pub struct ProviderAddArgs {
     pub name: String,
     #[arg(
         long,
-        help = "Wire protocol: anthropic | openai-chat | openai-responses | gemini"
+        help = "Wire codec: anthropic | openai-chat | openai-responses | gemini"
     )]
-    pub protocol: String,
+    pub wire: String,
+    #[arg(
+        long,
+        help = "Client API surface: anthropic | openai | gemini | backend"
+    )]
+    pub surface: String,
     #[arg(long)]
     pub endpoint: String,
     #[arg(long)]
@@ -122,11 +127,19 @@ pub async fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<(
     Ok(())
 }
 
-fn parse_protocol(raw: &str) -> Result<WireProtocol> {
-    serde_yaml::from_str(raw).map_err(|e| {
+fn parse_wire(raw: &str) -> Result<WireProtocol> {
+    WireProtocol::from_tag(raw).ok_or_else(|| {
         anyhow::anyhow!(
-            "invalid --protocol '{raw}' ({e}); expected one of: anthropic, openai-chat, \
+            "invalid --wire '{raw}'; expected one of: anthropic, openai-chat, \
              openai-responses, gemini"
+        )
+    })
+}
+
+fn parse_surface(raw: &str) -> Result<ApiSurface> {
+    ApiSurface::from_tag(raw).ok_or_else(|| {
+        anyhow::anyhow!(
+            "invalid --surface '{raw}'; expected one of: anthropic, openai, gemini, backend"
         )
     })
 }
@@ -150,7 +163,8 @@ fn add_provider(profile: &mut Profile, args: &ProviderAddArgs) -> Result<String>
         .unwrap_or_default();
     let entry = ProviderEntry {
         name: ProviderId::new(&args.name),
-        protocol: parse_protocol(&args.protocol)?,
+        wire: parse_wire(&args.wire)?,
+        surface: parse_surface(&args.surface)?,
         endpoint: args.endpoint.clone(),
         api_key_secret: SecretName::new(&args.api_key_secret),
         extra_headers: parse_headers(&args.headers)?,
@@ -161,7 +175,10 @@ fn add_provider(profile: &mut Profile, args: &ProviderAddArgs) -> Result<String>
         .providers
         .retain(|p| p.name.as_str() != args.name);
     profile.providers.providers.push(entry);
-    Ok(format!("Provider {} ({}) added", args.name, args.protocol))
+    Ok(format!(
+        "Provider {} (wire {}, surface {}) added",
+        args.name, args.wire, args.surface
+    ))
 }
 
 fn remove_provider(profile: &mut Profile, name: &str) -> Result<String> {
@@ -221,9 +238,10 @@ fn list_providers() -> Result<()> {
         .map(|p| {
             let models: Vec<&str> = p.models.iter().map(|m| m.id.as_str()).collect();
             let row = format!(
-                "{} [{}] {} ({} models: {})",
+                "{} [wire {} / surface {}] {} ({} models: {})",
                 p.name.as_str(),
-                p.protocol,
+                p.wire,
+                p.surface,
                 p.endpoint,
                 models.len(),
                 models.join(", ")

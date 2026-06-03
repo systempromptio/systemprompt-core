@@ -2,30 +2,9 @@ use crate::ids::{BearerToken, CertFingerprint};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BridgeProfile {
-    pub inference_gateway_base_url: String,
-    pub auth_scheme: String,
-    #[serde(default)]
-    pub models: Vec<String>,
-    #[serde(default)]
-    pub organization_uuid: Option<String>,
-    /// Empty against an older gateway; callers fall back to the flat `models`.
-    #[serde(default)]
-    pub providers: Vec<ProviderHealth>,
-}
-
-/// Mirror of the gateway's per-provider health payload (keep in sync).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProviderHealth {
-    pub name: String,
-    pub protocol: String,
-    pub configured: bool,
-    #[serde(default)]
-    pub models: Vec<String>,
-    #[serde(default)]
-    pub config_issue: Option<String>,
-}
+pub use systemprompt_models::bridge::profile::{
+    BridgeProfileResponse as BridgeProfile, ProviderHealth,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MtlsRequest {

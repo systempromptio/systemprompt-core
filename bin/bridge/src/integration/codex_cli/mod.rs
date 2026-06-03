@@ -93,7 +93,7 @@ impl HostApp for CodexCliHost {
         "https://developers.openai.com/codex/app"
     }
 
-    fn accepted_protocols(&self) -> &'static [&'static str] {
+    fn accepted_surfaces(&self) -> &'static [systemprompt_models::profile::ApiSurface] {
         &[]
     }
 }
