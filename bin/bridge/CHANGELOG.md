@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.0] - 2026-06-03
+
+### Added
+
+- The bridge mirrors an organization's managed plugins into the standalone Claude Code CLI. Because the `claude` CLI does not read the Cowork org-plugins root, the bridge now installs the managed skills, agents, and MCP servers into `~/.claude` as a directory-source marketplace plugin — writing the bundle, `marketplace.json`, and the `known_marketplaces` / `installed_plugins` registry entries, then force-enabling it in `settings.json` — so the plugin appears in `claude plugin list` and its skills load as `/systemprompt-managed:<skill>`. Every registry file is updated in place, preserving the user's other marketplaces and plugins, and a manifest with no content removes the plugin again.
+
 ## [0.11.0] - 2026-06-03
 
 ### Added
