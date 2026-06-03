@@ -5,6 +5,11 @@ pub enum GuiError {
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
 
+    /// No usable credential yet — the expected state on the login page, not a
+    /// failure. Handlers should treat this quietly (no error log / toast).
+    #[error("not authenticated")]
+    NotAuthenticated,
+
     #[error("auth: {0}")]
     Auth(#[from] crate::auth::setup::SetupError),
 

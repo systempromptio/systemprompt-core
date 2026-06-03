@@ -1,5 +1,5 @@
-//! Profile dashboard handler: composes the dashboard profile tab from the
-//! cached JWT identity, the gateway profile, and per-user usage.
+//! Composes the dashboard profile tab from cached identity, gateway profile,
+//! and usage.
 
 use std::sync::Arc;
 
@@ -26,6 +26,22 @@ pub(crate) fn on_profile_fetch_finished(
     result: Result<Value, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
+    // Being logged-out is the expected state on the login page, not a failure:
+    // reply quietly so the caller can render the logged-out view, with no
+    // user-facing log line and no error toast.
+    if matches!(&result, Err(e) if matches!(e.as_ref(), GuiError::NotAuthenticated)) {
+        tracing::debug!("profile fetch skipped: not authenticated yet");
+        if let Some(id) = reply_to {
+            let payload = IpcReplyPayload::err(BridgeError::new(
+                ErrorScope::Identity,
+                ErrorCode::Internal,
+                "not authenticated".to_owned(),
+            ));
+            emit::send_reply_payload(app, id, &payload);
+        }
+        return;
+    }
+
     let bridge_result = match result {
         Ok(value) => Ok(value),
         Err(err) => {
@@ -67,11 +83,7 @@ async fn build_profile(snapshot: AppStateSnapshot) -> Result<Value, GuiError> {
     let bearer = bearer_value
         .as_ref()
         .map(|s| s.expose().to_owned())
-        .ok_or_else(|| {
-            GuiError::Io(std::io::Error::other(
-                "no valid auth credential available; log in first",
-            ))
-        })?;
+        .ok_or(GuiError::NotAuthenticated)?;
 
     let whoami = match client.fetch_whoami(&bearer).await {
         Ok(w) => Some(w),
