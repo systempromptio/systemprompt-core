@@ -12,4 +12,5 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 serde_json = { workspace = true }
