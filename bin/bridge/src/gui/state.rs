@@ -49,7 +49,7 @@ pub enum GatewayStatus {
 }
 
 impl GatewayStatus {
-    pub fn is_reachable(&self) -> bool {
+    pub const fn is_reachable(&self) -> bool {
         matches!(self, Self::Reachable { .. })
     }
 }
@@ -68,6 +68,7 @@ pub struct GatewayProbeOutcome {
     pub status: GatewayStatus,
     pub identity: Option<VerifiedIdentity>,
     pub at_unix: u64,
+    pub provider_health: Vec<crate::auth::types::ProviderHealth>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -91,6 +92,7 @@ pub struct AppStateSnapshot {
     pub last_probe_at_unix: Option<u64>,
     pub agents_onboarded: bool,
     pub enabled_hosts: Vec<String>,
+    pub provider_health: Vec<crate::auth::types::ProviderHealth>,
 
     pub hosts: HostsState,
 
@@ -101,7 +103,7 @@ pub struct AppStateSnapshot {
 }
 
 impl AppStateSnapshot {
-    pub fn signed_in(&self) -> bool {
+    pub const fn signed_in(&self) -> bool {
         self.gateway_status.is_reachable() && self.verified_identity.is_some()
     }
 
@@ -224,6 +226,7 @@ impl AppState {
         guard.gateway_status = outcome.status;
         guard.verified_identity = outcome.identity;
         guard.last_probe_at_unix = Some(outcome.at_unix);
+        guard.provider_health = outcome.provider_health;
     }
 
     pub fn clear_verified_identity(&self) {
@@ -319,19 +322,16 @@ impl AppState {
         let cfg = config::load();
         snap.gateway_url = config::gateway_url_or_default(&cfg).to_string();
 
-        match setup::status() {
-            Ok(s) => {
-                snap.config_file = s.paths.config_file.display().to_string();
-                snap.pat_file = s.paths.pat_file.display().to_string();
-                snap.config_present = s.config_present;
-                snap.pat_present = s.pat_present;
-            },
-            Err(_) => {
-                snap.config_file.clear();
-                snap.pat_file.clear();
-                snap.config_present = false;
-                snap.pat_present = false;
-            },
+        if let Ok(s) = setup::status() {
+            snap.config_file = s.paths.config_file.display().to_string();
+            snap.pat_file = s.paths.pat_file.display().to_string();
+            snap.config_present = s.config_present;
+            snap.pat_present = s.pat_present;
+        } else {
+            snap.config_file.clear();
+            snap.pat_file.clear();
+            snap.config_present = false;
+            snap.pat_present = false;
         }
 
         let loc = paths::org_plugins_effective();
@@ -377,6 +377,5 @@ impl AppState {
 pub fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }

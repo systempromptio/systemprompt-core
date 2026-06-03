@@ -3,10 +3,11 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 
-function chooseBadge(appInstalled, installed, partial, proxyState) {
+function chooseBadge(appInstalled, installed, partial, proxyState, modelsBlocked) {
   if (!appInstalled) { return { text: t("host-badge-app-missing") || "app not installed", cls: "sp-badge--err" }; }
   if (!installed && !partial) { return { text: t("host-badge-not-installed") || "profile not installed", cls: "sp-badge--warn" }; }
   if (partial) { return { text: t("host-badge-partial") || "partial", cls: "sp-badge--warn" }; }
+  if (modelsBlocked) { return { text: t("host-badge-no-models") || "no compatible model", cls: "sp-badge--warn" }; }
   if (proxyState === "Unconfigured") { return { text: t("host-badge-awaiting") || "awaiting first launch", cls: "sp-badge--warn" }; }
   if (proxyState === "Listening") { return { text: t("host-badge-healthy") || "healthy", cls: "sp-badge--ok" }; }
   return { text: t("host-badge-proxy-down") || "proxy down", cls: "sp-badge--err" };
@@ -42,8 +43,12 @@ export class SpHostCard extends SpElement {
     const proxyState = ((snap.local_proxy && snap.local_proxy.state) || "Unknown").toString();
     const probing = !!host.probe_in_flight;
     const appInstalled = !!(hs && hs.app_installed);
+    const modelsChecked = !!host.models_checked;
+    const compatibleModels = Array.isArray(host.compatible_models) ? host.compatible_models : [];
+    const unconfigured = Array.isArray(host.unconfigured_providers) ? host.unconfigured_providers : [];
+    const modelsBlocked = modelsChecked && !host.compatible_models_available;
     const badge = hs
-      ? chooseBadge(appInstalled, installed, partial, proxyState)
+      ? chooseBadge(appInstalled, installed, partial, proxyState, modelsBlocked)
       : { text: "probing…", cls: "sp-badge--muted" };
     const spinnerMarkup = probing && hs ? `<span class="sp-spinner" aria-hidden="true"></span>` : "";
 
@@ -74,6 +79,13 @@ export class SpHostCard extends SpElement {
     const showJwtWarn = snap.cached_token && snap.cached_token.ttl_seconds < 600 && installed;
     const jwtWarnText = showJwtWarn ? (t("host-jwt-warn", { ttl: snap.cached_token.ttl_seconds }) || `JWT expires in ${snap.cached_token.ttl_seconds}s`) : "";
     const jwtBlock = showJwtWarn ? `<div class="sp-claude__warn">${escapeHtml(jwtWarnText)}</div>` : "";
+
+    const modelWarnText = modelsBlocked
+      ? (unconfigured.length
+          ? (t("host-models-unconfigured", { providers: unconfigured.join(", ") }) || `No usable model — provider(s) missing an API key: ${unconfigured.join(", ")}`)
+          : (t("host-models-none") || "No compatible model is available for this host"))
+      : "";
+    const modelBlock = modelWarnText ? `<div class="sp-claude__warn">${escapeHtml(modelWarnText)}</div>` : "";
 
     const lastGen = host.last_generated_profile || null;
 
@@ -107,6 +119,14 @@ export class SpHostCard extends SpElement {
 
     const configFormatRow = host.config_format
       ? `<tr><th>${escapeHtml(t("host-config-format") || "Config format")}</th><td><div class="sp-status__detail sp-u-mono">${escapeHtml(host.config_format)}</div></td></tr>`
+      : "";
+
+    const compatibleModelsRow = modelsChecked
+      ? `<tr><th>${escapeHtml(t("host-compatible-models") || "Compatible models")}</th><td>${
+          compatibleModels.length
+            ? `<div class="sp-status__detail sp-u-mono">${escapeHtml(compatibleModels.join(", "))}</div>`
+            : `<div class="sp-status__detail sp-u-muted">${escapeHtml(t("host-no-compatible-models") || "none available")}</div>`
+        }</td></tr>`
       : "";
 
     const installLabelRow = host.install_action_label
@@ -161,6 +181,7 @@ export class SpHostCard extends SpElement {
           ${lastGenRow}
           ${profileUuidRow}
           ${payloadUuidRow}
+          ${compatibleModelsRow}
           ${hostKindRow}
           ${configFormatRow}
           ${installLabelRow}
@@ -169,6 +190,7 @@ export class SpHostCard extends SpElement {
           <summary>Resolved profile keys</summary>
           <pre class="sp-log">${escapeHtml(prefsText)}</pre>
         </details>
+        ${modelBlock}
         ${jwtBlock}
       </article>
     `;

@@ -92,4 +92,8 @@ impl HostApp for CodexCliHost {
     fn download_url(&self) -> &'static str {
         "https://developers.openai.com/codex/app"
     }
+
+    fn accepted_protocols(&self) -> &'static [&'static str] {
+        &["openai-chat", "openai-responses"]
+    }
 }

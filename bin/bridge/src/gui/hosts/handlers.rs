@@ -8,7 +8,7 @@ use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::{GuiApp, emit, ipc_runtime};
+use crate::gui::{GuiApp, emit};
 use crate::integration::{
     GeneratedProfile, HostAppSnapshot, ProfileGenInputs, ProfileState, ProxyHealth,
     find_host_by_id, proxy_probe,
@@ -117,7 +117,7 @@ fn state_change_line(
     ))
 }
 
-fn profile_state_kind(s: &ProfileState) -> &'static str {
+const fn profile_state_kind(s: &ProfileState) -> &'static str {
     match s {
         ProfileState::Installed => "installed",
         ProfileState::Partial { .. } => "partial",
@@ -278,7 +278,7 @@ pub(crate) fn on_profile_install_requested(
     app.runtime.spawn(async move {
         let result = match tokio::task::spawn_blocking(move || {
             host.install_profile(&path)
-                .map(|_| path_clone)
+                .map(|()| path_clone)
                 .map_err(|e| GuiError::Profile {
                     context: "host install_profile".into(),
                     source: e,
@@ -307,8 +307,7 @@ pub(crate) fn on_profile_install_finished(
     reply_to: ReplyId,
 ) {
     let action = find_host_by_id(host_id)
-        .map(|h| h.install_action_label())
-        .unwrap_or("installed");
+        .map_or("installed", crate::integration::host_app::HostApp::install_action_label);
     let bridge_result = match result {
         Ok(path) => {
             app.append_log(format!("[{host_id}] {action}: {path}"));
@@ -371,7 +370,13 @@ async fn generate_profile_for(
         .fetch_bridge_profile()
         .await?;
 
-    let models = if server_profile.models.is_empty() {
+    let view = crate::integration::host_app::host_model_view(
+        &server_profile.providers,
+        host.accepted_protocols(),
+    );
+    let models = if !view.compatible_models.is_empty() {
+        view.compatible_models
+    } else if server_profile.models.is_empty() {
         crate::integration::claude_desktop::default_models()
     } else {
         server_profile.models

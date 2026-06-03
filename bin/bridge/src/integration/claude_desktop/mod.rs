@@ -112,6 +112,10 @@ impl HostApp for ClaudeDesktopHost {
     fn download_url(&self) -> &'static str {
         "https://claude.ai/download"
     }
+
+    fn accepted_protocols(&self) -> &'static [&'static str] {
+        &["anthropic"]
+    }
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -134,6 +138,6 @@ fn claude_app_candidates() -> Vec<std::path::PathBuf> {
 pub fn proxy_url_from_keys(snap: &HostAppSnapshot) -> Option<&str> {
     snap.profile_keys
         .get("inferenceGatewayBaseUrl")
-        .map(|s| s.as_str())
+        .map(String::as_str)
         .filter(|s| !s.is_empty())
 }

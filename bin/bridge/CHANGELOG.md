@@ -2,6 +2,14 @@
 
 ## [0.10.7] - 2026-06-02
 
+### Added
+
+- The Status tab shows each host's compatible models and warns when no usable model is available — for example when the host's matching provider has no API key configured — instead of reporting the host as healthy. The compatible-model set and provider health come from the gateway's `/v1/bridge/profile` response.
+
+### Changed
+
+- A managed host is offered only the models whose wire protocol it speaks: Claude Desktop receives Anthropic models, Codex CLI receives OpenAI models. Previously every host received the same flat model list, which could hand a host models its client cannot use.
+
 ### Fixed
 
 - Installing the Claude Desktop managed-policy profile now elevates on demand instead of failing on a standard account. The policy lives under `SOFTWARE\Policies\Claude`, an ACL-protected subtree that a non-elevated token cannot create in either hive, so the in-process write introduced in 0.10.6 returned `ERROR_ACCESS_DENIED` (status 5) for every unprivileged install — including the `HKEY_CURRENT_USER` fallback. When the bridge is not already elevated it now relaunches its own executable under a Windows UAC consent prompt to write the policy machine-wide (`HKEY_LOCAL_MACHINE`); the activity log explains the prompt before it appears, a declined prompt surfaces an "administrator approval was declined" message instead of a raw status code, and an access-denied write now reports which hive and subkey require administrator rights.

@@ -25,6 +25,39 @@ pub(crate) struct HostEntryPayload<'a> {
     pub enabled: bool,
     pub last_generated_profile: Option<&'a GeneratedProfile>,
     pub snapshot: Option<&'a HostAppSnapshot>,
+    pub compatible_models: Vec<String>,
+    pub models_checked: bool,
+    pub compatible_models_available: bool,
+    pub unconfigured_providers: Vec<String>,
+}
+
+fn build_entry<'a>(
+    snap: &'a AppStateSnapshot,
+    host: &'static dyn crate::integration::HostApp,
+) -> HostEntryPayload<'a> {
+    let st = snap.hosts.get(host.id());
+    let view = crate::integration::host_app::host_model_view(
+        &snap.provider_health,
+        host.accepted_protocols(),
+    );
+    HostEntryPayload {
+        id: host.id(),
+        display_name: host.display_name(),
+        kind: host.kind(),
+        description: host.description(),
+        icon: host.icon_id(),
+        config_format: host.config_format(),
+        download_url: host.download_url(),
+        install_action_label: host.install_action_label(),
+        probe_in_flight: st.is_some_and(|s| s.probe_in_flight),
+        enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
+        last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
+        snapshot: st.and_then(|s| s.snapshot.as_ref()),
+        compatible_models: view.compatible_models,
+        models_checked: view.checked,
+        compatible_models_available: view.available,
+        unconfigured_providers: view.unconfigured_providers,
+    }
 }
 
 pub(crate) fn single_host_payload<'a>(
@@ -35,44 +68,15 @@ pub(crate) fn single_host_payload<'a>(
         .iter()
         .copied()
         .find(|h| h.id() == host_id)
-        .map(|host| {
-            let st = snap.hosts.get(host.id());
-            HostEntryPayload {
-                id: host.id(),
-                display_name: host.display_name(),
-                kind: host.kind(),
-                description: host.description(),
-                icon: host.icon_id(),
-                config_format: host.config_format(),
-                download_url: host.download_url(),
-                install_action_label: host.install_action_label(),
-                probe_in_flight: st.map(|s| s.probe_in_flight).unwrap_or(false),
-                enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
-                last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
-                snapshot: st.and_then(|s| s.snapshot.as_ref()),
-            }
-        })
+        .map(|host| build_entry(snap, host))
 }
 
 pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
-    let mut entries = Vec::new();
-    for host in crate::integration::host_apps() {
-        let st = snap.hosts.get(host.id());
-        entries.push(HostEntryPayload {
-            id: host.id(),
-            display_name: host.display_name(),
-            kind: host.kind(),
-            description: host.description(),
-            icon: host.icon_id(),
-            config_format: host.config_format(),
-            download_url: host.download_url(),
-            install_action_label: host.install_action_label(),
-            probe_in_flight: st.map(|s| s.probe_in_flight).unwrap_or(false),
-            enabled: snap.enabled_hosts.iter().any(|h| h == host.id()),
-            last_generated_profile: st.and_then(|s| s.last_generated_profile.as_ref()),
-            snapshot: st.and_then(|s| s.snapshot.as_ref()),
-        });
-    }
+    let entries = crate::integration::host_apps()
+        .iter()
+        .copied()
+        .map(|host| build_entry(snap, host))
+        .collect();
     HostsPayload {
         host_apps: entries,
         local_proxy: &snap.hosts.local_proxy,

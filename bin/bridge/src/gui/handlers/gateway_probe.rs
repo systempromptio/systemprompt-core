@@ -7,7 +7,7 @@ use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::{
     CancelScope, GatewayProbeOutcome, GatewayStatus, decode_jwt_identity_unverified, now_unix,
 };
-use crate::gui::{GuiApp, emit, ipc_runtime};
+use crate::gui::{GuiApp, emit};
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_gateway_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
@@ -73,12 +73,13 @@ pub(crate) fn spawn_probe(app: &GuiApp, reply_to: ReplyId) {
     let token = app.state.install_cancel(CancelScope::GatewayProbe);
     app.runtime.spawn(async move {
         let outcome = tokio::select! {
-            _ = token.cancelled() => GatewayProbeOutcome {
+            () = token.cancelled() => GatewayProbeOutcome {
                 status: GatewayStatus::Unreachable {
                     reason: "probe cancelled".into(),
                 },
                 identity: None,
                 at_unix: now_unix(),
+                provider_health: Vec::new(),
             },
             outcome = run_probe() => outcome,
         };
@@ -118,10 +119,21 @@ async fn run_probe() -> GatewayProbeOutcome {
         None
     };
 
+    let provider_health = if matches!(status, GatewayStatus::Reachable { .. }) {
+        client
+            .fetch_bridge_profile()
+            .await
+            .map(|profile| profile.providers)
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
     GatewayProbeOutcome {
         status,
         identity,
         at_unix: now_unix(),
+        provider_health,
     }
 }
 
