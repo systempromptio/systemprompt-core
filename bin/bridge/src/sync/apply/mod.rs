@@ -41,8 +41,6 @@ pub(crate) async fn apply_manifest(
 
     let mut report = plugin::apply_plugins(client, bearer, manifest, root, &staging_root).await?;
 
-    // Why: best-effort staging teardown; a leftover dir is reclaimed by the next
-    // run's prepare_dirs and a removal failure here is not actionable.
     _ = fs::remove_dir_all(&staging_root);
 
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
@@ -70,7 +68,7 @@ pub(crate) async fn apply_manifest(
         };
         if let Err(e) = &outcome {
             report.host_failures.push(HostFailure {
-                host_id: host_id.to_string(),
+                host_id: host_id.to_owned(),
                 error: format!("{e:#}"),
             });
         }
@@ -80,9 +78,8 @@ pub(crate) async fn apply_manifest(
     Ok(report)
 }
 
-// Manifests can carry loopback URLs (the gateway encodes its own
-// `gateway_url` at emit time); a Cowork client on a different host cannot
-// reach those. Substitute the bridge's configured gateway host.
+/// Rewrites loopback MCP URLs to the bridge's configured gateway host so a
+/// Cowork client on a different host can reach them.
 fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> {
     let cfg = config::load();
     let Some(gateway) = cfg.gateway_url.as_ref() else {
@@ -94,11 +91,8 @@ fn rewrite_loopback_urls(servers: &[ManagedMcpServer]) -> Vec<ManagedMcpServer> 
     let (Some(raw_gw_host), gw_scheme) = (gateway_url.host_str(), gateway_url.scheme()) else {
         return servers.to_vec();
     };
-    // Why: Cowork's MCP URL validator rejects the literal `localhost` for
-    // non-HTTPS connectors — only `127.0.0.1` passes. Canonicalize once here so
-    // both the explicit-loopback gateway case (operator configured
-    // `http://localhost:48217`) and rewritten loopback MCP URLs end up
-    // emitting `127.0.0.1`.
+    // Cowork's MCP URL validator rejects literal `localhost` for non-HTTPS
+    // connectors — only `127.0.0.1` passes.
     let gw_host = if raw_gw_host.eq_ignore_ascii_case("localhost") {
         "127.0.0.1"
     } else {
@@ -136,9 +130,6 @@ fn rewrite_loopback_server(
     if parsed.set_host(Some(gw_host)).is_err() {
         return server.clone();
     }
-    // Why: set_port returns Err for cannot-be-a-base URLs; for http(s) this only
-    // fails on truly invalid input. Mirror gateway port (None clears the
-    // explicit port).
     if parsed.set_port(gw_port).is_err() {
         return server.clone();
     }
@@ -191,8 +182,6 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
         context: "resolve bridge staging dir".into(),
         source: std::io::Error::other("no LOCALAPPDATA / state dir resolvable"),
     })?;
-    // Why: clear any stale staging from an interrupted prior run; absence is the
-    // normal case and a removal failure is recovered by the create_dir_all below.
     _ = fs::remove_dir_all(&staging_root);
     fs::create_dir_all(&staging_root).map_err(|e| ApplyError::Io {
         context: format!("create staging at {}", staging_root.display()),
@@ -201,10 +190,8 @@ fn prepare_dirs(root: &Path) -> Result<(std::path::PathBuf, std::path::PathBuf),
     Ok((meta_dir, staging_root))
 }
 
-// Why: Claude plugins ship the canonical `.claude-plugin/plugin.json`, but some
-// trees use the dot-less `claude-plugin/`. Both the malformed-plugin check and
-// the hooks-field injection must resolve whichever the synced tree actually
-// uses, matching the dual-form lookup the GUI readers perform.
+/// Resolves the plugin manifest under either `.claude-plugin/` or the dot-less
+/// `claude-plugin/`, matching the dual-form lookup the GUI readers perform.
 fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
     use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_DIRS, PLUGIN_MANIFEST_FILE};
     PLUGIN_MANIFEST_DIRS

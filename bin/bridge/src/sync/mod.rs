@@ -56,11 +56,6 @@ impl SyncSummary {
                 self.malformed.join(", "),
             )
         };
-        // Why: per-host failure summary must be visible in the single line the GUI
-        // Activity panel renders. Without this, a cowork-emit IO error (e.g.
-        // NTFS-illegal path segment) silently produces "sync ok" while the
-        // marketplace is in fact half-published, and the user has no signal to
-        // investigate the bridge log.
         let host_suffix = if self.host_failures.is_empty() {
             String::new()
         } else {
@@ -96,7 +91,7 @@ impl SyncSummary {
 }
 
 fn first_line(s: &str) -> String {
-    s.lines().next().unwrap_or(s).to_string()
+    s.lines().next().unwrap_or(s).to_owned()
 }
 
 pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) {

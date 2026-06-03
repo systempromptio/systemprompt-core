@@ -1,10 +1,8 @@
 //! Per-host sync trait + central dispatcher.
 //!
-//! Every host integration that writes to the local filesystem on each manifest
-//! apply implements [`HostSync`]. The dispatcher in `sync::apply::mod` walks
-//! [`registry()`], decides per-host whether to call `apply` or `clear` based on
-//! the manifest's `enabled_hosts` list, and uniformly logs the outcome — so
-//! emitter authors never re-implement the toggle-and-cleanup gate.
+//! Each host integration implements [`HostSync`]. The dispatcher walks
+//! [`registry()`] and, per-host, calls `apply` or `clear` based on the
+//! manifest's `enabled_hosts` list, logging the outcome uniformly.
 
 use async_trait::async_trait;
 use std::path::Path;

@@ -1,19 +1,9 @@
 //! Typed wire schema for the Cowork `hooks.json` file emitted per-plugin.
 //!
-//! The bridge writes one of these into each synced plugin's `hooks/` directory.
-//! Cowork reads it at hook-fire time and dispatches to the bridge's loopback
-//! proxy, presenting the static loopback secret as `Authorization`. The proxy
-//! verifies+strips it and injects the plugin's `aud:hook` gateway token before
-//! forwarding to the public hook endpoints. No env-var substitution is used
-//! (`allowedEnvVars` is empty) — Cowork's agent VM does not reliably propagate
-//! plugin env vars into the hook subprocess. The shape is camelCase on the
-//! wire; field names here are `snake_case` with `rename_all = "camelCase"`.
-//!
-//! Two variants share the file: `Http` entries are gateway-issued govern/track
-//! proxies; `Command` entries are user-defined hooks sourced from
-//! `services/hooks/` YAML in the manifest. The `type` discriminant on
-//! `HookEntry` keeps the existing HTTP wire shape byte-identical and adds a
-//! sibling shape for command hooks.
+//! `Http` entries are gateway-issued govern/track proxies that present the
+//! static loopback secret as `Authorization`; `Command` entries are
+//! user-defined hooks from `services/hooks/` YAML. `allowedEnvVars` is empty —
+//! Cowork's agent VM does not reliably propagate plugin env vars.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -71,7 +61,7 @@ impl HookEntry {
             allowed_env_vars: vec![],
             timeout: DEFAULT_TIMEOUT_SECS,
             r#async: Some(true),
-            event: Some(event.to_string()),
+            event: Some(event.to_owned()),
         }
     }
 
@@ -80,7 +70,7 @@ impl HookEntry {
             command,
             timeout: DEFAULT_TIMEOUT_SECS,
             r#async: if is_async { Some(true) } else { None },
-            event: event.to_string(),
+            event: event.to_owned(),
         }
     }
 }
@@ -88,7 +78,7 @@ impl HookEntry {
 impl HookMatcher {
     pub(crate) fn wildcard(entry: HookEntry) -> Self {
         Self {
-            matcher: WILDCARD_MATCHER.to_string(),
+            matcher: WILDCARD_MATCHER.to_owned(),
             hooks: vec![entry],
         }
     }
@@ -98,7 +88,7 @@ impl HooksFile {
     pub(crate) fn new(govern_url: String, track_url: &str, authorization: &str) -> Self {
         let mut hooks: BTreeMap<String, Vec<HookMatcher>> = BTreeMap::new();
         hooks.insert(
-            "PreToolUse".to_string(),
+            "PreToolUse".to_owned(),
             vec![HookMatcher::wildcard(HookEntry::govern(
                 govern_url,
                 authorization,
@@ -106,9 +96,9 @@ impl HooksFile {
         );
         for event in TRACK_EVENTS {
             hooks.insert(
-                (*event).to_string(),
+                (*event).to_owned(),
                 vec![HookMatcher::wildcard(HookEntry::track(
-                    track_url.to_string(),
+                    track_url.to_owned(),
                     authorization,
                     event,
                 ))],
@@ -120,7 +110,7 @@ impl HooksFile {
     pub(crate) fn append_user_hook(&mut self, event: String, matcher: String, entry: HookEntry) {
         let bucket = self.hooks.entry(event).or_default();
         let m = if matcher.is_empty() {
-            WILDCARD_MATCHER.to_string()
+            WILDCARD_MATCHER.to_owned()
         } else {
             matcher
         };
@@ -133,7 +123,7 @@ impl HooksFile {
 
 fn bearer_header(authorization: &str) -> BTreeMap<String, String> {
     let mut h = BTreeMap::new();
-    h.insert("Authorization".to_string(), authorization.to_string());
+    h.insert("Authorization".to_owned(), authorization.to_owned());
     h
 }
 

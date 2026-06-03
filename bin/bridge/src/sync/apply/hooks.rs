@@ -5,12 +5,6 @@ use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::PluginId;
 
-// Hooks route through the bridge loopback proxy (not the gateway directly).
-// Cowork presents the static loopback secret; the proxy strips it and injects
-// the plugin's `aud:hook` gateway token (minted on demand from `plugin_id` in
-// the query). This replaces the old `.env.plugin` +
-// `$SYSTEMPROMPT_PLUGIN_TOKEN` env-var delivery, which Cowork's agent VM did
-// not reliably propagate.
 pub(super) fn write_hooks_json(
     plugin_id: &PluginId,
     plugin_dir: &Path,
@@ -32,7 +26,7 @@ pub(super) fn write_hooks_json(
     for hook in user_hooks {
         let entry =
             WireHookEntry::user_command(hook.command.clone(), hook.event.as_str(), hook.is_async);
-        body.append_user_hook(hook.event.as_str().to_string(), hook.matcher.clone(), entry);
+        body.append_user_hook(hook.event.as_str().to_owned(), hook.matcher.clone(), entry);
     }
     let bytes = serde_json::to_vec_pretty(&body).map_err(|e| ApplyError::Serialize {
         what: format!("hooks.json for {plugin_id}"),
@@ -69,8 +63,8 @@ pub(super) fn ensure_plugin_json_hooks_field(plugin_dir: &Path) -> Result<(), Ap
         return Ok(());
     }
     obj.insert(
-        "hooks".to_string(),
-        serde_json::Value::String("./hooks/hooks.json".to_string()),
+        "hooks".to_owned(),
+        serde_json::Value::String("./hooks/hooks.json".to_owned()),
     );
     let next = serde_json::to_vec_pretty(&value).map_err(|e| ApplyError::Serialize {
         what: "plugin.json".into(),

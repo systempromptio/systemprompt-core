@@ -45,11 +45,9 @@ pub(super) async fn apply_plugins(
         if !safe_plugin_id(plugin.id.as_str()) {
             return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
         }
-        if let Some(change) = sync_one_plugin(&ctx, plugin, &manifest.hooks).await? {
-            match change {
-                PluginChange::Installed(id) => installed.push(id),
-                PluginChange::Updated(id) => updated.push(id),
-            }
+        match sync_one_plugin(&ctx, plugin, &manifest.hooks).await? {
+            PluginChange::Installed(id) => installed.push(id),
+            PluginChange::Updated(id) => updated.push(id),
         }
         if !is_well_formed(&root.join(plugin.id.as_str())) {
             tracing::warn!(
@@ -99,7 +97,7 @@ async fn sync_one_plugin(
     ctx: &PluginSyncCtx<'_>,
     plugin: &PluginEntry,
     user_hooks: &[HookEntry],
-) -> Result<Option<PluginChange>, super::ApplyError> {
+) -> Result<PluginChange, super::ApplyError> {
     let target = ctx.root.join(plugin.id.as_str());
 
     let stage = ctx.staging_root.join(plugin.id.as_str());
@@ -121,11 +119,11 @@ async fn sync_one_plugin(
     write_hooks_json(&plugin_id_typed, &target, user_hooks)?;
     ensure_plugin_json_hooks_field(&target)?;
 
-    Ok(Some(if was_present {
+    Ok(if was_present {
         PluginChange::Updated(plugin.id.to_string())
     } else {
         PluginChange::Installed(plugin.id.to_string())
-    }))
+    })
 }
 
 async fn fetch_plugin_into_staging(
@@ -193,7 +191,7 @@ fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, su
                 context: format!("remove stale {name_str}"),
                 source: e,
             })?;
-            removed.push(name_str.to_string());
+            removed.push(name_str.to_owned());
         }
     }
     Ok(removed)

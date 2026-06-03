@@ -37,9 +37,6 @@ impl HostSync for ClaudeCodePluginSync {
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 
-// Pure JSON renderer for the synthetic plugin's `plugin.json`, built on the
-// shared `PluginManifest` contract. Separated from the IO path so unit tests
-// can pin the wire shape without needing a tempdir or a runtime.
 pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json::Error> {
     let manifest = PluginManifest {
         name: paths::SYNTHETIC_PLUGIN_NAME.to_owned(),
@@ -48,15 +45,9 @@ pub fn render_plugin_json(manifest_version: &str) -> Result<Vec<u8>, serde_json:
         author: None,
         hooks: None,
         keywords: Vec::new(),
-        // Why `"required"`: the org plugin must install-by-default like the
-        // managed MCP server, not sit behind a user "Add" click. Per the Cowork
-        // 3P docs, `"available"` (default) is opt-in, `"auto_install"` installs
-        // once at sign-in but treats a later removal as a sticky user-uninstall
-        // (so a cleared install record is NOT re-created), and `"required"` is
-        // forced deployment — installs at every sign-in, reinstalls if removed,
-        // no user uninstall. `"required"` is the org-plugin equivalent of the
-        // `managedMcpServers` policy, so skills/agents/hooks land automatically.
-        // Docs: https://claude.com/docs/cowork/3p/extensions
+        // `"required"` forces deployment (installs every sign-in, reinstalls if
+        // removed, no user uninstall) — unlike `"available"`/`"auto_install"`,
+        // which are opt-in or treat removal as a sticky uninstall.
         installation_preference: Some(PLUGIN_INSTALLATION_PREFERENCE.to_owned()),
     };
     serde_json::to_vec_pretty(&manifest)
@@ -69,13 +60,9 @@ pub fn write_synthetic_plugin(
 ) -> Result<(), super::ApplyError> {
     let root = org_plugins_root.join(paths::SYNTHETIC_PLUGIN_NAME);
 
-    // MCP servers are intentionally NOT emitted here. Per the Cowork 3P docs,
-    // remote org-provisioned MCP servers belong in the `managedMcpServers`
-    // policy ("deploy remote MCP servers to every device"), not bundled in a
-    // plugin's `.mcp.json`. Declaring a server in both makes Cowork drop the
-    // plugin copy on the name collision (managedMcpServers wins), leaving a
-    // ghost "not connected" connector in the plugin panel. The MDM emitter
-    // (`install::mdm`) owns the MCP channel; this plugin carries skills,
+    // MCP servers are owned by the `managedMcpServers` policy (the `install::mdm`
+    // emitter), NOT bundled here: declaring a server in both collides on name and
+    // leaves a ghost "not connected" connector. This plugin carries skills,
     // agents, and hooks only.
     let has_content =
         !manifest.skills.is_empty() || !manifest.agents.is_empty() || !manifest.hooks.is_empty();
@@ -178,7 +165,7 @@ fn yaml_scalar(s: &str) -> String {
         || s.contains('#')
         || s.starts_with(['-', '?', '!', '&', '*', '|', '>', '\'', '"', '%', '@', '`']);
     if !needs_quotes {
-        return s.to_string();
+        return s.to_owned();
     }
     let escaped = s.replace('"', "\\\"");
     format!("\"{escaped}\"")
