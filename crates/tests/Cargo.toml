@@ -89,6 +89,7 @@ members = [
     "unit/bridge/validate",
     "unit/bridge/auth-e2e",
     "unit/bridge/cli",
+    "unit/bridge/cli-commands",
     # Common test utilities
     "common/mocks",
     "common/migrate",

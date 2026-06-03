@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-bridge-cli-commands-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "In-process integration tests for systemprompt-bridge CLI command entry points"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }
+serde_json = { workspace = true }

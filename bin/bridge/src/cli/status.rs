@@ -22,7 +22,7 @@ struct UserFragment {
     email: Option<String>,
 }
 
-pub(super) fn cmd_status() -> ExitCode {
+pub fn cmd_status() -> ExitCode {
     let s = match setup::status() {
         Ok(s) => s,
         Err(e) => {

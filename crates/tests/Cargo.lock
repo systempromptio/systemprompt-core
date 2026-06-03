@@ -7035,6 +7035,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-cli-commands-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
 name = "systemprompt-bridge-cli-tests"
 version = "0.0.11"
 dependencies = [

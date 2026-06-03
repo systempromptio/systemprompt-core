@@ -12,7 +12,7 @@ use crate::gateway::GatewayClient;
 use crate::obs::output::diag;
 use crate::{auth, config};
 
-pub(super) fn cmd_oauth_client(args: &[String]) -> ExitCode {
+pub fn cmd_oauth_client(args: &[String]) -> ExitCode {
     match args.get(2).map(String::as_str) {
         None | Some("status") => cmd_status(),
         Some("rotate") => cmd_rotate(),

@@ -4,7 +4,7 @@ use crate::auth::setup;
 use crate::cli::output;
 use crate::obs::output::diag;
 
-pub(super) fn cmd_logout() -> ExitCode {
+pub fn cmd_logout() -> ExitCode {
     match setup::logout() {
         Ok(paths) => {
             output::print_line("Removed PAT.");
