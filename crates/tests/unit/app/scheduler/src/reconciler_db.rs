@@ -49,10 +49,15 @@ mod reconciler_db {
             result.is_success(),
             "empty-config reconciliation must report success"
         );
-        assert_eq!(
-            result.total_actions(),
-            0,
-            "no configs → no actions taken"
+        // Pre-existing `services` rows become orphans under an empty config and
+        // are legitimately cleaned up; on a shared DB (the coverage job runs the
+        // whole workspace against one database) such rows leak in from other
+        // crates. Assert on config-driven actions, not on global DB emptiness.
+        assert!(
+            result.started.is_empty()
+                && result.stopped.is_empty()
+                && result.restarted.is_empty(),
+            "no configs → no start/stop/restart actions (only orphan cleanup is allowed)"
         );
     }
 
