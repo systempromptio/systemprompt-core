@@ -91,7 +91,8 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
     out
 }
 
-fn build_client() -> reqwest::Result<reqwest::Client> {
+/// Builds the probe HTTP client (production timeout + `no_proxy`).
+pub fn build_client() -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
         .timeout(PROBE_TIMEOUT)
         .no_proxy()
@@ -118,10 +119,25 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
         },
     };
 
+    probe_endpoint(client, slug, &url, &bearer).await
+}
+
+/// Runs the `initialize` → `tools/list` round-trip against a resolved endpoint.
+///
+/// Maps the HTTP/JSON outcome onto an [`McpServerAuth`] verdict. The target
+/// `url` and `bearer` are injected so callers can drive the probe against any
+/// endpoint without touching global proxy state.
+pub async fn probe_endpoint(
+    client: &reqwest::Client,
+    slug: &str,
+    url: &str,
+    bearer: &str,
+) -> McpServerAuth {
+    let probed_at_unix = now_unix();
     let started = Instant::now();
     let resp = client
-        .post(&url)
-        .header(AUTHORIZATION, &bearer)
+        .post(url)
+        .header(AUTHORIZATION, bearer)
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "application/json, text/event-stream")
         .json(&initialize_body())
@@ -138,7 +154,7 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
             };
             return result(
                 slug,
-                &url,
+                url,
                 probed_at_unix,
                 ProbeOutcome {
                     state,
@@ -164,7 +180,7 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
         let body = resp.text().await.unwrap_or_default();
         return result(
             slug,
-            &url,
+            url,
             probed_at_unix,
             ProbeOutcome {
                 state,
@@ -183,11 +199,11 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
         .map(str::to_owned);
     _ = resp.text().await;
 
-    let tools = list_tools(client, &url, &bearer, session.as_deref()).await;
+    let tools = list_tools(client, url, bearer, session.as_deref()).await;
 
     McpServerAuth {
         id: slug.to_owned(),
-        url,
+        url: url.to_owned(),
         state: McpAuthState::Authenticated,
         tools,
         http_status: Some(http),

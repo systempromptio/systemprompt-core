@@ -1,0 +1,17 @@
+[package]
+name = "systemprompt-bridge-mcp-probe-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for the systemprompt-bridge live MCP auth probe"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-bridge = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
+serde_json = { workspace = true }
