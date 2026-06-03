@@ -51,15 +51,12 @@ impl OutboundAdapter for GeminiOutbound {
             req = req.header(name.as_str(), value.as_str());
         }
 
-        let upstream_response = req
-            .send()
-            .await
-            .map_err(|e| {
-                anyhow::Error::new(UpstreamError::Transport {
-                    provider: self.provider_tag(),
-                    source: e,
-                })
-            })?;
+        let upstream_response = req.send().await.map_err(|e| {
+            anyhow::Error::new(UpstreamError::Transport {
+                provider: self.provider_tag(),
+                source: e,
+            })
+        })?;
 
         let status = upstream_response.status();
         if !status.is_success() {
