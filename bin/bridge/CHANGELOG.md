@@ -1,15 +1,16 @@
 # Changelog
 
-## [0.10.7] - 2026-06-02
+## [0.10.7] - 2026-06-03
 
 ### Added
 
-- The Status tab shows each host's compatible models and warns when no usable model is available — for example when the host's matching provider has no API key configured — instead of reporting the host as healthy. The compatible-model set and provider health come from the gateway's `/v1/bridge/profile` response.
+- The Status tab now lists each host's compatible models in a dedicated **Compatible models** row, so it is clear up front which models a host can actually drive rather than leaving model selection to guesswork. The set is derived from the gateway's `/v1/bridge/profile` provider health and filtered to the host's wire protocol.
+- A host whose only matching provider has no usable model now shows a **"no compatible model"** badge instead of reporting healthy, and the card explains why — naming the provider(s) missing an API key when that is the cause. A host that has not yet been checked (e.g. the gateway was unreachable) is kept distinct from one with nothing usable, so the warning never fires on startup before any health is known.
 - The marketplace listing includes hooks synced from plugins (`hooks/hooks.json`): the managed govern/track entries collapse into a single summary row while user-defined command hooks are listed individually.
 
 ### Changed
 
-- A managed host is offered only the models whose wire protocol it speaks: Claude Desktop receives Anthropic models, Codex CLI receives OpenAI models. Previously every host received the same flat model list, which could hand a host models its client cannot use.
+- A managed host is offered only the models whose wire protocol it speaks: Claude Desktop receives Anthropic models, Codex CLI receives OpenAI models. Previously every host received the same flat model list, which could hand a host models its client cannot use. The filtered set drives both the generated host profile and the GUI's per-host model display.
 
 ### Fixed
 
