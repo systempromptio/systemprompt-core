@@ -7,6 +7,14 @@ fn one_frame(sse: String) -> impl futures::Stream<Item = Result<bytes::Bytes, st
     futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) })
 }
 
+fn chunks(parts: Vec<&str>) -> impl futures::Stream<Item = Result<bytes::Bytes, std::io::Error>> {
+    let owned: Vec<bytes::Bytes> = parts
+        .into_iter()
+        .map(|p| bytes::Bytes::from(p.to_owned()))
+        .collect();
+    futures::stream::iter(owned.into_iter().map(Ok::<_, std::io::Error>))
+}
+
 mod anthropic_event_from_sse {
     use super::*;
 
@@ -682,5 +690,86 @@ mod gemini_streaming {
                 .iter()
                 .any(|e| matches!(e, CanonicalEvent::ContentBlockStart { .. }))
         );
+    }
+}
+
+mod crlf_framing {
+    use super::*;
+
+    const GEMINI_CRLF: &str = "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":8,\"candidatesTokenCount\":7},\"modelVersion\":\"gemini-2.5-flash\",\"responseId\":\"r1\"}\r\n\r\n";
+    const OPENAI_CHAT_CRLF: &str = "data: {\"id\":\"c1\",\"model\":\"gpt\",\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\r\n\r\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\r\n\r\n";
+    const OPENAI_RESPONSES_CRLF: &str = "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\",\"model\":\"gpt\"}}\r\n\r\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\"}}\r\n\r\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"delta\":\"hi\"}\r\n\r\n";
+
+    fn has_text(events: &[CanonicalEvent], expected: &str) -> bool {
+        events
+            .iter()
+            .any(|e| matches!(e, CanonicalEvent::TextDelta { text, .. } if text == expected))
+    }
+
+    async fn collect_gemini<S>(stream: S) -> Vec<CanonicalEvent>
+    where
+        S: futures::Stream<Item = Result<bytes::Bytes, std::io::Error>> + Send + 'static,
+    {
+        gemini::sse_to_canonical_events(stream, "fallback".to_owned())
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .map(|r| r.expect("ok event"))
+            .collect()
+    }
+
+    async fn collect_openai_chat<S>(stream: S) -> Vec<CanonicalEvent>
+    where
+        S: futures::Stream<Item = Result<bytes::Bytes, std::io::Error>> + Send + 'static,
+    {
+        openai_chat::sse_to_canonical_events(stream, "fallback".to_owned())
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .map(|r| r.expect("ok event"))
+            .collect()
+    }
+
+    async fn collect_openai_responses<S>(stream: S) -> Vec<CanonicalEvent>
+    where
+        S: futures::Stream<Item = Result<bytes::Bytes, std::io::Error>> + Send + 'static,
+    {
+        openai_responses::sse_to_canonical_events(stream, "fallback".to_owned())
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .map(|r| r.expect("ok event"))
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn gemini_crlf_frame_yields_events() {
+        let events = collect_gemini(one_frame(GEMINI_CRLF.to_owned())).await;
+        assert!(matches!(events.first(), Some(CanonicalEvent::MessageStart { .. })));
+        assert!(has_text(&events, "hi"));
+        assert!(matches!(events.last(), Some(CanonicalEvent::MessageStop { .. })));
+    }
+
+    #[tokio::test]
+    async fn gemini_crlf_split_across_chunks_yields_events() {
+        let mid = GEMINI_CRLF.len() - 2;
+        let (a, b) = GEMINI_CRLF.split_at(mid);
+        let events = collect_gemini(chunks(vec![a, b])).await;
+        assert!(has_text(&events, "hi"));
+        assert!(matches!(events.last(), Some(CanonicalEvent::MessageStop { .. })));
+    }
+
+    #[tokio::test]
+    async fn openai_chat_crlf_frame_yields_events() {
+        let events = collect_openai_chat(one_frame(OPENAI_CHAT_CRLF.to_owned())).await;
+        assert!(has_text(&events, "hi"));
+        assert!(matches!(events.last(), Some(CanonicalEvent::MessageStop { .. })));
+    }
+
+    #[tokio::test]
+    async fn openai_responses_crlf_frame_yields_events() {
+        let events = collect_openai_responses(one_frame(OPENAI_RESPONSES_CRLF.to_owned())).await;
+        assert!(matches!(events.first(), Some(CanonicalEvent::MessageStart { .. })));
+        assert!(has_text(&events, "hi"));
     }
 }

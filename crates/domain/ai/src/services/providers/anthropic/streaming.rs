@@ -64,8 +64,8 @@ impl SseState {
     fn drain(&mut self, bytes: &[u8]) -> Vec<Result<StreamChunk>> {
         self.buf.extend_from_slice(bytes);
         let mut chunks = Vec::new();
-        while let Some(pos) = self.buf.windows(2).position(|w| w == b"\n\n") {
-            let frame: Vec<u8> = self.buf.drain(..pos + 2).collect();
+        while let Some(end) = systemprompt_models::wire::sse::frame_end(&self.buf) {
+            let frame: Vec<u8> = self.buf.drain(..end).collect();
             let frame_str = String::from_utf8_lossy(&frame);
             for line in frame_str.lines() {
                 let Some(data) = line.strip_prefix("data: ") else {

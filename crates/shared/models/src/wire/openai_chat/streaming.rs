@@ -50,8 +50,8 @@ fn drain_buffer(
 ) -> Vec<Result<CanonicalEvent, String>> {
     state.buf.extend_from_slice(bytes);
     let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
-    while let Some(pos) = find_double_newline(&state.buf) {
-        let frame: Vec<u8> = state.buf.drain(..pos + 2).collect();
+    while let Some(end) = crate::wire::sse::frame_end(&state.buf) {
+        let frame: Vec<u8> = state.buf.drain(..end).collect();
         let frame_str = String::from_utf8_lossy(&frame);
         for line in frame_str.lines() {
             let Some(data) = line.strip_prefix("data: ") else {
@@ -75,10 +75,6 @@ fn drain_buffer(
         }
     }
     events
-}
-
-fn find_double_newline(buf: &[u8]) -> Option<usize> {
-    buf.windows(2).position(|w| w == b"\n\n")
 }
 
 fn handle_chunk(

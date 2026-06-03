@@ -39,8 +39,8 @@ where
 
 fn drain_frames(buf: &mut Vec<u8>, msg_id: &mut String) -> Vec<Result<CanonicalEvent, String>> {
     let mut events: Vec<Result<CanonicalEvent, String>> = Vec::new();
-    while let Some(pos) = find_double_newline(buf) {
-        let frame: Vec<u8> = buf.drain(..pos + 2).collect();
+    while let Some(end) = systemprompt_models::wire::sse::frame_end(buf) {
+        let frame: Vec<u8> = buf.drain(..end).collect();
         let frame_str = String::from_utf8_lossy(&frame);
         for line in frame_str.lines() {
             if let Some(data) = line.strip_prefix("data: ") {
@@ -59,8 +59,4 @@ fn drain_frames(buf: &mut Vec<u8>, msg_id: &mut String) -> Vec<Result<CanonicalE
         }
     }
     events
-}
-
-fn find_double_newline(buf: &[u8]) -> Option<usize> {
-    buf.windows(2).position(|w| w == b"\n\n")
 }
