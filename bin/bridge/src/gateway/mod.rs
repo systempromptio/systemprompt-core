@@ -24,10 +24,10 @@ pub use errors::GatewayError;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
 // The WSL2 localhost forwarder relays only IPv4 and black-holes IPv6 SYNs, so a
-// connect to `::1` (which `localhost` resolves to first) stalls the full connect
-// timeout before falling back. reqwest 0.12 has no happy-eyeballs option, so
-// this resolver returns IPv4 addresses first. `pub(crate)` so the proxy's
-// upstream client installs the same resolver.
+// connect to `::1` (which `localhost` resolves to first) stalls the full
+// connect timeout before falling back. reqwest 0.12 has no happy-eyeballs
+// option, so this resolver returns IPv4 addresses first. `pub(crate)` so the
+// proxy's upstream client installs the same resolver.
 #[derive(Debug)]
 pub(crate) struct Ipv4FirstResolver;
 

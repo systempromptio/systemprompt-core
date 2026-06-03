@@ -1,9 +1,9 @@
 //! Codex CLI sync emitter.
 //!
 //! Writes manifest-supplied skills and MCP servers as one Codex plugin bundle
-//! under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, and toggles
-//! its `[plugins."<plugin>@<marketplace>"]` block in `config.toml` while
-//! preserving every other key.
+//! under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, and
+//! toggles its `[plugins."<plugin>@<marketplace>"]` block in `config.toml`
+//! while preserving every other key.
 
 use std::collections::BTreeMap;
 use std::fs;

@@ -148,9 +148,10 @@ pub(crate) fn windows_policy_values(
 }
 
 // Each entry points Cowork at the bridge's loopback proxy with a static
-// loopback-secret header rather than at the upstream gateway with `oauth: true`:
-// the proxy strips that header and injects the rotating gateway JWT, avoiding
-// Cowork's OAuth flow which hard-rejects the gateway's non-HTTPS authorize URL.
+// loopback-secret header rather than at the upstream gateway with `oauth:
+// true`: the proxy strips that header and injects the rotating gateway JWT,
+// avoiding Cowork's OAuth flow which hard-rejects the gateway's non-HTTPS
+// authorize URL.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub(crate) fn managed_mcp_servers_json() -> Option<String> {

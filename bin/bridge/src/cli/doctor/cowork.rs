@@ -3,8 +3,8 @@ use crate::config::paths;
 use super::Check;
 
 // Catches the silent "plugin on disk but Cowork never enabled it" state: the
-// enable key in cowork_settings.json is the bridge's only Cowork-side write, and
-// its absence leaves the synced plugin disabled with no other signal.
+// enable key in cowork_settings.json is the bridge's only Cowork-side write,
+// and its absence leaves the synced plugin disabled with no other signal.
 pub(super) fn check_cowork_enable() -> Check {
     use crate::integration::cowork_plugins::{
         COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,

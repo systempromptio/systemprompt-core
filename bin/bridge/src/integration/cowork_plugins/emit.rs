@@ -1,7 +1,8 @@
 //! IO layer for the Cowork desktop integration.
 //!
-//! Writes `enabledPlugins["<plugin>@org-provisioned"] = true` in the per-session
-//! `cowork_settings.json` and purges any legacy session-marketplace state.
+//! Writes `enabledPlugins["<plugin>@org-provisioned"] = true` in the
+//! per-session `cowork_settings.json` and purges any legacy session-marketplace
+//! state.
 
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -149,8 +150,8 @@ pub fn clear_all(target: &CoworkTarget, plugin_name: &str) -> Result<(), EmitErr
 }
 
 /// Removes legacy marketplace artefacts (dirs, `installed_plugins.json` row,
-/// `known_marketplaces.json` entry, enable key). Missing paths are not an error;
-/// this is a no-op on a clean session.
+/// `known_marketplaces.json` entry, enable key). Missing paths are not an
+/// error; this is a no-op on a clean session.
 pub(super) fn purge_legacy_marketplace(
     target: &CoworkTarget,
     plugin_name: &str,
