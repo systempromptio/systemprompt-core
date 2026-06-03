@@ -13,7 +13,16 @@ use systemprompt_identifiers::{ProviderId, RouteId};
 
 use super::super::providers::ProviderRegistry;
 use super::error::{GatewayProfileError, GatewayResult};
-use super::route::GatewayRoute;
+use super::route::{GatewayRoute, synthesize_route_id};
+
+/// Model pattern of the synthetic catch-all route the gateway falls back to
+/// when [`GatewayConfigSpec::default_provider`] is set and no explicit route
+/// matches. Both the route synthesised at dispatch
+/// ([`GatewayConfig::synthesize_default_route`]) and the route id materialised
+/// into the authz entity catalog ([`GatewayConfigSpec::default_route_id`])
+/// derive from this single constant, so the dispatched route and its
+/// authorization entity can never drift apart.
+pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
 /// On-disk gateway configuration: the exact shape accepted under
 /// `gateway:` in a profile YAML document.
@@ -78,6 +87,22 @@ impl GatewayConfigSpec {
             inference_path_prefix,
         }
     }
+
+    /// The deterministic id of the synthetic catch-all route to
+    /// [`Self::default_provider`], or `None` when no default provider is set.
+    ///
+    /// The id is a pure function of `(pattern, provider)`, so this needs no
+    /// [`ProviderRegistry`]: `GatewayConfig::validate` already guarantees a set
+    /// `default_provider` resolves in the registry, so any config that reaches
+    /// runtime can actually dispatch to this route. This is the route id the
+    /// authz entity catalog must materialise alongside the explicit routes —
+    /// see [`super::state::GatewayState::resolved_route_ids`].
+    #[must_use]
+    pub fn default_route_id(&self) -> Option<RouteId> {
+        self.default_provider
+            .as_ref()
+            .map(|provider| synthesize_route_id(DEFAULT_ROUTE_PATTERN, provider.as_str()))
+    }
 }
 
 /// Runtime gateway configuration: the post-resolution shape every non-loader
@@ -137,7 +162,7 @@ impl GatewayConfig {
         registry.find_provider(provider.as_str())?;
         let mut route = GatewayRoute {
             id: RouteId::new(""),
-            model_pattern: "*".to_owned(),
+            model_pattern: DEFAULT_ROUTE_PATTERN.to_owned(),
             provider: provider.clone(),
             upstream_model: None,
             extra_headers: HashMap::new(),

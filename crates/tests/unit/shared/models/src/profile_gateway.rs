@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
-    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, ProviderEntry,
-    ProviderModel, ProviderRegistry, WireProtocol, default_resource_audiences, slugify_pattern,
-    synthesize_route_id,
+    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
+    ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol, default_resource_audiences,
+    slugify_pattern, synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
@@ -331,6 +331,50 @@ fn validate_rejects_default_provider_absent_from_registry() {
             .is_ok(),
         "a default provider present in the registry must validate"
     );
+}
+
+#[test]
+fn resolved_route_ids_includes_synthetic_default_route() {
+    // The invariant: every route id resolve_route can return must be present in
+    // the authz-catalog source (resolved_route_ids). A model matching no explicit
+    // route resolves to the synthetic default route — its id must be materialised
+    // so it is never denied as an unknown entity.
+    let config = two_provider_config(Some("gemini"));
+    let registry = two_provider_registry();
+
+    let synthetic_id = config
+        .resolve_route(&registry, "some-unknown-model")
+        .expect("default provider must absorb unmatched model")
+        .id
+        .clone();
+
+    let state = GatewayState::Spec(config.to_spec());
+    let ids = state.resolved_route_ids();
+    assert!(
+        ids.contains(&synthetic_id),
+        "resolved_route_ids {ids:?} must contain the synthetic default route id {synthetic_id:?}"
+    );
+}
+
+#[test]
+fn resolved_route_ids_omits_default_when_unset() {
+    let state = GatewayState::Spec(two_provider_config(None).to_spec());
+    let ids = state.resolved_route_ids();
+    assert_eq!(ids.len(), 2, "closed gateway exposes only its explicit routes");
+}
+
+#[test]
+fn resolved_route_ids_dedupes_explicit_catch_all() {
+    // An operator-authored explicit "*" route to the default provider has the
+    // same synthesized id as the synthetic default; it must not be listed twice.
+    let mut config = two_provider_config(Some("gemini"));
+    config.routes.push(route_to("*", "gemini"));
+    let state = GatewayState::Spec(config.to_spec());
+    let ids = state.resolved_route_ids();
+    let mut sorted = ids.clone();
+    sorted.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    sorted.dedup();
+    assert_eq!(ids.len(), sorted.len(), "route ids must be unique: {ids:?}");
 }
 
 #[test]

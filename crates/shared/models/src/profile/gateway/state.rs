@@ -50,20 +50,35 @@ impl GatewayState {
         }
     }
 
-    /// The content-addressed id of every configured route, with synthesized ids
-    /// filled in. Works in either lifecycle state, so a caller can materialise
-    /// the authz entity catalog straight from the typed profile without having
-    /// run the loader.
+    /// Every route id the gateway can dispatch to: the content-addressed ids of
+    /// the explicit routes, plus the synthetic catch-all route to
+    /// `default_provider` when one is set. Works in either lifecycle state, so
+    /// a caller can materialise the authz entity catalog straight from the
+    /// typed profile without having run the loader.
+    ///
+    /// This is the single source of truth the authz entity catalog is
+    /// materialised from (the bootstrap job and `admin config reconcile` both
+    /// call it), and it MUST mirror
+    /// [`super::config::GatewayConfig::resolve_route`]'s reachable set —
+    /// otherwise a model the resolver can serve via the synthetic
+    /// default route would be denied as an unknown entity.
     #[must_use]
     pub fn resolved_route_ids(&self) -> Vec<RouteId> {
         let mut spec = self.clone().into_spec();
-        spec.routes
+        let mut ids: Vec<RouteId> = spec
+            .routes
             .iter_mut()
             .map(|route| {
                 route.ensure_id();
                 route.id.clone()
             })
-            .collect()
+            .collect();
+        if let Some(default_id) = spec.default_route_id() {
+            if !ids.contains(&default_id) {
+                ids.push(default_id);
+            }
+        }
+        ids
     }
 }
 
