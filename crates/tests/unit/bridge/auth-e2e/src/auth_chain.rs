@@ -87,7 +87,7 @@ fn pat_provider_happy_path_yields_bearer() {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
                 .and(path("/v1/auth/bridge/pat"))
-                .respond_to(ResponseTemplate::new(200).set_body_json(auth_response_body()))
+                .respond_with(ResponseTemplate::new(200).set_body_json(auth_response_body()))
                 .mount(&server)
                 .await;
 
@@ -120,7 +120,7 @@ fn pat_exchange_http_failure_yields_none_succeeded() {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
                 .and(path("/v1/auth/bridge/pat"))
-                .respond_to(ResponseTemplate::new(401))
+                .respond_with(ResponseTemplate::new(401))
                 .mount(&server)
                 .await;
 
@@ -154,7 +154,7 @@ fn pat_exchange_server_error_yields_none_succeeded() {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
                 .and(path("/v1/auth/bridge/pat"))
-                .respond_to(ResponseTemplate::new(500))
+                .respond_with(ResponseTemplate::new(500))
                 .mount(&server)
                 .await;
 

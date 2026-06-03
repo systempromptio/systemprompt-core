@@ -37,13 +37,13 @@ fn health_server(health_status: u16, with_whoami: bool) -> (MockServer, String) 
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/health"))
-            .respond_to(ResponseTemplate::new(health_status))
+            .respond_with(ResponseTemplate::new(health_status))
             .mount(&server)
             .await;
         if with_whoami {
             Mock::given(method("GET"))
                 .and(path("/v1/bridge/whoami"))
-                .respond_to(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+                .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
                 .mount(&server)
                 .await;
         }

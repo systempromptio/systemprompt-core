@@ -120,7 +120,7 @@ fn plugin(id: &str, files: Vec<(&str, &[u8])>) -> PluginEntry {
         })
         .collect();
     PluginEntry {
-        id: systemprompt_bridge::ids::PluginId::new(id),
+        id: systemprompt_bridge::ids::PluginId::try_new(id).unwrap(),
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: plugin_files,
