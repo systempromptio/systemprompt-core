@@ -27,6 +27,7 @@ pub mod extension;
 pub mod layer;
 pub mod models;
 pub mod repository;
+mod sanitize;
 pub mod services;
 pub mod trace;
 
@@ -56,6 +57,8 @@ use std::sync::OnceLock;
 
 use layer::ProxyDatabaseLayer;
 use systemprompt_database::DbPool;
+use tracing::Level;
+use tracing_subscriber::filter::FilterFn;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
@@ -84,27 +87,33 @@ fn build_filter(base: &str) -> EnvFilter {
     EnvFilter::new(filter_str)
 }
 
+/// Installs the global subscriber, idempotently: the first call wins and later
+/// calls no-op. This is load-bearing, not defensive — startup installs the
+/// console subscriber before the database pool exists, then `init_logging`
+/// re-enters here to guarantee the subscriber is present before attaching the
+/// DB sink.
 fn ensure_subscriber(level_override: Option<&str>) {
     if SUBSCRIBER_INITIALIZED.set(()).is_err() {
         return;
     }
 
-    let console_filter = level_override.map_or_else(
-        || {
-            if is_startup_mode() {
-                EnvFilter::new("warn")
-            } else {
-                EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter("info"))
-            }
-        },
+    let base_filter = level_override.map_or_else(
+        || EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter("info")),
         |level| EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter(level)),
     );
+
+    let gate_active = level_override.is_none();
+    let startup_gate = FilterFn::new(move |meta| {
+        !(gate_active && is_startup_mode()) || *meta.level() <= Level::WARN
+    });
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::new())
         .with_target(true)
         .with_writer(std::io::stderr)
-        .with_filter(console_filter);
+        .log_internal_errors(true)
+        .with_filter(base_filter)
+        .with_filter(startup_gate);
 
     let proxy = DB_PROXY.get_or_init(ProxyDatabaseLayer::new).clone();
     let db_layer = proxy.with_filter(build_filter("info"));

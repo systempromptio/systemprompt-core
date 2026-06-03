@@ -7,7 +7,6 @@
 //! lost across the boot window. The free functions build the [`LogEntry`]
 //! actor triple by walking the span tree.
 
-use std::io::Write;
 use std::sync::{Arc, OnceLock};
 
 use chrono::Utc;
@@ -48,14 +47,13 @@ impl ProxyDatabaseLayer {
         }
     }
 
+    /// Attaches the database sink, idempotently: the first pool wins and repeat
+    /// attaches are ignored. Repeats are expected — `init_logging` is reached
+    /// from more than one entry point during a single startup — so
+    /// `get_or_init` keeps this silent and avoids spawning a second writer
+    /// task.
     pub fn attach(&self, db_pool: DbPool) {
-        if self.inner.set(DatabaseLayer::new(db_pool)).is_err() {
-            writeln!(
-                std::io::stderr(),
-                "ProxyDatabaseLayer: database layer already attached, ignoring duplicate"
-            )
-            .ok();
-        }
+        self.inner.get_or_init(|| DatabaseLayer::new(db_pool));
     }
 }
 

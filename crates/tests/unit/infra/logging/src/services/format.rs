@@ -122,3 +122,46 @@ fn span_fields_also_filtered() {
     assert!(logs.contains("inside-span"));
     assert!(logs.contains("tenant"));
 }
+
+#[test]
+fn multi_line_error_field_renders_single_line() {
+    let writer = CapturingWriter::default();
+    let subscriber = make_subscriber(writer.clone());
+
+    tracing::subscriber::with_default(subscriber, || {
+        let err = "* upstream call failed\n  caused by: 400 Bad Request\n";
+        tracing::warn!(
+            provider = "anthropic",
+            model = "claude-x",
+            error = %err,
+            "gateway upstream call failed"
+        );
+    });
+
+    let logs = writer.contents();
+    assert!(logs.contains("gateway upstream call failed"));
+    assert!(logs.contains("error="));
+    assert!(logs.contains("\\n"));
+    assert_eq!(logs.matches('\n').count(), 1);
+}
+
+#[test]
+fn secret_named_fields_are_redacted_on_console() {
+    let writer = CapturingWriter::default();
+    let subscriber = make_subscriber(writer.clone());
+
+    tracing::subscriber::with_default(subscriber, || {
+        info!(
+            api_key = "sk-live-123",
+            authorization = "Bearer abc",
+            normal = "ok",
+            "secrets"
+        );
+    });
+
+    let logs = writer.contents();
+    assert!(!logs.contains("sk-live-123"));
+    assert!(!logs.contains("Bearer abc"));
+    assert!(logs.contains("[REDACTED]"));
+    assert!(logs.contains("normal="));
+}

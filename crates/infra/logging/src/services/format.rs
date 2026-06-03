@@ -3,6 +3,8 @@ use tracing::field::{Field, Visit};
 use tracing_subscriber::field::{MakeVisitor, VisitFmt, VisitOutput};
 use tracing_subscriber::fmt::format::Writer;
 
+use crate::sanitize::{REDACTION_PLACEHOLDER, escape_control, is_redacted, is_system_sentinel};
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FilterSystemFields;
 
@@ -34,11 +36,20 @@ impl<'a> FilteringVisitor<'a> {
         }
 
         let debug_str = format!("{:?}", value);
-        if debug_str == "\"system\"" || debug_str == "system" {
+        if is_system_sentinel(&debug_str) {
             return;
         }
 
-        self.result = self.write_field(field.name(), &debug_str);
+        self.write_value(field.name(), &debug_str);
+    }
+
+    fn write_value(&mut self, name: &str, rendered: &str) {
+        let safe = if is_redacted(name) {
+            REDACTION_PLACEHOLDER.to_owned()
+        } else {
+            escape_control(rendered)
+        };
+        self.result = self.write_field(name, &safe);
     }
 
     fn write_field(&mut self, name: &str, value: &str) -> fmt::Result {
@@ -60,10 +71,10 @@ impl Visit for FilteringVisitor<'_> {
         if self.result.is_err() {
             return;
         }
-        if value == "system" {
+        if is_system_sentinel(value) {
             return;
         }
-        self.result = self.write_field(field.name(), &format!("{:?}", value));
+        self.write_value(field.name(), &format!("{:?}", value));
     }
 }
 

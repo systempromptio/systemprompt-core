@@ -10,6 +10,8 @@ use tracing::Subscriber;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::registry::LookupSpan;
 
+use crate::sanitize::is_redacted;
+
 mod field_names {
     pub(super) const MESSAGE: &str = "message";
     pub(super) const USER_ID: &str = "user_id";
@@ -20,42 +22,24 @@ mod field_names {
     pub(super) const CLIENT_ID: &str = "client_id";
 }
 
-const REDACTED_FIELD_NAMES: &[&str] = &[
-    "password",
-    "passwd",
-    "secret",
-    "token",
-    "access_token",
-    "refresh_token",
-    "id_token",
-    "authorization",
-    "auth_token",
-    "cookie",
-    "set-cookie",
-    "set_cookie",
-    "api_key",
-    "apikey",
-    "client_secret",
-    "private_key",
-];
-
-fn is_redacted(field_name: &str) -> bool {
-    let lower = field_name.to_ascii_lowercase();
-    REDACTED_FIELD_NAMES.iter().any(|n| lower == *n)
-}
-
 #[derive(Debug, Default)]
 pub(super) struct FieldVisitor {
     pub message: String,
     pub fields: Option<serde_json::Value>,
 }
 
+/// Strips ANSI CSI escape sequences (`ESC [ … final-byte`) from `input` so the
+/// stored message is plain text. Scope is intentionally narrow: only CSI
+/// sequences (the colour/style codes the console fmt layer emits) are removed.
+/// Other escape forms (OSC, single-character escapes) have just the lone `ESC`
+/// dropped; their payload is preserved rather than guessed at.
 fn strip_ansi(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
-    let mut chars = input.chars();
+    let mut chars = input.chars().peekable();
     while let Some(c) = chars.next() {
         if c == '\x1B' {
-            if matches!(chars.next(), Some('[')) {
+            if chars.peek() == Some(&'[') {
+                chars.next();
                 for next in chars.by_ref() {
                     if next.is_ascii_alphabetic() {
                         break;

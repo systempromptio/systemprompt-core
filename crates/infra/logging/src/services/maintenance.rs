@@ -38,6 +38,4 @@ impl LoggingMaintenanceService {
     pub async fn clear_all_logs(&self) -> Result<u64, LoggingError> {
         self.repo.clear_all_logs().await
     }
-
-    pub const fn vacuum() {}
 }

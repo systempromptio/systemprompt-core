@@ -102,6 +102,14 @@ fn proxy_strips_ansi_in_message() {
 }
 
 #[test]
+fn proxy_handles_non_csi_escape_sequences() {
+    let _g = install_proxy_unattached();
+    let s = info_span!("op", user_id = "u", session_id = "s", trace_id = "t");
+    let _e = s.enter();
+    info!(message = "\x1b]0;window-title\x07 plain \x1bX leftover \x1b");
+}
+
+#[test]
 fn database_layer_debug_does_not_panic() {
     // Construct via DatabaseLayer requires DbPool; just verify the proxy debug
     let p = ProxyDatabaseLayer::new();

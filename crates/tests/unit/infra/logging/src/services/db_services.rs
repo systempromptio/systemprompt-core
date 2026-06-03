@@ -78,6 +78,4 @@ async fn maintenance_service_full_surface() {
     let cutoff = Utc::now() - ChronoDuration::days(365);
     let _count = svc.count_logs_before(cutoff).await.unwrap();
     let _deleted = svc.cleanup_old_logs(cutoff).await.unwrap();
-
-    LoggingMaintenanceService::vacuum();
 }
