@@ -115,7 +115,9 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
     let prefix = gateway.inference_path_prefix.trim_end_matches('/');
     let inference_gateway_base_url = format!("{base}{prefix}");
 
-    let models = anthropic_inference_models(&profile.providers);
+    let models = profile
+        .providers
+        .advertised_model_ids(&[WireProtocol::Anthropic]);
 
     let secrets = systemprompt_config::SecretsBootstrap::get().ok();
     let providers = provider_health(&profile.providers, |name| {
@@ -137,25 +139,6 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         organization_uuid,
         providers,
     }))
-}
-
-// Why: Cowork/Claude-Desktop run the gateway in Anthropic-protocol mode and
-// reject the entire enterprise config if any `inferenceModels` entry is not an
-// Anthropic model. Non-Anthropic providers remain routable through the gateway
-// (an Anthropic-named route can fan out to them); they are simply not
-// advertised as front-door models the host can address directly.
-pub fn anthropic_inference_models(registry: &ProviderRegistry) -> Vec<String> {
-    registry
-        .providers
-        .iter()
-        .filter(|entry| entry.protocol == WireProtocol::Anthropic)
-        .flat_map(|entry| {
-            entry.models.iter().flat_map(|m| {
-                std::iter::once(m.id.as_str().to_owned())
-                    .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
-            })
-        })
-        .collect()
 }
 
 /// `secret_present` is a closure for testability.

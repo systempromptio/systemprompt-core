@@ -1,10 +1,12 @@
-//! Unit tests for `routes::gateway::bridge::anthropic_inference_models` — the
-//! filter that selects which provider models are advertised to Cowork /
-//! Claude Desktop as `inferenceModels`. Gateway-mode hosts reject the whole
-//! enterprise config if any advertised model is not an Anthropic model, so only
-//! Anthropic-protocol providers may appear in the list.
+//! Unit tests for the protocol-scoped model filter that selects which provider
+//! models are advertised to Cowork / Claude Desktop. Gateway-mode hosts reject
+//! the whole enterprise config if any advertised model is not from their wire
+//! protocol, so the `/bridge/profile` front door and `/v1/models` both scope
+//! the list via `ProviderRegistry::advertised_model_ids` /
+//! `models::model_entries`.
 
-use systemprompt_api::routes::gateway::bridge::{anthropic_inference_models, provider_health};
+use systemprompt_api::routes::gateway::bridge::provider_health;
+use systemprompt_api::routes::gateway::models::model_entries;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use systemprompt_models::profile::{ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol};
 
@@ -52,7 +54,7 @@ fn includes_anthropic_ids_and_aliases() {
         )],
     };
 
-    let models = anthropic_inference_models(&registry);
+    let models = registry.advertised_model_ids(&[WireProtocol::Anthropic]);
 
     assert_eq!(
         models,
@@ -86,7 +88,7 @@ fn excludes_non_anthropic_providers() {
         ],
     };
 
-    let models = anthropic_inference_models(&registry);
+    let models = registry.advertised_model_ids(&[WireProtocol::Anthropic]);
 
     assert_eq!(models, vec!["claude-sonnet-4-6".to_owned()]);
     assert!(!models.iter().any(|m| m.starts_with("gemini")));
@@ -103,7 +105,59 @@ fn empty_when_no_anthropic_provider() {
         )],
     };
 
-    assert!(anthropic_inference_models(&registry).is_empty());
+    assert!(
+        registry
+            .advertised_model_ids(&[WireProtocol::Anthropic])
+            .is_empty()
+    );
+}
+
+#[test]
+fn empty_protocols_returns_full_catalog() {
+    let registry = ProviderRegistry {
+        providers: vec![
+            provider(
+                "anthropic",
+                WireProtocol::Anthropic,
+                vec![model("claude-sonnet-4-6", &[])],
+            ),
+            provider(
+                "gemini",
+                WireProtocol::Gemini,
+                vec![model("gemini-3.1-flash-lite-preview", &[])],
+            ),
+        ],
+    };
+
+    let models = registry.advertised_model_ids(&[]);
+
+    assert!(models.iter().any(|m| m == "claude-sonnet-4-6"));
+    assert!(models.iter().any(|m| m == "gemini-3.1-flash-lite-preview"));
+}
+
+#[test]
+fn model_entries_scope_to_requested_protocol() {
+    let registry = ProviderRegistry {
+        providers: vec![
+            provider(
+                "anthropic",
+                WireProtocol::Anthropic,
+                vec![model("claude-sonnet-4-6", &[])],
+            ),
+            provider(
+                "gemini",
+                WireProtocol::Gemini,
+                vec![model("gemini-3.1-flash-lite-preview", &["gemini-flash"])],
+            ),
+        ],
+    };
+
+    let entries = model_entries(&registry, &[WireProtocol::Anthropic]);
+
+    let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+    assert_eq!(ids, vec!["claude-sonnet-4-6"]);
+    assert!(entries.iter().all(|e| e.kind == "model"));
+    assert!(!ids.iter().any(|id| id.starts_with("gemini")));
 }
 
 #[test]

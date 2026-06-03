@@ -1,9 +1,10 @@
 use axum::Json;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::ModelId;
+use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
+use systemprompt_models::profile::{ProviderRegistry, WireProtocol};
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -39,7 +40,7 @@ pub struct ModelsResponse {
     pub last_id: Option<String>,
 }
 
-pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
+pub async fn list(headers: HeaderMap) -> Result<Json<ModelsResponse>, (StatusCode, String)> {
     let profile = ProfileBootstrap::get().map_err(|e| {
         (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -54,25 +55,8 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
         .filter(|g| g.enabled)
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
 
-    let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
-
-    for entry in &profile.providers.providers {
-        for m in &entry.models {
-            for id in std::iter::once(m.id.as_str()).chain(m.aliases.iter().map(ModelId::as_str)) {
-                by_id.insert(
-                    id.to_owned(),
-                    ModelEntry {
-                        kind: "model",
-                        display_name: humanize_model_id(id),
-                        id: id.to_owned(),
-                        created_at: "1970-01-01T00:00:00Z".to_owned(),
-                    },
-                );
-            }
-        }
-    }
-
-    let entries: Vec<ModelEntry> = by_id.into_values().collect();
+    let protocols = protocols_from_header(&headers)?;
+    let entries = model_entries(&profile.providers, &protocols);
     let first_id = entries.first().map(|e| e.id.clone());
     let last_id = entries.last().map(|e| e.id.clone());
 
@@ -82,6 +66,46 @@ pub async fn list() -> Result<Json<ModelsResponse>, (StatusCode, String)> {
         first_id,
         last_id,
     }))
+}
+
+/// Resolve the `x-inference-protocol` selection header into wire protocols. An
+/// absent or empty header yields the full catalog (empty slice); a present but
+/// unrecognised tag is a misconfiguration and fails with `400` rather than
+/// silently widening the advertised set.
+fn protocols_from_header(headers: &HeaderMap) -> Result<Vec<WireProtocol>, (StatusCode, String)> {
+    let Some(raw) = headers
+        .get(INFERENCE_PROTOCOL)
+        .and_then(|v| v.to_str().ok())
+    else {
+        return Ok(Vec::new());
+    };
+    let mut protocols = Vec::new();
+    for tag in raw.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+        let protocol = WireProtocol::from_tag(tag).ok_or_else(|| {
+            (
+                StatusCode::BAD_REQUEST,
+                format!("unknown {INFERENCE_PROTOCOL} value: {tag}"),
+            )
+        })?;
+        protocols.push(protocol);
+    }
+    Ok(protocols)
+}
+
+pub fn model_entries(registry: &ProviderRegistry, protocols: &[WireProtocol]) -> Vec<ModelEntry> {
+    let mut by_id: BTreeMap<String, ModelEntry> = BTreeMap::new();
+    for id in registry.advertised_model_ids(protocols) {
+        by_id.insert(
+            id.clone(),
+            ModelEntry {
+                kind: "model",
+                display_name: humanize_model_id(&id),
+                id,
+                created_at: "1970-01-01T00:00:00Z".to_owned(),
+            },
+        );
+    }
+    by_id.into_values().collect()
 }
 
 fn humanize_model_id(id: &str) -> String {
