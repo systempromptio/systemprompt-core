@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
@@ -333,48 +334,54 @@ fn validate_rejects_default_provider_absent_from_registry() {
     );
 }
 
+fn route_id(route: Cow<'_, GatewayRoute>) -> RouteId {
+    let mut route = route.into_owned();
+    route.ensure_id();
+    route.id
+}
+
 #[test]
-fn resolved_route_ids_includes_synthetic_default_route() {
-    // The invariant: every route id resolve_route can return must be present in
-    // the authz-catalog source (resolved_route_ids). A model matching no explicit
-    // route resolves to the synthetic default route — its id must be materialised
-    // so it is never denied as an unknown entity.
+fn dispatchable_route_ids_cover_every_candidate_route() {
     let config = two_provider_config(Some("gemini"));
     let registry = two_provider_registry();
+    let ids = config.dispatchable_route_ids(&registry);
 
-    let synthetic_id = config
+    for route in config.candidate_routes(&registry) {
+        let id = route_id(route);
+        assert!(ids.contains(&id), "candidate {id:?} absent from catalog {ids:?}");
+    }
+
+    let resolved = config
         .resolve_route(&registry, "some-unknown-model")
-        .expect("default provider must absorb unmatched model")
-        .id
-        .clone();
-
-    let state = GatewayState::Spec(config.to_spec());
-    let ids = state.resolved_route_ids();
-    assert!(
-        ids.contains(&synthetic_id),
-        "resolved_route_ids {ids:?} must contain the synthetic default route id {synthetic_id:?}"
-    );
+        .expect("default provider must absorb unmatched model");
+    assert!(ids.contains(&route_id(resolved)));
 }
 
 #[test]
-fn resolved_route_ids_omits_default_when_unset() {
-    let state = GatewayState::Spec(two_provider_config(None).to_spec());
-    let ids = state.resolved_route_ids();
-    assert_eq!(ids.len(), 2, "closed gateway exposes only its explicit routes");
+fn dispatchable_route_ids_omits_default_when_unset() {
+    let registry = two_provider_registry();
+    let ids = two_provider_config(None).dispatchable_route_ids(&registry);
+    assert_eq!(ids.len(), 2);
 }
 
 #[test]
-fn resolved_route_ids_dedupes_explicit_catch_all() {
-    // An operator-authored explicit "*" route to the default provider has the
-    // same synthesized id as the synthetic default; it must not be listed twice.
+fn dispatchable_route_ids_dedupes_explicit_catch_all() {
     let mut config = two_provider_config(Some("gemini"));
     config.routes.push(route_to("*", "gemini"));
-    let state = GatewayState::Spec(config.to_spec());
-    let ids = state.resolved_route_ids();
-    let mut sorted = ids.clone();
-    sorted.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-    sorted.dedup();
-    assert_eq!(ids.len(), sorted.len(), "route ids must be unique: {ids:?}");
+    let registry = two_provider_registry();
+    let ids = config.dispatchable_route_ids(&registry);
+    let mut unique = ids.clone();
+    unique.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    unique.dedup();
+    assert_eq!(ids.len(), unique.len(), "route ids must be unique: {ids:?}");
+}
+
+#[test]
+fn gateway_state_dispatchable_route_ids_resolves_spec() {
+    let config = two_provider_config(Some("gemini"));
+    let registry = two_provider_registry();
+    let from_state = GatewayState::Spec(config.to_spec()).dispatchable_route_ids(&registry);
+    assert_eq!(from_state, config.dispatchable_route_ids(&registry));
 }
 
 #[test]

@@ -76,7 +76,7 @@ async fn try_reconcile(profile: &Profile, profile_path: &str) -> anyhow::Result<
     let route_ids = profile
         .gateway
         .as_ref()
-        .map(systemprompt_models::profile::GatewayState::resolved_route_ids)
+        .map(|gateway| gateway.dispatchable_route_ids(&profile.providers))
         .unwrap_or_default();
     let id_refs: Vec<&str> = route_ids.iter().map(RouteId::as_str).collect();
     let source = format!("profile:{profile_path}");

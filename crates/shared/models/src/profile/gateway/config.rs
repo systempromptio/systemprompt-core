@@ -13,15 +13,8 @@ use systemprompt_identifiers::{ProviderId, RouteId};
 
 use super::super::providers::ProviderRegistry;
 use super::error::{GatewayProfileError, GatewayResult};
-use super::route::{GatewayRoute, synthesize_route_id};
+use super::route::GatewayRoute;
 
-/// Model pattern of the synthetic catch-all route the gateway falls back to
-/// when [`GatewayConfigSpec::default_provider`] is set and no explicit route
-/// matches. Both the route synthesised at dispatch
-/// ([`GatewayConfig::synthesize_default_route`]) and the route id materialised
-/// into the authz entity catalog ([`GatewayConfigSpec::default_route_id`])
-/// derive from this single constant, so the dispatched route and its
-/// authorization entity can never drift apart.
 pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
 /// On-disk gateway configuration: the exact shape accepted under
@@ -87,22 +80,6 @@ impl GatewayConfigSpec {
             inference_path_prefix,
         }
     }
-
-    /// The deterministic id of the synthetic catch-all route to
-    /// [`Self::default_provider`], or `None` when no default provider is set.
-    ///
-    /// The id is a pure function of `(pattern, provider)`, so this needs no
-    /// [`ProviderRegistry`]: `GatewayConfig::validate` already guarantees a set
-    /// `default_provider` resolves in the registry, so any config that reaches
-    /// runtime can actually dispatch to this route. This is the route id the
-    /// authz entity catalog must materialise alongside the explicit routes —
-    /// see [`super::state::GatewayState::resolved_route_ids`].
-    #[must_use]
-    pub fn default_route_id(&self) -> Option<RouteId> {
-        self.default_provider
-            .as_ref()
-            .map(|provider| synthesize_route_id(DEFAULT_ROUTE_PATTERN, provider.as_str()))
-    }
 }
 
 /// Runtime gateway configuration: the post-resolution shape every non-loader
@@ -137,20 +114,37 @@ impl GatewayConfig {
         self.routes.iter().find(|route| route.matches(model))
     }
 
-    /// Resolve the route for `model`: an explicit match if one exists, else a
-    /// synthetic catch-all route to [`Self::default_provider`] when configured
-    /// and present in `registry`. `None` only when neither applies — the caller
-    /// then denies the request.
+    pub fn candidate_routes<'a>(
+        &'a self,
+        registry: &ProviderRegistry,
+    ) -> impl Iterator<Item = Cow<'a, GatewayRoute>> {
+        self.routes
+            .iter()
+            .map(Cow::Borrowed)
+            .chain(self.synthesize_default_route(registry).map(Cow::Owned))
+    }
+
     #[must_use]
     pub fn resolve_route<'a>(
         &'a self,
         registry: &ProviderRegistry,
         model: &str,
     ) -> Option<Cow<'a, GatewayRoute>> {
-        if let Some(route) = self.find_route(model) {
-            return Some(Cow::Borrowed(route));
+        self.candidate_routes(registry)
+            .find(|route| route.matches(model))
+    }
+
+    #[must_use]
+    pub fn dispatchable_route_ids(&self, registry: &ProviderRegistry) -> Vec<RouteId> {
+        let mut ids: Vec<RouteId> = Vec::new();
+        for route in self.candidate_routes(registry) {
+            let mut route = route.into_owned();
+            route.ensure_id();
+            if !ids.contains(&route.id) {
+                ids.push(route.id);
+            }
         }
-        self.synthesize_default_route(registry).map(Cow::Owned)
+        ids
     }
 
     /// A catch-all route to [`Self::default_provider`], gated on the provider
