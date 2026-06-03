@@ -139,7 +139,12 @@ fn finalize(audit: Arc<GatewayAudit>, summary: Summary, origin: &'static str) {
 
         let has_content = !summary.final_bytes.is_empty();
         let has_usage = summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0;
-        match classify(summary.error.as_deref(), summary.saw_stop, has_content, has_usage) {
+        match classify(
+            summary.error.as_deref(),
+            summary.saw_stop,
+            has_content,
+            has_usage,
+        ) {
             FinalizeDecision::Fail(reason) => {
                 let msg = summary.error.as_deref().unwrap_or(reason);
                 if let Err(e) = audit.fail(msg).await {
