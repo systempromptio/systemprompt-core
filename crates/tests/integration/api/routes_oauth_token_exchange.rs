@@ -333,10 +333,30 @@ async fn exchange_self_issued_subject_does_not_500() -> anyhow::Result<()> {
         "self-issued subject must not 500, got {status} {v}"
     );
     if status.is_success() {
-        assert!(v.get("access_token").is_some(), "{v}");
+        let access_token = v["access_token"]
+            .as_str()
+            .unwrap_or_else(|| panic!("success must carry an access_token; got {v}"));
         assert_eq!(v.get("token_type").and_then(|x| x.as_str()), Some("Bearer"));
+        let claims = decode_jwt_claims(access_token)?;
+        assert!(
+            claims["roles"].is_null()
+                || claims["roles"].as_array().is_some_and(<[_]>::is_empty),
+            "delegated token must not carry scope strings as RBAC roles; got roles={}",
+            claims["roles"]
+        );
     }
     Ok(())
+}
+
+fn decode_jwt_claims(token: &str) -> anyhow::Result<serde_json::Value> {
+    use base64::Engine as _;
+
+    let payload = token
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("token is not a JWT: {token}"))?;
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload)?;
+    Ok(serde_json::from_slice(&bytes)?)
 }
 
 #[tokio::test]

@@ -111,13 +111,11 @@ pub async fn generate_client_tokens(
 
     let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
         .map_err(|e| ClientCredentialsError::OwnerIdMalformed(e.to_string()))?;
-    let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
-    let authenticated = AuthenticatedUser::new_with_roles(
+    let authenticated = AuthenticatedUser::new(
         owner_uuid,
         owner.name.clone(),
         owner.email.clone(),
         permissions.clone(),
-        role_strings,
     );
 
     let config = JwtConfig {

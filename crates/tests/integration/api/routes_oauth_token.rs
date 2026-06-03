@@ -379,7 +379,33 @@ async fn token_client_credentials_service_scope_does_not_require_owner_role() ->
         !desc.contains("delegated scopes not held by owner"),
         "service-tier scopes wrongly classified as delegated; got {desc}"
     );
+
+    let access_token = v["access_token"]
+        .as_str()
+        .unwrap_or_else(|| panic!("service-tier grant must mint a token; got {s} {v}"));
+    let claims = decode_jwt_claims(access_token)?;
+    assert!(
+        claims["roles"].is_null() || claims["roles"].as_array().is_some_and(<[_]>::is_empty),
+        "service token must not carry RBAC roles; got roles={}",
+        claims["roles"]
+    );
+    let scope = claims["scope"].as_str().unwrap_or_default();
+    assert!(
+        scope.contains("hook:govern") && scope.contains("hook:track"),
+        "service token must keep its granted scope; got scope={scope:?}"
+    );
     Ok(())
+}
+
+fn decode_jwt_claims(token: &str) -> anyhow::Result<serde_json::Value> {
+    use base64::Engine as _;
+
+    let payload = token
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("token is not a JWT: {token}"))?;
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload)?;
+    Ok(serde_json::from_slice(&bytes)?)
 }
 
 #[tokio::test]

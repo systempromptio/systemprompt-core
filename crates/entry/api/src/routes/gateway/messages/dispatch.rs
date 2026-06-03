@@ -6,6 +6,7 @@ use axum::response::Response;
 
 use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
+use crate::services::gateway::protocol::outbound::UpstreamError;
 use crate::services::gateway::service::{DispatchInputs, GatewayService};
 
 use super::RequestContext;
@@ -83,7 +84,37 @@ fn map_dispatch_error(e: &anyhow::Error) -> Result<Response<Body>, (StatusCode, 
         }
         return Ok(resp);
     }
+    if let Some(upstream) = e.downcast_ref::<UpstreamError>() {
+        return Err(map_upstream_error(upstream));
+    }
     Err((StatusCode::BAD_GATEWAY, e.to_string()))
+}
+
+/// Translates an upstream failure into the status the *client* should see. A
+/// malformed request (400/404/422) or rate limit (429) is the caller's to fix,
+/// so it passes through; auth, 5xx, timeout, and transport failures are the
+/// gateway/provider's problem and collapse to 502/504 without leaking the
+/// upstream's credential-level detail.
+fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
+    let UpstreamError::Status {
+        provider,
+        status,
+        message,
+    } = e
+    else {
+        return (StatusCode::BAD_GATEWAY, "upstream provider unreachable".to_owned());
+    };
+    let mapped = match *status {
+        400 | 404 | 422 => StatusCode::from_u16(*status).unwrap_or(StatusCode::BAD_REQUEST),
+        429 => StatusCode::TOO_MANY_REQUESTS,
+        408 | 504 => StatusCode::GATEWAY_TIMEOUT,
+        _ => StatusCode::BAD_GATEWAY,
+    };
+    if mapped.is_server_error() {
+        (mapped, "upstream provider error".to_owned())
+    } else {
+        (mapped, format!("{provider} rejected the request: {message}"))
+    }
 }
 
 pub(super) fn build_error_response(status: StatusCode, message: &str) -> Response<Body> {

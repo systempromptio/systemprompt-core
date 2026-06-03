@@ -10,7 +10,9 @@ use serde_json::Value;
 use systemprompt_models::wire::anthropic;
 
 use super::super::canonical_response::CanonicalResponse;
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome};
+use super::{
+    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError, extract_upstream_message,
+};
 
 mod request;
 mod response;
@@ -47,7 +49,12 @@ impl OutboundAdapter for AnthropicOutbound {
         let upstream_response = req
             .send()
             .await
-            .map_err(|e| anyhow!("Upstream Anthropic request failed: {e}"))?;
+            .map_err(|e| {
+                anyhow::Error::new(UpstreamError::Transport {
+                    provider: self.provider_tag(),
+                    source: e,
+                })
+            })?;
 
         let status = upstream_response.status();
 
@@ -57,7 +64,11 @@ impl OutboundAdapter for AnthropicOutbound {
                     .text()
                     .await
                     .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
-                return Err(anyhow!("Upstream error {status}: {err}"));
+                return Err(anyhow::Error::new(UpstreamError::Status {
+                    provider: self.provider_tag(),
+                    status: status.as_u16(),
+                    message: extract_upstream_message(&err),
+                }));
             }
             let stream = upstream_response.bytes_stream();
             let event_stream = streaming::sse_to_canonical_events(stream);
@@ -69,7 +80,11 @@ impl OutboundAdapter for AnthropicOutbound {
                 .text()
                 .await
                 .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
-            return Err(anyhow!("Upstream error {status}: {err}"));
+            return Err(anyhow::Error::new(UpstreamError::Status {
+                provider: self.provider_tag(),
+                status: status.as_u16(),
+                message: extract_upstream_message(&err),
+            }));
         }
 
         let bytes = upstream_response

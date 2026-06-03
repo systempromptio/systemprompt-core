@@ -13,7 +13,9 @@ use systemprompt_models::profile::WireProtocol;
 use systemprompt_models::wire::gemini;
 
 use super::super::canonical_response::CanonicalResponse;
-use super::{OutboundAdapter, OutboundCtx, OutboundOutcome};
+use super::{
+    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError, extract_upstream_message,
+};
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
@@ -52,7 +54,12 @@ impl OutboundAdapter for GeminiOutbound {
         let upstream_response = req
             .send()
             .await
-            .map_err(|e| anyhow!("Upstream Gemini request failed: {e}"))?;
+            .map_err(|e| {
+                anyhow::Error::new(UpstreamError::Transport {
+                    provider: self.provider_tag(),
+                    source: e,
+                })
+            })?;
 
         let status = upstream_response.status();
         if !status.is_success() {
@@ -60,7 +67,11 @@ impl OutboundAdapter for GeminiOutbound {
                 .text()
                 .await
                 .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
-            return Err(anyhow!("Upstream error {status}: {err}"));
+            return Err(anyhow::Error::new(UpstreamError::Status {
+                provider: self.provider_tag(),
+                status: status.as_u16(),
+                message: extract_upstream_message(&err),
+            }));
         }
 
         if ctx.request.stream {

@@ -6,6 +6,10 @@
 
 - `GET /v1/bridge/profile` reports per-provider health: each provider's wire protocol, the models it serves, and whether its credential secret resolves. The bridge uses this to present the models compatible with each managed host and to flag a provider that is missing its API key.
 
+### Changed
+
+- Client-credentials (service-tier) access tokens are authorized solely by their granted scopes and no longer carry RBAC roles. The token-minting path stopped attaching the owner's role strings to a service grant, so a service token's authority is exactly the scopes it was issued.
+
 ### Fixed
 
 - The bridge profile advertises only Anthropic models in `inferenceModels`. Claude Desktop and Cowork run the gateway in Anthropic-protocol mode and reject the entire enterprise configuration when any advertised model is not an Anthropic model, so a profile that also registered an OpenAI or Gemini provider left those hosts unable to start tasks. Non-Anthropic providers remain routable through the gateway; they are no longer advertised as front-door models the host addresses directly.

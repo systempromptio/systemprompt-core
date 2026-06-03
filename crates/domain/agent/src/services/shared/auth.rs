@@ -37,7 +37,7 @@ pub struct AgentSessionUser {
     pub id: UserId,
     pub username: String,
     pub user_type: String,
-    pub roles: Vec<String>,
+    pub permissions: Vec<String>,
 }
 
 impl AgentSessionUser {
@@ -46,18 +46,7 @@ impl AgentSessionUser {
             id: UserId::new(claims.subject),
             username: claims.username,
             user_type: claims.user_type,
-            roles: claims.permissions,
-        }
-    }
-}
-
-impl From<JwtClaims> for AgentSessionUser {
-    fn from(claims: JwtClaims) -> Self {
-        Self {
-            id: UserId::new(claims.sub.clone()),
-            username: claims.username.clone(),
-            user_type: claims.user_type.to_string(),
-            roles: claims.get_scopes(),
+            permissions: claims.permissions,
         }
     }
 }

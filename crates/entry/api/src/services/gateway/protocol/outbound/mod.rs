@@ -19,9 +19,39 @@ use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use systemprompt_models::profile::GatewayRoute;
 use systemprompt_models::services::ai::ModelLimits;
+use thiserror::Error;
 
 use super::canonical::CanonicalRequest;
 use super::canonical_response::{CanonicalEvent, CanonicalResponse};
+
+/// Upstream provider failure, carried inside the `anyhow::Error` an adapter
+/// returns so the route layer can recover the real HTTP status by downcast
+/// instead of flattening every failure to 502.
+#[derive(Debug, Error)]
+pub enum UpstreamError {
+    #[error("{provider} returned {status}: {message}")]
+    Status {
+        provider: &'static str,
+        status: u16,
+        message: String,
+    },
+    #[error("{provider} request failed: {source}")]
+    Transport {
+        provider: &'static str,
+        #[source]
+        source: reqwest::Error,
+    },
+}
+
+/// Pulls the provider's `error.message` from a JSON error body (the shape
+/// `OpenAI`, Anthropic, and Gemini all use), falling back to the raw body
+/// truncated so logs and client responses stay bounded.
+pub fn extract_upstream_message(body: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v["error"]["message"].as_str().map(ToOwned::to_owned))
+        .unwrap_or_else(|| body.chars().take(500).collect())
+}
 
 #[derive(Debug)]
 pub struct OutboundCtx<'a> {

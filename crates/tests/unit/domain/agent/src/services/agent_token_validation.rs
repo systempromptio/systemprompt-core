@@ -71,7 +71,7 @@ async fn validate_agent_token_success_maps_session_user() {
     assert_eq!(user.id.as_str(), "user-aaa");
     assert_eq!(user.username, "alice");
     assert_eq!(user.user_type, "user");
-    assert!(user.roles.contains(&"user".to_string()));
+    assert!(user.permissions.contains(&"user".to_string()));
 }
 
 #[tokio::test]
@@ -130,5 +130,5 @@ fn agent_session_user_from_jwt_claims_maps_fields() {
     assert_eq!(user.id.as_str(), "sub-1");
     assert_eq!(user.username, "bob");
     assert_eq!(user.user_type, "admin");
-    assert_eq!(user.roles, vec!["admin".to_string(), "user".to_string()]);
+    assert_eq!(user.permissions, vec!["admin".to_string(), "user".to_string()]);
 }

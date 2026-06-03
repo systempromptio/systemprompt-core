@@ -120,13 +120,11 @@ pub async fn handle_token_exchange(
 
     let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
         .map_err(|e| anyhow!("Client owner has a non-uuid id ({e})"))?;
-    let role_strings: Vec<String> = final_perms.iter().map(ToString::to_string).collect();
-    let delegated_user = AuthenticatedUser::new_with_roles(
+    let delegated_user = AuthenticatedUser::new(
         owner_uuid,
         owner.name.clone(),
         owner.email.clone(),
         final_perms.clone(),
-        role_strings,
     );
 
     let session_id = ensure_session(state, headers, &client.owner_user_id, global).await?;

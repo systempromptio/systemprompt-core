@@ -205,6 +205,12 @@ impl GatewayService {
         let outcome = match upstream.send(outbound_ctx).await {
             Ok(o) => o,
             Err(e) => {
+                tracing::warn!(
+                    provider = %upstream.provider_tag(),
+                    model = %request.model,
+                    error = %e,
+                    "gateway upstream call failed"
+                );
                 if let Err(audit_err) = audit.fail(&e.to_string()).await {
                     tracing::warn!(error = %audit_err, "upstream audit fail failed");
                 }

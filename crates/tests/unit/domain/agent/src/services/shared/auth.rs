@@ -93,7 +93,7 @@ fn test_agent_session_user_debug() {
         id: "user-123".to_string().into(),
         username: "testuser".to_string(),
         user_type: "registered".to_string(),
-        roles: vec!["admin".to_string(), "user".to_string()],
+        permissions: vec!["admin".to_string(), "user".to_string()],
     };
 
     let debug = format!("{:?}", user);
@@ -108,41 +108,41 @@ fn test_agent_session_user_clone() {
         id: "user-clone".to_string().into(),
         username: "cloneuser".to_string(),
         user_type: "anonymous".to_string(),
-        roles: vec!["reader".to_string()],
+        permissions: vec!["reader".to_string()],
     };
 
     let cloned = user.clone();
     assert_eq!(user.id, cloned.id);
     assert_eq!(user.username, cloned.username);
     assert_eq!(user.user_type, cloned.user_type);
-    assert_eq!(user.roles, cloned.roles);
+    assert_eq!(user.permissions, cloned.permissions);
 }
 
 #[test]
-fn test_agent_session_user_empty_roles() {
+fn test_agent_session_user_empty_permissions() {
     let user = AgentSessionUser {
-        id: "user-no-roles".to_string().into(),
-        username: "noroles".to_string(),
+        id: "user-no-perms".to_string().into(),
+        username: "noperms".to_string(),
         user_type: "guest".to_string(),
-        roles: vec![],
+        permissions: vec![],
     };
 
-    assert!(user.roles.is_empty());
+    assert!(user.permissions.is_empty());
 }
 
 #[test]
-fn test_agent_session_user_multiple_roles() {
+fn test_agent_session_user_multiple_permissions() {
     let user = AgentSessionUser {
         id: "user-multi".to_string().into(),
         username: "multiuser".to_string(),
         user_type: "registered".to_string(),
-        roles: vec![
+        permissions: vec![
             "admin".to_string(),
             "editor".to_string(),
             "viewer".to_string(),
         ],
     };
 
-    assert_eq!(user.roles.len(), 3);
-    assert!(user.roles.contains(&"editor".to_string()));
+    assert_eq!(user.permissions.len(), 3);
+    assert!(user.permissions.contains(&"editor".to_string()));
 }

@@ -59,6 +59,6 @@ fn get_userinfo(token: &str) -> anyhow::Result<UserinfoResponse> {
         username: Some(claims.username.clone()),
         email: Some(claims.email.clone()),
         user_type: Some(claims.user_type.to_string()),
-        roles: Some(claims.get_scopes()),
+        roles: Some(claims.roles().to_vec()),
     })
 }
