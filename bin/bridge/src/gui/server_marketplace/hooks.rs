@@ -3,7 +3,7 @@ use std::path::Path;
 
 use super::{MarketplaceExtra, MarketplaceItem};
 
-pub(super) fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
+pub fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
     let path = dir.join("hooks.json");
     let Ok(bytes) = std::fs::read(&path) else {
         return Vec::new();
@@ -11,7 +11,7 @@ pub(super) fn list_hooks(dir: &Path) -> Vec<MarketplaceItem> {
     hook_items(&bytes, &path)
 }
 
-fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
+pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
     use crate::sync::apply::hooks_schema::{HookEntry as WireHookEntry, HooksFile};
 
     let Ok(file) = serde_json::from_slice::<HooksFile>(bytes) else {
@@ -102,71 +102,4 @@ fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
     user_rows.sort_by(|a, b| a.name.cmp(&b.name));
     out.extend(user_rows);
     out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{hook_items, list_hooks};
-    use std::path::Path;
-
-    // One govern entry on PreToolUse plus a track entry on each of the 12
-    // tracked events, mirroring `sync::apply::hooks::write_hooks_json`.
-    const SYSTEM_HOOKS_JSON: &str = r#"{
-        "hooks": {
-            "PreToolUse": [{"matcher": "*", "hooks": [
-                {"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/govern", "headers": {}, "allowedEnvVars": [], "timeout": 10}]}],
-            "PostToolUse": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "PostToolUse"}]}],
-            "PostToolUseFailure": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "PostToolUseFailure"}]}],
-            "SessionStart": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "SessionStart"}]}],
-            "SessionEnd": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "SessionEnd"}]}],
-            "UserPromptSubmit": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "UserPromptSubmit"}]}],
-            "Stop": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "Stop"}]}],
-            "SubagentStart": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "SubagentStart"}]}],
-            "SubagentStop": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "SubagentStop"}]}],
-            "Notification": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "Notification"}]}],
-            "TaskCompleted": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "TaskCompleted"}]}],
-            "TeammateIdle": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "TeammateIdle"}]}],
-            "PermissionRequest": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/track", "headers": {}, "allowedEnvVars": [], "timeout": 10, "async": true, "event": "PermissionRequest"}]}]
-        }
-    }"#;
-
-    #[test]
-    fn missing_file_yields_empty() {
-        assert!(list_hooks(Path::new("/var/empty/does-not-exist/hooks")).is_empty());
-    }
-
-    #[test]
-    fn unparseable_json_yields_empty() {
-        assert!(hook_items(b"not json", Path::new("hooks.json")).is_empty());
-    }
-
-    #[test]
-    fn system_hooks_collapse_to_one_summary_row() {
-        let items = hook_items(SYSTEM_HOOKS_JSON.as_bytes(), Path::new("hooks.json"));
-        assert_eq!(items.len(), 1, "system govern/track collapse into one row");
-        let row = &items[0];
-        assert_eq!(row.id, "systemprompt-governance");
-        let summary = row.summary.as_deref().unwrap_or_default();
-        assert!(
-            summary.contains("Governing PreToolUse"),
-            "summary: {summary}"
-        );
-        assert!(summary.contains("tracking 12 events"), "summary: {summary}");
-    }
-
-    #[test]
-    fn user_command_hooks_get_their_own_rows() {
-        let json = r#"{
-            "hooks": {
-                "PreToolUse": [{"matcher": "*", "hooks": [{"type": "http", "url": "http://127.0.0.1:1/api/public/hooks/govern", "headers": {}, "allowedEnvVars": [], "timeout": 10}]}],
-                "PostToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "echo hi", "timeout": 10, "event": "PostToolUse"}]}]
-            }
-        }"#;
-        let items = hook_items(json.as_bytes(), Path::new("hooks.json"));
-        assert_eq!(items.len(), 2, "system summary + one user row");
-        assert_eq!(items[0].id, "systemprompt-governance");
-        let user = &items[1];
-        assert_eq!(user.name, "PostToolUse (Bash)");
-        assert_eq!(user.summary.as_deref(), Some("echo hi"));
-    }
 }

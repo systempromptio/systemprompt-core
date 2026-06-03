@@ -1,4 +1,4 @@
-mod hooks;
+pub mod hooks;
 
 use crate::config::paths;
 use crate::proxy::mcp_probe::McpServerAuth;
@@ -27,7 +27,7 @@ enum MarketplaceExtra {
 }
 
 #[derive(Debug, Serialize)]
-struct MarketplaceItem {
+pub struct MarketplaceItem {
     id: String,
     name: String,
     source: &'static str,

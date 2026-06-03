@@ -75,6 +75,7 @@ members = [
     "unit/bridge/auth",
     "unit/bridge/config",
     "unit/bridge/cowork-plugins",
+    "unit/bridge/gui",
     "unit/bridge/ts-export",
     # Common test utilities
     "common/mocks",
