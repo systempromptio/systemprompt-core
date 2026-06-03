@@ -59,7 +59,7 @@ pub fn run() -> ExitCode {
 
     let proxy = event_loop.create_proxy();
     install_termination_handlers(proxy.clone());
-    crate::gui::emit::install_log_emitter(proxy.clone());
+    emit::install_log_emitter(proxy.clone());
     let (tx, rx) = channel::<UiEvent>();
 
     let bridge_proxy = proxy.clone();
@@ -163,6 +163,10 @@ impl GuiApp {
         self.server.as_ref()
     }
 
+    #[expect(
+        clippy::unused_self,
+        reason = "method form keeps the app.append_log(..) call sites uniform across handlers"
+    )]
     pub(crate) fn append_log(&self, line: impl Into<String>) {
         crate::activity::activity_log().append(line);
     }
@@ -217,7 +221,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
             emit::emit_theme_changed(self, label);
             return;
         }
-        if let WindowEvent::CloseRequested = event
+        if event == WindowEvent::CloseRequested
             && let Some(win) = &self.settings_window
             && win.id() == id
         {
@@ -235,8 +239,7 @@ impl ApplicationHandler<UiEvent> for GuiApp {
         let needs_probe = matches!(snap.gateway_status, GatewayStatus::Unknown)
             || snap
                 .last_probe_at_unix
-                .map(|t| now_unix().saturating_sub(t) >= PROBE_INTERVAL_SECS)
-                .unwrap_or(true);
+                .is_none_or(|t| now_unix().saturating_sub(t) >= PROBE_INTERVAL_SECS);
         if needs_probe && !matches!(snap.gateway_status, GatewayStatus::Probing) {
             _ = self
                 .proxy

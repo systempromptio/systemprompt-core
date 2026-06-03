@@ -34,12 +34,18 @@ pub struct SettingsWindow {
     webview: WebView,
 }
 
+impl std::fmt::Debug for SettingsWindow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SettingsWindow").finish_non_exhaustive()
+    }
+}
+
 impl SettingsWindow {
     pub fn id(&self) -> WindowId {
         self.window.id()
     }
 
-    pub fn winit_window(&self) -> &Window {
+    pub const fn winit_window(&self) -> &Window {
         &self.window
     }
 
@@ -147,9 +153,9 @@ const BRIDGE_BOOTSTRAP: &str = r#"
 })();
 "#;
 
-fn serve_custom_asset(request: &wry::http::Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
+fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
     let uri = request.uri();
-    let host_match = uri.host().map(|h| h == SP_HOST).unwrap_or(true);
+    let host_match = uri.host().is_none_or(|h| h == SP_HOST);
     if !host_match {
         return not_found();
     }
@@ -157,34 +163,29 @@ fn serve_custom_asset(request: &wry::http::Request<Vec<u8>>) -> Response<Cow<'st
     if path.is_empty() || path == "/" {
         path = "/index.html".to_string();
     }
-    match assets::lookup_path(&path) {
-        Some(asset) => asset_response(asset),
-        None => not_found(),
-    }
+    assets::lookup_path(&path).map_or_else(not_found, asset_response)
 }
 
 fn asset_response(asset: Asset) -> Response<Cow<'static, [u8]>> {
     let mut response = Response::new(asset.body);
     _ = response.headers_mut().insert(
         CONTENT_TYPE,
-        match wry::http::HeaderValue::from_str(asset.content_type) {
-            Ok(v) => v,
-            Err(_) => wry::http::HeaderValue::from_static("application/octet-stream"),
-        },
+        http::HeaderValue::from_str(asset.content_type)
+            .unwrap_or_else(|_| http::HeaderValue::from_static("application/octet-stream")),
     );
     _ = response.headers_mut().insert(
-        wry::http::header::CACHE_CONTROL,
-        wry::http::HeaderValue::from_static("no-store, must-revalidate"),
+        http::header::CACHE_CONTROL,
+        http::HeaderValue::from_static("no-store, must-revalidate"),
     );
     response
 }
 
 fn not_found() -> Response<Cow<'static, [u8]>> {
     let mut response = Response::new(Cow::Borrowed::<'static, [u8]>(b"not found"));
-    *response.status_mut() = wry::http::StatusCode::NOT_FOUND;
+    *response.status_mut() = http::StatusCode::NOT_FOUND;
     _ = response.headers_mut().insert(
         CONTENT_TYPE,
-        wry::http::HeaderValue::from_static("text/plain; charset=utf-8"),
+        http::HeaderValue::from_static("text/plain; charset=utf-8"),
     );
     response
 }
@@ -223,6 +224,6 @@ fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
+const fn chrome_attributes(attrs: WindowAttributes) -> WindowAttributes {
     attrs
 }

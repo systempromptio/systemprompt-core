@@ -11,13 +11,13 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::Duration;
 
-pub enum SingletonResult {
+pub(crate) enum SingletonResult {
     Acquired(SingletonGuard),
     AlreadyRunning,
     Error(String),
 }
 
-pub struct SingletonGuard {
+pub(crate) struct SingletonGuard {
     #[cfg(unix)]
     _file: std::fs::File,
     #[cfg(windows)]
@@ -25,7 +25,7 @@ pub struct SingletonGuard {
 }
 
 #[must_use]
-pub fn try_acquire_gui() -> SingletonResult {
+pub(crate) fn try_acquire_gui() -> SingletonResult {
     #[cfg(unix)]
     {
         unix::acquire()
@@ -142,7 +142,11 @@ pub fn lock_path() -> Result<PathBuf, String> {
 }
 
 #[cfg(windows)]
-pub fn lock_path() -> Result<PathBuf, String> {
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "mirrors the fallible unix lock_path so the shared sidecar_path call site stays cfg-agnostic"
+)]
+pub(crate) fn lock_path() -> Result<PathBuf, String> {
     let base = dirs::data_local_dir()
         .or_else(dirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
@@ -160,7 +164,7 @@ fn sidecar_path() -> Option<PathBuf> {
     }
 }
 
-pub fn write_running_port(port: u16, csrf_token: &str) {
+pub(crate) fn write_running_port(port: u16, csrf_token: &str) {
     let Some(path) = sidecar_path() else {
         return;
     };
@@ -177,7 +181,7 @@ pub fn write_running_port(port: u16, csrf_token: &str) {
     }
 }
 
-pub fn clear_running_port() {
+pub(crate) fn clear_running_port() {
     let Some(path) = sidecar_path() else {
         return;
     };
@@ -200,20 +204,16 @@ fn read_running_instance() -> Option<RunningInstance> {
     Some(RunningInstance { port, token })
 }
 
-pub fn ping_focus_running_instance() -> bool {
+pub(crate) fn ping_focus_running_instance() -> bool {
     let Some(instance) = read_running_instance() else {
         return false;
     };
     let addr = format!("127.0.0.1:{}", instance.port);
-    let stream = match TcpStream::connect_timeout(
-        &match addr.parse() {
-            Ok(a) => a,
-            Err(_) => return false,
-        },
-        Duration::from_millis(250),
-    ) {
-        Ok(s) => s,
-        Err(_) => return false,
+    let Ok(parsed) = addr.parse() else {
+        return false;
+    };
+    let Ok(stream) = TcpStream::connect_timeout(&parsed, Duration::from_millis(250)) else {
+        return false;
     };
     _ = stream.set_write_timeout(Some(Duration::from_millis(250)));
     _ = stream.set_read_timeout(Some(Duration::from_millis(250)));

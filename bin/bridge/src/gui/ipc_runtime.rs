@@ -3,7 +3,7 @@ use crate::gui::command::{self, CommandOutcome};
 use crate::gui::emit::send_reply_payload;
 use crate::gui::ipc::IpcRequest;
 
-pub(crate) fn handle_inbound(app: &mut GuiApp, raw: &str) {
+pub(crate) fn handle_inbound(app: &GuiApp, raw: &str) {
     let req: IpcRequest = match serde_json::from_str(raw) {
         Ok(r) => r,
         Err(e) => {
@@ -14,7 +14,7 @@ pub(crate) fn handle_inbound(app: &mut GuiApp, raw: &str) {
     let id = req.id;
     let cmd = req.cmd.clone();
     tracing::debug!(id, cmd = %cmd, "ipc dispatch");
-    match command::dispatch(app, id, &req.cmd, req.args) {
+    match command::dispatch(app, id, &req.cmd, &req.args) {
         CommandOutcome::Sync(result) => {
             let payload = command::reply_for_value(result);
             send_reply_payload(app, id, &payload);

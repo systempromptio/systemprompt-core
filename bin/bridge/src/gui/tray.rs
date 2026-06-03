@@ -19,6 +19,14 @@ pub struct TrayHandles {
     pub status: TrayStatus,
 }
 
+impl std::fmt::Debug for TrayHandles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TrayHandles")
+            .field("status", &self.status)
+            .finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayStatus {
     Normal,
@@ -161,10 +169,10 @@ fn format_identity(snap: &AppStateSnapshot) -> String {
 }
 
 fn format_last_sync(snap: &AppStateSnapshot) -> String {
-    match snap.last_sync_summary.as_deref() {
-        Some(s) => format!("Last sync: {s}"),
-        None => "Last sync: never".to_string(),
-    }
+    snap.last_sync_summary.as_deref().map_or_else(
+        || "Last sync: never".to_string(),
+        |s| format!("Last sync: {s}"),
+    )
 }
 
 fn decode_icon() -> GuiResult<Icon> {

@@ -115,11 +115,11 @@ fn probe_writable(path: &std::path::Path) -> bool {
 pub fn cowork3p_sessions_root() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        return std::env::var_os("LOCALAPPDATA").map(|p| {
+        std::env::var_os("LOCALAPPDATA").map(|p| {
             PathBuf::from(p)
                 .join("Claude-3p")
                 .join("local-agent-mode-sessions")
-        });
+        })
     }
     #[cfg(target_os = "macos")]
     {

@@ -17,9 +17,8 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
         return out;
     }
 
-    let read = match managed_policy_store().read_managed_policy_keys(KEYS_OF_INTEREST) {
-        Ok(r) => r,
-        Err(_) => return out,
+    let Ok(read) = managed_policy_store().read_managed_policy_keys(KEYS_OF_INTEREST) else {
+        return out;
     };
     if read.values.is_empty() {
         return out;

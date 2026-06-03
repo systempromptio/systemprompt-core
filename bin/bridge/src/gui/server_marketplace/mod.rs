@@ -1,3 +1,5 @@
+mod hooks;
+
 use crate::config::paths;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::{LastSyncState, read_last_sync};
@@ -7,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 const README_MAX_BYTES: usize = 32 * 1024;
 
-#[derive(Serialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 enum ChangeKind {
     Installed,
@@ -15,7 +17,7 @@ enum ChangeKind {
     Removed,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 enum MarketplaceExtra {
     Plugin(PluginManifest),
@@ -24,7 +26,7 @@ enum MarketplaceExtra {
     None,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct MarketplaceItem {
     id: String,
     name: String,
@@ -37,7 +39,7 @@ struct MarketplaceItem {
     extra: MarketplaceExtra,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Debug, Serialize, Default)]
 pub struct MarketplaceDiff {
     installed: Vec<String>,
     updated: Vec<String>,
@@ -46,7 +48,7 @@ pub struct MarketplaceDiff {
     last_applied_at: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct MarketplaceListing {
     plugins: Vec<MarketplaceItem>,
     skills: Vec<MarketplaceItem>,
@@ -57,7 +59,7 @@ pub struct MarketplaceListing {
     last_sync_diff: MarketplaceDiff,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 struct PluginManifest {
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
@@ -71,7 +73,7 @@ struct PluginManifest {
     homepage: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct FrontmatterExtra {
     id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -80,7 +82,7 @@ struct FrontmatterExtra {
     description: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 struct McpServerEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     url: Option<String>,
@@ -113,16 +115,17 @@ pub fn build_listing(mcp_auth: &[McpServerAuth]) -> MarketplaceListing {
             let skills = list_skills(&synthetic.join("skills"));
             let agents = list_agents(&synthetic.join("agents"));
             let mcp = list_registry_mcp(mcp_auth);
-            let hooks = Vec::new();
+            let hooks = hooks::list_hooks(&synthetic.join("hooks"));
             (plugins, skills, hooks, mcp, agents)
         },
         None => (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
     };
 
-    let last_sync_diff = match last_sync.as_ref() {
-        Some(state) => annotate_plugins_with_diff(&mut plugins, state),
-        None => MarketplaceDiff::default(),
-    };
+    let last_sync_diff = last_sync
+        .as_ref()
+        .map_or_else(MarketplaceDiff::default, |state| {
+            annotate_plugins_with_diff(&mut plugins, state)
+        });
 
     MarketplaceListing {
         plugins,
@@ -141,7 +144,7 @@ fn annotate_plugins_with_diff(
 ) -> MarketplaceDiff {
     let installed: BTreeSet<&str> = state.installed_plugins.iter().map(String::as_str).collect();
     let updated: BTreeSet<&str> = state.updated_plugins.iter().map(String::as_str).collect();
-    let removed: BTreeSet<&str> = state.removed_plugins.iter().map(String::as_str).collect();
+    let _removed: BTreeSet<&str> = state.removed_plugins.iter().map(String::as_str).collect();
 
     for item in plugins.iter_mut() {
         if installed.contains(item.id.as_str()) {
@@ -191,7 +194,7 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             continue;
         }
         let path = entry.path();
-        if !entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+        if !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
             continue;
         }
         let manifest_path = first_existing(&[
@@ -212,10 +215,7 @@ fn list_plugins(root: &Path) -> Vec<MarketplaceItem> {
             path.join("readme.md"),
             path.join("README.txt"),
         ]);
-        let extra = match manifest {
-            Some(m) => MarketplaceExtra::Plugin(m),
-            None => MarketplaceExtra::None,
-        };
+        let extra = manifest.map_or(MarketplaceExtra::None, MarketplaceExtra::Plugin);
         out.push(MarketplaceItem {
             id: name.to_string(),
             name: display_name,
@@ -244,15 +244,14 @@ fn list_skills(dir: &Path) -> Vec<MarketplaceItem> {
         if id.starts_with('.') {
             continue;
         }
-        if !entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+        if !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
             continue;
         }
         let skill_md = entry.path().join("SKILL.md");
         let body = std::fs::read_to_string(&skill_md).ok();
         let (frontmatter_name, summary) = body
             .as_deref()
-            .map(parse_skill_frontmatter)
-            .unwrap_or((None, None));
+            .map_or((None, None), parse_skill_frontmatter);
         let extra = MarketplaceExtra::Frontmatter(FrontmatterExtra {
             id: id.to_string(),
             name: frontmatter_name.clone(),
@@ -280,7 +279,7 @@ fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
     let mut out = Vec::new();
     for entry in rd.flatten() {
         let path = entry.path();
-        if !entry.file_type().ok().map(|t| t.is_file()).unwrap_or(false) {
+        if !entry.file_type().ok().is_some_and(|t| t.is_file()) {
             continue;
         }
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
@@ -292,8 +291,7 @@ fn list_agents(dir: &Path) -> Vec<MarketplaceItem> {
         let body = std::fs::read_to_string(&path).ok();
         let (frontmatter_name, summary) = body
             .as_deref()
-            .map(parse_skill_frontmatter)
-            .unwrap_or((None, None));
+            .map_or((None, None), parse_skill_frontmatter);
         let extra = MarketplaceExtra::Frontmatter(FrontmatterExtra {
             id: stem.to_string(),
             name: frontmatter_name.clone(),

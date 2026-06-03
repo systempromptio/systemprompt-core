@@ -11,10 +11,9 @@ pub fn snapshot_value(snap: &AppStateSnapshot) -> Value {
 }
 
 pub fn identity_value(snap: &AppStateSnapshot) -> Value {
-    snap.verified_identity
-        .as_ref()
-        .map(|v| serde_json::to_value(VerifiedIdentityPayload::from(v)).unwrap_or(Value::Null))
-        .unwrap_or(Value::Null)
+    snap.verified_identity.as_ref().map_or(Value::Null, |v| {
+        serde_json::to_value(VerifiedIdentityPayload::from(v)).unwrap_or(Value::Null)
+    })
 }
 
 pub fn single_host_value(snap: &AppStateSnapshot, host_id: &str) -> Value {
@@ -38,6 +37,10 @@ pub fn proxy_stats_value() -> Value {
 }
 
 #[derive(Serialize)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "flat snapshot payload mirrored to the frontend"
+)]
 struct StatePayload<'a> {
     gateway_url: &'a str,
     config_file: &'a str,

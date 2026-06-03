@@ -2,12 +2,12 @@
 
 // Best-effort: errors return up but caller logs and ignores. Never abort
 // the calling sync flow on registry write failure.
-pub fn refresh_managed_mcp_servers() -> Result<String, String> {
+pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
     let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
     write_managed_mcp_servers_value(&value)
 }
 
-pub fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
+pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
     // `managedMcpServers` embeds the rotating loopback secret, so it is per-user
     // *runtime* state (exactly like `inferenceGatewayApiKey`, which the GUI also
     // writes to HKCU), NOT stable machine policy. Always own it in HKCU — the
@@ -68,8 +68,7 @@ pub(super) fn remove_policy() -> Result<bool, String> {
             "/f",
         ])
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
+        .is_ok_and(|s| s.success());
     Ok(hkcu || hklm)
 }
 

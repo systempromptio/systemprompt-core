@@ -8,6 +8,7 @@ use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::CancelScope;
 use crate::gui::{GuiApp, server_json};
 
+#[derive(Debug)]
 pub enum CommandOutcome {
     Sync(Result<Value, BridgeError>),
     Async,
@@ -53,9 +54,9 @@ fn is_safe_external_url(url: &str) -> bool {
     url.starts_with("https://")
 }
 
-pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> CommandOutcome {
+pub(crate) fn dispatch(app: &GuiApp, id: u64, cmd: &str, args: &Value) -> CommandOutcome {
     let reply_id: ReplyId = Some(id);
-    if let Some(out) = meta_dispatch(app, cmd, &args, reply_id) {
+    if let Some(out) = meta_dispatch(app, cmd, args, reply_id) {
         return out;
     }
     if let Some(out) = gateway_dispatch(app, cmd, args.clone(), reply_id) {
@@ -84,7 +85,7 @@ pub(crate) fn dispatch(app: &mut GuiApp, id: u64, cmd: &str, args: Value) -> Com
 }
 
 fn meta_dispatch(
-    app: &mut GuiApp,
+    app: &GuiApp,
     cmd: &str,
     args: &Value,
     _reply_id: ReplyId,
@@ -112,7 +113,7 @@ fn meta_dispatch(
 }
 
 fn gateway_dispatch(
-    app: &mut GuiApp,
+    app: &GuiApp,
     cmd: &str,
     args: Value,
     reply_id: ReplyId,
@@ -149,7 +150,7 @@ fn gateway_dispatch(
 }
 
 fn auth_dispatch(
-    app: &mut GuiApp,
+    app: &GuiApp,
     cmd: &str,
     args: Value,
     reply_id: ReplyId,
@@ -185,7 +186,7 @@ fn auth_dispatch(
 }
 
 fn sync_dispatch(
-    app: &mut GuiApp,
+    app: &GuiApp,
     cmd: &str,
     args: Value,
     reply_id: ReplyId,
@@ -220,7 +221,7 @@ fn sync_dispatch(
 }
 
 fn host_dispatch(
-    app: &mut GuiApp,
+    app: &GuiApp,
     cmd: &str,
     args: Value,
     reply_id: ReplyId,
@@ -241,7 +242,7 @@ fn host_dispatch(
 }
 
 fn agent_dispatch(
-    app: &mut GuiApp,
+    app: &GuiApp,
     cmd: &str,
     args: Value,
     reply_id: ReplyId,
@@ -290,7 +291,7 @@ fn agent_dispatch(
     })
 }
 
-fn diagnostics_dispatch(app: &mut GuiApp, cmd: &str, reply_id: ReplyId) -> Option<CommandOutcome> {
+fn diagnostics_dispatch(app: &GuiApp, cmd: &str, reply_id: ReplyId) -> Option<CommandOutcome> {
     Some(match cmd {
         "diagnostics.openLogDirectory" | "openLogFolder" => {
             send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
@@ -344,7 +345,7 @@ fn open_external_url(args: Value) -> CommandOutcome {
     }
 }
 
-fn host_probe(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
+fn host_probe(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostIdArgs>(args) {
         Ok(a) => {
             send(
@@ -361,7 +362,7 @@ fn host_probe(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcom
     }
 }
 
-fn host_profile_generate(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
+fn host_profile_generate(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostIdArgs>(args) {
         Ok(a) => {
             send(
@@ -377,7 +378,7 @@ fn host_profile_generate(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> Co
     }
 }
 
-fn host_profile_install(app: &mut GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
+fn host_profile_install(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostInstallArgs>(args) {
         Ok(a) => {
             send(

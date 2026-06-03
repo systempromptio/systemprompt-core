@@ -7,17 +7,9 @@ use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::{GuiApp, emit, window};
 use crate::integration::find_host_by_id;
 
-pub(crate) fn on_uninstall(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
-    let result = match find_host_by_id(host_id) {
-        Some(host) => {
-            app.append_log(format!(
-                "uninstall requested for {} (not yet implemented; remove systemprompt-bridge keys \
-                 manually)",
-                host.display_name()
-            ));
-            Ok(json!({ "queued": true }))
-        },
-        None => {
+pub(crate) fn on_uninstall(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
+    let result = find_host_by_id(host_id).map_or_else(
+        || {
             app.append_log(format!("uninstall: unknown host {host_id}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
@@ -25,31 +17,21 @@ pub(crate) fn on_uninstall(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
                 format!("unknown host: {host_id}"),
             ))
         },
-    };
+        |host| {
+            app.append_log(format!(
+                "uninstall requested for {} (not yet implemented; remove systemprompt-bridge keys \
+                 manually)",
+                host.display_name()
+            ));
+            Ok(json!({ "queued": true }))
+        },
+    );
     finish(app, result, reply_to);
 }
 
-pub(crate) fn on_open_config(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
-    let result = match find_host_by_id(host_id) {
-        Some(host) => {
-            let snapshot = host.probe();
-            if let Some(path) = snapshot.profile_source.as_ref() {
-                window::open_path(Path::new(path));
-                app.append_log(format!(
-                    "opened config for {} at {path}",
-                    host.display_name()
-                ));
-                Ok(json!({ "path": path }))
-            } else {
-                let msg = format!(
-                    "open-config: no resolved config path for {}",
-                    host.display_name()
-                );
-                app.append_log(&msg);
-                Err(BridgeError::new(ErrorScope::Host, ErrorCode::NotFound, msg))
-            }
-        },
-        None => {
+pub(crate) fn on_open_config(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
+    let result = find_host_by_id(host_id).map_or_else(
+        || {
             app.append_log(format!("open-config: unknown host {host_id}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
@@ -57,13 +39,42 @@ pub(crate) fn on_open_config(app: &mut GuiApp, host_id: &str, reply_to: ReplyId)
                 format!("unknown host: {host_id}"),
             ))
         },
-    };
+        |host| {
+            let snapshot = host.probe();
+            snapshot.profile_source.as_ref().map_or_else(
+                || {
+                    let msg = format!(
+                        "open-config: no resolved config path for {}",
+                        host.display_name()
+                    );
+                    app.append_log(&msg);
+                    Err(BridgeError::new(ErrorScope::Host, ErrorCode::NotFound, msg))
+                },
+                |path| {
+                    window::open_path(Path::new(path));
+                    app.append_log(format!(
+                        "opened config for {} at {path}",
+                        host.display_name()
+                    ));
+                    Ok(json!({ "path": path }))
+                },
+            )
+        },
+    );
     finish(app, result, reply_to);
 }
 
-pub(crate) fn on_open(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
-    let result = match find_host_by_id(host_id) {
-        Some(host) => match host.open() {
+pub(crate) fn on_open(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
+    let result = find_host_by_id(host_id).map_or_else(
+        || {
+            app.append_log(format!("open: unknown host {host_id}"));
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::NotFound,
+                format!("unknown host: {host_id}"),
+            ))
+        },
+        |host| match host.open() {
             Ok(()) => {
                 app.append_log(format!("opened host {}", host.display_name()));
                 Ok(json!({}))
@@ -74,15 +85,7 @@ pub(crate) fn on_open(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
                 Err(BridgeError::new(ErrorScope::Host, ErrorCode::Internal, msg))
             },
         },
-        None => {
-            app.append_log(format!("open: unknown host {host_id}"));
-            Err(BridgeError::new(
-                ErrorScope::Host,
-                ErrorCode::NotFound,
-                format!("unknown host: {host_id}"),
-            ))
-        },
-    };
+    );
     finish(app, result, reply_to);
 }
 

@@ -50,8 +50,8 @@ mod windows {
         }
         let mut out = Vec::new();
         let mut entry = unsafe { std::mem::zeroed::<PROCESSENTRY32W>() };
-        entry.dwSize = u32::try_from(std::mem::size_of::<PROCESSENTRY32W>()).unwrap_or(0);
-        if unsafe { Process32FirstW(snap, &mut entry) } != 0 {
+        entry.dwSize = u32::try_from(size_of::<PROCESSENTRY32W>()).unwrap_or(0);
+        if unsafe { Process32FirstW(snap, &raw mut entry) } != 0 {
             loop {
                 let exe_field = &entry.szExeFile;
                 let len = exe_field
@@ -60,7 +60,7 @@ mod windows {
                     .unwrap_or(exe_field.len());
                 let name = String::from_utf16_lossy(&exe_field[..len]);
                 out.push(ProcInfo { name, path: None });
-                if unsafe { Process32NextW(snap, &mut entry) } == 0 {
+                if unsafe { Process32NextW(snap, &raw mut entry) } == 0 {
                     break;
                 }
             }

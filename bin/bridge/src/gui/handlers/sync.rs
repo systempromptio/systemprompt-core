@@ -6,7 +6,7 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::CancelScope;
-use crate::gui::{GuiApp, emit, ipc_runtime};
+use crate::gui::{GuiApp, emit};
 use crate::{config, i18n, sync};
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -31,7 +31,7 @@ pub(crate) fn on_sync_requested(app: &mut GuiApp, reply_to: ReplyId) {
     app.runtime.spawn(async move {
         let allow_tofu = config::pinned_pubkey().is_none();
         let result = tokio::select! {
-            _ = token.cancelled() => {
+            () = token.cancelled() => {
                 Err(Arc::new(GuiError::Io(std::io::Error::other("sync cancelled"))))
             }
             outcome = sync::run_once(false, false, allow_tofu) => {
@@ -49,7 +49,7 @@ pub(crate) fn on_sync_started(app: &mut GuiApp) {
 
 pub(crate) fn on_sync_finished(
     app: &mut GuiApp,
-    result: Result<crate::sync::SyncSummary, Arc<GuiError>>,
+    result: Result<sync::SyncSummary, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
     app.state.set_sync_in_flight(false);
@@ -78,15 +78,14 @@ pub(crate) fn on_sync_finished(
                     ErrorScope::Marketplace,
                     ErrorCode::Conflict,
                 )
-            } else if matches!(sync_err, Some(crate::sync::SyncError::NoCredential)) {
+            } else if matches!(sync_err, Some(sync::SyncError::NoCredential)) {
                 (
                     "failed",
                     i18n::t("sync-no-credentials"),
                     ErrorScope::Marketplace,
                     ErrorCode::Unauthorized,
                 )
-            } else if let Some(crate::sync::SyncError::GatewayUnauthorized { endpoint, status }) =
-                sync_err
+            } else if let Some(sync::SyncError::GatewayUnauthorized { endpoint, status }) = sync_err
             {
                 let status_s = status.to_string();
                 (

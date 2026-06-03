@@ -10,7 +10,7 @@ pub(super) fn count_plugin_dirs(root: &Path) -> Option<usize> {
         if name.starts_with('.') {
             continue;
         }
-        if entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+        if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
             n += 1;
         }
     }
@@ -25,7 +25,7 @@ pub(super) fn count_malformed_plugin_dirs(root: &Path) -> Option<usize> {
         if name.starts_with('.') {
             continue;
         }
-        if !entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+        if !entry.file_type().ok().is_some_and(|t| t.is_dir()) {
             continue;
         }
         let path = entry.path();
@@ -47,7 +47,7 @@ pub(super) fn count_dir_children(dir: &Path) -> Option<usize> {
         if name.starts_with('.') {
             continue;
         }
-        if entry.file_type().ok().map(|t| t.is_dir()).unwrap_or(false) {
+        if entry.file_type().ok().is_some_and(|t| t.is_dir()) {
             n += 1;
         }
     }
@@ -58,7 +58,7 @@ pub(super) fn count_md_files(dir: &Path) -> Option<usize> {
     let mut n = 0usize;
     for entry in std::fs::read_dir(dir).ok()?.flatten() {
         let path = entry.path();
-        if !entry.file_type().ok().map(|t| t.is_file()).unwrap_or(false) {
+        if !entry.file_type().ok().is_some_and(|t| t.is_file()) {
             continue;
         }
         if path.extension().and_then(|e| e.to_str()) == Some("md") {

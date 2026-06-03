@@ -203,20 +203,21 @@ pub const PLATFORM_DISPLAY: &str = if cfg!(target_os = "macos") {
     "Linux"
 };
 
+#[derive(Debug)]
 pub struct Asset {
     pub content_type: &'static str,
     pub body: Cow<'static, [u8]>,
 }
 
 impl Asset {
-    fn text(content_type: &'static str, body: String) -> Self {
+    const fn text(content_type: &'static str, body: String) -> Self {
         Self {
             content_type,
             body: Cow::Owned(body.into_bytes()),
         }
     }
 
-    fn raw(content_type: &'static str, body: &'static [u8]) -> Self {
+    const fn raw(content_type: &'static str, body: &'static [u8]) -> Self {
         Self {
             content_type,
             body: Cow::Borrowed(body),

@@ -1,6 +1,6 @@
 mod error;
 mod hooks;
-mod hooks_schema;
+pub(crate) mod hooks_schema;
 mod plugin;
 pub(super) mod synthetic_plugin;
 

@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::process::Command;
 
-pub(super) fn chown_to_sudo_user_if_root(_path: &Path) {}
+pub(super) const fn chown_to_sudo_user_if_root(_path: &Path) {}
 
 // Cowork reads org-plugins from `C:\Program Files\Claude\org-plugins`. Windows
 // gives `Program Files` an admin-write-only ACL by convention — fine for

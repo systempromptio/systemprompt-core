@@ -11,7 +11,7 @@ fn event_kind(event: &UiEvent) -> &'static str {
         .unwrap_or("Unknown")
 }
 
-fn request_kind(event: &UiEvent) -> Option<&'static str> {
+const fn request_kind(event: &UiEvent) -> Option<&'static str> {
     Some(match event {
         UiEvent::OpenSettings => "OpenSettings",
         UiEvent::SyncRequested { .. } => "SyncRequested",
@@ -29,7 +29,7 @@ fn request_kind(event: &UiEvent) -> Option<&'static str> {
     })
 }
 
-fn finish_kind(event: &UiEvent) -> Option<&'static str> {
+const fn finish_kind(event: &UiEvent) -> Option<&'static str> {
     Some(match event {
         UiEvent::SyncStarted => "SyncStarted",
         UiEvent::SyncFinished { .. } => "SyncFinished",
@@ -44,7 +44,7 @@ fn finish_kind(event: &UiEvent) -> Option<&'static str> {
     })
 }
 
-fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
+const fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
     Some(match event {
         UiEvent::Quit => "Quit",
         UiEvent::StateRefreshed => "StateRefreshed",
@@ -59,7 +59,7 @@ fn lifecycle_kind(event: &UiEvent) -> Option<&'static str> {
     })
 }
 
-fn ipc_kind(event: &UiEvent) -> Option<&'static str> {
+const fn ipc_kind(event: &UiEvent) -> Option<&'static str> {
     Some(match event {
         UiEvent::IpcInbound(_) => "IpcInbound",
         UiEvent::IpcEmit { .. } => "IpcEmit",
@@ -82,19 +82,19 @@ pub(crate) fn dispatch(app: &mut GuiApp, event_loop: &ActiveEventLoop, event: Ui
     tracing::trace!(?event, "ui dispatch");
     let event = match dispatch_window(app, event_loop, event) {
         Ok(()) => return,
-        Err(e) => e,
+        Err(e) => *e,
     };
     let event = match dispatch_request(app, event) {
         Ok(()) => return,
-        Err(e) => e,
+        Err(e) => *e,
     };
     let event = match dispatch_finished(app, event) {
         Ok(()) => return,
-        Err(e) => e,
+        Err(e) => *e,
     };
     let event = match dispatch_lifecycle(app, event) {
         Ok(()) => return,
-        Err(e) => e,
+        Err(e) => *e,
     };
     dispatch_ipc(app, event);
 }
@@ -103,7 +103,7 @@ fn dispatch_window(
     app: &mut GuiApp,
     event_loop: &ActiveEventLoop,
     event: UiEvent,
-) -> Result<(), UiEvent> {
+) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::OpenSettings => handlers::settings::on_open_settings(app, event_loop),
         UiEvent::OpenConfigFolder => handlers::settings::on_open_config_folder(app),
@@ -114,22 +114,22 @@ fn dispatch_window(
                 handlers::settings::on_open_settings(app, event_loop);
             }
         },
-        other => return Err(other),
+        other => return Err(Box::new(other)),
     }
     Ok(())
 }
 
-fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
+fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::SyncRequested { reply_to } => handlers::sync::on_sync_requested(app, reply_to),
         UiEvent::ValidateRequested { reply_to } => {
-            handlers::validate::on_validate_requested(app, reply_to)
+            handlers::validate::on_validate_requested(app, reply_to);
         },
         UiEvent::OpenLogDirectory { reply_to } => {
-            handlers::diagnostics::on_open_log_directory(app, reply_to)
+            handlers::diagnostics::on_open_log_directory(app, reply_to);
         },
         UiEvent::ExportDiagnosticBundle { reply_to } => {
-            handlers::diagnostics::on_export_diagnostic_bundle(app, reply_to)
+            handlers::diagnostics::on_export_diagnostic_bundle(app, reply_to);
         },
         UiEvent::LoginRequested {
             token,
@@ -138,84 +138,84 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
         } => handlers::auth::on_login_requested(app, &token, gateway, reply_to),
         UiEvent::LogoutRequested { reply_to } => handlers::auth::on_logout_requested(app, reply_to),
         UiEvent::SetGatewayRequested { url, reply_to } => {
-            handlers::auth::on_set_gateway_requested(app, &url, reply_to)
+            handlers::auth::on_set_gateway_requested(app, &url, reply_to);
         },
         UiEvent::GatewayProbeRequested { reply_to } => {
-            handlers::gateway_probe::on_gateway_probe_requested(app, reply_to)
+            handlers::gateway_probe::on_gateway_probe_requested(app, reply_to);
         },
         UiEvent::McpAuthProbeRequested { reply_to } => {
-            handlers::mcp_auth_probe::on_mcp_auth_probe_requested(app, reply_to)
+            handlers::mcp_auth_probe::on_mcp_auth_probe_requested(app, reply_to);
         },
         UiEvent::ProfileFetchRequested { reply_to } => {
-            handlers::profile::on_profile_fetch_requested(app, reply_to)
+            handlers::profile::on_profile_fetch_requested(app, reply_to);
         },
-        other => return Err(other),
+        other => return Err(Box::new(other)),
     }
     Ok(())
 }
 
-fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
+fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::SyncFinished { result, reply_to } => {
-            handlers::sync::on_sync_finished(app, result, reply_to)
+            handlers::sync::on_sync_finished(app, result, reply_to);
         },
         UiEvent::ValidateFinished { report, reply_to } => {
-            handlers::validate::on_validate_finished(app, report, reply_to)
+            handlers::validate::on_validate_finished(app, report, reply_to);
         },
         UiEvent::LoginFinished { result, reply_to } => {
-            handlers::auth::on_login_finished(app, result, reply_to)
+            handlers::auth::on_login_finished(app, result, reply_to);
         },
         UiEvent::LogoutFinished { result, reply_to } => {
-            handlers::auth::on_logout_finished(app, result, reply_to)
+            handlers::auth::on_logout_finished(app, result, reply_to);
         },
         UiEvent::SetGatewayFinished { result, reply_to } => {
-            handlers::auth::on_set_gateway_finished(app, result, reply_to)
+            handlers::auth::on_set_gateway_finished(app, result, reply_to);
         },
         UiEvent::GatewayProbeFinished { outcome, reply_to } => {
-            handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to)
+            handlers::gateway_probe::on_gateway_probe_finished(app, outcome, reply_to);
         },
         UiEvent::McpAuthProbeFinished { results, reply_to } => {
-            handlers::mcp_auth_probe::on_mcp_auth_probe_finished(app, results, reply_to)
+            handlers::mcp_auth_probe::on_mcp_auth_probe_finished(app, results, reply_to);
         },
         UiEvent::ProfileFetchFinished { result, reply_to } => {
-            handlers::profile::on_profile_fetch_finished(app, result, reply_to)
+            handlers::profile::on_profile_fetch_finished(app, result, reply_to);
         },
-        other => return Err(other),
+        other => return Err(Box::new(other)),
     }
     Ok(())
 }
 
-fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), UiEvent> {
+fn dispatch_lifecycle(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>> {
     match event {
         UiEvent::Quit => handlers::quit::on_quit(),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
         UiEvent::AgentUninstall { host_id, reply_to } => {
-            handlers::agents::on_uninstall(app, &host_id, reply_to)
+            handlers::agents::on_uninstall(app, &host_id, reply_to);
         },
         UiEvent::AgentOpenConfig { host_id, reply_to } => {
-            handlers::agents::on_open_config(app, &host_id, reply_to)
+            handlers::agents::on_open_config(app, &host_id, reply_to);
         },
         UiEvent::AgentOpen { host_id, reply_to } => {
-            handlers::agents::on_open(app, &host_id, reply_to)
+            handlers::agents::on_open(app, &host_id, reply_to);
         },
         UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
         UiEvent::Host(e) => crate::gui::hosts::dispatch::handle(app, e),
         UiEvent::ProxyStatsTick => crate::gui::emit::emit_proxy_stats(app),
-        other => return Err(other),
+        other => return Err(Box::new(other)),
     }
     Ok(())
 }
 
-fn dispatch_ipc(app: &mut GuiApp, event: UiEvent) {
+fn dispatch_ipc(app: &GuiApp, event: UiEvent) {
     match event {
         UiEvent::IpcInbound(raw) => crate::gui::ipc_runtime::handle_inbound(app, &raw),
         UiEvent::IpcEmit { channel, payload } => {
-            crate::gui::emit::send_emit(app, channel, &payload)
+            crate::gui::emit::send_emit(app, channel, &payload);
         },
         UiEvent::IpcReply { id, payload, ok } => crate::gui::emit::send_reply(app, id, payload, ok),
         UiEvent::CancelInFlight { scope, reply_to } => {
-            handlers::cancel::on_cancel_in_flight(app, scope, reply_to)
+            handlers::cancel::on_cancel_in_flight(app, scope, reply_to);
         },
         _ => unreachable!("event should have been handled by an earlier dispatcher"),
     }

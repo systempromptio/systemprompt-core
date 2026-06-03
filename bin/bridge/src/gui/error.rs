@@ -49,4 +49,4 @@ pub enum WindowError {
     Wry(#[from] wry::Error),
 }
 
-pub type GuiResult<T> = std::result::Result<T, GuiError>;
+pub type GuiResult<T> = Result<T, GuiError>;

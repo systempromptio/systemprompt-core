@@ -72,6 +72,10 @@ pub struct GatewayProbeOutcome {
 }
 
 #[derive(Debug, Clone, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "flat UI snapshot mirrored field-for-field to the frontend"
+)]
 pub struct AppStateSnapshot {
     pub gateway_url: String,
     pub config_file: String,
@@ -112,7 +116,7 @@ impl AppStateSnapshot {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CachedToken {
     pub ttl_seconds: u64,
     pub length: usize,
@@ -125,13 +129,14 @@ pub enum CancelScope {
     GatewayProbe,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct CancelTokens {
     sync: Option<CancellationToken>,
     login: Option<CancellationToken>,
     gateway_probe: Option<CancellationToken>,
 }
 
+#[derive(Debug)]
 pub struct AppState {
     inner: RwLock<AppStateSnapshot>,
     cancels: RwLock<CancelTokens>,
@@ -149,13 +154,17 @@ impl AppState {
 
     pub fn install_cancel(&self, scope: CancelScope) -> CancellationToken {
         let token = CancellationToken::new();
-        let mut guard = self.cancels.write();
-        let slot = match scope {
-            CancelScope::Sync => &mut guard.sync,
-            CancelScope::Login => &mut guard.login,
-            CancelScope::GatewayProbe => &mut guard.gateway_probe,
+        let prev = {
+            let mut guard = self.cancels.write();
+            let prev = match scope {
+                CancelScope::Sync => guard.sync.replace(token.clone()),
+                CancelScope::Login => guard.login.replace(token.clone()),
+                CancelScope::GatewayProbe => guard.gateway_probe.replace(token.clone()),
+            };
+            drop(guard);
+            prev
         };
-        if let Some(prev) = slot.replace(token.clone()) {
+        if let Some(prev) = prev {
             prev.cancel();
         }
         token
@@ -163,27 +172,27 @@ impl AppState {
 
     pub fn clear_cancel(&self, scope: CancelScope) {
         let mut guard = self.cancels.write();
-        let slot = match scope {
-            CancelScope::Sync => &mut guard.sync,
-            CancelScope::Login => &mut guard.login,
-            CancelScope::GatewayProbe => &mut guard.gateway_probe,
-        };
-        *slot = None;
+        match scope {
+            CancelScope::Sync => guard.sync = None,
+            CancelScope::Login => guard.login = None,
+            CancelScope::GatewayProbe => guard.gateway_probe = None,
+        }
+        drop(guard);
     }
 
     pub fn cancel_scope(&self, scope: CancelScope) -> bool {
-        let mut guard = self.cancels.write();
-        let slot = match scope {
-            CancelScope::Sync => &mut guard.sync,
-            CancelScope::Login => &mut guard.login,
-            CancelScope::GatewayProbe => &mut guard.gateway_probe,
+        let taken = {
+            let mut guard = self.cancels.write();
+            match scope {
+                CancelScope::Sync => guard.sync.take(),
+                CancelScope::Login => guard.login.take(),
+                CancelScope::GatewayProbe => guard.gateway_probe.take(),
+            }
         };
-        if let Some(token) = slot.take() {
+        taken.is_some_and(|token| {
             token.cancel();
             true
-        } else {
-            false
-        }
+        })
     }
 
     pub fn cancel_all(&self) {
@@ -242,6 +251,7 @@ impl AppState {
         let entry = guard.hosts.entry(host_id);
         entry.snapshot = Some(snap);
         entry.probe_in_flight = false;
+        drop(guard);
     }
 
 
@@ -252,6 +262,7 @@ impl AppState {
             return false;
         }
         entry.probe_in_flight = true;
+        drop(guard);
         true
     }
 

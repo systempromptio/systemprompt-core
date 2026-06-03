@@ -5,6 +5,7 @@
 ### Added
 
 - The Status tab shows each host's compatible models and warns when no usable model is available — for example when the host's matching provider has no API key configured — instead of reporting the host as healthy. The compatible-model set and provider health come from the gateway's `/v1/bridge/profile` response.
+- The marketplace listing includes hooks synced from plugins (`hooks/hooks.json`): the managed govern/track entries collapse into a single summary row while user-defined command hooks are listed individually.
 
 ### Changed
 

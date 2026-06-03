@@ -146,13 +146,12 @@ fn start_menu_present(display_name: &str) -> bool {
         "if (Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }}) {{ exit 0 }} else {{ exit 2 }}",
         name = ps_single_quote(display_name),
     );
-    let mut child = match Command::new("powershell")
+    let Ok(mut child) = Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
-    {
-        Ok(c) => c,
-        Err(_) => return false,
+    else {
+        return false;
     };
     let deadline = Instant::now() + PROBE_TIMEOUT;
     loop {
@@ -160,8 +159,10 @@ fn start_menu_present(display_name: &str) -> bool {
             Ok(Some(status)) => return status.success(),
             Ok(None) => {
                 if Instant::now() >= deadline {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    // Best-effort cleanup of the timed-out probe; nothing to act
+                    // on if kill/reap fails since we already return false.
+                    drop(child.kill());
+                    drop(child.wait());
                     return false;
                 }
                 std::thread::sleep(Duration::from_millis(50));

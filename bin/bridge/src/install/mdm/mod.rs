@@ -19,7 +19,7 @@ pub(crate) const fn os_label(os: Os) -> &'static str {
 pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        return windows::refresh_managed_mcp_servers();
+        windows::refresh_managed_mcp_servers()
     }
     #[cfg(not(target_os = "windows"))]
     {

@@ -12,13 +12,9 @@ pub(crate) fn maybe_probe(app: &GuiApp) {
             if state.probe_in_flight {
                 continue;
             }
-            let due = state
-                .snapshot
-                .as_ref()
-                .map(|s| {
-                    now_unix().saturating_sub(s.probed_at_unix) >= super::super::PROBE_INTERVAL_SECS
-                })
-                .unwrap_or(true);
+            let due = state.snapshot.as_ref().is_none_or(|s| {
+                now_unix().saturating_sub(s.probed_at_unix) >= super::super::PROBE_INTERVAL_SECS
+            });
             if !due {
                 continue;
             }

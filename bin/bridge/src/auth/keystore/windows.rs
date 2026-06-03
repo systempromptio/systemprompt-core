@@ -10,12 +10,12 @@ use windows_sys::Win32::Security::Cryptography::{
     CertOpenSystemStoreW, HCERTSTORE,
 };
 
-pub struct WindowsKeystore {
+pub(super) struct WindowsKeystore {
     match_fingerprint: Option<String>,
 }
 
 impl WindowsKeystore {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             match_fingerprint: env::var("SP_BRIDGE_DEVICE_CERT_SHA256").ok(),
         }
@@ -82,10 +82,10 @@ impl DeviceCertSource for WindowsKeystore {
         }
 
         Err(KeystoreError::NotFound(
-            match self.match_fingerprint.as_deref() {
-                Some(fp) => format!("no certificate in MY store matched SHA-256 {fp}"),
-                None => "MY certificate store is empty".to_string(),
-            },
+            self.match_fingerprint.as_deref().map_or_else(
+                || "MY certificate store is empty".to_string(),
+                |fp| format!("no certificate in MY store matched SHA-256 {fp}"),
+            ),
         ))
     }
 }

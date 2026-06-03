@@ -22,12 +22,12 @@ impl AppStateSnapshotBuilder {
         self
     }
 
-    pub fn with_config_present(mut self, value: bool) -> Self {
+    pub const fn with_config_present(mut self, value: bool) -> Self {
         self.snap.config_present = value;
         self
     }
 
-    pub fn with_pat_present(mut self, value: bool) -> Self {
+    pub const fn with_pat_present(mut self, value: bool) -> Self {
         self.snap.pat_present = value;
         self
     }
@@ -37,12 +37,12 @@ impl AppStateSnapshotBuilder {
         self
     }
 
-    pub fn with_skill_count(mut self, value: Option<usize>) -> Self {
+    pub const fn with_skill_count(mut self, value: Option<usize>) -> Self {
         self.snap.skill_count = value;
         self
     }
 
-    pub fn with_agent_count(mut self, value: Option<usize>) -> Self {
+    pub const fn with_agent_count(mut self, value: Option<usize>) -> Self {
         self.snap.agent_count = value;
         self
     }
@@ -52,7 +52,7 @@ impl AppStateSnapshotBuilder {
         self
     }
 
-    pub fn with_sync_in_flight(mut self, value: bool) -> Self {
+    pub const fn with_sync_in_flight(mut self, value: bool) -> Self {
         self.snap.sync_in_flight = value;
         self
     }
@@ -62,17 +62,17 @@ impl AppStateSnapshotBuilder {
         self
     }
 
-    pub fn with_cached_token(mut self, value: Option<CachedToken>) -> Self {
+    pub const fn with_cached_token(mut self, value: Option<CachedToken>) -> Self {
         self.snap.cached_token = value;
         self
     }
 
-    pub fn with_plugin_count(mut self, value: Option<usize>) -> Self {
+    pub const fn with_plugin_count(mut self, value: Option<usize>) -> Self {
         self.snap.plugin_count = value;
         self
     }
 
-    pub fn with_malformed_plugin_count(mut self, value: Option<usize>) -> Self {
+    pub const fn with_malformed_plugin_count(mut self, value: Option<usize>) -> Self {
         self.snap.malformed_plugin_count = value;
         self
     }
@@ -87,7 +87,7 @@ impl AppStateSnapshotBuilder {
         self
     }
 
-    pub fn with_last_probe_at_unix(mut self, value: Option<u64>) -> Self {
+    pub const fn with_last_probe_at_unix(mut self, value: Option<u64>) -> Self {
         self.snap.last_probe_at_unix = value;
         self
     }

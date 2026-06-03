@@ -97,7 +97,7 @@ fn open_policy_key(hive: HKEY) -> Result<Option<OwnedKey>, ConfigStoreError> {
             subkey.as_ptr(),
             0,
             KEY_READ | KEY_WOW64_64KEY,
-            &mut handle,
+            &raw mut handle,
         )
     };
     if status == ERROR_SUCCESS {
@@ -120,9 +120,9 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
             key,
             name_w.as_ptr(),
             std::ptr::null_mut(),
-            &mut value_type,
+            &raw mut value_type,
             std::ptr::null_mut(),
-            &mut byte_len,
+            &raw mut byte_len,
         )
     };
     if probe == ERROR_FILE_NOT_FOUND {
@@ -147,9 +147,9 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
             key,
             name_w.as_ptr(),
             std::ptr::null_mut(),
-            &mut value_type,
+            &raw mut value_type,
             buffer.as_mut_ptr().cast::<u8>(),
-            &mut final_len,
+            &raw mut final_len,
         )
     };
     if status != ERROR_SUCCESS {
@@ -159,10 +159,10 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
     }
     let final_wide = (final_len as usize).div_ceil(2);
     let slice = &buffer[..final_wide.min(buffer.len())];
-    let trimmed = match slice.iter().position(|c| *c == 0) {
-        Some(end) => &slice[..end],
-        None => slice,
-    };
+    let trimmed = slice
+        .iter()
+        .position(|c| *c == 0)
+        .map_or(slice, |end| &slice[..end]);
     Ok(Some(String::from_utf16_lossy(trimmed)))
 }
 
@@ -208,7 +208,7 @@ fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigSto
             REG_OPTION_NON_VOLATILE,
             KEY_WRITE | KEY_WOW64_64KEY,
             std::ptr::null(),
-            &mut handle,
+            &raw mut handle,
             std::ptr::null_mut(),
         )
     };
@@ -240,7 +240,7 @@ fn set_string_value(
 ) -> Result<(), ConfigStoreError> {
     let name_w: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let data_w: Vec<u16> = value.encode_utf16().chain(std::iter::once(0)).collect();
-    let byte_len = u32::try_from(std::mem::size_of_val(data_w.as_slice())).map_err(|_| {
+    let byte_len = u32::try_from(size_of_val(data_w.as_slice())).map_err(|_| {
         ConfigStoreError::Backend(format!("value for {name} exceeds the registry size limit"))
     })?;
     let status = unsafe {

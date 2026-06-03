@@ -12,7 +12,15 @@ pub struct MenuBarHandles {
     pub menu: Menu,
 }
 
-pub fn install(bindings: &mut HashMap<MenuId, UiEvent>) -> GuiResult<MenuBarHandles> {
+impl std::fmt::Debug for MenuBarHandles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MenuBarHandles").finish_non_exhaustive()
+    }
+}
+
+pub fn install<S: std::hash::BuildHasher>(
+    bindings: &mut HashMap<MenuId, UiEvent, S>,
+) -> GuiResult<MenuBarHandles> {
     let menu = Menu::new();
 
     #[cfg(target_os = "macos")]
@@ -74,7 +82,7 @@ pub fn install(bindings: &mut HashMap<MenuId, UiEvent>) -> GuiResult<MenuBarHand
 }
 
 #[cfg(target_os = "windows")]
-#[allow(
+#[expect(
     unsafe_code,
     reason = "raw window handle is required to attach Win32 menu bar to the GUI HWND"
 )]

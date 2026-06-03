@@ -2,11 +2,11 @@ use serde_json::json;
 
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::IpcReplyPayload;
-use crate::gui::{GuiApp, emit, ipc_runtime};
+use crate::gui::{GuiApp, emit};
 use crate::{i18n, validate};
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_validate_requested(app: &mut GuiApp, reply_to: ReplyId) {
+pub(crate) fn on_validate_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("validate-running"));
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {

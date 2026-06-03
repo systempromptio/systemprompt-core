@@ -18,7 +18,7 @@ use crate::gui::state::AppStateSnapshot;
 use crate::gui::{GuiApp, emit};
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_profile_fetch_requested(app: &mut GuiApp, reply_to: ReplyId) {
+pub(crate) fn on_profile_fetch_requested(app: &GuiApp, reply_to: ReplyId) {
     let snapshot = app.state.snapshot();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
@@ -30,7 +30,7 @@ pub(crate) fn on_profile_fetch_requested(app: &mut GuiApp, reply_to: ReplyId) {
 }
 
 pub(crate) fn on_profile_fetch_finished(
-    app: &mut GuiApp,
+    app: &GuiApp,
     result: Result<Value, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {

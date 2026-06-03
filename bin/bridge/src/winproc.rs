@@ -53,7 +53,7 @@ impl Drop for OwnedHandle {
 
 unsafe fn open_current_process_token() -> Option<OwnedHandle> {
     let mut token: HANDLE = std::ptr::null_mut();
-    let ok = unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) };
+    let ok = unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token) };
     if ok == 0 {
         return None;
     }
@@ -68,8 +68,8 @@ unsafe fn token_is_elevated(token: &OwnedHandle) -> bool {
             token.0,
             TokenElevation,
             elevation.as_mut_ptr().cast(),
-            u32::try_from(std::mem::size_of::<TOKEN_ELEVATION>()).unwrap_or(u32::MAX),
-            &mut ret_len,
+            u32::try_from(size_of::<TOKEN_ELEVATION>()).unwrap_or(u32::MAX),
+            &raw mut ret_len,
         )
     };
     ok != 0 && unsafe { elevation.assume_init() }.TokenIsElevated != 0
@@ -78,8 +78,7 @@ unsafe fn token_is_elevated(token: &OwnedHandle) -> bool {
 pub(crate) fn is_elevated() -> bool {
     unsafe { open_current_process_token() }
         .as_ref()
-        .map(|t| unsafe { token_is_elevated(t) })
-        .unwrap_or(false)
+        .is_some_and(|t| unsafe { token_is_elevated(t) })
 }
 
 pub(crate) fn attach_parent_console_if_present() {
@@ -91,9 +90,8 @@ pub(crate) fn detach_console() {
 }
 
 fn system32_path(exe: &str) -> PathBuf {
-    let root = env::var_os("SystemRoot")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
+    let root =
+        env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
     root.join("System32").join(exe)
 }
 
@@ -153,14 +151,14 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
     let params_w = to_wide(&params);
 
     let mut info: SHELLEXECUTEINFOW = unsafe { std::mem::zeroed() };
-    info.cbSize = u32::try_from(std::mem::size_of::<SHELLEXECUTEINFOW>()).unwrap_or(0);
+    info.cbSize = u32::try_from(size_of::<SHELLEXECUTEINFOW>()).unwrap_or(0);
     info.fMask = SEE_MASK_NOCLOSEPROCESS;
     info.lpVerb = verb.as_ptr();
     info.lpFile = file.as_ptr();
     info.lpParameters = params_w.as_ptr();
     info.nShow = SW_HIDE;
 
-    let launched = unsafe { ShellExecuteExW(&mut info) };
+    let launched = unsafe { ShellExecuteExW(&raw mut info) };
     if launched == 0 {
         let code = unsafe { GetLastError() };
         if code == ERROR_CANCELLED {
@@ -179,7 +177,7 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
         return ElevationOutcome::Failed(format!("WaitForSingleObject returned {wait}"));
     }
     let mut exit_code: u32 = 0;
-    let got = unsafe { GetExitCodeProcess(handle.0, &mut exit_code) };
+    let got = unsafe { GetExitCodeProcess(handle.0, &raw mut exit_code) };
     if got == 0 {
         return ElevationOutcome::Failed("GetExitCodeProcess failed".into());
     }

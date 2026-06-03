@@ -94,7 +94,7 @@ pub(crate) fn emit_error(app: &GuiApp, error: &BridgeError) {
     send_emit(app, "error", &value);
 }
 
-fn gateway_state_str(status: &crate::gui::state::GatewayStatus) -> &'static str {
+const fn gateway_state_str(status: &crate::gui::state::GatewayStatus) -> &'static str {
     match status {
         crate::gui::state::GatewayStatus::Unknown => "unknown",
         crate::gui::state::GatewayStatus::Probing => "probing",

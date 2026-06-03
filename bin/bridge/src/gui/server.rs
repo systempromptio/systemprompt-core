@@ -13,7 +13,7 @@ use crate::obs::output::diag;
 // all three platforms in <100 lines. A platform-native IPC (Unix sockets +
 // named pipe) would let the kernel's per-user namespace replace the CSRF
 // token, but the matrix isn't worth it for the single-instance focus channel.
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Server {
     port: u16,
 }
@@ -42,14 +42,14 @@ impl Server {
             }
         });
 
-        Ok(Server { port })
+        Ok(Self { port })
     }
 
     pub fn url(&self) -> String {
         format!("http://127.0.0.1:{}/", self.port)
     }
 
-    pub fn port(&self) -> u16 {
+    pub const fn port(&self) -> u16 {
         self.port
     }
 

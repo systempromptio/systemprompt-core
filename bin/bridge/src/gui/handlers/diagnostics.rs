@@ -8,12 +8,19 @@ use zip::write::SimpleFileOptions;
 
 use crate::gui::events::ReplyId;
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
-use crate::gui::{GuiApp, emit, ipc_runtime};
+use crate::gui::{GuiApp, emit};
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_open_log_directory(app: &mut GuiApp, reply_to: ReplyId) {
-    let result = match crate::obs::log_dir() {
-        Some(dir) => {
+pub(crate) fn on_open_log_directory(app: &GuiApp, reply_to: ReplyId) {
+    let result = crate::obs::log_dir().map_or_else(
+        || {
+            Err(BridgeError::new(
+                ErrorScope::Internal,
+                ErrorCode::NotFound,
+                "log directory unavailable on this platform",
+            ))
+        },
+        |dir| {
             if let Err(e) = fs::create_dir_all(&dir) {
                 let msg = format!("create log dir failed: {e}");
                 app.append_log(&msg);
@@ -35,17 +42,12 @@ pub(crate) fn on_open_log_directory(app: &mut GuiApp, reply_to: ReplyId) {
                 Ok(json!({ "path": dir.display().to_string() }))
             }
         },
-        None => Err(BridgeError::new(
-            ErrorScope::Internal,
-            ErrorCode::NotFound,
-            "log directory unavailable on this platform",
-        )),
-    };
+    );
     finish(app, result, reply_to);
 }
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_export_diagnostic_bundle(app: &mut GuiApp, reply_to: ReplyId) {
+pub(crate) fn on_export_diagnostic_bundle(app: &GuiApp, reply_to: ReplyId) {
     let result = build_bundle().map_err(|e| {
         let msg = format!("export diagnostic bundle failed: {e}");
         app.append_log(&msg);

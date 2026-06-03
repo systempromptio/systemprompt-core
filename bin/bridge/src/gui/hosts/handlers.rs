@@ -15,7 +15,7 @@ use crate::integration::{
 };
 
 pub(crate) fn on_probe_requested(
-    app: &mut GuiApp,
+    app: &GuiApp,
     host_id: &str,
     cause: ProbeCause,
     reply_to: ReplyId,
@@ -52,9 +52,8 @@ pub(crate) fn on_probe_requested(
     let host_id_owned = host_id.to_string();
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
-        let snap = match tokio::task::spawn_blocking(move || Box::new(host.probe())).await {
-            Ok(s) => s,
-            Err(_) => return,
+        let Ok(snap) = tokio::task::spawn_blocking(move || Box::new(host.probe())).await else {
+            return;
         };
         _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
             host_id: host_id_owned,
@@ -69,10 +68,10 @@ pub(crate) fn on_probe_finished(
     app: &mut GuiApp,
     host_id: &str,
     cause: ProbeCause,
-    snapshot: HostAppSnapshot,
+    snapshot: &HostAppSnapshot,
     reply_to: ReplyId,
 ) {
-    let summary = describe_snapshot(&snapshot);
+    let summary = describe_snapshot(snapshot);
     let prev = app
         .state
         .snapshot()
@@ -89,7 +88,7 @@ pub(crate) fn on_probe_finished(
     emit::emit_host_changed(app, host_id);
     let log_line = match cause {
         ProbeCause::Manual => Some(format!("[{host_id}] re-verify complete — {summary}")),
-        ProbeCause::Tick => state_change_line(host_id, prev.as_ref(), &snapshot),
+        ProbeCause::Tick => state_change_line(host_id, prev.as_ref(), snapshot),
     };
     if let Some(line) = log_line {
         app.append_log(line);
@@ -142,7 +141,7 @@ fn describe_snapshot(snap: &HostAppSnapshot) -> String {
     format!("{profile}, {process}")
 }
 
-pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
+pub(crate) fn on_proxy_probe_requested(app: &GuiApp, reply_to: ReplyId) {
     let url = app.state.first_configured_proxy_url();
     if !app.state.mark_proxy_probing() {
         if let Some(id) = reply_to {
@@ -157,13 +156,11 @@ pub(crate) fn on_proxy_probe_requested(app: &mut GuiApp, reply_to: ReplyId) {
     }
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
-        let health =
-            match tokio::task::spawn_blocking(move || Box::new(proxy_probe::probe(url.as_deref())))
-                .await
-            {
-                Ok(h) => h,
-                Err(_) => return,
-            };
+        let Ok(health) =
+            tokio::task::spawn_blocking(move || Box::new(proxy_probe::probe(url.as_deref()))).await
+        else {
+            return;
+        };
         _ = proxy.send_event(UiEvent::Host(HostUiEvent::ProxyProbeFinished {
             health,
             reply_to,
@@ -180,7 +177,7 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
     finish(app, Ok(json!({ "health": value })), reply_to);
 }
 
-pub(crate) fn on_profile_generate_requested(app: &mut GuiApp, host_id: &str, reply_to: ReplyId) {
+pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
     let Some(host) = find_host_by_id(host_id) else {
         app.append_log(format!("generate requested for unknown host '{host_id}'"));
         let err = BridgeError::new(
@@ -249,7 +246,7 @@ fn needs_elevation_notice(host: &dyn crate::integration::HostApp) -> bool {
 }
 
 pub(crate) fn on_profile_install_requested(
-    app: &mut GuiApp,
+    app: &GuiApp,
     host_id: &str,
     path: String,
     reply_to: ReplyId,
@@ -301,13 +298,15 @@ pub(crate) fn on_profile_install_requested(
 }
 
 pub(crate) fn on_profile_install_finished(
-    app: &mut GuiApp,
+    app: &GuiApp,
     host_id: &str,
     result: Result<String, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
-    let action = find_host_by_id(host_id)
-        .map_or("installed", crate::integration::host_app::HostApp::install_action_label);
+    let action = find_host_by_id(host_id).map_or(
+        "installed",
+        crate::integration::host_app::HostApp::install_action_label,
+    );
     let bridge_result = match result {
         Ok(path) => {
             app.append_log(format!("[{host_id}] {action}: {path}"));

@@ -8,12 +8,12 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope};
 use crate::gui::state::CancelScope;
-use crate::gui::{GuiApp, emit, ipc_runtime};
+use crate::gui::{GuiApp, emit};
 use crate::i18n;
 
 #[tracing::instrument(level = "info", skip(app, token), fields(has_gateway = gateway.is_some()))]
 pub(crate) fn on_login_requested(
-    app: &mut GuiApp,
+    app: &GuiApp,
     token: &Secret,
     gateway: Option<String>,
     reply_to: ReplyId,
@@ -23,7 +23,7 @@ pub(crate) fn on_login_requested(
         let msg = i18n::t("login-pat-empty");
         let err = BridgeError::new(ErrorScope::Identity, ErrorCode::InvalidArgs, msg.clone());
         app.append_log(msg);
-        finish_unit(app, Err(err.clone()), reply_to);
+        finish_unit(app, Err(err), reply_to);
         return;
     }
     app.append_log(i18n::t("login-saving"));
@@ -37,7 +37,7 @@ pub(crate) fn on_login_requested(
                 .map_err(Arc::new)
         });
         let result = tokio::select! {
-            _ = token.cancelled() => {
+            () = token.cancelled() => {
                 Err(Arc::new(GuiError::from(setup::SetupError::Io("login cancelled".into()))))
             }
             joined = task => match joined {
@@ -91,7 +91,7 @@ pub(crate) fn on_login_finished(
 }
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str, reply_to: ReplyId) {
+pub(crate) fn on_set_gateway_requested(app: &GuiApp, gateway: &str, reply_to: ReplyId) {
     let trimmed = gateway.trim().to_owned();
     if trimmed.is_empty() {
         let msg = i18n::t("gateway-set-empty");
@@ -111,7 +111,7 @@ pub(crate) fn on_set_gateway_requested(app: &mut GuiApp, gateway: &str, reply_to
                 .map_err(Arc::new)
         });
         let result = tokio::select! {
-            _ = token.cancelled() => {
+            () = token.cancelled() => {
                 Err(Arc::new(GuiError::from(setup::SetupError::Io(
                     "set-gateway cancelled".into(),
                 ))))
@@ -157,7 +157,7 @@ pub(crate) fn on_set_gateway_finished(
 }
 
 #[tracing::instrument(level = "info", skip(app))]
-pub(crate) fn on_logout_requested(app: &mut GuiApp, reply_to: ReplyId) {
+pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {

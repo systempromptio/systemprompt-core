@@ -14,9 +14,9 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             cause,
             snapshot,
             reply_to,
-        } => handlers::on_probe_finished(app, &host_id, cause, *snapshot, reply_to),
+        } => handlers::on_probe_finished(app, &host_id, cause, &snapshot, reply_to),
         HostUiEvent::ProfileGenerateRequested { host_id, reply_to } => {
-            handlers::on_profile_generate_requested(app, &host_id, reply_to)
+            handlers::on_profile_generate_requested(app, &host_id, reply_to);
         },
         HostUiEvent::ProfileGenerateFinished {
             host_id,
@@ -34,10 +34,10 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             reply_to,
         } => handlers::on_profile_install_finished(app, &host_id, result, reply_to),
         HostUiEvent::ProxyProbeRequested { reply_to } => {
-            handlers::on_proxy_probe_requested(app, reply_to)
+            handlers::on_proxy_probe_requested(app, reply_to);
         },
         HostUiEvent::ProxyProbeFinished { health, reply_to } => {
-            handlers::on_proxy_probe_finished(app, *health, reply_to)
+            handlers::on_proxy_probe_finished(app, *health, reply_to);
         },
     }
 }

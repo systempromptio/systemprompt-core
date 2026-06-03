@@ -22,6 +22,7 @@ use crate::integration::host_app::{
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+#[derive(Debug, Clone, Copy)]
 pub struct ClaudeDesktopHost;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
