@@ -2,7 +2,7 @@ use crate::config::paths;
 
 use super::Check;
 
-pub(super) fn check_bridge_working_dir() -> Check {
+pub fn check_bridge_working_dir() -> Check {
     let Some(staging) = paths::bridge_staging_dir() else {
         return Check::fail(
             "bridge working dir",
@@ -48,7 +48,7 @@ pub(super) fn check_bridge_working_dir() -> Check {
 // --apply` widens its ACL once so unelevated syncs can write. Without that
 // grant every sync fails with `Access is denied`, which this check surfaces
 // early.
-pub(super) fn check_org_plugins_writable() -> Check {
+pub fn check_org_plugins_writable() -> Check {
     let Some(loc) = paths::org_plugins_effective() else {
         return Check::warn("org-plugins writable", "no org-plugins location resolvable");
     };

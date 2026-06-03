@@ -7,7 +7,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, io};
 
-pub(crate) fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
         && !parent.exists()
@@ -49,7 +49,7 @@ pub(crate) fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     }
 }
 
-pub(crate) fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
+pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     if !src.exists() {
         return Ok(());
     }
@@ -92,7 +92,7 @@ pub(crate) fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub(crate) fn read_optional(path: &Path) -> io::Result<Option<String>> {
+pub fn read_optional(path: &Path) -> io::Result<Option<String>> {
     match fs::read_to_string(path) {
         Ok(s) => Ok(Some(s)),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -100,7 +100,7 @@ pub(crate) fn read_optional(path: &Path) -> io::Result<Option<String>> {
     }
 }
 
-fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
+pub fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
     fs::create_dir_all(path)?;
     #[cfg(unix)]
     {
@@ -110,7 +110,7 @@ fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn temp_path_for(path: &Path) -> std::path::PathBuf {
+pub fn temp_path_for(path: &Path) -> std::path::PathBuf {
     // Why: rand suffix avoids collisions when two bridge processes race on the
     // same target path; pure ".tmp" lost writes under contention.
     let nanos = SystemTime::now()

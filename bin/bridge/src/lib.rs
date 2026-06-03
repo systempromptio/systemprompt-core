@@ -12,7 +12,7 @@ pub mod activity;
 pub mod auth;
 pub mod cli;
 pub mod config;
-pub(crate) mod fsutil;
+pub mod fsutil;
 pub mod gateway;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod gui;
@@ -27,7 +27,7 @@ pub mod integration;
 ))]
 #[path = "gui/ipc.rs"]
 pub mod ipc_types;
-pub(crate) mod mcp_registry;
+pub mod mcp_registry;
 pub mod obs;
 pub mod proxy;
 pub mod schedule;

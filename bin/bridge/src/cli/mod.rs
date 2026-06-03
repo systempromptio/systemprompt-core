@@ -1,8 +1,8 @@
-pub(crate) mod args;
+pub mod args;
 mod clean;
-mod credential_helper;
+pub mod credential_helper;
 pub mod diagnostics;
-mod doctor;
+pub mod doctor;
 mod gui;
 mod install;
 mod install_claude_policy;

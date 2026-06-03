@@ -53,7 +53,7 @@ pub(crate) fn snapshot() -> Arc<McpRegistry> {
 // Must be deterministic: the synthetic plugin writer and proxy router rely on
 // the same key for `/mcp/<slug>` routing.
 #[must_use]
-pub(crate) fn normalize_key(name: &str) -> String {
+pub fn normalize_key(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
     let mut prev_dash = true;
     for c in name.chars() {

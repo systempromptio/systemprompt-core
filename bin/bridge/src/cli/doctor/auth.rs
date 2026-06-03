@@ -8,7 +8,7 @@ use crate::proxy::secret as proxy_secret;
 
 use super::Check;
 
-pub(super) fn check_config_file() -> Check {
+pub fn check_config_file() -> Check {
     let Some(path) = config::config_path() else {
         return Check::fail("config file", "no config dir resolvable");
     };
@@ -34,7 +34,7 @@ pub(super) fn check_config_file() -> Check {
     }
 }
 
-pub(super) fn check_credential_source(cfg: &config::Config) -> Check {
+pub fn check_credential_source(cfg: &config::Config) -> Check {
     if auth::has_credential_source(cfg) {
         Check::ok(
             "credential source",
@@ -130,7 +130,7 @@ pub(super) async fn check_whoami(
     }
 }
 
-pub(super) fn check_loopback_secret() -> Check {
+pub fn check_loopback_secret() -> Check {
     let Some(path) = proxy_secret::secret_path() else {
         return Check::fail(
             "loopback secret",
@@ -151,7 +151,7 @@ pub(super) fn check_loopback_secret() -> Check {
     }
 }
 
-pub(super) fn check_pinned_pubkey() -> Check {
+pub fn check_pinned_pubkey() -> Check {
     if config::pinned_pubkey().is_some() {
         Check::ok(
             "manifest pubkey pinned",

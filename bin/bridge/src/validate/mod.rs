@@ -160,7 +160,7 @@ fn check_pinned_pubkey(report: &mut Report) {
     }
 }
 
-fn summarise_last_sync(raw: &str) -> String {
+pub fn summarise_last_sync(raw: &str) -> String {
     #[derive(serde::Deserialize)]
     struct LastSyncRecord {
         #[serde(default)]
@@ -180,7 +180,7 @@ fn summarise_last_sync(raw: &str) -> String {
     format!("{synced_at} (manifest {manifest_version}, {mcp_count} MCP server(s))")
 }
 
-fn count_installed_plugins(org_plugins: &std::path::Path) -> Option<usize> {
+pub fn count_installed_plugins(org_plugins: &std::path::Path) -> Option<usize> {
     let mut n = 0usize;
     for entry in std::fs::read_dir(org_plugins).ok()?.flatten() {
         let name = entry.file_name();

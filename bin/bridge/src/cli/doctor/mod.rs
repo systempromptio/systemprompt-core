@@ -3,38 +3,40 @@ use std::process::ExitCode;
 use crate::cli::output;
 use crate::{config, obs};
 
-mod auth;
-mod cowork;
-mod filesystem;
+pub mod auth;
+pub mod cowork;
+pub mod filesystem;
 
-enum Status {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
     Ok,
     Warn,
     Fail,
 }
 
-struct Check {
-    name: &'static str,
-    status: Status,
-    detail: String,
+#[derive(Debug)]
+pub struct Check {
+    pub name: &'static str,
+    pub status: Status,
+    pub detail: String,
 }
 
 impl Check {
-    fn ok(name: &'static str, detail: impl Into<String>) -> Self {
+    pub fn ok(name: &'static str, detail: impl Into<String>) -> Self {
         Self {
             name,
             status: Status::Ok,
             detail: detail.into(),
         }
     }
-    fn warn(name: &'static str, detail: impl Into<String>) -> Self {
+    pub fn warn(name: &'static str, detail: impl Into<String>) -> Self {
         Self {
             name,
             status: Status::Warn,
             detail: detail.into(),
         }
     }
-    fn fail(name: &'static str, detail: impl Into<String>) -> Self {
+    pub fn fail(name: &'static str, detail: impl Into<String>) -> Self {
         Self {
             name,
             status: Status::Fail,

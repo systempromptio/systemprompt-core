@@ -92,7 +92,7 @@ fn emit_claude(out: &auth::types::HelperOutput) -> ExitCode {
     }
 }
 
-fn parse_host(args: &[String]) -> Option<String> {
+pub fn parse_host(args: &[String]) -> Option<String> {
     let mut iter = args.iter().skip(2);
     while let Some(arg) = iter.next() {
         if arg == "--host" {
@@ -105,6 +105,6 @@ fn parse_host(args: &[String]) -> Option<String> {
     None
 }
 
-fn error_json(msg: &str) -> String {
+pub fn error_json(msg: &str) -> String {
     serde_json::json!({ "error": msg }).to_string()
 }

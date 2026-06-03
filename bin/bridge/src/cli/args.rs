@@ -1,4 +1,4 @@
-pub(crate) fn parse_opt_flag(args: &[String], flag: &str) -> Option<String> {
+pub fn parse_opt_flag(args: &[String], flag: &str) -> Option<String> {
     let mut i = 2;
     while i < args.len() {
         if args[i] == flag && i + 1 < args.len() {
@@ -9,7 +9,7 @@ pub(crate) fn parse_opt_flag(args: &[String], flag: &str) -> Option<String> {
     None
 }
 
-pub(crate) fn has_flag(args: &[String], flag: &str) -> bool {
+pub fn has_flag(args: &[String], flag: &str) -> bool {
     args.iter().skip(2).any(|a| a == flag)
 }
 

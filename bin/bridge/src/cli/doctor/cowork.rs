@@ -5,7 +5,7 @@ use super::Check;
 // Catches the silent "plugin on disk but Cowork never enabled it" state: the
 // enable key in cowork_settings.json is the bridge's only Cowork-side write,
 // and its absence leaves the synced plugin disabled with no other signal.
-pub(super) fn check_cowork_enable() -> Check {
+pub fn check_cowork_enable() -> Check {
     use crate::integration::cowork_plugins::{
         COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,
     };
@@ -58,7 +58,7 @@ struct PluginManifestProbe {
 // Cowork's "Contact an organization owner" tooltip under MDM. The bridge always
 // emits `auto_install`; this fails loudly if a refactor drops it.
 // Docs: https://claude.com/docs/cowork/3p/extensions
-pub(super) fn check_plugin_installation_preference() -> Check {
+pub fn check_plugin_installation_preference() -> Check {
     let Some(location) = paths::org_plugins_effective() else {
         return Check::warn("plugin auto-install", "no org-plugins location resolvable");
     };
@@ -120,7 +120,7 @@ pub(super) fn check_plugin_installation_preference() -> Check {
 // that Cowork also hard-codes. If Cowork bumps the constant the resolver
 // silently falls through to its newest-mtime fallback and may publish into the
 // wrong session; this warns when sessions exist but none matches the constant.
-pub(super) fn check_personal_session_sentinel() -> Check {
+pub fn check_personal_session_sentinel() -> Check {
     use crate::integration::cowork_plugins::PERSONAL_SESSION_UUID;
 
     let Some(root) = paths::cowork3p_sessions_root() else {
