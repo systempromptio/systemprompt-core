@@ -3,4 +3,6 @@
 #[cfg(test)]
 mod access_denied;
 #[cfg(test)]
+mod redaction;
+#[cfg(test)]
 mod round_trip;

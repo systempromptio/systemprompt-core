@@ -12,5 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]

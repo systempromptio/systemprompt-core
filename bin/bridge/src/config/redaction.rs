@@ -23,7 +23,7 @@ pub fn redacted_config() -> Option<String> {
     Some(toml::to_string_pretty(&value).unwrap_or_else(|_| String::from("# redaction failed\n")))
 }
 
-fn redact(value: &mut toml::Value) {
+pub fn redact(value: &mut toml::Value) {
     match value {
         toml::Value::Table(map) => {
             for (k, v) in map.iter_mut() {
@@ -43,7 +43,7 @@ fn redact(value: &mut toml::Value) {
     }
 }
 
-fn is_sensitive_key(key: &str) -> bool {
+pub fn is_sensitive_key(key: &str) -> bool {
     let lower = key.to_ascii_lowercase();
     SENSITIVE_KEY_FRAGMENTS
         .iter()

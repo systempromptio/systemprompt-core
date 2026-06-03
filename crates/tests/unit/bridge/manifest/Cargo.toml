@@ -13,5 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-bridge = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
