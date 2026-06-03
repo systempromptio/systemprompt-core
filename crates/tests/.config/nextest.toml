@@ -4,6 +4,20 @@
 # the run output, instead of starving the hosted runner until it loses
 # communication (the failure mode that kept the Test/Coverage jobs red).
 
+# The seeded scheduler tests share one `services` table; `reconcile()` sweeps and
+# deletes every row outside its own config as an orphan, so a concurrent run would
+# delete another test's seeded row mid-assertion. Serialise them into one slot.
+[test-groups]
+scheduler-services-db = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/state_verifier_seeded_db::/)'
+test-group = 'scheduler-services-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-scheduler-tests) and test(/state_verifier_seeded_db::/)'
+test-group = 'scheduler-services-db'
+
 [profile.default]
 # A test still running after 60s is flagged slow; after 3 such periods (180s)
 # nextest terminates it and reports the failure. Real tests finish in ms — only
