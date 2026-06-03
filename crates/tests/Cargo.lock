@@ -7004,6 +7004,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-activity-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+]
+
+[[package]]
 name = "systemprompt-bridge-auth-tests"
 version = "0.0.11"
 dependencies = [
@@ -7012,6 +7019,16 @@ dependencies = [
  "systemprompt-bridge",
  "systemprompt-identifiers",
  "tokio",
+]
+
+[[package]]
+name = "systemprompt-bridge-cli-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
 ]
 
 [[package]]
@@ -7033,7 +7050,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-bridge-fsutil-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "tempfile",
+]
+
+[[package]]
 name = "systemprompt-bridge-gui-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-bridge",
+ "systemprompt-identifiers",
+]
+
+[[package]]
+name = "systemprompt-bridge-i18n-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+]
+
+[[package]]
+name = "systemprompt-bridge-ids-tests"
 version = "0.0.11"
 dependencies = [
  "serde_json",
@@ -7045,6 +7086,7 @@ name = "systemprompt-bridge-install-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
+ "systemprompt-identifiers",
 ]
 
 [[package]]
@@ -7065,7 +7107,16 @@ name = "systemprompt-bridge-manifest-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
+ "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-test-fixtures",
+]
+
+[[package]]
+name = "systemprompt-bridge-mcp-registry-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
 ]
 
 [[package]]
@@ -7073,6 +7124,7 @@ name = "systemprompt-bridge-paths-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
+ "temp-env",
 ]
 
 [[package]]
@@ -7086,6 +7138,13 @@ dependencies = [
  "hyper",
  "systemprompt-bridge",
  "tokio",
+]
+
+[[package]]
+name = "systemprompt-bridge-schedule-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
 ]
 
 [[package]]
@@ -7108,6 +7167,14 @@ version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
  "ts-rs",
+]
+
+[[package]]
+name = "systemprompt-bridge-validate-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-bridge",
+ "tempfile",
 ]
 
 [[package]]
