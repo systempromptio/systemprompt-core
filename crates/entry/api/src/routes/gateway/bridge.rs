@@ -161,8 +161,8 @@ pub fn anthropic_inference_models(registry: &ProviderRegistry) -> Vec<String> {
 /// `secret_present` is a closure for testability.
 ///
 /// A provider whose secret is absent is surfaced (`configured = false`) rather
-/// than dropped, so the GUI can tell the operator exactly which provider needs a
-/// key.
+/// than dropped, so the GUI can tell the operator exactly which provider needs
+/// a key.
 pub fn provider_health(
     registry: &ProviderRegistry,
     secret_present: impl Fn(&str) -> bool,
