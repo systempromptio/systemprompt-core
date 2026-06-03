@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.14.5] - 2026-06-03
+
+### Added
+
+- Per-host wire-protocol model preferences for managed bridge hosts. A new `bridge_user_host_model_prefs` table (migration 012) records, per user and host, which wire protocol(s) the host advertises, and the `POST /v1/bridge/profile/host-model-filter` endpoint sets or clears the override. The signed bridge manifest carries the resolved overrides as `host_model_protocols`: a present entry overrides the host's built-in `accepted_protocols` (an empty list means "all models"), an absent entry leaves the host on its default. The override lives in its own table so it never perturbs the enable/disable prefs' "no rows means every host enabled" heuristic.
+
+### Changed
+
+- Gateway access logging and OTLP ingest hand entries to a background batch writer instead of constructing a logging repository and writing synchronously on each request. The batch insert runs in a single transaction with `synchronous_commit` off — the audit log is best-effort, trading durability of a few buffered rows on an unclean shutdown for lower request latency — and binds the log timestamp explicitly.
+- Anonymous-user creation reads the existing row by its derived email before attempting an insert, so repeat bot and scanner traffic no longer takes the upsert's per-request write lock; the insert keeps its `ON CONFLICT` guard for a concurrent first request.
+
+### Removed
+
+- The redundant single-column `level`, `user_id`, `session_id`, `context_id`, and `client_id` indexes on the `logs` table, each already covered by a `(column, timestamp DESC)` composite, so write-heavy log inserts no longer maintain duplicate indexes (migration 003).
+
 ## [0.14.4] - 2026-06-03
 
 ### Added
