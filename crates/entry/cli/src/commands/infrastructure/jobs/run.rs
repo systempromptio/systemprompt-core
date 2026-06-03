@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::{JobRepository, JobStatus};
 use systemprompt_traits::{Job, JobContext};
 
 use super::types::{BatchJobRunOutput, JobRunOutput, JobRunResult};
@@ -79,6 +80,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<CommandOutput> {
 
     for job_name in &job_names {
         let result = run_single_job(job_name, Arc::clone(&ctx), &registry, &parameters).await;
+        record_job_execution(&ctx, &result).await;
         results.push(result);
     }
 
@@ -112,6 +114,51 @@ fn parse_params(params: &[String]) -> Result<HashMap<String, String>> {
         map.insert(parts[0].to_owned(), parts[1].to_owned());
     }
     Ok(map)
+}
+
+/// Record a manual job run into `scheduled_jobs` so it surfaces in
+/// `infra jobs history`, mirroring how the scheduler records its own ticks.
+///
+/// The update only touches a job that already has a `scheduled_jobs` row
+/// (manual-only jobs have none, and the UPDATE is a harmless no-op for them).
+/// The job's existing `next_run` is preserved so recording a manual run never
+/// disturbs the schedule. Failures here are non-fatal: recording is bookkeeping
+/// and must not mask the job's own outcome, so errors are logged and swallowed.
+async fn record_job_execution(ctx: &AppContext, output: &JobRunOutput) {
+    let repo = match JobRepository::new(ctx.db_pool()) {
+        Ok(repo) => repo,
+        Err(e) => {
+            tracing::warn!(job = %output.job_name, error = %e, "could not open scheduler repo to record manual run");
+            return;
+        },
+    };
+
+    // Preserve the existing schedule; a manual run must not clear next_run.
+    let next_run = match repo.find_job(&output.job_name).await {
+        Ok(Some(job)) => job.next_run,
+        Ok(None) => return, // not a scheduled job — nothing to record
+        Err(e) => {
+            tracing::warn!(job = %output.job_name, error = %e, "could not look up scheduled job to record manual run");
+            return;
+        },
+    };
+
+    let (status, error) = if output.result.success {
+        (JobStatus::Success, None)
+    } else {
+        (JobStatus::Failed, output.result.message.as_deref())
+    };
+
+    if let Err(e) = repo
+        .update_job_execution(&output.job_name, status, error, next_run)
+        .await
+    {
+        tracing::warn!(job = %output.job_name, error = %e, "failed to record manual job execution");
+        return;
+    }
+    if let Err(e) = repo.increment_run_count(&output.job_name).await {
+        tracing::warn!(job = %output.job_name, error = %e, "failed to increment job run count");
+    }
 }
 
 async fn run_single_job(
