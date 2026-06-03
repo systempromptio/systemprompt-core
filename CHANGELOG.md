@@ -8,7 +8,8 @@
 
 ### Changed
 
-- Client-credentials (service-tier) access tokens are authorized solely by their granted scopes and no longer carry RBAC roles. The token-minting path stopped attaching the owner's role strings to a service grant, so a service token's authority is exactly the scopes it was issued.
+- Service-tier OAuth access tokens — both the `client_credentials` grant and RFC 8693 token exchange — are authorized solely by their granted scopes and no longer carry RBAC roles. Both minting paths previously copied the granted scope strings into the token's `roles` claim, conflating scope-based authority with the separate role-based access-control claim; a service or delegated token now carries an empty `roles` claim and its authority is exactly the scopes it was issued.
+- The OAuth `/userinfo` response `roles` field reports the principal's actual roles rather than its granted scopes.
 
 ### Fixed
 
