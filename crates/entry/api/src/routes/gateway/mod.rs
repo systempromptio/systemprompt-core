@@ -21,15 +21,14 @@ pub mod messages;
 pub mod models;
 pub mod otel;
 
-use axum::extract::{Request, State};
+use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::routing::{get, post};
 use axum::{Extension, Router};
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_database::DbPool;
-use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
@@ -38,7 +37,7 @@ use crate::services::gateway::protocol::inbound::anthropic_messages::AnthropicMe
 use crate::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
 use crate::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 
-async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Next) -> Response {
+async fn log_gateway_request(req: Request, next: Next) -> Response {
     let method = req.method().clone();
     let path = req.uri().path().to_owned();
     let started = Instant::now();
@@ -53,6 +52,14 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
         "elapsed_ms": elapsed_ms,
     });
 
+    let level = if status >= 500 {
+        LogLevel::Error
+    } else if status >= 400 {
+        LogLevel::Warn
+    } else {
+        LogLevel::Info
+    };
+
     if status >= 500 {
         tracing::error!(method = %method, path = %path, status, elapsed_ms, "gateway request failed");
     } else if status >= 400 {
@@ -61,36 +68,21 @@ async fn log_gateway_request(State(pool): State<DbPool>, req: Request, next: Nex
         tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
     }
 
-    if let Ok(repo) = LoggingRepository::new(&pool) {
-        let level = if status >= 500 {
-            LogLevel::Error
-        } else if status >= 400 {
-            LogLevel::Warn
-        } else {
-            LogLevel::Info
-        };
-        match LogActor::platform(systemprompt_identifiers::TraceId::system()) {
-            Ok(actor) => {
-                let entry = LogEntry::new(
-                    level,
-                    "systemprompt_api::gateway",
-                    format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
-                    actor,
-                )
-                .with_metadata(metadata);
-                if let Err(e) = repo
-                    .with_database(true)
-                    .with_terminal(false)
-                    .log(entry)
-                    .await
-                {
-                    tracing::warn!(error = %e, "gateway access log persist failed");
-                }
-            },
-            Err(e) => {
-                tracing::warn!(error = %e, "gateway access log skipped: system admin not initialized");
-            },
-        }
+    // Persist off the response hot path, via the background batch writer.
+    match LogActor::platform(systemprompt_identifiers::TraceId::system()) {
+        Ok(actor) => {
+            let entry = LogEntry::new(
+                level,
+                "systemprompt_api::gateway",
+                format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
+                actor,
+            )
+            .with_metadata(metadata);
+            systemprompt_logging::enqueue_background(entry);
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "gateway access log skipped: system admin not initialized");
+        },
     }
 
     resp
@@ -131,14 +123,14 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
     let ctx_manifest = ctx.clone();
     let ctx_oauth_client = ctx.clone();
     let ctx_enabled_hosts = ctx.clone();
+    let ctx_host_model_filter = ctx.clone();
     let ctx_profile_usage = ctx.clone();
     let ctx_whoami = ctx.clone();
-    let ctx_otel = ctx.clone();
-    let ctx_otel_rest = ctx.clone();
     let jwt_heartbeat = Arc::clone(&jwt_extractor);
     let jwt_manifest = Arc::clone(&jwt_extractor);
     let jwt_oauth_client = Arc::clone(&jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(&jwt_extractor);
+    let jwt_host_model_filter = Arc::clone(&jwt_extractor);
     let jwt_profile_usage = Arc::clone(&jwt_extractor);
     let jwt_whoami = Arc::clone(&jwt_extractor);
     let jwt_responses = Arc::clone(&jwt_extractor);
@@ -223,6 +215,16 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                 }),
             )
             .route(
+                "/bridge/profile/host-model-filter",
+                post(move |headers, body| {
+                    let extractor = Arc::clone(&jwt_host_model_filter);
+                    let context = ctx_host_model_filter.clone();
+                    async move {
+                        bridge::set_host_model_filter(extractor, context, headers, body).await
+                    }
+                }),
+            )
+            .route(
                 "/bridge/profile/usage",
                 get(move |headers| {
                     let extractor = Arc::clone(&jwt_profile_usage);
@@ -238,26 +240,14 @@ pub fn gateway_router(ctx: &AppContext) -> Option<Router> {
                     async move { bridge_heartbeat::handle(extractor, context, headers, body).await }
                 }),
             )
-            .route(
-                "/otel",
-                post(move |request| {
-                    let pool = Arc::clone(ctx_otel.db_pool());
-                    async move { otel::handle(pool, request).await }
-                }),
-            )
+            .route("/otel", post(|request| async move { otel::handle(request).await }))
             .route(
                 "/otel/{*rest}",
-                post(move |request| {
-                    let pool = Arc::clone(ctx_otel_rest.db_pool());
-                    async move { otel::handle(pool, request).await }
-                }),
+                post(|request| async move { otel::handle(request).await }),
             )
             .route("/models", get(models::list))
             .route("/", get(models::root))
             .layer(Extension(ctx.clone()))
-            .layer(axum::middleware::from_fn_with_state(
-                Arc::clone(ctx.db_pool()),
-                log_gateway_request,
-            )),
+            .layer(axum::middleware::from_fn(log_gateway_request)),
     )
 }

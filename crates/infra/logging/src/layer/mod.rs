@@ -8,8 +8,8 @@ mod proxy;
 mod visitor;
 
 use std::io::Write;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use tokio::sync::mpsc;
@@ -32,6 +32,29 @@ const BUFFER_FLUSH_INTERVAL_SECS: u64 = 10;
 /// the database writer cannot drain) entries are dropped rather than queued, so
 /// a logging backlog cannot grow the heap without bound.
 const CHANNEL_CAPACITY: usize = 8192;
+
+static BACKGROUND_SENDER: OnceLock<mpsc::Sender<LogCommand>> = OnceLock::new();
+static BACKGROUND_DROPPED: AtomicU64 = AtomicU64::new(0);
+
+/// Enqueues a log entry into the background batch writer, off the caller's hot
+/// path.
+///
+/// Non-blocking: dropped (and counted) if the sink is unattached or the channel
+/// is full. Error entries also request an immediate flush.
+pub fn enqueue_background(entry: LogEntry) {
+    let Some(sender) = BACKGROUND_SENDER.get() else {
+        BACKGROUND_DROPPED.fetch_add(1, Ordering::Relaxed);
+        return;
+    };
+    let is_error = entry.level == LogLevel::Error;
+    if sender.try_send(LogCommand::Entry(Box::new(entry))).is_err() {
+        BACKGROUND_DROPPED.fetch_add(1, Ordering::Relaxed);
+        return;
+    }
+    if is_error {
+        sender.try_send(LogCommand::FlushNow).ok();
+    }
+}
 
 enum LogCommand {
     Entry(Box<LogEntry>),
@@ -82,6 +105,8 @@ impl std::fmt::Debug for DatabaseLayer {
 impl DatabaseLayer {
     pub fn new(db_pool: DbPool) -> Self {
         let (channel, receiver) = LogChannel::new(CHANNEL_CAPACITY);
+
+        BACKGROUND_SENDER.get_or_init(|| channel.sender.clone());
 
         tokio::spawn(Self::batch_writer(db_pool, receiver));
 
@@ -137,6 +162,14 @@ impl DatabaseLayer {
         entries: &[LogEntry],
     ) -> Result<(), crate::models::LoggingError> {
         let pool = db_pool.write_pool_arc()?;
+
+        // One commit per flush, fsync off: the audit log is best-effort, so a
+        // few buffered rows lost on an unclean shutdown is an acceptable trade.
+        let mut tx = pool.begin().await?;
+        sqlx::query!("SET LOCAL synchronous_commit = off")
+            .execute(&mut *tx)
+            .await?;
+
         for entry in entries {
             let metadata_json: Option<String> = entry
                 .metadata
@@ -155,10 +188,11 @@ impl DatabaseLayer {
 
             sqlx::query!(
                 r"
-                INSERT INTO logs (id, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                INSERT INTO logs (id, timestamp, level, module, message, metadata, user_id, session_id, task_id, trace_id, context_id, client_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 ",
                 entry_id,
+                entry.timestamp,
                 level_str,
                 entry.module,
                 entry.message,
@@ -170,10 +204,11 @@ impl DatabaseLayer {
                 context_id,
                 client_id
             )
-            .execute(pool.as_ref())
+            .execute(&mut *tx)
             .await?;
         }
 
+        tx.commit().await?;
         Ok(())
     }
 }

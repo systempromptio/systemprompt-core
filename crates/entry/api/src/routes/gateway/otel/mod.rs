@@ -19,8 +19,6 @@ use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::Response;
 use prost::Message;
-use systemprompt_database::DbPool;
-use systemprompt_logging::LoggingRepository;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
@@ -30,7 +28,7 @@ use ingest::{ingest_logs, ingest_metrics, ingest_traces};
 
 const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 
-pub async fn handle(pool: DbPool, request: Request<Body>) -> Response<Body> {
+pub async fn handle(request: Request<Body>) -> Response<Body> {
     let body_bytes = match axum::body::to_bytes(request.into_body(), MAX_BODY_BYTES).await {
         Ok(b) => b,
         Err(e) => {
@@ -43,26 +41,15 @@ pub async fn handle(pool: DbPool, request: Request<Body>) -> Response<Body> {
         return accepted();
     }
 
-    let repo = match LoggingRepository::new(&pool) {
-        // Why: otel ingest is a high-volume background path; keep it strictly
-        // database-backed and out of stderr so it cannot drown the operator's
-        // terminal or recurse into tracing's own subscriber.
-        Ok(r) => r.with_terminal(false).with_database(true),
-        Err(e) => {
-            tracing::warn!(error = %e, "otel: logging repo unavailable");
-            return accepted();
-        },
-    };
-
     if let Ok(req) = ExportTraceServiceRequest::decode(body_bytes.as_ref()) {
         if !req.resource_spans.is_empty() {
-            ingest_traces(&repo, req).await;
+            ingest_traces(req);
             return accepted();
         }
     }
     if let Ok(req) = ExportLogsServiceRequest::decode(body_bytes.as_ref()) {
         if !req.resource_logs.is_empty() {
-            ingest_logs(&repo, req).await;
+            ingest_logs(req);
             return accepted();
         }
     }

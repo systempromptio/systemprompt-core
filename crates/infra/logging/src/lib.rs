@@ -34,7 +34,7 @@ pub mod trace;
 pub use attribution::{LogAttributionUnset, install_log_attribution, platform_attribution};
 pub use extension::LoggingExtension;
 
-pub use layer::DatabaseLayer;
+pub use layer::{DatabaseLayer, enqueue_background};
 pub use models::{LogActor, LogEntry, LogFilter, LogLevel};
 pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 #[cfg(feature = "cli")]

@@ -3,7 +3,7 @@
 
 use serde_json::json;
 use systemprompt_identifiers::TraceId;
-use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, enqueue_background};
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
@@ -13,7 +13,7 @@ use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_
 
 const MODULE: &str = "otel";
 
-pub(super) async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServiceRequest) {
+pub(super) fn ingest_traces(req: ExportTraceServiceRequest) {
     for resource in req.resource_spans {
         let resource_attrs = attrs_to_json(
             resource
@@ -75,15 +75,13 @@ pub(super) async fn ingest_traces(repo: &LoggingRepository, req: ExportTraceServ
                     actor,
                 )
                 .with_metadata(metadata);
-                if let Err(e) = repo.log(entry).await {
-                    tracing::warn!(error = %e, "otel: span log persist failed");
-                }
+                enqueue_background(entry);
             }
         }
     }
 }
 
-pub(super) async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsServiceRequest) {
+pub(super) fn ingest_logs(req: ExportLogsServiceRequest) {
     for resource in req.resource_logs {
         let resource_attrs = attrs_to_json(
             resource
@@ -135,9 +133,7 @@ pub(super) async fn ingest_logs(repo: &LoggingRepository, req: ExportLogsService
                     },
                 };
                 let entry = LogEntry::new(level, MODULE, message, actor).with_metadata(metadata);
-                if let Err(e) = repo.log(entry).await {
-                    tracing::warn!(error = %e, "otel: log persist failed");
-                }
+                enqueue_background(entry);
             }
         }
     }
