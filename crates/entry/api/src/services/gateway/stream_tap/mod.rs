@@ -90,7 +90,7 @@ impl TappedStream {
         let Some(summary) = self.take_summary() else {
             return Poll::Ready(None);
         };
-        spawn_audit_complete(Arc::clone(&self.audit), summary);
+        finalize(Arc::clone(&self.audit), summary, "eof");
         Poll::Ready(None)
     }
 }
@@ -100,12 +100,59 @@ impl Drop for TappedStream {
         let Some(summary) = self.take_summary() else {
             return;
         };
-        let audit = Arc::clone(&self.audit);
-        tokio::spawn(async move {
-            if let Some(model) = summary.served_model.as_deref() {
-                audit.set_served_model(model).await;
-            }
-            if summary.saw_stop && summary.error.is_none() {
+        finalize(Arc::clone(&self.audit), summary, "drop");
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinalizeDecision {
+    Fail(&'static str),
+    Complete { cost_capture_miss: bool },
+}
+
+pub const fn classify(
+    error: Option<&str>,
+    saw_stop: bool,
+    has_content: bool,
+    has_usage: bool,
+) -> FinalizeDecision {
+    if error.is_some() {
+        return FinalizeDecision::Fail("upstream stream error");
+    }
+    if !saw_stop {
+        return FinalizeDecision::Fail(if has_content {
+            "stream ended without stop event"
+        } else {
+            "empty upstream stream"
+        });
+    }
+    FinalizeDecision::Complete {
+        cost_capture_miss: has_content && !has_usage,
+    }
+}
+
+fn finalize(audit: Arc<GatewayAudit>, summary: Summary, origin: &'static str) {
+    tokio::spawn(async move {
+        if let Some(model) = summary.served_model.as_deref() {
+            audit.set_served_model(model).await;
+        }
+
+        let has_content = !summary.final_bytes.is_empty();
+        let has_usage = summary.usage.input_tokens > 0 || summary.usage.output_tokens > 0;
+        match classify(summary.error.as_deref(), summary.saw_stop, has_content, has_usage) {
+            FinalizeDecision::Fail(reason) => {
+                let msg = summary.error.as_deref().unwrap_or(reason);
+                if let Err(e) = audit.fail(msg).await {
+                    tracing::warn!(origin, error = %e, "stream audit fail failed");
+                }
+            },
+            FinalizeDecision::Complete { cost_capture_miss } => {
+                if cost_capture_miss {
+                    tracing::warn!(
+                        origin,
+                        "stream completed with content but zero usage: cost capture miss"
+                    );
+                }
                 if let Err(e) = audit
                     .complete(
                         summary.usage,
@@ -115,39 +162,9 @@ impl Drop for TappedStream {
                     )
                     .await
                 {
-                    tracing::warn!(error = %e, "drop-path audit complete failed");
+                    tracing::warn!(origin, error = %e, "stream audit complete failed");
                 }
-            } else {
-                let msg = summary
-                    .error
-                    .unwrap_or_else(|| "stream abandoned by downstream".into());
-                if let Err(e) = audit.fail(&msg).await {
-                    tracing::warn!(error = %e, "drop-path audit fail failed");
-                }
-            }
-        });
-    }
-}
-
-fn spawn_audit_complete(audit: Arc<GatewayAudit>, summary: Summary) {
-    tokio::spawn(async move {
-        if let Some(model) = summary.served_model.as_deref() {
-            audit.set_served_model(model).await;
-        }
-        if let Some(err) = summary.error {
-            if let Err(e) = audit.fail(&err).await {
-                tracing::warn!(error = %e, "stream audit fail failed");
-            }
-        } else if let Err(e) = audit
-            .complete(
-                summary.usage,
-                summary.tool_calls,
-                &summary.response,
-                &summary.final_bytes,
-            )
-            .await
-        {
-            tracing::warn!(error = %e, "stream audit complete failed");
+            },
         }
     });
 }
