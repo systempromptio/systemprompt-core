@@ -11,7 +11,7 @@ use super::io_err;
 use crate::fsutil;
 use crate::sync::ApplyError;
 
-pub(super) fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, ApplyError> {
+pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, ApplyError> {
     let Some(text) =
         fsutil::read_optional(path).map_err(|e| io_err(format!("read {}", path.display()), e))?
     else {
@@ -26,7 +26,10 @@ pub(super) fn read_optional_object(path: &Path) -> Result<Option<Map<String, Val
     match serde_json::from_str::<Value>(text) {
         Ok(Value::Object(m)) => Ok(Some(m)),
         Ok(_) => Err(io_err(
-            format!("{} is not a JSON object; refusing to overwrite", path.display()),
+            format!(
+                "{} is not a JSON object; refusing to overwrite",
+                path.display()
+            ),
             std::io::Error::other("unexpected JSON root"),
         )),
         Err(e) => Err(io_err(
@@ -40,11 +43,13 @@ pub(super) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyE
     Ok(read_optional_object(path)?.unwrap_or_default())
 }
 
-/// A mutable handle to `root[key]` coerced to a JSON object, replacing an absent
-/// or non-object value with an empty object first. The `None` arm is
-/// unreachable — the slot is normalised to an object immediately above — and
-/// callers treat it as "leave the file untouched" rather than panicking.
-pub(super) fn object_entry<'a>(
+/// A mutable handle to `root[key]` coerced to a JSON object.
+///
+/// An absent or non-object value is replaced with an empty object first. The
+/// `None` arm is unreachable — the slot is normalised to an object immediately
+/// above — and callers treat it as "leave the file untouched" rather than
+/// panicking.
+pub fn object_entry<'a>(
     root: &'a mut Map<String, Value>,
     key: &'static str,
 ) -> Option<&'a mut Map<String, Value>> {

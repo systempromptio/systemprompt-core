@@ -84,8 +84,11 @@ fn write_agent(root: &Path, agent: &AgentEntry) -> Result<(), ApplyError> {
     }
     let dir = root.join("agents");
     fs::create_dir_all(&dir).map_err(|e| io_err(format!("create {}", dir.display()), e))?;
-    fs::write(dir.join(format!("{}.md", agent.name)), agent_markdown(agent))
-        .map_err(|e| io_err(format!("write agent in {}", dir.display()), e))
+    fs::write(
+        dir.join(format!("{}.md", agent.name)),
+        agent_markdown(agent),
+    )
+    .map_err(|e| io_err(format!("write agent in {}", dir.display()), e))
 }
 
 fn skill_markdown(skill: &SkillEntry) -> String {
@@ -94,7 +97,10 @@ fn skill_markdown(skill: &SkillEntry) -> String {
     }
     let mut out = String::from("---\n");
     out.push_str(&format!("name: {}\n", skill.name.as_str()));
-    out.push_str(&format!("description: {}\n", yaml_scalar(&skill.description)));
+    out.push_str(&format!(
+        "description: {}\n",
+        yaml_scalar(&skill.description)
+    ));
     out.push_str("---\n\n");
     out.push_str(&skill.instructions);
     ensure_newline(out)
@@ -103,14 +109,20 @@ fn skill_markdown(skill: &SkillEntry) -> String {
 fn agent_markdown(agent: &AgentEntry) -> String {
     let mut out = String::from("---\n");
     out.push_str(&format!("name: {}\n", agent.name.as_str()));
-    out.push_str(&format!("description: {}\n", yaml_scalar(&agent.description)));
+    out.push_str(&format!(
+        "description: {}\n",
+        yaml_scalar(&agent.description)
+    ));
     if let Some(model) = &agent.model {
         out.push_str(&format!("model: {}\n", yaml_scalar(model)));
     }
     out.push_str("---\n\n");
     match &agent.system_prompt {
         Some(p) => out.push_str(p),
-        None => out.push_str(&format!("# {}\n\n{}", agent.display_name, agent.description)),
+        None => out.push_str(&format!(
+            "# {}\n\n{}",
+            agent.display_name, agent.description
+        )),
     }
     ensure_newline(out)
 }

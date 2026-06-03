@@ -1,7 +1,9 @@
-//! Marketplace discovery and the user's plugin registry: `marketplace.json`,
-//! `known_marketplaces.json`, `installed_plugins.json`, and the `settings.json`
-//! enablement entries. Every registry file is updated in place so the user's
-//! own marketplaces and plugins survive untouched.
+//! Marketplace discovery and the user's plugin registry.
+//!
+//! Covers `marketplace.json`, `known_marketplaces.json`,
+//! `installed_plugins.json`, and the `settings.json` enablement entries. Every
+//! registry file is updated in place so the user's own marketplaces and plugins
+//! survive untouched.
 
 use std::path::Path;
 
@@ -19,30 +21,38 @@ pub(super) fn write_marketplace_json(
 ) -> Result<(), ApplyError> {
     let dir = marketplace_dir(plugins).join(".claude-plugin");
     fs_create(&dir)?;
-    let value = json!({
+    write_json(
+        &dir.join("marketplace.json"),
+        &marketplace_value(manifest.manifest_version.as_str()),
+    )
+}
+
+// `owner` is a required object and `name` must equal the marketplace key, or
+// `claude plugin validate` rejects the manifest ("owner: expected object").
+pub fn marketplace_value(version: &str) -> Value {
+    json!({
         "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
         "name": MARKETPLACE,
         "description": "Skills, agents, and MCP servers provisioned by your systemprompt.io organization.",
         "owner": { "name": "systemprompt.io", "email": "support@systemprompt.io" },
-        "metadata": { "version": manifest.manifest_version.as_str(), "pluginRoot": "./plugins" },
+        "metadata": { "version": version, "pluginRoot": "./plugins" },
         "plugins": [{
             "name": PLUGIN_NAME,
             "source": format!("./plugins/{PLUGIN_NAME}"),
             "description": "Skills, agents, and MCP servers managed by your organization.",
-            "version": manifest.manifest_version.as_str(),
+            "version": version,
         }],
-    });
-    write_json(&dir.join("marketplace.json"), &value)
+    })
 }
 
-pub(super) fn upsert_known_marketplace(plugins: &Path, updated_at: &str) -> Result<(), ApplyError> {
+pub fn upsert_known_marketplace(plugins: &Path, updated_at: &str) -> Result<(), ApplyError> {
     let path = plugins.join("known_marketplaces.json");
     let mut root = read_json_object(&path)?;
     let loc = marketplace_dir(plugins).to_string_lossy().into_owned();
     root.insert(
         MARKETPLACE.to_owned(),
         json!({
-            "source": { "source": "directory", "path": loc.clone() },
+            "source": { "source": "directory", "path": &loc },
             "installLocation": loc,
             "lastUpdated": updated_at,
         }),
@@ -50,7 +60,7 @@ pub(super) fn upsert_known_marketplace(plugins: &Path, updated_at: &str) -> Resu
     write_json(&path, &Value::Object(root))
 }
 
-pub(super) fn strip_known_marketplace(plugins: &Path) -> Result<(), ApplyError> {
+pub fn strip_known_marketplace(plugins: &Path) -> Result<(), ApplyError> {
     let path = plugins.join("known_marketplaces.json");
     let Some(mut root) = read_optional_object(&path)? else {
         return Ok(());
@@ -74,15 +84,23 @@ pub(super) fn upsert_installed_plugin(
     };
     map.insert(
         plugin_id(),
-        json!([{
-            "scope": "user",
-            "installPath": cache.to_string_lossy().into_owned(),
-            "version": manifest.manifest_version.as_str(),
-            "installedAt": manifest.issued_at.as_str(),
-            "lastUpdated": manifest.issued_at.as_str(),
-        }]),
+        installed_entry(
+            cache,
+            manifest.manifest_version.as_str(),
+            manifest.issued_at.as_str(),
+        ),
     );
     write_json(&path, &Value::Object(root))
+}
+
+pub fn installed_entry(cache: &Path, version: &str, issued_at: &str) -> Value {
+    json!([{
+        "scope": "user",
+        "installPath": cache.to_string_lossy().into_owned(),
+        "version": version,
+        "installedAt": issued_at,
+        "lastUpdated": issued_at,
+    }])
 }
 
 pub(super) fn strip_installed_plugin(plugins: &Path) -> Result<(), ApplyError> {

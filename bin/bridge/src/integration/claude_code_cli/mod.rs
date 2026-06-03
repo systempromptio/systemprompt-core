@@ -2,14 +2,15 @@
 //!
 //! The `claude` CLI does not read the Cowork org-plugins root, so this installs
 //! the org plugin into `~/.claude` as a standard directory-source marketplace
-//! plugin (marketplace.json + cache bundle + known_marketplaces +
-//! installed_plugins) and force-enables it in settings.json, preserving every
-//! foreign key. Result: it appears in `claude plugin list` and its skills load
+//! plugin (`marketplace.json` + cache bundle + `known_marketplaces` +
+//! `installed_plugins`) and force-enables it in `settings.json`, preserving
+//! every foreign key. Result: it appears in `claude plugin list` and its skills
+//! load
 //! as `/systemprompt-managed:<skill>`.
 
 mod bundle;
-mod json_io;
-mod marketplace;
+pub mod json_io;
+pub mod marketplace;
 
 use std::path::{Path, PathBuf};
 
@@ -23,8 +24,8 @@ use marketplace::{
 
 use crate::config::paths;
 use crate::gateway::manifest::SignedManifest;
-use crate::sync::host_sync::{HostSync, HostSyncCtx};
 use crate::sync::ApplyError;
+use crate::sync::host_sync::{HostSync, HostSyncCtx};
 
 const MARKETPLACE: &str = "org-provisioned";
 const PLUGIN_NAME: &str = "systemprompt-managed";
