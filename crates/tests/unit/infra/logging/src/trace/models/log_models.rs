@@ -162,6 +162,7 @@ fn audit_lookup_result_construction() {
         id: "req-audit-1".to_owned().into(),
         provider: "anthropic".to_owned(),
         model: "claude-3".to_owned(),
+        requested_model: Some("claude-3-opus".to_owned()),
         input_tokens: Some(200),
         output_tokens: Some(100),
         cost_microdollars: 5,
@@ -171,6 +172,7 @@ fn audit_lookup_result_construction() {
     };
     assert_eq!(result.provider, "anthropic");
     assert_eq!(result.cost_microdollars, 5);
+    assert_eq!(result.requested_model.as_deref(), Some("claude-3-opus"));
     assert!(result.task_id.is_none());
 }
 
@@ -180,6 +182,7 @@ fn audit_lookup_result_with_ids() {
         id: "req-2".to_owned().into(),
         provider: "openai".to_owned(),
         model: "gpt-4".to_owned(),
+        requested_model: None,
         input_tokens: None,
         output_tokens: None,
         cost_microdollars: 0,
@@ -197,6 +200,7 @@ fn audit_lookup_result_serialize() {
         id: "req-ser".to_owned().into(),
         provider: "p".to_owned(),
         model: "m".to_owned(),
+        requested_model: None,
         input_tokens: None,
         output_tokens: None,
         cost_microdollars: 1,
