@@ -72,3 +72,29 @@ pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> b
 pub fn live_pid_is_subprocess(_pid: u32, _name_key: &str, _service_name: &str) -> bool {
     false
 }
+
+/// Reports whether `pid` is a zombie — terminated but not yet reaped.
+///
+/// The supervisor never reaps the children it spawns (their `Child` handle is
+/// forgotten), so a terminated child still answers `kill(pid, 0)`; liveness and
+/// shutdown probes must consult this to avoid treating a dead child as alive.
+/// Non-Linux targets have no `/proc` and always return `false`.
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn is_zombie(pid: u32) -> bool {
+    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
+        return false;
+    };
+    // The comm field is parenthesised and may contain spaces or `)`, so the
+    // state char is the first token after the final `)`.
+    let Some((_, after_comm)) = stat.rsplit_once(')') else {
+        return false;
+    };
+    after_comm.split_whitespace().next() == Some("Z")
+}
+
+#[cfg(not(target_os = "linux"))]
+#[must_use]
+pub fn is_zombie(_pid: u32) -> bool {
+    false
+}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.7] - 2026-06-03
+
+### Fixed
+
+- Graceful shutdown no longer waits the full forced-exit grace window on every `Ctrl-C` / `SIGTERM`. Terminating an agent or MCP child now polls for the process to exit — treating an unreaped child as gone once it becomes a zombie — instead of unconditionally sleeping the fixed grace period, and the agent and MCP children are signalled concurrently rather than one after another. The cross-replica event-relay task is aborted during drain so the runtime can exit once draining completes. Previously these costs combined to push a clean shutdown past the 10-second forced-exit guard, so the server always logged "Graceful shutdown exceeded grace window, forcing exit" and exited the long way.
+
 ## [0.14.6] - 2026-06-03
 
 ### Fixed

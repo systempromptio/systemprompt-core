@@ -28,27 +28,8 @@ async fn is_port_responsive(port: u16) -> McpDomainResult<bool> {
 /// Unlike [`utils::process_exists`], rejects zombies: a reaped-but-unwaited
 /// child still answers `kill(pid, 0)` yet runs no code, so a liveness probe
 /// must report it dead.
-#[cfg(unix)]
 pub fn is_process_running(pid: u32) -> bool {
-    utils::process_exists(pid) && !is_zombie(pid)
-}
-
-#[cfg(not(unix))]
-pub fn is_process_running(pid: u32) -> bool {
-    utils::process_exists(pid)
-}
-
-#[cfg(unix)]
-fn is_zombie(pid: u32) -> bool {
-    let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
-        return false;
-    };
-    // The comm field is parenthesised and may itself contain spaces or `)`,
-    // so the state char is the first token after the final `)`.
-    let Some((_, after_comm)) = stat.rsplit_once(')') else {
-        return false;
-    };
-    after_comm.split_whitespace().next() == Some("Z")
+    utils::process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
 }
 
 pub fn get_process_info(pid: u32) -> McpDomainResult<Option<ProcessInfo>> {

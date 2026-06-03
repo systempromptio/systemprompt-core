@@ -67,6 +67,10 @@ fn arm_forced_exit() {
 }
 
 pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
+    if let Some(handle) = ctx.event_bridge().get() {
+        handle.abort();
+    }
+
     if let Some(handle) = scheduler {
         if let Err(e) = handle.shutdown().await {
             tracing::warn!(error = %e, "Scheduler failed to drain cleanly");
@@ -87,8 +91,10 @@ async fn terminate_children(ctx: &AppContext) {
         },
     };
 
-    terminate_agent_children(&repo).await;
-    terminate_mcp_children(&repo).await;
+    tokio::join!(
+        terminate_agent_children(&repo),
+        terminate_mcp_children(&repo),
+    );
 }
 
 async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepository) {
@@ -102,11 +108,12 @@ async fn terminate_agent_children(repo: &systemprompt_database::ServiceRepositor
         },
     };
 
-    for name in names {
+    futures_util::future::join_all(names.into_iter().map(|name| async move {
         if let Ok(Some(service)) = repo.get_service_by_name(&name).await {
             terminate_service_child(repo, &name, service.pid, AGENT_NAME_ENV).await;
         }
-    }
+    }))
+    .await;
 }
 
 async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository) {
@@ -120,9 +127,10 @@ async fn terminate_mcp_children(repo: &systemprompt_database::ServiceRepository)
         },
     };
 
-    for service in services {
+    futures_util::future::join_all(services.into_iter().map(|service| async move {
         terminate_service_child(repo, &service.name, service.pid, MCP_SERVICE_ID_ENV).await;
-    }
+    }))
+    .await;
 }
 
 /// Group-kills a recorded child only after confirming the live PID is still

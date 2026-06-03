@@ -75,20 +75,25 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
     kill_process(pid)
 }
 
-/// Polls `process_exists` on a short interval until the process is gone or the
-/// grace deadline elapses, returning `true` as soon as it exits. Avoids paying
-/// the full grace period for children that exit promptly on SIGTERM.
+/// Polls until the process has exited or the grace deadline elapses, so a child
+/// that dies promptly on SIGTERM does not cost the full grace period. Liveness
+/// is zombie-aware ([`process_is_live`]) because killed children are never
+/// reaped and would otherwise still answer `kill(pid, 0)`.
 async fn wait_for_exit(pid: u32, grace_period_ms: u64) -> bool {
     let mut waited = 0;
     while waited < grace_period_ms {
-        if !process_exists(pid) {
+        if !process_is_live(pid) {
             return true;
         }
         let step = TERMINATION_POLL_INTERVAL_MS.min(grace_period_ms - waited);
         tokio::time::sleep(tokio::time::Duration::from_millis(step)).await;
         waited += step;
     }
-    !process_exists(pid)
+    !process_is_live(pid)
+}
+
+fn process_is_live(pid: u32) -> bool {
+    process_exists(pid) && !systemprompt_models::subprocess::is_zombie(pid)
 }
 
 /// Signal a whole process group, escalating SIGTERM to SIGKILL after a grace

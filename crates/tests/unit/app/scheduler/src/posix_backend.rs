@@ -95,6 +95,63 @@ mod terminate_group_gracefully_guards {
     }
 }
 
+// Real-child termination: a killed child the test never reaps becomes a zombie
+// that still answers `kill(pid, 0)`, mirroring the supervisor's forgotten
+// children. These confirm the grace poll is zombie-aware (returns as soon as
+// the child exits) rather than always sleeping the full grace window.
+#[cfg(unix)]
+mod live_child_termination {
+    use super::*;
+    use std::os::unix::process::CommandExt;
+    use std::process::{Child, Command};
+    use std::time::{Duration, Instant};
+
+    fn spawn_in_own_group(program: &str, args: &[&str]) -> Child {
+        let mut command = Command::new(program);
+        command.args(args).process_group(0);
+        command.spawn().expect("spawn test child")
+    }
+
+    #[tokio::test]
+    async fn returns_early_when_child_exits_on_sigterm() {
+        let mut child = spawn_in_own_group("sleep", &["30"]);
+        let pid = child.id();
+
+        let start = Instant::now();
+        let terminated = ProcessCleanup::terminate_group_gracefully(pid, 5_000).await;
+        let elapsed = start.elapsed();
+
+        let _ = child.wait();
+        assert!(terminated);
+        assert!(
+            elapsed < Duration::from_millis(2_000),
+            "expected early return once the child exited, waited {elapsed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn sigkills_child_that_ignores_sigterm() {
+        let mut child =
+            spawn_in_own_group("sh", &["-c", "trap '' TERM; while :; do sleep 0.2; done"]);
+        let pid = child.id();
+
+        // Let the shell install its SIGTERM trap before signalling, else it
+        // dies on the default disposition and never reaches the SIGKILL path.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        let start = Instant::now();
+        let terminated = ProcessCleanup::terminate_group_gracefully(pid, 400).await;
+        let elapsed = start.elapsed();
+
+        let _ = child.wait();
+        assert!(terminated);
+        assert!(
+            elapsed >= Duration::from_millis(350),
+            "expected to wait the grace deadline before SIGKILL, waited {elapsed:?}"
+        );
+    }
+}
+
 mod get_process_by_port_guards {
     use super::*;
 
