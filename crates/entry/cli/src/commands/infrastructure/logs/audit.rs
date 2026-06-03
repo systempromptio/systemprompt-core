@@ -58,7 +58,7 @@ async fn execute_with_pool_inner(
     let row = service.find_ai_request_for_audit(&args.id).await?;
 
     let Some(row) = row else {
-        render_not_found(&args.id);
+        render_result(&not_found_output(&args.id));
         return Ok(());
     };
 
@@ -106,9 +106,17 @@ async fn execute_with_pool_inner(
     Ok(())
 }
 
-fn render_not_found(id: &str) {
-    use systemprompt_logging::CliService;
-    CliService::warning(&format!("No AI request found for: {id}"));
-    CliService::info("Tip: Use 'systemprompt infra logs request list' to see recent requests");
-    CliService::info("     Use 'systemprompt infra logs trace list' to see recent traces");
+fn not_found_output(id: &str) -> CommandOutput {
+    use systemprompt_models::artifacts::NoticeLine;
+    CommandOutput::message(vec![
+        NoticeLine::new("warning", format!("No AI request found for: {id}")),
+        NoticeLine::new(
+            "info",
+            "Tip: Use 'systemprompt infra logs request list' to see recent requests",
+        ),
+        NoticeLine::new(
+            "info",
+            "Use 'systemprompt infra logs trace list' to see recent traces",
+        ),
+    ])
 }

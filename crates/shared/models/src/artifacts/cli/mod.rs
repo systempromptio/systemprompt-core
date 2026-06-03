@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AudioArtifact, ChartArtifact, CopyPasteTextArtifact, DashboardArtifact, ImageArtifact,
-    ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact, VideoArtifact,
+    ListArtifact, MessageArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
+    VideoArtifact,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -58,6 +59,10 @@ pub enum CliArtifact {
         #[serde(flatten)]
         artifact: PresentationCardArtifact,
     },
+    Message {
+        #[serde(flatten)]
+        artifact: MessageArtifact,
+    },
 }
 
 impl CliArtifact {
@@ -74,6 +79,7 @@ impl CliArtifact {
             Self::Image { .. } => ImageArtifact::ARTIFACT_TYPE_STR,
             Self::Video { .. } => VideoArtifact::ARTIFACT_TYPE_STR,
             Self::PresentationCard { .. } => PresentationCardArtifact::ARTIFACT_TYPE_STR,
+            Self::Message { .. } => MessageArtifact::ARTIFACT_TYPE_STR,
         }
     }
 
@@ -89,7 +95,8 @@ impl CliArtifact {
             | Self::List { .. }
             | Self::Chart { .. }
             | Self::Image { .. }
-            | Self::Video { .. } => None,
+            | Self::Video { .. }
+            | Self::Message { .. } => None,
         }
     }
 
@@ -141,5 +148,10 @@ impl CliArtifact {
     #[must_use]
     pub const fn presentation_card(artifact: PresentationCardArtifact) -> Self {
         Self::PresentationCard { artifact }
+    }
+
+    #[must_use]
+    pub const fn message(artifact: MessageArtifact) -> Self {
+        Self::Message { artifact }
     }
 }

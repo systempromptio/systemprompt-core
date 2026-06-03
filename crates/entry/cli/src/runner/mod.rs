@@ -15,7 +15,7 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_logging::set_startup_mode;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::{self, CliConfig};
+use crate::cli_settings::{self, CliConfig, OutputFormat};
 use crate::commands::{admin, analytics, cloud, core, infrastructure, plugins, web};
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
@@ -33,12 +33,41 @@ fn has_local_export_flag(command: Option<&args::Commands>) -> bool {
 }
 
 pub async fn run() -> Result<()> {
+    let outcome = Box::pin(run_inner()).await;
+    finalize_structured_output(&outcome);
+    outcome
+}
+
+fn finalize_structured_output(outcome: &Result<()>) {
+    use systemprompt_logging::{
+        CliService, drain_notices, is_structured_output, structured_was_emitted,
+    };
+    use systemprompt_models::artifacts::{CliArtifact, MessageArtifact, NoticeLine};
+
+    if outcome.is_err() || !is_structured_output() || structured_was_emitted() {
+        return;
+    }
+
+    let mut lines: Vec<NoticeLine> = drain_notices()
+        .into_iter()
+        .map(|n| NoticeLine::new(n.level, n.text))
+        .collect();
+    if lines.is_empty() {
+        lines.push(NoticeLine::new("success", "Command completed."));
+    }
+    CliService::json(&CliArtifact::message(MessageArtifact::new(lines)));
+}
+
+async fn run_inner() -> Result<()> {
     let cli = args::Cli::parse();
 
     set_startup_mode(cli.command.is_none());
 
     let cli_config = args::build_cli_config(&cli);
     cli_settings::set_global_config(cli_config.clone());
+    systemprompt_logging::set_structured_output(
+        cli_config.output_format() != OutputFormat::Table,
+    );
 
     if cli.display.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);

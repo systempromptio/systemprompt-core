@@ -2,8 +2,13 @@
 
 ## [0.14.7] - 2026-06-03
 
+### Added
+
+- A `message` CLI artifact (`CliArtifact::Message`, carrying levelled notice lines) and a `CommandOutput::message(...)` constructor. In JSON/YAML output mode the CLI now guarantees every command finishes with exactly one structured artifact on stdout: levelled notices from `CliService::success`/`warning`/`error`/`info` are captured during the command and, when the command emitted no other artifact, flushed as a single `message` artifact (a default "completed" notice when there were none), instead of being written only to stderr.
+
 ### Fixed
 
+- The admin `systemprompt` MCP server no longer returns a blank result for CLI commands that report through stderr. A command such as `infra logs audit <unknown-id>` exits 0 while writing its notice to stderr and leaving stdout empty; the MCP tool runs the CLI in JSON mode and returns stdout, so the model received an empty tool result and reported the server as producing no output. The CLI's two output channels are now unified — in JSON/YAML mode levelled notices are routed into the structured artifact rather than stderr — so stdout always carries exactly one parseable `CliArtifact` and the MCP tool result is never empty. Interactive table output is unchanged: notices still render to stderr.
 - Graceful shutdown no longer waits the full forced-exit grace window on every `Ctrl-C` / `SIGTERM`. Terminating an agent or MCP child now polls for the process to exit — treating an unreaped child as gone once it becomes a zombie — instead of unconditionally sleeping the fixed grace period, and the agent and MCP children are signalled concurrently rather than one after another. The cross-replica event-relay task is aborted during drain so the runtime can exit once draining completes. Previously these costs combined to push a clean shutdown past the 10-second forced-exit guard, so the server always logged "Graceful shutdown exceeded grace window, forcing exit" and exited the long way.
 
 ## [0.14.6] - 2026-06-03

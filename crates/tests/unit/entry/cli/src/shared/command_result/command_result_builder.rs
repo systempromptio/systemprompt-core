@@ -2,7 +2,7 @@
 
 use systemprompt_cli::shared::{ChartType, CommandOutput};
 use systemprompt_models::artifacts::{
-    ChartArtifact, CliArtifact, DashboardArtifact, ListItem, PresentationCardArtifact,
+    ChartArtifact, CliArtifact, DashboardArtifact, ListItem, NoticeLine, PresentationCardArtifact,
 };
 
 #[test]
@@ -139,4 +139,21 @@ fn test_command_output_from_cli_artifact() {
     let artifact = CliArtifact::text(systemprompt_models::artifacts::TextArtifact::new("x"));
     let output: CommandOutput = artifact.into();
     assert!(matches!(output.artifact(), CliArtifact::Text { .. }));
+}
+
+#[test]
+fn test_command_output_message() {
+    let output = CommandOutput::message(vec![
+        NoticeLine::new("warning", "no rows"),
+        NoticeLine::new("info", "tip"),
+    ]);
+    assert!(matches!(output.artifact(), CliArtifact::Message { .. }));
+}
+
+#[test]
+fn test_command_output_message_serializes() {
+    let output = CommandOutput::message(vec![NoticeLine::new("error", "boom")]);
+    let json = serde_json::to_string(output.artifact()).unwrap();
+    assert!(json.contains("\"artifact_type\":\"message\""));
+    assert!(json.contains("boom"));
 }

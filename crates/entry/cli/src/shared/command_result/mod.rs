@@ -19,8 +19,8 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use systemprompt_models::artifacts::{
     CardSection, ChartArtifact, CliArtifact, Column, ColumnType, CopyPasteTextArtifact,
-    DashboardArtifact, ListArtifact, ListItem, PresentationCardArtifact, TableArtifact,
-    TextArtifact,
+    DashboardArtifact, ListArtifact, ListItem, MessageArtifact, NoticeLine,
+    PresentationCardArtifact, TableArtifact, TextArtifact,
 };
 
 /// A command's renderable result: a typed [`CliArtifact`] plus terminal-only
@@ -160,6 +160,11 @@ impl CommandOutput {
     #[must_use]
     pub const fn dashboard(dashboard: DashboardArtifact) -> Self {
         Self::new(CliArtifact::dashboard(dashboard))
+    }
+
+    #[must_use]
+    pub fn message(lines: Vec<NoticeLine>) -> Self {
+        Self::new(CliArtifact::message(MessageArtifact::new(lines)))
     }
 }
 

@@ -8,6 +8,7 @@ pub mod copy_paste_text;
 pub mod dashboard;
 pub mod image;
 pub mod list;
+pub mod message;
 pub mod metadata;
 pub mod research;
 pub mod table;
@@ -27,6 +28,7 @@ pub use dashboard::{
     SortConfig, StatusSectionData, TableSectionData,
 };
 pub use list::{ListArtifact, ListItem};
+pub use message::{MessageArtifact, NoticeLine};
 pub use metadata::{ExecutionMetadata, ToolResponse};
 pub use research::{ResearchArtifact, SourceCitation};
 pub use table::{Column, TableArtifact, TableHints, TableResponse};

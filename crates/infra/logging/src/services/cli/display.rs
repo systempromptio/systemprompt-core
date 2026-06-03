@@ -25,11 +25,24 @@ fn stderr_writeln(args: std::fmt::Arguments<'_>) {
     writeln!(stderr, "{args}").ok();
 }
 
+const fn message_level_str(level: MessageLevel) -> &'static str {
+    match level {
+        MessageLevel::Success => "success",
+        MessageLevel::Warning => "warning",
+        MessageLevel::Error => "error",
+        MessageLevel::Info => "info",
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct DisplayUtils;
 
 impl DisplayUtils {
     pub fn message(level: MessageLevel, text: &str) {
+        if crate::services::output::is_structured_output() {
+            crate::services::output::buffer_notice(message_level_str(level), text);
+            return;
+        }
         stderr_writeln(format_args!(
             "{} {}",
             Theme::icon(level),

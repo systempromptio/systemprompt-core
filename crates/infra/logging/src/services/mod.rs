@@ -21,7 +21,9 @@ pub use database_log::DatabaseLogService;
 pub use format::FilterSystemFields;
 pub use maintenance::LoggingMaintenanceService;
 pub use output::{
-    get_log_publisher, is_startup_mode, publish_log, set_log_publisher, set_startup_mode,
+    BufferedNotice, buffer_notice, drain_notices, get_log_publisher, is_startup_mode,
+    is_structured_output, mark_structured_emitted, publish_log, set_log_publisher,
+    set_startup_mode, set_structured_output, structured_was_emitted,
 };
 pub use retention::{RetentionConfig, RetentionPolicy, RetentionScheduler};
 pub use spans::{RequestSpan, RequestSpanBuilder, SystemSpan};

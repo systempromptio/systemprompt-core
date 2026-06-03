@@ -35,6 +35,9 @@ mod artifacts;
 mod artifacts_extended;
 
 #[cfg(test)]
+mod message_artifact;
+
+#[cfg(test)]
 mod config;
 
 #[cfg(test)]
@@ -198,6 +201,9 @@ mod validators_driven;
 
 #[cfg(test)]
 mod wire_streaming;
+
+#[cfg(test)]
+mod wire_sse;
 
 #[cfg(test)]
 mod profile_validation;

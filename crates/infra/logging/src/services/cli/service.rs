@@ -17,7 +17,7 @@ use systemprompt_traits::LogEventLevel;
 
 use super::display::{CollectionDisplay, Display, DisplayUtils};
 use super::module::{BatchModuleOperations, ModuleDisplay, ModuleInstall, ModuleUpdate};
-use super::output::publish_log;
+use super::output::{mark_structured_emitted, publish_log};
 use super::prompts::{PromptBuilder, Prompts};
 use super::summary::{OperationResult, ProgressSummary, ValidationSummary};
 use super::theme::{EmphasisType, ItemStatus, MessageLevel, ModuleType, Theme};
@@ -86,6 +86,7 @@ impl CliService {
     }
 
     pub fn json<T: Serialize>(value: &T) {
+        mark_structured_emitted();
         match serde_json::to_string_pretty(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
@@ -98,6 +99,7 @@ impl CliService {
     }
 
     pub fn json_compact<T: Serialize>(value: &T) {
+        mark_structured_emitted();
         match serde_json::to_string(value) {
             Ok(json) => {
                 let mut stdout = std::io::stdout();
@@ -110,6 +112,7 @@ impl CliService {
     }
 
     pub fn yaml<T: Serialize>(value: &T) {
+        mark_structured_emitted();
         match serde_yaml::to_string(value) {
             Ok(yaml) => {
                 let mut stdout = std::io::stdout();

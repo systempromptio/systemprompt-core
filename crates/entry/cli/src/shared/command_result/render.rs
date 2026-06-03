@@ -60,6 +60,16 @@ fn render_terminal(result: &CommandOutput) {
         CliArtifact::Audio { artifact } => CliService::output(&artifact.src),
         CliArtifact::Image { artifact } => CliService::output(&artifact.src),
         CliArtifact::Video { artifact } => CliService::output(&artifact.src),
+        CliArtifact::Message { artifact } => {
+            for line in &artifact.messages {
+                match line.level.as_str() {
+                    "success" => CliService::success(&line.text),
+                    "warning" => CliService::warning(&line.text),
+                    "error" => CliService::error(&line.text),
+                    _ => CliService::info(&line.text),
+                }
+            }
+        },
     }
 }
 
