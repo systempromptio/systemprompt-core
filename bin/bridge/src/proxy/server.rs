@@ -63,7 +63,7 @@ pub fn start(
     let client = build_upstream_client()?;
 
     let ctx = ProxyContext {
-        runtime_config: runtime_config.clone(),
+        runtime_config: Arc::clone(&runtime_config),
         secret: Arc::new(proxy_secret),
         stats: Arc::clone(&stats),
         client: client.clone(),

@@ -61,24 +61,35 @@ pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
 const BUFFERED_BODY_LIMIT: usize = 8 * 1024 * 1024;
 
+pub(crate) struct ForwardDeps<'a> {
+    pub client: reqwest::Client,
+    pub gateway_base: &'a ValidatedUrl,
+    pub token_cache: &'a TokenCache,
+    pub session_context: &'a SessionContext,
+    pub stats: Arc<ProxyStats>,
+}
+
 #[tracing::instrument(
     level = "debug",
-    skip(req, client, gateway_base, token_cache, session_context, stats),
+    skip(req, deps),
     fields(
         method = %req.method(),
         path = %req.uri().path(),
-        session_id = %session_context.session_id(),
+        session_id = %deps.session_context.session_id(),
         gateway_conversation_id = tracing::field::Empty,
     )
 )]
-pub async fn forward(
+pub(crate) async fn forward(
     req: Request<Incoming>,
-    client: reqwest::Client,
-    gateway_base: &ValidatedUrl,
-    token_cache: &TokenCache,
-    session_context: &SessionContext,
-    stats: Arc<ProxyStats>,
+    deps: ForwardDeps<'_>,
 ) -> ForwardResult<Response<ProxyBody>> {
+    let ForwardDeps {
+        client,
+        gateway_base,
+        token_cache,
+        session_context,
+        stats,
+    } = deps;
     let token = token_cache.current(REFRESH_THRESHOLD_SECS).await?;
 
     let (parts, body) = req.into_parts();

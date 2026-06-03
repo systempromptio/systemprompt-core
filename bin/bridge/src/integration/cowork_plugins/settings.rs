@@ -51,6 +51,10 @@ pub fn enable_plugin(
     Ok(report)
 }
 
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "Result-returning parity with enable_plugin for the symmetric enable/disable API"
+)]
 pub fn disable_plugin(
     root: &mut Map<String, Value>,
     plugin: &str,

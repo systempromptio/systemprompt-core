@@ -151,7 +151,7 @@ pub mod tracing_init {
                 .payload()
                 .downcast_ref::<&str>()
                 .copied()
-                .map(str::to_string)
+                .map(str::to_owned)
                 .or_else(|| info.payload().downcast_ref::<String>().cloned())
                 .unwrap_or_else(|| "<non-string panic payload>".to_owned());
             let backtrace = backtrace::Backtrace::new();

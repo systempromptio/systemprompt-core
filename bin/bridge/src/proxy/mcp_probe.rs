@@ -1,7 +1,9 @@
-//! Live MCP auth probe: an `initialize` → `tools/list` round-trip through the
-//! bridge's own loopback proxy, exercising the full auth chain (loopback-secret,
-//! gateway-JWT injection, upstream forwarding) the host app uses, so the GUI can
-//! surface failures otherwise only visible in the host's logs.
+//! Live MCP auth probe.
+//!
+//! An `initialize` → `tools/list` round-trip through the bridge's own loopback
+//! proxy, exercising the full auth chain (loopback-secret, gateway-JWT
+//! injection, upstream forwarding) the host app uses, so the GUI can surface
+//! failures otherwise only visible in the host's logs.
 
 use std::time::{Duration, Instant};
 
@@ -113,11 +115,13 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
             return result(
                 slug,
                 &url,
-                McpAuthState::ProtocolError,
-                None,
-                None,
-                Some(format!("loopback secret unavailable: {e}")),
                 probed_at_unix,
+                ProbeOutcome {
+                    state: McpAuthState::ProtocolError,
+                    http_status: None,
+                    latency_ms: None,
+                    error: Some(format!("loopback secret unavailable: {e}")),
+                },
             );
         },
     };
@@ -143,11 +147,13 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
             return result(
                 slug,
                 &url,
-                state,
-                None,
-                Some(elapsed_ms(started)),
-                Some(e.to_string()),
                 probed_at_unix,
+                ProbeOutcome {
+                    state,
+                    http_status: None,
+                    latency_ms: Some(elapsed_ms(started)),
+                    error: Some(e.to_string()),
+                },
             );
         },
     };
@@ -167,11 +173,13 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
         return result(
             slug,
             &url,
-            state,
-            Some(http),
-            Some(latency),
-            Some(snippet(&body)),
             probed_at_unix,
+            ProbeOutcome {
+                state,
+                http_status: Some(http),
+                latency_ms: Some(latency),
+                error: Some(snippet(&body)),
+            },
         );
     }
 
@@ -298,23 +306,22 @@ fn parse_jsonrpc(content_type: &str, body: &str) -> Option<Value> {
     }
 }
 
-fn result(
-    slug: &str,
-    url: &str,
+struct ProbeOutcome {
     state: McpAuthState,
     http_status: Option<u16>,
     latency_ms: Option<u64>,
     error: Option<String>,
-    probed_at_unix: u64,
-) -> McpServerAuth {
+}
+
+fn result(slug: &str, url: &str, probed_at_unix: u64, outcome: ProbeOutcome) -> McpServerAuth {
     McpServerAuth {
         id: slug.to_owned(),
         url: url.to_owned(),
-        state,
+        state: outcome.state,
         tools: Vec::new(),
-        http_status,
-        latency_ms,
-        error,
+        http_status: outcome.http_status,
+        latency_ms: outcome.latency_ms,
+        error: outcome.error,
         session_id: None,
         probed_at_unix,
     }

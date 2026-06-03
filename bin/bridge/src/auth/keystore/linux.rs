@@ -5,7 +5,7 @@ pub(super) struct LinuxKeystore;
 
 impl DeviceCertSource for LinuxKeystore {
     fn load(&self) -> Result<DeviceCert, KeystoreError> {
-        let path = env::var("SP_BRIDGE_DEVICE_CERT").map_err(|_| {
+        let path = env::var("SP_BRIDGE_DEVICE_CERT").map_err(|_unset| {
             KeystoreError::NotConfigured("SP_BRIDGE_DEVICE_CERT unset; no device cert on Linux")
         })?;
         let bytes = fs::read(&path)?;

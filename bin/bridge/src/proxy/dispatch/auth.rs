@@ -9,13 +9,22 @@ use crate::proxy::server::ProxyContext;
 
 use super::{sha256_8, simple_response};
 
-pub(super) fn reject_non_loopback(
-    req_id: &str,
-    method: &Method,
-    path: &str,
-    host_hdr: &str,
-    peer: SocketAddr,
-) -> Response<ProxyBody> {
+pub(super) struct RequestLog<'a> {
+    pub req_id: &'a str,
+    pub method: &'a Method,
+    pub path: &'a str,
+    pub user_agent: &'a str,
+    pub peer: SocketAddr,
+}
+
+pub(super) fn reject_non_loopback(log: &RequestLog<'_>, host_hdr: &str) -> Response<ProxyBody> {
+    let RequestLog {
+        req_id,
+        method,
+        path,
+        peer,
+        ..
+    } = log;
     tracing::warn!(
         target: "systemprompt_bridge::proxy",
         req_id = %req_id,
@@ -32,12 +41,15 @@ pub(super) fn reject_non_loopback(
 pub(super) fn verify_loopback_secret(
     req: &Request<Incoming>,
     ctx: &ProxyContext,
-    req_id: &str,
-    method: &Method,
-    path: &str,
-    user_agent: &str,
-    peer: SocketAddr,
+    log: &RequestLog<'_>,
 ) -> Option<Response<ProxyBody>> {
+    let RequestLog {
+        req_id,
+        method,
+        path,
+        user_agent,
+        peer,
+    } = log;
     let presented = req
         .headers()
         .get(http::header::AUTHORIZATION)
@@ -55,10 +67,8 @@ pub(super) fn verify_loopback_secret(
     }
     let presented_fp = sha256_8(&presented);
     let expected_fp = sha256_8(ctx.secret.as_ref().as_str());
-    let secret_path = secret::secret_path().map_or_else(
-        || "<no config dir>".to_owned(),
-        |p| p.display().to_string(),
-    );
+    let secret_path = secret::secret_path()
+        .map_or_else(|| "<no config dir>".to_owned(), |p| p.display().to_string());
     tracing::warn!(
         target: "systemprompt_bridge::proxy",
         req_id = %req_id,

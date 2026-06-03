@@ -1,6 +1,8 @@
-//! Fluent-subset loader for handler-emitted strings: parses `id = value` lines
-//! and `{ $arg }` placeables. Locale negotiation reads `LANG`; en-US is the
-//! embedded fallback, overridable via `web/i18n/<locale>/bridge.ftl`.
+//! Fluent-subset loader for handler-emitted strings.
+//!
+//! Parses `id = value` lines and `{ $arg }` placeables. Locale negotiation
+//! reads `LANG`; en-US is the embedded fallback, overridable via
+//! `web/i18n/<locale>/bridge.ftl`.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;

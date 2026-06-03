@@ -34,11 +34,13 @@ pub(super) async fn forward_to_gateway(
     } = meta;
     match forward::forward(
         req,
-        ctx.client.clone(),
-        cfg.gateway_base.as_ref(),
-        ctx.token_cache.as_ref(),
-        ctx.session.as_ref(),
-        Arc::clone(&ctx.stats),
+        forward::ForwardDeps {
+            client: ctx.client.clone(),
+            gateway_base: cfg.gateway_base.as_ref(),
+            token_cache: ctx.token_cache.as_ref(),
+            session_context: ctx.session.as_ref(),
+            stats: Arc::clone(&ctx.stats),
+        },
     )
     .await
     {
@@ -160,9 +162,14 @@ pub(super) async fn handle_request(
     );
 
     if !host_hdr.is_empty() && !host_is_loopback(&host_hdr) {
-        return Ok(auth::reject_non_loopback(
-            &req_id, &method, &path, &host_hdr, peer,
-        ));
+        let log = auth::RequestLog {
+            req_id: &req_id,
+            method: &method,
+            path: &path,
+            user_agent: &user_agent,
+            peer,
+        };
+        return Ok(auth::reject_non_loopback(&log, &host_hdr));
     }
 
     if is_unauthenticated_path(&method, &path) {
@@ -188,9 +195,14 @@ pub(super) async fn handle_request(
         .await;
     }
 
-    if let Some(rejection) =
-        auth::verify_loopback_secret(&req, &ctx, &req_id, &method, &path, &user_agent, peer)
-    {
+    let log = auth::RequestLog {
+        req_id: &req_id,
+        method: &method,
+        path: &path,
+        user_agent: &user_agent,
+        peer,
+    };
+    if let Some(rejection) = auth::verify_loopback_secret(&req, &ctx, &log) {
         return Ok(rejection);
     }
 

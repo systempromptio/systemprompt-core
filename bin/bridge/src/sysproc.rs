@@ -160,7 +160,7 @@ mod linux {
                 continue;
             }
             let comm = fs::read_to_string(format!("/proc/{name_str}/comm")).unwrap_or_default();
-            let name = comm.trim().to_string();
+            let name = comm.trim().to_owned();
             let path = fs::read_link(format!("/proc/{name_str}/exe"))
                 .ok()
                 .map(|p| p.display().to_string());

@@ -58,6 +58,10 @@ pub fn org_plugins_user() -> Option<PathBuf> {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[must_use]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "Option-returning signature parity with the macos/windows cfg variants"
+)]
 pub fn org_plugins_system() -> Option<PathBuf> {
     Some(PathBuf::from("/opt/Claude/org-plugins"))
 }

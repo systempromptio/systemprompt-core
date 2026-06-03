@@ -52,7 +52,7 @@ impl SignedManifestVerify for SignedManifest {
         let arr: [u8; 32] = pubkey_bytes
             .as_slice()
             .try_into()
-            .map_err(|_| ManifestError::PubkeyLengthMismatch)?;
+            .map_err(|_len| ManifestError::PubkeyLengthMismatch)?;
         let key = VerifyingKey::from_bytes(&arr).map_err(ManifestError::PubkeyParse)?;
 
         let sig_bytes = base64::engine::general_purpose::STANDARD
@@ -64,7 +64,7 @@ impl SignedManifestVerify for SignedManifest {
         let sig_arr: [u8; 64] = sig_bytes
             .as_slice()
             .try_into()
-            .map_err(|_| ManifestError::SignatureLengthMismatch)?;
+            .map_err(|_len| ManifestError::SignatureLengthMismatch)?;
         let signature = Signature::from_bytes(&sig_arr);
 
         let payload = canonical_payload(self)?;

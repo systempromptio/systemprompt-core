@@ -31,9 +31,7 @@ static TOKEN_CACHE: OnceLock<Arc<TokenCache>> = OnceLock::new();
 
 #[must_use]
 pub fn runtime_config() -> SharedRuntimeConfig {
-    RUNTIME_CONFIG
-        .get_or_init(config::shared_from_loaded)
-        .clone()
+    Arc::clone(RUNTIME_CONFIG.get_or_init(config::shared_from_loaded))
 }
 
 fn swap_runtime_config(next: RuntimeConfig) {

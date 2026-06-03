@@ -69,17 +69,18 @@ pub fn check_replay(last: &LastSyncState, incoming: &ManifestVersion) -> Result<
 }
 
 pub fn check_skew(not_before: &str, now: chrono::DateTime<chrono::Utc>) -> Result<(), SyncError> {
-    let parsed =
-        chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_| SyncError::ManifestSkew {
-            not_before: not_before.to_string(),
+    let parsed = chrono::DateTime::parse_from_rfc3339(not_before).map_err(|_parse| {
+        SyncError::ManifestSkew {
+            not_before: not_before.to_owned(),
             now: now.to_rfc3339(),
-        })?;
+        }
+    })?;
     let nb_utc = parsed.with_timezone(&chrono::Utc);
     let window = chrono::Duration::minutes(SKEW_WINDOW_MINUTES);
     let delta = nb_utc.signed_duration_since(now);
     if delta > window || delta < -window {
         return Err(SyncError::ManifestSkew {
-            not_before: not_before.to_string(),
+            not_before: not_before.to_owned(),
             now: now.to_rfc3339(),
         });
     }
