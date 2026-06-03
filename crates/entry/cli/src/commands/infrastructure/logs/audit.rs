@@ -7,28 +7,21 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 use systemprompt_logging::TraceQueryService;
 
-use super::audit_display::render_text_output;
 use super::types::MessageRow;
-use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct AuditArgs {
     #[arg(help = "AI request ID, task ID, or trace ID")]
     pub id: String,
-
-    #[arg(long, help = "Show full message content without truncation")]
-    pub full: bool,
-
-    #[arg(long, help = "Output as JSON")]
-    pub json: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct AuditOutput {
+pub struct AuditOutput {
     pub request_id: AiRequestId,
     pub provider: String,
     pub model: String,
+    pub requested_model: Option<String>,
     pub input_tokens: i32,
     pub output_tokens: i32,
     pub cost_dollars: f64,
@@ -40,19 +33,15 @@ pub(super) struct AuditOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct AuditToolCall {
+pub struct AuditToolCall {
     pub tool_name: String,
     pub tool_input: String,
     pub sequence: i32,
 }
 
-crate::define_pool_command!(AuditArgs => (), with_config);
+crate::define_pool_command!(AuditArgs => (), no_config);
 
-async fn execute_with_pool_inner(
-    args: AuditArgs,
-    pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+async fn execute_with_pool_inner(args: AuditArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
     let service = TraceQueryService::new(Arc::clone(pool));
 
     let row = service.find_ai_request_for_audit(&args.id).await?;
@@ -72,6 +61,7 @@ async fn execute_with_pool_inner(
         request_id,
         provider: row.provider,
         model: row.model,
+        requested_model: row.requested_model,
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),
         cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
@@ -96,17 +86,18 @@ async fn execute_with_pool_inner(
             .collect(),
     };
 
-    if config.is_json_output() || args.json {
-        let result = CommandOutput::card_value("AI Request Audit", &output);
-        render_result(&result);
-    } else {
-        render_text_output(&output, args.full);
-    }
+    render_result(&build_audit(&output));
 
     Ok(())
 }
 
-fn not_found_output(id: &str) -> CommandOutput {
+#[must_use]
+pub fn build_audit(output: &AuditOutput) -> CommandOutput {
+    CommandOutput::card_value("AI Request Audit", output)
+}
+
+#[must_use]
+pub fn not_found_output(id: &str) -> CommandOutput {
     use systemprompt_models::artifacts::NoticeLine;
     CommandOutput::message(vec![
         NoticeLine::new("warning", format!("No AI request found for: {id}")),

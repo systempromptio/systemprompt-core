@@ -1,7 +1,7 @@
 //! `infra logs request` subcommands for inspecting AI provider requests.
 //!
 //! Exposes [`RequestCommands`] (list, show, stats) and the row types
-//! ([`RequestListOutput`], [`RequestShowOutput`]) returned to the renderer.
+//! ([`RequestListRow`], [`RequestShowOutput`]) returned to the renderer.
 
 mod list;
 mod show;
@@ -15,7 +15,45 @@ use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
 use crate::CliConfig;
-use crate::shared::render_result;
+use crate::shared::{CommandOutput, render_result};
+use systemprompt_models::artifacts::NoticeLine;
+
+pub use stats::{RequestStatsOutput, build_request_stats};
+
+const REQUEST_LIST_COLUMNS: [&str; 8] = [
+    "request_id",
+    "timestamp",
+    "provider",
+    "model",
+    "tokens",
+    "cost",
+    "latency_ms",
+    "status",
+];
+
+#[must_use]
+pub fn build_request_list(rows: &[RequestListRow]) -> CommandOutput {
+    if rows.is_empty() {
+        return CommandOutput::message(vec![NoticeLine::new("info", "No AI requests found")]);
+    }
+    CommandOutput::table_of(REQUEST_LIST_COLUMNS.to_vec(), rows).with_title("AI Requests")
+}
+
+#[must_use]
+pub fn build_request_show(detail: &RequestShowOutput) -> CommandOutput {
+    CommandOutput::card_value("AI Request Details", detail)
+}
+
+#[must_use]
+pub fn request_show_not_found(request_id: &str) -> CommandOutput {
+    CommandOutput::message(vec![
+        NoticeLine::new("warning", format!("AI request not found: {request_id}")),
+        NoticeLine::new(
+            "info",
+            "Tip: Use 'systemprompt infra logs request list' to see recent requests",
+        ),
+    ])
+}
 
 #[derive(Debug, Subcommand)]
 pub enum RequestCommands {
@@ -52,12 +90,6 @@ pub struct RequestListRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latency_ms: Option<i64>,
     pub status: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct RequestListOutput {
-    pub requests: Vec<RequestListRow>,
-    pub total: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

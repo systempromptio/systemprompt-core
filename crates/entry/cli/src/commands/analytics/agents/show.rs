@@ -1,8 +1,9 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::AgentAnalyticsRepository;
 use systemprompt_logging::CliService;
+use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{
@@ -58,10 +59,19 @@ async fn execute_internal(
 
     let count = repo.agent_exists(&args.agent, start, end).await?;
     if count == 0 {
-        return Err(anyhow!(
-            "Agent '{}' not found in the specified time range",
-            args.agent
-        ));
+        return Ok(CommandOutput::message(vec![
+            NoticeLine::new(
+                "warning",
+                format!(
+                    "No activity for agent '{}' in the specified time range",
+                    args.agent
+                ),
+            ),
+            NoticeLine::new(
+                "info",
+                "Tip: Use 'systemprompt analytics agents list' to see agents with recent activity",
+            ),
+        ]));
     }
 
     let summary_row = repo.get_agent_summary(&args.agent, start, end).await?;

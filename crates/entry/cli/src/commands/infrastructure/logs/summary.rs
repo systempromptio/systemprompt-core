@@ -9,7 +9,6 @@ use std::sync::Arc;
 use systemprompt_logging::TraceQueryService;
 
 use super::duration::parse_since;
-use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
@@ -22,7 +21,7 @@ pub struct SummaryArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct LogsSummaryOutput {
+pub struct LogsSummaryOutput {
     pub total_logs: i64,
     pub by_level: LevelCounts,
     pub top_modules: Vec<ModuleCount>,
@@ -31,7 +30,7 @@ pub(super) struct LogsSummaryOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub(super) struct LevelCounts {
+pub struct LevelCounts {
     pub error: i64,
     pub warn: i64,
     pub info: i64,
@@ -40,13 +39,13 @@ pub(super) struct LevelCounts {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct ModuleCount {
+pub struct ModuleCount {
     pub module: String,
     pub count: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct TimeRange {
+pub struct TimeRange {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub earliest: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,18 +54,14 @@ pub(super) struct TimeRange {
     pub span_hours: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct DatabaseInfo {
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct DatabaseInfo {
     pub logs_table_rows: i64,
 }
 
-crate::define_pool_command!(SummaryArgs => (), with_config);
+crate::define_pool_command!(SummaryArgs => (), no_config);
 
-async fn execute_with_pool_inner(
-    args: SummaryArgs,
-    pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+async fn execute_with_pool_inner(args: SummaryArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let service = TraceQueryService::new(Arc::clone(pool));
 
@@ -110,14 +105,14 @@ async fn execute_with_pool_inner(
         },
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("Logs Summary", &output);
-        render_result(&result);
-    } else {
-        render_text_output(&output);
-    }
+    render_result(&build_logs_summary(&output));
 
     Ok(())
+}
+
+#[must_use]
+pub fn build_logs_summary(output: &LogsSummaryOutput) -> CommandOutput {
+    CommandOutput::card_value("Logs Summary", output)
 }
 
 fn build_level_counts(rows: &[systemprompt_logging::LevelCount]) -> LevelCounts {
@@ -141,51 +136,4 @@ fn build_level_counts(rows: &[systemprompt_logging::LevelCount]) -> LevelCounts 
     }
 
     counts
-}
-
-pub(super) fn render_text_output(output: &LogsSummaryOutput) {
-    use systemprompt_logging::CliService;
-
-    CliService::section("Logs Summary");
-
-    CliService::key_value("Total Logs", &output.total_logs.to_string());
-
-    CliService::subsection("By Level");
-    if output.by_level.error > 0 {
-        CliService::error(&format!("  Errors:   {}", output.by_level.error));
-    } else {
-        CliService::key_value("  Errors", &output.by_level.error.to_string());
-    }
-    if output.by_level.warn > 0 {
-        CliService::warning(&format!("  Warnings: {}", output.by_level.warn));
-    } else {
-        CliService::key_value("  Warnings", &output.by_level.warn.to_string());
-    }
-    CliService::key_value("  Info", &output.by_level.info.to_string());
-    CliService::key_value("  Debug", &output.by_level.debug.to_string());
-    CliService::key_value("  Trace", &output.by_level.trace.to_string());
-
-    if !output.top_modules.is_empty() {
-        CliService::subsection("Top Modules");
-        for module in &output.top_modules {
-            CliService::info(&format!("  {} ({})", module.module, module.count));
-        }
-    }
-
-    CliService::subsection("Time Range");
-    if let Some(ref earliest) = output.time_range.earliest {
-        CliService::key_value("  Earliest", earliest);
-    }
-    if let Some(ref latest) = output.time_range.latest {
-        CliService::key_value("  Latest", latest);
-    }
-    if let Some(span) = output.time_range.span_hours {
-        CliService::key_value("  Span", &format!("{} hours", span));
-    }
-
-    CliService::subsection("Database");
-    CliService::key_value(
-        "  Total Rows",
-        &output.database_info.logs_table_rows.to_string(),
-    );
 }

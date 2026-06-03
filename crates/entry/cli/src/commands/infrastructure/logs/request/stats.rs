@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::TraceQueryService;
 
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::{CommandOutput, render_result};
 
@@ -22,7 +21,7 @@ pub struct StatsArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct RequestStatsOutput {
+pub struct RequestStatsOutput {
     pub total_requests: i64,
     pub total_tokens: TokenStats,
     pub total_cost_dollars: f64,
@@ -32,14 +31,14 @@ pub(super) struct RequestStatsOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-pub(super) struct TokenStats {
+pub struct TokenStats {
     pub input: i64,
     pub output: i64,
     pub total: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct ProviderStats {
+pub struct ProviderStats {
     pub provider: String,
     pub request_count: i64,
     pub total_tokens: i64,
@@ -48,7 +47,7 @@ pub(super) struct ProviderStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub(super) struct ModelStats {
+pub struct ModelStats {
     pub model: String,
     pub provider: String,
     pub request_count: i64,
@@ -57,13 +56,9 @@ pub(super) struct ModelStats {
     pub avg_latency_ms: i64,
 }
 
-crate::define_pool_command!(StatsArgs => (), with_config);
+crate::define_pool_command!(StatsArgs => (), no_config);
 
-async fn execute_with_pool_inner(
-    args: StatsArgs,
-    pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+async fn execute_with_pool_inner(args: StatsArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
     let service = TraceQueryService::new(Arc::clone(pool));
@@ -106,54 +101,12 @@ async fn execute_with_pool_inner(
             .collect(),
     };
 
-    if config.is_json_output() {
-        let result = CommandOutput::card_value("AI Request Statistics", &output);
-        render_result(&result);
-    } else {
-        render_text_output(&output);
-    }
+    render_result(&build_request_stats(&output));
 
     Ok(())
 }
 
-pub(super) fn render_text_output(output: &RequestStatsOutput) {
-    use systemprompt_logging::CliService;
-
-    CliService::section("AI Request Statistics");
-
-    CliService::key_value("Total Requests", &output.total_requests.to_string());
-    CliService::key_value("Total Cost", &format!("${:.6}", output.total_cost_dollars));
-    CliService::key_value(
-        "Average Latency",
-        &format!("{}ms", output.average_latency_ms),
-    );
-
-    CliService::subsection("Token Usage");
-    CliService::key_value("  Input Tokens", &output.total_tokens.input.to_string());
-    CliService::key_value("  Output Tokens", &output.total_tokens.output.to_string());
-    CliService::key_value("  Total Tokens", &output.total_tokens.total.to_string());
-
-    if !output.by_provider.is_empty() {
-        CliService::subsection("By Provider");
-        for provider in &output.by_provider {
-            CliService::info(&format!(
-                "  {} - {} requests, {} tokens, ${:.6}, avg {}ms",
-                provider.provider,
-                provider.request_count,
-                provider.total_tokens,
-                provider.total_cost_dollars,
-                provider.avg_latency_ms
-            ));
-        }
-    }
-
-    if !output.by_model.is_empty() {
-        CliService::subsection("Top Models");
-        for model in &output.by_model {
-            CliService::info(&format!(
-                "  {} ({}) - {} requests, ${:.6}",
-                model.model, model.provider, model.request_count, model.total_cost_dollars
-            ));
-        }
-    }
+#[must_use]
+pub fn build_request_stats(output: &RequestStatsOutput) -> CommandOutput {
+    CommandOutput::card_value("AI Request Statistics", output)
 }

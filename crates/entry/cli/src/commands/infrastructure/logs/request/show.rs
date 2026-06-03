@@ -5,10 +5,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_logging::{AiTraceService, CliService, TraceQueryService};
+use systemprompt_logging::{AiTraceService, TraceQueryService};
 
-use super::{MessageRow, RequestShowOutput, ToolCallRow};
-use crate::CliConfig;
+use super::{
+    MessageRow, RequestShowOutput, ToolCallRow, build_request_show, request_show_not_found,
+};
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -21,42 +22,17 @@ pub struct ShowArgs {
 
     #[arg(long, short = 't', help = "Show linked MCP tool calls")]
     pub tools: bool,
-
-    #[arg(long, help = "Show full message content without truncation")]
-    pub full: bool,
 }
 
-crate::define_pool_command!(ShowArgs => CommandOutput, with_config);
+crate::define_pool_command!(ShowArgs => CommandOutput, no_config);
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
 ) -> Result<CommandOutput> {
     let service = TraceQueryService::new(Arc::clone(pool));
     let Some(row) = service.find_ai_request_detail(&args.request_id).await? else {
-        if !config.is_json_output() {
-            CliService::warning(&format!("AI request not found: {}", args.request_id));
-            CliService::info(
-                "Tip: Use 'systemprompt infra logs request list' to see recent requests",
-            );
-        }
-        let empty_output = RequestShowOutput {
-            request_id: args.request_id,
-            provider: String::new(),
-            model: String::new(),
-            input_tokens: 0,
-            output_tokens: 0,
-            cost_dollars: 0.0,
-            latency_ms: 0,
-            status: "not_found".to_owned(),
-            error_message: Some("Request not found".to_owned()),
-            messages: Vec::new(),
-            linked_mcp_calls: Vec::new(),
-        };
-        return Ok(
-            CommandOutput::card_value("AI Request Details", &empty_output).with_skip_render(),
-        );
+        return Ok(request_show_not_found(&args.request_id));
     };
 
     let request_id = row.id.to_string();
@@ -98,14 +74,7 @@ async fn execute_with_pool_inner(
         linked_mcp_calls,
     };
 
-    let result = CommandOutput::card_value("AI Request Details", &output);
-
-    if config.is_json_output() {
-        return Ok(result);
-    }
-
-    render_text_output(&output, args.full);
-    Ok(result.with_skip_render())
+    Ok(build_request_show(&output))
 }
 
 pub(super) async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<MessageRow> {
@@ -128,55 +97,4 @@ pub(super) async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -
                     .collect()
             },
         )
-}
-
-pub(super) fn render_text_output(output: &RequestShowOutput, full: bool) {
-    CliService::section(&format!("AI Request: {}", output.request_id));
-    CliService::key_value("Provider", &output.provider);
-    CliService::key_value("Model", &output.model);
-    CliService::key_value("Input Tokens", &output.input_tokens.to_string());
-    CliService::key_value("Output Tokens", &output.output_tokens.to_string());
-    CliService::key_value("Cost", &format!("${:.6}", output.cost_dollars));
-    CliService::key_value("Latency", &format!("{}ms", output.latency_ms));
-
-    if output.status == "failed" {
-        CliService::key_value("Status", "FAILED");
-        if let Some(err) = &output.error_message {
-            CliService::key_value("Error", err);
-        }
-    } else {
-        CliService::key_value("Status", &output.status);
-    }
-
-    if !output.messages.is_empty() {
-        CliService::section("Messages");
-        for msg in &output.messages {
-            let content_display = if full {
-                msg.content.clone()
-            } else if msg.content.len() > 200 {
-                format!("{}...", &msg.content[..200])
-            } else {
-                msg.content.clone()
-            };
-            CliService::info(&format!(
-                "[{}] #{}: {}",
-                msg.role.to_uppercase(),
-                msg.sequence,
-                content_display
-            ));
-        }
-    }
-
-    if !output.linked_mcp_calls.is_empty() {
-        CliService::section("Linked Tool Calls");
-        for call in &output.linked_mcp_calls {
-            let duration = call
-                .duration_ms
-                .map_or_else(String::new, |ms| format!("({}ms)", ms));
-            CliService::info(&format!(
-                "{} ({}) - {} {}",
-                call.tool_name, call.server, call.status, duration
-            ));
-        }
-    }
 }

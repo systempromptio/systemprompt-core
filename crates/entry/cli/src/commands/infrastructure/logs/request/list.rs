@@ -1,10 +1,9 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{CliService, TraceQueryService};
+use systemprompt_logging::TraceQueryService;
 
-use super::{RequestListOutput, RequestListRow};
-use crate::CliConfig;
+use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::CommandOutput;
 use systemprompt_models::text::truncate_with_ellipsis;
@@ -32,12 +31,11 @@ pub struct ListArgs {
     pub provider: Option<String>,
 }
 
-crate::define_pool_command!(ListArgs => CommandOutput, with_config);
+crate::define_pool_command!(ListArgs => CommandOutput, no_config);
 
 async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let model_pattern = args.model.as_ref().map(|m| format!("%{m}%"));
@@ -52,12 +50,6 @@ async fn execute_with_pool_inner(
             args.limit,
         )
         .await?;
-
-    let single_trace_id = if args.limit == 1 && rows.len() == 1 {
-        rows[0].trace_id.as_ref().map(ToString::to_string)
-    } else {
-        None
-    };
 
     let requests: Vec<RequestListRow> = rows
         .into_iter()
@@ -79,73 +71,5 @@ async fn execute_with_pool_inner(
         })
         .collect();
 
-    let output = RequestListOutput {
-        total: requests.len() as u64,
-        requests,
-    };
-
-    let result = CommandOutput::table_of(
-        vec![
-            "request_id",
-            "timestamp",
-            "provider",
-            "model",
-            "tokens",
-            "cost",
-            "latency_ms",
-            "status",
-        ],
-        &output.requests,
-    )
-    .with_title("AI Requests");
-
-    if output.requests.is_empty() {
-        if !config.is_json_output() {
-            CliService::warning("No AI requests found");
-        }
-        return Ok(result.with_skip_render());
-    }
-
-    if config.is_json_output() {
-        return Ok(result);
-    }
-
-    render_text_output(&output, single_trace_id.as_deref());
-    Ok(result.with_skip_render())
-}
-
-pub(super) fn render_text_output(output: &RequestListOutput, trace_hint: Option<&str>) {
-    CliService::section("Recent AI Requests");
-
-    for req in &output.requests {
-        let latency = req
-            .latency_ms
-            .map_or_else(String::new, |ms| format!(" ({}ms)", ms));
-
-        let status_indicator = if req.status == "failed" {
-            " [FAILED]"
-        } else {
-            ""
-        };
-
-        CliService::info(&format!(
-            "{} | {} | {} | {} | {}{}{}",
-            req.request_id,
-            req.timestamp,
-            req.model,
-            req.tokens,
-            req.cost,
-            latency,
-            status_indicator
-        ));
-    }
-
-    CliService::info(&format!("Total: {} requests", output.total));
-
-    if let Some(trace_id) = trace_hint {
-        CliService::info(&format!(
-            "For full trace: systemprompt infra logs trace show {} --all",
-            trace_id
-        ));
-    }
+    Ok(build_request_list(&requests))
 }

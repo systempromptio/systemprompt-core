@@ -8,7 +8,6 @@
 //! already-open [`DatabaseContext`] for the read-only subcommands.
 
 mod audit;
-mod audit_display;
 mod cleanup;
 pub(super) mod delete;
 pub mod duration;
@@ -24,9 +23,11 @@ pub mod trace;
 pub mod types;
 mod view;
 
+pub use audit::{AuditOutput, AuditToolCall, build_audit, not_found_output as audit_not_found};
 pub use shared::{
     cost_microdollars_to_dollars, display_log_row, format_optional_duration_ms, format_timestamp,
 };
+pub use summary::{LogsSummaryOutput, build_logs_summary};
 pub use types::{MessageRow, ToolCallRow};
 
 use anyhow::{Result, bail};
@@ -102,7 +103,7 @@ pub enum LogsCommands {
     #[command(
         about = "Full chain reconstruction by request, task, or trace id (identity, policy, prompt/response, tool calls, cost)",
         after_help = "EXAMPLES:\n  systemprompt infra logs audit abc123\n  systemprompt infra \
-                      logs audit abc123 --full\n  systemprompt infra logs audit task-xyz --json"
+                      logs audit task-xyz"
     )]
     Audit(audit::AuditArgs),
 }
