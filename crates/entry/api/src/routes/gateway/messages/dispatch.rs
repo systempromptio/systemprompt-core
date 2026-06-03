@@ -90,10 +90,11 @@ fn map_dispatch_error(e: &anyhow::Error) -> Result<Response<Body>, (StatusCode, 
     Err((StatusCode::BAD_GATEWAY, e.to_string()))
 }
 
-/// Translates an upstream failure into the status the *client* should see. A
-/// malformed request (400/404/422) or rate limit (429) is the caller's to fix,
-/// so it passes through; auth, 5xx, timeout, and transport failures are the
-/// gateway/provider's problem and collapse to 502/504 without leaking the
+/// Translates an upstream failure into the status the *client* should see.
+///
+/// A malformed request (400/404/422) or rate limit (429) is the caller's to
+/// fix, so it passes through; auth, 5xx, timeout, and transport failures are
+/// the gateway/provider's problem and collapse to 502/504 without leaking the
 /// upstream's credential-level detail.
 pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     let UpstreamError::Status {
