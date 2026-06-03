@@ -4,6 +4,8 @@ use std::process::Command;
 
 use super::ProcessInfo;
 
+const TERMINATION_POLL_INTERVAL_MS: u64 = 50;
+
 fn is_safe_pattern(p: &str) -> bool {
     !p.is_empty()
         && p.len() <= 128
@@ -66,13 +68,27 @@ pub(super) async fn terminate_gracefully(pid: u32, grace_period_ms: u64) -> bool
         return false;
     }
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(grace_period_ms)).await;
-
-    if process_exists(pid) {
-        kill_process(pid)
-    } else {
-        true
+    if wait_for_exit(pid, grace_period_ms).await {
+        return true;
     }
+
+    kill_process(pid)
+}
+
+/// Polls `process_exists` on a short interval until the process is gone or the
+/// grace deadline elapses, returning `true` as soon as it exits. Avoids paying
+/// the full grace period for children that exit promptly on SIGTERM.
+async fn wait_for_exit(pid: u32, grace_period_ms: u64) -> bool {
+    let mut waited = 0;
+    while waited < grace_period_ms {
+        if !process_exists(pid) {
+            return true;
+        }
+        let step = TERMINATION_POLL_INTERVAL_MS.min(grace_period_ms - waited);
+        tokio::time::sleep(tokio::time::Duration::from_millis(step)).await;
+        waited += step;
+    }
+    !process_exists(pid)
 }
 
 /// Signal a whole process group, escalating SIGTERM to SIGKILL after a grace
@@ -100,13 +116,11 @@ pub(super) async fn terminate_group_gracefully(pgid: u32, grace_period_ms: u64) 
         return terminate_gracefully(pgid, grace_period_ms).await;
     }
 
-    tokio::time::sleep(tokio::time::Duration::from_millis(grace_period_ms)).await;
-
-    if process_exists(pgid) {
-        signal::kill(group, Signal::SIGKILL).is_ok()
-    } else {
-        true
+    if wait_for_exit(pgid, grace_period_ms).await {
+        return true;
     }
+
+    signal::kill(group, Signal::SIGKILL).is_ok()
 }
 
 pub(super) fn process_exists(pid: u32) -> bool {
