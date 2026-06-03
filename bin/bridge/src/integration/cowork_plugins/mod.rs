@@ -1,18 +1,9 @@
 //! Cowork desktop plugin integration.
 //!
-//! Cowork's filesystem plugin scanner discovers any plugin under
-//! `%ProgramFiles%\Claude\org-plugins\<name>\` (and the equivalent per-OS path
-//! resolved by [`crate::config::paths::org_plugins_effective`]) and attributes
-//! it to the hard-coded `org-provisioned` marketplace. The bridge therefore
-//! only owes Cowork one write per session: setting
-//! `enabledPlugins["<plugin>@org-provisioned"] = true` in the per-session
-//! `cowork_settings.json`. Everything else — copying the plugin tree, writing
-//! `plugin.json` with `installationPreference: "auto_install"`, materialising
-//! hooks — happens earlier in the `sync::apply::synthetic_plugin` flow that
-//! populates the org-plugins root itself.
-//!
-//! Pure data manipulation lives in the `settings` submodule; IO (`emit`) and
-//! the per-file upsert plumbing layer on top.
+//! The bridge owes Cowork one write per session: setting
+//! `enabledPlugins["<plugin>@org-provisioned"] = true` in `cowork_settings.json`
+//! for the plugin tree that `sync::apply::synthetic_plugin` populates under the
+//! org-plugins root. Pure data lives in `settings`; IO is in `emit`.
 
 pub(crate) mod emit;
 pub(crate) mod settings;
@@ -28,8 +19,6 @@ pub use settings::{
     render_settings,
 };
 
-// Lives outside `cowork_plugins/` (in `<session>/<org>/`) — Cowork resolves
-// `enabledPlugins` from there, not from inside any registry tree.
 pub(crate) const COWORK_SETTINGS_FILE: &str = "cowork_settings.json";
 
 use thiserror::Error;

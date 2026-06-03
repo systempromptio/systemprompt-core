@@ -1,12 +1,7 @@
 //! Pure JSON manipulation for `cowork_settings.json`'s `enabledPlugins` map.
 //!
-//! Layout:
-//! ```json
-//! { "enabledPlugins": { "<plugin-name>@<marketplace-name>": true } }
-//! ```
-//!
-//! All other top-level keys are foreign and preserved verbatim. Other entries
-//! inside `enabledPlugins` (the user's own plugin choices) are also preserved.
+//! Foreign top-level keys and foreign `enabledPlugins` entries (the user's own
+//! choices) are preserved verbatim.
 
 use serde_json::{Map, Value};
 
@@ -39,8 +34,6 @@ pub fn render_settings(root: &Map<String, Value>) -> Result<Vec<u8>, CoworkPlugi
     serde_json::to_vec_pretty(&Value::Object(root.clone())).map_err(CoworkPluginsError::JsonParse)
 }
 
-// Foreign top-level keys and foreign entries inside `enabledPlugins` (the
-// user's own choices) MUST be preserved.
 pub fn enable_plugin(
     root: &mut Map<String, Value>,
     plugin: &str,
@@ -74,7 +67,7 @@ fn ensure_enabled_map(
     root: &mut Map<String, Value>,
 ) -> Result<&mut Map<String, Value>, CoworkPluginsError> {
     match root
-        .entry(KEY_ENABLED.to_string())
+        .entry(KEY_ENABLED.to_owned())
         .or_insert_with(|| Value::Object(Map::new()))
     {
         Value::Object(m) => Ok(m),

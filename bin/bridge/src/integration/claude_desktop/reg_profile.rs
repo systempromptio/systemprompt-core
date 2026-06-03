@@ -1,10 +1,7 @@
 //! `.reg` serialisation for the Claude Desktop managed-policy profile.
 //!
-//! [`render_reg`] and [`parse_reg_entries`] are inverses: the GUI stages a
-//! `.reg` file for the operator to inspect, then the install path parses it
-//! back into the `(name, value)` pairs it writes to the registry in-process.
-//! Keeping both halves platform-independent lets the round-trip be unit-tested
-//! on every target while the Windows-only registry write stays in `windows.rs`.
+//! [`render_reg`] and [`parse_reg_entries`] are inverses, kept
+//! platform-independent so the round-trip is unit-testable on every target.
 
 use super::shared::{ProfileGenInputs, default_models};
 
@@ -19,10 +16,10 @@ pub fn profile_entries(inputs: &ProfileGenInputs) -> Vec<(&'static str, String)>
     };
     let models_json = serde_json::to_string(&models).unwrap_or_else(|_| "[]".into());
     vec![
-        ("inferenceProvider", "gateway".to_string()),
+        ("inferenceProvider", "gateway".to_owned()),
         ("inferenceGatewayBaseUrl", inputs.gateway_base_url.clone()),
         ("inferenceGatewayApiKey", inputs.api_key.clone()),
-        ("inferenceGatewayAuthScheme", "bearer".to_string()),
+        ("inferenceGatewayAuthScheme", "bearer".to_owned()),
         ("inferenceModels", models_json),
     ]
 }
@@ -50,7 +47,7 @@ pub fn parse_reg_entries(body: &str) -> Vec<(String, String)> {
             let rest = line.trim().strip_prefix('"')?;
             let (name, rest) = rest.split_once("\"=\"")?;
             let value = rest.strip_suffix('"')?;
-            Some((name.to_string(), reg_unescape(value)))
+            Some((name.to_owned(), reg_unescape(value)))
         })
         .collect()
 }

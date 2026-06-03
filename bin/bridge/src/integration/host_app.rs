@@ -32,7 +32,7 @@ impl ProfileState {
         let missing: Vec<String> = required
             .iter()
             .filter(|k| !present.contains_key(**k))
-            .map(|k| (*k).to_string())
+            .map(|k| (*k).to_owned())
             .collect();
         if missing.is_empty() {
             Self::Installed
@@ -119,17 +119,13 @@ pub trait HostApp: Send + Sync + 'static {
         ConfigFormat::Json
     }
 
-    /// Official download page, opened externally when the desktop app is not
-    /// installed. Empty means no download action is offered.
+    /// Official download page; empty means no download action is offered.
     fn download_url(&self) -> &'static str {
         ""
     }
 
-    /// Wire-protocol tags whose provider models this host can use, e.g.
-    /// `["anthropic"]` for Claude Desktop or `["openai-chat",
-    /// "openai-responses"]` for Codex. An empty slice means no restriction —
-    /// every provider's models are offered. Drives both the generated profile's
-    /// model list and the GUI's per-host "compatible models" display.
+    /// Wire-protocol tags whose provider models this host can use; empty means
+    /// no restriction.
     fn accepted_protocols(&self) -> &'static [&'static str] {
         &[]
     }
@@ -137,12 +133,8 @@ pub trait HostApp: Send + Sync + 'static {
 
 /// A host's view of the gateway's providers, filtered to its wire protocols.
 ///
-/// Carries the models it can use, whether any usable model comes from a
-/// *configured* provider, and which matching providers still lack a credential
-/// secret. `checked` guards the others: it is false when there was no provider
-/// health to evaluate (e.g. the gateway was unreachable), so the UI can tell
-/// "nothing usable" apart from "not yet checked" rather than crying wolf on
-/// startup.
+/// `checked` is false when there was no provider health to evaluate, letting
+/// the UI distinguish "nothing usable" from "not yet checked".
 #[cfg(any(target_os = "macos", target_os = "windows", test))]
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct HostModelView {
@@ -153,11 +145,8 @@ pub struct HostModelView {
 }
 
 /// Project per-provider `health` onto one host, keeping only providers whose
-/// wire protocol the host speaks (`accepted`; empty means no restriction).
-/// Model order is preserved and duplicates dropped.
-///
-/// Reached only from the GUI host views (macOS/Windows), so it is gated to
-/// those targets plus `test` to keep it off the unused-code list on Linux.
+/// wire protocol the host speaks (`accepted`; empty means no restriction),
+/// preserving model order and dropping duplicates.
 #[cfg(any(target_os = "macos", target_os = "windows", test))]
 #[must_use]
 pub fn host_model_view(

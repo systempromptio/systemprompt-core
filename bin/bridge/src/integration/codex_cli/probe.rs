@@ -34,13 +34,13 @@ fn parse_into_keys(text: &str, source: &str) -> Option<DomainRead> {
         })
         .ok()?;
     let mut out = DomainRead {
-        source_path: Some(source.to_string()),
+        source_path: Some(source.to_owned()),
         keys: BTreeMap::new(),
     };
     for dotted in KEYS_OF_INTEREST {
         if let Some(raw) = lookup_dotted(&value, dotted) {
             out.keys.insert(
-                (*dotted).to_string(),
+                (*dotted).to_owned(),
                 config::redact_if_sensitive(dotted, raw),
             );
         }
@@ -108,7 +108,7 @@ pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::
             return false;
         };
         let entry = table
-            .entry(key.to_string())
+            .entry(key.to_owned())
             .or_insert_with(|| toml::Value::Table(toml::map::Map::new()));
         if !matches!(entry, toml::Value::Table(_)) {
             *entry = toml::Value::Table(toml::map::Map::new());
@@ -117,7 +117,7 @@ pub(super) fn write_dotted(target: &mut toml::Value, dotted: &str, value: toml::
     }
     let last = segments[segments.len() - 1].trim_matches('"');
     if let toml::Value::Table(t) = cur {
-        t.insert(last.to_string(), value);
+        t.insert(last.to_owned(), value);
         true
     } else {
         false

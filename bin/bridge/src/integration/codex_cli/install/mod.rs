@@ -1,10 +1,9 @@
 //! Codex CLI managed-profile installer.
 //!
-//! `write_profile` renders the bridge-owned config block — as a `.toml` file
-//! on Linux/Windows or a signed `.mobileconfig` on macOS — and
-//! `install_profile` either hands it to the system installer (macOS) or merges
-//! it into the documented system-scope config path (`/etc/codex/config.toml`),
-//! preserving every user-authored key.
+//! `write_profile` renders the bridge-owned config block (a `.toml` on
+//! Linux/Windows, a `.mobileconfig` on macOS); `install_profile` hands it to
+//! the system installer on macOS or merges it into the system-scope config
+//! path, preserving every user-authored key.
 
 mod merge;
 mod render;
@@ -15,11 +14,8 @@ use std::path::Path;
 use super::config;
 use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs};
 
-// Why: the staging path must be unique per call. A shared directory plus a
-// second-granularity timestamp let two concurrent `generate_profile` calls
-// (e.g. parallel test processes) resolve the same path and race on
-// `File::create`, so a reader could observe a truncated or empty file. The pid
-// and a monotonic counter make every staged filename distinct.
+// Pid + monotonic counter keep concurrent stagers in the shared temp dir from
+// racing on the same `File::create` path.
 fn unique_stem() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static SEQ: AtomicU64 = AtomicU64::new(0);

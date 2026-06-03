@@ -1,17 +1,7 @@
 //! IO layer for the Cowork desktop integration.
 //!
-//! Cowork's filesystem plugin scanner (`NF()` in `app.asar`) reads
-//! `%ProgramFiles%\Claude\org-plugins\<plugin>\` on Windows (and the equivalent
-//! per-OS path resolved by [`crate::config::paths::org_plugins_effective`]) and
-//! attributes every plugin it finds there to the hard-coded
-//! `org-provisioned` marketplace. The bridge therefore owes Cowork exactly one
-//! write: setting `enabledPlugins["<plugin>@org-provisioned"] = true` in the
-//! per-session `cowork_settings.json` so the auto-installed plugin is enabled
-//! on first session load.
-//!
-//! Older bridge builds also wrote a custom `systemprompt-bridge-managed`
-//! marketplace tree under `cowork_plugins/marketplaces/`; that surface is gone
-//! — the filesystem org-plugin path is the single source of truth.
+//! Writes `enabledPlugins["<plugin>@org-provisioned"] = true` in the per-session
+//! `cowork_settings.json` and purges any legacy session-marketplace state.
 
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -19,29 +9,15 @@ use std::{fs, io};
 
 use crate::config::paths;
 
-// Cowork creates its "personal" org-session dir under a fixed v4-shaped UUID
-// (version=4, variant=DCE, otherwise all zeros with a trailing 1). NOT the
-// nil UUID — that's a different sentinel Cowork doesn't use here.
-//
-// Source of truth in Cowork's app.asar:
-//   const ehr = "00000000-0000-4000-8000-000000000001"
-//
-// If a future Cowork release bumps this string, `pick_target` will silently
-// fall through to its mtime fallback. `doctor`'s
-// `personal-session sentinel` check is the early-warning that this happened.
+// Cowork's fixed sentinel for the personal org-session dir; if a future release
+// changes it, `pick_target` silently falls back to mtime (doctor's
+// `personal-session sentinel` check warns on this).
 pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
-// Cowork hard-codes this marketplace identifier for plugins discovered under
-// the filesystem org-plugins root; see `NF()` in Claude Cowork's `app.asar`.
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";
 
-// Earlier bridge builds (before the filesystem-scan architecture) published
-// the synthetic plugin under this custom marketplace name in
-// `cowork_plugins/marketplaces/` + `cowork_plugins/cache/`. Cowork's
-// SkillsPlugin loader still prefers session-marketplace state over the
-// org-provisioned filesystem scan, so leftover entries here SHADOW the fresh
-// content in `%ProgramFiles%\Claude\org-plugins\` and the user sees stale
-// skills. Every `apply_enable` actively purges this legacy state.
+// Legacy session-marketplace entries shadow the org-provisioned filesystem
+// scan, so every `apply_enable` purges them.
 const LEGACY_MARKETPLACE_TO_PURGE: &str = "systemprompt-bridge-managed";
 
 const INSTALLED_PLUGINS_FILE: &str = "installed_plugins.json";
@@ -76,15 +52,8 @@ pub struct EmitReport {
     pub enabled: bool,
 }
 
-// `None` means no Cowork install detected — callers must treat as no-op,
-// not as an error (Cowork is optional).
-//
-// Resolution order: (1) the personal-session UUID `00000000-…`, (2) fall
-// back to the newest-mtime org dir. Mtime alone is not reliable — any Cowork
-// interaction with a non-target org bumps its mtime past the one the user
-// actually has the Connectors panel pointed at — but personal mode is the
-// only mode this gateway can attest to under the 3P spec, so it's the
-// preferred target whenever Cowork has materialised it.
+/// `None` means no Cowork install detected; callers treat it as a no-op, not an
+/// error. Prefers the personal-session dir, falling back to newest-mtime.
 #[must_use]
 pub fn resolve_target() -> Option<CoworkTarget> {
     let sessions_root = paths::cowork3p_sessions_root()?;
@@ -92,8 +61,6 @@ pub fn resolve_target() -> Option<CoworkTarget> {
         return None;
     }
     let mut candidates: Vec<(SystemTime, PathBuf)> = Vec::new();
-    // Why: an unreadable sessions root (permissions, mid-write race) is treated
-    // as "no Cowork target" per this function's optional-Cowork contract.
     for session in fs::read_dir(&sessions_root).ok()?.flatten() {
         if !session.file_type().is_ok_and(|t| t.is_dir()) {
             continue;
@@ -127,16 +94,12 @@ fn org_uuid_of(p: &std::path::Path) -> Option<String> {
         .map(str::to_ascii_lowercase)
 }
 
-// An org dir is only usable if its `cowork_plugins` subdir exists; a half-
-// initialised org dir would otherwise win on mtime and silently route writes
-// nowhere Cowork actually reads.
+// A half-initialised org dir lacking its `cowork_plugins` subdir would win on
+// mtime and route writes nowhere Cowork reads.
 fn usable_org_dir(p: &std::path::Path) -> bool {
     p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir()
 }
 
-// Why: extracted as a pure helper so the resolution rules can be unit-tested
-// without staging a real sessions tree on disk. The IO (read_dir) is in
-// `resolve_target`; the *choice* between candidates is here.
 #[must_use]
 pub fn pick_target(candidates: &[(SystemTime, PathBuf)]) -> Option<PathBuf> {
     if candidates.is_empty() {
@@ -185,12 +148,9 @@ pub fn clear_all(target: &CoworkTarget, plugin_name: &str) -> Result<(), EmitErr
     Ok(())
 }
 
-// Removes any artefacts an earlier bridge build wrote under the named
-// marketplace: the marketplace + cache dirs, its row in
-// `installed_plugins.json` (keyed `<plugin>@<marketplace>`), its entry in
-// `known_marketplaces.json`, and the matching enable key in
-// `cowork_settings.json`. Missing files/dirs are not an error — this runs on
-// every sync and is a no-op on a clean session.
+/// Removes legacy marketplace artefacts (dirs, `installed_plugins.json` row,
+/// `known_marketplaces.json` entry, enable key). Missing paths are not an error;
+/// this is a no-op on a clean session.
 pub(super) fn purge_legacy_marketplace(
     target: &CoworkTarget,
     plugin_name: &str,

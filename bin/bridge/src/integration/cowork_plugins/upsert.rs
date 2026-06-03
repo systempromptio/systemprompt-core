@@ -1,8 +1,5 @@
-//! Atomic upserts of `cowork_settings.json::enabledPlugins`.
-//!
-//! Foreign top-level keys and foreign entries inside `enabledPlugins` (the
-//! user's own plugin choices and any other Cowork-managed settings) MUST be
-//! preserved by every helper here.
+//! Atomic upserts of `cowork_settings.json::enabledPlugins`, preserving every
+//! foreign key.
 
 use std::path::Path;
 

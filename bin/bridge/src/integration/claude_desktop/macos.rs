@@ -29,7 +29,7 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
 
     for key in KEYS_OF_INTEREST {
         if let Some(val) = read_key_value(&plist_json, domain, key) {
-            out.keys.insert((*key).to_string(), val);
+            out.keys.insert((*key).to_owned(), val);
         }
     }
 
@@ -132,7 +132,7 @@ fn read_key_value(plist_json: &serde_json::Value, _domain: &str, key: &str) -> O
     if trimmed.is_empty() {
         return None;
     }
-    Some(redact_if_sensitive(key, trimmed.to_string()))
+    Some(redact_if_sensitive(key, trimmed.to_owned()))
 }
 
 fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
@@ -140,7 +140,7 @@ fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
         serde_json::Value::String(s) => s.clone(),
         serde_json::Value::Array(items) => items
             .iter()
-            .filter_map(|v| v.as_str().map(str::to_string))
+            .filter_map(|v| v.as_str().map(str::to_owned))
             .collect::<Vec<_>>()
             .join(", "),
         other => other.to_string(),

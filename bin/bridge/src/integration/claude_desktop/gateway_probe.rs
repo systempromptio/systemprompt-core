@@ -29,7 +29,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
         Ok(v) => v,
         Err(e) => {
             return GatewayHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: GatewayProbeState::HttpError,
                 error: Some(e),
                 ..Default::default()
@@ -42,7 +42,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
         Some(a) => a,
         None => {
             return GatewayHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: GatewayProbeState::HttpError,
                 error: Some(format!("cannot resolve {addr}")),
                 ..Default::default()
@@ -57,7 +57,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
         Ok(s) => s,
         Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
             return GatewayHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: GatewayProbeState::Refused,
                 error: Some(e.to_string()),
                 latency_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
@@ -66,7 +66,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
         },
         Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
             return GatewayHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: GatewayProbeState::Timeout,
                 error: Some(e.to_string()),
                 latency_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
@@ -75,7 +75,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
         },
         Err(e) => {
             return GatewayHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: GatewayProbeState::HttpError,
                 error: Some(e.to_string()),
                 latency_ms: Some(u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)),
@@ -88,7 +88,7 @@ pub(super) fn probe_gateway(url: &str) -> GatewayHealth {
     _ = stream.shutdown(std::net::Shutdown::Both);
 
     GatewayHealth {
-        url: Some(url.to_string()),
+        url: Some(url.to_owned()),
         state: GatewayProbeState::Listening,
         http_status: None,
         latency_ms: Some(latency_ms),
@@ -116,8 +116,8 @@ fn parse_host_port(raw: &str) -> Result<(String, u16), String> {
         return Err("missing host".into());
     }
     let (host, port) = match authority.rsplit_once(':') {
-        Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(default_port)),
-        None => (authority.to_string(), default_port),
+        Some((h, p)) => (h.to_owned(), p.parse::<u16>().unwrap_or(default_port)),
+        None => (authority.to_owned(), default_port),
     };
     Ok((host, port))
 }

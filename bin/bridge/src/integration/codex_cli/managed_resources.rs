@@ -1,22 +1,9 @@
 //! Codex CLI sync emitter.
 //!
-//! Writes manifest-supplied skills and MCP servers as a single Codex plugin
-//! bundle on every `apply_manifest` run, alongside the existing Cowork
-//! synthetic-plugin and Windows MDM emitters.
-//!
-//! Layout matches Codex's documented plugin cache shape
-//! (developers.openai.com/codex/plugins/build):
-//!
-//! ```text
-//! ~/.codex/plugins/cache/<MARKETPLACE>/<PLUGIN>/<VERSION>/
-//!   .codex-plugin/plugin.json
-//!   skills/<id>/SKILL.md
-//!   .mcp.json
-//! ```
-//!
-//! `~/.codex/config.toml` gets a `[plugins."<PLUGIN>@<MARKETPLACE>"]` block
-//! with `enabled = true`, so the user can disable the whole bundle in one
-//! place. Every other key in `config.toml` is preserved.
+//! Writes manifest-supplied skills and MCP servers as one Codex plugin bundle
+//! under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, and toggles
+//! its `[plugins."<plugin>@<marketplace>"]` block in `config.toml` while
+//! preserving every other key.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -34,9 +21,8 @@ use super::probe::write_dotted;
 
 const MARKETPLACE: &str = "systemprompt";
 const PLUGIN_NAME: &str = "systemprompt-managed";
-// Why: Codex caches plugins under .../plugins/cache/<mp>/<plugin>/<version>/.
-// We rewrite the bundle on each apply, so a single fixed slot is enough; the
-// real semantic version travels in plugin.json.
+// The bundle is rewritten on each apply, so one fixed slot suffices; the real
+// version travels in plugin.json.
 const PLUGIN_VERSION_DIR: &str = "current";
 
 #[derive(Clone, Copy, Debug)]
@@ -151,9 +137,6 @@ struct McpJson<'a> {
 struct McpServerEntry<'a> {
     #[serde(rename = "type")]
     transport: &'a str,
-    // Loopback proxy URL — see the synthetic-plugin writer for the full
-    // rationale. The proxy strips the loopback-secret header below and injects
-    // the rotating gateway JWT before forwarding to the registered upstream.
     url: String,
     headers: BTreeMap<&'a str, String>,
 }
@@ -237,7 +220,7 @@ fn yaml_scalar(s: &str) -> String {
         || s.contains('#')
         || s.starts_with(['-', '?', '!', '&', '*', '|', '>', '\'', '"', '%', '@', '`']);
     if !needs_quotes {
-        return s.to_string();
+        return s.to_owned();
     }
     let escaped = s.replace('"', "\\\"");
     format!("\"{escaped}\"")

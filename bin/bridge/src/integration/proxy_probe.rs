@@ -42,7 +42,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         Ok(v) => v,
         Err(e) => {
             return ProxyHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: ProxyProbeState::HttpError,
                 error: Some(e),
                 probed_at_unix,
@@ -54,7 +54,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
     let addr = format!("{host}:{port}");
     let Some(resolved) = resolve_first(&addr) else {
         return ProxyHealth {
-            url: Some(url.to_string()),
+            url: Some(url.to_owned()),
             state: ProxyProbeState::HttpError,
             error: Some(format!("cannot resolve {addr}")),
             probed_at_unix,
@@ -69,7 +69,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         Ok(s) => s,
         Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
             return ProxyHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: ProxyProbeState::Refused,
                 error: Some(e.to_string()),
                 latency_ms: Some(elapsed_ms(started)),
@@ -79,7 +79,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         },
         Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
             return ProxyHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: ProxyProbeState::Timeout,
                 error: Some(e.to_string()),
                 latency_ms: Some(elapsed_ms(started)),
@@ -89,7 +89,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         },
         Err(e) => {
             return ProxyHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: ProxyProbeState::HttpError,
                 error: Some(e.to_string()),
                 latency_ms: Some(elapsed_ms(started)),
@@ -103,7 +103,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
         Ok(s) => s,
         Err(e) => {
             return ProxyHealth {
-                url: Some(url.to_string()),
+                url: Some(url.to_owned()),
                 state: ProxyProbeState::HttpError,
                 error: Some(e),
                 latency_ms: Some(elapsed_ms(started)),
@@ -117,7 +117,7 @@ pub fn probe(url: Option<&str>) -> ProxyHealth {
     _ = stream.shutdown(std::net::Shutdown::Both);
 
     ProxyHealth {
-        url: Some(url.to_string()),
+        url: Some(url.to_owned()),
         state: ProxyProbeState::Listening,
         http_status: Some(http_status),
         latency_ms: Some(latency_ms),
@@ -149,7 +149,7 @@ fn http_head_status(stream: &mut std::net::TcpStream, host: &str) -> Result<u16,
     let _version = parts.next();
     let code = parts
         .next()
-        .ok_or_else(|| "missing status code".to_string())?;
+        .ok_or_else(|| "missing status code".to_owned())?;
     code.parse::<u16>()
         .map_err(|e| format!("bad status code '{code}': {e}"))
 }
@@ -177,8 +177,8 @@ fn parse_host_port(raw: &str) -> Result<(String, u16), String> {
         return Err("missing host".into());
     }
     let (host, port) = match authority.rsplit_once(':') {
-        Some((h, p)) => (h.to_string(), p.parse::<u16>().unwrap_or(default_port)),
-        None => (authority.to_string(), default_port),
+        Some((h, p)) => (h.to_owned(), p.parse::<u16>().unwrap_or(default_port)),
+        None => (authority.to_owned(), default_port),
     };
     Ok((host, port))
 }

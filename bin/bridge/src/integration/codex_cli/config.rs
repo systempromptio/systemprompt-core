@@ -55,10 +55,8 @@ pub(super) fn user_config_path() -> PathBuf {
     codex_home().join("config.toml")
 }
 
-// Why: Codex's documented system-scope config path is /etc/codex/config.toml
-// (admin-locked via /etc/codex/requirements.toml). `CODEX_SYSTEM_CONFIG`
-// overrides for hermetic tests; Windows keeps the user-scope managed_config
-// under CODEX_HOME because there is no equivalent admin path.
+// Windows has no admin-scope path, so it falls back to a user-scope
+// managed_config under CODEX_HOME. `CODEX_SYSTEM_CONFIG` overrides for tests.
 pub(super) fn managed_config_path() -> PathBuf {
     if let Some(custom) = std::env::var_os("CODEX_SYSTEM_CONFIG") {
         return PathBuf::from(custom);

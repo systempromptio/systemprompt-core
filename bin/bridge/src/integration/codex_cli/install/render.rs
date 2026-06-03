@@ -50,12 +50,12 @@ fn write_provider_block(value: &mut toml::Value, helper_bin: &str, tenant: &str,
     write_dotted(
         value,
         TOP_MODEL_PROVIDER,
-        toml::Value::String(PROVIDER_ID.to_string()),
+        toml::Value::String(PROVIDER_ID.to_owned()),
     );
     write_dotted(
         value,
         &format!("model_providers.{PROVIDER_ID}.name"),
-        toml::Value::String("systemprompt".to_string()),
+        toml::Value::String("systemprompt".to_owned()),
     );
     write_dotted(
         value,
@@ -65,20 +65,20 @@ fn write_provider_block(value: &mut toml::Value, helper_bin: &str, tenant: &str,
     write_dotted(
         value,
         PROVIDER_WIRE_API,
-        toml::Value::String("responses".to_string()),
+        toml::Value::String("responses".to_owned()),
     );
     write_dotted(
         value,
         PROVIDER_AUTH_COMMAND,
-        toml::Value::String(helper_bin.to_string()),
+        toml::Value::String(helper_bin.to_owned()),
     );
     write_dotted(
         value,
         "model_providers.systemprompt.auth.args",
         toml::Value::Array(vec![
-            toml::Value::String("credential-helper".to_string()),
-            toml::Value::String("--host".to_string()),
-            toml::Value::String("codex-cli".to_string()),
+            toml::Value::String("credential-helper".to_owned()),
+            toml::Value::String("--host".to_owned()),
+            toml::Value::String("codex-cli".to_owned()),
         ]),
     );
     write_dotted(
@@ -91,7 +91,7 @@ fn write_provider_block(value: &mut toml::Value, helper_bin: &str, tenant: &str,
         write_dotted(
             value,
             PROVIDER_HEADER_TENANT,
-            toml::Value::String(tenant.to_string()),
+            toml::Value::String(tenant.to_owned()),
         );
     }
 }
@@ -106,7 +106,7 @@ fn write_otel_block(value: &mut toml::Value, gateway: &str) {
     write_dotted(
         value,
         OTEL_PROTOCOL,
-        toml::Value::String("binary".to_string()),
+        toml::Value::String("binary".to_owned()),
     );
     write_dotted(value, ANALYTICS_ENABLED, toml::Value::Boolean(false));
 }

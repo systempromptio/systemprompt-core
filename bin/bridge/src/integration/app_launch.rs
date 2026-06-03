@@ -1,15 +1,9 @@
 //! Cross-platform "open the installed desktop app" helper shared by the host
 //! integrations.
 //!
-//! macOS resolves the app by name through `LaunchServices` (`open -a`). Windows
-//! resolves the Start-menu entry (its `AppUserModelID`) by display name via
-//! `Get-StartApps` and launches `shell:AppsFolder\<AUMID>` — this covers both
-//! classic desktop apps and Microsoft Store / MSIX packages (e.g. the Codex
-//! app), and an exact name match launches "Claude", never "Claude Code". It
-//! falls back to known install paths, then a clear not-installed error.
-//!
-//! Launching a bare command name is deliberately avoided: it fails when the
-//! tool is not on `PATH` and can resolve to the wrong target.
+//! macOS resolves by name via `open -a`; Windows resolves the Start-menu entry
+//! by display name and launches `shell:AppsFolder\<AUMID>`, falling back to
+//! known install paths.
 
 use std::io;
 use std::path::PathBuf;
@@ -111,10 +105,8 @@ fn start_menu_present_cached(display_name: &str) -> bool {
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
 
-    // Why: Get-StartApps cold-starts powershell and enumerates the shell app
-    // model (AV-scanned) — seconds per call — and host probes run on every
-    // tick. Cache per app (install state rarely changes during a session) so
-    // we spawn powershell at most once per TTL instead of every probe.
+    // Get-StartApps cold-starts powershell (seconds per call); cache per app so
+    // probes spawn it at most once per TTL.
     static CACHE: OnceLock<Mutex<HashMap<String, (bool, Instant)>>> = OnceLock::new();
     const TTL: Duration = Duration::from_secs(300);
 
@@ -127,7 +119,7 @@ fn start_menu_present_cached(display_name: &str) -> bool {
     }
     let present = start_menu_present(display_name);
     if let Ok(mut map) = cache.lock() {
-        map.insert(display_name.to_string(), (present, Instant::now()));
+        map.insert(display_name.to_owned(), (present, Instant::now()));
     }
     present
 }
@@ -138,9 +130,7 @@ fn start_menu_present(display_name: &str) -> bool {
     use std::time::{Duration, Instant};
 
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    // Bound the call: a probe must never block the UI (the post-install
-    // "Installed ✓" update waits on this snapshot). app_installed is a
-    // best-effort hint; the profile badge comes from the fast registry read.
+    // Bounded so a probe never blocks the UI; app_installed is best-effort.
     const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
     let script = format!(
         "if (Get-StartApps | Where-Object {{ $_.Name -eq '{name}' }}) {{ exit 0 }} else {{ exit 2 }}",
@@ -159,8 +149,6 @@ fn start_menu_present(display_name: &str) -> bool {
             Ok(Some(status)) => return status.success(),
             Ok(None) => {
                 if Instant::now() >= deadline {
-                    // Best-effort cleanup of the timed-out probe; nothing to act
-                    // on if kill/reap fails since we already return false.
                     drop(child.kill());
                     drop(child.wait());
                     return false;
