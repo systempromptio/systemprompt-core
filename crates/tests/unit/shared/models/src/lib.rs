@@ -59,6 +59,9 @@ mod profile_gateway;
 mod provider_catalog_parity;
 
 #[cfg(test)]
+mod provider_protocol_filter;
+
+#[cfg(test)]
 mod wire_codec;
 
 #[cfg(test)]

@@ -14,6 +14,7 @@ pub const AI_TOOL_CALL_ID: &str = "x-ai-tool-call-id";
 pub const CALL_SOURCE: &str = "x-call-source";
 pub const CLIENT_ID: &str = "x-client-id";
 pub const POLICY_VERSION: &str = "x-policy-version";
+pub const INFERENCE_PROTOCOL: &str = "x-inference-protocol";
 pub const AUTHORIZATION: &str = "authorization";
 pub const PROXY_VERIFIED: &str = "x-proxy-verified";
 pub const USER_PERMISSIONS: &str = "x-user-permissions";

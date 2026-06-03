@@ -134,6 +134,30 @@ impl ProviderRegistry {
             .any(|p| p.find_model(requested).is_some())
     }
 
+    /// Model ids (each model's `id` plus its `aliases`) advertised for the
+    /// given wire protocols; an empty `protocols` slice means the full
+    /// catalog.
+    ///
+    /// This is the single source of truth for "which models may a {protocol}
+    /// client see". A gateway front door (e.g. Cowork in Anthropic mode)
+    /// rejects its whole config if advertised models include a name from
+    /// another wire family, so a caller scopes the list to its own
+    /// protocol; routes may still proxy those names to a different provider
+    /// underneath.
+    #[must_use]
+    pub fn advertised_model_ids(&self, protocols: &[WireProtocol]) -> Vec<String> {
+        self.providers
+            .iter()
+            .filter(|entry| protocols.is_empty() || protocols.contains(&entry.protocol))
+            .flat_map(|entry| {
+                entry.models.iter().flat_map(|m| {
+                    std::iter::once(m.id.as_str().to_owned())
+                        .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
+                })
+            })
+            .collect()
+    }
+
     pub fn validate(&self) -> ProviderRegistryResult<()> {
         let trusted = crate::net::trusted_http_hosts_from_env();
         let mut seen_providers: HashSet<&str> = HashSet::with_capacity(self.providers.len());

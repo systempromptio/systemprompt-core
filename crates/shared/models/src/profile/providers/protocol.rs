@@ -36,6 +36,21 @@ impl WireProtocol {
         }
     }
 
+    /// Parse a wire-protocol tag back into the enum. Inverse of
+    /// [`Self::as_tag`], and accepts the same alias spellings serde allows
+    /// so a header value and a profile value resolve identically. Returns
+    /// `None` for an unknown tag.
+    #[must_use]
+    pub fn from_tag(tag: &str) -> Option<Self> {
+        match tag {
+            "anthropic" => Some(Self::Anthropic),
+            "openai-chat" | "openai_chat" | "openai" => Some(Self::OpenAiChat),
+            "openai-responses" | "openai_responses" => Some(Self::OpenAiResponses),
+            "gemini" => Some(Self::Gemini),
+            _ => None,
+        }
+    }
+
     /// The JSON-Schema constructs this protocol's tool/output schema parser
     /// accepts. The wire codecs feed this to [`crate::schema::SchemaSanitizer`]
     /// so every tool schema is reduced to a shape the upstream will accept.
