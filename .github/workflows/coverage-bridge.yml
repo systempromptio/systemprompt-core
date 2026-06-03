@@ -1,0 +1,114 @@
+name: Coverage (bridge, native)
+
+# Measures line coverage of the platform-gated `bin/bridge/src/gui` tree (and the
+# OS-specific keystore/registry/MDM backends) on macOS and Windows, where that
+# code actually compiles. The nightly Linux `coverage.yml` job already instruments
+# the cross-platform bridge surface (the bridge is a path dependency of the
+# crates/tests workspace), but `gui/` is `#[cfg(any(target_os = "windows",
+# target_os = "macos"))]` and is configured out on Linux, so it never appears
+# there. This job closes that gap so combined coverage reflects the whole crate.
+#
+# Unlike the Linux job, this one can use cargo-llvm-cov directly: the mold linker
+# that forces the Linux job's hand-rolled instrumentation is scoped to
+# `[target.x86_64-unknown-linux-gnu]` in crates/tests/.cargo/config.toml and does
+# not apply on these hosts.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 6 * * 1"
+
+concurrency:
+  group: coverage-bridge-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTC_WRAPPER: ""
+  SQLX_OFFLINE: "true"
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  coverage:
+    name: gui coverage (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Drop the Cranelift codegen-backend and sccache wrapper from the cargo
+      # configs: Cranelift is not available on these hosts and sccache serves
+      # uninstrumented rlibs, both of which break coverage instrumentation.
+      - name: Strip [unstable]/[profile.dev]/RUSTC_WRAPPER from cargo configs
+        shell: python
+        run: |
+          import re, pathlib
+          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
+              p = pathlib.Path(path)
+              if not p.exists():
+                  continue
+              s = p.read_text()
+              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
+              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
+              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
+              p.write_text(s)
+              print(f"--- {path} ---\n{p.read_text()}")
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            crates/tests
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,nextest
+
+      # Only the bridge unit-test crates: they exercise systemprompt-bridge
+      # (including gui) and need no database, so no Postgres service is required.
+      - name: Instrumented bridge tests + coverage
+        run: |
+          cargo llvm-cov nextest \
+            --manifest-path crates/tests/Cargo.toml \
+            -E 'package(~systemprompt-bridge)' \
+            --ignore-filename-regex '(crates[\\/]tests|[\\/]\.cargo[\\/]|rustc)' \
+            --summary-only \
+            | tee coverage-bridge-${{ matrix.os }}.txt
+
+          cargo llvm-cov report \
+            --manifest-path crates/tests/Cargo.toml \
+            --ignore-filename-regex '(crates[\\/]tests|[\\/]\.cargo[\\/]|rustc)' \
+            --lcov --output-path lcov-bridge-${{ matrix.os }}.info
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-bridge-${{ matrix.os }}
+          path: |
+            coverage-bridge-${{ matrix.os }}.txt
+            lcov-bridge-${{ matrix.os }}.info
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Bridge coverage (${{ matrix.os }})"
+            echo ""
+            echo '```'
+            tail -40 "coverage-bridge-${{ matrix.os }}.txt" 2>/dev/null || echo "(no summary produced)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
