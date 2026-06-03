@@ -11,6 +11,11 @@ use crate::gui::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 use crate::gui::state::AppStateSnapshot;
 use crate::gui::{GuiApp, emit};
 
+#[must_use]
+pub fn is_logged_out_error(err: &GuiError) -> bool {
+    matches!(err, GuiError::NotAuthenticated)
+}
+
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_profile_fetch_requested(app: &GuiApp, reply_to: ReplyId) {
     let snapshot = app.state.snapshot();
@@ -26,10 +31,7 @@ pub(crate) fn on_profile_fetch_finished(
     result: Result<Value, Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
-    // Being logged-out is the expected state on the login page, not a failure:
-    // reply quietly so the caller can render the logged-out view, with no
-    // user-facing log line and no error toast.
-    if matches!(&result, Err(e) if matches!(e.as_ref(), GuiError::NotAuthenticated)) {
+    if matches!(&result, Err(e) if is_logged_out_error(e.as_ref())) {
         tracing::debug!("profile fetch skipped: not authenticated yet");
         if let Some(id) = reply_to {
             let payload = IpcReplyPayload::err(BridgeError::new(
