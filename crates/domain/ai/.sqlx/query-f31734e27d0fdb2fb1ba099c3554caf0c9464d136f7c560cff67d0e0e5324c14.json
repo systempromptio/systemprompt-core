@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE ai_requests\n            SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,\n                updated_at = CURRENT_TIMESTAMP\n            WHERE id = $3\n            RETURNING id as \"id!: AiRequestId\",\n                      request_id as \"request_id!: AiRequestId\",\n                      user_id as \"user_id!: UserId\",\n                      session_id as \"session_id: SessionId\",\n                      task_id as \"task_id: TaskId\",\n                      context_id as \"context_id: ContextId\",\n                      gateway_conversation_id as \"gateway_conversation_id: GatewayConversationId\",\n                      provider_request_id as \"provider_request_id: ProviderRequestId\",\n                      trace_id as \"trace_id: TraceId\",\n                      provider, model, temperature, top_p, max_tokens, tokens_used,\n                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,\n                      cache_read_tokens, cache_creation_tokens, is_streaming, status,\n                      error_message, created_at, updated_at, completed_at\n            ",
+  "query": "\n            UPDATE ai_requests\n            SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,\n                latency_ms = GREATEST(\n                    0,\n                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) * 1000\n                )::int,\n                updated_at = CURRENT_TIMESTAMP\n            WHERE id = $3\n            RETURNING id as \"id!: AiRequestId\",\n                      request_id as \"request_id!: AiRequestId\",\n                      user_id as \"user_id!: UserId\",\n                      session_id as \"session_id: SessionId\",\n                      task_id as \"task_id: TaskId\",\n                      context_id as \"context_id: ContextId\",\n                      gateway_conversation_id as \"gateway_conversation_id: GatewayConversationId\",\n                      provider_request_id as \"provider_request_id: ProviderRequestId\",\n                      trace_id as \"trace_id: TraceId\",\n                      provider, model, temperature, top_p, max_tokens, tokens_used,\n                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,\n                      cache_read_tokens, cache_creation_tokens, is_streaming, status,\n                      error_message, created_at, updated_at, completed_at\n            ",
   "describe": {
     "columns": [
       {
@@ -182,5 +182,5 @@
       true
     ]
   },
-  "hash": "c3688cac26aa93690312592e4d1c8ec8afe7c1896e7f11ccb582197fb458d52b"
+  "hash": "f31734e27d0fdb2fb1ba099c3554caf0c9464d136f7c560cff67d0e0e5324c14"
 }

@@ -69,6 +69,10 @@ impl AiRequestRepository {
             r#"
             UPDATE ai_requests
             SET status = $1, error_message = $2, completed_at = CURRENT_TIMESTAMP,
+                latency_ms = GREATEST(
+                    0,
+                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) * 1000
+                )::int,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $3
             RETURNING id as "id!: AiRequestId",
