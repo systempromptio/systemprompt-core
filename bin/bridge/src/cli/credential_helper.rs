@@ -58,10 +58,8 @@ fn emit_claude_via_chain() -> ExitCode {
 }
 
 fn emit_codex() -> ExitCode {
-    // Codex talks to the local loopback proxy, not the upstream gateway. The
-    // proxy validator (proxy/server.rs) compares Authorization against the
-    // loopback secret, so the helper must hand Codex that same secret. Upstream
-    // gateway auth is the proxy's concern, attached during forward::forward().
+    // Codex authenticates against the local loopback proxy, not the upstream
+    // gateway: the helper must hand it the loopback secret, not a gateway bearer.
     let secret = match proxy::secret::for_profile() {
         Ok(s) => s,
         Err(e) => {
@@ -74,13 +72,9 @@ fn emit_codex() -> ExitCode {
             return ExitCode::from(70);
         },
     };
-    // Why: Codex's `auth.command` integration treats the helper's stdout as the
-    // raw bearer value and stuffs it directly into `Authorization: Bearer
-    // <stdout>`. It does NOT parse a JSON envelope — emitting
-    // `{"token":"...","expires_at":null}` here causes Codex to send
-    // `Authorization: Bearer {"token":"...","expires_at":null}`,
-    // which the proxy rejects as a bad loopback secret. The helper must print the
-    // bare secret followed by a newline.
+    // Codex stuffs the helper's stdout verbatim into `Authorization: Bearer
+    // <stdout>` without parsing JSON, so the bare secret (not an envelope) must
+    // be printed.
     println!("{}", secret.as_str());
     ExitCode::SUCCESS
 }
@@ -105,7 +99,7 @@ fn parse_host(args: &[String]) -> Option<String> {
             return iter.next().cloned();
         }
         if let Some(rest) = arg.strip_prefix("--host=") {
-            return Some(rest.to_string());
+            return Some(rest.to_owned());
         }
     }
     None

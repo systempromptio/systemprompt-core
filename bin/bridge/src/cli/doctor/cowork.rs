@@ -2,11 +2,9 @@ use crate::config::paths;
 
 use super::Check;
 
-// Why: catches the silent "plugin is on disk but Cowork never picked it up"
-// state. With the org-provisioned filesystem path, the bridge's only Cowork-
-// side write is the enable key in cowork_settings.json — if that line is
-// missing, the auto-installed plugin stays disabled and the operator gets no
-// other signal from the bridge logs that the sync was effectively a no-op.
+// Catches the silent "plugin on disk but Cowork never enabled it" state: the
+// enable key in cowork_settings.json is the bridge's only Cowork-side write, and
+// its absence leaves the synced plugin disabled with no other signal.
 pub(super) fn check_cowork_enable() -> Check {
     use crate::integration::cowork_plugins::{
         COWORK_SETTINGS_FILE, enabled_plugins_key, resolve_target,
@@ -29,8 +27,6 @@ pub(super) fn check_cowork_enable() -> Check {
             ),
         );
     };
-    // JSON: external Cowork settings file — schema is owned by Cowork and a
-    // malformed/missing key is reported below as "not enabled".
     let enabled = serde_json::from_str::<serde_json::Value>(&text)
         .ok()
         .and_then(|v| v.get("enabledPlugins").cloned())
@@ -58,11 +54,9 @@ struct PluginManifestProbe {
     installation_preference: Option<String>,
 }
 
-// Why: a synced plugin whose `plugin.json` lacks (or defaults)
-// `installationPreference` produces Cowork's "Contact an organization owner to
-// install connectors" tooltip under MDM + custom-gateway deployment. The bridge
-// always emits `"auto_install"`; this check fails loudly if a future refactor
-// drops it.
+// A synced plugin whose `plugin.json` lacks `installationPreference` triggers
+// Cowork's "Contact an organization owner" tooltip under MDM. The bridge always
+// emits `auto_install`; this fails loudly if a refactor drops it.
 // Docs: https://claude.com/docs/cowork/3p/extensions
 pub(super) fn check_plugin_installation_preference() -> Check {
     let Some(location) = paths::org_plugins_effective() else {
@@ -122,14 +116,10 @@ pub(super) fn check_plugin_installation_preference() -> Check {
     }
 }
 
-// Why: the bridge's `pick_target` resolver matches Cowork's personal-session
-// org dir by a hard-coded UUID that Cowork itself hard-codes (search app.asar
-// for the constant). If a future Cowork release bumps the constant, the
-// resolver silently falls through to its newest-mtime fallback — and the bridge
-// starts publishing into the wrong session whenever any other org dir is
-// fresher. This check is the early-warning: if Cowork sessions exist on disk
-// but none matches our PERSONAL_SESSION_UUID constant, the constant has drifted
-// from Cowork's source of truth and needs updating in the bridge.
+// The resolver matches Cowork's personal-session org dir by a hard-coded UUID
+// that Cowork also hard-codes. If Cowork bumps the constant the resolver
+// silently falls through to its newest-mtime fallback and may publish into the
+// wrong session; this warns when sessions exist but none matches the constant.
 pub(super) fn check_personal_session_sentinel() -> Check {
     use crate::integration::cowork_plugins::PERSONAL_SESSION_UUID;
 

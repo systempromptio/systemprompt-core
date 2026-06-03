@@ -166,10 +166,9 @@ pub(super) fn check_pinned_pubkey() -> Check {
     }
 }
 
-// Why: hook-token mint is the gateway-side step that fails silently as a
-// host_failures row and only surfaces in `sync` PARTIAL output. Exercising it
-// here turns the OAuth scope / policy errors into a single doctor line with the
-// gateway's `error_description` verbatim, instead of waiting for the next sync.
+// Hook-token mint otherwise fails silently as a host_failures row, surfacing
+// only in `sync` PARTIAL output; exercising it here turns OAuth scope/policy
+// errors into a single doctor line with the gateway's verbatim description.
 pub(super) async fn check_hook_token_mint(gateway: &GatewayClient) -> Check {
     let creds = match plugin_oauth::load_creds() {
         Ok(Some(c)) => c,

@@ -1,14 +1,6 @@
-//! `bridge oauth-client` subcommand.
-//!
-//! Operations on the bridge's per-tenant OAuth client used to mint plugin-
-//! scoped hook tokens:
-//!
-//! - `status` — print the locally-stashed credentials (`client_id`, scopes,
-//!   token endpoint). The plaintext secret is never echoed.
-//! - `rotate` — call `/v1/auth/bridge/oauth-client` to obtain a fresh
-//!   `client_secret`, persist it, and overwrite the cached value. Used when the
-//!   local creds file is suspected lost or the tenant operator wants to
-//!   invalidate any in-flight hook tokens.
+//! `bridge oauth-client` subcommand: inspect (`status`) or rotate (`rotate`)
+//! the bridge's per-tenant OAuth client used to mint plugin-scoped hook tokens.
+//! The plaintext secret is never echoed.
 
 use std::process::ExitCode;
 
@@ -67,7 +59,7 @@ fn cmd_rotate() -> ExitCode {
         let bearer = auth::obtain_live_token(&cfg, &SessionId::generate())
             .await
             .ok_or("no credential source configured (run `bridge login` first)")?;
-        let token = bearer.token.as_str().to_string();
+        let token = bearer.token.as_str().to_owned();
         let creds = plugin_oauth::refresh_creds(&client, &token).await?;
         Ok::<_, Box<dyn std::error::Error>>(creds)
     });
