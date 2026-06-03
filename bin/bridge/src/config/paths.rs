@@ -98,8 +98,6 @@ pub fn org_plugins_effective() -> Option<OrgPluginsLocation> {
     }
 }
 
-/// Non-canonical roots a prior bridge generation may have populated; cleanup
-/// only.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub fn legacy_org_plugins_roots() -> Vec<PathBuf> {
@@ -114,8 +112,6 @@ pub const fn legacy_org_plugins_roots() -> Vec<PathBuf> {
     Vec::new()
 }
 
-/// Every root any bridge generation could have populated, for stale-copy
-/// pruning.
 #[must_use]
 pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
@@ -129,8 +125,6 @@ pub fn all_known_org_plugins_roots() -> Vec<PathBuf> {
     roots
 }
 
-/// Stale metadata dirs prior generations left in org-plugins roots; safe to
-/// prune.
 pub const LEGACY_ORG_PLUGINS_METADATA: &[&str] = &[".systemprompt-bridge", ".systemprompt-cowork"];
 
 #[cfg(not(target_os = "macos"))]

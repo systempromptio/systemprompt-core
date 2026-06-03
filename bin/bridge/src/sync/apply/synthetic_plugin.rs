@@ -125,7 +125,6 @@ pub fn prune_stale_locations_in(roots: &[PathBuf], effective_root: &Path) {
                 "stale org-plugin copy",
             );
         }
-        // Legacy metadata never belongs in an org-plugins root; prune from every one.
         for marker in paths::LEGACY_ORG_PLUGINS_METADATA {
             remove_if_present(&root.join(marker), "legacy bridge metadata dir");
         }

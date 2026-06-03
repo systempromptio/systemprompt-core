@@ -7,8 +7,6 @@ use crate::schedule::Os;
 
 const MDM_MACOS_SNIPPET_TMPL: &str = include_str!("../templates/mdm_macos_snippet.tmpl");
 
-/// True only for the bare hyphenated UUID shape `deploymentOrganizationUuid`
-/// requires; rejects braced/URN forms.
 #[must_use]
 pub fn is_uuid_like(s: &str) -> bool {
     s.len() == 36
@@ -151,7 +149,6 @@ pub fn windows_policy_values(
     if let Some(pk) = pubkey {
         values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_owned()));
     }
-    // Drop a malformed value so Cowork keeps its placeholder, not a junk org id.
     if let Some(uuid) = org_uuid.filter(|u| is_uuid_like(u)) {
         values.push(("deploymentOrganizationUuid", "REG_SZ", uuid.to_owned()));
     }
