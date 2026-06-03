@@ -89,7 +89,7 @@ impl GatewayClient {
         relative_path: &str,
     ) -> Result<Vec<u8>, GatewayError> {
         if relative_path.contains("..") || relative_path.starts_with('/') {
-            return Err(GatewayError::UnsafePath(relative_path.to_string()));
+            return Err(GatewayError::UnsafePath(relative_path.to_owned()));
         }
         let url = self.url(&format!("/v1/bridge/plugins/{plugin_id}/{relative_path}"));
         let started = Instant::now();
@@ -100,8 +100,8 @@ impl GatewayClient {
             .send()
             .await
             .map_err(|e| GatewayError::PluginFetch {
-                plugin_id: plugin_id.to_string(),
-                path: relative_path.to_string(),
+                plugin_id: plugin_id.to_owned(),
+                path: relative_path.to_owned(),
                 source: Box::new(e),
             })?;
         record_span(&resp, started);
@@ -112,8 +112,8 @@ impl GatewayClient {
             });
         }
         let bytes = resp.bytes().await.map_err(|e| GatewayError::PluginRead {
-            plugin_id: plugin_id.to_string(),
-            path: relative_path.to_string(),
+            plugin_id: plugin_id.to_owned(),
+            path: relative_path.to_owned(),
             source: Box::new(e),
         })?;
         Ok(bytes.to_vec())

@@ -1,9 +1,5 @@
-//! Wire types exchanged with the systemprompt gateway.
-//!
-//! These DTOs mirror the gateway's HTTP surface: provisioned OAuth client
+//! Wire types exchanged with the systemprompt gateway: provisioned OAuth client
 //! credentials, plugin hook tokens, and the `whoami` identity envelope.
-//! They are deserialised straight from the gateway and consumed by the
-//! `GatewayClient` methods in this module.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

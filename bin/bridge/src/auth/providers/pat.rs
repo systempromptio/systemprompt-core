@@ -23,7 +23,7 @@ impl PatProvider {
                     .as_ref()
                     .and_then(|p| p.file.as_ref())
                     .and_then(|path| fs::read_to_string(expand(path)).ok())
-                    .map(|s| s.trim().to_string())
+                    .map(|s| s.trim().to_owned())
             })
             .filter(|s| !s.is_empty())
             .map(PatToken::new);
@@ -60,5 +60,5 @@ fn expand(path: &str) -> String {
     {
         return home.join(rest).to_string_lossy().into_owned();
     }
-    path.to_string()
+    path.to_owned()
 }

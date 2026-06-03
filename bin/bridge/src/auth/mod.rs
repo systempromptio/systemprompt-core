@@ -54,9 +54,8 @@ pub async fn read_or_refresh(
     threshold_secs: u64,
     session_id: &SessionId,
 ) -> Option<HelperOutput> {
-    // A cached token only counts if it was minted for the current session id;
-    // after a bridge restart the session id changes, so a token bound to the
-    // previous id would be rejected by the gateway's X-Session-ID check.
+    // A token minted under a previous session id is rejected by the gateway's
+    // X-Session-ID check after a restart, so a cached token must match.
     if let Some(out) = cache::read_with_threshold(threshold_secs)
         && cached_session_matches(&out, session_id)
     {
@@ -108,7 +107,7 @@ fn expand_home(path: &str) -> String {
     {
         return home.join(rest).to_string_lossy().into_owned();
     }
-    path.to_string()
+    path.to_owned()
 }
 
 #[must_use]

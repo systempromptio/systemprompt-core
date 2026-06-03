@@ -26,7 +26,7 @@ pub struct PathLayout {
 
 pub fn resolve_paths() -> Result<PathLayout, SetupError> {
     let base = dirs::config_dir().ok_or_else(|| {
-        SetupError::Path("no OS config directory available on this platform".to_string())
+        SetupError::Path("no OS config directory available on this platform".to_owned())
     })?;
     let config_dir = base.join("systemprompt");
     let config_file = config_dir.join(CONFIG_FILENAME);
@@ -194,16 +194,16 @@ fn write_config_file(
                     let rest = rest.trim().trim_start_matches('=').trim();
                     let rest = rest.trim_matches('"').trim_matches('\'');
                     if !rest.is_empty() {
-                        return Some(rest.to_string());
+                        return Some(rest.to_owned());
                     }
                 }
             }
             None
         });
     let gateway = gateway_url_override
-        .map(str::to_string)
+        .map(str::to_owned)
         .or(existing_gateway)
-        .unwrap_or_else(|| DEFAULT_GATEWAY_URL.to_string());
+        .unwrap_or_else(|| DEFAULT_GATEWAY_URL.to_owned());
 
     let pat_path_str = pat_file.to_string_lossy().replace('\\', "\\\\");
     let contents = format!(

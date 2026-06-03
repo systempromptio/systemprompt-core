@@ -83,7 +83,7 @@ impl DeviceCertSource for WindowsKeystore {
 
         Err(KeystoreError::NotFound(
             self.match_fingerprint.as_deref().map_or_else(
-                || "MY certificate store is empty".to_string(),
+                || "MY certificate store is empty".to_owned(),
                 |fp| format!("no certificate in MY store matched SHA-256 {fp}"),
             ),
         ))

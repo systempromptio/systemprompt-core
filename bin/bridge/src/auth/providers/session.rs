@@ -118,7 +118,7 @@ fn launch_browser(url: &str) -> std::io::Result<()> {
 
 #[cfg(target_os = "macos")]
 fn browser_command(url: &str) -> (&'static str, Vec<String>) {
-    ("open", vec![url.to_string()])
+    ("open", vec![url.to_owned()])
 }
 
 #[cfg(target_os = "windows")]
@@ -131,5 +131,5 @@ fn browser_command(url: &str) -> (&'static str, Vec<String>) {
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn browser_command(url: &str) -> (&'static str, Vec<String>) {
-    ("xdg-open", vec![url.to_string()])
+    ("xdg-open", vec![url.to_owned()])
 }

@@ -23,17 +23,11 @@ use systemprompt_identifiers::ValidatedUrl;
 pub use errors::GatewayError;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
-// Why: `localhost` resolves to IPv6 `::1` before `127.0.0.1`, but the WSL2
-// localhost forwarder relays only IPv4 and black-holes IPv6 SYNs to its
-// forwarded ports, so a sequential connect to `::1` stalls the full connect
+// The WSL2 localhost forwarder relays only IPv4 and black-holes IPv6 SYNs, so a
+// connect to `::1` (which `localhost` resolves to first) stalls the full connect
 // timeout before falling back. reqwest 0.12 has no happy-eyeballs option, so
-// we install a resolver that returns IPv4 addresses first: loopback (and any
-// dual-stack host) connects immediately, with IPv6 retained as a fallback.
-// `pub(crate)` so the proxy's upstream client
-// (`proxy::server::build_upstream_client`) can install the same resolver — it
-// forwards Cowork's MCP + inference to the gateway, so a user-entered
-// `localhost` gateway URL would otherwise stall every proxied call on the IPv6
-// connect timeout.
+// this resolver returns IPv4 addresses first. `pub(crate)` so the proxy's
+// upstream client installs the same resolver.
 #[derive(Debug)]
 pub(crate) struct Ipv4FirstResolver;
 

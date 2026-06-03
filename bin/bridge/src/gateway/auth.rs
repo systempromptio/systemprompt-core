@@ -2,10 +2,8 @@
 //!
 //! POST-style exchanges that hand the bridge a fresh `AuthResponse` or
 //! credential bundle: mTLS attestation, browser session swap, PAT exchange,
-//! OAuth client provisioning, and per-plugin hook token minting. All four
-//! token-bearing variants accept the gateway's plaintext secrets only at
-//! call time — callers persist the response immediately. Read-only
-//! endpoints live in `fetch`.
+//! OAuth client provisioning, and per-plugin hook token minting. Plaintext
+//! secrets arrive only at call time; callers persist the response immediately.
 
 use std::time::Instant;
 

@@ -10,15 +10,12 @@ pub struct BridgeProfile {
     pub models: Vec<String>,
     #[serde(default)]
     pub organization_uuid: Option<String>,
-    /// Empty against an older gateway, in which case the bridge falls back to
-    /// the flat `models` list above.
+    /// Empty against an older gateway; callers fall back to the flat `models`.
     #[serde(default)]
     pub providers: Vec<ProviderHealth>,
 }
 
 /// Mirror of the gateway's per-provider health payload (keep in sync).
-/// `protocol` is the wire tag: `anthropic`, `openai-chat`, `openai-responses`,
-/// or `gemini`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderHealth {
     pub name: String,

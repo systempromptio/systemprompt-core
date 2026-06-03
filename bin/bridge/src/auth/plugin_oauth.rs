@@ -1,10 +1,7 @@
 //! Plugin-scoped OAuth hook tokens.
 //!
-//! Per-tenant `client_credentials` client exchanged for plugin-scoped JWTs via
-//! `/api/v1/core/oauth/token`. Storage split: `client_secret` lives in the OS
-//! keystore (Keychain / Credential Manager / Secret Service); non-secret fields
-//! live in a 0600 JSON file at
-//! `~/.cache/systemprompt-bridge/oauth_client.json`.
+//! `client_secret` lives in the OS keystore (Keychain / Credential Manager /
+//! Secret Service); non-secret fields in a 0600 JSON file under the cache dir.
 
 use crate::gateway::{BridgeOAuthClientResponse, GatewayClient, GatewayError, HookTokenResponse};
 use serde::{Deserialize, Serialize};
@@ -65,8 +62,6 @@ struct StoredCreds {
     scopes: Vec<String>,
 }
 
-// Why: legacy on-disk shape included client_secret; load_creds detects it and
-// migrates the secret into the keystore, then rewrites the file.
 #[derive(Debug, Deserialize)]
 struct LegacyCreds {
     client_id: ClientId,
@@ -132,8 +127,6 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
         return Ok(None);
     };
     let raw: serde_json::Value = serde_json::from_str(&text)?;
-    // Why: legacy file contained client_secret inline; migrate into keystore
-    // and rewrite as the new shape before returning.
     if raw.get("client_secret").is_some() {
         let l: LegacyCreds = serde_json::from_value(raw)?;
         tracing::info!(client_id = %l.client_id, "migrating legacy OAuth client_secret into OS keystore");
@@ -159,7 +152,6 @@ pub fn load_creds() -> Result<Option<OAuthClientCreds>, PluginOAuthError> {
     }))
 }
 
-// Idempotent: missing file/entry are not errors.
 pub fn delete_creds() -> io::Result<()> {
     let Some(path) = creds_path() else {
         return Ok(());
@@ -176,8 +168,8 @@ pub fn delete_creds() -> io::Result<()> {
     }
 }
 
-// Provisioning rotates the secret server-side, so only call when local state is
-// missing.
+// Provisioning rotates the per-tenant secret server-side; only call when local
+// state is missing, or an in-flight token minted from the old secret breaks.
 pub async fn ensure_creds(
     gateway: &GatewayClient,
     pat: &str,
@@ -242,7 +234,7 @@ impl PluginTokenCache {
 
     pub fn put(&self, plugin_id: &PluginId, token: CachedHookToken) {
         if let Ok(mut guard) = self.entries.lock() {
-            guard.insert(plugin_id.as_str().to_string(), token);
+            guard.insert(plugin_id.as_str().to_owned(), token);
         }
     }
 
@@ -271,8 +263,6 @@ async fn mint(
         .await
 }
 
-// On 401 from the gateway, rotates the per-tenant client secret and retries
-// once.
 pub async fn mint_or_refresh_plugin_token(
     gateway: &GatewayClient,
     pat: &str,

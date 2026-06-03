@@ -116,7 +116,7 @@ fn parse_code(request_line: &str) -> Result<String> {
     let method = parts.next().unwrap_or("");
     let target = parts.next().unwrap_or("");
     if method != "GET" {
-        return Err(LoopbackError::UnexpectedMethod(method.to_string()));
+        return Err(LoopbackError::UnexpectedMethod(method.to_owned()));
     }
     let query = target.split_once('?').map_or("", |(_, q)| q);
     for pair in query.split('&') {
