@@ -12,5 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+temp-env = { workspace = true }
 
 [dev-dependencies]

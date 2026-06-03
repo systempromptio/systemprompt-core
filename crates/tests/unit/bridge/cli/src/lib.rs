@@ -5,3 +5,5 @@ mod args;
 mod credential_helper;
 #[cfg(test)]
 mod diagnostics;
+#[cfg(test)]
+mod doctor;
