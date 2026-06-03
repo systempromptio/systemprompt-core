@@ -52,6 +52,7 @@ pub struct AuditLookupResult {
     pub id: AiRequestId,
     pub provider: String,
     pub model: String,
+    pub requested_model: Option<String>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
     pub cost_microdollars: i64,

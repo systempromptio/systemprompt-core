@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id as \"id!: AiRequestId\", provider as \"provider!\", model as \"model!\",\n            input_tokens, output_tokens, cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            task_id as \"task_id: TaskId\",\n            trace_id as \"trace_id: TraceId\"\n        FROM ai_requests WHERE task_id = $1 OR task_id LIKE $2\n        ORDER BY created_at DESC LIMIT 1\n        ",
+  "query": "\n        SELECT id as \"id!: AiRequestId\", provider as \"provider!\", model as \"model!\",\n            requested_model,\n            input_tokens, output_tokens, cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            task_id as \"task_id: TaskId\",\n            trace_id as \"trace_id: TraceId\"\n        FROM ai_requests WHERE trace_id = $1 OR trace_id LIKE $2\n        ORDER BY created_at DESC LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
@@ -20,31 +20,36 @@
       },
       {
         "ordinal": 3,
+        "name": "requested_model",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
         "name": "input_tokens",
         "type_info": "Int4"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "output_tokens",
         "type_info": "Int4"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "cost_microdollars!",
         "type_info": "Int8"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "latency_ms",
         "type_info": "Int4"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "task_id: TaskId",
         "type_info": "Text"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "trace_id: TraceId",
         "type_info": "Varchar"
       }
@@ -61,11 +66,12 @@
       false,
       true,
       true,
+      true,
       false,
       true,
       true,
       true
     ]
   },
-  "hash": "865e790fb17fa58d8bc9baa8a6d34b52d2aa01525288245d6f9f6acb319544e5"
+  "hash": "f5aa1f9bfefa35e2902586bd8ec292e9cf2981bbfd3fc9e8b00cf7847fdfc59c"
 }

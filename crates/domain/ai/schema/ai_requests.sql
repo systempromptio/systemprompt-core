@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     mcp_execution_id VARCHAR(255),
     provider TEXT NOT NULL,
     model TEXT NOT NULL,
+    requested_model TEXT,
     temperature DOUBLE PRECISION,
     top_p DOUBLE PRECISION,
     max_tokens INTEGER,

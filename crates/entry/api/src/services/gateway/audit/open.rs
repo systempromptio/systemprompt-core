@@ -21,6 +21,9 @@ impl GatewayAudit {
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
         }
+        if let Some(rm) = &self.ctx.requested_model {
+            record = record.requested_model(rm.clone());
+        }
         record = record.context_id(self.ctx.context_id.clone());
         if let Some(g) = &self.ctx.gateway_conversation_id {
             record = record.gateway_conversation_id(g.clone());

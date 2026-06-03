@@ -143,15 +143,15 @@ impl AiRequestRepository {
                 mcp_execution_id, provider, model, max_tokens, tokens_used, input_tokens, output_tokens,
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
                 cost_microdollars, latency_ms, status, error_message,
-                actor_kind, actor_id,
+                actor_kind, actor_id, requested_model,
                 created_at, updated_at, completed_at
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
                 $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24,
-                $25, $26,
+                $25, $26, $27,
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                CASE WHEN $27 THEN CURRENT_TIMESTAMP ELSE NULL END
+                CASE WHEN $28 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
             "#,
             id.as_str(),
@@ -180,6 +180,7 @@ impl AiRequestRepository {
             record.error_message.as_deref(),
             actor_kind,
             actor_id,
+            record.requested_model.as_deref(),
             use_completed_at
         )
         .execute(self.write_pool())

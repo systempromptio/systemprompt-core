@@ -47,7 +47,13 @@ pub struct AiRequestRecord {
     pub trace_id: Option<TraceId>,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub provider: String,
+    /// The model actually served, after route rewrite and any upstream
+    /// substitution (set from the provider response via `set_served_model`).
     pub model: String,
+    /// The model the client requested on the wire, before route rewrite. `None`
+    /// for non-gateway requests. Recorded so an audit shows both what was asked
+    /// for and what was served (e.g. requested `gpt-5`, served `MiniMax-M3`).
+    pub requested_model: Option<String>,
     pub max_tokens: Option<i32>,
     pub tokens: TokenInfo,
     pub cache: CacheInfo,
@@ -78,6 +84,7 @@ pub struct AiRequestRecordBuilder {
     mcp_execution_id: Option<McpExecutionId>,
     provider: Option<String>,
     model: Option<String>,
+    requested_model: Option<String>,
     max_tokens: Option<i32>,
     tokens: TokenInfo,
     cache: CacheInfo,
@@ -103,6 +110,7 @@ impl AiRequestRecordBuilder {
             mcp_execution_id: None,
             provider: None,
             model: None,
+            requested_model: None,
             max_tokens: None,
             tokens: TokenInfo::default(),
             cache: CacheInfo::default(),
@@ -162,6 +170,12 @@ impl AiRequestRecordBuilder {
 
     pub fn model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
+        self
+    }
+
+    #[must_use]
+    pub fn requested_model(mut self, requested_model: impl Into<String>) -> Self {
+        self.requested_model = Some(requested_model.into());
         self
     }
 
@@ -240,6 +254,7 @@ impl AiRequestRecordBuilder {
             mcp_execution_id: self.mcp_execution_id,
             provider,
             model,
+            requested_model: self.requested_model,
             max_tokens: self.max_tokens,
             tokens: self.tokens,
             cache: self.cache,

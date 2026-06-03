@@ -11,6 +11,7 @@ struct AuditRow {
     id: AiRequestId,
     provider: String,
     model: String,
+    requested_model: Option<String>,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
     cost_microdollars: i64,
@@ -62,6 +63,7 @@ async fn find_audit_by_request_id(
         AuditRow,
         r#"
         SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
+            requested_model,
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms,
             task_id as "task_id: TaskId",
@@ -86,6 +88,7 @@ async fn find_audit_by_task_id(
         AuditRow,
         r#"
         SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
+            requested_model,
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms,
             task_id as "task_id: TaskId",
@@ -111,6 +114,7 @@ async fn find_audit_by_trace_id(
         AuditRow,
         r#"
         SELECT id as "id!: AiRequestId", provider as "provider!", model as "model!",
+            requested_model,
             input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms,
             task_id as "task_id: TaskId",
@@ -132,6 +136,7 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
         id: r.id,
         provider: r.provider,
         model: r.model,
+        requested_model: r.requested_model,
         input_tokens: r.input_tokens,
         output_tokens: r.output_tokens,
         cost_microdollars: r.cost_microdollars,

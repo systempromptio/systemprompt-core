@@ -31,7 +31,13 @@ pub struct GatewayRequestContext {
     pub gateway_conversation_id: Option<GatewayConversationId>,
     pub trace_id: Option<TraceId>,
     pub provider: String,
+    /// The upstream model the request dispatches to (after route rewrite). The
+    /// audit `model` column is opened from this, then overwritten by
+    /// `set_served_model` with the model the provider echoes back.
     pub model: String,
+    /// The model the client requested on the wire, before route rewrite.
+    /// Persisted to `ai_requests.requested_model` so an audit retains both.
+    pub requested_model: Option<String>,
     pub max_tokens: Option<u32>,
     pub is_streaming: bool,
     pub wire_protocol: String,
