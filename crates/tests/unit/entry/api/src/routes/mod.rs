@@ -6,6 +6,7 @@
 //! - Default implementations
 
 mod agent;
+mod bridge_profile_models;
 mod gateway_auth_responses;
 mod gateway_authz_request;
 mod gateway_extract_credential;

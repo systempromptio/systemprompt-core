@@ -2,8 +2,13 @@
 
 ## [0.14.4] - 2026-06-02
 
+### Added
+
+- `GET /v1/bridge/profile` reports per-provider health: each provider's wire protocol, the models it serves, and whether its credential secret resolves. The bridge uses this to present the models compatible with each managed host and to flag a provider that is missing its API key.
+
 ### Fixed
 
+- The bridge profile advertises only Anthropic models in `inferenceModels`. Claude Desktop and Cowork run the gateway in Anthropic-protocol mode and reject the entire enterprise configuration when any advertised model is not an Anthropic model, so a profile that also registered an OpenAI or Gemini provider left those hosts unable to start tasks. Non-Anthropic providers remain routable through the gateway; they are no longer advertised as front-door models the host addresses directly.
 - The bridge installs the Claude Desktop managed-policy profile under a UAC prompt instead of failing on a standard Windows account. The policy lives under `SOFTWARE\Policies\Claude`, an ACL-protected subtree no non-elevated token can create in either hive, so the in-process registry write returned `ERROR_ACCESS_DENIED` (status 5) for every unprivileged install. The bridge now relaunches itself elevated to write the policy machine-wide (`HKEY_LOCAL_MACHINE`) when it is not already elevated, explains the upcoming prompt in the activity log, and reports a declined prompt or an access-denied write with an actionable message rather than a raw status code. (bridge 0.10.7)
 
 ## [0.14.3] - 2026-06-02

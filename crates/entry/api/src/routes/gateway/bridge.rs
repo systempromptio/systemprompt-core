@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{JwtToken, TenantId};
+use systemprompt_models::profile::{ProviderRegistry, WireProtocol};
 
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
@@ -80,6 +81,19 @@ pub struct BridgeProfileResponse {
     pub auth_scheme: String,
     pub models: Vec<String>,
     pub organization_uuid: Option<String>,
+    /// `models` above is the Anthropic-only front door; this carries every
+    /// provider so the bridge can filter per host by wire protocol and flag a
+    /// provider whose credential secret is absent.
+    pub providers: Vec<ProviderHealth>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProviderHealth {
+    pub name: String,
+    pub protocol: WireProtocol,
+    pub configured: bool,
+    pub models: Vec<String>,
+    pub config_issue: Option<String>,
 }
 
 pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, String)> {
@@ -101,17 +115,14 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
     let prefix = gateway.inference_path_prefix.trim_end_matches('/');
     let inference_gateway_base_url = format!("{base}{prefix}");
 
-    let models: Vec<String> = profile
-        .providers
-        .providers
-        .iter()
-        .flat_map(|entry| {
-            entry.models.iter().flat_map(|m| {
-                std::iter::once(m.id.as_str().to_owned())
-                    .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
-            })
-        })
-        .collect();
+    let models = anthropic_inference_models(&profile.providers);
+
+    let secrets = systemprompt_config::SecretsBootstrap::get().ok();
+    let providers = provider_health(&profile.providers, |name| {
+        secrets
+            .and_then(|s| s.get(name))
+            .is_some_and(|k| !k.is_empty())
+    });
 
     let organization_uuid = profile
         .cloud
@@ -124,7 +135,61 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         auth_scheme: gateway.auth_scheme.clone(),
         models,
         organization_uuid,
+        providers,
     }))
+}
+
+// Why: Cowork/Claude-Desktop run the gateway in Anthropic-protocol mode and
+// reject the entire enterprise config if any `inferenceModels` entry is not an
+// Anthropic model. Non-Anthropic providers remain routable through the gateway
+// (an Anthropic-named route can fan out to them); they are simply not
+// advertised as front-door models the host can address directly.
+pub fn anthropic_inference_models(registry: &ProviderRegistry) -> Vec<String> {
+    registry
+        .providers
+        .iter()
+        .filter(|entry| entry.protocol == WireProtocol::Anthropic)
+        .flat_map(|entry| {
+            entry.models.iter().flat_map(|m| {
+                std::iter::once(m.id.as_str().to_owned())
+                    .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
+            })
+        })
+        .collect()
+}
+
+/// `secret_present` is a closure for testability.
+///
+/// A provider whose secret is absent is surfaced (`configured = false`) rather
+/// than dropped, so the GUI can tell the operator exactly which provider needs a
+/// key.
+pub fn provider_health(
+    registry: &ProviderRegistry,
+    secret_present: impl Fn(&str) -> bool,
+) -> Vec<ProviderHealth> {
+    registry
+        .providers
+        .iter()
+        .map(|entry| {
+            let secret = entry.api_key_secret.as_str();
+            let configured = secret_present(secret);
+            ProviderHealth {
+                name: entry.name.as_str().to_owned(),
+                protocol: entry.protocol,
+                configured,
+                models: entry
+                    .models
+                    .iter()
+                    .flat_map(|m| {
+                        std::iter::once(m.id.as_str().to_owned())
+                            .chain(m.aliases.iter().map(|a| a.as_str().to_owned()))
+                    })
+                    .collect(),
+                config_issue: (!configured)
+                    .then(|| format!("API key secret '{secret}' is not configured")),
+            }
+        })
+        .collect()
 }
 
 // Why: Codex CLI threads this value into the `x-tenant` HTTP header on
