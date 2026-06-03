@@ -1,10 +1,6 @@
-//! Cowork desktop plugin integration.
-//!
-//! The bridge owes Cowork one write per session: setting
-//! `enabledPlugins["<plugin>@org-provisioned"] = true` in
-//! `cowork_settings.json` for the plugin tree that
-//! `sync::apply::synthetic_plugin` populates under the org-plugins root. Pure
-//! data lives in `settings`; IO is in `emit`.
+//! Cowork desktop plugin integration: one write per session enabling the
+//! synthetic plugin in `cowork_settings.json`. Pure data in `settings`; IO in
+//! `emit`.
 
 pub(crate) mod emit;
 pub(crate) mod settings;

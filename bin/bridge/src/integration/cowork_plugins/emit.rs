@@ -1,7 +1,5 @@
-//! IO layer for the Cowork desktop integration.
-//!
-//! Writes `enabledPlugins["<plugin>@org-provisioned"] = true` in the
-//! per-session `cowork_settings.json` and purges any legacy session-marketplace
+//! IO layer for the Cowork desktop integration: writes the org-provisioned
+//! enable key in `cowork_settings.json` and purges legacy session-marketplace
 //! state.
 
 use std::path::PathBuf;
@@ -10,9 +8,8 @@ use std::{fs, io};
 
 use crate::config::paths;
 
-// Cowork's fixed sentinel for the personal org-session dir; if a future release
-// changes it, `pick_target` silently falls back to mtime (doctor's
-// `personal-session sentinel` check warns on this).
+// Cowork's fixed sentinel for the personal org-session dir; if it ever changes,
+// `pick_target` falls back to mtime.
 pub const PERSONAL_SESSION_UUID: &str = "00000000-0000-4000-8000-000000000001";
 
 pub(super) const ORG_PROVISIONED_MARKETPLACE: &str = "org-provisioned";

@@ -1,11 +1,8 @@
-//! Merge bridge-owned keys into a user's `~/.codex/config.toml` (or system
-//! equivalent), stripping any prior bridge-owned values first so removed keys
-//! do not linger, and preserving every other key the user authored.
-//!
-//! Bridge-owned surface: the top-level `model_provider` selector, the `otel`
-//! and `analytics` tables, and the `model_providers.systemprompt` entry. All
-//! other tables — sibling `model_providers.*`, plugin blocks, profiles —
-//! survive a merge unchanged.
+//! Merge bridge-owned keys into the user's Codex config, stripping prior
+//! bridge-owned values first so removed keys don't linger, preserving every
+//! other key. Bridge-owned surface: the `model_provider` selector, the
+//! `otel`/`analytics` tables, and the `model_providers.systemprompt` entry; all
+//! other tables survive unchanged.
 
 use std::path::Path;
 

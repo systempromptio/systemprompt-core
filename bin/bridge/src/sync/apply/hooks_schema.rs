@@ -1,9 +1,7 @@
-//! Typed wire schema for the Cowork `hooks.json` file emitted per-plugin.
+//! Typed wire schema for the per-plugin Cowork `hooks.json` file.
 //!
-//! `Http` entries are gateway-issued govern/track proxies that present the
-//! static loopback secret as `Authorization`; `Command` entries are
-//! user-defined hooks from `services/hooks/` YAML. `allowedEnvVars` is empty —
-//! Cowork's agent VM does not reliably propagate plugin env vars.
+//! `allowedEnvVars` is empty: Cowork's agent VM does not reliably propagate
+//! plugin env vars.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

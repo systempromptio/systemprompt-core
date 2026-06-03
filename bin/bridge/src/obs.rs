@@ -138,8 +138,7 @@ pub mod tracing_init {
             .map(|base| base.join("systemprompt-bridge"))
     }
 
-    // Must be installed before `init` so panics during subscriber setup are
-    // captured rather than lost to the default stderr handler.
+    // Install before `init` so panics during subscriber setup are captured.
     pub fn install_panic_hook() {
         std::panic::set_hook(Box::new(|info| {
             let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
@@ -158,8 +157,6 @@ pub mod tracing_init {
             let dump =
                 format!("panic at {location}\npayload: {payload}\n\nbacktrace:\n{backtrace:?}\n");
             if let Some(dir) = log_dir() {
-                // Best-effort dump: recursing into tracing on a filesystem
-                // failure would itself become the failure mode.
                 _ = std::fs::create_dir_all(&dir);
                 let path = dir.join(format!("bridge-crash-{ts}.log"));
                 _ = std::fs::write(&path, &dump);
@@ -203,8 +200,7 @@ pub mod tracing_init {
     }
 
     impl Write for TeeWriterImpl {
-        // File-only when the rolling log is available; fall back to stderr so
-        // early bootstrap errors before `install_file_writer` stay visible.
+        // Falls back to stderr so bootstrap errors before the file writer stay visible.
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
             if let Some(file) = self.file.as_mut() {
                 _ = file.write_all(buf);

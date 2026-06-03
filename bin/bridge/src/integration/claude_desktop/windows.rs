@@ -56,8 +56,8 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     let (payload_uuid, profile_uuid) = make_uuids();
     let path = dir.join(format!("claude-bridge-{}.reg", unique_stem()));
 
-    // The install path always writes machine-wide (HKLM), elevating on demand, so
-    // the staged preview the operator inspects must show the HKLM hive.
+    // Install always writes HKLM (machine-wide, elevating on demand), so the staged
+    // preview must show that hive.
     let body = super::reg_profile::render_reg(true, inputs);
     std::fs::File::create(&path)?.write_all(body.as_bytes())?;
 

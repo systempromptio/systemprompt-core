@@ -23,8 +23,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::SW_HIDE;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const DETACHED_PROCESS: u32 = 0x0000_0008;
 
-// Write-only. Reads must go through `crate::config::store` in-process FFI to
-// avoid reg.exe's quoting + Wow6432 redirection footguns.
+// Write-only; reads go through `crate::config::store` FFI to dodge reg.exe
+// quoting + Wow6432 redirection.
 pub(crate) fn reg_command() -> Command {
     silenced_command(system32_path("reg.exe"))
 }
@@ -105,8 +105,7 @@ fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-// CommandLineToArgvW quoting: a child reconstructs argv from this single
-// string, so paths with spaces or embedded quotes must round-trip exactly.
+// CommandLineToArgvW quoting: the child reconstructs argv from this one string.
 fn quote_arg(arg: &str) -> String {
     if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
         return arg.to_owned();

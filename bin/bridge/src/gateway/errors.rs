@@ -1,9 +1,4 @@
 //! Gateway client error taxonomy.
-//!
-//! Every fallible interaction with the systemprompt gateway funnels through
-//! `GatewayError`. Variants preserve `reqwest::Error` causes (boxed to keep
-//! the enum small) and tag HTTP failures with their endpoint label so callers
-//! can render structured diagnostics without inspecting URLs.
 
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayError {

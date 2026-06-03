@@ -169,7 +169,7 @@ pub fn delete_creds() -> io::Result<()> {
 }
 
 // Provisioning rotates the per-tenant secret server-side; only call when local
-// state is missing, or an in-flight token minted from the old secret breaks.
+// state is missing.
 pub async fn ensure_creds(
     gateway: &GatewayClient,
     pat: &str,

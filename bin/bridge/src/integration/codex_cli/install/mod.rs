@@ -1,9 +1,6 @@
-//! Codex CLI managed-profile installer.
-//!
-//! `write_profile` renders the bridge-owned config block (a `.toml` on
-//! Linux/Windows, a `.mobileconfig` on macOS); `install_profile` hands it to
-//! the system installer on macOS or merges it into the system-scope config
-//! path, preserving every user-authored key.
+//! Codex CLI managed-profile installer: renders the bridge-owned config block
+//! (`.toml`, or `.mobileconfig` on macOS) and merges it into the system-scope
+//! config, preserving every user-authored key.
 
 mod merge;
 mod render;

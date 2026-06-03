@@ -1,7 +1,6 @@
 //! `.reg` serialisation for the Claude Desktop managed-policy profile.
-//!
 //! [`render_reg`] and [`parse_reg_entries`] are inverses, kept
-//! platform-independent so the round-trip is unit-testable on every target.
+//! platform-independent so the round-trip is testable on every target.
 
 use super::shared::{ProfileGenInputs, default_models};
 

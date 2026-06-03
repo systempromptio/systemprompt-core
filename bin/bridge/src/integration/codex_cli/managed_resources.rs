@@ -1,9 +1,5 @@
-//! Codex CLI sync emitter.
-//!
-//! Writes manifest-supplied skills and MCP servers as one Codex plugin bundle
-//! under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, and
-//! toggles its `[plugins."<plugin>@<marketplace>"]` block in `config.toml`
-//! while preserving every other key.
+//! Codex CLI sync emitter: writes manifest skills/MCP servers as one plugin
+//! bundle and toggles its `config.toml` block, preserving every other key.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -21,8 +17,8 @@ use super::probe::write_dotted;
 
 const MARKETPLACE: &str = "systemprompt";
 const PLUGIN_NAME: &str = "systemprompt-managed";
-// The bundle is rewritten on each apply, so one fixed slot suffices; the real
-// version travels in plugin.json.
+// Rewritten on each apply, so one fixed slot suffices; the real version travels
+// in plugin.json.
 const PLUGIN_VERSION_DIR: &str = "current";
 
 #[derive(Clone, Copy, Debug)]

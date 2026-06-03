@@ -94,8 +94,8 @@ pub fn attach_to_window(handles: &MenuBarHandles, window: &Window) -> GuiResult<
         )))
     })?;
     if let RawWindowHandle::Win32(w) = handle.as_raw() {
-        // SAFETY: hwnd is a live HWND owned by the settings Window held by GuiApp;
-        // muda only reads it to attach the native menu bar.
+        // SAFETY: hwnd is a live HWND owned by GuiApp's settings Window; muda only
+        // reads it.
         unsafe {
             handles.menu.init_for_hwnd(w.hwnd.get())?;
         }

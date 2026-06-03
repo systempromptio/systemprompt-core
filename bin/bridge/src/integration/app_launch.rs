@@ -1,9 +1,5 @@
 //! Cross-platform "open the installed desktop app" helper shared by the host
 //! integrations.
-//!
-//! macOS resolves by name via `open -a`; Windows resolves the Start-menu entry
-//! by display name and launches `shell:AppsFolder\<AUMID>`, falling back to
-//! known install paths.
 
 use std::io;
 use std::path::PathBuf;

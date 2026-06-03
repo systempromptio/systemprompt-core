@@ -1,9 +1,5 @@
-//! Live MCP auth probe.
-//!
-//! An `initialize` → `tools/list` round-trip through the bridge's own loopback
-//! proxy, exercising the full auth chain (loopback-secret, gateway-JWT
-//! injection, upstream forwarding) the host app uses, so the GUI can surface
-//! failures otherwise only visible in the host's logs.
+//! Live MCP auth probe: an `initialize` → `tools/list` round-trip through the
+//! bridge's loopback proxy, exercising the full auth chain the host app uses.
 
 use std::time::{Duration, Instant};
 
@@ -15,8 +11,6 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
 const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 const SESSION_HEADER: &str = "mcp-session-id";
 
-/// Shape mirrors [`crate::integration::proxy_probe::ProxyHealth`] so the
-/// frontend renders it with the same card pattern.
 #[derive(Debug, Clone, Serialize)]
 pub struct McpServerAuth {
     pub id: String,
@@ -30,7 +24,6 @@ pub struct McpServerAuth {
     pub probed_at_unix: u64,
 }
 
-/// Serialized by variant name, which the frontend keys off for its status dot.
 #[derive(Debug, Clone, Copy, Serialize, Default, PartialEq, Eq)]
 pub enum McpAuthState {
     #[default]
@@ -48,8 +41,7 @@ pub enum McpAuthState {
     ProtocolError,
 }
 
-/// Returns one synthetic `NoServers` entry when the registry is empty, so the
-/// GUI can render an explicit "nothing to check" card.
+/// Returns one synthetic `NoServers` entry when the registry is empty.
 #[must_use]
 pub async fn probe_all() -> Vec<McpServerAuth> {
     let registry = crate::mcp_registry::snapshot();

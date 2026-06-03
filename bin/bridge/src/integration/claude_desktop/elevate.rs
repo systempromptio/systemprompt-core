@@ -1,9 +1,6 @@
 //! UAC elevation bridge for the Windows managed-policy write.
-//!
-//! `SOFTWARE\Policies\Claude` is ACL-protected in both hives, so
-//! [`elevate_and_install`] re-launches the bridge under UAC to run
-//! [`perform_elevated_write`] in an elevated child (HKLM, machine-wide). The
-//! child reports its outcome through a JSON result file.
+//! `SOFTWARE\Policies\Claude` is ACL-protected in both hives, so the write must
+//! run in an elevated child (HKLM) that reports via a JSON result file.
 
 use std::process::ExitCode;
 

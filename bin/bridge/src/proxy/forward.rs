@@ -95,8 +95,8 @@ pub(crate) async fn forward(
     let (parts, body) = req.into_parts();
     let request_path = parts.uri.path().to_owned();
 
-    // A hook route's 401 means its plugin-scoped `aud:hook` token is stale, not
-    // the bridge JWT — so `is_hook` must suppress the shared-cache invalidation.
+    // A hook route's 401 means its `aud:hook` token is stale, not the bridge JWT;
+    // `is_hook` suppresses shared-cache invalidation.
     let (route, upstream_bearer, is_hook) = match resolve_route(&parts.uri, gateway_base) {
         RouteResolution::Gateway(url) => (
             Route {
@@ -259,8 +259,8 @@ fn build_gateway_url(gateway_base: &ValidatedUrl, uri: &http::Uri) -> String {
     )
 }
 
-// OTLP exporters POST to `/otel` without the `/v1` prefix the gateway router is
-// nested under, so it must be added here or every batch 404s.
+// OTLP exporters POST `/otel` without the `/v1` prefix the gateway router is
+// nested under.
 fn rewrite_otel_to_v1(path_and_query: &str) -> Option<String> {
     let (path, suffix) = path_and_query
         .split_once('?')

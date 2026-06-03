@@ -1,9 +1,7 @@
 //! Per-user singleton for the bridge GUI / proxy.
 //!
-//! Launching twice races on the proxy port (48217), the OAuth loopback port,
-//! and the GUI server port. We hold a named OS lock for the lifetime of the
-//! process; the second launcher sees `AlreadyRunning` and pings the running
-//! instance over the local TCP server to focus its window.
+//! A second launch would race the proxy/loopback/GUI ports, so we hold a named
+//! OS lock; the loser pings the running instance to focus its window.
 
 use std::fs;
 use std::io::Write as _;

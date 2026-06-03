@@ -58,8 +58,8 @@ fn emit_claude_via_chain() -> ExitCode {
 }
 
 fn emit_codex() -> ExitCode {
-    // Codex authenticates against the local loopback proxy, not the upstream
-    // gateway: the helper must hand it the loopback secret, not a gateway bearer.
+    // Codex authenticates against the loopback proxy, not the upstream gateway:
+    // hand it the loopback secret.
     let secret = match proxy::secret::for_profile() {
         Ok(s) => s,
         Err(e) => {
@@ -72,9 +72,8 @@ fn emit_codex() -> ExitCode {
             return ExitCode::from(70);
         },
     };
-    // Codex stuffs the helper's stdout verbatim into `Authorization: Bearer
-    // <stdout>` without parsing JSON, so the bare secret (not an envelope) must
-    // be printed.
+    // Codex forwards helper stdout verbatim as `Authorization: Bearer <stdout>`, so
+    // print the bare secret, not JSON.
     println!("{}", secret.as_str());
     ExitCode::SUCCESS
 }

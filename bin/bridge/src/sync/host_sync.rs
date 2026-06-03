@@ -1,8 +1,6 @@
-//! Per-host sync trait + central dispatcher.
-//!
-//! Each host integration implements [`HostSync`]. The dispatcher walks
-//! [`registry()`] and, per-host, calls `apply` or `clear` based on the
-//! manifest's `enabled_hosts` list, logging the outcome uniformly.
+//! Per-host sync trait + central dispatcher. The dispatcher walks
+//! [`registry()`] and calls `apply` or `clear` per the manifest's
+//! `enabled_hosts`.
 
 use async_trait::async_trait;
 use std::path::Path;
@@ -21,8 +19,7 @@ pub struct HostSyncCtx<'a> {
     pub bearer: &'a str,
 }
 
-// `dyn HostSync` is needed by the static registry, so this trait must be
-// dyn-compatible — `#[async_trait]` boxes the future to satisfy that.
+// `#[async_trait]`: the static registry needs `dyn HostSync`.
 #[async_trait]
 pub trait HostSync: Send + Sync + 'static {
     fn host_id(&self) -> &'static str;

@@ -54,8 +54,8 @@ pub async fn read_or_refresh(
     threshold_secs: u64,
     session_id: &SessionId,
 ) -> Option<HelperOutput> {
-    // A token minted under a previous session id is rejected by the gateway's
-    // X-Session-ID check after a restart, so a cached token must match.
+    // Gateway's X-Session-ID check rejects a token minted under a prior session id
+    // after restart.
     if let Some(out) = cache::read_with_threshold(threshold_secs)
         && cached_session_matches(&out, session_id)
     {

@@ -55,7 +55,7 @@ impl AuthFailedSource {
 #[async_trait]
 pub trait AuthProvider: Send + Sync {
     fn name(&self) -> &'static str;
-    /// The minted JWT binds to `session_id` so it matches the `x-session-id`
-    /// the bridge presents on `/v1/messages`.
+    /// Minted JWT binds to `session_id` to match the `x-session-id` the bridge
+    /// presents.
     async fn authenticate(&self, session_id: &SessionId) -> Result<HelperOutput, AuthError>;
 }

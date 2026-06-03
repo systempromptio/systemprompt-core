@@ -1,5 +1,5 @@
-//! Canonical bridge filesystem helpers: atomic 0600 writes, recursive copies,
-//! and optional reads.
+//! Bridge filesystem helpers: atomic 0600 writes, recursive copies, optional
+//! reads.
 
 #![allow(dead_code, reason = "helpers not yet wired into all call sites")]
 
@@ -23,8 +23,7 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::OpenOptionsExt;
-            // Why: 0600 perms set at create() close the TOCTOU window where a
-            // reader could open the temp file between write and chmod.
+            // 0600 at create() closes the TOCTOU window between write and chmod.
             opts.mode(0o600);
         }
         let mut file = opts.open(&tmp)?;
@@ -35,8 +34,8 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        // Why: belt-and-braces in case the file pre-existed with looser perms
-        // and OpenOptions::mode was ignored on this platform/fs.
+        // Guards a pre-existing temp with looser perms when OpenOptions::mode was
+        // ignored.
         _ = fs::set_permissions(&tmp, fs::Permissions::from_mode(0o600));
     }
 
@@ -111,8 +110,8 @@ pub fn create_dir_all_mode_0700(path: &Path) -> io::Result<()> {
 }
 
 pub fn temp_path_for(path: &Path) -> std::path::PathBuf {
-    // Why: rand suffix avoids collisions when two bridge processes race on the
-    // same target path; pure ".tmp" lost writes under contention.
+    // pid+nanos suffix avoids lost writes when two bridge processes race the same
+    // target.
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());

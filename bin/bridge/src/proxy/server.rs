@@ -99,8 +99,7 @@ pub fn start(
 
 fn build_upstream_client() -> std::io::Result<reqwest::Client> {
     reqwest::Client::builder()
-        // IPv4-first: the WSL2 localhost forwarder black-holes IPv6 SYNs, so a
-        // `localhost` gateway resolving to `::1` first stalls every connect.
+        // IPv4-first: WSL2's localhost forwarder black-holes IPv6 SYNs, stalling `::1` connects.
         .dns_resolver(Arc::new(crate::gateway::Ipv4FirstResolver))
         .pool_max_idle_per_host(16)
         .tcp_nodelay(true)

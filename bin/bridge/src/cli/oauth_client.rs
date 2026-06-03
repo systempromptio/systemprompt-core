@@ -1,6 +1,5 @@
-//! `bridge oauth-client` subcommand: inspect (`status`) or rotate (`rotate`)
-//! the bridge's per-tenant OAuth client used to mint plugin-scoped hook tokens.
-//! The plaintext secret is never echoed.
+//! `bridge oauth-client` subcommand: inspect or rotate the per-tenant OAuth
+//! client that mints plugin-scoped hook tokens.
 
 use std::process::ExitCode;
 

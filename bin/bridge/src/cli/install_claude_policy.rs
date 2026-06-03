@@ -1,10 +1,10 @@
-//! Internal, elevated worker for the Claude Desktop managed-policy write.
+//! Internal, elevated (UAC) worker for the machine-wide (HKLM) Claude Desktop
+//! managed-policy write.
 //!
-//! Not listed in `--help`: the GUI re-launches the bridge with this subcommand
-//! under a UAC consent prompt when a non-elevated install hits the
-//! ACL-protected `SOFTWARE\Policies\Claude` subtree. It writes the policy
-//! machine-wide (HKLM) and reports its outcome through the result file passed
-//! as the second argument.
+//! Hidden from `--help`; the GUI re-launches the bridge with this subcommand
+//! when a non-elevated install hits the ACL-protected
+//! `SOFTWARE\Policies\Claude` subtree, and reads the outcome from the result
+//! file argument.
 
 use std::process::ExitCode;
 

@@ -1,7 +1,5 @@
 //! Pure JSON manipulation for `cowork_settings.json`'s `enabledPlugins` map.
-//!
-//! Foreign top-level keys and foreign `enabledPlugins` entries (the user's own
-//! choices) are preserved verbatim.
+//! Foreign keys (the user's own choices) are preserved verbatim.
 
 use serde_json::{Map, Value};
 

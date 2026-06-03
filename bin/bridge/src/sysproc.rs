@@ -1,7 +1,5 @@
-//! Subprocess-free process enumeration.
-//!
-//! `list_processes()` returns the image basename and, when available, the full
-//! executable path on every platform.
+//! Subprocess-free process enumeration: image basename plus, when available,
+//! the full executable path.
 
 #[derive(Debug, Clone)]
 pub(crate) struct ProcInfo {

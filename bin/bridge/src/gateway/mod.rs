@@ -1,10 +1,4 @@
-//! Gateway HTTP client and supporting wire types.
-//!
-//! `GatewayClient` is the single ingress for bridge → gateway traffic. The
-//! struct, shared `reqwest::Client` pool, and URL/tracing helpers live here;
-//! read-only fetches are in `fetch`, auth-mutating exchanges are in `auth`.
-//! Wire DTOs live in `types`, error taxonomy in `errors`. Manifest parsing
-//! and signature verification stay in the `manifest*` siblings.
+//! Gateway HTTP client (`GatewayClient`) and supporting wire types.
 
 mod auth;
 pub mod errors;
@@ -23,11 +17,8 @@ use systemprompt_identifiers::ValidatedUrl;
 pub use errors::GatewayError;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};
 
-// The WSL2 localhost forwarder relays only IPv4 and black-holes IPv6 SYNs, so a
-// connect to `::1` (which `localhost` resolves to first) stalls the full
-// connect timeout before falling back. reqwest 0.12 has no happy-eyeballs
-// option, so this resolver returns IPv4 addresses first. `pub(crate)` so the
-// proxy's upstream client installs the same resolver.
+// WSL2's localhost forwarder black-holes IPv6 SYNs, stalling `::1` connects;
+// reqwest 0.12 lacks happy-eyeballs, so order IPv4 first.
 #[derive(Debug)]
 pub(crate) struct Ipv4FirstResolver;
 
@@ -37,7 +28,6 @@ impl Resolve for Ipv4FirstResolver {
         Box::pin(async move {
             let resolved = tokio::net::lookup_host((host.as_str(), 0)).await?;
             let mut addrs: Vec<SocketAddr> = resolved.collect();
-            // false (IPv4) sorts before true (IPv6); stable within a family.
             addrs.sort_by_key(SocketAddr::is_ipv6);
             let iter: Addrs = Box::new(addrs.into_iter());
             Ok(iter)

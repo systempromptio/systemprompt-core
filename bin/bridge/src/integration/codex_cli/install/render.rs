@@ -1,6 +1,5 @@
-//! Render the bridge-owned config block into Codex-compatible TOML, and on
-//! macOS wrap that TOML inside a signed-style `.mobileconfig` payload so the
-//! system installer can register it under managed preferences.
+//! Render the bridge-owned config block into Codex TOML; on macOS wrap it in a
+//! `.mobileconfig` payload for the system installer.
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;

@@ -1,9 +1,5 @@
-//! Auth-mutating gateway endpoints.
-//!
-//! POST-style exchanges that hand the bridge a fresh `AuthResponse` or
-//! credential bundle: mTLS attestation, browser session swap, PAT exchange,
-//! OAuth client provisioning, and per-plugin hook token minting. Plaintext
-//! secrets arrive only at call time; callers persist the response immediately.
+//! Auth-mutating gateway endpoints: mTLS attestation, session swap, PAT
+//! exchange, OAuth client provisioning, and per-plugin hook token minting.
 
 use std::time::Instant;
 
@@ -67,8 +63,7 @@ impl GatewayClient {
             .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
     }
 
-    // Plaintext `client_secret` is only returned once per call; callers must
-    // persist it to the bridge's secret store immediately.
+    // Plaintext `client_secret` is returned once per call; persist it immediately.
     #[tracing::instrument(
         level = "debug",
         skip(self, pat),

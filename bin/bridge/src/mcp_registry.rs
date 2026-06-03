@@ -1,8 +1,5 @@
-//! In-memory registry mapping `ManagedMcpServer` name → upstream URL + manifest
-//! headers.
-//!
-//! Populated by `sync::apply`; consumed by `proxy::forward` (routes
-//! `/mcp/<name>`) and `install::mdm::*`. An unknown name yields a 404.
+//! In-memory registry mapping `ManagedMcpServer` name → upstream URL + headers,
+//! consumed by the proxy router for `/mcp/<name>`.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock};
@@ -50,8 +47,8 @@ pub(crate) fn snapshot() -> Arc<McpRegistry> {
     slot().load_full()
 }
 
-// Must be deterministic: the synthetic plugin writer and proxy router rely on
-// the same key for `/mcp/<slug>` routing.
+// Must be deterministic: synthetic-plugin writer and proxy router share this
+// key.
 #[must_use]
 pub fn normalize_key(name: &str) -> String {
     let mut out = String::with_capacity(name.len());

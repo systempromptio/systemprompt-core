@@ -97,8 +97,7 @@ fn persist_optional_config(gateway_url: Option<&str>, pubkey: Option<&str>) {
 }
 
 // MUST be loopback: the upstream gateway URL never appears in
-// `inferenceGatewayBaseUrl`. Prefers the bound proxy port so `--apply` matches
-// what the GUI wrote.
+// `inferenceGatewayBaseUrl`.
 fn resolve_inference_base_url() -> String {
     if let Some(handle) = crate::proxy::handle() {
         return format!("http://127.0.0.1:{}", handle.port);
