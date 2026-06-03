@@ -1,17 +1,14 @@
 #![cfg(target_os = "windows")]
 
-// Best-effort: errors return up but caller logs and ignores. Never abort
-// the calling sync flow on registry write failure.
 pub(super) fn refresh_managed_mcp_servers() -> Result<String, String> {
-    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_string());
+    let value = super::managed_mcp_servers_json().unwrap_or_else(|| "[]".to_owned());
     write_managed_mcp_servers_value(&value)
 }
 
 pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, String> {
     // `managedMcpServers` embeds the rotating loopback secret, so it is per-user
-    // *runtime* state (exactly like `inferenceGatewayApiKey`, which the GUI also
-    // writes to HKCU), NOT stable machine policy. Always own it in HKCU — the
-    // hive the non-elevated GUI can always rewrite as the secret rotates.
+    // runtime state owned in HKCU — the hive the non-elevated GUI can always
+    // rewrite as the secret rotates.
     let key = r"HKCU\SOFTWARE\Policies\Claude";
     let status = crate::winproc::reg_command()
         .args([
@@ -33,11 +30,9 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
             status.code().unwrap_or(-1)
         ));
     }
-    // A stale `managedMcpServers` in the HKLM machine-policy hive OUTRANKS HKCU,
-    // so it would shadow the live secret and break MCP auth ("bad loopback
-    // secret"). Best-effort purge it (clearing HKLM needs elevation, so a
-    // non-elevated run may not succeed — acceptable, since we never WRITE the
-    // secret to HKLM anymore; this only cleans up values from older builds).
+    // A stale `managedMcpServers` in the HKLM hive OUTRANKS HKCU and shadows the
+    // live secret, breaking MCP auth. Best-effort purge any left by older builds
+    // (clearing HKLM needs elevation, so this may no-op when unelevated).
     let stale = r"HKLM\SOFTWARE\Policies\Claude";
     _ = crate::winproc::reg_command()
         .args(["delete", stale, "/v", "managedMcpServers", "/f"])
@@ -47,12 +42,6 @@ pub(super) fn write_managed_mcp_servers_value(value: &str) -> Result<String, Str
     ))
 }
 
-// Uninstall: purge the bridge-owned managed policy so nothing survives a
-// reinstall — above all the secret-bearing `managedMcpServers`, whose stale
-// machine-policy copy is what shadows a rotated secret. Clears the whole HKCU
-// policy key (the GUI owns HKCU outright) and best-effort deletes
-// `managedMcpServers` from the HKLM machine hive (needs elevation). Returns
-// whether anything was removed.
 pub(super) fn remove_policy() -> Result<bool, String> {
     let hkcu = crate::winproc::reg_command()
         .args(["delete", r"HKCU\SOFTWARE\Policies\Claude", "/f"])

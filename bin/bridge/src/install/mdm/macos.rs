@@ -46,9 +46,8 @@ pub fn build_mobileconfig(gateway: &str, pubkey: Option<&str>) -> String {
         .replace("{pubkey_block}", &pubkey_block)
 }
 
-// Empty `<dict/>` under `oauth` MUST be emitted — signals "needs OAuth,
-// do well-known discovery" to Cowork. Returns empty string when no servers
-// are registered (caller substitutes "" into the template).
+// The empty `<dict/>` under `oauth` MUST be emitted: it signals "needs OAuth,
+// do well-known discovery" to Cowork.
 fn managed_mcp_plist_block() -> String {
     let registry = crate::mcp_registry::snapshot();
     if registry.is_empty() {

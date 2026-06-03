@@ -5,16 +5,9 @@ use std::process::Command;
 
 pub(super) const fn chown_to_sudo_user_if_root(_path: &Path) {}
 
-// Cowork reads org-plugins from `C:\Program Files\Claude\org-plugins`. Windows
-// gives `Program Files` an admin-write-only ACL by convention — fine for
-// Cowork (read-only) but the bridge needs to publish plugin trees there on
-// every sync, and the bridge GUI runs unelevated.
-//
-// During the (elevated) `install --apply`, grant the current interactive user
-// `Modify` on the org-plugins root, inheriting to children (OI/CI). Subsequent
-// unelevated `bridge sync` invocations can then write plugin contents in
-// place. Bridge-internal scratch (staging, sync sentinels) lives elsewhere
-// under `%LOCALAPPDATA%\systemprompt-bridge\` and never touches Program Files.
+// `Program Files\Claude\org-plugins` is admin-write-only by default, but
+// unelevated `bridge sync` must publish plugin trees there. During the elevated
+// `install --apply`, grant the interactive user Modify, inheriting to children.
 pub(super) fn grant_user_modify(path: &Path) -> std::io::Result<()> {
     let user =
         std::env::var("USERNAME").map_err(|_| std::io::Error::other("USERNAME env var not set"))?;

@@ -27,11 +27,6 @@ pub(crate) fn refresh_managed_mcp_servers() -> Result<String, String> {
     }
 }
 
-// Uninstall hook: remove the bridge-owned Windows managed policy (HKCU key +
-// best-effort HKLM `managedMcpServers`). Wired into `install::uninstall` so a
-// reinstall starts from a clean registry — previously a no-op on Windows, which
-// left a stale secret-bearing `managedMcpServers` behind across "clean"
-// installs.
 #[cfg(target_os = "windows")]
 pub(crate) fn remove_windows_policy() -> Result<bool, String> {
     windows::remove_policy()
@@ -126,11 +121,11 @@ pub(crate) fn windows_policy_values(
     _gateway: &str,
     pubkey: Option<&str>,
 ) -> Vec<(&'static str, &'static str, String)> {
-    // Stable, MDM-deployable policy only. `inferenceGatewayBaseUrl` and
-    // `inferenceGatewayApiKey` are runtime values owned by the running GUI
-    // (it writes them to HKCU when it binds the live proxy port and mints
-    // the loopback secret). Writing them here would pin a stale port/key
-    // and collide with the GUI's HKCU values.
+    // `managedMcpServers`, `inferenceGatewayBaseUrl`, and
+    // `inferenceGatewayApiKey` are deliberately omitted: they carry per-user
+    // runtime state (the rotating loopback secret / live proxy port) owned by
+    // the GUI in HKCU. A stale copy in the HKLM machine-policy hive outranks
+    // HKCU and a non-elevated run cannot rewrite it, breaking MCP auth.
     let mut values: Vec<(&'static str, &'static str, String)> = vec![
         ("inferenceProvider", "REG_SZ", "gateway".into()),
         ("inferenceGatewayAuthScheme", "REG_SZ", "bearer".into()),
@@ -139,18 +134,6 @@ pub(crate) fn windows_policy_values(
         ("disableNonessentialServices", "REG_SZ", "true".into()),
         ("disableAutoUpdates", "REG_SZ", "true".into()),
         ("disableDeploymentModeChooser", "REG_SZ", "true".into()),
-        // MCP-server lockdown: managed-only source, loopback-only egress. These
-        // two flags make Cowork ignore user-added MCP servers and refuse
-        // non-loopback egress so all traffic flows through the bridge proxy.
-        //
-        // NOTE: `managedMcpServers` is deliberately NOT written here. It embeds
-        // the rotating loopback secret, so it is per-user *runtime* state (like
-        // `inferenceGatewayApiKey`), not stable machine policy. It is owned by
-        // HKCU via `write_managed_mcp_servers_value`. Pinning the secret in the
-        // HKLM machine-policy hive was a bug: once the secret rotated under a
-        // non-elevated run (which cannot rewrite or delete HKLM), the stale
-        // HKLM value outranked HKCU and broke MCP auth with "bad loopback
-        // secret".
         ("isLocalDevMcpEnabled", "REG_SZ", "false".into()),
         (
             "coworkEgressAllowedHosts",
@@ -159,24 +142,21 @@ pub(crate) fn windows_policy_values(
         ),
     ];
     if let Some(pk) = pubkey {
-        values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_string()));
+        values.push(("inferenceManifestPubkey", "REG_SZ", pk.to_owned()));
     }
     values
 }
 
 // Each entry points Cowork at the bridge's loopback proxy with a static
-// loopback-secret header rather than at the upstream gateway with
-// `oauth: true`. The proxy strips that header and injects the rotating gateway
-// JWT before forwarding. We avoid Cowork's OAuth flow entirely — it
-// hard-rejects the gateway's non-HTTPS authorize URL on Connect — while every
-// request still carries a live, auto-refreshed token. `headers` is the same
-// union member Cowork's bundle schema accepts alongside `oauth`.
+// loopback-secret header rather than at the upstream gateway with `oauth: true`:
+// the proxy strips that header and injects the rotating gateway JWT, avoiding
+// Cowork's OAuth flow which hard-rejects the gateway's non-HTTPS authorize URL.
 #[cfg(target_os = "windows")]
 #[must_use]
 pub(crate) fn managed_mcp_servers_json() -> Option<String> {
     let registry = crate::mcp_registry::snapshot();
     if registry.is_empty() {
-        return Some("[]".to_string());
+        return Some("[]".to_owned());
     }
     let bearer = match crate::proxy::loopback_bearer() {
         Ok(b) => b,
@@ -230,7 +210,7 @@ Windows Registry Editor Version 5.00
 ; inferenceGatewayBaseUrl and inferenceGatewayApiKey are written to HKCU by the
 ; running Bridge GUI when it binds the loopback proxy. Do not pin them here.
 "#
-            .to_string()
+            .to_owned()
         },
         Os::Linux => format!(
             r"Anthropic does not document an MDM format for Linux.
