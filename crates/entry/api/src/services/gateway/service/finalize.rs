@@ -91,11 +91,8 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     }
 }
 
-/// Run the policy-selected request scanners, persist any findings, and return
-/// them so the dispatch path can enforce `block_categories`.
-///
-/// Scanner names absent from the registry are warned and skipped; an empty
-/// `scanners` list runs nothing.
+/// Returns the findings so the dispatch path can enforce `block_categories`:
+/// the request phase blocks, unlike the audit-only response phase.
 pub(super) async fn run_request_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,

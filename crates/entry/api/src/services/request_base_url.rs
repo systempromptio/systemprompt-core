@@ -71,11 +71,8 @@ fn fallback_from_url(configured: &url::Url) -> RequestBaseUrl {
     }
 }
 
-/// Resolve a [`RequestBaseUrl`] from an optional Host header and configured
-/// `api_external_url`.
-///
-/// Exposed for unit testing — production callers use the [`FromRequestParts`]
-/// impl which reads both from the request and global config.
+/// Exposed for unit testing; production callers use the [`FromRequestParts`]
+/// impl, which reads the Host header and global config.
 #[must_use]
 pub fn resolve(raw_host: Option<&str>, configured: &url::Url) -> RequestBaseUrl {
     if let Some(host) = raw_host.map(str::trim).filter(|s| !s.is_empty())

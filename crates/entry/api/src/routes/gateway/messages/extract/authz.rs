@@ -13,10 +13,6 @@ use systemprompt_security::authz::{
 
 use super::super::auth::AuthedPrincipal;
 
-/// Inputs for [`build_gateway_authz_request`].
-///
-/// Owned bundle so the JWT-claims forwarding contract can be exercised from
-/// unit tests without standing up the full principal/route stack.
 #[derive(Debug, Clone)]
 pub struct GatewayAuthzRequestInput {
     pub user_id: UserId,
@@ -29,8 +25,6 @@ pub struct GatewayAuthzRequestInput {
     pub session_id: Option<SessionId>,
 }
 
-/// Public so unit tests can lock in the JWT-claims forwarding contract
-/// without invoking the wider dispatch path.
 #[must_use]
 pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequest {
     let GatewayAuthzRequestInput {
