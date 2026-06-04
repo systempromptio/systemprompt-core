@@ -215,15 +215,11 @@ fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill>
     load_agent_skills_from_dir(agent, Path::new(&skills_path))
 }
 
-/// Computes the A2A `card.skills` list for `agent` by resolving each id in
-/// `agent.metadata.skills` against the on-disk skill catalog under
-/// `skills_dir`. Authored `agent.card.skills` is intentionally ignored — that
-/// field is deprecated and exists only to tolerate stale YAML during the
-/// migration window.
-///
-/// Skills that fail to resolve (missing directory, malformed config, etc.)
-/// are dropped with a `tracing::warn!`. This is the pure, dependency-injected
-/// variant of `load_agent_skills` for tests.
+/// Resolves each id in `agent.metadata.skills` against the on-disk skill
+/// catalog under `skills_dir`; authored `agent.card.skills` is ignored.
+/// Unresolvable skills are dropped with a `tracing::warn!` rather than failing
+/// the card. The dependency-injected (testable) variant of
+/// [`load_agent_skills`].
 #[doc(hidden)]
 pub fn load_agent_skills_from_dir(
     agent: &AgentConfig,

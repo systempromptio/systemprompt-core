@@ -24,9 +24,6 @@ pub enum WebhookError {
     StatusError { status: u16, message: String },
 }
 
-/// Pluggable transport for AGUI / A2A webhook delivery. Production wires the
-/// `HttpWebhookBroadcaster`; tests install a recording fake via
-/// [`install_for_test`].
 #[async_trait]
 pub trait WebhookBroadcaster: Send + Sync + std::fmt::Debug {
     async fn broadcast_agui(
@@ -65,7 +62,6 @@ fn get_api_url() -> String {
     )
 }
 
-/// Default broadcaster: POSTs JSON to the in-tenant API webhook endpoints.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct HttpWebhookBroadcaster;
 
