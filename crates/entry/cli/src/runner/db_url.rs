@@ -8,7 +8,6 @@
 use super::args::Commands;
 use crate::commands::{admin, cloud, core, infrastructure};
 
-/// How a command relates to a directly supplied `--database-url`.
 pub(super) enum DbUrlRouting {
     /// Dispatchable against the supplied connection alone (the
     /// `execute_with_db` path), with no profile.

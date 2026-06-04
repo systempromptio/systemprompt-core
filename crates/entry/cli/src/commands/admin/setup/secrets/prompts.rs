@@ -63,9 +63,6 @@ pub(super) fn select_provider_keys(secrets: &mut SecretsData) -> Result<Option<P
     }
 }
 
-/// Decide the default provider after an interactive collection: the explicit
-/// single-select wins; otherwise the sole present key, or a follow-up prompt
-/// when several keys were entered.
 pub(super) fn resolve_interactive_primary(
     explicit: Option<ProviderId>,
     secrets: &SecretsData,

@@ -174,9 +174,6 @@ impl From<CliArtifact> for CommandOutput {
     }
 }
 
-/// Turn a JSON value into card sections: one section per top-level object
-/// field. Scalars render as their display string; nested arrays/objects as
-/// compact JSON. A non-object value yields a single `Value` section.
 fn sections_from_value(value: &JsonValue) -> Vec<CardSection> {
     match value {
         JsonValue::Object(map) => map
