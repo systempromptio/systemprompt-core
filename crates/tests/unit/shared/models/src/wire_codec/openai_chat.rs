@@ -10,7 +10,7 @@ use super::{base_request, image_url, plain_tool};
 
 #[test]
 fn openai_chat_emits_max_completion_tokens_not_max_tokens() {
-    let body = openai_chat::build_request_body(&base_request(), "upstream");
+    let body = openai_chat::build_request_body(&base_request(), "upstream", None);
     assert_eq!(
         body["max_completion_tokens"],
         json!(32),
@@ -23,10 +23,40 @@ fn openai_chat_emits_max_completion_tokens_not_max_tokens() {
 }
 
 #[test]
+fn openai_chat_caps_reasoning_model_to_model_max_output() {
+    let body = openai_chat::build_request_body(&base_request(), "gpt-5", Some(128_000));
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(128_000),
+        "a reasoning model must receive the model's max_output_tokens so reasoning has budget"
+    );
+}
+
+#[test]
+fn openai_chat_keeps_caller_budget_for_non_reasoning_model() {
+    let body = openai_chat::build_request_body(&base_request(), "gpt-4o", Some(128_000));
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32),
+        "a non-reasoning model must keep the caller's max_tokens unchanged"
+    );
+}
+
+#[test]
+fn openai_chat_keeps_caller_budget_when_no_model_limit() {
+    let body = openai_chat::build_request_body(&base_request(), "gpt-5", None);
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(32),
+        "with no known model limit the caller's max_tokens is forwarded as-is"
+    );
+}
+
+#[test]
 fn openai_chat_prepends_system_message() {
     let mut req = base_request();
     req.system = Some("be terse".to_owned());
-    let body = openai_chat::build_request_body(&req, "upstream");
+    let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["messages"][0]["role"], "system");
     assert_eq!(body["messages"][0]["content"], "be terse");
 }
@@ -35,7 +65,7 @@ fn openai_chat_prepends_system_message() {
 fn openai_chat_serializes_function_tools() {
     let mut req = base_request();
     req.tools = vec![plain_tool()];
-    let body = openai_chat::build_request_body(&req, "upstream");
+    let body = openai_chat::build_request_body(&req, "upstream", None);
     let tool = &body["tools"][0];
     assert_eq!(tool["type"], "function");
     assert_eq!(tool["function"]["name"], "lookup");
@@ -61,7 +91,7 @@ fn openai_chat_tool_choice_variants() {
         let mut req = base_request();
         req.tools = vec![plain_tool()];
         req.tool_choice = Some(choice);
-        let body = openai_chat::build_request_body(&req, "upstream");
+        let body = openai_chat::build_request_body(&req, "upstream", None);
         assert_eq!(body["tool_choice"], expected);
     }
 }
@@ -76,7 +106,7 @@ fn openai_chat_renders_image_url_parts() {
             image_url("https://example.com/cat.png"),
         ],
     }];
-    let body = openai_chat::build_request_body(&req, "upstream");
+    let body = openai_chat::build_request_body(&req, "upstream", None);
     let parts = body["messages"][0]["content"].as_array().expect("parts");
     assert!(parts.iter().any(
         |p| p["type"] == "image_url" && p["image_url"]["url"] == "https://example.com/cat.png"
@@ -88,7 +118,7 @@ fn openai_chat_maps_stop_sequences_and_stream_options() {
     let mut req = base_request();
     req.stop_sequences = vec!["STOP".to_owned()];
     req.stream = true;
-    let body = openai_chat::build_request_body(&req, "upstream");
+    let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["stop"], json!(["STOP"]));
     assert_eq!(body["stream"], true);
     assert_eq!(body["stream_options"]["include_usage"], true);
@@ -100,7 +130,7 @@ fn openai_chat_emits_penalties_and_reasoning_effort() {
     req.presence_penalty = Some(0.5);
     req.frequency_penalty = Some(-0.25);
     req.reasoning_effort = Some(ReasoningEffort::Medium);
-    let body = openai_chat::build_request_body(&req, "upstream");
+    let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["presence_penalty"], json!(0.5));
     assert_eq!(body["frequency_penalty"], json!(-0.25));
     assert_eq!(body["reasoning_effort"], "medium");
@@ -114,7 +144,7 @@ fn openai_chat_emits_json_schema_response_format() {
         schema: json!({"type": "object"}),
         strict: true,
     });
-    let body = openai_chat::build_request_body(&req, "upstream");
+    let body = openai_chat::build_request_body(&req, "upstream", None);
     assert_eq!(body["response_format"]["type"], "json_schema");
     assert_eq!(body["response_format"]["json_schema"]["name"], "result");
     assert_eq!(body["response_format"]["json_schema"]["strict"], true);

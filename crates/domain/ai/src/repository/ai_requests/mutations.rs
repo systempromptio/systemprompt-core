@@ -153,6 +153,7 @@ impl AiRequestRepository {
                 CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
                 CASE WHEN $28 THEN CURRENT_TIMESTAMP ELSE NULL END
             )
+            ON CONFLICT (id) DO NOTHING
             "#,
             id.as_str(),
             record.request_id.as_str(),

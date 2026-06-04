@@ -27,7 +27,7 @@ use systemprompt_runtime::AppContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::middleware::JwtContextExtractor;
 
-use dispatch::{build_error_response, dispatch_to_provider};
+use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
@@ -55,7 +55,11 @@ pub async fn handle(
     };
     match inner.run(request).await {
         Ok(resp) => resp,
-        Err((status, message)) => {
+        Err(RejectionError {
+            status,
+            message,
+            persist,
+        }) => {
             tracing::warn!(
                 status = %status,
                 message = %message,
@@ -63,7 +67,9 @@ pub async fn handle(
                 wire = inbound.wire_name(),
                 "Gateway request rejected",
             );
-            persist_rejection(&ctx, &ai_request_id, &partial, status, &message).await;
+            if persist {
+                persist_rejection(&ctx, &ai_request_id, &partial, status, &message).await;
+            }
             let body = inbound.render_error(status, &message);
             Response::builder()
                 .status(status)
@@ -83,12 +89,11 @@ struct HandleInner<'a> {
 }
 
 impl HandleInner<'_> {
-    async fn run(self, request: Request<Body>) -> Result<Response<Body>, (StatusCode, String)> {
-        let profile = ProfileBootstrap::get().map_err(|e| {
-            (
-                StatusCode::SERVICE_UNAVAILABLE,
-                format!("Profile not ready: {e}"),
-            )
+    async fn run(self, request: Request<Body>) -> Result<Response<Body>, RejectionError> {
+        let profile = ProfileBootstrap::get().map_err(|e| RejectionError {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            message: format!("Profile not ready: {e}"),
+            persist: true,
         })?;
         let request_ctx = RequestContext {
             jwt_extractor: self.jwt_extractor,
@@ -96,8 +101,13 @@ impl HandleInner<'_> {
             profile,
             ai_request_id: self.ai_request_id,
         };
-        let prepared =
-            extract_request_context(&request_ctx, &self.inbound, request, self.partial).await?;
+        let prepared = extract_request_context(&request_ctx, &self.inbound, request, self.partial)
+            .await
+            .map_err(|(status, message)| RejectionError {
+                status,
+                message,
+                persist: true,
+            })?;
         dispatch_to_provider(&request_ctx, self.inbound, prepared).await
     }
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.1] - 2026-06-03
+
+### Fixed
+
+- The gateway no longer starves OpenAI reasoning models of output budget. A reasoning model (`gpt-5`, `o1`/`o3`/`o4` families) draws its internal reasoning from the same completion budget as visible output, so forwarding a client's `max_tokens` verbatim — which on the Anthropic surface bounds only visible output — could leave no room for reasoning and make the upstream reject the request with `400 … max_tokens or model output limit was reached`. For these models the gateway now sizes the upstream completion ceiling (`max_completion_tokens` / `max_output_tokens`) to the model's configured `max_output_tokens`; non-reasoning models continue to receive the caller's `max_tokens` unchanged.
+- The gateway no longer attempts a second `ai_requests` insert when an upstream call (or a safety-policy block) fails after the audit row was already opened, which logged `duplicate key value violates unique constraint "ai_requests_pkey"`. Dispatch now reports whether the audit row was opened, so the request handler persists a rejection record only for failures that occur before the audit lifecycle takes ownership.
+
 ## [0.15.0] - 2026-06-03
 
 ### Breaking

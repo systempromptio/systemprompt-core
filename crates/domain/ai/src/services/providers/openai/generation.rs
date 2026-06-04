@@ -54,7 +54,7 @@ pub(super) async fn generate(
     .with_sampling(params.sampling)
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.model);
+    let body = openai_chat::build_request_body(&canonical, params.model, None);
     let value = post_chat(provider, &body).await?;
     let parsed = openai_chat::parse_response(&value, params.model);
     Ok(canonical_bridge::to_ai_response(
@@ -82,7 +82,7 @@ pub(super) async fn generate_with_tools(
     .with_tools(tools_to_canonical(params.tools))
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.base.model);
+    let body = openai_chat::build_request_body(&canonical, params.base.model, None);
     let value = post_chat(provider, &body).await?;
     let parsed = openai_chat::parse_response(&value, params.base.model);
     let tool_calls = canonical_bridge::tool_calls(&parsed);
@@ -107,7 +107,7 @@ pub(super) async fn generate_structured(
     .with_response_format(agent_response_format(params.response_format))
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.base.model);
+    let body = openai_chat::build_request_body(&canonical, params.base.model, None);
     let value = post_chat(provider, &body).await?;
     let parsed = openai_chat::parse_response(&value, params.base.model);
     Ok(canonical_bridge::to_ai_response(
@@ -140,7 +140,7 @@ pub(super) async fn generate_with_schema(
     .with_response_format(Some(response_format))
     .into_request();
 
-    let body = openai_chat::build_request_body(&canonical, params.base.model);
+    let body = openai_chat::build_request_body(&canonical, params.base.model, None);
     let value = post_chat(provider, &body).await?;
     let parsed = openai_chat::parse_response(&value, params.base.model);
     Ok(canonical_bridge::to_ai_response(

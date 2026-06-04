@@ -13,7 +13,9 @@ use anyhow::{Result, anyhow};
 use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
+use systemprompt_ai::SafetyConfig;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{FinalizeCtx, attach_request_id, finalize, run_request_safety_scan};
@@ -36,6 +38,14 @@ pub struct DispatchInputs {
     pub raw_body: Bytes,
     pub ctx: GatewayRequestContext,
     pub inbound: Arc<dyn InboundAdapter>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DispatchError {
+    #[error(transparent)]
+    PreAudit(anyhow::Error),
+    #[error(transparent)]
+    Recorded(anyhow::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -62,7 +72,7 @@ impl GatewayService {
         registry: &ProviderRegistry,
         db: &DbPool,
         inputs: DispatchInputs,
-    ) -> Result<Response<Body>> {
+    ) -> Result<Response<Body>, DispatchError> {
         let DispatchInputs {
             request,
             raw_body,
@@ -70,9 +80,9 @@ impl GatewayService {
             inbound,
         } = inputs;
         if ctx.session_id.is_none() {
-            return Err(anyhow!(
+            return Err(DispatchError::PreAudit(anyhow!(
                 "gateway dispatch missing conversation binding (session_id)"
-            ));
+            )));
         }
 
         let ai_request_id = ctx.ai_request_id.clone();
@@ -83,44 +93,51 @@ impl GatewayService {
                 model = %request.model,
                 "Gateway denied: model not exposed by gateway policy or registry"
             );
-            return Err(PolicyDenied(format!(
-                "model '{}' is not permitted by gateway policy",
-                request.model
-            ))
-            .into());
+            return Err(DispatchError::PreAudit(
+                PolicyDenied(format!(
+                    "model '{}' is not permitted by gateway policy",
+                    request.model
+                ))
+                .into(),
+            ));
         }
 
         let route = config
             .resolve_route(registry, &request.model)
-            .ok_or_else(|| anyhow!("No gateway route matches model '{}'", request.model))?;
+            .ok_or_else(|| {
+                DispatchError::PreAudit(anyhow!(
+                    "No gateway route matches model '{}'",
+                    request.model
+                ))
+            })?;
 
         let provider = route.resolve(registry).ok_or_else(|| {
-            anyhow!(
+            DispatchError::PreAudit(anyhow!(
                 "Gateway route '{}' provider '{}' is not declared in profile.providers",
                 route.id.as_str(),
                 route.provider.as_str()
-            )
+            ))
         })?;
 
         let secrets = systemprompt_config::SecretsBootstrap::get()
-            .map_err(|e| anyhow!("Secrets not available: {e}"))?;
+            .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;
 
         let upstream_api_key = secrets
             .get(provider.api_key_secret.as_str())
             .ok_or_else(|| {
-                anyhow!(
+                DispatchError::PreAudit(anyhow!(
                     "Gateway API key secret '{}' not configured",
                     provider.api_key_secret.as_str()
-                )
+                ))
             })?;
 
         let upstream = GatewayUpstreamRegistry::global()
             .get(provider.wire.as_tag())
             .ok_or_else(|| {
-                anyhow!(
+                DispatchError::PreAudit(anyhow!(
                     "Gateway has no outbound adapter for wire protocol '{}'",
                     provider.wire.as_tag()
-                )
+                ))
             })?;
 
         let is_streaming = request.stream;
@@ -136,20 +153,22 @@ impl GatewayService {
             "Gateway request dispatched"
         );
 
-        let resolver = PolicyResolver::new(db)?;
+        let resolver = PolicyResolver::new(db).map_err(DispatchError::PreAudit)?;
         let policy = resolver.resolve().await;
 
         let audit = Arc::new(
-            GatewayAudit::new(db, ctx.clone()).map_err(|e| anyhow!("audit init failed: {e}"))?,
+            GatewayAudit::new(db, ctx.clone())
+                .map_err(|e| DispatchError::PreAudit(anyhow!("audit init failed: {e}")))?,
         );
 
         if let Err(e) = audit.open(&request, &raw_body).await {
             tracing::error!(error = %e, "audit open failed — proceeding without audit row");
         }
 
-        if let Some(decision) =
-            quota::precheck_and_reserve(db, &ctx.user_id, &policy.quota_windows).await?
-        {
+        let reservation = quota::precheck_and_reserve(db, &ctx.user_id, &policy.quota_windows)
+            .await
+            .map_err(DispatchError::Recorded)?;
+        if let Some(decision) = reservation {
             if !decision.allow {
                 let msg = format!(
                     "quota exceeded for window {}s (used {}/{:?})",
@@ -158,38 +177,17 @@ impl GatewayService {
                 if let Err(e) = audit.fail(&msg).await {
                     tracing::warn!(error = %e, "quota audit fail failed");
                 }
-                return Err(QuotaExceeded {
-                    message: msg,
-                    retry_after_seconds: decision.window_seconds,
-                }
-                .into());
+                return Err(DispatchError::Recorded(
+                    QuotaExceeded {
+                        message: msg,
+                        retry_after_seconds: decision.window_seconds,
+                    }
+                    .into(),
+                ));
             }
         }
 
-        let findings = run_request_safety_scan(db, &ai_request_id, &request, &policy.safety).await;
-        if let Some(finding) = findings
-            .iter()
-            .find(|f| policy.safety.block_categories.contains(&f.category))
-        {
-            let msg = format!(
-                "request blocked by safety policy: category '{}'",
-                finding.category
-            );
-            tracing::warn!(
-                ai_request_id = %ai_request_id,
-                category = %finding.category,
-                scanner = %finding.scanner,
-                "Gateway blocked request by safety policy"
-            );
-            if let Err(e) = audit.fail(&msg).await {
-                tracing::warn!(error = %e, "safety-block audit fail failed");
-            }
-            return Err(SafetyBlocked {
-                category: finding.category.clone(),
-                message: msg,
-            }
-            .into());
-        }
+        enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
         let upstream_model = route.effective_upstream_model(&request.model).to_owned();
         let model_limits = provider.find_model(&upstream_model).map(|m| m.limits);
@@ -206,7 +204,7 @@ impl GatewayService {
             Ok(o) => o,
             Err(e) => {
                 audit_upstream_failure(&audit, upstream.provider_tag(), &request.model, &e).await;
-                return Err(e);
+                return Err(DispatchError::Recorded(e));
             },
         };
 
@@ -224,6 +222,42 @@ impl GatewayService {
         .await;
         Ok(attach_request_id(response, &ai_request_id))
     }
+}
+
+async fn enforce_request_safety(
+    db: &DbPool,
+    ai_request_id: &AiRequestId,
+    request: &CanonicalRequest,
+    safety: &SafetyConfig,
+    audit: &GatewayAudit,
+) -> Result<(), DispatchError> {
+    let findings = run_request_safety_scan(db, ai_request_id, request, safety).await;
+    let Some(finding) = findings
+        .iter()
+        .find(|f| safety.block_categories.contains(&f.category))
+    else {
+        return Ok(());
+    };
+    let msg = format!(
+        "request blocked by safety policy: category '{}'",
+        finding.category
+    );
+    tracing::warn!(
+        ai_request_id = %ai_request_id,
+        category = %finding.category,
+        scanner = %finding.scanner,
+        "Gateway blocked request by safety policy"
+    );
+    if let Err(e) = audit.fail(&msg).await {
+        tracing::warn!(error = %e, "safety-block audit fail failed");
+    }
+    Err(DispatchError::Recorded(
+        SafetyBlocked {
+            category: finding.category.clone(),
+            message: msg,
+        }
+        .into(),
+    ))
 }
 
 async fn audit_upstream_failure(

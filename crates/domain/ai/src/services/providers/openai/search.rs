@@ -60,7 +60,7 @@ pub async fn generate_with_web_search(
     .with_search(Some(search))
     .into_request();
 
-    let body = openai_responses::build_request_body(&canonical, params.model);
+    let body = openai_responses::build_request_body(&canonical, params.model, None);
     let response = provider
         .client
         .post(format!("{}/responses", provider.endpoint))

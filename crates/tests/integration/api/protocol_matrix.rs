@@ -113,7 +113,7 @@ fn anthropic_outbound_request_builder_carries_model_and_messages() {
 #[test]
 fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
     let req = fixture_request("gpt-4o", true);
-    let body = openai_chat::test_api::build_request_body(&req, "gpt-4o-upstream");
+    let body = openai_chat::test_api::build_request_body(&req, "gpt-4o-upstream", None);
     assert_eq!(body["model"], "gpt-4o-upstream");
     assert_eq!(body["stream"], true);
     assert!(body["messages"].is_array());
@@ -122,7 +122,7 @@ fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
 #[test]
 fn openai_responses_outbound_request_builder_uses_responses_shape() {
     let req = fixture_request("gpt-5", false);
-    let body = outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream");
+    let body = outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream", None);
     assert_eq!(body["model"], "gpt-5-upstream");
     assert!(body.get("input").is_some() || body.get("messages").is_some());
 }

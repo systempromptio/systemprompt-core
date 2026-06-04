@@ -7,16 +7,24 @@ use axum::response::Response;
 use crate::services::gateway::audit::GatewayRequestContext;
 use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::gateway::protocol::outbound::UpstreamError;
-use crate::services::gateway::service::{DispatchInputs, GatewayService};
+use crate::services::gateway::service::{
+    DispatchError, DispatchInputs, GatewayService, PolicyDenied, QuotaExceeded, SafetyBlocked,
+};
 
 use super::RequestContext;
 use super::extract::PreparedRequest;
+
+pub(super) struct RejectionError {
+    pub status: StatusCode,
+    pub message: String,
+    pub persist: bool,
+}
 
 pub(super) async fn dispatch_to_provider(
     rc: &RequestContext<'_>,
     inbound: Arc<dyn InboundAdapter>,
     prepared: PreparedRequest,
-) -> Result<Response<Body>, (StatusCode, String)> {
+) -> Result<Response<Body>, RejectionError> {
     let PreparedRequest {
         principal,
         body_bytes,
@@ -51,7 +59,11 @@ pub(super) async fn dispatch_to_provider(
         .gateway
         .as_ref()
         .and_then(systemprompt_models::profile::GatewayState::resolved)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
+        .ok_or_else(|| RejectionError {
+            status: StatusCode::NOT_FOUND,
+            message: "Gateway not enabled".to_owned(),
+            persist: true,
+        })?;
 
     match GatewayService::dispatch(
         gateway_config,
@@ -67,36 +79,43 @@ pub(super) async fn dispatch_to_provider(
     .await
     {
         Ok(resp) => Ok(resp),
-        Err(e) => map_dispatch_error(&e),
+        Err(e) => map_dispatch_error(e),
     }
 }
 
-fn map_dispatch_error(e: &anyhow::Error) -> Result<Response<Body>, (StatusCode, String)> {
-    if let Some(denied) = e.downcast_ref::<crate::services::gateway::service::PolicyDenied>() {
-        return Err((StatusCode::FORBIDDEN, denied.to_string()));
-    }
-    if let Some(blocked) = e.downcast_ref::<crate::services::gateway::service::SafetyBlocked>() {
-        return Err((StatusCode::FORBIDDEN, blocked.to_string()));
-    }
-    if let Some(quota) = e.downcast_ref::<crate::services::gateway::service::QuotaExceeded>() {
+fn map_dispatch_error(e: DispatchError) -> Result<Response<Body>, RejectionError> {
+    let (persist, inner) = match e {
+        DispatchError::PreAudit(inner) => (true, inner),
+        DispatchError::Recorded(inner) => (false, inner),
+    };
+    if let Some(quota) = inner.downcast_ref::<QuotaExceeded>() {
         let mut resp = build_error_response(StatusCode::TOO_MANY_REQUESTS, &quota.message);
         if let Ok(v) = HeaderValue::from_str(&quota.retry_after_seconds.to_string()) {
             resp.headers_mut().insert("retry-after", v);
         }
         return Ok(resp);
     }
-    if let Some(upstream) = e.downcast_ref::<UpstreamError>() {
-        return Err(map_upstream_error(upstream));
-    }
-    Err((StatusCode::BAD_GATEWAY, e.to_string()))
+    let (status, message) = classify_dispatch_error(&inner);
+    Err(RejectionError {
+        status,
+        message,
+        persist,
+    })
 }
 
-/// Translates an upstream failure into the status the *client* should see.
-///
-/// A malformed request (400/404/422) or rate limit (429) is the caller's to
-/// fix, so it passes through; auth, 5xx, timeout, and transport failures are
-/// the gateway/provider's problem and collapse to 502/504 without leaking the
-/// upstream's credential-level detail.
+fn classify_dispatch_error(e: &anyhow::Error) -> (StatusCode, String) {
+    if let Some(denied) = e.downcast_ref::<PolicyDenied>() {
+        return (StatusCode::FORBIDDEN, denied.to_string());
+    }
+    if let Some(blocked) = e.downcast_ref::<SafetyBlocked>() {
+        return (StatusCode::FORBIDDEN, blocked.to_string());
+    }
+    if let Some(upstream) = e.downcast_ref::<UpstreamError>() {
+        return map_upstream_error(upstream);
+    }
+    (StatusCode::BAD_GATEWAY, e.to_string())
+}
+
 pub fn map_upstream_error(e: &UpstreamError) -> (StatusCode, String) {
     let UpstreamError::Status {
         provider,

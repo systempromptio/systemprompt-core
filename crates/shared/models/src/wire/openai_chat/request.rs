@@ -1,8 +1,10 @@
 //! `OpenAI` Chat Completions request rendering from the canonical model.
 //!
 //! Wire idiosyncrasies encoded here: the output-token limit is emitted as
-//! `max_completion_tokens` (gpt-5 / o-series reject the legacy `max_tokens`),
-//! and streamed usage requires `stream_options.include_usage`.
+//! `max_completion_tokens` (gpt-5 / o-series reject the legacy `max_tokens`)
+//! and sized via [`super::output_token_ceiling`] so reasoning models are not
+//! starved of budget, and streamed usage requires
+//! `stream_options.include_usage`.
 
 // JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
 // JSON.
@@ -15,7 +17,11 @@ use crate::wire::canonical::{
     ResponseFormat, Role,
 };
 
-pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
+pub fn build_request_body(
+    request: &CanonicalRequest,
+    upstream_model: &str,
+    max_output_tokens: Option<u32>,
+) -> Value {
     let mut messages: Vec<Value> = Vec::new();
     if let Some(sys) = &request.system {
         messages.push(json!({ "role": "system", "content": sys }));
@@ -27,11 +33,13 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
     let mut obj = Map::new();
     obj.insert("model".into(), Value::String(upstream_model.to_owned()));
     obj.insert("messages".into(), Value::Array(messages));
-    // gpt-5 / o-series reject the deprecated `max_tokens`; `max_completion_tokens`
-    // is the current field and is accepted by every other Chat Completions model.
     obj.insert(
         "max_completion_tokens".into(),
-        Value::from(request.max_tokens),
+        Value::from(super::output_token_ceiling(
+            request,
+            upstream_model,
+            max_output_tokens,
+        )),
     );
     if let Some(t) = request.temperature {
         obj.insert("temperature".into(), json!(t));

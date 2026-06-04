@@ -10,7 +10,11 @@ use crate::wire::canonical::{
     ResponseFormat, Role, SearchConfig,
 };
 
-pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
+pub fn build_request_body(
+    request: &CanonicalRequest,
+    upstream_model: &str,
+    max_output_tokens: Option<u32>,
+) -> Value {
     let mut input: Vec<Value> = Vec::new();
     for msg in &request.messages {
         match msg.role {
@@ -23,7 +27,14 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
     let mut obj = Map::new();
     obj.insert("model".into(), Value::String(upstream_model.to_owned()));
     obj.insert("input".into(), Value::Array(input));
-    obj.insert("max_output_tokens".into(), Value::from(request.max_tokens));
+    obj.insert(
+        "max_output_tokens".into(),
+        Value::from(crate::wire::openai_chat::output_token_ceiling(
+            request,
+            upstream_model,
+            max_output_tokens,
+        )),
+    );
     if let Some(sys) = &request.system {
         obj.insert("instructions".into(), Value::String(sys.clone()));
     }

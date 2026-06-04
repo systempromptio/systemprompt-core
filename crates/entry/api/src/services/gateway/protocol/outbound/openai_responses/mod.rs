@@ -31,7 +31,11 @@ impl OutboundAdapter for OpenAiResponsesOutbound {
     }
 
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = codec::build_request_body(ctx.request, ctx.upstream_model);
+        let body = codec::build_request_body(
+            ctx.request,
+            ctx.upstream_model,
+            ctx.model_limits.map(|l| l.max_output_tokens),
+        );
         let url = format!("{}/responses", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();

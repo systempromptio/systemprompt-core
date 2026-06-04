@@ -32,7 +32,7 @@ impl OpenAiProvider {
         .with_stream(true)
         .into_request();
 
-        let body = openai_chat::build_request_body(&canonical, params.model);
+        let body = openai_chat::build_request_body(&canonical, params.model, None);
         let response = self
             .client
             .post(format!("{}/chat/completions", self.endpoint))
