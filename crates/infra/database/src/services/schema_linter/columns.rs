@@ -113,10 +113,8 @@ pub(super) fn check_view_columns(
     ));
 }
 
-/// The `FROM` shape of a view's `SELECT`: table aliases, the sole table when
-/// there is exactly one, and the table count. `None` when the `FROM` clause
-/// contains anything other than plain table references (joins, subqueries),
-/// which the linter does not resolve.
+/// Built only for a `FROM` of plain table references; joins and subqueries
+/// yield `None` and are deliberately left unresolved.
 struct ViewFrom {
     alias_map: Vec<(String, String)>,
     single_table: Option<String>,

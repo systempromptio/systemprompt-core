@@ -5,8 +5,6 @@ use std::time::Instant;
 
 use super::config::BreakerConfig;
 
-/// Breaker mode. `Open` rejects calls until its cooldown elapses; `HalfOpen`
-/// admits a limited number of probes to test recovery.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Closed,
@@ -22,16 +20,9 @@ struct State {
     probes_in_flight: u32,
 }
 
-/// Returned by [`CircuitBreaker::acquire`] when the breaker rejects a call.
 #[derive(Debug, Clone, Copy)]
 pub struct Tripped;
 
-/// A `Closed` → `Open` → `HalfOpen` circuit breaker keyed to one dependency.
-///
-/// [`CircuitBreaker::acquire`] is called before a guarded operation;
-/// [`CircuitBreaker::record_success`] / [`CircuitBreaker::record_failure`]
-/// report its outcome. The breaker also accepts out-of-band failure reports
-/// (e.g. from a health monitor) via the same `record_*` methods.
 #[derive(Debug)]
 pub struct CircuitBreaker {
     key: String,
@@ -53,10 +44,6 @@ impl CircuitBreaker {
         }
     }
 
-    /// Admit a call, or reject it with [`Tripped`] if the breaker is open.
-    ///
-    /// An `Open` breaker past its cooldown transitions to `HalfOpen` and admits
-    /// the caller as a probe.
     pub fn acquire(&self) -> Result<(), Tripped> {
         let mut state = self.lock();
         let result = match state.mode {
@@ -86,7 +73,6 @@ impl CircuitBreaker {
         result
     }
 
-    /// Report a successful call. Closes the breaker if it was probing.
     pub fn record_success(&self) {
         let mut state = self.lock();
         state.consecutive_failures = 0;
@@ -97,8 +83,6 @@ impl CircuitBreaker {
         }
     }
 
-    /// Report a failed call. Opens the breaker once the failure threshold is
-    /// reached, or immediately if a half-open probe failed.
     pub fn record_failure(&self) {
         let mut state = self.lock();
         state.probes_in_flight = state.probes_in_flight.saturating_sub(1);
@@ -112,7 +96,6 @@ impl CircuitBreaker {
         }
     }
 
-    /// Whether the breaker is currently rejecting calls.
     #[must_use]
     pub fn is_open(&self) -> bool {
         self.lock().mode == Mode::Open

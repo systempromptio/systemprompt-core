@@ -51,11 +51,6 @@ pub(super) fn imperative_reason(node: &Node) -> Option<&'static str> {
     })
 }
 
-/// `DROP` of a stateless derived object — `VIEW`, `MATERIALIZED VIEW`,
-/// `INDEX`, or `TRIGGER` — guarded by `IF EXISTS` is declarative-safe: the
-/// object holds no data and is rebuilt from the same schema file on the next
-/// statement. `DROP TABLE` / `DROP COLUMN` are not — they destroy data and
-/// must move to a migration.
 fn is_safe_drop(drop: &DropStmt) -> bool {
     if !drop.missing_ok {
         return false;

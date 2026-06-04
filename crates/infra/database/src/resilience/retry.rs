@@ -6,13 +6,6 @@ use std::time::Duration;
 use super::classify::Outcome;
 use super::config::RetryConfig;
 
-/// Run `op`, retrying transient failures per `cfg`.
-///
-/// `classify` maps a failure to an [`Outcome`]: [`Outcome::Permanent`] failures
-/// return immediately, [`Outcome::Transient`] failures are retried until
-/// `cfg.max_attempts` is reached. A `retry_after` hint, when present, is
-/// honored as a lower bound on the backoff delay. The final error is returned
-/// unchanged.
 pub async fn retry_async<T, E, F, Fut>(
     cfg: &RetryConfig,
     key: &str,
@@ -53,9 +46,6 @@ where
     }
 }
 
-/// Backoff for the retry after `attempt`: `base * 2^(attempt-1)`, capped at
-/// `max_delay`, optionally full-jittered, then floored by any `retry_after`
-/// hint.
 fn next_delay(cfg: &RetryConfig, attempt: u32, retry_after: Option<Duration>) -> Duration {
     let shift = attempt.saturating_sub(1).min(16);
     let factor = 1u32 << shift;

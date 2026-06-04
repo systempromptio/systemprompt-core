@@ -7,16 +7,13 @@
 
 use std::time::Duration;
 
-/// Bounded-retry policy with exponential backoff and jitter.
 #[derive(Debug, Clone, Copy)]
 pub struct RetryConfig {
-    /// Maximum number of attempts, including the first. `1` disables retries.
+    /// Counts the first try, so `1` disables retries.
     pub max_attempts: u32,
-    /// Backoff before the first retry; doubles each subsequent attempt.
+    /// Doubles each subsequent attempt.
     pub base_delay: Duration,
-    /// Upper bound on a single backoff delay.
     pub max_delay: Duration,
-    /// Whether to apply full jitter to each backoff delay.
     pub jitter: bool,
 }
 
@@ -31,14 +28,11 @@ impl Default for RetryConfig {
     }
 }
 
-/// Circuit-breaker policy.
 #[derive(Debug, Clone, Copy)]
 pub struct BreakerConfig {
-    /// Consecutive failures that trip the breaker from `Closed` to `Open`.
+    /// Consecutive (not cumulative) failures that trip the breaker open.
     pub failure_threshold: u32,
-    /// How long the breaker stays `Open` before allowing a half-open probe.
     pub open_cooldown: Duration,
-    /// Concurrent probes permitted while `HalfOpen`.
     pub half_open_max_probes: u32,
 }
 
@@ -52,10 +46,8 @@ impl Default for BreakerConfig {
     }
 }
 
-/// Concurrency-limit (bulkhead) policy.
 #[derive(Debug, Clone, Copy)]
 pub struct BulkheadConfig {
-    /// Maximum number of in-flight calls; further calls are rejected.
     pub max_concurrent: usize,
 }
 
@@ -65,19 +57,14 @@ impl Default for BulkheadConfig {
     }
 }
 
-/// The full resilience policy applied to one logical dependency.
 #[derive(Debug, Clone, Copy)]
 pub struct ResilienceConfig {
-    /// Timeout applied to each individual attempt of a non-streaming call.
+    /// Per-attempt (not whole-call) timeout; non-streaming only.
     pub request_timeout: Duration,
-    /// Maximum gap between two chunks of a streaming response before it is
-    /// aborted.
+    /// Max gap between two chunks before a stream is aborted.
     pub stream_idle_timeout: Duration,
-    /// Retry policy.
     pub retry: RetryConfig,
-    /// Circuit-breaker policy.
     pub breaker: BreakerConfig,
-    /// Bulkhead policy.
     pub bulkhead: BulkheadConfig,
 }
 
@@ -94,12 +81,8 @@ impl Default for ResilienceConfig {
 }
 
 impl From<&systemprompt_models::services::ResilienceSettings> for ResilienceConfig {
-    /// Translate the disk-loaded [`ResilienceSettings`] (milliseconds and raw
-    /// counts) into the runtime `Duration`-typed policy. Count fields are
-    /// clamped to a minimum of `1`, since a zero attempt/probe/permit budget
-    /// would deadlock every guarded call.
-    ///
-    /// [`ResilienceSettings`]: systemprompt_models::services::ResilienceSettings
+    /// Count fields are clamped to a minimum of `1`: a zero attempt/probe/permit
+    /// budget would deadlock every guarded call.
     fn from(settings: &systemprompt_models::services::ResilienceSettings) -> Self {
         Self {
             request_timeout: Duration::from_millis(settings.request_timeout_ms),

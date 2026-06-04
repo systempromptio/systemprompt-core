@@ -3,9 +3,6 @@ use systemprompt_extension::{Extension, LoaderError};
 use super::super::prepare::{ColumnsToValidate, PreparedSchema};
 use crate::services::DatabaseProvider;
 
-/// Ownership is derived from each extension's parsed `CREATE TABLE`
-/// statements, never declared — this is the boot-time guard against two
-/// extensions silently diverging on a table both create.
 pub(super) fn validate_table_ownership(
     prepared: &[PreparedSchema],
     schema_extensions: &[std::sync::Arc<dyn Extension>],

@@ -78,8 +78,6 @@ pub(super) async fn execute_statements_transactional(
     Ok(())
 }
 
-/// Reject a migration that `ALTER`s a table the extension neither creates in
-/// its `schemas()` nor declares in `cross_extension_tables()`.
 pub(super) fn check_cross_extension_alters(
     extension: &dyn Extension,
     migration: &Migration,

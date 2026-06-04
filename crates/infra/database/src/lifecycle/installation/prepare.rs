@@ -12,8 +12,6 @@ pub(super) struct PreparedSchema {
     pub(super) structural: Vec<String>,
     pub(super) dependent: Vec<String>,
     pub(super) columns_to_validate: Vec<ColumnsToValidate>,
-    /// Tables this extension creates, derived from its `CREATE TABLE`
-    /// statements — the authoritative ownership set.
     pub(super) owned_tables: Vec<String>,
 }
 
@@ -97,7 +95,6 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
     })
 }
 
-/// Install phase a single declarative statement belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StatementPhase {
     /// Phase 1 — creates a schema, table, type, sequence, or extension; an
@@ -108,13 +105,9 @@ enum StatementPhase {
     Dependent,
 }
 
-/// Classify a declarative statement into its install phase.
-///
-/// Every `pg_query` DDL node type is matched **explicitly**: a node the
-/// classifier does not recognise is a hard error rather than a silent
-/// mis-phase. A new Postgres node type therefore surfaces as a visible boot
-/// failure that forces an explicit phase decision — the `CREATE SCHEMA`
-/// mis-phase that this replaces could not happen here.
+/// Every `pg_query` DDL node type is matched **explicitly**: an unrecognised
+/// node is a hard error, not a silent mis-phase, so a new Postgres node type
+/// surfaces as a visible boot failure that forces an explicit phase decision.
 fn classify_statement(statement: &str) -> Result<StatementPhase, String> {
     use pg_query::NodeEnum;
 

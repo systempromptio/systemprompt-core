@@ -98,12 +98,9 @@ impl fmt::Display for LintError {
     }
 }
 
-/// Names of every table created by a `CREATE TABLE` in `sql`.
-///
-/// This is the single source of truth for which tables an extension *owns*:
-/// ownership is derived from its declarative schema, never hand-authored. A
-/// parse failure yields an empty list — the linter reports the parse error
-/// separately.
+/// The single source of truth for which tables an extension *owns*: ownership
+/// is derived from its declarative schema, never hand-authored. A parse failure
+/// yields an empty list — the linter reports the parse error separately.
 #[must_use]
 pub fn created_table_names(sql: &str) -> Vec<String> {
     let Ok(parsed) = pg_query::parse(sql) else {
@@ -120,11 +117,8 @@ pub fn created_table_names(sql: &str) -> Vec<String> {
         .collect()
 }
 
-/// Lint a single declarative schema file. Returns the list of violations,
-/// or `Ok(())` if the script is purely declarative.
-///
-/// `source` is the label included in error messages (typically the schema
-/// table name or the file path).
+/// `source` is not read; it is the label stamped into error messages (typically
+/// the schema table name or the file path).
 pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintError>> {
     let parsed = match pg_query::parse(sql) {
         Ok(p) => p,
@@ -150,8 +144,6 @@ pub fn lint_declarative_schema(sql: &str, source: &str) -> Result<(), Vec<LintEr
     Ok(())
 }
 
-/// First pass: classify every top-level statement as allowed or rejected and
-/// collect the in-input `CREATE TABLE` graph for the column-resolution pass.
 fn classify_pass(
     stmts: &[pg_query::protobuf::RawStmt],
     sql: &str,
@@ -220,8 +212,6 @@ fn classify_pass(
     (tables, errors)
 }
 
-/// Second pass: resolve `(table, column)` references in `CREATE INDEX` and
-/// `CREATE VIEW` statements against the table graph from [`classify_pass`].
 fn column_ref_pass(
     stmts: &[pg_query::protobuf::RawStmt],
     sql: &str,

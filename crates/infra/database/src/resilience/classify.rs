@@ -13,18 +13,12 @@ use std::time::Duration;
 /// retrying would help).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
-    /// The attempt succeeded — reset the breaker's failure count.
     Success,
-    /// The attempt failed transiently and may succeed if retried. `retry_after`
-    /// carries a server-supplied hint (e.g. a parsed `Retry-After` header).
     Transient { retry_after: Option<Duration> },
-    /// The attempt failed permanently — retrying cannot help (auth,
-    /// validation).
     Permanent,
 }
 
 impl Outcome {
-    /// Whether this outcome should be retried.
     #[must_use]
     pub const fn is_transient(self) -> bool {
         matches!(self, Self::Transient { .. })

@@ -4,15 +4,9 @@ use std::sync::Arc;
 
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
-/// Returned by [`Bulkhead::try_acquire`] when the concurrency limit is reached.
 #[derive(Debug, Clone, Copy)]
 pub struct Full;
 
-/// A concurrency cap for one dependency.
-///
-/// Acquisition is non-blocking: when the limit is reached the call is rejected
-/// with [`Full`] rather than queued, so a slow dependency fast-fails callers
-/// instead of letting them pile up and exhaust workers.
 #[derive(Debug)]
 pub struct Bulkhead {
     key: String,
@@ -44,7 +38,6 @@ impl Bulkhead {
             })
     }
 
-    /// The configured concurrency limit.
     #[must_use]
     pub const fn limit(&self) -> usize {
         self.limit
