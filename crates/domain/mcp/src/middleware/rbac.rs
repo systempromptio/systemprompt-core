@@ -174,9 +174,8 @@ fn extract_act_chain(claims: &JwtClaims) -> Vec<Actor> {
         .unwrap_or_default()
 }
 
-/// Assemble the MCP-side [`AuthzRequest`] from the validated JWT claims and the
-/// flattened act-chain. Public so unit tests can lock in JWT-claims
-/// forwarding without spinning up a hook or RBAC stack.
+/// Public so unit tests can lock in JWT-claims → [`AuthzRequest`] forwarding
+/// without spinning up a hook or RBAC stack.
 #[must_use]
 pub fn build_mcp_authz_request(
     server_name: &str,

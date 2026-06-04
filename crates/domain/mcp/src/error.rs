@@ -106,8 +106,6 @@ impl From<systemprompt_models::paths::PathError> for McpDomainError {
 }
 
 impl McpDomainError {
-    /// Classify this error for the resilience layer — which failures are worth
-    /// retrying (transient) and which cannot be helped by a retry (permanent).
     #[must_use]
     pub const fn classify(&self) -> systemprompt_database::resilience::Outcome {
         use systemprompt_database::resilience::Outcome;

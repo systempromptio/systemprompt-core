@@ -29,7 +29,6 @@ pub use crate::services::registry::RegistryService;
 use context::{create_request_context, load_agent_servers};
 use conversions::{to_tool_definition, to_tool_result};
 
-/// Map a resilience-layer failure into the tool-provider error type.
 fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> ToolProviderError {
     match err {
         ResilienceError::Inner(inner) => ToolProviderError::ExecutionFailed(inner.to_string()),
