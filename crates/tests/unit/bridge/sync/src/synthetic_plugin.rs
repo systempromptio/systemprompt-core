@@ -165,10 +165,6 @@ fn writes_agent_as_md_file_with_frontmatter() {
 #[test]
 fn synthetic_plugin_does_not_write_mcp_json() {
     let root = tempdir();
-    // The MDM emitter owns the MCP channel; the synthetic plugin carries only
-    // skills, agents, and hooks. MCP servers in the manifest must NOT produce a
-    // plugin-level .mcp.json, which would surface a ghost "not connected"
-    // connector alongside the managed one.
     let m = manifest_with(
         vec![skill("doc", "# x\n")],
         vec![],
@@ -248,15 +244,63 @@ fn does_not_touch_sibling_real_plugin_dir() {
 }
 
 #[test]
-fn version_json_carries_only_the_manifest_version() {
+fn version_json_has_only_a_version_key() {
     let root = tempdir();
     let m = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
     write_synthetic_plugin(&root, &m).unwrap();
 
     let raw = fs::read(synthetic_root(&root).join("version.json")).unwrap();
     let v: serde_json::Value = serde_json::from_slice(&raw).unwrap();
-    assert_eq!(v["version"], version().as_str());
+    assert!(v["version"].is_string());
     assert_eq!(v.as_object().unwrap().len(), 1, "only the version key");
+}
+
+#[test]
+fn version_json_is_stable_across_manifest_version_churn() {
+    let root = tempdir();
+
+    let mut m1 = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
+    m1.manifest_version = ManifestVersion::try_new("2026-01-01T00:00:00Z-aaaaaaaaaaaaaaaa").unwrap();
+    write_synthetic_plugin(&root, &m1).unwrap();
+    let v1 = fs::read_to_string(synthetic_root(&root).join("version.json")).unwrap();
+
+    let mut m2 = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
+    m2.manifest_version = ManifestVersion::try_new("2026-09-09T09:09:09Z-bbbbbbbbbbbbbbbb").unwrap();
+    write_synthetic_plugin(&root, &m2).unwrap();
+    let v2 = fs::read_to_string(synthetic_root(&root).join("version.json")).unwrap();
+
+    assert_eq!(v1, v2, "version.json changed despite identical content");
+}
+
+#[test]
+fn version_json_changes_when_skill_content_changes() {
+    let a = tempdir();
+    let b = tempdir();
+    write_synthetic_plugin(&a, &manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![])).unwrap();
+    write_synthetic_plugin(&b, &manifest_with(vec![skill("alpha", "# different\n")], vec![], vec![]))
+        .unwrap();
+    let va = fs::read_to_string(synthetic_root(&a).join("version.json")).unwrap();
+    let vb = fs::read_to_string(synthetic_root(&b).join("version.json")).unwrap();
+    assert_ne!(va, vb, "version.json must change when content changes");
+}
+
+#[test]
+fn idempotent_rewrite_does_not_touch_existing_plugin() {
+    let root = tempdir();
+    let m = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
+    write_synthetic_plugin(&root, &m).unwrap();
+
+    let sentinel = synthetic_root(&root).join("SENTINEL");
+    fs::write(&sentinel, b"keep").unwrap();
+
+    let mut m2 = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
+    m2.manifest_version = ManifestVersion::try_new("2026-12-12T12:12:12Z-cccccccccccccccc").unwrap();
+    write_synthetic_plugin(&root, &m2).unwrap();
+
+    assert!(
+        sentinel.exists(),
+        "idempotent re-write must not remove/recreate the plugin dir"
+    );
 }
 
 #[test]

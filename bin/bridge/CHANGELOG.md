@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.12.1] - 2026-06-04
+
+### Fixed
+
+- The synthetic managed-plugin write is now idempotent against content. The plugin's `version.json` is derived from a hash of the bundle (skills, agents, hooks) rather than the gateway's per-poll manifest version, and is written last as the completion marker the next sync's skip check keys on. An unchanged bundle therefore leaves the plugin directory byte-for-byte untouched instead of being removed and rewritten, so Claude Code no longer momentarily drops or re-installs the managed plugin on every poll.
+
 ## [0.12.0] - 2026-06-03
 
 ### Added
