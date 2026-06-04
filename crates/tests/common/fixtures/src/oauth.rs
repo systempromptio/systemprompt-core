@@ -15,8 +15,6 @@ use systemprompt_oauth::repository::{ClientRepository, CreateClientParams};
 use systemprompt_oauth::services::hash_client_secret;
 use uuid::Uuid;
 
-/// Test-known plaintext client secret. The repository stores its hash; tests
-/// drive `/token` with this string.
 pub const TEST_CLIENT_SECRET: &str = "test-secret-must-be-long-enough-32chars";
 pub const TEST_REDIRECT_URI: &str = "http://127.0.0.1/callback";
 
@@ -27,9 +25,6 @@ pub struct OAuthClientFixture {
     pub redirect_uri: String,
 }
 
-/// Insert a confidential OAuth client owned by `user_id`. Returns an opaque
-/// fixture handle exposing the client_id, plaintext secret, and redirect URI
-/// so the caller can build an auth-code/token round trip.
 pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthClientFixture> {
     let repo = ClientRepository::new(pool).map_err(|e| anyhow::anyhow!("client repo: {e}"))?;
     let client_id = ClientId::new(format!("test-client-{}", Uuid::new_v4().simple()));
@@ -68,7 +63,6 @@ pub async fn seed_oauth_client(pool: &DbPool, user_id: &UserId) -> Result<OAuthC
     })
 }
 
-/// S256 PKCE verifier + challenge pair.
 #[derive(Debug, Clone)]
 pub struct PkcePair {
     pub verifier: String,

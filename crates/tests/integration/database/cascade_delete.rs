@@ -27,7 +27,6 @@ async fn connect_pool() -> PgPool {
         .expect("connect to test database")
 }
 
-/// Per-test schema namespace. Distinct across parallel tests and runs.
 struct Fixture {
     pool: PgPool,
     suffix: String,
@@ -116,10 +115,6 @@ impl Fixture {
     }
 }
 
-/// Deleting a user cascades to api_keys (CASCADE), nulls user_id on
-/// sessions (SET NULL), and removes federated identities (CASCADE) — a
-/// single DELETE statement must clear every cascading descendant in one
-/// transaction with no orphaned FK references.
 #[tokio::test]
 async fn cascade_delete_user_transitively_removes_dependents() {
     let fx = Fixture::new().await;
@@ -193,10 +188,6 @@ async fn cascade_delete_user_transitively_removes_dependents() {
     fx.drop_all().await;
 }
 
-/// Soft-delete is a state transition — marking the user `inactive` must
-/// neither remove dependent rows nor trigger any cascade. This pins the
-/// contract that `update_status(_, Inactive)` is *not* equivalent to
-/// `delete()`.
 #[tokio::test]
 async fn soft_delete_inactive_does_not_cascade() {
     let fx = Fixture::new().await;
@@ -257,11 +248,6 @@ async fn soft_delete_inactive_does_not_cascade() {
     fx.drop_all().await;
 }
 
-/// Audit rows (governance_decisions-shaped) record a user_id without a FK.
-/// Deleting the user must leave the audit trail intact — auditability of
-/// historical decisions is a compliance requirement and is the entire
-/// reason `governance_decisions.user_id` is not declared as a FK in
-/// production.
 #[tokio::test]
 async fn audit_trail_survives_user_cascade_delete() {
     let fx = Fixture::new().await;
@@ -309,10 +295,6 @@ async fn audit_trail_survives_user_cascade_delete() {
     fx.drop_all().await;
 }
 
-/// After a cascading delete there must be zero orphaned FK references —
-/// every remaining row in any child table either points at an existing
-/// parent or has a NULL FK. This is the global invariant that the per-table
-/// cases above sample.
 #[tokio::test]
 async fn no_orphaned_fk_references_after_cascade() {
     let fx = Fixture::new().await;

@@ -29,8 +29,6 @@ pub enum RecordedBroadcast {
 #[derive(Debug, Default)]
 pub struct RecordingWebhookBroadcaster {
     records: Mutex<Vec<RecordedBroadcast>>,
-    /// Optional `connection_count` returned by every successful broadcast.
-    /// Defaults to 1 so callers see "delivered to one subscriber".
     connection_count: usize,
 }
 
@@ -97,9 +95,6 @@ impl WebhookBroadcaster for RecordingWebhookBroadcaster {
     }
 }
 
-/// Convenience wrapper that pairs a broadcaster with an `Arc` clone for the
-/// caller to inspect after `install_for_test` has taken ownership of the
-/// `Arc<dyn WebhookBroadcaster>`.
 #[must_use]
 pub fn arc_recording_broadcaster() -> (
     Arc<dyn WebhookBroadcaster>,

@@ -229,11 +229,6 @@ fn has_db() -> bool {
         .unwrap_or(false)
 }
 
-/// Build a command that drives the CLI through full bootstrap. Returns `None`
-/// when no `DATABASE_URL` is available — handler bodies that require
-/// `init_paths` / `init_secrets` would either fail at validation or hang
-/// trying to reach Postgres, so we just skip cleanly under coverage runs that
-/// don't set the env.
 fn sp_full() -> Option<Command> {
     if !has_db() {
         return None;

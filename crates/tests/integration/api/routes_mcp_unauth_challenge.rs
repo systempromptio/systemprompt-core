@@ -95,11 +95,6 @@ async fn body_text(resp: axum::http::Response<Body>) -> (StatusCode, String) {
     (status, String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// Core regression assertion. The response body must NOT be the
-/// `authz_gate` anon-denial — that body only appears when a route's
-/// `with_auth(..., AuthzPolicy::...)` policy excludes `UserType::Anon`. The
-/// MCP route must defer that decision to the proxy handler so an RFC 9728
-/// challenge can be emitted instead.
 #[tokio::test]
 async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
@@ -123,13 +118,6 @@ async fn unauthenticated_mcp_post_does_not_hit_generic_anon_403() -> anyhow::Res
     Ok(())
 }
 
-/// RFC 6750 §3 / RFC 9728: when the client sends NO `Authorization` header,
-/// the 401 challenge must be the spec-compliant "no credentials" form — bare
-/// `WWW-Authenticate: Bearer realm="…", resource_metadata="…"` with no
-/// `error=` parameter, and an empty JSON body. Cowork / Claude Code only start
-/// the OAuth discovery dance on this exact shape; an `error="invalid_token"`
-/// on the same response makes the client report "token rejected" and abort.
-/// This pins the 12.x fix and would have caught the 11.0–12.2 regression.
 #[tokio::test]
 async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
@@ -182,10 +170,6 @@ async fn unauthenticated_mcp_post_emits_clean_no_credentials_challenge() -> anyh
     Ok(())
 }
 
-/// Companion to the above: when the client DOES present a bearer token and it
-/// is rejected, the challenge must carry `error="invalid_token"` in both the
-/// `WWW-Authenticate` header and the JSON body. This pins the other branch of
-/// the 12.x split so future refactors can't collapse both cases back together.
 #[tokio::test]
 async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
@@ -232,9 +216,6 @@ async fn mcp_post_with_bad_bearer_emits_invalid_token_challenge() -> anyhow::Res
     Ok(())
 }
 
-/// Companion assertion: the same unauthenticated GET to a `/mcp` sub-path
-/// must also bypass the generic anon-denial. Catches re-introduction of the
-/// gate at any HTTP method on the MCP nest.
 #[tokio::test]
 async fn unauthenticated_mcp_get_does_not_hit_generic_anon_403() -> anyhow::Result<()> {
     let app = boot_full_router().await?;
@@ -252,9 +233,6 @@ async fn unauthenticated_mcp_get_does_not_hit_generic_anon_403() -> anyhow::Resu
     Ok(())
 }
 
-/// Sibling MCP-registry route (`/api/v1/mcp-registry`) is intentionally
-/// public — also assert it stays open to unauthenticated callers so we don't
-/// regress the discovery surface at the same time.
 #[tokio::test]
 async fn unauthenticated_mcp_registry_get_is_not_anon_denied() -> anyhow::Result<()> {
     let app = boot_full_router().await?;

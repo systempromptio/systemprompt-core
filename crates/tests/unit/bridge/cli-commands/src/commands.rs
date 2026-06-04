@@ -16,9 +16,6 @@ fn s(v: &str) -> Option<String> {
     Some(v.to_owned())
 }
 
-/// Run `f` with HOME + all XDG dirs pointed at fresh tempdirs and the bridge
-/// env overrides cleared. `extra` adds/overrides further vars (e.g. the gateway
-/// URL). The tempdirs are returned so the caller can inspect written files.
 fn sandbox<R>(extra: Vec<(&'static str, Option<String>)>, f: impl FnOnce() -> R) -> R {
     let home = TempDir::new().expect("home tempdir");
     let cfg = TempDir::new().expect("config tempdir");

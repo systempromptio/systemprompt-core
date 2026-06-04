@@ -342,9 +342,6 @@ impl MockAiProviderBuilder {
         self
     }
 
-    /// Queue a single `generate_stream` invocation's emitted chunks. Subsequent
-    /// calls each consume the next queued vector; an empty queue yields no
-    /// chunks (consistent with the previous default behaviour).
     pub fn with_stream_chunks(mut self, chunks: Vec<Result<StreamChunk>>) -> Self {
         self.stream_chunks.push_back(chunks);
         self

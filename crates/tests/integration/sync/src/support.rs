@@ -4,8 +4,6 @@
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-/// Returns a `DbPool` against `DATABASE_URL`, or `None` if the variable
-/// is unset so the test can early-skip without failing.
 pub async fn try_db() -> Option<DbPool> {
     let url = fixture_database_url().ok()?;
     Some(
@@ -15,9 +13,6 @@ pub async fn try_db() -> Option<DbPool> {
     )
 }
 
-/// Wipe the rows the sync integration tests touch under the given
-/// (entity_type, entity_id) pair. ACL rules are tenant-agnostic — callers
-/// must pass entity ids that are unique to the test.
 pub async fn wipe_rules(db: &DbPool, entity_type: &str, entity_id: &str) {
     let pool = db.write_pool_arc().expect("write pool");
     sqlx::query!(

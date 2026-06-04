@@ -15,10 +15,6 @@ use systemprompt_test_mocks::{
     RecordedBroadcast, RecordingWebhookBroadcaster, arc_recording_broadcaster,
 };
 
-/// The global broadcaster is a process-wide `OnceLock`. Tests that swap it
-/// MUST share the same recording fake so they don't race to install. The
-/// first test to land its broadcaster wins; later tests read from the same
-/// recorder.
 static SHARED_RECORDER: OnceLock<std::sync::Arc<RecordingWebhookBroadcaster>> = OnceLock::new();
 
 fn install_shared_recorder() -> std::sync::Arc<RecordingWebhookBroadcaster> {

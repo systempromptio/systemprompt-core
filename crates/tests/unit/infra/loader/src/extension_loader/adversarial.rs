@@ -38,9 +38,6 @@ fn write_manifest(dir: &std::path::Path, body: &str) {
 // Manifest schema rejection (parser robustness)
 // -----------------------------------------------------------------------------
 
-/// Manifest missing the required `extension.name` field is rejected
-/// silently (skipped) — the loader never panics, but the offending
-/// directory contributes zero discovered extensions.
 #[test]
 fn adversarial_manifest_missing_required_name_is_skipped() {
     let temp = TempDir::new().expect("tempdir");
@@ -62,9 +59,6 @@ fn adversarial_manifest_missing_required_name_is_skipped() {
     );
 }
 
-/// Manifest with a wrong-typed field (`enabled: "yes"` instead of
-/// boolean) is rejected without panicking; discovery returns empty
-/// for that directory.
 #[test]
 fn adversarial_manifest_wrong_type_field_is_skipped() {
     let temp = TempDir::new().expect("tempdir");
@@ -86,9 +80,6 @@ fn adversarial_manifest_wrong_type_field_is_skipped() {
     );
 }
 
-/// Manifest with an unknown `extension.type` deserialises to the
-/// `Other` variant rather than panicking; the resulting extension is
-/// neither MCP nor CLI and is filtered out of both lookups.
 #[test]
 fn adversarial_manifest_unknown_type_is_not_mcp_or_cli() {
     let temp = TempDir::new().expect("tempdir");
@@ -116,9 +107,6 @@ fn adversarial_manifest_unknown_type_is_not_mcp_or_cli() {
     assert!(ExtensionLoader::get_enabled_cli_extensions(temp.path()).is_empty());
 }
 
-/// Manifest with an absurdly oversized `name` field (1 MiB) parses
-/// without exhausting memory or panicking; the discovered extension
-/// surfaces the full string and the caller can size-check it.
 #[test]
 fn adversarial_manifest_oversized_name_does_not_panic() {
     let temp = TempDir::new().expect("tempdir");
@@ -141,9 +129,6 @@ fn adversarial_manifest_oversized_name_does_not_panic() {
     assert_eq!(discovered[0].manifest.extension.name.len(), huge_name.len());
 }
 
-/// Manifest with embedded NUL / control bytes in a string field
-/// parses (YAML allows them) but does not panic the discoverer; the
-/// name survives intact for downstream validation.
 #[test]
 fn adversarial_manifest_control_chars_in_name_do_not_panic() {
     let temp = TempDir::new().expect("tempdir");
@@ -158,10 +143,6 @@ fn adversarial_manifest_control_chars_in_name_do_not_panic() {
     let _ = ExtensionLoader::discover(temp.path());
 }
 
-/// A YAML document that triggers the well-known "billion laughs"
-/// alias-expansion DoS must not hang or panic discovery. serde_yaml
-/// is expected to either reject or bound expansion; either way the
-/// loader returns control to the caller.
 #[test]
 fn adversarial_manifest_alias_bomb_does_not_hang() {
     let temp = TempDir::new().expect("tempdir");
@@ -191,16 +172,6 @@ fn adversarial_manifest_alias_bomb_does_not_hang() {
 // Path-traversal / symlink handling
 // -----------------------------------------------------------------------------
 
-/// A manifest whose `binary` field contains `../` is preserved as-is
-/// by the parser. The loader treats it as a plain filename when
-/// joining with `target/release/`, so the resolved path escapes the
-/// target directory.
-///
-/// This is a *characterisation* test: it pins the current behaviour
-/// (no sanitisation) so any future hardening shows up as a deliberate
-/// behaviour change rather than an accidental regression. The loader
-/// is not the right layer to enforce this — the spawn site must
-/// canonicalise — but the test makes the gap visible.
 #[test]
 fn adversarial_path_traversal_in_binary_field_is_not_sanitised() {
     let temp = TempDir::new().expect("tempdir");
@@ -224,10 +195,6 @@ fn adversarial_path_traversal_in_binary_field_is_not_sanitised() {
     );
 }
 
-/// A symlinked extensions subdirectory pointing outside `project_root`
-/// is still walked by discover() — the loader follows the link
-/// transparently because it relies on `fs::read_dir` without a
-/// canonicalise-and-check step. Documenting current behaviour.
 #[cfg(unix)]
 #[test]
 fn adversarial_symlinked_extension_dir_is_followed() {
@@ -264,11 +231,6 @@ fn adversarial_symlinked_extension_dir_is_followed() {
 // Binary content tampering — the loader does NOT detect this
 // -----------------------------------------------------------------------------
 
-/// The loader's `validate_mcp_binaries` only checks for existence; it
-/// returns `Ok` regardless of the binary's bytes. Mutating a single
-/// byte (simulating tamper-after-install) does not surface as a
-/// signature-mismatch error because there is no signature
-/// verification in this code path. See finding `F-T1d-001`.
 #[test]
 fn adversarial_tampered_binary_is_not_detected_by_loader() {
     let temp = TempDir::new().expect("tempdir");
@@ -304,10 +266,6 @@ fn adversarial_tampered_binary_is_not_detected_by_loader() {
 // Duplicate binary names / collision handling
 // -----------------------------------------------------------------------------
 
-/// Two extensions declaring the same `binary` name collide in
-/// `build_binary_map`; only one wins. The loader does not surface
-/// this as an error, so a malicious or misconfigured later
-/// extension can shadow an earlier one.
 #[test]
 fn adversarial_duplicate_binary_names_silently_collide() {
     let temp = TempDir::new().expect("tempdir");
@@ -341,8 +299,6 @@ fn adversarial_duplicate_binary_names_silently_collide() {
     );
 }
 
-/// A disabled extension whose binary collides with an enabled one
-/// does not interfere with the production binary-name list.
 #[test]
 fn adversarial_disabled_extension_excluded_from_production_names() {
     let temp = TempDir::new().expect("tempdir");
@@ -368,10 +324,6 @@ fn adversarial_disabled_extension_excluded_from_production_names() {
 // Concurrent discovery / hot-reload race surrogate
 // -----------------------------------------------------------------------------
 
-/// Concurrent `discover()` calls while a writer adds and removes
-/// manifest files must not panic. The loader has no hot-reload
-/// concept of its own; this test stands in as a race surrogate for
-/// the underlying `fs::read_dir` traversal.
 #[test]
 fn adversarial_concurrent_discovery_does_not_panic() {
     let temp = TempDir::new().expect("tempdir");

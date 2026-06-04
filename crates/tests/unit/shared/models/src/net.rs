@@ -74,7 +74,6 @@ mod validate_outbound_url_tests {
     }
 }
 
-/// Adversarial coverage for SSRF vectors a DD reviewer is expected to probe.
 mod ssrf_adversarial_tests {
     use super::*;
 
@@ -229,9 +228,6 @@ mod ssrf_adversarial_tests {
         }
     }
 
-    /// AWS publishes an IPv6 metadata endpoint inside the ULA range. It must
-    /// be caught by the fc00::/7 block — added as a named case so reviewers
-    /// can see metadata coverage explicitly.
     #[test]
     fn rejects_ipv6_aws_metadata_endpoint() {
         assert!(matches!(
@@ -330,9 +326,6 @@ mod ssrf_adversarial_tests {
 
     // -- URL parser oddities --------------------------------------------------
 
-    /// A userinfo component must not change the host evaluation: the URL
-    /// `http://user:pass@127.0.0.1/` is still loopback, while
-    /// `http://user:pass@1.2.3.4/` is still non-loopback http.
     #[test]
     fn userinfo_does_not_change_host_evaluation() {
         assert!(validate_outbound_url("http://user:pass@127.0.0.1/").is_ok());
@@ -346,10 +339,6 @@ mod ssrf_adversarial_tests {
         ));
     }
 
-    /// A trailing `#@127.0.0.1` is a URL fragment, not authority. The host
-    /// remains `example.com` (public) and is accepted; this pins the parser's
-    /// behaviour so a future regression that misreads the authority cannot
-    /// silently let a "tricky-looking" URL through under a different host.
     #[test]
     fn fragment_after_host_does_not_shift_host() {
         let url = validate_outbound_url("https://example.com/#@127.0.0.1").expect("valid");
@@ -366,10 +355,6 @@ mod ssrf_adversarial_tests {
         assert!(with_lf.is_ok(), "LFs are stripped per WHATWG URL spec");
     }
 
-    /// Percent-encoded IPv4 in the host component: WHATWG URL canonicalises
-    /// `%31%32%37.0.0.1` → `127.0.0.1`, which must still be classified as
-    /// loopback (and thus accepted only over http, blocked under https-only
-    /// non-loopback policy — but loopback fast-path makes it ok).
     #[test]
     fn percent_encoded_ipv4_is_decoded_and_classified() {
         let res = validate_outbound_url("http://%31%32%37.0.0.1/h");
@@ -386,9 +371,6 @@ mod ssrf_adversarial_tests {
         }
     }
 
-    /// IDN (Punycode) host names must be treated as opaque domains: not
-    /// silently classified as loopback or private even if a homograph attack
-    /// makes them look like "localhost".
     #[test]
     fn idn_homograph_is_treated_as_public_domain() {
         // xn--lcalhst-0za is a Punycode label that visually resembles
@@ -400,9 +382,6 @@ mod ssrf_adversarial_tests {
 
     // -- Trusted-http allowlist (sealed-network opt-in) ----------------------
 
-    /// The narrow opt-in for sealed-network demos: a host named in the
-    /// allowlist passes the http scheme gate and bypasses the IP block (since
-    /// in-network hostnames typically resolve to RFC1918 addresses).
     #[test]
     fn trusted_http_host_accepts_plain_http() {
         let trusted = ["mock-inference"];
@@ -420,7 +399,6 @@ mod ssrf_adversarial_tests {
         assert!(validate_outbound_url_with_trust("http://mock-inference/h", &trusted).is_ok());
     }
 
-    /// The allowlist is exact-match: a sibling subdomain is NOT trusted.
     #[test]
     fn trusted_http_does_not_match_substring_or_sibling() {
         let trusted = ["mock-inference"];
@@ -434,8 +412,6 @@ mod ssrf_adversarial_tests {
         ));
     }
 
-    /// An empty allowlist reproduces the legacy behaviour exactly. Pinned so a
-    /// future refactor of the trust path cannot quietly weaken the default.
     #[test]
     fn empty_trusted_list_matches_legacy_behaviour() {
         assert!(matches!(
@@ -445,17 +421,12 @@ mod ssrf_adversarial_tests {
         assert!(validate_outbound_url_with_trust("https://example.com/h", &[] as &[&str]).is_ok());
     }
 
-    /// A host on the allowlist still has https accepted. The allowlist is an
-    /// http opt-in, not a "trust this host more in general" flag.
     #[test]
     fn trusted_host_under_https_still_passes() {
         let trusted = ["mock-inference"];
         assert!(validate_outbound_url_with_trust("https://mock-inference/h", &trusted).is_ok());
     }
 
-    /// The IP block list is the production-critical control: it must NOT be
-    /// bypassed for a host that the operator did not name. (The allowlist
-    /// scope is "this exact hostname", not "any host on the bridge".)
     #[test]
     fn trusted_list_does_not_unblock_metadata_ip_for_others() {
         let trusted = ["mock-inference"];
@@ -465,11 +436,6 @@ mod ssrf_adversarial_tests {
         ));
     }
 
-    /// Hostnames are name-based, not resolved — so an allow-listed name with a
-    /// hostile DNS payload still bypasses the IP block on http; the operator is
-    /// trusting the hostname literally. Pinned so the boundary stays explicit:
-    /// the allowlist is an operator-controlled trust assertion, not a DNS
-    /// inspection.
     #[test]
     fn trusted_list_is_name_based_not_resolved() {
         let trusted = ["mock-inference"];
@@ -480,9 +446,6 @@ mod ssrf_adversarial_tests {
         assert_eq!(url.host_str(), Some("mock-inference"));
     }
 
-    /// `validate_outbound_url` (the legacy entry point) keeps the strict
-    /// loopback-only http rule. Empty-allowlist callers must remain
-    /// production-safe by default.
     #[test]
     fn legacy_entry_point_remains_strict() {
         assert!(matches!(
@@ -491,13 +454,6 @@ mod ssrf_adversarial_tests {
         ));
     }
 
-    /// Hostnames are not pre-resolved; a DNS-rebinding payload that points
-    /// to a public IP at validation time and a private IP at connect time
-    /// will pass this guard. We pin that behaviour explicitly so the gap is
-    /// documented for the connect-time consumers (which must resolve once
-    /// and connect to the resolved address — see callers in
-    /// `domain/agent/.../webhook/service/delivery.rs` and
-    /// `infra/security/src/authz/runtime.rs`).
     #[test]
     fn hostnames_are_not_resolved_at_validation_time() {
         // `example.com` is public-looking; the guard accepts it without doing

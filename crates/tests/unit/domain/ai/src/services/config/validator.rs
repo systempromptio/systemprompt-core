@@ -39,9 +39,6 @@ fn create_valid_config() -> AiConfig {
     }
 }
 
-/// Build the registry-backed providers map the validator checks for
-/// connectivity. The validator only inspects map membership, never invokes the
-/// trait, so a lightweight Anthropic client stands in for any provider.
 fn built_providers(names: &[&str]) -> HashMap<String, Arc<dyn AiProvider>> {
     names
         .iter()

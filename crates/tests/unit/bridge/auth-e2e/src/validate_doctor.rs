@@ -4,9 +4,6 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// Sandbox `dirs::*` and bridge config resolution into a throwaway home so the
-/// report/check code never reads the developer's real environment. The gateway
-/// URL is supplied per-test via `SP_BRIDGE_GATEWAY_URL`.
 fn sandbox_vars(home: &TempDir, gateway: &str) -> Vec<(&'static str, Option<String>)> {
     let root = home.path().to_string_lossy().into_owned();
     vec![
@@ -28,10 +25,6 @@ fn block_on<F: std::future::Future>(fut: F) -> F::Output {
         .block_on(fut)
 }
 
-/// One mounted GET route: `path` answered with `status`. Started on its own
-/// short-lived runtime; the returned `MockServer` keeps serving on its internal
-/// runtime afterwards, so callers may later drive bridge code under a fresh
-/// nested runtime without colliding with an outer one.
 fn health_server(health_status: u16, with_whoami: bool) -> (MockServer, String) {
     block_on(async {
         let server = MockServer::start().await;

@@ -26,9 +26,6 @@ use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
 
-/// Minimal [`Config`] suitable for tests. Most fields point at `/tmp` or empty
-/// vectors — production paths that consult them are exercised by the broader
-/// service-level tests, not the fixture.
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
         instance_id: "fixture".to_string(),
@@ -76,19 +73,10 @@ pub fn fixture_config(database_url: &str) -> Config {
     }
 }
 
-/// Build an [`AppContext`] backed by `pool` and the fixture config.
-///
-/// `database_url` is folded into the config for any code that reads it back
-/// out via `ctx.config().database_url`. Wires real
-/// [`UserService`](systemprompt_users::UserService) and
-/// [`FingerprintRepository`](systemprompt_analytics::FingerprintRepository)
-/// instances so the api server's middleware stack (which hard-requires both)
-/// can be assembled against the fixture context.
 pub fn fixture_app_context(pool: &DbPool, database_url: &str) -> Result<Arc<AppContext>> {
     fixture_app_context_with_filter(pool, database_url, Arc::new(AllowAllFilter))
 }
 
-/// `/tmp` paths suitable for tests that never read the on-disk catalogue.
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
         system: "/tmp".to_string(),
@@ -100,9 +88,6 @@ fn tmp_paths() -> PathsConfig {
     }
 }
 
-/// As [`fixture_app_context`] but with an injectable marketplace filter, so a
-/// test can drive the real cascade-filtering path (e.g. the bridge manifest
-/// E2E) instead of the permissive allow-all default.
 pub fn fixture_app_context_with_filter(
     pool: &DbPool,
     database_url: &str,
@@ -111,12 +96,6 @@ pub fn fixture_app_context_with_filter(
     fixture_app_context_with(pool, database_url, tmp_paths(), marketplace_filter)
 }
 
-/// Full control over both the on-disk paths and the marketplace filter.
-///
-/// The bridge-manifest E2E points `paths.services` at a real services tree so
-/// `ctx.app_paths().system().services()` resolves the on-disk catalogue, and
-/// injects the deployment's real [`MarketplaceFilter`] to exercise the full
-/// scope → cascade → sign path through the route.
 pub fn fixture_app_context_with(
     pool: &DbPool,
     database_url: &str,

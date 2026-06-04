@@ -23,8 +23,6 @@ fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
         .layer(Extension(request_context(user)))
 }
 
-/// Seed a user, a context owned by that user, and an empty task in it.
-/// Returns the typed `(context_id, task_id)`.
 async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(ContextId, TaskId)> {
     seed_user_row(pool, owner, &format!("{}@test.local", owner.as_str())).await?;
     let p = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;

@@ -62,8 +62,6 @@ async fn release(conn: &mut PgConnection, key: i64) -> bool {
         .expect("pg_advisory_unlock")
 }
 
-/// Two replicas racing for the same job lock — only one wins per holding
-/// window, and the loser observes a non-acquired result, not a panic.
 #[tokio::test]
 async fn two_replicas_only_one_acquires_lock() {
     let pool = connect_pool().await;
@@ -86,11 +84,6 @@ async fn two_replicas_only_one_acquires_lock() {
     assert!(released, "lock release on the holder connection succeeds");
 }
 
-/// After the holder of an advisory lock dies (its connection is closed),
-/// a fresh acquire attempt from any other connection succeeds. This is the
-/// "zombie holder" recovery contract — Postgres releases session-scoped
-/// advisory locks when their owning connection terminates, so a crashed
-/// scheduler replica cannot leak a permanent lock.
 #[tokio::test]
 async fn stale_lock_holder_releases_on_connection_drop() {
     let pool = connect_pool().await;
@@ -128,8 +121,6 @@ async fn stale_lock_holder_releases_on_connection_drop() {
     assert!(released);
 }
 
-/// Ten concurrent acquire attempts on a single lock: exactly one holds at
-/// any moment, and an explicit release frees the lock for the next claimant.
 #[tokio::test]
 async fn multi_replica_contention_serialises() {
     let pool = Arc::new(connect_pool().await);
@@ -174,11 +165,6 @@ async fn multi_replica_contention_serialises() {
     );
 }
 
-/// `pg_try_advisory_lock` is re-entrant on the *same* connection: the same
-/// session can take the same key any number of times and must release it
-/// exactly that many times. The scheduler does not exploit this, but the
-/// invariant pins the contract `JobLockGuard::release` is written against
-/// (one acquire ↔ one release).
 #[tokio::test]
 async fn same_connection_reentrant_acquire_requires_matching_releases() {
     let pool = connect_pool().await;
@@ -211,10 +197,6 @@ async fn same_connection_reentrant_acquire_requires_matching_releases() {
     let _ = release(&mut other, key).await;
 }
 
-/// `pg_advisory_unlock` from a connection that does not hold the lock
-/// returns `false` (and emits a Postgres NOTICE) but does *not* raise. The
-/// scheduler relies on this so a misordered double-release cannot panic the
-/// job runner.
 #[tokio::test]
 async fn release_from_non_holder_is_falsy_not_fatal() {
     let pool = connect_pool().await;
@@ -242,10 +224,6 @@ async fn release_from_non_holder_is_falsy_not_fatal() {
     );
 }
 
-/// Distinct job names hash to (overwhelmingly likely) distinct keys, so two
-/// scheduler replicas running *different* jobs never block each other. A
-/// regression here (e.g. accidentally hashing to a constant) would silently
-/// serialise every job through one lock.
 #[tokio::test]
 async fn distinct_job_names_use_independent_lock_keys() {
     let pool = connect_pool().await;

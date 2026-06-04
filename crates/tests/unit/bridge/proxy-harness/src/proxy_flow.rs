@@ -22,8 +22,6 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const SECRET: &str = "test-loopback-secret";
 
-/// A live, listening proxy instance plus the mock upstream gateway it forwards
-/// to. Both bindings must be kept alive for the duration of a test.
 struct Harness {
     port: u16,
     gateway: MockServer,

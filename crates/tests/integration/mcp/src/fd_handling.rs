@@ -11,8 +11,6 @@ use systemprompt_mcp::services::process::ProcessService;
 
 use crate::common::spawn_tcp_accept_loop;
 
-/// Lookups that fork a subprocess (`lsof`/`ps`) per call — bounded so the spawn
-/// cost stays well inside the per-test timeout, yet far above the leak guard.
 const SUBPROCESS_LOOKUPS: usize = 200;
 
 fn count_open_fds() -> usize {

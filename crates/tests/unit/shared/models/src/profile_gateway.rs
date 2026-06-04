@@ -81,12 +81,6 @@ fn synthesize_route_id_is_stable_and_input_dependent() {
     assert_ne!(a, d, "model_pattern change must produce a different id");
 }
 
-/// Golden digests pin the route-id hash to FNV-1a 64 by *contract*. Route ids
-/// are persisted in `access_control_entities` and the resolver is fail-closed,
-/// so the algorithm must never drift (a `std::hash::DefaultHasher` may change
-/// between Rust releases). If any of these change, a hash-algorithm change has
-/// silently re-keyed every gateway route; fix the regression, do not update the
-/// expected values.
 #[test]
 fn synthesize_route_id_matches_golden_fnv1a_digests() {
     let cases = [

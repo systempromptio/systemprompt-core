@@ -4,10 +4,6 @@ use systemprompt_traits::RepositoryError;
 
 use crate::common::Fixture;
 
-/// `apply_notification_status` used to write the supplied state straight to
-/// the DB with no state-machine check. The fix routes it through
-/// `update_task_state`, so a completed task must reject a downstream
-/// `working` notification.
 #[tokio::test]
 async fn notification_cannot_reopen_completed_task() -> Result<()> {
     let fx = Fixture::new().await?;
@@ -35,8 +31,6 @@ async fn notification_cannot_reopen_completed_task() -> Result<()> {
     Ok(())
 }
 
-/// A garbled state string in a notification must be rejected, not silently
-/// stored as the row's `status` (the pre-fix code did exactly that).
 #[tokio::test]
 async fn notification_rejects_unknown_state_string() -> Result<()> {
     let fx = Fixture::new().await?;
@@ -57,7 +51,6 @@ async fn notification_rejects_unknown_state_string() -> Result<()> {
     Ok(())
 }
 
-/// Lowercase and `TASK_STATE_*` forms must both parse to the same state.
 #[tokio::test]
 async fn notification_accepts_short_and_long_state_aliases() -> Result<()> {
     let fx = Fixture::new().await?;

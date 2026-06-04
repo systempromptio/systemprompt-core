@@ -10,9 +10,6 @@ use std::sync::Arc;
 use systemprompt_database::PgPool;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
-/// Connects to the test database named by `DATABASE_URL` and returns its
-/// Postgres pool, the surface the relay (`EventRouter` + `PostgresEventBridge`)
-/// is built on.
 pub async fn setup_test_pool() -> Arc<PgPool> {
     let url = fixture_database_url().expect("DATABASE_URL environment variable required");
     let db = fixture_db_pool(&url)
@@ -22,9 +19,6 @@ pub async fn setup_test_pool() -> Arc<PgPool> {
     db.pool_arc().expect("test database is not Postgres-backed")
 }
 
-/// Ensures the `event_outbox` table exists. The schema mirrors
-/// `crates/infra/events/schema/event_outbox.sql`; a freshly migrated
-/// database already has it, and `IF NOT EXISTS` keeps this idempotent.
 pub async fn ensure_event_outbox(pool: &PgPool) {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS event_outbox (id TEXT PRIMARY KEY, channel TEXT NOT NULL, \

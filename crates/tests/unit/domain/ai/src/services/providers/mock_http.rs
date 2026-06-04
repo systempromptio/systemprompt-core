@@ -8,9 +8,6 @@ use systemprompt_models::profile::{ProviderModel, ProviderRegistry};
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// The embedded canonical catalog for one provider, used to construct provider
-/// clients in tests the same way the runtime factory does (the registry is the
-/// single source of model knowledge).
 pub fn seed_models(provider: &str) -> Vec<ProviderModel> {
     ProviderRegistry::default_seed()
         .expect("embedded default catalog parses")

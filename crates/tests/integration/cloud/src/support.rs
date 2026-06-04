@@ -16,8 +16,6 @@ use tempfile::TempDir;
 const CONTEXT_A: &str = "00000000-0000-4000-8000-00000000000a";
 const CONTEXT_B: &str = "00000000-0000-4000-8000-00000000000b";
 
-/// A two-tenant fixture rooted at a temp dir. Models the on-disk layout of
-/// `~/.systemprompt/` so isolation tests never reach for the real one.
 pub struct TenantFixture {
     pub _temp: TempDir,
     pub tenants_path: PathBuf,
@@ -112,7 +110,6 @@ pub fn build_session_b(fx: &TenantFixture) -> CliSession {
     build_session_for("profile-b", &fx.key_b(), "token-b-v1", CONTEXT_B)
 }
 
-/// Build a valid (non-expired) JWT-shaped token for credential tests.
 pub fn jwt_token(exp_offset_secs: i64) -> String {
     let header = BASE64_URL_SAFE_NO_PAD.encode(r#"{"alg":"HS256","typ":"JWT"}"#);
     let exp = Utc::now().timestamp() + exp_offset_secs;
@@ -130,9 +127,6 @@ pub fn save_credentials(path: &std::path::Path, token: &str, email: &str) {
     creds.save_to_path(path).expect("save credentials");
 }
 
-/// Seed both tenants with sessions, persist to disk, and return a reloaded
-/// `SessionStore`. This is the integration-shaped path: every test re-reads
-/// from disk to detect cross-test in-memory leakage.
 pub fn seeded_session_store(fx: &TenantFixture) -> SessionStore {
     let mut store = SessionStore::new();
     store.upsert_session(&fx.key_a(), build_session_a(fx));

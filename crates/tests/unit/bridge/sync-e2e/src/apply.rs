@@ -248,9 +248,6 @@ struct SandboxDirs {
     org_plugins: PathBuf,
 }
 
-/// Builds the tempdir layout `run_once` reads and writes, and a config file
-/// pointing at `gateway_uri`. `org-plugins` is pre-created because `run_once`
-/// requires the effective location to already be a directory.
 fn sandbox(gateway_uri: &str, pat_file: &Path, pubkey: Option<&str>) -> SandboxDirs {
     let temp = tempfile::tempdir().unwrap();
     let base = temp.path();
@@ -292,8 +289,6 @@ fn manifest_json(m: &SignedManifest) -> serde_json::Value {
     serde_json::to_value(m).unwrap()
 }
 
-/// Runs `body` with the bridge config + every `dirs`-resolved location pointed
-/// into the sandbox. `body` returns the `run_once` result.
 fn with_sandbox<F>(
     dirs: &SandboxDirs,
     body: F,
@@ -315,10 +310,6 @@ where
     )
 }
 
-/// A multi-threaded runtime whose background workers keep the `MockServer`
-/// serving after setup `block_on` returns. `run_once` is then driven on a
-/// *separate* current-thread runtime inside the `temp_env` closure, so the two
-/// runtimes never nest (nesting `block_on` inside an active runtime panics).
 fn setup_runtime() -> tokio::runtime::Runtime {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)

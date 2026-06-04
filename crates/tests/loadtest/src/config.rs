@@ -31,10 +31,6 @@ pub struct Stage {
     pub target_users: usize,
 }
 
-/// Pass/fail SLO for a scenario. A profile sets a fast-path default and may
-/// override it per scenario — different scenarios do different amounts of work,
-/// so a single per-profile bar would either be too loose for fast paths or too
-/// tight for slow ones.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Thresholds {
     pub p95_ms: u64,
@@ -43,11 +39,6 @@ pub struct Thresholds {
 }
 
 impl Thresholds {
-    /// Latency budget for scenarios that proxy to an upstream model and write
-    /// the governance audit spine (`gateway-inference`, `send-message`). They
-    /// do materially more work per request than a fast read or an early policy
-    /// deny — an upstream round-trip plus several audit-row writes — so their
-    /// latency ceiling is scaled up while the error budget is left untouched.
     fn inference(&self) -> Self {
         Self {
             p95_ms: self.p95_ms * INFERENCE_LATENCY_FACTOR / 2,
@@ -57,32 +48,20 @@ impl Thresholds {
     }
 }
 
-/// The inference path's latency budget as a fraction (×N/2) of the fast-path
-/// budget. 5/2 == 2.5×: an upstream round-trip plus audit-spine writes is
-/// budgeted at two-and-a-half times a fast read/deny.
 const INFERENCE_LATENCY_FACTOR: u64 = 5;
 
-/// Scenarios whose work profile is "proxy upstream + write the audit spine",
-/// and therefore carry the relaxed [`Thresholds::inference`] budget in every
-/// profile rather than the fast-path default.
 const INFERENCE_SCENARIOS: [&str; 2] = ["gateway-inference", "send-message"];
 
 #[derive(Debug, Clone)]
 pub struct LoadConfig {
     pub base_url: String,
     pub stages: Vec<Stage>,
-    /// SLO applied to any scenario without a more specific entry in
-    /// [`Self::scenario_thresholds`].
     pub default_thresholds: Thresholds,
-    /// Per-scenario SLO overrides, keyed by scenario name.
     pub scenario_thresholds: BTreeMap<String, Thresholds>,
     pub token: Option<String>,
 }
 
 impl LoadConfig {
-    /// Build a profile from its stages and fast-path default SLO, deriving the
-    /// per-scenario overrides (currently the inference-path budget) so every
-    /// profile gets consistent, scenario-aware thresholds.
     fn new(
         base_url: String,
         token: Option<String>,
@@ -102,8 +81,6 @@ impl LoadConfig {
         }
     }
 
-    /// The SLO that governs `scenario` — its specific override if one exists,
-    /// otherwise the profile's fast-path default.
     pub fn thresholds_for(&self, scenario: &str) -> &Thresholds {
         self.scenario_thresholds
             .get(scenario)

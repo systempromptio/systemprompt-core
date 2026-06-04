@@ -7,10 +7,6 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-/// Build a fresh tempdir-rooted env so `dirs::*`, cache reads, and config
-/// resolution never touch the developer's real home. `SP_BRIDGE_PAT` and
-/// `SP_BRIDGE_CONFIG` are cleared so only the in-test `Config` drives
-/// behaviour.
 fn sandbox_vars(home: &TempDir) -> Vec<(&'static str, Option<String>)> {
     let root = home.path().to_string_lossy().into_owned();
     vec![

@@ -218,8 +218,6 @@ pub struct ScenarioJson {
     pub p99_ms: u128,
     pub error_rate: f64,
     pub passed: bool,
-    /// The SLO this scenario was judged against — embedded per scenario so the
-    /// report is self-describing and `passed` is unambiguous.
     pub thresholds: Thresholds,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub nodes: BTreeMap<String, NodeJson>,
@@ -253,8 +251,6 @@ impl MetricsSnapshot {
 pub struct ScenarioReport {
     pub aggregate: MetricsSnapshot,
     pub per_node: BTreeMap<NodeId, MetricsSnapshot>,
-    /// The SLO this scenario is judged against (resolved per scenario by the
-    /// active profile).
     pub thresholds: Thresholds,
 }
 

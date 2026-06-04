@@ -27,9 +27,6 @@ async fn insert_message(
     .map(|r| r.rows_affected())
 }
 
-/// The `(task_id, message_id)` uniqueness constraint must reject a replay
-/// of the same A2A messageId. This is the database-level guarantee the
-/// dedup story rests on.
 #[tokio::test]
 async fn duplicate_message_id_is_rejected_by_unique_constraint() -> Result<()> {
     let fx = Fixture::new().await?;
@@ -59,8 +56,6 @@ async fn duplicate_message_id_is_rejected_by_unique_constraint() -> Result<()> {
     Ok(())
 }
 
-/// Same messageId can legitimately appear under a different task_id. The
-/// uniqueness is scoped to (task_id, message_id), not message_id alone.
 #[tokio::test]
 async fn same_message_id_allowed_across_distinct_tasks() -> Result<()> {
     let fx = Fixture::new().await?;
@@ -75,9 +70,6 @@ async fn same_message_id_allowed_across_distinct_tasks() -> Result<()> {
     Ok(())
 }
 
-/// `sequence_number` is unique per task, so an out-of-order replay that
-/// reuses an already-assigned slot is rejected — protecting clients from
-/// silent reordering at the storage layer.
 #[tokio::test]
 async fn duplicate_sequence_number_is_rejected() -> Result<()> {
     let fx = Fixture::new().await?;

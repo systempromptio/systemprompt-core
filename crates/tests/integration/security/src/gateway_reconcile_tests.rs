@@ -72,8 +72,6 @@ async fn cleanup(pg: &PgPool, id: &RouteId) {
     .expect("cleanup entities");
 }
 
-/// A registry whose only provider is `name`, so `synthesize_default_route`
-/// finds it and `dispatchable_route_ids` emits the catch-all `star-<hash>` id.
 fn registry(name: &str) -> ProviderRegistry {
     ProviderRegistry {
         providers: vec![ProviderEntry {
@@ -103,8 +101,6 @@ fn gateway_with_default(provider: &str) -> GatewayConfig {
     }
 }
 
-/// A single `entity_match: "*"` gateway_route allow rule for `roles`: the same
-/// wildcard shape `services/access-control/roles.yaml` ships.
 fn wildcard_gateway_rule(roles: &[&str]) -> AccessControlConfig {
     AccessControlConfig {
         rules: vec![RuleEntry {

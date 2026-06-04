@@ -4,11 +4,6 @@ use systemprompt_models::a2a::TaskState;
 
 use crate::common::Fixture;
 
-/// N writers race to set conflicting terminal states. Exactly one terminal
-/// must commit: writers targeting the winning terminal succeed (either via
-/// the real CAS write or via the same-state idempotent short-circuit), and
-/// writers targeting a different terminal must fail with a state-machine
-/// constraint-violation. The persisted final status must be a legal terminal.
 #[tokio::test]
 async fn concurrent_terminal_writes_have_a_single_winner() -> Result<()> {
     let fx = Arc::new(Fixture::new().await?);
@@ -74,8 +69,6 @@ async fn concurrent_terminal_writes_have_a_single_winner() -> Result<()> {
     Ok(())
 }
 
-/// Concurrent attempts to advance Submitted -> Working: many can compete but
-/// only one CAS will succeed; the persisted state is Working either way.
 #[tokio::test]
 async fn concurrent_working_writes_converge_to_working() -> Result<()> {
     let fx = Arc::new(Fixture::new().await?);

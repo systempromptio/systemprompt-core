@@ -68,10 +68,6 @@ fn context_id_round_trip_is_deterministic() {
     assert_eq!(a, b);
 }
 
-/// Pin the byte-exact wire format of the hash. If this test changes,
-/// every existing audit row's context_id will start drifting silently —
-/// changing the algorithm must be a deliberate breaking change with a
-/// migration plan.
 #[test]
 fn known_vector_does_not_drift() {
     let h = conversation_prefix_hash(Some("you are helpful"), "user", "hello");

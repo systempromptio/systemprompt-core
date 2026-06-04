@@ -16,10 +16,6 @@ struct JsonReport {
     aggregate: Aggregate,
 }
 
-/// Serialize the report to `out_file`. Each scenario carries its own SLO and
-/// `passed` verdict (judged against that scenario's thresholds), and the
-/// aggregate `all_passed` is the conjunction of those verdicts. Returns
-/// `all_passed` so the caller can set the process exit code.
 pub fn write(report: &Report, out_file: &str) -> Result<bool, String> {
     let mut scenarios = BTreeMap::new();
     let mut total_requests = 0u64;

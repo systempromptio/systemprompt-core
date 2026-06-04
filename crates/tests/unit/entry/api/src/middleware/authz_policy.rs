@@ -149,17 +149,6 @@ async fn restricted_to_excluding_anon_emits_generic_403() {
     );
 }
 
-/// Regression guard for the v0.11.0 MCP 401→403 collapse.
-///
-/// The MCP route mount MUST use a policy that admits `UserType::Anon` at the
-/// route gate so the downstream proxy handler can answer with the RFC 9728
-/// `WWW-Authenticate: Bearer resource_metadata="…"` 401 challenge. If anyone
-/// re-narrows that mount to `AuthzPolicy::restricted_to([User, Admin, Mcp,
-/// Service])` (or any policy excluding `Anon`), this test fails — because the
-/// only policy currently in the codebase that admits `Anon` is `public()`.
-///
-/// The companion integration test in `routes_mcp_unauth_challenge.rs` locks in
-/// the wire-level behaviour for the full mounted stack.
 #[tokio::test]
 async fn mcp_route_gate_must_admit_anon_so_proxy_can_emit_rfc9728_challenge() {
     let (status, _) = drive(gate_app(AuthzPolicy::public(), Some(anon_context()))).await;

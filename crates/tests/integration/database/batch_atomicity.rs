@@ -54,9 +54,6 @@ async fn count(pool: &PgPool, table: &str) -> i64 {
     row.try_get("n").expect("n")
 }
 
-/// A single multi-row INSERT must be atomic at the statement level — when
-/// Postgres rejects row 3 for a unique-constraint violation, rows 1 and 2
-/// from the same statement must not be visible afterwards.
 #[tokio::test]
 async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
     let pool = connect_pool().await;
@@ -90,9 +87,6 @@ async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
     drop_table(&pool, &table).await;
 }
 
-/// An explicit transaction containing several INSERT statements must roll
-/// the entire transaction back when any statement inside fails, even when
-/// the failures span statements (not just rows within one statement).
 #[tokio::test]
 async fn transactional_batch_rolls_back_on_mid_batch_failure() {
     let pool = connect_pool().await;
@@ -139,11 +133,6 @@ async fn transactional_batch_rolls_back_on_mid_batch_failure() {
     drop_table(&pool, &table).await;
 }
 
-/// `INSERT ... ON CONFLICT DO NOTHING` is the alternative path used by some
-/// idempotent loaders. The documented contract is: pre-existing rows are
-/// preserved unchanged; new rows insert; no error is raised. This test
-/// pins that contract so a regression to `DO UPDATE` (which would clobber
-/// pre-existing rows) is caught.
 #[tokio::test]
 async fn upsert_do_nothing_preserves_existing_rows() {
     let pool = connect_pool().await;
@@ -187,10 +176,6 @@ async fn upsert_do_nothing_preserves_existing_rows() {
     drop_table(&pool, &table).await;
 }
 
-/// `INSERT ... ON CONFLICT DO UPDATE` under concurrent writers must produce
-/// exactly one row per key, and the surviving payload must be one of the
-/// writers' inputs (no torn writes blending columns from different
-/// writers).
 #[tokio::test]
 async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
     let pool = Arc::new(connect_pool().await);
@@ -257,10 +242,6 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
     drop_table(pool.as_ref(), &table).await;
 }
 
-/// On a `DO UPDATE` upsert, columns NOT mentioned in the `SET` clause must
-/// keep their pre-existing values. A regression that switched the SET list
-/// to include unintended columns would surface as a lost update of the
-/// untouched column.
 #[tokio::test]
 async fn upsert_do_update_does_not_clobber_unrelated_columns() {
     let pool = connect_pool().await;

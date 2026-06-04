@@ -68,8 +68,6 @@ async fn cleanup_client(db: &systemprompt_database::DbPool, client_id: &ClientId
     let _ = repo.delete(client_id).await;
 }
 
-/// N concurrent exchanges of the same authorization code:
-/// exactly one wins, all others see "Invalid authorization code".
 #[tokio::test]
 async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     let db = setup_test_db().await;
@@ -123,8 +121,6 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     cleanup_test_user(&db, &user_id).await;
 }
 
-/// An expired authorization code is rejected even when its row still exists
-/// in the table (cleanup not yet run).
 #[tokio::test]
 async fn test_auth_code_expiry_rejected_after_ttl() {
     let db = setup_test_db().await;
@@ -172,8 +168,6 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     cleanup_test_user(&db, &user_id).await;
 }
 
-/// Refresh-token rotation: rotating R1 yields R2; replaying R1 afterwards
-/// must (a) fail and (b) revoke the entire family (R2 invalidated too).
 #[tokio::test]
 async fn test_refresh_token_replay_revokes_family() {
     let db = setup_test_db().await;
@@ -237,8 +231,6 @@ async fn test_refresh_token_replay_revokes_family() {
     cleanup_test_user(&db, &user_id).await;
 }
 
-/// Two concurrent rotations of the same refresh token: exactly one wins;
-/// the loser triggers family revocation so neither can rotate again.
 #[tokio::test]
 async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     let db = setup_test_db().await;
@@ -301,10 +293,6 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     cleanup_test_user(&db, &user_id).await;
 }
 
-/// Two concurrent exchanges of the same PKCE-bound code with *different*
-/// verifiers: at most one succeeds, and if it does, only the correct
-/// verifier wins. The wrong verifier must never produce a successful
-/// exchange even when it arrives first.
 #[tokio::test]
 async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     let db = setup_test_db().await;
@@ -377,9 +365,6 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     cleanup_test_user(&db, &user_id).await;
 }
 
-/// A second `register`/`create` with the same client_id by a different user
-/// must not hijack the existing client. The PRIMARY KEY on `client_id`
-/// enforces this at the DB layer; this test asserts the error surfaces.
 #[tokio::test]
 async fn test_dynamic_client_registration_owner_not_hijackable() {
     let db = setup_test_db().await;
@@ -428,9 +413,6 @@ async fn test_dynamic_client_registration_owner_not_hijackable() {
     cleanup_test_user(&db, &owner_b).await;
 }
 
-/// Concurrent first-time registrations with the same client_id from
-/// different users: at most one wins, the rest see the unique-constraint
-/// error surfaced cleanly.
 #[tokio::test]
 async fn test_concurrent_client_registration_race() {
     let db = setup_test_db().await;

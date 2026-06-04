@@ -31,14 +31,8 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
-/// Job name used by both replicas in this test. Unique enough not to collide
-/// with the built-in jobs discovered via `inventory`.
 const TEST_JOB_NAME: &str = "test_distributed_lock_probe";
 
-/// A trivial job whose only purpose is to be scheduled. The scheduler
-/// increments `scheduled_jobs.run_count` for every execution it dispatches,
-/// so the job body itself does not need to touch the database — the run
-/// count is the observable signal.
 #[derive(Debug, Clone, Copy)]
 struct DistributedLockProbeJob;
 
@@ -64,7 +58,6 @@ impl Job for DistributedLockProbeJob {
 
 systemprompt_traits::submit_job!(&DistributedLockProbeJob);
 
-/// Scheduler config with exactly the probe job, on a one-second cron.
 fn probe_config(distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
@@ -74,8 +67,6 @@ fn probe_config(distributed_lock: bool) -> SchedulerConfig {
     }
 }
 
-/// Reset the probe job's `scheduled_jobs` row so each test starts from a
-/// known baseline regardless of prior runs.
 async fn reset_job_row(pool: &DbPool) -> Result<()> {
     sqlx::query("DELETE FROM scheduled_jobs WHERE job_name = $1")
         .bind(TEST_JOB_NAME)
@@ -84,7 +75,6 @@ async fn reset_job_row(pool: &DbPool) -> Result<()> {
     Ok(())
 }
 
-/// Read the current `run_count` for the probe job, or 0 if the row is absent.
 async fn read_run_count(pool: &DbPool) -> Result<i32> {
     let count: Option<i32> =
         sqlx::query_scalar("SELECT run_count FROM scheduled_jobs WHERE job_name = $1")
@@ -94,8 +84,6 @@ async fn read_run_count(pool: &DbPool) -> Result<i32> {
     Ok(count.unwrap_or(0))
 }
 
-/// Run two scheduler replicas against one database for `window`, then return
-/// the observed `run_count` for the probe job.
 async fn run_two_replicas(distributed_lock: bool, window: Duration) -> Result<i32> {
     let database_url = fixture_database_url()?;
     let pool = fixture_db_pool(&database_url).await?;
@@ -124,21 +112,6 @@ async fn run_two_replicas(distributed_lock: bool, window: Duration) -> Result<i3
     read_run_count(&pool).await
 }
 
-/// Regression test for the cross-replica single-execution guarantee.
-///
-/// Both phases share the one `scheduled_jobs` probe row, so they must run
-/// sequentially in a single test — two `#[tokio::test]` functions would race
-/// on that row under the default parallel test harness.
-///
-/// Phase 1 (lock enabled): two replicas sharing a database run the job ONCE
-/// per tick. Over a `W`-second window we expect roughly `W` one-second ticks;
-/// cron alignment puts the true count in `W - 1 ..= W + 1`. The defining
-/// property of the fix is that the count stays near the single-replica rate
-/// and does not approach `2 * W`.
-///
-/// Phase 2 (negative control, lock disabled): the same setup double-fires —
-/// both replicas dispatch every tick — documenting exactly what the lock
-/// prevents.
 #[tokio::test]
 async fn distributed_lock_suppresses_duplicate_execution() -> Result<()> {
     let window_secs: u64 = 6;

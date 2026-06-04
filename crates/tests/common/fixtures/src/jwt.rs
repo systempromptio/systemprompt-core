@@ -42,11 +42,6 @@ pub fn mint_admin_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
     JwtService::generate_admin_token(&params).expect("mint admin jwt")
 }
 
-/// Bridge JWT shape — same RS256 signature path as admin tokens but with a
-/// user-tier `user_type` and `User` permissions. The gateway only requires a
-/// valid signature, an extant DB user row, and a non-empty session id; we keep
-/// `roles = ["user"]` and `scope = [User]` to exercise the non-admin code
-/// paths in `decode_for_gateway`.
 pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken {
     install_test_signing_key();
     let session = SessionId::generate();

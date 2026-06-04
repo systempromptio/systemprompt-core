@@ -4,10 +4,6 @@ use systemprompt_security::keys::JwksClientError;
 
 use crate::support::{JwksMock, TestKey, client_for_with_min_refresh};
 
-/// The kid-miss throttle (`min_refresh_interval`) must coalesce repeated
-/// lookups for a kid that isn't in the cached JWKS — whether that kid was
-/// revoked or never existed. Without it, an attacker-supplied `kid` becomes a
-/// JWKS-endpoint amplification vector.
 #[tokio::test]
 async fn unknown_kid_does_not_amplify_network_load() {
     let seed = TestKey::generate();

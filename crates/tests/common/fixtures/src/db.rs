@@ -10,18 +10,12 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_database::{Database, DbPool};
 
-/// Resolve the integration-test database URL from the environment.
-///
-/// Reads `.env` if present, then `DATABASE_URL`. Returns an error with a
-/// human-readable hint if unset — DB-backed tests should `?` on this rather
-/// than panicking.
 pub fn fixture_database_url() -> Result<String> {
     dotenvy::dotenv().ok();
     std::env::var("DATABASE_URL")
         .map_err(|_| anyhow::anyhow!("DATABASE_URL must be set for DB-backed integration tests"))
 }
 
-/// Open a `DbPool` against the supplied URL.
 pub async fn fixture_db_pool(url: &str) -> Result<DbPool> {
     let database = Database::new_postgres(url)
         .await

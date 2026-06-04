@@ -78,11 +78,6 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     Ok(server.into_router())
 }
 
-/// Some test runners share the prometheus recorder across modules; if a
-/// sibling `server_boot::setup_api_server_assembles_full_router` ran first the
-/// recorder is already installed and `setup_api_server` errors. Treat that as
-/// a no-op for this module — we still exercise the assembly path the rest of
-/// the time.
 async fn try_boot() -> Option<axum::Router> {
     boot_server().await.ok()
 }

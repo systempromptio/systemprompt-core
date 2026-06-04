@@ -143,9 +143,6 @@ async fn user_deny_overrides_role_allow_specificity_wins() {
     wipe_rules(&db, EntityKind::McpServer.as_str(), entity_id).await;
 }
 
-/// Deny-overrides at resolve time: when both an Allow and a Deny rule
-/// persist for the same user against the same entity, Deny must win
-/// regardless of the order they appear in `rules`.
 #[tokio::test]
 async fn deny_overrides_at_resolve_regardless_of_rule_order() {
     use systemprompt_security::authz::types::{AccessRule, RuleType};
