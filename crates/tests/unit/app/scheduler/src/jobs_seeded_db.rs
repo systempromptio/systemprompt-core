@@ -52,6 +52,14 @@ fn unique_id(prefix: &str) -> String {
     format!("{prefix}_{}_{}_{}", std::process::id(), n, nanos)
 }
 
+fn unique_ip(class_b: &str) -> String {
+    // Lower two octets carry the full PID, not `pid % N`: live PIDs are unique,
+    // so parallel test processes never alias onto one address and race on the
+    // shared `banned_ips` table.
+    let pid = std::process::id();
+    format!("{class_b}.{}.{}", ((pid >> 8) & 0xff) as u8, (pid & 0xff) as u8)
+}
+
 mod behavioral_analysis_seeded {
     use super::*;
 
@@ -249,7 +257,7 @@ mod behavioral_analysis_seeded {
             .expect("write pool must be available");
 
         let hash = unique_id("fp_ban");
-        let ip = format!("10.0.{}.{}", std::process::id() % 255, 42u8);
+        let ip = unique_ip("10.0");
 
         sqlx::query!(
             r#"
@@ -482,7 +490,7 @@ mod malicious_ip_blacklist_seeded {
             .write_pool_arc()
             .expect("write pool must be available");
 
-        let ip = format!("192.168.{}.{}", (std::process::id() % 200 + 1) as u8, 1u8);
+        let ip = unique_ip("192.168");
         let mut session_ids = Vec::new();
 
         for i in 0u64..110 {
@@ -523,7 +531,7 @@ mod malicious_ip_blacklist_seeded {
             .write_pool_arc()
             .expect("write pool must be available");
 
-        let ip = format!("172.16.{}.{}", (std::process::id() % 100 + 1) as u8, 2u8);
+        let ip = unique_ip("172.16");
         let mut session_ids = Vec::new();
 
         for i in 0u64..5 {
@@ -559,7 +567,7 @@ mod malicious_ip_blacklist_seeded {
             .write_pool_arc()
             .expect("write pool must be available");
 
-        let ip = format!("47.79.{}.{}", (std::process::id() % 200 + 1) as u8, 3u8);
+        let ip = unique_ip("47.79");
         let sid = unique_id("datacenter_sess");
 
         insert_session(&pg, &sid, &ip, false, false, None).await;
@@ -589,7 +597,7 @@ mod malicious_ip_blacklist_seeded {
             .write_pool_arc()
             .expect("write pool must be available");
 
-        let ip = format!("10.20.{}.{}", (std::process::id() % 200 + 1) as u8, 4u8);
+        let ip = unique_ip("10.20");
         let mut session_ids = Vec::new();
 
         for i in 0u64..6 {
@@ -625,7 +633,7 @@ mod malicious_ip_blacklist_seeded {
             .write_pool_arc()
             .expect("write pool must be available");
 
-        let ip = format!("192.0.{}.{}", (std::process::id() % 200 + 1) as u8, 5u8);
+        let ip = unique_ip("192.0");
 
         sqlx::query!(
             r#"
@@ -676,7 +684,7 @@ mod malicious_ip_blacklist_seeded {
             .write_pool_arc()
             .expect("write pool must be available");
 
-        let ip = format!("10.30.{}.{}", (std::process::id() % 200 + 1) as u8, 6u8);
+        let ip = unique_ip("10.30");
         let mut session_ids = Vec::new();
 
         for i in 0u64..6 {
