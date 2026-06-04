@@ -22,8 +22,7 @@ const CURRENT_VERSION: u32 = 5;
 const MIN_SUPPORTED_VERSION: u32 = 5;
 const SESSION_DURATION_HOURS: i64 = 24;
 
-/// The authenticated identity a CLI session represents. Bundled so every
-/// builder call carries the full triple — there is no longer a default
+/// Bundled so every builder call carries the full triple — there is no default
 /// that silently elevates an unbound session to admin.
 #[derive(Debug, Clone)]
 pub struct SessionIdentity {
