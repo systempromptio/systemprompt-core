@@ -4,7 +4,6 @@
 //! field visitor route values through here so the two sinks cannot drift on
 //! what counts as a secret.
 
-/// Rendered in place of a redacted field value.
 pub(crate) const REDACTION_PLACEHOLDER: &str = "[REDACTED]";
 
 /// Substrings (matched case-insensitively anywhere in the name) that mark a
