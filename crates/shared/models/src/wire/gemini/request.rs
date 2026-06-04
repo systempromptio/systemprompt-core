@@ -15,9 +15,11 @@ use crate::wire::canonical::{
     ResponseFormat, Role,
 };
 
-/// `max_thinking_budget` is the upstream model's thinking-budget ceiling (from
-/// its model card); the requested budget is clamped to it so Gemini does not
-/// reject an out-of-range `thinkingBudget`. `None` leaves the budget untouched.
+/// Clamps the requested thinking budget to `max_thinking_budget`.
+///
+/// `max_thinking_budget` is the upstream model's ceiling (from its model card);
+/// clamping stops Gemini rejecting an out-of-range `thinkingBudget`. `None`
+/// leaves the budget untouched.
 #[must_use]
 pub fn build_request_body(request: &CanonicalRequest, max_thinking_budget: Option<u32>) -> Value {
     let body = GeminiRequest {
