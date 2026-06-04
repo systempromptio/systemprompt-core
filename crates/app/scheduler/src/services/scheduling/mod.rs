@@ -78,10 +78,8 @@ impl SchedulerService {
         })
     }
 
-    /// Resolves job owners, registers every enabled configured job against
-    /// the cron scheduler, and starts dispatching on schedule. Returns the live
-    /// [`SchedulerHandle`] so the caller can drain the dispatch loop on
-    /// shutdown, or `None` when the scheduler is disabled in config.
+    /// `None` when the scheduler is disabled in config; otherwise the live
+    /// [`SchedulerHandle`] the caller drains on shutdown.
     pub async fn start(self) -> SchedulerResult<Option<SchedulerHandle>> {
         if !self.config.enabled {
             info!("Scheduler is disabled");

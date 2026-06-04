@@ -26,8 +26,6 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfig {
-    /// Projects a loaded services manifest into the flat agent + MCP service
-    /// list the state verifier operates on.
     #[must_use]
     pub fn list_from_manifest(services: &systemprompt_models::ServicesConfig) -> Vec<Self> {
         let agents = services.agents.iter().map(|(name, agent)| Self {
