@@ -19,11 +19,6 @@ use super::repository::AccessControlRepository;
 use super::types::EntityKind;
 use crate::authz::error::AuthzResult;
 
-/// Upsert one `gateway_route` entity row per id.
-///
-/// Each row is registered `default_included = false`; the returned count is the
-/// number of routes processed. Idempotent: re-running with the same ids is a
-/// no-op beyond refreshing `source`.
 pub async fn reconcile_gateway_entities(
     repo: &AccessControlRepository,
     route_ids: &[&str],

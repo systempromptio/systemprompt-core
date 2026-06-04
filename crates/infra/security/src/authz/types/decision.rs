@@ -18,9 +18,7 @@ pub enum MatchedBy {
     RoleAllow {
         role: String,
     },
-    /// No matching rule, but the entity's `default_included` flag was set.
     DefaultIncluded,
-    /// Allowed by a named tool-use governance policy (secret scan, etc).
     PolicyAllow {
         policy_id: PolicyId,
         detail: Cow<'static, str>,

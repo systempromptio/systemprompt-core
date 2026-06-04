@@ -46,9 +46,6 @@ pub struct AuthzHookRegistration {
 
 inventory::collect!(AuthzHookRegistration);
 
-/// Returns the composed extension hook from every
-/// [`crate::register_authz_hook!`] submission in the binary, or `None` if no
-/// submissions exist.
 #[must_use]
 pub fn discover_authz_hook(ctx: &AuthzHookContext) -> Option<SharedAuthzHook> {
     let hooks: Vec<SharedAuthzHook> = inventory::iter::<AuthzHookRegistration>()

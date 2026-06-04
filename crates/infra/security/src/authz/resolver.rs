@@ -40,29 +40,12 @@ pub struct ResolveInput<'a> {
     pub parents: &'a [ResolveParent<'a>],
 }
 
-/// Resolve an access decision with deny-overrides precedence and
-/// parent-entity inheritance.
-///
-/// The precedence ladder, evaluated strictly top to bottom and short-circuiting
-/// on the first match, is:
-///
-/// 1. own user-deny → own user-allow → own role-deny → own role-allow
-/// 2. for each parent (nearest first): parent user-deny → parent user-allow →
-///    parent role-deny → parent role-allow
-/// 3. own `default_included` (`true` → Allow)
-/// 4. each parent's `default_included` (nearest `true` → Allow)
-/// 5. otherwise Deny
-///
-/// A grant on a parent therefore cascades to the child only when neither the
-/// child nor a nearer parent has a more specific matching rule. A child deny
-/// always overrides a parent allow, and a nearer rule always overrides a
-/// farther one within the same band.
-///
-/// If the child entity's own `default_included` is `None`, the entity is
-/// unknown to access control. In that case the result is
-/// [`DenyReason::UnknownEntity`] only when no rule (own or parent) matches and
-/// no parent grants access via its own `default_included`; an explicit or
-/// inherited grant still resolves to [`Decision::Allow`].
+/// Parent inheritance, on top of the crate-head deny-overrides model: a child
+/// deny overrides a parent allow, a nearer rule overrides a farther one within
+/// the same precedence band, and a parent grant cascades to the child only when
+/// no nearer rule matches. An unknown child entity (`default_included == None`)
+/// yields [`DenyReason::UnknownEntity`] unless a rule or a parent's
+/// `default_included` grants access.
 #[must_use]
 pub fn resolve(input: ResolveInput<'_>) -> Decision {
     let ResolveInput {

@@ -36,7 +36,6 @@ impl SecretLocation {
     }
 }
 
-/// Configured rate-limit window the caller exceeded.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RateLimitWindow {
     pub name: String,
@@ -70,12 +69,8 @@ impl AgentScope {
 /// `AccessScope` answers "what permission tier is granted to this invocation"
 /// (admin, plain user, unknown). The two are orthogonal — a system actor may
 /// have any tier, a user actor may be admin or plain — so they live as
-/// separate fields rather than a cartesian enum.
-///
-/// The source-of-truth producer today is the agent YAML loader
-/// (`extensions/web/admin/.../governance/scope.rs::resolve_agent_scope`).
-/// `Unknown` is the documented fallback when no `oauth.scopes` entry is
-/// declared on the agent card.
+/// separate fields rather than a cartesian enum. `Unknown` is the fallback when
+/// an agent card declares no `oauth.scopes` entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
@@ -153,8 +148,6 @@ impl McpToolInput {
     }
 }
 
-/// Per-evaluation context handed to every policy in a
-/// [`super::GovernanceChain`].
 #[derive(Debug)]
 pub struct PolicyContext<'a> {
     pub tool: McpToolName,
@@ -198,9 +191,6 @@ impl GovernanceChain {
         &self.entries
     }
 
-    /// Evaluate every policy in order. The first [`Decision::Deny`]
-    /// short-circuits; if all policies allow, fall through to
-    /// [`crate::authz::types::MatchedBy::DefaultIncluded`].
     #[must_use]
     pub fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision {
         for policy in &self.entries {

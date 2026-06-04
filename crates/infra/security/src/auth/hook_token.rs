@@ -22,8 +22,6 @@ use systemprompt_models::auth::{JwtAudience, Permission};
 use crate::error::{AuthError, AuthResult};
 use crate::jwt::{ValidationPolicy, decode_rs256_claims};
 
-/// Successfully-validated hook token claims, projected to the bits the
-/// caller needs to dispatch a govern/track decision.
 #[derive(Debug, Clone)]
 pub struct ValidatedHookClaims {
     pub plugin_id: PluginId,
@@ -42,7 +40,6 @@ impl HookTokenValidator {
         Self { issuer }
     }
 
-    /// Validate a hook token for the `/api/public/hooks/govern` endpoint.
     pub fn validate_govern(
         &self,
         token: &str,
@@ -56,7 +53,6 @@ impl HookTokenValidator {
         )
     }
 
-    /// Validate a hook token for the `/api/public/hooks/track` endpoint.
     pub fn validate_track(
         &self,
         token: &str,

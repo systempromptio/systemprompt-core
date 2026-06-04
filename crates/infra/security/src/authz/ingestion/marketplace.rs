@@ -13,10 +13,6 @@ use super::upsert::{Target, UpsertOutcome, upsert_marketplace_entity_row, upsert
 use super::{AccessControlIngestionService, IngestOptions, IngestReport};
 
 impl AccessControlIngestionService {
-    /// Projects each marketplace's declarative `access` block into
-    /// marketplace-scoped `access_control_entities` / `access_control_rules`
-    /// rows, reusing the same role-rule upsert path as [`Self::ingest_config`].
-    ///
     /// Only `access.roles` and `access.default_included` cross the boundary —
     /// the opaque `access.attributes` bag is never ingested; it is forwarded
     /// verbatim to extension ABAC hooks elsewhere. Marketplaces with no roles

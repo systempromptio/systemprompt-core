@@ -71,8 +71,6 @@ impl AccessControlIngestionService {
         Self { write_pool: pool }
     }
 
-    /// Projects [`AccessControlConfig`] into the authz tables.
-    ///
     /// `entity_match` globs are resolved against rows **already present** in
     /// `access_control_entities` for the rule's kind — entity bootstrap
     /// (publish pipeline, gateway reconciliation) must therefore run before

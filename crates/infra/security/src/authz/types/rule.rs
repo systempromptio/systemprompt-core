@@ -15,12 +15,9 @@ pub struct AccessRule {
 
 /// One row from `access_control_entities`.
 ///
-/// Owns the per-entity `default_included` flag and a provenance string
-/// identifying which loader pass first registered the entity
-/// (`"profile:<name>"`, `"roles.yaml"`, or `"bootstrap:*"` for rows
-/// promoted from older schemas by a migration).
-/// Callers pair this with [`AccessRule`]s from
-/// `access_control_rules` and hand both to [`crate::authz::resolver::resolve`].
+/// The `source` provenance string identifies which loader pass first
+/// registered the entity: `"profile:<name>"`, `"roles.yaml"`, or `"bootstrap:*"`
+/// for rows promoted from older schemas by a migration.
 ///
 /// A `None` lookup result means the entity is unknown to access control and
 /// the resolver returns [`super::decision::DenyReason::UnknownEntity`] rather
