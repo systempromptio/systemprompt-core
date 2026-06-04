@@ -11,9 +11,6 @@ use systemprompt_traits::validation_report::{
     ValidationError, ValidationReport, ValidationWarning,
 };
 
-/// Validates every required and optional path a profile resolves to —
-/// declared roots (`system`, `services`, `bin`) and derived locations
-/// (`skills`, `config`, web and content config files).
 #[must_use]
 pub fn validate_profile_paths(profile: &Profile, _profile_path: &str) -> ValidationReport {
     let mut report = ValidationReport::new("paths");

@@ -73,10 +73,8 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::rename(&tmp, path)
 }
 
-/// Probe whether `dir` is writable by attempting to create and remove a
-/// temporary file. Used to detect a read-only profile mount before writing
-/// the manifest signing seed, so callers can degrade gracefully rather than
-/// failing with `EROFS`.
+/// Detects a read-only profile mount before writing the manifest signing seed,
+/// so callers can degrade gracefully rather than failing with `EROFS`.
 #[must_use]
 pub(super) fn dir_is_writable(dir: &Path) -> bool {
     let probe = dir.join(".sp-write-probe");

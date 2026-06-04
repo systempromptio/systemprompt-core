@@ -7,10 +7,8 @@
 
 use systemprompt_models::profile::GatewayConfigSpec;
 
-/// Synthesize stable ids for any route that was authored without one.
-///
-/// Returns `true` if any route was mutated. Ids are deterministic, so the
-/// backfill is reapplied identically on every load rather than persisted.
+/// Ids are deterministic, so this in-memory backfill is reapplied identically
+/// on every load rather than persisted to disk.
 pub fn backfill_route_ids(spec: &mut GatewayConfigSpec) -> bool {
     let mut mutated = false;
     for route in &mut spec.routes {
