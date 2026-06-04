@@ -8,13 +8,13 @@
 //! transport concerns stay with the gateway adapter; this module is pure wire
 //! translation.
 //!
-//! Reasoning models (`gpt-5*`, `o1*`, `o3*`, `o4*`) bill internal reasoning from
-//! the same completion budget as visible output, so a caller `max_tokens` — which
-//! on the inbound Anthropic surface bounds only visible output — can be consumed
-//! entirely by reasoning and trigger an upstream output-limit rejection.
-//! [`output_token_ceiling`] therefore raises the upstream ceiling to the model
-//! maximum for these families; [`is_reasoning_model`] identifies them. Both
-//! `OpenAI` codecs (Chat Completions and Responses) share these.
+//! Reasoning models (`gpt-5*`, `o1*`, `o3*`, `o4*`) bill internal reasoning
+//! from the same completion budget as visible output, so a caller `max_tokens`
+//! — which on the inbound Anthropic surface bounds only visible output — can be
+//! consumed entirely by reasoning and trigger an upstream output-limit
+//! rejection. [`output_token_ceiling`] therefore raises the upstream ceiling to
+//! the model maximum for these families; [`is_reasoning_model`] identifies
+//! them. Both `OpenAI` codecs (Chat Completions and Responses) share these.
 
 mod request;
 mod response;
