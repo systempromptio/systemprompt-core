@@ -91,7 +91,6 @@ pub async fn probe_all() -> Vec<McpServerAuth> {
     out
 }
 
-/// Builds the probe HTTP client (production timeout + `no_proxy`).
 pub fn build_client() -> reqwest::Result<reqwest::Client> {
     reqwest::Client::builder()
         .timeout(PROBE_TIMEOUT)

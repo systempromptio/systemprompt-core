@@ -11,8 +11,6 @@ use crate::models::{User, UserRole, UserStatus};
 use crate::repository::UserRepository;
 
 impl UserRepository {
-    /// Look up the local `UserId` for an external `(issuer, external_sub)`
-    /// without side effects. Returns `Ok(None)` if no mapping exists yet.
     pub async fn find_federated(&self, issuer: &str, external_sub: &str) -> Result<Option<UserId>> {
         let row = sqlx::query!(
             "SELECT user_id FROM federated_identities WHERE issuer = $1 AND external_sub = $2",
@@ -25,13 +23,6 @@ impl UserRepository {
         Ok(row.map(|r| UserId::new(r.user_id)))
     }
 
-    /// Resolve a federated identity to a local `User`, creating both the
-    /// `users` row and the `federated_identities` mapping on first touch.
-    ///
-    /// All writes happen in a single transaction so a race between two
-    /// concurrent first-touch requests for the same `(issuer, external_sub)`
-    /// cannot produce two local users — the second loser observes the
-    /// primary-key conflict and re-reads the mapping.
     pub async fn find_or_create_federated(
         &self,
         issuer: &str,
