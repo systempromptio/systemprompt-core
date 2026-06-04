@@ -29,8 +29,6 @@ use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 const OUTBOX_RETENTION: Duration = Duration::from_secs(3600);
 const PRUNE_INTERVAL: Duration = Duration::from_secs(300);
 
-/// Background relay that mirrors `event_outbox` rows into the local
-/// broadcasters of the replica it runs on.
 #[derive(Debug, Clone)]
 pub struct PostgresEventBridge {
     pool: PgPool,

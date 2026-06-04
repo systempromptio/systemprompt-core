@@ -31,7 +31,6 @@ use crate::Broadcaster;
 use systemprompt_identifiers::Actor;
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
-/// Postgres `LISTEN`/`NOTIFY` channel used for the cross-replica relay.
 pub const OUTBOX_CHANNEL: &str = "systemprompt_events";
 
 pub static CONTEXT_BROADCASTER: LazyLock<ContextBroadcaster> =
