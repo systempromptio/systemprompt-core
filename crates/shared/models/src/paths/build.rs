@@ -57,12 +57,10 @@ impl BuildPaths {
         }
     }
 
-    /// Resolve the path of the currently running executable.
-    ///
-    /// Spawning an agent re-execs this same binary with `admin agents run`,
-    /// so the binary to launch is whatever is running now — not a fixed name.
-    /// Deriving it from the OS lets a renamed binary (e.g. `systemprompt-web`)
-    /// spawn its own agents without a hardcoded `systemprompt` lookup.
+    /// Spawning an agent re-execs this same binary with `admin agents run`, so
+    /// the binary to launch is whatever is running now — deriving it from the OS
+    /// (not a hardcoded `systemprompt` name) lets a renamed binary (e.g.
+    /// `systemprompt-web`) spawn its own agents.
     pub fn resolve_self() -> Result<PathBuf, PathError> {
         let exe = std::env::current_exe()
             .map_err(|source| PathError::CurrentExeUnavailable { source })?;

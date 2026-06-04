@@ -47,8 +47,6 @@ pub struct McpConfig {
     #[serde(default)]
     pub auto_discover: bool,
 
-    /// Resilience policy applied to outbound MCP tool RPCs (timeouts, retry,
-    /// circuit breaker, bulkhead).
     #[serde(default = "default_mcp_resilience")]
     pub resilience: ResilienceSettings,
 }
@@ -79,43 +77,38 @@ fn default_mcp_resilience() -> ResilienceSettings {
 /// primitives in `systemprompt-database`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ResilienceSettings {
-    /// Timeout for a single (non-streaming) attempt.
+    /// Per-attempt (not whole-call) timeout; non-streaming only.
     #[serde(default = "default_request_timeout")]
     pub request_timeout_ms: u64,
 
-    /// Connection-establishment timeout.
     #[serde(default = "default_resilience_connect_timeout")]
     pub connect_timeout_ms: u64,
 
-    /// Maximum gap between two chunks of a streaming response.
+    /// Max gap between two chunks before a stream is aborted.
     #[serde(default = "default_stream_idle_timeout")]
     pub stream_idle_timeout_ms: u64,
 
-    /// Maximum attempts including the first. `1` disables retries.
+    /// Counts the first try, so `1` disables retries.
     #[serde(default = "default_retry_attempts")]
     pub retry_attempts: u32,
 
-    /// Backoff before the first retry; doubles each subsequent attempt.
+    /// Doubles each subsequent attempt.
     #[serde(default = "default_retry_base_delay")]
     pub retry_base_delay_ms: u64,
 
-    /// Upper bound on a single backoff delay.
     #[serde(default = "default_retry_max_delay")]
     pub retry_max_delay_ms: u64,
 
-    /// Consecutive failures that trip the circuit breaker open.
+    /// Consecutive (not cumulative) failures that trip the breaker open.
     #[serde(default = "default_breaker_threshold")]
     pub breaker_failure_threshold: u32,
 
-    /// How long the breaker stays open before allowing a half-open probe.
     #[serde(default = "default_breaker_cooldown")]
     pub breaker_open_cooldown_ms: u64,
 
-    /// Concurrent probes admitted while the breaker is half-open.
     #[serde(default = "default_half_open_probes")]
     pub breaker_half_open_probes: u32,
 
-    /// Maximum in-flight calls to the dependency; further calls fast-fail.
     #[serde(default = "default_max_concurrent")]
     pub max_concurrent: usize,
 }

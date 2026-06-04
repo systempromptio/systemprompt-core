@@ -15,8 +15,6 @@ use crate::wire::canonical::{
     ResponseFormat, Role,
 };
 
-/// Render a [`CanonicalRequest`] into a Gemini `generateContent` body.
-///
 /// `max_thinking_budget` is the upstream model's thinking-budget ceiling (from
 /// its model card); the requested budget is clamped to it so Gemini does not
 /// reject an out-of-range `thinkingBudget`. `None` leaves the budget untouched.
