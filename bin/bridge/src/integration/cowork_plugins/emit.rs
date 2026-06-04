@@ -146,9 +146,8 @@ pub fn clear_all(target: &CoworkTarget, plugin_name: &str) -> Result<(), EmitErr
     Ok(())
 }
 
-/// Removes legacy marketplace artefacts (dirs, `installed_plugins.json` row,
-/// `known_marketplaces.json` entry, enable key). Missing paths are not an
-/// error; this is a no-op on a clean session.
+/// Missing paths are not an error — a no-op on a session that carries no legacy
+/// marketplace state.
 pub(super) fn purge_legacy_marketplace(
     target: &CoworkTarget,
     plugin_name: &str,
