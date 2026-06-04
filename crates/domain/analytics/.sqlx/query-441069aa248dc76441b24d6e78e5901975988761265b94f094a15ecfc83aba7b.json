@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                COUNT(DISTINCT agent_name)::bigint as \"active_agents!\",\n                COUNT(*)::bigint as \"total_tasks!\",\n                COUNT(*) FILTER (WHERE status = 'completed')::bigint as \"completed_tasks!\"\n            FROM agent_tasks\n            WHERE started_at >= $1 AND started_at < $2\n            ",
+  "query": "\n            SELECT\n                COUNT(DISTINCT agent_name)::bigint as \"active_agents!\",\n                COUNT(*)::bigint as \"total_tasks!\",\n                COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as \"completed_tasks!\"\n            FROM agent_tasks\n            WHERE started_at >= $1 AND started_at < $2\n            ",
   "describe": {
     "columns": [
       {
@@ -31,5 +31,5 @@
       null
     ]
   },
-  "hash": "f599df23f6df9bd6c1f4dac8096b1c676ad5e7bd994a61179ee33f532b9efcac"
+  "hash": "441069aa248dc76441b24d6e78e5901975988761265b94f094a15ecfc83aba7b"
 }

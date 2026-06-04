@@ -35,8 +35,8 @@ impl AgentAnalyticsRepository {
             r#"
             SELECT
                 COUNT(*)::bigint as "total_tasks!",
-                COUNT(*) FILTER (WHERE status = 'completed')::bigint as "completed!",
-                COUNT(*) FILTER (WHERE status = 'failed')::bigint as "failed!",
+                COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed!",
+                COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!"
             FROM agent_tasks
             WHERE agent_name ILIKE $1
@@ -97,7 +97,7 @@ impl AgentAnalyticsRepository {
             LEFT JOIN logs l ON l.task_id = at.task_id AND l.level = 'ERROR'
             WHERE at.agent_name ILIKE $1
               AND at.started_at >= $2 AND at.started_at < $3
-              AND at.status = 'failed'
+              AND at.status = 'TASK_STATE_FAILED'
             GROUP BY SUBSTRING(l.message FROM 1 FOR 100)
             ORDER BY 2 DESC
             LIMIT 10

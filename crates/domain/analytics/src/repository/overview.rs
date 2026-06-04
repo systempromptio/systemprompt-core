@@ -49,7 +49,7 @@ impl OverviewAnalyticsRepository {
             SELECT
                 COUNT(DISTINCT agent_name)::bigint as "active_agents!",
                 COUNT(*)::bigint as "total_tasks!",
-                COUNT(*) FILTER (WHERE status = 'completed')::bigint as "completed_tasks!"
+                COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!"
             FROM agent_tasks
             WHERE started_at >= $1 AND started_at < $2
             "#,

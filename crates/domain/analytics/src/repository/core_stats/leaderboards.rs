@@ -39,7 +39,7 @@ impl CoreStatsRepository {
                 agent_name as "agent_name!",
                 COUNT(*) as "task_count!",
                 COALESCE(
-                    COUNT(*) FILTER (WHERE status = 'completed')::float / NULLIF(COUNT(*), 0),
+                    COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::float / NULLIF(COUNT(*), 0),
                     0.0
                 ) as "success_rate!",
                 COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) * 1000)::bigint, 0) as "avg_duration_ms!"

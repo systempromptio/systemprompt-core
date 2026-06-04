@@ -32,7 +32,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 t.agent_name as "agent_name!",
                 COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
+                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
@@ -42,7 +42,7 @@ impl AgentAnalyticsRepository {
               AND t.agent_name IS NOT NULL
             GROUP BY t.agent_name
             ORDER BY CASE WHEN COUNT(*) > 0
-                THEN COUNT(*) FILTER (WHERE t.status = 'completed')::float / COUNT(*)::float
+                THEN COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::float / COUNT(*)::float
                 ELSE 0 END DESC
             LIMIT $3
             "#,
@@ -67,7 +67,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 t.agent_name as "agent_name!",
                 COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
+                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
@@ -100,7 +100,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 t.agent_name as "agent_name!",
                 COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
+                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
@@ -133,7 +133,7 @@ impl AgentAnalyticsRepository {
             SELECT
                 t.agent_name as "agent_name!",
                 COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
+                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
                 COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"

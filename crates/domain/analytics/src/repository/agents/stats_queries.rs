@@ -19,8 +19,11 @@ impl AgentAnalyticsRepository {
                 SELECT
                     COUNT(DISTINCT agent_name)::bigint as "total_agents!",
                     COUNT(*)::bigint as "total_tasks!",
-                    COUNT(*) FILTER (WHERE status = 'completed')::bigint as "completed_tasks!",
-                    COUNT(*) FILTER (WHERE status = 'failed')::bigint as "failed_tasks!",
+                    -- agent_tasks.status stores the canonical A2A TaskState value
+                    -- written by task_state_to_db_string (TASK_STATE_*), which the
+                    -- agent_tasks_status_check CHECK constraint also enforces.
+                    COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!",
+                    COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed_tasks!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_execution_time_ms!"
                 FROM agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
@@ -40,8 +43,8 @@ impl AgentAnalyticsRepository {
                 SELECT
                     COUNT(DISTINCT agent_name)::bigint as "total_agents!",
                     COUNT(*)::bigint as "total_tasks!",
-                    COUNT(*) FILTER (WHERE status = 'completed')::bigint as "completed_tasks!",
-                    COUNT(*) FILTER (WHERE status = 'failed')::bigint as "failed_tasks!",
+                    COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!",
+                    COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed_tasks!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_execution_time_ms!"
                 FROM agent_tasks
                 WHERE started_at >= $1 AND started_at < $2
