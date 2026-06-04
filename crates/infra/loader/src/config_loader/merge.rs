@@ -7,13 +7,10 @@ use systemprompt_models::services::{IncludableString, ServicesConfig, SkillsConf
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
-/// Merge an include into the running root config.
-///
-/// Maps overlap rules: duplicate keys across includes (or include-vs-root)
-/// are a hard error — there is no "last writer wins" so two includes
-/// silently shadowing each other is impossible. AI providers are
-/// accumulated; `web` and `scheduler` carry whichever side defined them
-/// (root has priority).
+/// Duplicate keys across includes (or include-vs-root) are a hard error: there
+/// is no "last writer wins", so two includes silently shadowing each other is
+/// impossible. AI providers are accumulated; `web` and `scheduler` carry
+/// whichever side defined them (root has priority).
 pub(super) fn merge_into(
     target: &mut ServicesConfig,
     include: ServicesConfig,
@@ -90,11 +87,6 @@ fn merge_skills(target: &mut SkillsConfig, partial: SkillsConfig) -> ConfigLoadR
     Ok(())
 }
 
-/// Logs a deprecation warning for every agent that still authors
-/// `card.skills` in its YAML. The A2A endpoint and the bridge marketplace now
-/// derive `card.skills` from `metadata.skills` joined against the on-disk
-/// `services/skills/` catalog, so authored `card.skills` entries are silently
-/// ignored. Downstream repos should strip the `card.skills:` array.
 pub(super) fn warn_on_authored_card_skills(config: &ServicesConfig) {
     for (name, agent) in &config.agents {
         if !agent.card.skills.is_empty() {
