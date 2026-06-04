@@ -7,8 +7,8 @@
 //! marker the next sync's skip check keys on. An unchanged bundle is therefore
 //! left byte-for-byte alone — never removed and rewritten — so Cowork never
 //! observes a missing or half-written plugin between polls. MCP servers are
-//! deliberately excluded: they ride the `managedMcpServers` policy, and bundling
-//! them here would collide and leave a ghost connector.
+//! deliberately excluded: they ride the `managedMcpServers` policy, and
+//! bundling them here would collide and leave a ghost connector.
 
 use super::super::hash::{safe_id_segment, sha256_hex};
 use super::hooks::{ensure_plugin_json_hooks_field, write_hooks_json};
