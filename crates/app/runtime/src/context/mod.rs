@@ -36,9 +36,6 @@ pub struct DataPlane {
     pub user_service: Option<Arc<UserService>>,
 }
 
-/// Resolved configuration, on-disk paths, and the routing derived from them.
-///
-/// `content_config` is `None` when no content configuration is present.
 #[derive(Clone)]
 pub struct ConfigPlane {
     pub config: Arc<Config>,
@@ -47,7 +44,6 @@ pub struct ConfigPlane {
     pub route_classifier: Arc<RouteClassifier>,
 }
 
-/// Extension, module-API, MCP, and marketplace registries.
 #[derive(Clone)]
 pub struct Plugins {
     pub extension_registry: Arc<ExtensionRegistry>,
@@ -56,8 +52,6 @@ pub struct Plugins {
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
 }
 
-/// Cross-cutting runtime subsystems: admin identity, authz hook, the event
-/// bridge handle, and the optional `GeoIP` reader.
 #[derive(Clone)]
 pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,

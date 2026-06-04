@@ -209,8 +209,6 @@ impl AppContextBuilder {
     }
 }
 
-/// Bootstraps profile, paths, files, config, database, authz, and logging.
-///
 /// The path/files/config inits are idempotent `OnceLock` guards, so a non-CLI
 /// entry (API, tests) can build a context self-sufficiently while a CLI that
 /// already ran them sees a no-op.
