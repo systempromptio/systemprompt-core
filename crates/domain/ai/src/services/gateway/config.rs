@@ -18,7 +18,6 @@ const fn default_enabled() -> bool {
     true
 }
 
-/// Top-level shape of `services/gateway/policies.yaml`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicyConfig {
@@ -26,23 +25,20 @@ pub struct GatewayPolicyConfig {
     pub policies: Vec<GatewayPolicyEntry>,
 }
 
-/// One declared gateway policy.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicyEntry {
-    /// Unique policy name — the upsert key for `ai_gateway_policies`.
+    /// Upsert key for `ai_gateway_policies`.
     pub name: String,
-    /// Whether the policy is active. Disabled policies are still upserted so
-    /// they can be re-enabled without losing their `spec`.
+    /// Disabled policies are still upserted, so they can be re-enabled without
+    /// losing their `spec`.
     #[serde(default = "default_enabled")]
     pub enabled: bool,
-    /// The policy body — allow-list, token ceilings, quotas, safety config.
     #[serde(default)]
     pub spec: GatewayPolicySpec,
 }
 
 impl GatewayPolicyConfig {
-    /// Reject empty or duplicate policy names before ingestion.
     pub fn validate(&self) -> Result<(), RepositoryError> {
         let mut seen = std::collections::HashSet::with_capacity(self.policies.len());
         for (idx, policy) in self.policies.iter().enumerate() {

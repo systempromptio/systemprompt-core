@@ -81,8 +81,8 @@ impl AiGatewayPolicyRepository {
         Ok(row.id)
     }
 
-    /// Names of every policy, regardless of `enabled` — used by the YAML
-    /// ingestion path to decide insert-vs-update and to find orphans.
+    /// Every policy name, including disabled ones — orphan detection and
+    /// insert-vs-update both need the full set, not just the enabled rows.
     pub async fn list_all_names(&self) -> Result<Vec<String>, RepositoryError> {
         let names: Vec<String> = sqlx::query_scalar!("SELECT name FROM ai_gateway_policies")
             .fetch_all(self.pool.as_ref())

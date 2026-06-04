@@ -14,7 +14,6 @@ use super::config::GatewayPolicyConfig;
 use crate::error::RepositoryError;
 use crate::repository::AiGatewayPolicyRepository;
 
-/// Ingestion knobs, matching `AccessControlIngestionService::IngestOptions`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestOptions {
     /// When `false`, an already-present policy is left untouched.
@@ -23,7 +22,6 @@ pub struct IngestOptions {
     pub delete_orphans: bool,
 }
 
-/// Counts surfaced to the publish-pipeline log.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct IngestReport {
     pub inserted: usize,
@@ -32,7 +30,6 @@ pub struct IngestReport {
     pub deleted: usize,
 }
 
-/// Projects a [`GatewayPolicyConfig`] into the `ai_gateway_policies` table.
 #[derive(Debug, Clone)]
 pub struct GatewayPolicyIngestionService {
     repo: AiGatewayPolicyRepository,
