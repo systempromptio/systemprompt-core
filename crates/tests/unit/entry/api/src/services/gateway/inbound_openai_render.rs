@@ -136,15 +136,6 @@ fn render_event_covers_all_variants() {
             index: 1,
             partial_json: "{}".into(),
         },
-        CanonicalEvent::ContentBlockStop { index: 0 },
-        CanonicalEvent::MessageStop {
-            id: "id".into(),
-            stop_reason: Some(CanonicalStopReason::MaxTokens),
-        },
-        CanonicalEvent::MessageStop {
-            id: "id".into(),
-            stop_reason: None,
-        },
         CanonicalEvent::Error("oops \"x\\y\"".into()),
     ];
     for ev in events {
@@ -153,11 +144,104 @@ fn render_event_covers_all_variants() {
 }
 
 #[test]
-fn render_event_usage_delta_is_skipped() {
+fn render_event_skips_usage_and_terminal_events() {
     let inbound = OpenAiResponsesInbound;
+    let skipped = vec![
+        CanonicalEvent::UsageDelta(CanonicalUsage::default()),
+        CanonicalEvent::ContentBlockStop { index: 0 },
+        CanonicalEvent::MessageStop {
+            id: "id".into(),
+            stop_reason: Some(CanonicalStopReason::ToolUse),
+        },
+    ];
+    for ev in skipped {
+        assert!(
+            inbound.render_event(&ev, "m").is_none(),
+            "terminal/usage events render only from the snapshot: {ev:?}"
+        );
+    }
+}
+
+#[test]
+fn render_terminal_item_done_carries_finalized_function_call() {
+    let inbound = OpenAiResponsesInbound;
+    let snapshot = sample_response();
+    let frame = inbound
+        .render_terminal_event(&CanonicalEvent::ContentBlockStop { index: 1 }, &snapshot, "m")
+        .expect("terminal frame");
+    let frames = parse_sse_data(&frame);
+    let args_done = frames
+        .iter()
+        .find(|f| f["type"] == "response.function_call_arguments.done")
+        .expect("function_call_arguments.done frame");
+    assert_eq!(args_done["arguments"], "{\"a\":1}");
+    let item_done = frames
+        .iter()
+        .find(|f| f["type"] == "response.output_item.done")
+        .expect("output_item.done frame");
+    assert_eq!(item_done["item"]["type"], "function_call");
+    assert_eq!(item_done["item"]["call_id"], "t1");
+    assert_eq!(item_done["item"]["name"], "fn");
+    assert_eq!(item_done["item"]["arguments"], "{\"a\":1}");
+    assert_eq!(item_done["item"]["status"], "completed");
+}
+
+#[test]
+fn render_terminal_completed_carries_full_output_list() {
+    let inbound = OpenAiResponsesInbound;
+    let mut snapshot = sample_response();
+    snapshot.stop_reason = Some(CanonicalStopReason::ToolUse);
+    let frame = inbound
+        .render_terminal_event(
+            &CanonicalEvent::MessageStop {
+                id: "resp_1".into(),
+                stop_reason: Some(CanonicalStopReason::ToolUse),
+            },
+            &snapshot,
+            "m",
+        )
+        .expect("terminal frame");
+    let frames = parse_sse_data(&frame);
+    let completed = frames
+        .iter()
+        .find(|f| f["type"] == "response.completed")
+        .expect("response.completed frame");
+    assert_eq!(completed["response"]["status"], "completed");
+    assert_eq!(completed["response"]["stop_reason"], "tool_calls");
+    let output = completed["response"]["output"]
+        .as_array()
+        .expect("output array");
     assert!(
-        inbound
-            .render_event(&CanonicalEvent::UsageDelta(CanonicalUsage::default()), "m")
-            .is_none()
+        output.iter().any(|o| o["type"] == "function_call"
+            && o["call_id"] == "t1"
+            && o["arguments"] == "{\"a\":1}"),
+        "completed.output must carry the finalized function call: {output:?}"
+    );
+}
+
+#[test]
+fn render_terminal_incomplete_maps_to_incomplete_status() {
+    let inbound = OpenAiResponsesInbound;
+    let mut snapshot = sample_response();
+    snapshot.content = vec![CanonicalContent::Text("partial".into())];
+    let frame = inbound
+        .render_terminal_event(
+            &CanonicalEvent::MessageStop {
+                id: "resp_1".into(),
+                stop_reason: Some(CanonicalStopReason::MaxTokens),
+            },
+            &snapshot,
+            "m",
+        )
+        .expect("terminal frame");
+    let frames = parse_sse_data(&frame);
+    let incomplete = frames
+        .iter()
+        .find(|f| f["type"] == "response.incomplete")
+        .expect("response.incomplete frame");
+    assert_eq!(incomplete["response"]["status"], "incomplete");
+    assert_eq!(
+        incomplete["response"]["incomplete_details"]["reason"],
+        "max_output_tokens"
     );
 }

@@ -21,7 +21,13 @@ struct ResponseObject {
     #[serde(default)]
     output: Vec<OutputItem>,
     #[serde(default)]
-    stop_reason: Option<String>,
+    incomplete_details: Option<IncompleteDetails>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct IncompleteDetails {
+    #[serde(default)]
+    reason: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -127,11 +133,8 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
         queries: Vec::new(),
     });
 
-    let stop_reason = resp
-        .stop_reason
-        .as_deref()
-        .map(CanonicalStopReason::from_openai)
-        .or(Some(CanonicalStopReason::EndTurn));
+    let incomplete_reason = resp.incomplete_details.and_then(|d| d.reason);
+    let stop_reason = Some(buffered_stop_reason(&content, incomplete_reason.as_deref()));
 
     CanonicalResponse {
         id,
@@ -141,7 +144,26 @@ pub fn parse_response_object(value: &Value, fallback_model: &str) -> CanonicalRe
         usage,
         grounding,
         code_execution: None,
-        raw_finish_reason: resp.stop_reason,
+        raw_finish_reason: incomplete_reason,
+    }
+}
+
+// Responses has no finish-reason field: tool use is signalled by a
+// `function_call` output item, truncation by `incomplete_details.reason`.
+fn buffered_stop_reason(
+    content: &[CanonicalContent],
+    incomplete_reason: Option<&str>,
+) -> CanonicalStopReason {
+    if content
+        .iter()
+        .any(|c| matches!(c, CanonicalContent::ToolUse { .. }))
+    {
+        return CanonicalStopReason::ToolUse;
+    }
+    match incomplete_reason {
+        Some("max_output_tokens") => CanonicalStopReason::MaxTokens,
+        Some(_) => CanonicalStopReason::Other,
+        None => CanonicalStopReason::EndTurn,
     }
 }
 

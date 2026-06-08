@@ -91,6 +91,10 @@ pub(super) fn extract_summary(state: &mut TapState) -> Summary {
     }
 }
 
+pub(super) fn snapshot(state: &TapState) -> CanonicalResponse {
+    build_response(state)
+}
+
 fn build_response(state: &TapState) -> CanonicalResponse {
     let content = state
         .blocks

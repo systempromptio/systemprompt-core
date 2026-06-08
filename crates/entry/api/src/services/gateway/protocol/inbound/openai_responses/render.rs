@@ -76,7 +76,7 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
     })
 }
 
-fn current_unix_ts() -> u64 {
+pub(super) fn current_unix_ts() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
@@ -146,26 +146,13 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
                 "delta": partial_json,
             }),
         ),
-        CanonicalEvent::ContentBlockStop { index } => (
-            "response.output_item.done",
-            json!({
-                "type": "response.output_item.done",
-                "output_index": index,
-            }),
-        ),
-        CanonicalEvent::UsageDelta(_) | CanonicalEvent::SignatureDelta { .. } => return None,
-        CanonicalEvent::MessageStop { id, stop_reason } => (
-            "response.completed",
-            json!({
-                "type": "response.completed",
-                "response": {
-                    "id": id,
-                    "object": "response",
-                    "status": "completed",
-                    "stop_reason": stop_reason.map(CanonicalStopReason::openai_str),
-                },
-            }),
-        ),
+        // The Responses terminal frames (`output_item.done`, `response.completed`)
+        // must embed finalized item content the per-event value does not carry;
+        // they are rendered from the accumulated snapshot via `render_terminal`.
+        CanonicalEvent::ContentBlockStop { .. }
+        | CanonicalEvent::MessageStop { .. }
+        | CanonicalEvent::UsageDelta(_)
+        | CanonicalEvent::SignatureDelta { .. } => return None,
         CanonicalEvent::Error(msg) => return Some(render_error_frame(msg)),
     };
     Some(Bytes::from(format!(

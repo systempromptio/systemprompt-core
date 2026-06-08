@@ -4,6 +4,8 @@
 //! those upstream indices to the canonical block index emitted downstream,
 //! keyed by the kind of block the slot carries.
 
+use crate::wire::canonical::CanonicalStopReason;
+
 pub(super) struct ResponsesStreamState {
     pub(super) buf: Vec<u8>,
     pub(super) model: String,
@@ -29,6 +31,22 @@ pub(super) enum SlotKindMatch {
     Message,
     Function,
     Reasoning,
+}
+
+// Responses has no finish-reason field: tool use is signalled by a
+// `function_call` output item, truncation by `incomplete_details.reason`.
+pub(super) fn stop_reason(
+    items: &[ItemSlot],
+    incomplete_reason: Option<&str>,
+) -> CanonicalStopReason {
+    if items.iter().any(|s| matches!(s.kind, SlotKind::Function)) {
+        return CanonicalStopReason::ToolUse;
+    }
+    match incomplete_reason {
+        Some("max_output_tokens") => CanonicalStopReason::MaxTokens,
+        Some(_) => CanonicalStopReason::Other,
+        None => CanonicalStopReason::EndTurn,
+    }
 }
 
 pub(super) fn lookup_canonical(

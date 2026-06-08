@@ -11,7 +11,7 @@ use axum::body::Body;
 use bytes::Bytes;
 use futures_util::stream::{BoxStream, Stream};
 
-use self::accumulator::{Summary, TapState, accumulate_event, extract_summary};
+use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
 use super::audit::GatewayAudit;
 use super::protocol::canonical_response::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
@@ -59,10 +59,25 @@ impl Stream for TappedStream {
                     return Poll::Ready(Some(Err(err)));
                 },
                 Poll::Ready(Some(Ok(event))) => {
-                    if let Ok(mut s) = self.state.lock() {
+                    let terminal = matches!(
+                        event,
+                        CanonicalEvent::ContentBlockStop { .. }
+                            | CanonicalEvent::MessageStop { .. }
+                    );
+                    let snap = self.state.lock().map_or(None, |mut s| {
                         accumulate_event(&mut s, &event);
-                    }
-                    let rendered = self.inbound.render_event(&event, &self.request_model);
+                        terminal.then(|| snapshot(&s))
+                    });
+                    let rendered = snap
+                        .as_ref()
+                        .and_then(|snapshot| {
+                            self.inbound.render_terminal_event(
+                                &event,
+                                snapshot,
+                                &self.request_model,
+                            )
+                        })
+                        .or_else(|| self.inbound.render_event(&event, &self.request_model));
                     if let Some(bytes) = rendered {
                         if let Ok(mut s) = self.state.lock() {
                             s.final_bytes.extend_from_slice(&bytes);

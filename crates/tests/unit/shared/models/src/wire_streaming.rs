@@ -594,6 +594,57 @@ mod openai_responses_streaming {
     }
 
     #[tokio::test]
+    async fn completed_after_text_stops_with_end_turn() {
+        let sse = "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\",\"model\":\"gpt\"}}\n\n\
+                   data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\"}}\n\n\
+                   data: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"delta\":\"hi\"}\n\n\
+                   data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\"}}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop {
+                stop_reason: Some(CanonicalStopReason::EndTurn),
+                ..
+            })
+        ));
+    }
+
+    #[tokio::test]
+    async fn completed_with_function_call_stops_with_tool_use() {
+        let sse = "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\",\"model\":\"gpt\"}}\n\n\
+                   data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"go\"}}\n\n\
+                   data: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"delta\":\"{}\"}\n\n\
+                   data: {\"type\":\"response.output_item.done\",\"output_index\":0}\n\n\
+                   data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\"}}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop {
+                stop_reason: Some(CanonicalStopReason::ToolUse),
+                ..
+            })
+        ));
+    }
+
+    #[tokio::test]
+    async fn incomplete_max_output_tokens_stops_with_max_tokens() {
+        let sse = "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\",\"model\":\"gpt\"}}\n\n\
+                   data: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\"}}\n\n\
+                   data: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"r\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"}}}\n\n"
+            .to_owned();
+        let events = run(sse).await;
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop {
+                stop_reason: Some(CanonicalStopReason::MaxTokens),
+                ..
+            })
+        ));
+    }
+
+    #[tokio::test]
     async fn error_event_emits_error() {
         let sse = "data: {\"type\":\"error\",\"error\":{\"message\":\"boom\"}}\n\n".to_owned();
         let events = run(sse).await;

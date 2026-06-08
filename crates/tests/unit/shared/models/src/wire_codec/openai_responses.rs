@@ -9,8 +9,8 @@
 
 use serde_json::{Value, json};
 use systemprompt_models::wire::canonical::{
-    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ReasoningEffort,
-    ResponseFormat, Role, SearchConfig, ThinkingConfig,
+    CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason, CanonicalToolChoice,
+    ReasoningEffort, ResponseFormat, Role, SearchConfig, ThinkingConfig,
 };
 use systemprompt_models::wire::openai_responses;
 
@@ -212,6 +212,30 @@ fn openai_responses_parse_extracts_text_tool_and_usage() {
     assert_eq!(response.usage.output_tokens, 4);
     assert_eq!(response.usage.total_tokens, 14);
     assert_eq!(response.usage.cache_read_tokens, 3);
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::ToolUse));
+}
+
+#[test]
+fn openai_responses_parse_text_only_is_end_turn() {
+    let value: Value = json!({
+        "id": "resp_2",
+        "model": "gpt-5.4",
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": "done"}]}],
+    });
+    let response = openai_responses::parse_response_object(&value, "fallback");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::EndTurn));
+}
+
+#[test]
+fn openai_responses_parse_incomplete_is_max_tokens() {
+    let value: Value = json!({
+        "id": "resp_3",
+        "model": "gpt-5.4",
+        "output": [{"type": "message", "content": [{"type": "output_text", "text": "tru"}]}],
+        "incomplete_details": {"reason": "max_output_tokens"},
+    });
+    let response = openai_responses::parse_response_object(&value, "fallback");
+    assert_eq!(response.stop_reason, Some(CanonicalStopReason::MaxTokens));
 }
 
 #[tokio::test]

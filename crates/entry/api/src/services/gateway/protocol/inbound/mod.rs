@@ -30,6 +30,23 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
     fn parse_request(&self, raw: &Bytes) -> Result<CanonicalRequest, InboundParseError>;
     fn render_response(&self, response: &CanonicalResponse) -> Bytes;
     fn render_event(&self, event: &CanonicalEvent, model: &str) -> Option<Bytes>;
+
+    /// Render a terminal streaming event whose wire form must embed
+    /// fully-accumulated item content — the complete tool-call arguments and
+    /// the output list — which the per-event [`CanonicalEvent`] alone does
+    /// not carry. Returns `None` for wires that finalize correctly from
+    /// per-event deltas (the caller then falls back to
+    /// [`InboundAdapter::render_event`]).
+    fn render_terminal_event(
+        &self,
+        event: &CanonicalEvent,
+        snapshot: &CanonicalResponse,
+        model: &str,
+    ) -> Option<Bytes> {
+        let _ = (event, snapshot, model);
+        None
+    }
+
     fn render_error(&self, status: StatusCode, message: &str) -> Bytes;
     fn streaming_content_type(&self) -> &'static str {
         "text/event-stream"

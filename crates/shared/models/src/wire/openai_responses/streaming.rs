@@ -8,9 +8,7 @@ use futures_util::{Stream, StreamExt};
 use serde_json::Value;
 
 use super::slot::{ItemSlot, ResponsesStreamState, SlotKind, SlotKindMatch, lookup_canonical};
-use crate::wire::canonical::{
-    CanonicalEvent, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
-};
+use crate::wire::canonical::{CanonicalEvent, CanonicalUsage, ContentBlockKind};
 
 pub fn sse_to_canonical_events<S, E>(
     stream: S,
@@ -106,7 +104,8 @@ fn handle_responses_event(
             );
         },
         "response.output_item.done" => handle_item_done(state, value, events),
-        "response.completed" => handle_completed(state, value, events),
+        "response.completed" => handle_completed(state, value, events, false),
+        "response.incomplete" => handle_completed(state, value, events, true),
         "response.failed" | "error" => handle_error(value, events),
         _ => {},
     }
@@ -252,6 +251,7 @@ fn handle_completed(
     state: &ResponsesStreamState,
     value: &Value,
     events: &mut Vec<Result<CanonicalEvent, String>>,
+    incomplete: bool,
 ) {
     let response = value.get("response").unwrap_or(&Value::Null);
     let id = response
@@ -273,9 +273,17 @@ fn handle_completed(
             total_tokens: pull("total_tokens"),
         })));
     }
+    let incomplete_reason = incomplete
+        .then(|| {
+            response
+                .get("incomplete_details")
+                .and_then(|d| d.get("reason"))
+                .and_then(Value::as_str)
+        })
+        .flatten();
     events.push(Ok(CanonicalEvent::MessageStop {
         id,
-        stop_reason: Some(CanonicalStopReason::EndTurn),
+        stop_reason: Some(super::slot::stop_reason(&state.items, incomplete_reason)),
     }));
 }
 

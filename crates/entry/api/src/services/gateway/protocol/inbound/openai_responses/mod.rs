@@ -15,11 +15,13 @@ use super::{InboundAdapter, InboundParseError};
 mod input;
 mod parse;
 mod render;
+mod render_terminal;
 
 #[cfg(feature = "test-api")]
 pub mod test_api {
     pub use super::parse::parse as parse_request;
     pub use super::render::{render_event_frame, render_response_object};
+    pub use super::render_terminal::render_terminal_event_frame;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -43,6 +45,15 @@ impl InboundAdapter for OpenAiResponsesInbound {
 
     fn render_event(&self, event: &CanonicalEvent, model: &str) -> Option<Bytes> {
         render::render_event_frame(event, model)
+    }
+
+    fn render_terminal_event(
+        &self,
+        event: &CanonicalEvent,
+        snapshot: &CanonicalResponse,
+        _model: &str,
+    ) -> Option<Bytes> {
+        render_terminal::render_terminal_event_frame(event, snapshot)
     }
 
     fn render_error(&self, _status: StatusCode, message: &str) -> Bytes {

@@ -1,43 +1,56 @@
 //! Pricing resolution for gateway requests.
 //!
-//! Resolution order, top-down:
-//!   1. Profile `GatewayRoute.pricing` whose `model_pattern` matches the
-//!      effective model (operator override, fastest signal of "we are paying a
-//!      custom rate for this provider/route").
+//! `candidates` is tried in priority order — typically the provider-echoed
+//! served model first, then the route's upstream model, then the
+//! client-requested model. A provider that echoes a dated alias
+//! (`gpt-5-mini-2025-08-07`) absent from the catalog must still bill against
+//! the configured model, so the first candidate that resolves wins. For each
+//! candidate, resolution is top-down:
+//!   1. Profile `GatewayRoute.pricing` whose `model_pattern` matches (operator
+//!      override, the strongest "we pay a custom rate here" signal).
 //!   2. The matching `ProviderModel.pricing` in `profile.providers` — the route
-//!      provider's catalog entry for the model, else any provider that serves
-//!      it. The provider registry is the single source of model pricing.
-//!   3. Fallback: emit an `unknown` WARN and return zero pricing. The WARN is
-//!      the right signal — a model with no override and no registry entry is a
-//!      real configuration gap, not noise to silence.
+//!      provider's catalog entry, else any provider that serves it. The
+//!      provider registry is the single source of model pricing.
+//!
+//! If no candidate resolves, emit a WARN and return zero pricing — a real
+//! configuration gap, not noise to silence.
 
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 use systemprompt_models::services::ModelPricing;
 
 pub fn resolve(
     provider: &str,
-    model: &str,
+    candidates: &[&str],
     gateway: Option<&GatewayConfig>,
     registry: &ProviderRegistry,
 ) -> ModelPricing {
-    if let Some(gw) = gateway {
-        if let Some(route) = gw.find_route(model) {
-            if let Some(p) = route.pricing {
-                return p;
-            }
+    for model in candidates.iter().filter(|m| !m.is_empty()) {
+        if let Some(p) = lookup(model, gateway, registry) {
+            return p;
         }
-    }
-
-    if let Some(p) = registry_pricing(registry, gateway, model) {
-        return p;
     }
 
     tracing::warn!(
         provider = provider,
-        model = model,
+        candidates = ?candidates,
         "Gateway pricing lookup: no override and no registry entry — cost_microdollars will be 0"
     );
     ModelPricing::default()
+}
+
+fn lookup(
+    model: &str,
+    gateway: Option<&GatewayConfig>,
+    registry: &ProviderRegistry,
+) -> Option<ModelPricing> {
+    if let Some(gw) = gateway {
+        if let Some(route) = gw.find_route(model) {
+            if let Some(p) = route.pricing {
+                return Some(p);
+            }
+        }
+    }
+    registry_pricing(registry, gateway, model)
 }
 
 // Prefer the route provider's own catalog entry for the model so a per-provider
