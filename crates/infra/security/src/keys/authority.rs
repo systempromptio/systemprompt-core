@@ -1,10 +1,15 @@
 //! Process-wide RS256 signing-key authority.
 //!
-//! Loads the configured RSA private key once and caches it in a
-//! `OnceLock`. Token-minting paths use [`encoding_key`] / [`active_kid`]
-//! to produce RS256 JWTs whose `kid` matches the JWKS this deployment
-//! publishes at `/.well-known/jwks.json`. Token-verifying paths use
-//! [`decoding_key_for_kid`] to look up the public half by `kid`.
+//! Loads the RSA private key once and caches it in a `OnceLock`. The key is
+//! resolved from the `signing_key_pem` secret first (the cloud path, where the
+//! filesystem is read-only and the PEM is injected as an env secret), falling
+//! back to the file at `signing_key_path` (the local-dev path). [`init`] is
+//! called at bootstrap so a missing key fails startup rather than the first
+//! request; the lazy first-use fallback uses the same resolution.
+//! Token-minting paths use [`encoding_key`] / [`active_kid`] to produce RS256
+//! JWTs whose `kid` matches the JWKS this deployment publishes at
+//! `/.well-known/jwks.json`. Token-verifying paths use [`decoding_key_for_kid`]
+//! to look up the public half by `kid`.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -25,6 +30,9 @@ pub enum TokenAuthorityError {
 
     #[error("config unavailable: {0}")]
     Config(String),
+
+    #[error("signing key secret unavailable: {0}")]
+    Secret(String),
 
     #[error("key load failed: {0}")]
     Key(#[from] KeyError),
@@ -49,6 +57,25 @@ pub(crate) struct Authority {
 }
 
 static CELL: OnceLock<Authority> = OnceLock::new();
+
+pub fn init() -> TokenAuthorityResult<()> {
+    if CELL.get().is_some() {
+        return Ok(());
+    }
+    let authority = load_from_secret_or_file()?;
+    drop(CELL.set(authority));
+    Ok(())
+}
+
+fn load_from_secret_or_file() -> TokenAuthorityResult<Authority> {
+    if let Some(pem) = systemprompt_config::SecretsBootstrap::signing_key_pem()
+        .map_err(|e| TokenAuthorityError::Secret(e.to_string()))?
+    {
+        let signing_key = RsaSigningKey::from_pkcs8_pem(&pem)?;
+        return build(signing_key);
+    }
+    load()
+}
 
 fn load() -> TokenAuthorityResult<Authority> {
     let config = systemprompt_models::Config::get()
@@ -86,7 +113,7 @@ fn authority() -> TokenAuthorityResult<&'static Authority> {
     if let Some(a) = CELL.get() {
         return Ok(a);
     }
-    let a = load()?;
+    let a = load_from_secret_or_file()?;
     drop(CELL.set(a));
     CELL.get().ok_or(TokenAuthorityError::PathMissing)
 }

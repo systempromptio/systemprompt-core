@@ -3,6 +3,7 @@
 //! This module contains all validation logic for Profile configurations,
 //! including path validation, security settings, CORS, and rate limits.
 
+use super::governance::{AuthzMode, UNRESTRICTED_ACKNOWLEDGEMENT};
 use super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
 use super::{Profile, ProfileError, ProfileResult};
 
@@ -16,6 +17,7 @@ impl Profile {
         self.validate_security_settings(&mut errors);
         self.validate_cors_origins(&mut errors);
         self.validate_rate_limits(&mut errors);
+        self.validate_governance(&mut errors, is_cloud);
 
         if errors.is_empty() {
             Ok(())
@@ -129,6 +131,41 @@ impl Profile {
                      scopes (hook:govern, hook:track). Add it to the profile YAML and restart."
                 ));
             }
+        }
+    }
+
+    pub(super) fn validate_governance(&self, errors: &mut Vec<String>, is_cloud: bool) {
+        if !is_cloud {
+            return;
+        }
+
+        let Some(authz) = self.governance.as_ref().and_then(|g| g.authz.as_ref()) else {
+            errors.push(
+                "governance.authz is required for cloud profiles — without it the gateway boots \
+                 with DenyAllHook and denies every request. Add a governance.authz.hook block \
+                 (mode: webhook for production) to the profile YAML."
+                    .to_owned(),
+            );
+            return;
+        };
+
+        match authz.hook.mode {
+            AuthzMode::Webhook if authz.hook.url.as_deref().unwrap_or_default().is_empty() => {
+                errors.push(
+                    "governance.authz.hook.url is required when mode is webhook — the gateway \
+                     POSTs every request to it."
+                        .to_owned(),
+                );
+            },
+            AuthzMode::Unrestricted
+                if authz.hook.acknowledgement.as_deref() != Some(UNRESTRICTED_ACKNOWLEDGEMENT) =>
+            {
+                errors.push(format!(
+                    "governance.authz.hook.mode=unrestricted requires acknowledgement to equal \
+                     \"{UNRESTRICTED_ACKNOWLEDGEMENT}\" — it disables all authorization."
+                ));
+            },
+            _ => {},
         }
     }
 

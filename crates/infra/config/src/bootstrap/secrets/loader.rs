@@ -115,6 +115,7 @@ fn load_from_env() -> ConfigResult<Secrets> {
     let secrets = Secrets {
         oauth_at_rest_pepper,
         manifest_signing_secret_seed: read_env_optional("MANIFEST_SIGNING_SECRET_SEED"),
+        signing_key_pem: read_env_optional("SIGNING_KEY_PEM"),
         database_url,
         database_write_url: read_env_optional("DATABASE_WRITE_URL"),
         external_database_url: read_env_optional("EXTERNAL_DATABASE_URL"),

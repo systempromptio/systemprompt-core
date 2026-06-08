@@ -12,7 +12,8 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
-    ProviderRegistry, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
+    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, ProviderRegistry, SecretsConfig,
+    SecretsSource, SecretsValidationMode, TrustedIssuer, default_resource_audiences,
 };
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
@@ -23,6 +24,19 @@ use systemprompt_models::{
 };
 
 use super::templates::generate_display_name;
+
+fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
+    GovernanceConfig {
+        authz: Some(AuthzConfig {
+            hook: AuthzHookConfig {
+                mode: AuthzMode::Webhook,
+                url: Some(format!("{api_internal_url}/api/public/govern/authz")),
+                timeout_ms: 500,
+                acknowledgement: None,
+            },
+        }),
+    }
+}
 
 pub(in crate::commands::cloud) struct LocalProfileBuilder {
     name: String,
@@ -56,6 +70,7 @@ impl LocalProfileBuilder {
         let system_path = root.to_string_lossy().to_string();
         let display_name = generate_display_name(&self.name);
         let local_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
+        let internal_url = local_url.clone();
 
         Profile {
             name: self.name,
@@ -103,7 +118,7 @@ impl LocalProfileBuilder {
                     JwtAudience::A2a,
                     JwtAudience::Mcp,
                 ],
-                allowed_resource_audiences: Vec::new(),
+                allowed_resource_audiences: default_resource_audiences(),
                 allow_registration: true,
                 signing_key_path: std::path::PathBuf::from("signing_key.pem"),
                 trusted_issuers: Vec::new(),
@@ -131,7 +146,7 @@ impl LocalProfileBuilder {
             extensions: ExtensionsConfig::default(),
             providers: ProviderRegistry::default(),
             gateway: None,
-            governance: None,
+            governance: Some(webhook_governance(&internal_url)),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
             },
@@ -211,7 +226,7 @@ impl CloudProfileBuilder {
                 host: consts::CLOUD_HOST.to_owned(),
                 port: consts::DEFAULT_PORT,
                 api_server_url: external.clone(),
-                api_internal_url: internal_url,
+                api_internal_url: internal_url.clone(),
                 api_external_url: external.clone(),
                 use_https: true,
                 cors_allowed_origins: vec![external],
@@ -239,7 +254,7 @@ impl CloudProfileBuilder {
                     JwtAudience::A2a,
                     JwtAudience::Mcp,
                 ],
-                allowed_resource_audiences: Vec::new(),
+                allowed_resource_audiences: default_resource_audiences(),
                 allow_registration: true,
                 signing_key_path: std::path::PathBuf::from("signing_key.pem"),
                 trusted_issuers: self.trusted_issuers,
@@ -264,7 +279,7 @@ impl CloudProfileBuilder {
             extensions: ExtensionsConfig::default(),
             providers: ProviderRegistry::default(),
             gateway: None,
-            governance: None,
+            governance: Some(webhook_governance(&internal_url)),
             system_admin: SystemAdminConfig {
                 username: "admin".to_owned(),
             },

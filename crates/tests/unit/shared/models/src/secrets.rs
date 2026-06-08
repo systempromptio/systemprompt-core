@@ -8,6 +8,7 @@ fn full_secrets() -> Secrets {
     Secrets {
         oauth_at_rest_pepper: "p".repeat(32),
         manifest_signing_secret_seed: Some("seed".to_owned()),
+        signing_key_pem: None,
         database_url: "postgres://primary".to_owned(),
         database_write_url: Some("postgres://write".to_owned()),
         external_database_url: Some("postgres://external".to_owned()),
@@ -26,6 +27,7 @@ fn minimal_secrets() -> Secrets {
     Secrets {
         oauth_at_rest_pepper: "p".repeat(32),
         manifest_signing_secret_seed: None,
+        signing_key_pem: None,
         database_url: "postgres://primary".to_owned(),
         database_write_url: None,
         external_database_url: None,

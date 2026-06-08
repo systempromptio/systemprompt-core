@@ -9,7 +9,9 @@ use std::path::Path;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
+use systemprompt_models::profile::{
+    GatewayState, SecretsConfig, SecretsSource, SecretsValidationMode,
+};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     CliPaths, CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, Profile,
@@ -94,7 +96,23 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     profile
         .validate()
         .context("generated profile failed validation")?;
+    validate_registry_and_gateway(&profile)?;
     Ok(profile)
+}
+
+fn validate_registry_and_gateway(profile: &Profile) -> Result<()> {
+    profile
+        .providers
+        .validate()
+        .context("generated provider registry failed validation")?;
+
+    if let Some(GatewayState::Spec(spec)) = &profile.gateway {
+        spec.clone()
+            .resolve()
+            .validate(&profile.providers)
+            .context("generated gateway config failed validation")?;
+    }
+    Ok(())
 }
 
 pub(super) fn save(profile: &Profile, profile_path: &Path) -> Result<()> {

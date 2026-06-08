@@ -220,6 +220,9 @@ async fn init_core(authz_hook_override: Option<SharedAuthzHook>) -> RuntimeResul
         .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
     let config = Arc::new(Config::get()?.clone());
 
+    systemprompt_security::keys::authority::init()
+        .map_err(|err| RuntimeError::Internal(format!("signing key init: {err}")))?;
+
     let database = Arc::new(
         Database::from_config_with_write(
             &config.database_type,

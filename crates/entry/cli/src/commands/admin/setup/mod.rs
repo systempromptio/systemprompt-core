@@ -6,7 +6,7 @@
 //! secrets file under `.systemprompt/`.
 
 pub mod ai_config;
-mod catalog;
+pub mod catalog;
 mod common;
 mod docker;
 mod docker_compose;
@@ -24,6 +24,7 @@ use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 
+pub use secrets::SecretsData;
 pub use types::*;
 
 #[derive(Debug, Args)]

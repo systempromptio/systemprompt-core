@@ -1,10 +1,26 @@
 use systemprompt_models::profile::default_resource_audiences;
+use systemprompt_models::profile::{
+    AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
+};
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+
+fn webhook_governance() -> GovernanceConfig {
+    GovernanceConfig {
+        authz: Some(AuthzConfig {
+            hook: AuthzHookConfig {
+                mode: AuthzMode::Webhook,
+                url: Some("https://example.com/api/public/govern/authz".to_string()),
+                timeout_ms: 500,
+                acknowledgement: None,
+            },
+        }),
+    }
+}
 
 fn server_config() -> ServerConfig {
     ServerConfig {
@@ -265,6 +281,7 @@ mod cloud_paths_validation {
         let mut p = valid_profile();
         p.target = ProfileType::Cloud;
         p.paths = cloud_paths();
+        p.governance = Some(super::webhook_governance());
         p
     }
 
@@ -299,5 +316,79 @@ mod cloud_paths_validation {
         let mut p = cloud_profile();
         p.paths.system = String::new();
         assert!(errors_of(&p).contains("Paths system"));
+    }
+}
+
+mod governance_validation {
+    use super::*;
+
+    fn cloud_profile() -> Profile {
+        let mut p = valid_profile();
+        p.target = ProfileType::Cloud;
+        p.paths = cloud_paths();
+        p.governance = Some(webhook_governance());
+        p
+    }
+
+    #[test]
+    fn local_profile_without_governance_passes() {
+        let mut p = valid_profile();
+        p.governance = None;
+        assert!(p.validate().is_ok());
+    }
+
+    #[test]
+    fn cloud_profile_without_governance_rejected() {
+        let mut p = cloud_profile();
+        p.governance = None;
+        assert!(errors_of(&p).contains("governance.authz is required"));
+    }
+
+    #[test]
+    fn cloud_profile_with_empty_authz_rejected() {
+        let mut p = cloud_profile();
+        p.governance = Some(GovernanceConfig { authz: None });
+        assert!(errors_of(&p).contains("governance.authz is required"));
+    }
+
+    #[test]
+    fn cloud_webhook_without_url_rejected() {
+        let mut p = cloud_profile();
+        if let Some(authz) = p.governance.as_mut().and_then(|g| g.authz.as_mut()) {
+            authz.hook.url = None;
+        }
+        assert!(errors_of(&p).contains("governance.authz.hook.url is required"));
+    }
+
+    #[test]
+    fn cloud_unrestricted_without_acknowledgement_rejected() {
+        let mut p = cloud_profile();
+        p.governance = Some(GovernanceConfig {
+            authz: Some(AuthzConfig {
+                hook: AuthzHookConfig {
+                    mode: AuthzMode::Unrestricted,
+                    url: None,
+                    timeout_ms: 500,
+                    acknowledgement: Some("wrong".to_string()),
+                },
+            }),
+        });
+        assert!(errors_of(&p).contains("requires acknowledgement"));
+    }
+
+    #[test]
+    fn cloud_unrestricted_with_acknowledgement_passes() {
+        let mut p = cloud_profile();
+        p.governance = Some(GovernanceConfig {
+            authz: Some(AuthzConfig {
+                hook: AuthzHookConfig {
+                    mode: AuthzMode::Unrestricted,
+                    url: None,
+                    timeout_ms: 500,
+                    acknowledgement: Some(UNRESTRICTED_ACKNOWLEDGEMENT.to_string()),
+                },
+            }),
+        });
+        assert!(p.validate().is_ok());
     }
 }

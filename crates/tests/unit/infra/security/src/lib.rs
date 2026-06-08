@@ -28,3 +28,5 @@ mod services;
 mod session_generator;
 #[cfg(test)]
 mod signing_key_independence;
+#[cfg(test)]
+mod signing_key_pem_roundtrip;

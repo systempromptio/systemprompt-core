@@ -63,15 +63,23 @@ pub(in crate::commands::cloud) async fn deploy_with_secrets(
     let profile_dir = ctx.profile_dir(profile_name);
     let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
 
-    if secrets_path.exists() {
-        let secrets = super::super::secrets::load_secrets_json(&secrets_path)?;
-        if !secrets.is_empty() {
-            let env_secrets = super::super::secrets::map_secrets_to_env_vars(secrets);
-            let spinner = CliService::spinner("Syncing secrets...");
-            let keys = client.set_secrets(tenant_id, env_secrets).await?;
-            spinner.finish_and_clear();
-            CliService::success(&format!("Synced {} secrets", keys.len()));
+    let mut env_secrets = if secrets_path.exists() {
+        super::super::secrets::map_secrets_to_env_vars(super::super::secrets::load_secrets_json(
+            &secrets_path,
+        )?)
+    } else {
+        HashMap::new()
+    };
+    if !env_secrets.contains_key("SIGNING_KEY_PEM") {
+        if let Some(pem) = super::read_signing_key_pem_at(&profile_dir.join("signing_key.pem"))? {
+            env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
         }
+    }
+    if !env_secrets.is_empty() {
+        let spinner = CliService::spinner("Syncing secrets...");
+        let keys = client.set_secrets(tenant_id, env_secrets).await?;
+        spinner.finish_and_clear();
+        CliService::success(&format!("Synced {} secrets", keys.len()));
     }
 
     let creds = get_credentials()?;

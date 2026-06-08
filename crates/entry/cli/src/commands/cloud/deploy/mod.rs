@@ -12,6 +12,7 @@ mod pre_sync_display;
 mod select;
 
 pub(super) use deploy_steps::deploy_with_secrets;
+pub(in crate::commands::cloud) use select::resolve_profile;
 
 use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::constants::{container, paths};
@@ -26,7 +27,6 @@ use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
 use config::DeployConfig;
-use select::resolve_profile;
 use systemprompt_loader::ConfigLoader;
 
 pub(super) struct DeployArgs {
@@ -35,6 +35,7 @@ pub(super) struct DeployArgs {
     pub no_sync: bool,
     pub yes: bool,
     pub dry_run: bool,
+    pub check: bool,
 }
 
 pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
@@ -42,17 +43,30 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
 
     let (profile, profile_path) = resolve_profile(args.profile_name.as_deref(), config)?;
 
-    let cloud_config = profile
-        .cloud
-        .as_ref()
-        .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
-
     if profile.target != systemprompt_models::ProfileType::Cloud {
         bail!(
             "Cannot deploy a local profile. Create a cloud profile with: systemprompt cloud \
              profile create <name>"
         );
     }
+
+    let profile_dir = profile_path
+        .parent()
+        .ok_or_else(|| anyhow!("Invalid profile path"))?;
+    let report = super::doctor::run(&profile, profile_dir).await;
+    report.render();
+    if report.has_blocking() {
+        bail!("Deploy preflight failed — fix the items above before deploying.");
+    }
+    if args.check {
+        CliService::success("Deploy preflight passed (--check; nothing deployed)");
+        return Ok(());
+    }
+
+    let cloud_config = profile
+        .cloud
+        .as_ref()
+        .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
 
     let tenant_id = cloud_config
         .tenant_id
@@ -148,6 +162,8 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         CliService::success("Image pushed");
     }
 
+    provision_secrets(&api_client, &tenant_id, &profile, profile_dir, &creds).await?;
+
     let spinner = CliService::spinner("Deploying...");
     let response = api_client.deploy(&tenant_id, &image).await?;
     spinner.finish_and_clear();
@@ -157,28 +173,41 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         CliService::key_value("URL", &url);
     }
 
-    CliService::section("Syncing Secrets");
-    let profile_dir = profile_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid profile path"))?;
-    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
+    Ok(())
+}
 
-    if secrets_path.exists() {
-        let secrets = super::secrets::load_secrets_json(&secrets_path)?;
-        if !secrets.is_empty() {
-            let env_secrets = super::secrets::map_secrets_to_env_vars(secrets);
-            let spinner = CliService::spinner("Syncing secrets...");
-            let keys = api_client.set_secrets(&tenant_id, env_secrets).await?;
-            spinner.finish_and_clear();
-            CliService::success(&format!("Synced {} secrets", keys.len()));
-        }
+async fn provision_secrets(
+    api_client: &CloudApiClient,
+    tenant_id: &TenantId,
+    profile: &systemprompt_models::Profile,
+    profile_dir: &std::path::Path,
+    creds: &systemprompt_cloud::CloudCredentials,
+) -> Result<()> {
+    CliService::section("Provisioning Secrets");
+
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
+    let mut env_secrets = if secrets_path.exists() {
+        super::secrets::map_secrets_to_env_vars(super::secrets::load_secrets_json(&secrets_path)?)
     } else {
         CliService::warning("No secrets.json found - skipping secrets sync");
+        std::collections::HashMap::new()
+    };
+
+    if !env_secrets.contains_key("SIGNING_KEY_PEM") {
+        if let Some(pem) = read_signing_key_pem(profile, profile_dir)? {
+            env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
+        }
     }
 
-    CliService::section("Syncing Cloud Credentials");
+    if !env_secrets.is_empty() {
+        let spinner = CliService::spinner("Syncing secrets...");
+        let keys = api_client.set_secrets(tenant_id, env_secrets).await?;
+        spinner.finish_and_clear();
+        CliService::success(&format!("Synced {} secrets", keys.len()));
+    }
+
     let spinner = CliService::spinner("Syncing cloud credentials...");
-    let keys = sync_cloud_credentials(&api_client, &tenant_id, &creds).await?;
+    let keys = sync_cloud_credentials(api_client, tenant_id, creds).await?;
     spinner.finish_and_clear();
     CliService::success(&format!("Synced {} cloud credentials", keys.len()));
 
@@ -188,12 +217,33 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         profile.name,
         paths::PROFILE_CONFIG
     );
-    let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_owned(), profile_env_path);
-    api_client.set_secrets(&tenant_id, profile_secret).await?;
-    spinner.finish_and_clear();
+    api_client.set_secrets(tenant_id, profile_secret).await?;
     CliService::success("Profile path configured");
 
     Ok(())
+}
+
+fn read_signing_key_pem(
+    profile: &systemprompt_models::Profile,
+    profile_dir: &std::path::Path,
+) -> Result<Option<String>> {
+    let path = super::doctor::resolve_signing_key_path(profile, profile_dir);
+    read_signing_key_pem_at(&path)
+}
+
+pub(in crate::commands::cloud) fn read_signing_key_pem_at(
+    path: &std::path::Path,
+) -> Result<Option<String>> {
+    use base64::Engine;
+
+    if !path.exists() {
+        return Ok(None);
+    }
+    let pem = std::fs::read_to_string(path)
+        .with_context(|| format!("reading signing key {}", path.display()))?;
+    Ok(Some(
+        base64::engine::general_purpose::STANDARD.encode(pem.as_bytes()),
+    ))
 }

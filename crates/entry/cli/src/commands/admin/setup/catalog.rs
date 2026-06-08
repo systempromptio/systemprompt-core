@@ -19,6 +19,10 @@ use super::secrets::SecretsData;
 struct ProviderDefault {
     name: &'static str,
     route_pattern: &'static str,
+    /// Codex sends `openai` aliases (`gpt-5.4-mini`) the real API rejects; the
+    /// `openai` default rewrites them to a concrete model rather than passing
+    /// through.
+    default_upstream: Option<&'static str>,
     present: fn(&SecretsData) -> bool,
 }
 
@@ -26,16 +30,19 @@ const PROVIDER_DEFAULTS: &[ProviderDefault] = &[
     ProviderDefault {
         name: "anthropic",
         route_pattern: "claude-*",
+        default_upstream: None,
         present: |s| s.anthropic.is_some(),
     },
     ProviderDefault {
         name: "openai",
         route_pattern: "gpt-*",
+        default_upstream: Some("gpt-5-mini"),
         present: |s| s.openai.is_some(),
     },
     ProviderDefault {
         name: "gemini",
         route_pattern: "gemini-*",
+        default_upstream: None,
         present: |s| s.gemini.is_some(),
     },
 ];
@@ -47,7 +54,7 @@ fn present_defaults(secrets: &SecretsData) -> Vec<&'static ProviderDefault> {
         .collect()
 }
 
-pub(super) fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
+pub fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
     present_defaults(secrets)
         .iter()
         .map(|d| {
@@ -55,7 +62,7 @@ pub(super) fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
                 id: RouteId::new(""),
                 model_pattern: d.route_pattern.to_owned(),
                 provider: ProviderId::new(d.name),
-                upstream_model: None,
+                upstream_model: d.default_upstream.map(str::to_owned),
                 extra_headers: HashMap::new(),
                 pricing: None,
             };
@@ -65,7 +72,7 @@ pub(super) fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
         .collect()
 }
 
-pub(super) fn build_registry(secrets: &SecretsData) -> ProviderRegistry {
+pub fn build_registry(secrets: &SecretsData) -> ProviderRegistry {
     let seed = match ProviderRegistry::default_seed() {
         Ok(seed) => seed,
         Err(e) => {

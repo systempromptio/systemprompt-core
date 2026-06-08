@@ -8,6 +8,7 @@ pub mod auth;
 pub mod db;
 mod deploy;
 pub mod dockerfile;
+pub mod doctor;
 mod domain;
 mod init;
 pub mod profile;
@@ -68,6 +69,15 @@ pub enum CloudCommands {
 
         #[arg(long, help = "Preview sync without deploying")]
         dry_run: bool,
+
+        #[arg(long, help = "Run the pre-deploy preflight only, without deploying")]
+        check: bool,
+    },
+
+    #[command(about = "Run the pre-deploy preflight for a profile without deploying")]
+    Doctor {
+        #[arg(long, short = 'p', help = "Profile name to check")]
+        profile: Option<String>,
     },
 
     #[command(about = "Check cloud deployment status")]
@@ -148,6 +158,7 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
             no_sync,
             yes,
             dry_run,
+            check,
         } => {
             deploy::execute(
                 deploy::DeployArgs {
@@ -156,11 +167,13 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
                     no_sync,
                     yes,
                     dry_run,
+                    check,
                 },
                 config,
             )
             .await
         },
+        CloudCommands::Doctor { profile } => doctor::execute(profile, config).await,
         CloudCommands::Status => {
             let result = status::execute(config).await?;
             crate::shared::render_result(&result);

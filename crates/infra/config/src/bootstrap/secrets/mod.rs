@@ -77,6 +77,9 @@ pub enum SecretsBootstrapError {
     #[error("manifest_signing_secret_seed is invalid: {message}")]
     ManifestSeedInvalid { message: String },
 
+    #[error("signing_key_pem secret is invalid: {message}")]
+    SigningKeyPemInvalid { message: String },
+
     #[error(
         "manifest_signing_secret_seed missing in subprocess env — parent must propagate \
          MANIFEST_SIGNING_SECRET_SEED so subprocesses don't regenerate and clobber the secrets \
@@ -107,6 +110,22 @@ impl SecretsBootstrap {
 
     pub fn oauth_at_rest_pepper() -> Result<&'static str, SecretsBootstrapError> {
         Ok(&Self::get()?.oauth_at_rest_pepper)
+    }
+
+    pub fn signing_key_pem() -> Result<Option<String>, SecretsBootstrapError> {
+        let Some(encoded) = Self::get()?.signing_key_pem.as_deref() else {
+            return Ok(None);
+        };
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid {
+                message: e.to_string(),
+            })?;
+        let pem =
+            String::from_utf8(bytes).map_err(|e| SecretsBootstrapError::SigningKeyPemInvalid {
+                message: e.to_string(),
+            })?;
+        Ok(Some(pem))
     }
 
     pub fn manifest_signing_secret_seed()

@@ -19,7 +19,7 @@ use crate::shared::profile::generate_oauth_at_rest_pepper;
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
 
-pub(crate) use data::SecretsData;
+pub use data::SecretsData;
 
 pub(super) fn collect_non_interactive(
     args: &SetupArgs,

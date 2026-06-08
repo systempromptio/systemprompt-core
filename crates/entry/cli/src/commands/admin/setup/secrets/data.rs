@@ -17,7 +17,7 @@ pub(super) const STANDARD_PROVIDERS: [&str; 3] = ["gemini", "anthropic", "openai
 const PROVIDER_PRIORITY: [&str; 3] = ["anthropic", "openai", "gemini"];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub(crate) struct SecretsData {
+pub struct SecretsData {
     pub oauth_at_rest_pepper: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
