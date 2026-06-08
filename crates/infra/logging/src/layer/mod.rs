@@ -37,8 +37,8 @@ static BACKGROUND_SENDER: OnceLock<mpsc::Sender<LogCommand>> = OnceLock::new();
 static BACKGROUND_DROPPED: AtomicU64 = AtomicU64::new(0);
 
 /// Non-blocking and off the caller's hot path: the entry is dropped (and
-/// counted) if the sink is unattached or the channel is full. Error entries also
-/// request an immediate flush.
+/// counted) if the sink is unattached or the channel is full. Error entries
+/// also request an immediate flush.
 pub fn enqueue_background(entry: LogEntry) {
     let Some(sender) = BACKGROUND_SENDER.get() else {
         BACKGROUND_DROPPED.fetch_add(1, Ordering::Relaxed);

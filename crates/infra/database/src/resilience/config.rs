@@ -81,8 +81,8 @@ impl Default for ResilienceConfig {
 }
 
 impl From<&systemprompt_models::services::ResilienceSettings> for ResilienceConfig {
-    /// Count fields are clamped to a minimum of `1`: a zero attempt/probe/permit
-    /// budget would deadlock every guarded call.
+    /// Count fields are clamped to a minimum of `1`: a zero
+    /// attempt/probe/permit budget would deadlock every guarded call.
     fn from(settings: &systemprompt_models::services::ResilienceSettings) -> Self {
         Self {
             request_timeout: Duration::from_millis(settings.request_timeout_ms),

@@ -16,8 +16,8 @@ pub struct AccessRule {
 /// One row from `access_control_entities`.
 ///
 /// The `source` provenance string identifies which loader pass first
-/// registered the entity: `"profile:<name>"`, `"roles.yaml"`, or `"bootstrap:*"`
-/// for rows promoted from older schemas by a migration.
+/// registered the entity: `"profile:<name>"`, `"roles.yaml"`, or
+/// `"bootstrap:*"` for rows promoted from older schemas by a migration.
 ///
 /// A `None` lookup result means the entity is unknown to access control and
 /// the resolver returns [`super::decision::DenyReason::UnknownEntity`] rather

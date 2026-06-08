@@ -36,9 +36,9 @@ impl AccessControlRepository {
         }))
     }
 
-    /// Overwrites `default_included` and `source` on conflict so the most recent
-    /// bootstrap pass wins — the publish pipeline is the source of truth and runs
-    /// ahead of YAML grant ingestion.
+    /// Overwrites `default_included` and `source` on conflict so the most
+    /// recent bootstrap pass wins — the publish pipeline is the source of
+    /// truth and runs ahead of YAML grant ingestion.
     pub async fn upsert_entity(
         &self,
         entity_type: EntityKind,

@@ -40,12 +40,14 @@ pub struct ResolveInput<'a> {
     pub parents: &'a [ResolveParent<'a>],
 }
 
-/// Parent inheritance, on top of the crate-head deny-overrides model: a child
-/// deny overrides a parent allow, a nearer rule overrides a farther one within
-/// the same precedence band, and a parent grant cascades to the child only when
-/// no nearer rule matches. An unknown child entity (`default_included == None`)
-/// yields [`DenyReason::UnknownEntity`] unless a rule or a parent's
-/// `default_included` grants access.
+/// Resolves a decision with parent inheritance on the crate-head deny-overrides
+/// model.
+///
+/// A child deny overrides a parent allow, a nearer rule overrides a farther one
+/// within the same precedence band, and a parent grant cascades to the child
+/// only when no nearer rule matches. An unknown child entity
+/// (`default_included == None`) yields [`DenyReason::UnknownEntity`] unless a
+/// rule or a parent's `default_included` grants access.
 #[must_use]
 pub fn resolve(input: ResolveInput<'_>) -> Decision {
     let ResolveInput {

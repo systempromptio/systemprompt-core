@@ -58,8 +58,8 @@ impl BuildPaths {
     }
 
     /// Spawning an agent re-execs this same binary with `admin agents run`, so
-    /// the binary to launch is whatever is running now — deriving it from the OS
-    /// (not a hardcoded `systemprompt` name) lets a renamed binary (e.g.
+    /// the binary to launch is whatever is running now — deriving it from the
+    /// OS (not a hardcoded `systemprompt` name) lets a renamed binary (e.g.
     /// `systemprompt-web`) spawn its own agents.
     pub fn resolve_self() -> Result<PathBuf, PathError> {
         let exe = std::env::current_exe()
