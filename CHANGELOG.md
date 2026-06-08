@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.15.2] - 2026-06-08
+
+### Added
+
+- `cloud doctor` runs a pre-deploy preflight over a profile — it validates the profile (including the `governance.authz` block), confirms a provisionable signing key, checks `secrets.json` for the required keys and provider credentials, and probes database and governance-hook reachability. The same preflight now runs automatically before `cloud deploy` builds an image, so misconfiguration surfaces locally instead of as a post-deploy `500`.
+- The RS256 signing key may be supplied as a `signing_key_pem` secret (a base64-encoded PKCS#8 PEM). On hosts with a read-only filesystem the key is injected as a secret rather than read from `signing_key_path`; the secret is resolved first and the file path remains the local-development fallback.
+
+### Changed
+
+- The signing-key authority is initialised at startup. A missing or invalid key now fails boot rather than the first token mint, and the resolution order is the `signing_key_pem` secret first, then the file at `signing_key_path`.
+- Cloud profiles must declare a `governance.authz` block; profile validation rejects a cloud profile without one (the gateway would otherwise boot with a deny-all hook). Add a `governance.authz.hook` block — `mode: webhook` with a `url` for production — to the profile YAML.
+- `admin session login` and `admin session switch` resolve the admin user by the profile's `system_admin.username`, the same key the runtime resolves at boot. On a cloud profile the admin is created (idempotently) named after `system_admin.username` with the operator's credentials email, so the runtime can resolve it; local profiles continue to require `admin bootstrap`.
+- `admin config secret set` writes provider and custom credentials by key without first requiring the secrets file to fully validate, so an incomplete `secrets.json` can be completed one secret at a time. Infrastructure secrets (database URLs, at-rest pepper, signing seed) remain reserved and are rejected.
+- Gateway pricing resolves the first match among the provider-echoed served model, the route's upstream model, and the client-requested model, so a provider that echoes a dated alias absent from the catalog still bills against the configured model instead of falling through to zero.
+
+### Fixed
+
+- OpenAI Responses tool-call turns no longer stall. The `response.output_item.done` and `response.completed` frames carry the fully-formed `function_call` item and output list, which the per-event stream does not hold, so the gateway now rebuilds them from the accumulated response snapshot; emitting them incomplete previously stranded the tool call and stopped the turn.
+- `admin session switch` no longer fails token generation with `Config not initialized`. It now initialises configuration on the same path as `admin session login`, so switching into a profile without a valid session creates one instead of leaving a half-created user.
+
 ## [0.15.1] - 2026-06-03
 
 ### Fixed
