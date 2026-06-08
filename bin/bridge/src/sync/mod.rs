@@ -10,7 +10,7 @@ pub use apply::{
     render_plugin_json, write_synthetic_plugin,
 };
 pub use error::SyncError;
-pub(crate) use hash::safe_id_segment;
+pub(crate) use hash::{safe_id_segment, sha256_hex};
 pub use host_sync::{HostSync, HostSyncCtx};
 pub use replay::{
     LastSyncState, ReplayStateError, SKEW_WINDOW_MINUTES, check_replay, check_skew, read_last_sync,

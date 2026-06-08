@@ -23,7 +23,7 @@ pub(super) fn normalise_relative(p: &str) -> PathBuf {
     PathBuf::from(p.replace('\\', "/"))
 }
 
-pub(super) fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
     hex_encode(&h.finalize())
