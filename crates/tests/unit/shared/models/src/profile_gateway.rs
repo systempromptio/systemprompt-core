@@ -449,6 +449,45 @@ fn gateway_spec_round_trips_default_provider() {
 }
 
 #[test]
+fn exact_pattern_does_not_match_suffixed_alias() {
+    assert!(!route("gpt-5.4").matches("gpt-5.4-mini"));
+    assert!(route("gpt-*").matches("gpt-5.4-mini"));
+}
+
+#[test]
+fn gpt_star_route_exposes_and_rewrites_codex_alias() {
+    let registry = ProviderRegistry {
+        providers: vec![provider_entry(
+            "openai",
+            "https://api.openai.com/v1",
+            vec![model("gpt-5-mini")],
+        )],
+    };
+    let mut openai = route_to("gpt-*", "openai");
+    openai.upstream_model = Some("gpt-5-mini".to_owned());
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![openai],
+        default_provider: Some(ProviderId::new("openai")),
+        ..GatewayConfig::default()
+    };
+
+    assert!(
+        config.is_model_exposed(&registry, "gpt-5.4-mini"),
+        "a gpt-* route must expose Codex's gpt-5.4-mini alias"
+    );
+    let resolved = config
+        .resolve_route(&registry, "gpt-5.4-mini")
+        .expect("gpt-* route must resolve gpt-5.4-mini");
+    assert_eq!(resolved.provider.as_str(), "openai");
+    assert_eq!(
+        resolved.effective_upstream_model("gpt-5.4-mini"),
+        "gpt-5-mini",
+        "the alias must be rewritten to the concrete upstream model OpenAI accepts"
+    );
+}
+
+#[test]
 fn default_resource_audiences_cover_gateway_requirements() {
     let audiences = default_resource_audiences();
     assert!(audiences.contains(&"hook".to_owned()));
