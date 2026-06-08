@@ -22,4 +22,12 @@ ignore = [
     # surface), or (c) wait for an upstream rsa fix. Until then the advisory is ignored
     # to keep CI green; this is a known accepted risk, not a clean bill of health.
     "RUSTSEC-2023-0071",
+    # RUSTSEC-2026-0173 — proc-macro-error2 is unmaintained.
+    #
+    # It is a build-time-only proc-macro dependency, pulled transitively by
+    # `tabled` (CLI table rendering) and `validator` (config validation). It is
+    # never linked into the runtime binary, so the unmaintained status carries
+    # no runtime security surface. Tracked — drop the ignore once `tabled` and
+    # `validator` move off it.
+    "RUSTSEC-2026-0173",
 ]
