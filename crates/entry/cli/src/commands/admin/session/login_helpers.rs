@@ -2,11 +2,13 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use systemprompt_cloud::{CliSession, SessionIdentity, SessionKey, SessionStore};
+use systemprompt_cloud::{
+    CliSession, CredentialsBootstrap, SessionIdentity, SessionKey, SessionStore,
+};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_logging::CliService;
-use systemprompt_users::{User, UserService};
+use systemprompt_users::{User, UserRole, UserService};
 
 use super::login::{LoginArgs, LoginOutput};
 use crate::shared::CommandOutput;
@@ -67,22 +69,23 @@ pub(super) async fn try_use_existing_session(
     Ok(Some(CommandOutput::card_value("Admin Session", &output)))
 }
 
-pub(super) async fn fetch_admin_user(
+pub async fn fetch_admin_user(
     db_pool: &DbPool,
-    email: &str,
+    admin_name: &str,
     is_cloud_profile: bool,
+    email_override: Option<&str>,
 ) -> Result<User> {
     let user_service = UserService::new(db_pool)?;
 
     if let Some(user) = user_service
-        .find_by_email(email)
+        .find_by_name(admin_name)
         .await
-        .context("Failed to fetch user")?
+        .context("Failed to fetch admin user")?
     {
         if !user.is_admin() {
             anyhow::bail!(
                 "User '{}' exists but is not an admin. Contact your administrator.",
-                email
+                admin_name
             );
         }
         return Ok(user);
@@ -90,28 +93,46 @@ pub(super) async fn fetch_admin_user(
 
     if !is_cloud_profile {
         anyhow::bail!(
-            "User '{}' not found in database.\nFor local profiles, create the user first.",
-            email
+            "Local admin user '{}' not found. Run 'systemprompt admin bootstrap --email \
+             <email>' to create it.",
+            admin_name
         );
     }
 
+    let email = match email_override {
+        Some(e) => e.to_owned(),
+        None => cloud_credentials_email().await?,
+    };
+
     CliService::info(&format!(
-        "User '{}' not found, creating admin user for cloud profile...",
-        email
+        "Admin user '{}' not found, creating it for cloud profile...",
+        admin_name
     ));
 
     let user = user_service
-        .create(email, email, None, None)
+        .create(admin_name, &email, None, None)
         .await
         .context("Failed to create user")?;
 
     let user = user_service
-        .assign_roles(&user.id, &["admin".to_owned()])
+        .assign_roles(&user.id, &[UserRole::Admin.as_str().to_owned()])
         .await
         .context("Failed to assign admin role")?;
 
-    CliService::success(&format!("Created admin user: {}", email));
+    CliService::success(&format!("Created admin user: {admin_name} <{email}>"));
     Ok(user)
+}
+
+async fn cloud_credentials_email() -> Result<String> {
+    CredentialsBootstrap::try_init()
+        .await
+        .context("Failed to initialize credentials")?;
+    let creds = CredentialsBootstrap::require().map_err(|_e| {
+        anyhow::anyhow!(
+            "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
+        )
+    })?;
+    Ok(creds.user_email.clone())
 }
 
 pub(super) struct SessionStoreParams<'a> {

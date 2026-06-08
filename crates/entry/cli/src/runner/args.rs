@@ -166,6 +166,8 @@ impl DescribeCommand for Commands {
             Self::Plugins(cmd) => cmd.descriptor(),
             Self::Admin(admin::AdminCommands::Setup(_)) => CommandDescriptor::NONE,
             Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.descriptor(),
+            Self::Admin(admin::AdminCommands::Config(admin::config::ConfigCommands::Secret(_)))
+            | Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Admin(admin::AdminCommands::Config(_))
             | Self::Web(_)
             | Self::Core(
@@ -175,7 +177,6 @@ impl DescribeCommand for Commands {
                     core::skills::SkillsCommands::List(_) | core::skills::SkillsCommands::Show(_),
                 ),
             ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
-            Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Infra(infrastructure::InfraCommands::Services(_)) => {
                 CommandDescriptor::PROFILE_SECRETS_AND_PATHS
             },

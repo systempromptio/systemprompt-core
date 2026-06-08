@@ -102,13 +102,6 @@ impl UserRepository {
         Ok(row)
     }
 
-    pub async fn find_admin_owner(&self) -> Result<Option<User>> {
-        if let Some(user) = self.find_by_name("admin").await? {
-            return Ok(Some(user));
-        }
-        self.find_first_admin().await
-    }
-
     pub async fn find_first_admin(&self) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let admin_role = UserRole::Admin.as_str();

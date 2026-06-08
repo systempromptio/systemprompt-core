@@ -1,6 +1,18 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::admin::session::SessionCommands;
 use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
+
+#[test]
+fn session_switch_initializes_paths_so_token_generation_can_sign() {
+    let desc = SessionCommands::Switch {
+        profile_name: "production".to_owned(),
+    }
+    .descriptor();
+    assert!(desc.paths(), "switch must init paths/Config to sign a token");
+    assert!(desc.secrets());
+    assert!(desc.skip_validation());
+}
 
 #[test]
 fn test_descriptor_none_all_false() {

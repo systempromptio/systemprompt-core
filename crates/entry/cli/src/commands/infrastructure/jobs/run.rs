@@ -116,14 +116,6 @@ fn parse_params(params: &[String]) -> Result<HashMap<String, String>> {
     Ok(map)
 }
 
-/// Record a manual job run into `scheduled_jobs` so it surfaces in
-/// `infra jobs history`, mirroring how the scheduler records its own ticks.
-///
-/// The update only touches a job that already has a `scheduled_jobs` row
-/// (manual-only jobs have none, and the UPDATE is a harmless no-op for them).
-/// The job's existing `next_run` is preserved so recording a manual run never
-/// disturbs the schedule. Failures here are non-fatal: recording is bookkeeping
-/// and must not mask the job's own outcome, so errors are logged and swallowed.
 async fn record_job_execution(ctx: &AppContext, output: &JobRunOutput) {
     let repo = match JobRepository::new(ctx.db_pool()) {
         Ok(repo) => repo,
@@ -133,10 +125,9 @@ async fn record_job_execution(ctx: &AppContext, output: &JobRunOutput) {
         },
     };
 
-    // Preserve the existing schedule; a manual run must not clear next_run.
     let next_run = match repo.find_job(&output.job_name).await {
         Ok(Some(job)) => job.next_run,
-        Ok(None) => return, // not a scheduled job — nothing to record
+        Ok(None) => return,
         Err(e) => {
             tracing::warn!(job = %output.job_name, error = %e, "could not look up scheduled job to record manual run");
             return;
@@ -191,40 +182,8 @@ async fn run_single_job(
     }
 
     let db_pool = Arc::clone(ctx.db_pool());
-    let users = match systemprompt_users::UserRepository::new(&db_pool) {
-        Ok(users) => users,
-        Err(e) => {
-            return JobRunOutput {
-                job_name: job_name.to_owned(),
-                status: "failed".to_owned(),
-                duration_ms: start.elapsed().as_millis() as u64,
-                result: JobRunResult {
-                    success: false,
-                    message: Some(format!("failed to open users repository: {e}")),
-                    items_processed: None,
-                    items_failed: None,
-                },
-            };
-        },
-    };
-    let Ok(Some(admin_user)) = users.find_admin_owner().await else {
-        return JobRunOutput {
-            job_name: job_name.to_owned(),
-            status: "failed".to_owned(),
-            duration_ms: start.elapsed().as_millis() as u64,
-            result: JobRunResult {
-                success: false,
-                message: Some(
-                    "no user with role 'admin' exists; create one with `systemprompt admin users \
-                     create --role admin <name>` before running ad-hoc jobs"
-                        .to_owned(),
-                ),
-                items_processed: None,
-                items_failed: None,
-            },
-        };
-    };
-    let actor = systemprompt_identifiers::Actor::job(admin_user.id, job_name.to_owned());
+    let admin_id = ctx.system_admin().id().clone();
+    let actor = systemprompt_identifiers::Actor::job(admin_id, job_name.to_owned());
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
     let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
         Arc::new(Arc::clone(ctx.app_paths_arc()));

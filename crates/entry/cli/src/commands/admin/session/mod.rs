@@ -2,7 +2,7 @@
 
 mod list;
 pub mod login;
-mod login_helpers;
+pub mod login_helpers;
 mod logout;
 mod show;
 mod switch;
@@ -36,8 +36,9 @@ pub enum SessionCommands {
 impl DescribeCommand for SessionCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Login(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_skip_validation(),
-            Self::Switch { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Login(_) | Self::Switch { .. } => {
+                CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_skip_validation()
+            },
             Self::Show | Self::List | Self::Logout(_) => CommandDescriptor::NONE,
         }
     }

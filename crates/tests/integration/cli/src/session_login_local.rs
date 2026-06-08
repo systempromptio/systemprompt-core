@@ -3,11 +3,12 @@
 //! The original bug: `login` unconditionally called
 //! `CredentialsBootstrap::require()` to resolve the operator's email, so a
 //! local-only checkout (no `~/.systemprompt/cloud/credentials.json`) was locked
-//! out of `session login` the moment its session expired. The fix routes local
-//! profiles through `resolve_local_admin_email`, which looks the system-admin
-//! user up by the `system_admin.username` recorded in the profile.
+//! out of `session login` the moment its session expired. `fetch_admin_user`
+//! now resolves the admin by the `system_admin.username` recorded in the
+//! profile, the same key the runtime resolves at boot, so a local profile never
+//! touches cloud credentials.
 
-use systemprompt_cli::admin::session::login::resolve_local_admin_email;
+use systemprompt_cli::admin::session::login_helpers::fetch_admin_user;
 use systemprompt_database::DbPool;
 use systemprompt_users::UserService;
 
@@ -17,7 +18,7 @@ async fn get_db() -> Option<DbPool> {
 }
 
 #[tokio::test]
-async fn resolve_local_admin_email_returns_bootstrapped_user_email() {
+async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
@@ -38,11 +39,12 @@ async fn resolve_local_admin_email_returns_bootstrapped_user_email() {
         .await
         .expect("assign admin role");
 
-    let resolved = resolve_local_admin_email(&username, &db)
+    let resolved = fetch_admin_user(&db, &username, false, None)
         .await
-        .expect("local admin email resolves without cloud credentials");
+        .expect("local admin resolves by name without cloud credentials");
 
-    assert_eq!(resolved, email);
+    assert_eq!(resolved.name, username);
+    assert_eq!(resolved.email, email);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(db.pool_arc().expect("pool").as_ref())
@@ -50,7 +52,7 @@ async fn resolve_local_admin_email_returns_bootstrapped_user_email() {
 }
 
 #[tokio::test]
-async fn resolve_local_admin_email_missing_user_points_to_bootstrap_not_cloud_login() {
+async fn fetch_admin_user_missing_local_user_points_to_bootstrap_not_cloud_login() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
@@ -58,7 +60,7 @@ async fn resolve_local_admin_email_missing_user_points_to_bootstrap_not_cloud_lo
 
     let missing_username = format!("nonexistent_admin_{}", uuid::Uuid::new_v4());
 
-    let err = resolve_local_admin_email(&missing_username, &db)
+    let err = fetch_admin_user(&db, &missing_username, false, None)
         .await
         .expect_err("missing admin row must error");
 

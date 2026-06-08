@@ -10,7 +10,7 @@ use crate::cli_settings::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{CredentialsBootstrap, SessionKey};
+use systemprompt_cloud::SessionKey;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{SessionId, UserId};
@@ -18,7 +18,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{Profile, Secrets};
 use systemprompt_security::{SessionGenerator, SessionParams};
-use systemprompt_users::UserService;
+use systemprompt_users::UserRole;
 
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
@@ -89,15 +89,17 @@ pub async fn login_for_profile(
         }
     }
 
-    let email = match args.email.as_deref() {
-        Some(e) => e.to_owned(),
-        None => resolve_email_for_profile(profile, &db_pool).await?,
-    };
-
+    let admin_name = &profile.system_admin.username;
     if !args.token_only {
-        CliService::info(&format!("Fetching admin user: {}", email));
+        CliService::info(&format!("Fetching admin user: {admin_name}"));
     }
-    let admin_user = fetch_admin_user(&db_pool, &email, profile.target.is_cloud()).await?;
+    let admin_user = fetch_admin_user(
+        &db_pool,
+        admin_name,
+        profile.target.is_cloud(),
+        args.email.as_deref(),
+    )
+    .await?;
 
     if !args.token_only {
         CliService::info("Creating session...");
@@ -135,7 +137,7 @@ pub async fn login_for_profile(
             duration,
             user_type: UserType::Admin,
             permissions: vec![Permission::Admin],
-            roles: vec!["admin".to_owned()],
+            roles: vec![UserRole::Admin.as_str().to_owned()],
             attributes: std::collections::BTreeMap::new(),
             rate_limit_tier: RateLimitTier::Admin,
         })
@@ -180,36 +182,4 @@ fn session_key_for_profile(profile: &Profile) -> SessionKey {
         let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
         SessionKey::from_tenant_id(tenant_id)
     }
-}
-
-async fn resolve_email_for_profile(profile: &Profile, db_pool: &DbPool) -> Result<String> {
-    if profile.target.is_local() {
-        return resolve_local_admin_email(&profile.system_admin.username, db_pool).await;
-    }
-
-    CredentialsBootstrap::try_init()
-        .await
-        .context("Failed to initialize credentials")?;
-    let creds = CredentialsBootstrap::require().map_err(|_e| {
-        anyhow::anyhow!(
-            "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
-        )
-    })?;
-    Ok(creds.user_email.clone())
-}
-
-pub async fn resolve_local_admin_email(username: &str, db_pool: &DbPool) -> Result<String> {
-    let user_service = UserService::new(db_pool)?;
-    let user = user_service
-        .find_by_name(username)
-        .await
-        .with_context(|| format!("Failed to look up system admin user '{}'", username))?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Local admin user '{}' not found. Run 'systemprompt admin bootstrap --email \
-                 <email>' to create it.",
-                username
-            )
-        })?;
-    Ok(user.email)
 }
