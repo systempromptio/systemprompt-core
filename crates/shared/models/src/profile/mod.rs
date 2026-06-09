@@ -24,7 +24,7 @@ mod style;
 mod validation;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
-pub use database::DatabaseConfig;
+pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
 pub use gateway::{
     GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult, GatewayRoute,

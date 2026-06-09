@@ -27,6 +27,7 @@ impl Profile {
             database: DatabaseConfig {
                 db_type,
                 external_db_access: false,
+                pool: None,
             },
             server: server_config_from_env()?,
             paths: paths_config_from_env()?,

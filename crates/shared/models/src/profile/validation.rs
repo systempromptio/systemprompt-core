@@ -6,6 +6,7 @@
 use super::governance::{AuthzMode, UNRESTRICTED_ACKNOWLEDGEMENT};
 use super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
 use super::{Profile, ProfileError, ProfileResult};
+use crate::auth::JwtAudience;
 
 impl Profile {
     pub fn validate(&self) -> ProfileResult<()> {
@@ -15,6 +16,7 @@ impl Profile {
         self.validate_required_fields(&mut errors);
         self.validate_paths(&mut errors, is_cloud);
         self.validate_security_settings(&mut errors);
+        self.validate_database_pool(&mut errors);
         self.validate_cors_origins(&mut errors);
         self.validate_rate_limits(&mut errors);
         self.validate_governance(&mut errors, is_cloud);
@@ -118,6 +120,21 @@ impl Profile {
             errors.push("Security refresh_token_expiration must be positive".to_owned());
         }
 
+        if !self
+            .security
+            .audiences
+            .iter()
+            .any(|aud| JwtAudience::FIRST_PARTY.contains(aud))
+        {
+            errors.push(
+                "security.jwt_audiences must include at least one first-party surface \
+                 (web, api, a2a, mcp) — session-context token validation pins the `aud` \
+                 claim to that set, so tokens minted without one would be rejected on \
+                 every request. Add the standard audiences to the profile YAML and restart."
+                    .to_owned(),
+            );
+        }
+
         for required in GATEWAY_REQUIRED_RESOURCE_AUDIENCES {
             if !self
                 .security
@@ -131,6 +148,22 @@ impl Profile {
                      scopes (hook:govern, hook:track). Add it to the profile YAML and restart."
                 ));
             }
+        }
+    }
+
+    pub(super) fn validate_database_pool(&self, errors: &mut Vec<String>) {
+        let Some(pool) = self.database.pool.as_ref() else {
+            return;
+        };
+        if let Some(max) = pool.max_connections {
+            if !(1..=500).contains(&max) {
+                errors.push(format!(
+                    "database.pool.max_connections must be between 1 and 500 (got {max})"
+                ));
+            }
+        }
+        if pool.acquire_timeout_secs == Some(0) {
+            errors.push("database.pool.acquire_timeout_secs must be greater than 0".to_owned());
         }
     }
 

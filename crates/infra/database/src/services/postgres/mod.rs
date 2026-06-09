@@ -33,6 +33,13 @@ pub struct PostgresProvider {
 
 impl PostgresProvider {
     pub async fn new(database_url: &str) -> DatabaseResult<Self> {
+        Self::new_with_pool(database_url, &connection::PoolConfig::default()).await
+    }
+
+    pub async fn new_with_pool(
+        database_url: &str,
+        pool_config: &connection::PoolConfig,
+    ) -> DatabaseResult<Self> {
         let mut connect_options = PgConnectOptions::from_str(database_url)?;
 
         let ssl_mode = if database_url.contains("sslmode=require") {
@@ -53,9 +60,11 @@ impl PostgresProvider {
             connect_options = connect_options.ssl_root_cert(&ca_cert_path);
         }
 
-        let pool =
-            connection::connect_with_retry(connection::build_pool_options(), connect_options)
-                .await?;
+        let pool = connection::connect_with_retry(
+            connection::build_pool_options(pool_config),
+            connect_options,
+        )
+        .await?;
 
         Ok(Self {
             pool: Arc::new(pool),

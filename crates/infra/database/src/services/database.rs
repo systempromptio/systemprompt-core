@@ -3,6 +3,7 @@
 //! query and transaction surface.
 
 use super::postgres::PostgresProvider;
+use super::postgres::connection::PoolConfig;
 use super::provider::DatabaseProvider;
 use crate::error::{DatabaseResult, RepositoryError};
 use crate::models::{DatabaseInfo, QueryResult};
@@ -43,9 +44,12 @@ impl Database {
         db_type: &str,
         read_url: &str,
         write_url: Option<&str>,
+        pool: &PoolConfig,
     ) -> DatabaseResult<Self> {
         let provider: Arc<dyn DatabaseProvider> = match db_type.to_lowercase().as_str() {
-            "postgres" | "postgresql" | "" => Arc::new(PostgresProvider::new(read_url).await?),
+            "postgres" | "postgresql" | "" => {
+                Arc::new(PostgresProvider::new_with_pool(read_url, pool).await?)
+            },
             other => {
                 return Err(RepositoryError::invalid_argument(format!(
                     "Unsupported database type: {other}. Only PostgreSQL is supported."
@@ -54,7 +58,7 @@ impl Database {
         };
 
         let write_provider: Option<Arc<dyn DatabaseProvider>> = match write_url {
-            Some(url) => Some(Arc::new(PostgresProvider::new(url).await?)),
+            Some(url) => Some(Arc::new(PostgresProvider::new_with_pool(url, pool).await?)),
             None => None,
         };
 

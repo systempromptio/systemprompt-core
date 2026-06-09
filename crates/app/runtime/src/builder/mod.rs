@@ -11,7 +11,9 @@ use std::sync::{Arc, OnceLock};
 
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_database::{Database, MigrationConfig, install_extension_schemas_full};
+use systemprompt_database::{
+    Database, MigrationConfig, PoolConfig, install_extension_schemas_full,
+};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
@@ -223,11 +225,13 @@ async fn init_core(authz_hook_override: Option<SharedAuthzHook>) -> RuntimeResul
     systemprompt_security::keys::authority::init()
         .map_err(|err| RuntimeError::Internal(format!("signing key init: {err}")))?;
 
+    let pool_config = pool_config_from_profile(profile.database.pool.as_ref());
     let database = Arc::new(
         Database::from_config_with_write(
             &config.database_type,
             &config.database_url,
             config.database_write_url.as_deref(),
+            &pool_config,
         )
         .await?,
     );
@@ -254,6 +258,30 @@ async fn init_core(authz_hook_override: Option<SharedAuthzHook>) -> RuntimeResul
         database,
         authz_hook,
     })
+}
+
+fn pool_config_from_profile(
+    profile_pool: Option<&systemprompt_models::profile::PoolConfig>,
+) -> PoolConfig {
+    use std::time::Duration;
+
+    let mut cfg = PoolConfig::default();
+    let Some(p) = profile_pool else {
+        return cfg;
+    };
+    if let Some(max) = p.max_connections {
+        cfg.max_connections = max;
+    }
+    if let Some(secs) = p.acquire_timeout_secs {
+        cfg.acquire_timeout = Duration::from_secs(secs);
+    }
+    if let Some(secs) = p.idle_timeout_secs {
+        cfg.idle_timeout = Duration::from_secs(secs);
+    }
+    if let Some(secs) = p.max_lifetime_secs {
+        cfg.max_lifetime = Duration::from_secs(secs);
+    }
+    cfg
 }
 
 async fn init_extensions(

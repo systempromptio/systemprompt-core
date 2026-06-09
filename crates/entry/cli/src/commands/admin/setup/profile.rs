@@ -66,6 +66,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_owned(),
             external_db_access: false,
+            pool: None,
         },
         server,
         paths: sections::paths(project_root, bin_path, &ctx),

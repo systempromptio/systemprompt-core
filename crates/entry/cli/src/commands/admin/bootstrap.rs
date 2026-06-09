@@ -71,6 +71,7 @@ pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<Command
             &Config::get()?.database_type,
             &Config::get()?.database_url,
             Config::get()?.database_write_url.as_deref(),
+            &systemprompt_database::PoolConfig::default(),
         )
         .await
         .context("Failed to connect to database")?,

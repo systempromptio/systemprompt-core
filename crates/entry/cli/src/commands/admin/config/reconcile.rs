@@ -68,6 +68,7 @@ async fn try_reconcile(profile: &Profile, profile_path: &str) -> anyhow::Result<
             &cfg.database_type,
             &cfg.database_url,
             cfg.database_write_url.as_deref(),
+            &systemprompt_database::PoolConfig::default(),
         )
         .await?,
     );

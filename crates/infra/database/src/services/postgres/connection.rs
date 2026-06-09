@@ -20,14 +20,41 @@ use crate::resilience::retry::retry_async;
 const RETRY_DELAYS_MS: &[u64] = &[100, 200, 400, 800, 1600];
 const MAX_ATTEMPTS: u32 = 5;
 
+/// Operator-tunable connection-pool sizing for a `PostgresProvider`.
+///
+/// [`PoolConfig::default`] reproduces the historical hardcoded values; callers
+/// that have profile config supply their own. The connect/SSL/retry behaviour
+/// is fixed and not exposed here — only the sizing/lifetime knobs an operator
+/// needs to fit the pool to their Postgres `max_connections` and replica count.
+#[derive(Debug, Clone, Copy)]
+pub struct PoolConfig {
+    pub max_connections: u32,
+    pub min_connections: u32,
+    pub acquire_timeout: Duration,
+    pub idle_timeout: Duration,
+    pub max_lifetime: Duration,
+}
+
+impl Default for PoolConfig {
+    fn default() -> Self {
+        Self {
+            max_connections: 50,
+            min_connections: 0,
+            acquire_timeout: Duration::from_secs(30),
+            idle_timeout: Duration::from_secs(300),
+            max_lifetime: Duration::from_secs(1800),
+        }
+    }
+}
+
 #[must_use]
-pub fn build_pool_options() -> PgPoolOptions {
+pub fn build_pool_options(cfg: &PoolConfig) -> PgPoolOptions {
     PgPoolOptions::new()
-        .max_connections(50)
-        .min_connections(0)
-        .max_lifetime(Duration::from_secs(1800))
-        .acquire_timeout(Duration::from_secs(30))
-        .idle_timeout(Duration::from_secs(300))
+        .max_connections(cfg.max_connections)
+        .min_connections(cfg.min_connections)
+        .max_lifetime(cfg.max_lifetime)
+        .acquire_timeout(cfg.acquire_timeout)
+        .idle_timeout(cfg.idle_timeout)
 }
 
 pub async fn connect_with_retry(

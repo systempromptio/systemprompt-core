@@ -21,7 +21,13 @@ impl DatabaseContext {
     }
 
     pub async fn from_urls(read_url: &str, write_url: Option<&str>) -> RuntimeResult<Self> {
-        let db = Database::from_config_with_write("postgres", read_url, write_url).await?;
+        let db = Database::from_config_with_write(
+            "postgres",
+            read_url,
+            write_url,
+            &systemprompt_database::PoolConfig::default(),
+        )
+        .await?;
         Ok(Self {
             database: Arc::new(db),
         })

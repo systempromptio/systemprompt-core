@@ -26,6 +26,7 @@ pub(super) async fn execute_migrate(config: &CliConfig, allow_checksum_drift: bo
             &sys_config.database_type,
             &sys_config.database_url,
             sys_config.database_write_url.as_deref(),
+            &systemprompt_database::PoolConfig::default(),
         )
         .await
         .context("Failed to connect to database")?,

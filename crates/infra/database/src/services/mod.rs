@@ -13,6 +13,7 @@ pub use database::{Database, DatabaseExt, DbPool};
 pub use display::DatabaseCliDisplay;
 pub use executor::SqlExecutor;
 pub use postgres::PostgresProvider;
+pub use postgres::connection::PoolConfig;
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::{DatabaseProvider, DatabaseProviderExt};
 pub use schema_linter::{LintError, lint_declarative_schema};

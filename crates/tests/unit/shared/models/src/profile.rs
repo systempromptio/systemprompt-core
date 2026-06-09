@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_models::profile::{expand_home, resolve_path, resolve_with_home};
 use systemprompt_models::services::SystemAdminConfig;
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileStyle, ProfileType,
@@ -42,7 +43,7 @@ fn make_security_config() -> SecurityConfig {
         issuer: "test-issuer".to_string(),
         access_token_expiration: 3600,
         refresh_token_expiration: 86400,
-        audiences: vec![],
+        audiences: vec![JwtAudience::Api],
         allowed_resource_audiences: vec![],
         allow_registration: true,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
@@ -62,6 +63,7 @@ fn make_profile(name: &str) -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            pool: None,
         },
         server: make_server_config(),
         paths: make_paths_config("/tmp/test"),
@@ -680,6 +682,7 @@ fn database_config_serde_roundtrip() {
     let config = ProfileDatabaseConfig {
         db_type: "postgres".to_string(),
         external_db_access: true,
+        pool: None,
     };
     let json = serde_json::to_string(&config).unwrap();
     let deserialized: ProfileDatabaseConfig = serde_json::from_str(&json).unwrap();

@@ -2,6 +2,7 @@ use systemprompt_models::profile::default_resource_audiences;
 use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
@@ -44,7 +45,7 @@ fn security_config() -> SecurityConfig {
         issuer: "test-issuer".to_string(),
         access_token_expiration: 3600,
         refresh_token_expiration: 86400,
-        audiences: vec![],
+        audiences: vec![JwtAudience::Api],
         allowed_resource_audiences: default_resource_audiences(),
         allow_registration: true,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
@@ -86,6 +87,7 @@ fn valid_profile() -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            pool: None,
         },
         server: server_config(),
         paths: local_paths(),
@@ -191,6 +193,80 @@ mod security_settings {
         let msg = errors_of(&p);
         assert!(msg.contains("allowed_resource_audiences"));
         assert!(msg.contains("\"hook\""));
+    }
+
+    #[test]
+    fn empty_jwt_audiences_rejected() {
+        let mut p = valid_profile();
+        p.security.audiences = vec![];
+        assert!(errors_of(&p).contains("jwt_audiences must include at least one first-party"));
+    }
+
+    #[test]
+    fn non_first_party_jwt_audiences_rejected() {
+        let mut p = valid_profile();
+        p.security.audiences = vec![JwtAudience::Hook];
+        assert!(errors_of(&p).contains("jwt_audiences must include at least one first-party"));
+    }
+
+    #[test]
+    fn first_party_jwt_audiences_accepted() {
+        let mut p = valid_profile();
+        p.security.audiences = vec![JwtAudience::Web, JwtAudience::Hook];
+        assert!(!errors_of(&p).contains("jwt_audiences"));
+    }
+}
+
+mod database_pool {
+    use super::*;
+    use systemprompt_models::profile::PoolConfig;
+
+    #[test]
+    fn absent_pool_passes() {
+        let p = valid_profile();
+        assert!(!errors_of(&p).contains("database.pool"));
+    }
+
+    #[test]
+    fn max_connections_over_limit_rejected() {
+        let mut p = valid_profile();
+        p.database.pool = Some(PoolConfig {
+            max_connections: Some(501),
+            ..PoolConfig::default()
+        });
+        assert!(errors_of(&p).contains("database.pool.max_connections"));
+    }
+
+    #[test]
+    fn zero_max_connections_rejected() {
+        let mut p = valid_profile();
+        p.database.pool = Some(PoolConfig {
+            max_connections: Some(0),
+            ..PoolConfig::default()
+        });
+        assert!(errors_of(&p).contains("database.pool.max_connections"));
+    }
+
+    #[test]
+    fn zero_acquire_timeout_rejected() {
+        let mut p = valid_profile();
+        p.database.pool = Some(PoolConfig {
+            acquire_timeout_secs: Some(0),
+            ..PoolConfig::default()
+        });
+        assert!(errors_of(&p).contains("acquire_timeout_secs"));
+    }
+
+    #[test]
+    fn valid_pool_accepted() {
+        let mut p = valid_profile();
+        p.database.pool = Some(PoolConfig {
+            max_connections: Some(100),
+            acquire_timeout_secs: Some(15),
+            idle_timeout_secs: Some(600),
+            max_lifetime_secs: Some(3600),
+        });
+        assert!(!errors_of(&p).contains("database.pool"));
     }
 }
 

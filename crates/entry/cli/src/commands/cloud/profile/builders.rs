@@ -83,6 +83,7 @@ impl LocalProfileBuilder {
             database: ProfileDatabaseConfig {
                 db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: false,
+                pool: None,
             },
             server: ServerConfig {
                 host: consts::LOCAL_HOST.to_owned(),
@@ -112,12 +113,7 @@ impl LocalProfileBuilder {
                 issuer: consts::LOCAL_ISSUER.to_owned(),
                 access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
                 refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
-                audiences: vec![
-                    JwtAudience::Web,
-                    JwtAudience::Api,
-                    JwtAudience::A2a,
-                    JwtAudience::Mcp,
-                ],
+                audiences: JwtAudience::standard(),
                 allowed_resource_audiences: default_resource_audiences(),
                 allow_registration: true,
                 signing_key_path: std::path::PathBuf::from("signing_key.pem"),
@@ -221,6 +217,7 @@ impl CloudProfileBuilder {
             database: ProfileDatabaseConfig {
                 db_type: consts::DEFAULT_DB_TYPE.to_owned(),
                 external_db_access: self.external_db_access,
+                pool: None,
             },
             server: ServerConfig {
                 host: consts::CLOUD_HOST.to_owned(),
@@ -248,12 +245,7 @@ impl CloudProfileBuilder {
                 issuer: consts::CLOUD_ISSUER.to_owned(),
                 access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
                 refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
-                audiences: vec![
-                    JwtAudience::Web,
-                    JwtAudience::Api,
-                    JwtAudience::A2a,
-                    JwtAudience::Mcp,
-                ],
+                audiences: JwtAudience::standard(),
                 allowed_resource_audiences: default_resource_audiences(),
                 allow_registration: true,
                 signing_key_path: std::path::PathBuf::from("signing_key.pem"),
