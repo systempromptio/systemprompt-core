@@ -159,6 +159,43 @@ async fn validate_redirect_uri_mismatch_errors() {
 }
 
 #[tokio::test]
+async fn validate_rejects_mismatched_client_id() {
+    let Some(ctx) = setup().await else { return };
+    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
+    ctx.repo
+        .store_authorization_code(AuthCodeParams {
+            code: &code,
+            client_id: &ctx.client_id,
+            user_id: &ctx.user_id,
+            redirect_uri: &ctx.redirect_uri,
+            scope: "openid",
+            code_challenge: None,
+            code_challenge_method: None,
+            resource: None,
+        })
+        .await
+        .expect("store");
+
+    let other_client = ClientId::new(format!("other-{}", Uuid::new_v4()));
+    assert!(
+        ctx.repo
+            .validate_authorization_code(&code, &other_client, Some(&ctx.redirect_uri), None)
+            .await
+            .is_err(),
+        "a code issued to one client must not be redeemable by another"
+    );
+
+    // The mismatched attempt still consumes the code (single-use), so the
+    // rightful client also cannot now redeem it — fail closed.
+    assert!(
+        ctx.repo
+            .validate_authorization_code(&code, &ctx.client_id, Some(&ctx.redirect_uri), None)
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn validate_pkce_s256_success_and_failure() {
     let Some(ctx) = setup().await else { return };
     let PkcePair {

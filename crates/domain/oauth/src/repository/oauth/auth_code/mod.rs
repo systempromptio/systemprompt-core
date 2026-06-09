@@ -63,7 +63,7 @@ impl OAuthRepository {
     pub async fn validate_authorization_code(
         &self,
         code: &AuthorizationCode,
-        _client_id: &ClientId,
+        client_id: &ClientId,
         redirect_uri: Option<&str>,
         code_verifier: Option<&str>,
     ) -> OauthResult<AuthCodeValidationResult> {
@@ -79,7 +79,7 @@ impl OAuthRepository {
             "UPDATE oauth_auth_codes
              SET used_at = $1
              WHERE code = $2 AND used_at IS NULL
-             RETURNING user_id, scope, expires_at, redirect_uri, code_challenge,
+             RETURNING client_id, user_id, scope, expires_at, redirect_uri, code_challenge,
                        code_challenge_method, resource",
             now,
             code_hash
@@ -92,6 +92,17 @@ impl OAuthRepository {
                 .handle_unclaimable_auth_code(code_str, &code_hash)
                 .await;
         };
+
+        if row.client_id != client_id.as_str() {
+            tracing::warn!(
+                expected = %row.client_id,
+                actual = %client_id,
+                "Authorization code redeemed by a different client"
+            );
+            return Err(OauthError::Validation(
+                "Invalid authorization code".to_owned(),
+            ));
+        }
 
         if row.expires_at < now {
             tracing::warn!("Authorization code expired");
