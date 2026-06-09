@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.0] - 2026-06-09
+
+### Added
+
+- A headless `proxy` subcommand runs the local inference proxy without the desktop GUI — the Linux/server equivalent. It listens on `127.0.0.1:48217`, swaps a loopback secret for a fresh gateway JWT, injects the identity headers, and refreshes the token in the background; point `ANTHROPIC_BASE_URL` / `ANTHROPIC_AUTH_TOKEN` at the printed values.
+
 ## [0.12.1] - 2026-06-04
 
 ### Fixed

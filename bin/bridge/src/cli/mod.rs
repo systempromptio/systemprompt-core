@@ -10,6 +10,7 @@ pub mod login;
 pub mod logout;
 pub mod oauth_client;
 pub mod output;
+mod proxy;
 mod run;
 pub mod status;
 pub mod sync;
@@ -29,6 +30,7 @@ pub fn run() -> ExitCode {
     }
     match args.get(1).map(String::as_str) {
         None | Some("run") => run::cmd_run(),
+        Some("proxy") => proxy::cmd_proxy(),
         Some("login") => login::cmd_login(&args),
         Some("logout") => logout::cmd_logout(),
         Some("clean") => clean::cmd_clean(),

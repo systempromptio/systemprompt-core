@@ -45,6 +45,12 @@ const HELP: &str = "systemprompt-bridge <command>
 
 Commands (credential helper):
   run                        (default) Emit JWT envelope to stdout
+  proxy                      Run the local inference proxy headlessly (Linux/server
+                             equivalent of the desktop GUI). Listens on
+                             127.0.0.1:48217, swaps a loopback secret for a fresh
+                             gateway JWT, injects identity headers, and refreshes
+                             in the background. Point ANTHROPIC_BASE_URL /
+                             ANTHROPIC_AUTH_TOKEN at the printed values.
   login <sp-live-...>        Store a PAT securely and wire up systemprompt-bridge.toml
     [--gateway <url>]
   logout                     Remove the stored PAT and its config section
