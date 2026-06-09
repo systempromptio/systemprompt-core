@@ -119,7 +119,9 @@ mod tool_provider_error_tests {
 
     #[test]
     fn configuration_error_contains_message() {
-        let err = ToolProviderError::ConfigurationError("missing url".to_string());
+        let err = ToolProviderError::ConfigurationError {
+            message: "missing url".to_string(),
+        };
         assert!(err.to_string().contains("missing url"));
     }
 

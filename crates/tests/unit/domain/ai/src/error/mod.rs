@@ -155,7 +155,9 @@ mod ai_error_tests {
 
     #[test]
     fn configuration_error() {
-        let err = AiError::ConfigurationError("missing api_key".to_string());
+        let err = AiError::ConfigurationError {
+            message: "missing api_key".to_string(),
+        };
         let msg = err.to_string();
         assert!(msg.contains("missing api_key"));
         assert!(msg.contains("Configuration error"));
@@ -163,7 +165,9 @@ mod ai_error_tests {
 
     #[test]
     fn database_error_from_anyhow() {
-        let err: AiError = AiError::DatabaseError("connection refused".to_string());
+        let err: AiError = AiError::DatabaseError {
+            message: "connection refused".to_string(),
+        };
         let msg = err.to_string();
         assert!(msg.contains("connection refused"));
     }
@@ -199,7 +203,9 @@ mod ai_error_tests {
 
     #[test]
     fn storage_error() {
-        let err = AiError::StorageError("disk full".to_string());
+        let err = AiError::StorageError {
+            message: "disk full".to_string(),
+        };
         let msg = err.to_string();
         assert!(msg.contains("disk full"));
         assert!(msg.contains("Storage operation failed"));

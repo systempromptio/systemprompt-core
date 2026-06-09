@@ -47,10 +47,8 @@ impl DomainConfig for ContentConfigValidator {
         let provider = config
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
-            .ok_or_else(|| {
-                DomainConfigError::LoadError(
-                    "Expected ValidationConfigProvider with pre-loaded configs".into(),
-                )
+            .ok_or_else(|| DomainConfigError::LoadError {
+                message: "Expected ValidationConfigProvider with pre-loaded configs".into(),
             })?;
 
         self.loaded = provider

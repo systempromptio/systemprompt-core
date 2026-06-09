@@ -125,7 +125,9 @@ fn test_build_error_io() {
 
 #[test]
 fn test_build_error_process_error() {
-    let error = BuildError::ProcessError("npm failed with exit code 1".to_string());
+    let error = BuildError::ProcessError {
+        message: "npm failed with exit code 1".to_string(),
+    };
     let error_msg = format!("{}", error);
     assert!(error_msg.contains("Process execution error"));
     assert!(error_msg.contains("exit code 1"));
@@ -133,7 +135,9 @@ fn test_build_error_process_error() {
 
 #[test]
 fn test_build_error_config_error() {
-    let error = BuildError::ConfigError("Invalid configuration".to_string());
+    let error = BuildError::ConfigError {
+        message: "Invalid configuration".to_string(),
+    };
     let error_msg = format!("{}", error);
     assert!(error_msg.contains("Configuration error"));
     assert!(error_msg.contains("Invalid configuration"));
@@ -141,7 +145,9 @@ fn test_build_error_config_error() {
 
 #[test]
 fn test_build_error_debug_format() {
-    let error = BuildError::ProcessError("test error".to_string());
+    let error = BuildError::ProcessError {
+        message: "test error".to_string(),
+    };
     let debug_str = format!("{:?}", error);
     assert!(debug_str.contains("ProcessError"));
     assert!(debug_str.contains("test error"));

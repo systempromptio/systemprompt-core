@@ -97,8 +97,8 @@ pub enum ConfigError {
     #[error("Invalid configuration value for '{key}': {message}")]
     InvalidValue { key: String, message: String },
 
-    #[error("Failed to parse configuration: {0}")]
-    ParseError(String),
+    #[error("Failed to parse configuration: {message}")]
+    ParseError { message: String },
 
     #[error("Schema validation failed: {0}")]
     SchemaValidation(String),

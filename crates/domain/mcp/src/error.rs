@@ -61,8 +61,8 @@ domain_error! {
         #[error("MCP client initialize: {0}")]
         ClientInitialize(String),
 
-        #[error("MCP service error: {0}")]
-        ServiceError(String),
+        #[error("MCP service error: {message}")]
+        ServiceError { message: String },
 
         #[error("Task join error: {0}")]
         TaskJoin(#[from] tokio::task::JoinError),
@@ -89,7 +89,9 @@ impl From<rmcp::service::ClientInitializeError> for McpDomainError {
 
 impl From<rmcp::ServiceError> for McpDomainError {
     fn from(e: rmcp::ServiceError) -> Self {
-        Self::ServiceError(e.to_string())
+        Self::ServiceError {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -113,7 +115,7 @@ impl McpDomainError {
             Self::ConnectionFailed { .. }
             | Self::Transport(_)
             | Self::Timeout { .. }
-            | Self::ServiceError(_) => Outcome::Transient { retry_after: None },
+            | Self::ServiceError { .. } => Outcome::Transient { retry_after: None },
             _ => Outcome::Permanent,
         }
     }

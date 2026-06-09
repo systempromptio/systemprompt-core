@@ -19,8 +19,8 @@ pub enum ToolProviderError {
     #[error("Authorization failed: {0}")]
     AuthorizationFailed(String),
 
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
+    #[error("Configuration error: {message}")]
+    ConfigurationError { message: String },
 
     #[error("Internal error: {0}")]
     Internal(String),

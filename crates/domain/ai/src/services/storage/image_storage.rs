@@ -74,17 +74,17 @@ pub struct ImageStorage {
 
 impl ImageStorage {
     pub fn new(config: StorageConfig) -> Result<Self, AiError> {
-        config
-            .validate()
-            .map_err(|e| AiError::StorageError(format!("Invalid storage configuration: {e}")))?;
+        config.validate().map_err(|e| AiError::StorageError {
+            message: format!("Invalid storage configuration: {e}"),
+        })?;
 
         if !config.base_path.exists() {
-            fs::create_dir_all(&config.base_path).map_err(|e| {
-                AiError::StorageError(format!(
+            fs::create_dir_all(&config.base_path).map_err(|e| AiError::StorageError {
+                message: format!(
                     "Failed to create storage directory {}: {}",
                     config.base_path.display(),
                     e
-                ))
+                ),
             })?;
         }
 
@@ -98,7 +98,9 @@ impl ImageStorage {
     ) -> Result<(PathBuf, String), AiError> {
         let image_bytes = BASE64
             .decode(base64_data)
-            .map_err(|e| AiError::StorageError(format!("Failed to decode base64 image: {e}")))?;
+            .map_err(|e| AiError::StorageError {
+                message: format!("Failed to decode base64 image: {e}"),
+            })?;
 
         self.save_image_bytes(&image_bytes, mime_type)
     }
@@ -109,11 +111,13 @@ impl ImageStorage {
         mime_type: &str,
     ) -> Result<(PathBuf, String), AiError> {
         if image_bytes.len() > self.config.max_file_size_bytes {
-            return Err(AiError::StorageError(format!(
-                "Image size {} bytes exceeds maximum allowed size {} bytes",
-                image_bytes.len(),
-                self.config.max_file_size_bytes
-            )));
+            return Err(AiError::StorageError {
+                message: format!(
+                    "Image size {} bytes exceeds maximum allowed size {} bytes",
+                    image_bytes.len(),
+                    self.config.max_file_size_bytes
+                ),
+            });
         }
 
         let extension = Self::mime_type_to_extension(mime_type);
@@ -138,22 +142,19 @@ impl ImageStorage {
             self.config.base_path.join(&filename)
         };
 
-        if let Some(parent) = relative_path.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent).map_err(|e| {
-                    AiError::StorageError(format!(
-                        "Failed to create directory {}: {e}",
-                        parent.display()
-                    ))
-                })?;
-            }
+        if let Some(parent) = relative_path.parent()
+            && !parent.exists()
+        {
+            fs::create_dir_all(parent).map_err(|e| AiError::StorageError {
+                message: format!("Failed to create directory {}: {e}", parent.display()),
+            })?;
         }
 
-        fs::write(&relative_path, image_bytes).map_err(|e| {
-            AiError::StorageError(format!(
+        fs::write(&relative_path, image_bytes).map_err(|e| AiError::StorageError {
+            message: format!(
                 "Failed to write image file {}: {e}",
                 relative_path.display()
-            ))
+            ),
         })?;
 
         let url_path = if self.config.organize_by_date {
@@ -175,23 +176,19 @@ impl ImageStorage {
 
     pub fn delete_image(&self, file_path: &Path) -> Result<(), AiError> {
         if !file_path.exists() {
-            return Err(AiError::StorageError(format!(
-                "File does not exist: {}",
-                file_path.display()
-            )));
+            return Err(AiError::StorageError {
+                message: format!("File does not exist: {}", file_path.display()),
+            });
         }
 
-        fs::remove_file(file_path).map_err(|e| {
-            AiError::StorageError(format!(
-                "Failed to delete file {}: {e}",
-                file_path.display()
-            ))
+        fs::remove_file(file_path).map_err(|e| AiError::StorageError {
+            message: format!("Failed to delete file {}: {e}", file_path.display()),
         })?;
 
-        if let Some(parent) = file_path.parent() {
-            if let Err(e) = self.cleanup_empty_directories(parent) {
-                tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
-            }
+        if let Some(parent) = file_path.parent()
+            && let Err(e) = self.cleanup_empty_directories(parent)
+        {
+            tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
         }
 
         Ok(())
@@ -223,10 +220,10 @@ impl ImageStorage {
         if dir.read_dir()?.next().is_none() {
             fs::remove_dir(dir)?;
 
-            if let Some(parent) = dir.parent() {
-                if let Err(e) = self.cleanup_empty_directories(parent) {
-                    tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
-                }
+            if let Some(parent) = dir.parent()
+                && let Err(e) = self.cleanup_empty_directories(parent)
+            {
+                tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
             }
         }
 

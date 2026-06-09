@@ -187,7 +187,9 @@ fn test_startup_validation_error_from_report() {
 
 #[test]
 fn test_domain_config_error_load_error() {
-    let error = DomainConfigError::LoadError("connection timeout".to_string());
+    let error = DomainConfigError::LoadError {
+        message: "connection timeout".to_string(),
+    };
     let display = format!("{}", error);
     assert!(display.contains("Failed to load config"));
     assert!(display.contains("connection timeout"));
@@ -202,14 +204,18 @@ fn test_domain_config_error_not_found() {
 
 #[test]
 fn test_domain_config_error_parse_error() {
-    let error = DomainConfigError::ParseError("invalid YAML at line 5".to_string());
+    let error = DomainConfigError::ParseError {
+        message: "invalid YAML at line 5".to_string(),
+    };
     let display = format!("{}", error);
     assert!(display.contains("Failed to parse config"));
 }
 
 #[test]
 fn test_domain_config_error_validation_error() {
-    let error = DomainConfigError::ValidationError("missing required field".to_string());
+    let error = DomainConfigError::ValidationError {
+        message: "missing required field".to_string(),
+    };
     let display = format!("{}", error);
     assert!(display.contains("Validation failed"));
 }

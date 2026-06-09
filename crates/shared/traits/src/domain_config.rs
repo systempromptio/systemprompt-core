@@ -13,17 +13,17 @@ use crate::validation_report::ValidationReport;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum DomainConfigError {
-    #[error("Failed to load config: {0}")]
-    LoadError(String),
+    #[error("Failed to load config: {message}")]
+    LoadError { message: String },
 
     #[error("Config file not found: {0}")]
     NotFound(String),
 
-    #[error("Failed to parse config: {0}")]
-    ParseError(String),
+    #[error("Failed to parse config: {message}")]
+    ParseError { message: String },
 
-    #[error("Validation failed: {0}")]
-    ValidationError(String),
+    #[error("Validation failed: {message}")]
+    ValidationError { message: String },
 }
 
 pub trait DomainConfig: Send + Sync + Debug {

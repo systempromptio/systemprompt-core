@@ -98,11 +98,11 @@ pub enum AiError {
     #[error("Invalid API credentials for provider {provider}")]
     AuthenticationFailed { provider: String },
 
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
+    #[error("Configuration error: {message}")]
+    ConfigurationError { message: String },
 
-    #[error("Database operation failed: {0}")]
-    DatabaseError(String),
+    #[error("Database operation failed: {message}")]
+    DatabaseError { message: String },
 
     #[error("MCP service {service_id} not found or not configured")]
     McpServiceNotFound { service_id: McpServerId },
@@ -113,8 +113,8 @@ pub enum AiError {
     #[error("Failed to determine service authentication requirements: {details}")]
     ServiceAuthCheckFailed { details: String },
 
-    #[error("Storage operation failed: {0}")]
-    StorageError(String),
+    #[error("Storage operation failed: {message}")]
+    StorageError { message: String },
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
@@ -203,6 +203,8 @@ pub type Result<T> = std::result::Result<T, AiError>;
 
 impl From<RepositoryError> for AiError {
     fn from(error: RepositoryError) -> Self {
-        Self::DatabaseError(error.to_string())
+        Self::DatabaseError {
+            message: error.to_string(),
+        }
     }
 }

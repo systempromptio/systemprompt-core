@@ -39,8 +39,8 @@ pub enum ContextExtractionError {
     #[error("Invalid user_id: {0}")]
     InvalidUserId(String),
 
-    #[error("Database error: {0}")]
-    DatabaseError(String),
+    #[error("Database error: {message}")]
+    DatabaseError { message: String },
 
     #[error("User not found: {0}")]
     UserNotFound(String),

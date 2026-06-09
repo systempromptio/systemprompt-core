@@ -126,7 +126,9 @@ fn config_error_invalid_value_display() {
 
 #[test]
 fn config_error_parse_error_display() {
-    let err = ConfigError::ParseError("unexpected token at line 5".to_string());
+    let err = ConfigError::ParseError {
+        message: "unexpected token at line 5".to_string(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("unexpected token"));
 }

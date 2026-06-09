@@ -274,7 +274,11 @@ impl SystempromptClient {
 
     fn auth_header(&self) -> ClientResult<String> {
         self.token.as_ref().map_or_else(
-            || Err(ClientError::AuthError("No token configured".to_owned())),
+            || {
+                Err(ClientError::AuthError {
+                    message: "No token configured".to_owned(),
+                })
+            },
             |token| Ok(format!("Bearer {}", token.as_str())),
         )
     }

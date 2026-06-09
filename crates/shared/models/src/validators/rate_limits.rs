@@ -27,8 +27,8 @@ impl DomainConfig for RateLimitsConfigValidator {
         let provider = config
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
-            .ok_or_else(|| {
-                DomainConfigError::LoadError("Expected ValidationConfigProvider".into())
+            .ok_or_else(|| DomainConfigError::LoadError {
+                message: "Expected ValidationConfigProvider".into(),
             })?;
 
         self.config = Some(provider.config().rate_limits);
@@ -40,7 +40,9 @@ impl DomainConfig for RateLimitsConfigValidator {
         let config = self
             .config
             .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Not loaded".into()))?;
+            .ok_or_else(|| DomainConfigError::ValidationError {
+                message: "Not loaded".into(),
+            })?;
 
         if config.disabled {
             return Ok(report);

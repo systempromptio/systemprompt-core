@@ -117,7 +117,9 @@ fn test_api_error_not_retryable() {
 
 #[test]
 fn test_auth_error_not_retryable() {
-    let error = ClientError::AuthError("Invalid token".to_string());
+    let error = ClientError::AuthError {
+        message: "Invalid token".to_string(),
+    };
     assert!(!error.is_retryable());
 }
 
@@ -136,7 +138,9 @@ fn test_json_error_not_retryable() {
 
 #[test]
 fn test_config_error_not_retryable() {
-    let error = ClientError::ConfigError("Missing config".to_string());
+    let error = ClientError::ConfigError {
+        message: "Missing config".to_string(),
+    };
     assert!(!error.is_retryable());
 }
 
@@ -148,7 +152,9 @@ fn test_timeout_display() {
 
 #[test]
 fn test_auth_error_display() {
-    let error = ClientError::AuthError("Token expired".to_string());
+    let error = ClientError::AuthError {
+        message: "Token expired".to_string(),
+    };
     assert_eq!(error.to_string(), "Authentication failed: Token expired");
 }
 
@@ -166,7 +172,9 @@ fn test_server_unavailable_display() {
 
 #[test]
 fn test_config_error_display() {
-    let error = ClientError::ConfigError("Invalid URL".to_string());
+    let error = ClientError::ConfigError {
+        message: "Invalid URL".to_string(),
+    };
     assert_eq!(error.to_string(), "Invalid configuration: Invalid URL");
 }
 

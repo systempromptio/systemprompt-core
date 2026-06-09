@@ -11,11 +11,11 @@ pub enum AiProviderError {
     #[error("Session not found: {0}")]
     SessionNotFound(String),
 
-    #[error("Storage error: {0}")]
-    StorageError(String),
+    #[error("Storage error: {message}")]
+    StorageError { message: String },
 
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
+    #[error("Configuration error: {message}")]
+    ConfigurationError { message: String },
 
     #[error("Internal error: {0}")]
     Internal(String),

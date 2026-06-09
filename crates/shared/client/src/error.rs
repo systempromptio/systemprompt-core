@@ -17,8 +17,8 @@ pub enum ClientError {
     #[error("Failed to parse JSON: {0}")]
     JsonError(#[from] serde_json::Error),
 
-    #[error("Authentication failed: {0}")]
-    AuthError(String),
+    #[error("Authentication failed: {message}")]
+    AuthError { message: String },
 
     #[error("Resource not found: {0}")]
     NotFound(String),
@@ -29,8 +29,8 @@ pub enum ClientError {
     #[error("Server unavailable: {0}")]
     ServerUnavailable(String),
 
-    #[error("Invalid configuration: {0}")]
-    ConfigError(String),
+    #[error("Invalid configuration: {message}")]
+    ConfigError { message: String },
 }
 
 impl ClientError {

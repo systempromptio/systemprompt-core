@@ -36,9 +36,11 @@ impl FileUploadProvider for FileUploadService {
 
         let request = builder.build();
 
-        let uploaded = Self::upload_file(self, request)
-            .await
-            .map_err(|e| FileUploadProviderError::StorageError(e.to_string()))?;
+        let uploaded = Self::upload_file(self, request).await.map_err(|e| {
+            FileUploadProviderError::StorageError {
+                message: e.to_string(),
+            }
+        })?;
 
         Ok(UploadedFileInfo {
             file_id: uploaded.file_id,

@@ -32,7 +32,7 @@ pub(crate) fn extraction_error_to_api_error(error: &ContextExtractionError) -> A
         ContextExtractionError::InvalidUserId(reason) => {
             ApiError::bad_request(format!("Invalid user_id: {reason}"))
         },
-        ContextExtractionError::DatabaseError(_) => {
+        ContextExtractionError::DatabaseError { .. } => {
             ApiError::internal_error("Internal server error")
         },
         ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
@@ -56,9 +56,9 @@ pub(super) fn log_error_response(
     .entered();
 
     match error {
-        ContextExtractionError::DatabaseError(e) => {
+        ContextExtractionError::DatabaseError { message } => {
             tracing::error!(
-                error = %e,
+                error = %message,
                 error_type = "database",
                 "Context extraction failed due to database error"
             );

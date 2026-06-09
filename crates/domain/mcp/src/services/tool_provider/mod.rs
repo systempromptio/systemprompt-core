@@ -93,9 +93,10 @@ impl ToolProvider for McpToolProvider {
         agent_name: &str,
         context: &ToolContext,
     ) -> ToolProviderResult<Vec<ToolDefinition>> {
-        let assigned_servers = load_agent_servers(agent_name).map_err(|e| {
-            ToolProviderError::ConfigurationError(format!("Failed to load agent config: {e}"))
-        })?;
+        let assigned_servers =
+            load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
+                message: format!("Failed to load agent config: {e}"),
+            })?;
 
         info!(
             agent = agent_name,
@@ -107,9 +108,9 @@ impl ToolProvider for McpToolProvider {
 
         for server_name in &assigned_servers {
             let server_config = self.registry.get_server(server_name).map_err(|e| {
-                ToolProviderError::ConfigurationError(format!(
-                    "Failed to resolve MCP server {server_name}: {e}"
-                ))
+                ToolProviderError::ConfigurationError {
+                    message: format!("Failed to resolve MCP server {server_name}: {e}"),
+                }
             })?;
             let request_ctx = create_request_context(context, &server_config)?;
             match McpClient::list_tools(&server_config, &request_ctx).await {
@@ -149,9 +150,9 @@ impl ToolProvider for McpToolProvider {
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
         let server_config = self.registry.get_server(service_id).map_err(|e| {
-            ToolProviderError::ConfigurationError(format!(
-                "Failed to resolve MCP server {service_id}: {e}"
-            ))
+            ToolProviderError::ConfigurationError {
+                message: format!("Failed to resolve MCP server {service_id}: {e}"),
+            }
         })?;
         let request_ctx = create_request_context(context, &server_config)?;
 
@@ -178,9 +179,10 @@ impl ToolProvider for McpToolProvider {
     }
 
     async fn refresh_connections(&self, agent_name: &str) -> ToolProviderResult<()> {
-        let assigned_servers = load_agent_servers(agent_name).map_err(|e| {
-            ToolProviderError::ConfigurationError(format!("Failed to load agent config: {e}"))
-        })?;
+        let assigned_servers =
+            load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
+                message: format!("Failed to load agent config: {e}"),
+            })?;
 
         info!(
             agent = agent_name,

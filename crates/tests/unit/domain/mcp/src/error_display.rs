@@ -59,7 +59,9 @@ fn client_initialize_display_contains_message() {
 
 #[test]
 fn service_error_display_contains_message() {
-    let e = McpDomainError::ServiceError("service down".to_owned());
+    let e = McpDomainError::ServiceError {
+        message: "service down".to_owned(),
+    };
     let s = e.to_string();
     assert!(s.contains("service down"));
 }

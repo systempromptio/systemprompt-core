@@ -36,10 +36,8 @@ impl DomainConfig for AgentConfigValidator {
         let provider = config
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
-            .ok_or_else(|| {
-                DomainConfigError::LoadError(
-                    "Expected ValidationConfigProvider with merged ServicesConfig".into(),
-                )
+            .ok_or_else(|| DomainConfigError::LoadError {
+                message: "Expected ValidationConfigProvider with merged ServicesConfig".into(),
             })?;
 
         self.config = Some(provider.services_config().clone());
@@ -52,12 +50,16 @@ impl DomainConfig for AgentConfigValidator {
         let config = self
             .config
             .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Not loaded".into()))?;
+            .ok_or_else(|| DomainConfigError::ValidationError {
+                message: "Not loaded".into(),
+            })?;
 
-        let skills_path = self
-            .skills_path
-            .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Skills path not set".into()))?;
+        let skills_path =
+            self.skills_path
+                .as_ref()
+                .ok_or_else(|| DomainConfigError::ValidationError {
+                    message: "Skills path not set".into(),
+                })?;
 
         if !Path::new(skills_path).exists() {
             report.add_error(

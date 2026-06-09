@@ -84,7 +84,9 @@ fn test_config_validation_display() {
 
 #[test]
 fn test_service_error_display() {
-    let err = McpDomainError::ServiceError("ouch".to_string());
+    let err = McpDomainError::ServiceError {
+        message: "ouch".to_string(),
+    };
     assert!(err.to_string().contains("ouch"));
 }
 

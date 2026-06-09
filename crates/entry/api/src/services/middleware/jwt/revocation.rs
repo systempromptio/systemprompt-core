@@ -45,7 +45,9 @@ impl JtiRevocationChecker {
         }
 
         let revoked = self.repo.is_jti_revoked(jti).await.map_err(|e| {
-            ContextExtractionError::DatabaseError(format!("JTI revocation lookup failed: {e}"))
+            ContextExtractionError::DatabaseError {
+                message: format!("JTI revocation lookup failed: {e}"),
+            }
         })?;
         self.cache.record(jti, revoked);
         if revoked {

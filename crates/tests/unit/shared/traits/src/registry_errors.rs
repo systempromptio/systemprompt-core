@@ -331,13 +331,17 @@ fn ai_provider_session_not_found_display() {
 
 #[test]
 fn ai_provider_storage_error_display() {
-    let e = AiProviderError::StorageError("disk full".to_owned());
+    let e = AiProviderError::StorageError {
+        message: "disk full".to_owned(),
+    };
     assert!(format!("{e}").contains("disk full"));
 }
 
 #[test]
 fn ai_provider_configuration_error_display() {
-    let e = AiProviderError::ConfigurationError("missing key".to_owned());
+    let e = AiProviderError::ConfigurationError {
+        message: "missing key".to_owned(),
+    };
     assert!(format!("{e}").contains("missing key"));
 }
 

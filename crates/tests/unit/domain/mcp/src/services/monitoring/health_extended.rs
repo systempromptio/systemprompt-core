@@ -52,7 +52,11 @@ fn conn(
     McpConnectionResult {
         service_name: "test".to_owned(),
         success,
-        error_message: if success { None } else { Some("err".to_owned()) },
+        error_message: if success {
+            None
+        } else {
+            Some("err".to_owned())
+        },
         connection_time_ms: time_ms,
         server_info: info,
         tools_count: tools,
@@ -147,7 +151,10 @@ fn health_check_details_error_message_from_connection_result() {
     let mut r = conn(false, 0, "connection_failed", 0, None);
     r.error_message = Some("connection refused".to_owned());
     let hc = HealthCheckResult::from_connection_result(r, &cfg);
-    assert_eq!(hc.details.error_message.as_deref(), Some("connection refused"));
+    assert_eq!(
+        hc.details.error_message.as_deref(),
+        Some("connection refused")
+    );
 }
 
 #[test]

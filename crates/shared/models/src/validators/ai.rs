@@ -35,10 +35,8 @@ impl DomainConfig for AiConfigValidator {
         let provider = config
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
-            .ok_or_else(|| {
-                DomainConfigError::LoadError(
-                    "Expected ValidationConfigProvider with merged ServicesConfig".into(),
-                )
+            .ok_or_else(|| DomainConfigError::LoadError {
+                message: "Expected ValidationConfigProvider with merged ServicesConfig".into(),
             })?;
 
         self.config = Some(provider.services_config().clone());
@@ -50,7 +48,9 @@ impl DomainConfig for AiConfigValidator {
         let config = self
             .config
             .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Not loaded".into()))?;
+            .ok_or_else(|| DomainConfigError::ValidationError {
+                message: "Not loaded".into(),
+            })?;
         let ai_config = &config.ai;
 
         Self::validate_default_provider(&mut report, ai_config);

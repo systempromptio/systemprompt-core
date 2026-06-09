@@ -34,10 +34,8 @@ impl DomainConfig for McpConfigValidator {
         let provider = config
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
-            .ok_or_else(|| {
-                DomainConfigError::LoadError(
-                    "Expected ValidationConfigProvider with pre-loaded configs".into(),
-                )
+            .ok_or_else(|| DomainConfigError::LoadError {
+                message: "Expected ValidationConfigProvider with pre-loaded configs".into(),
             })?;
 
         self.services_config = Some(provider.services_config().clone());

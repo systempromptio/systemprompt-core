@@ -152,7 +152,9 @@ fn test_config_error_invalid_value_debug() {
 
 #[test]
 fn test_config_error_parse_error_display() {
-    let err = ConfigError::ParseError("invalid JSON at line 5".to_string());
+    let err = ConfigError::ParseError {
+        message: "invalid JSON at line 5".to_string(),
+    };
     let msg = err.to_string();
     assert!(msg.contains("invalid JSON at line 5"));
     assert!(msg.contains("parse"));
@@ -299,7 +301,9 @@ fn test_config_error_variant_matching() {
             key: "key".to_string(),
             message: "msg".to_string(),
         },
-        ConfigError::ParseError("parse error".to_string()),
+        ConfigError::ParseError {
+            message: "parse error".to_string(),
+        },
         ConfigError::SchemaValidation("schema error".to_string()),
     ];
 
@@ -312,7 +316,7 @@ fn test_config_error_variant_matching() {
                 assert!(!key.is_empty());
                 assert!(!message.is_empty());
             },
-            ConfigError::ParseError(msg) => {
+            ConfigError::ParseError { message: msg } => {
                 assert!(!msg.is_empty());
             },
             ConfigError::SchemaValidation(msg) => {

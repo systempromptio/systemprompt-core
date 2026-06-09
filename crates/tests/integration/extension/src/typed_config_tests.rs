@@ -49,9 +49,9 @@ impl ConfigExtensionTyped for ValidatingConfigExtension {
             }
             Ok(())
         } else {
-            Err(ConfigError::ParseError(
-                "Config must be an object".to_string(),
-            ))
+            Err(ConfigError::ParseError {
+                message: "Config must be an object".to_string(),
+            })
         }
     }
 
@@ -159,7 +159,7 @@ fn test_config_extension_custom_validate_not_object() {
     result.as_ref().expect_err("result should fail");
 
     match result {
-        Err(ConfigError::ParseError(msg)) => {
+        Err(ConfigError::ParseError { message: msg }) => {
             assert!(msg.contains("object"));
         },
         _ => panic!("Expected ParseError"),

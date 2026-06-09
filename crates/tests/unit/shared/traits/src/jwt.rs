@@ -36,7 +36,9 @@ fn jwt_provider_error_displays_have_useful_text() {
     assert_eq!(JwtProviderError::TokenExpired.to_string(), "Token expired");
     let e = JwtProviderError::MissingAudience("api".to_owned());
     assert!(e.to_string().contains("api"));
-    let e = JwtProviderError::ConfigurationError("missing key".to_owned());
+    let e = JwtProviderError::ConfigurationError {
+        message: "missing key".to_owned(),
+    };
     assert!(e.to_string().contains("missing key"));
     let e = JwtProviderError::Internal("boom".to_owned());
     assert!(e.to_string().contains("boom"));

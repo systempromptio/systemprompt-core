@@ -29,10 +29,8 @@ impl DomainConfig for WebConfigValidator {
         let provider = config
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
-            .ok_or_else(|| {
-                DomainConfigError::LoadError(
-                    "Expected ValidationConfigProvider with pre-loaded configs".into(),
-                )
+            .ok_or_else(|| DomainConfigError::LoadError {
+                message: "Expected ValidationConfigProvider with pre-loaded configs".into(),
             })?;
 
         self.config = provider.web_config().cloned();
@@ -49,36 +47,37 @@ impl DomainConfig for WebConfigValidator {
             return Ok(report);
         };
 
-        if let Some(ref base_url) = cfg.base_url {
-            if !base_url.starts_with("http://") && !base_url.starts_with("https://") {
-                report.add_error(
-                    ValidationError::new(
-                        "web_config.base_url",
-                        format!("Invalid URL format: {}", base_url),
-                    )
-                    .with_suggestion("URL must start with http:// or https://"),
-                );
-            }
+        if let Some(ref base_url) = cfg.base_url
+            && !base_url.starts_with("http://")
+            && !base_url.starts_with("https://")
+        {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.base_url",
+                    format!("Invalid URL format: {}", base_url),
+                )
+                .with_suggestion("URL must start with http:// or https://"),
+            );
         }
 
-        if let Some(ref site_name) = cfg.site_name {
-            if site_name.is_empty() {
-                report.add_error(ValidationError::new(
-                    "web_config.site_name",
-                    "Site name cannot be empty",
-                ));
-            }
+        if let Some(ref site_name) = cfg.site_name
+            && site_name.is_empty()
+        {
+            report.add_error(ValidationError::new(
+                "web_config.site_name",
+                "Site name cannot be empty",
+            ));
         }
 
         if let Some(ref path) = self.config_path {
             let parent = Path::new(path).parent();
-            if let Some(dir) = parent {
-                if !dir.exists() {
-                    report.add_error(
-                        ValidationError::new("web_config", "Web config directory does not exist")
-                            .with_path(dir),
-                    );
-                }
+            if let Some(dir) = parent
+                && !dir.exists()
+            {
+                report.add_error(
+                    ValidationError::new("web_config", "Web config directory does not exist")
+                        .with_path(dir),
+                );
             }
         }
 
@@ -110,31 +109,31 @@ impl WebConfigValidator {
             return;
         };
 
-        if let Some(templates) = &paths.templates {
-            if !templates.is_empty() {
-                let resolved = self.resolve_path(templates);
-                let path = Path::new(&resolved);
-                if !path.exists() {
-                    report.add_error(
-                        ValidationError::new(
-                            "web_config.paths.templates",
-                            format!("Templates directory does not exist: {}", resolved),
-                        )
-                        .with_path(path)
-                        .with_suggestion(
-                            "Create the templates directory or update paths.templates in \
+        if let Some(templates) = &paths.templates
+            && !templates.is_empty()
+        {
+            let resolved = self.resolve_path(templates);
+            let path = Path::new(&resolved);
+            if !path.exists() {
+                report.add_error(
+                    ValidationError::new(
+                        "web_config.paths.templates",
+                        format!("Templates directory does not exist: {}", resolved),
+                    )
+                    .with_path(path)
+                    .with_suggestion(
+                        "Create the templates directory or update paths.templates in \
                              web_config.yaml",
-                        ),
-                    );
-                } else if !path.is_dir() {
-                    report.add_error(
-                        ValidationError::new(
-                            "web_config.paths.templates",
-                            "Templates path is not a directory",
-                        )
-                        .with_path(path),
-                    );
-                }
+                    ),
+                );
+            } else if !path.is_dir() {
+                report.add_error(
+                    ValidationError::new(
+                        "web_config.paths.templates",
+                        "Templates path is not a directory",
+                    )
+                    .with_path(path),
+                );
             }
         }
     }

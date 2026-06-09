@@ -32,12 +32,17 @@ impl DomainConfig for FilesConfigValidator {
     }
 
     fn load(&mut self, _config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
-        let profile =
-            ProfileBootstrap::get().map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
-        let paths = AppPaths::from_profile(&profile.paths)
-            .map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
-        let yaml_config = FilesConfig::load_yaml_config(&paths)
-            .map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
+        let profile = ProfileBootstrap::get().map_err(|e| DomainConfigError::LoadError {
+            message: e.to_string(),
+        })?;
+        let paths =
+            AppPaths::from_profile(&profile.paths).map_err(|e| DomainConfigError::LoadError {
+                message: e.to_string(),
+            })?;
+        let yaml_config =
+            FilesConfig::load_yaml_config(&paths).map_err(|e| DomainConfigError::LoadError {
+                message: e.to_string(),
+            })?;
         self.config = Some(yaml_config);
         Ok(())
     }
@@ -48,7 +53,9 @@ impl DomainConfig for FilesConfigValidator {
         let config = self
             .config
             .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Not loaded".into()))?;
+            .ok_or_else(|| DomainConfigError::ValidationError {
+                message: "Not loaded".into(),
+            })?;
 
         if !config.url_prefix.starts_with('/') {
             report.add_error(ValidationError::new(

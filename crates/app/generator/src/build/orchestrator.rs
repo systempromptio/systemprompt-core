@@ -22,11 +22,11 @@ pub enum BuildError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("Process execution error: {0}")]
-    ProcessError(String),
+    #[error("Process execution error: {message}")]
+    ProcessError { message: String },
 
-    #[error("Configuration error: {0}")]
-    ConfigError(String),
+    #[error("Configuration error: {message}")]
+    ConfigError { message: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

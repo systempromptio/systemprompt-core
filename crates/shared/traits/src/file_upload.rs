@@ -18,8 +18,8 @@ pub enum FileUploadProviderError {
     #[error("Validation failed: {0}")]
     ValidationFailed(String),
 
-    #[error("Storage error: {0}")]
-    StorageError(String),
+    #[error("Storage error: {message}")]
+    StorageError { message: String },
 
     #[error("Internal error: {0}")]
     Internal(String),

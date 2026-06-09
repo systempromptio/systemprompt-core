@@ -37,7 +37,9 @@ fn test_timeout_is_transient() {
 
 #[test]
 fn test_service_error_is_transient() {
-    let err = McpDomainError::ServiceError("upstream".to_string());
+    let err = McpDomainError::ServiceError {
+        message: "upstream".to_string(),
+    };
     assert!(is_transient(&err.classify()));
 }
 

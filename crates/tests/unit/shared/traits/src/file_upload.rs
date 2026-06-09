@@ -35,7 +35,9 @@ fn file_upload_provider_error_displays_useful_text() {
     );
     let e = FileUploadProviderError::ValidationFailed("too large".to_owned());
     assert!(e.to_string().contains("too large"));
-    let e = FileUploadProviderError::StorageError("disk full".to_owned());
+    let e = FileUploadProviderError::StorageError {
+        message: "disk full".to_owned(),
+    };
     assert!(e.to_string().contains("disk full"));
     let e = FileUploadProviderError::Internal("boom".to_owned());
     assert!(e.to_string().contains("boom"));

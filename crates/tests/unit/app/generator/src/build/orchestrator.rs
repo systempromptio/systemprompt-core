@@ -78,7 +78,9 @@ fn test_build_error_validation_failed() {
 
 #[test]
 fn test_build_error_process_error() {
-    let error = BuildError::ProcessError("command exited with code 1".to_string());
+    let error = BuildError::ProcessError {
+        message: "command exited with code 1".to_string(),
+    };
     assert_eq!(
         error.to_string(),
         "Process execution error: command exited with code 1"
@@ -87,7 +89,9 @@ fn test_build_error_process_error() {
 
 #[test]
 fn test_build_error_config_error() {
-    let error = BuildError::ConfigError("missing required field".to_string());
+    let error = BuildError::ConfigError {
+        message: "missing required field".to_string(),
+    };
     assert_eq!(
         error.to_string(),
         "Configuration error: missing required field"
@@ -131,6 +135,8 @@ fn test_build_error_long_message() {
 
 #[test]
 fn test_build_error_special_characters_in_message() {
-    let error = BuildError::ProcessError("error: <script> tag not allowed".to_string());
+    let error = BuildError::ProcessError {
+        message: "error: <script> tag not allowed".to_string(),
+    };
     assert!(error.to_string().contains("<script>"));
 }

@@ -17,8 +17,8 @@ pub enum JwtProviderError {
     #[error("Missing audience: {0}")]
     MissingAudience(String),
 
-    #[error("Configuration error: {0}")]
-    ConfigurationError(String),
+    #[error("Configuration error: {message}")]
+    ConfigurationError { message: String },
 
     #[error("Internal error: {0}")]
     Internal(String),

@@ -76,7 +76,9 @@ impl DomainConfig for WithDeps {
 
 #[test]
 fn load_error_display_contains_message() {
-    let e = DomainConfigError::LoadError("missing key".to_owned());
+    let e = DomainConfigError::LoadError {
+        message: "missing key".to_owned(),
+    };
     assert!(format!("{e}").contains("missing key"));
 }
 
@@ -88,23 +90,33 @@ fn not_found_display_contains_path() {
 
 #[test]
 fn parse_error_display_contains_detail() {
-    let e = DomainConfigError::ParseError("invalid YAML".to_owned());
+    let e = DomainConfigError::ParseError {
+        message: "invalid YAML".to_owned(),
+    };
     assert!(format!("{e}").contains("invalid YAML"));
 }
 
 #[test]
 fn validation_error_display_contains_detail() {
-    let e = DomainConfigError::ValidationError("field required".to_owned());
+    let e = DomainConfigError::ValidationError {
+        message: "field required".to_owned(),
+    };
     assert!(format!("{e}").contains("field required"));
 }
 
 #[test]
 fn domain_config_errors_are_debug() {
     let variants: &[DomainConfigError] = &[
-        DomainConfigError::LoadError("a".into()),
+        DomainConfigError::LoadError {
+            message: "a".into(),
+        },
         DomainConfigError::NotFound("b".into()),
-        DomainConfigError::ParseError("c".into()),
-        DomainConfigError::ValidationError("d".into()),
+        DomainConfigError::ParseError {
+            message: "c".into(),
+        },
+        DomainConfigError::ValidationError {
+            message: "d".into(),
+        },
     ];
     for e in variants {
         let s = format!("{e:?}");

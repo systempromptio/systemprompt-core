@@ -58,8 +58,8 @@ pub(super) async fn validate_user_exists(
     let user = user_provider
         .find_by_id(&jwt_context.user_id)
         .await
-        .map_err(|e| {
-            ContextExtractionError::DatabaseError(format!("Failed to check user existence: {e}"))
+        .map_err(|e| ContextExtractionError::DatabaseError {
+            message: format!("Failed to check user existence: {e}"),
         })?
         .ok_or_else(|| {
             tracing::info!(
@@ -112,8 +112,8 @@ pub(super) async fn validate_session_exists(
     let session = analytics_provider
         .find_active_session_by_id(&jwt_context.session_id)
         .await
-        .map_err(|e| {
-            ContextExtractionError::DatabaseError(format!("Failed to check session: {e}"))
+        .map_err(|e| ContextExtractionError::DatabaseError {
+            message: format!("Failed to check session: {e}"),
         })?;
 
     let Some(session) = session else {
@@ -128,19 +128,19 @@ pub(super) async fn validate_session_exists(
         ));
     };
 
-    if let Some(session_user_id) = session.user_id.as_ref() {
-        if session_user_id.as_str() != jwt_context.user_id.as_str() {
-            tracing::warn!(
-                session_id = %jwt_context.session_id.as_str(),
-                claimed_user_id = %jwt_context.user_id.as_str(),
-                session_user_id = %session_user_id.as_str(),
-                route = %route_context,
-                "JWT validation failed: session user mismatch"
-            );
-            return Err(ContextExtractionError::InvalidToken(
-                "Session user mismatch".to_owned(),
-            ));
-        }
+    if let Some(session_user_id) = session.user_id.as_ref()
+        && session_user_id.as_str() != jwt_context.user_id.as_str()
+    {
+        tracing::warn!(
+            session_id = %jwt_context.session_id.as_str(),
+            claimed_user_id = %jwt_context.user_id.as_str(),
+            session_user_id = %session_user_id.as_str(),
+            route = %route_context,
+            "JWT validation failed: session user mismatch"
+        );
+        return Err(ContextExtractionError::InvalidToken(
+            "Session user mismatch".to_owned(),
+        ));
     }
 
     Ok(())

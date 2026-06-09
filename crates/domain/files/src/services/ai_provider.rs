@@ -129,8 +129,9 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     }
 
     fn storage_config(&self) -> AiProviderResult<ImageStorageConfig> {
-        let config =
-            FilesConfig::get().map_err(|e| AiProviderError::ConfigurationError(e.to_string()))?;
+        let config = FilesConfig::get().map_err(|e| AiProviderError::ConfigurationError {
+            message: e.to_string(),
+        })?;
 
         Ok(ImageStorageConfig {
             base_path: config.generated_images(),

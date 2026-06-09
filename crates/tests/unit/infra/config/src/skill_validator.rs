@@ -93,7 +93,7 @@ fn validate_before_load_errors() {
     let v = SkillConfigValidator::new();
     let err = v.validate().unwrap_err();
     assert!(
-        matches!(err, DomainConfigError::ValidationError(_)),
+        matches!(err, DomainConfigError::ValidationError { .. }),
         "got: {err:?}"
     );
 }

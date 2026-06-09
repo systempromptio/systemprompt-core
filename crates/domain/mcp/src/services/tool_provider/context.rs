@@ -25,12 +25,11 @@ pub(super) fn create_request_context(
         .get("x-context-id")
         .filter(|s| !s.is_empty())
         .and_then(|s| ContextId::try_new(s.clone()).ok())
-        .ok_or_else(|| {
-            ToolProviderError::ConfigurationError(
+        .ok_or_else(|| ToolProviderError::ConfigurationError {
+            message:
                 "Missing or invalid x-context-id header - context must be a UUID propagated from \
                  parent request"
                     .into(),
-            )
         })?;
 
     let agent_name = ctx
@@ -38,12 +37,10 @@ pub(super) fn create_request_context(
         .get("x-agent-name")
         .filter(|s| !s.is_empty())
         .map(|s| AgentName::new(s.clone()))
-        .ok_or_else(|| {
-            ToolProviderError::ConfigurationError(
-                "Missing x-agent-name header - agent context must be propagated from parent \
+        .ok_or_else(|| ToolProviderError::ConfigurationError {
+            message: "Missing x-agent-name header - agent context must be propagated from parent \
                  request"
-                    .into(),
-            )
+                .into(),
         })?;
 
     let mut request_ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)

@@ -40,10 +40,12 @@ impl DomainConfig for SkillConfigValidator {
     fn validate(&self) -> Result<ValidationReport, DomainConfigError> {
         let mut report = ValidationReport::new("skills");
 
-        let skills_path = self
-            .skills_path
-            .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Skills path not set".into()))?;
+        let skills_path =
+            self.skills_path
+                .as_ref()
+                .ok_or_else(|| DomainConfigError::ValidationError {
+                    message: "Skills path not set".into(),
+                })?;
 
         let skills_dir = Path::new(skills_path);
         if !skills_dir.exists() {
@@ -55,13 +57,13 @@ impl DomainConfig for SkillConfigValidator {
             return Ok(report);
         }
 
-        let entries = std::fs::read_dir(skills_dir).map_err(|e| {
-            DomainConfigError::LoadError(format!("Cannot read skills directory: {e}"))
+        let entries = std::fs::read_dir(skills_dir).map_err(|e| DomainConfigError::LoadError {
+            message: format!("Cannot read skills directory: {e}"),
         })?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| {
-                DomainConfigError::LoadError(format!("Cannot read directory entry: {e}"))
+            let entry = entry.map_err(|e| DomainConfigError::LoadError {
+                message: format!("Cannot read directory entry: {e}"),
             })?;
             validate_skill_entry(&entry, &mut report);
         }

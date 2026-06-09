@@ -22,8 +22,11 @@ impl JwtValidationProviderImpl {
     }
 
     pub fn from_config() -> JwtResult<Self> {
-        let config = systemprompt_models::Config::get()
-            .map_err(|e| JwtProviderError::ConfigurationError(e.to_string()))?;
+        let config = systemprompt_models::Config::get().map_err(|e| {
+            JwtProviderError::ConfigurationError {
+                message: e.to_string(),
+            }
+        })?;
 
         Ok(Self {
             issuer: config.jwt_issuer.clone(),

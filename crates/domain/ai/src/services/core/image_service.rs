@@ -112,9 +112,9 @@ impl ImageService {
         } else if let Some(default) = &self.default_provider {
             default.clone()
         } else {
-            return Err(AiError::ConfigurationError(
-                "No model specified and no default provider configured".to_owned(),
-            ));
+            return Err(AiError::ConfigurationError {
+                message: "No model specified and no default provider configured".to_owned(),
+            });
         };
 
         let provider =
