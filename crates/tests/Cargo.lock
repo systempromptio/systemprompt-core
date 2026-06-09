@@ -7494,6 +7494,8 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-config",
+ "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-traits",
  "tempfile",
  "tokio",

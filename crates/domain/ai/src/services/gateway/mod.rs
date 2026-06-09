@@ -10,12 +10,17 @@
 mod config;
 mod ingestion;
 mod loader;
+pub mod overrides;
 pub mod safety;
 mod spec;
 
 pub use config::{GatewayPolicyConfig, GatewayPolicyEntry};
 pub use ingestion::{GatewayPolicyIngestionService, IngestOptions, IngestReport};
 pub use loader::{GATEWAY_POLICIES_FILE, load_from_yaml};
+pub use overrides::{
+    OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine, OverrideError,
+    OverrideResolution, OverrideSource, SystemPromptOverride, SystemPromptOverrideRegistration,
+};
 pub use safety::{
     Finding, HeuristicScanner, NullScanner, SafetyScanner, SafetyScannerRegistration, Severity,
 };

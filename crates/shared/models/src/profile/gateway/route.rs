@@ -106,7 +106,7 @@ pub fn synthesize_route_id(model_pattern: &str, provider: &str) -> RouteId {
     RouteId::new(format!("{}-{}", slugify_pattern(model_pattern), hash6))
 }
 
-fn match_pattern(pattern: &str, model: &str) -> bool {
+pub(crate) fn match_pattern(pattern: &str, model: &str) -> bool {
     if pattern == "*" {
         return true;
     }

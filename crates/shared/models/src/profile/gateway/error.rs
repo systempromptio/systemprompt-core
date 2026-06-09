@@ -14,6 +14,15 @@ pub enum GatewayProfileError {
 
     #[error("gateway default_provider '{provider}' is not declared in profile.providers")]
     DefaultProviderNotInRegistry { provider: String },
+
+    #[error("system_prompt override with action 'replace' must set a 'prompt'")]
+    OverrideReplaceMissingPrompt,
+
+    #[error("system_prompt override with action 'strip' must not set a 'prompt'")]
+    OverrideStripWithPrompt,
+
+    #[error("system_prompt override provider '{provider}' is not declared in profile.providers")]
+    OverrideProviderNotInRegistry { provider: String },
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

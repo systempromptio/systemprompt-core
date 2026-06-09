@@ -87,6 +87,16 @@ impl GatewayAudit {
         }
     }
 
+    pub async fn set_system_prompt_override(&self, descriptor: &str) {
+        if let Err(e) = self
+            .requests
+            .update_system_prompt_override(&self.ctx.ai_request_id, descriptor)
+            .await
+        {
+            tracing::warn!(error = %e, "update_system_prompt_override failed");
+        }
+    }
+
     pub async fn fail(&self, error: &str) -> Result<()> {
         if let Err(e) = self
             .requests

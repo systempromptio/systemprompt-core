@@ -30,6 +30,9 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
     // race and the risk of baking interpolated `${VAR}` values into the source.
     profile_gateway::backfill_route_ids(&mut spec);
 
+    let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
+    profile_gateway::resolve_override_prompt_includes(base_dir, &mut spec)?;
+
     let resolved = spec.resolve();
     resolved.validate(&profile.providers)?;
     profile.gateway = Some(GatewayState::Resolved(resolved));

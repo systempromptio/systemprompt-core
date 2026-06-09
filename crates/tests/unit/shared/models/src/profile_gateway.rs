@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
-    ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol, default_resource_audiences,
-    slugify_pattern, synthesize_route_id,
+    OverrideRuleAction, ProviderEntry, ProviderModel, ProviderRegistry, SystemPromptRule,
+    WireProtocol, default_resource_audiences, slugify_pattern, synthesize_route_id,
 };
 
 fn route(pattern: &str) -> GatewayRoute {
@@ -492,4 +492,82 @@ fn default_resource_audiences_cover_gateway_requirements() {
     let audiences = default_resource_audiences();
     assert!(audiences.contains(&"hook".to_owned()));
     assert!(!audiences.is_empty());
+}
+
+#[test]
+fn system_prompt_rule_round_trips_under_deny_unknown_fields() {
+    let yaml = "provider: cerebras\nmodel_pattern: claude-*\naction: replace\nprompt: hi\n";
+    let rule: SystemPromptRule = serde_yaml::from_str(yaml).expect("rule must deserialize");
+    assert_eq!(rule.action, OverrideRuleAction::Replace);
+    assert!(rule.matches(&ProviderId::new("cerebras"), "claude-opus-4-8"));
+    assert!(!rule.matches(&ProviderId::new("openai"), "claude-opus-4-8"));
+    assert!(serde_yaml::from_str::<SystemPromptRule>("action: strip\nbogus: 1\n").is_err());
+}
+
+#[test]
+fn system_prompt_rule_matches_are_optional() {
+    let any = SystemPromptRule {
+        provider: None,
+        model_pattern: None,
+        action: OverrideRuleAction::Strip,
+        prompt: None,
+    };
+    assert!(any.matches(&ProviderId::new("anything"), "any-model"));
+}
+
+#[test]
+fn validate_rejects_replace_without_prompt() {
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![route_to("claude-*", "anthropic")],
+        system_prompt_overrides: vec![SystemPromptRule {
+            provider: Some(ProviderId::new("anthropic")),
+            model_pattern: None,
+            action: OverrideRuleAction::Replace,
+            prompt: None,
+        }],
+        ..GatewayConfig::default()
+    };
+    assert!(matches!(
+        config.validate(&two_provider_registry()),
+        Err(GatewayProfileError::OverrideReplaceMissingPrompt)
+    ));
+}
+
+#[test]
+fn validate_rejects_strip_with_prompt() {
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![route_to("claude-*", "anthropic")],
+        system_prompt_overrides: vec![SystemPromptRule {
+            provider: None,
+            model_pattern: None,
+            action: OverrideRuleAction::Strip,
+            prompt: Some("nope".to_owned()),
+        }],
+        ..GatewayConfig::default()
+    };
+    assert!(matches!(
+        config.validate(&two_provider_registry()),
+        Err(GatewayProfileError::OverrideStripWithPrompt)
+    ));
+}
+
+#[test]
+fn validate_rejects_override_unknown_provider() {
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![route_to("claude-*", "anthropic")],
+        system_prompt_overrides: vec![SystemPromptRule {
+            provider: Some(ProviderId::new("ghost")),
+            model_pattern: None,
+            action: OverrideRuleAction::Strip,
+            prompt: None,
+        }],
+        ..GatewayConfig::default()
+    };
+    assert!(matches!(
+        config.validate(&two_provider_registry()),
+        Err(GatewayProfileError::OverrideProviderNotInRegistry { provider }) if provider == "ghost"
+    ));
 }

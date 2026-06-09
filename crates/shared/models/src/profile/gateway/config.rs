@@ -13,6 +13,7 @@ use systemprompt_identifiers::{ProviderId, RouteId};
 
 use super::super::providers::ProviderRegistry;
 use super::error::{GatewayProfileError, GatewayResult};
+use super::override_rule::SystemPromptRule;
 use super::route::GatewayRoute;
 
 pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
@@ -39,6 +40,10 @@ pub struct GatewayConfigSpec {
     pub auth_scheme: String,
     #[serde(default = "default_inference_path_prefix")]
     pub inference_path_prefix: String,
+    /// Ordered system-prompt override rules, evaluated first-match-wins against
+    /// the resolved provider and requested model at dispatch.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub system_prompt_overrides: Vec<SystemPromptRule>,
 }
 
 impl Default for GatewayConfigSpec {
@@ -50,6 +55,7 @@ impl Default for GatewayConfigSpec {
             allow_unlisted_models: false,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
+            system_prompt_overrides: Vec::new(),
         }
     }
 }
@@ -72,6 +78,7 @@ impl GatewayConfigSpec {
             allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,
+            system_prompt_overrides,
         } = self;
 
         GatewayConfig {
@@ -81,6 +88,7 @@ impl GatewayConfigSpec {
             allow_unlisted_models,
             auth_scheme,
             inference_path_prefix,
+            system_prompt_overrides,
         }
     }
 }
@@ -99,6 +107,7 @@ pub struct GatewayConfig {
     pub allow_unlisted_models: bool,
     pub auth_scheme: String,
     pub inference_path_prefix: String,
+    pub system_prompt_overrides: Vec<SystemPromptRule>,
 }
 
 impl Default for GatewayConfig {
@@ -110,6 +119,7 @@ impl Default for GatewayConfig {
             allow_unlisted_models: false,
             auth_scheme: default_auth_scheme(),
             inference_path_prefix: default_inference_path_prefix(),
+            system_prompt_overrides: Vec::new(),
         }
     }
 }
@@ -215,6 +225,16 @@ impl GatewayConfig {
                 });
             }
         }
+        for rule in &self.system_prompt_overrides {
+            rule.validate()?;
+            if let Some(provider) = rule.provider.as_ref() {
+                if registry.find_provider(provider.as_str()).is_none() {
+                    return Err(GatewayProfileError::OverrideProviderNotInRegistry {
+                        provider: provider.as_str().to_owned(),
+                    });
+                }
+            }
+        }
         Ok(())
     }
 
@@ -227,6 +247,7 @@ impl GatewayConfig {
             allow_unlisted_models: self.allow_unlisted_models,
             auth_scheme: self.auth_scheme.clone(),
             inference_path_prefix: self.inference_path_prefix.clone(),
+            system_prompt_overrides: self.system_prompt_overrides.clone(),
         }
     }
 }

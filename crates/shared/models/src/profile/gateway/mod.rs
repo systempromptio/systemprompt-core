@@ -13,10 +13,12 @@
 
 mod config;
 mod error;
+mod override_rule;
 mod route;
 mod state;
 
 pub use config::{GatewayConfig, GatewayConfigSpec};
 pub use error::{GatewayProfileError, GatewayResult};
+pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{GatewayRoute, slugify_pattern, synthesize_route_id};
 pub use state::GatewayState;

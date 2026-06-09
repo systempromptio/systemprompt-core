@@ -111,6 +111,22 @@ impl AiRequestRepository {
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
+    pub async fn update_system_prompt_override(
+        &self,
+        id: &AiRequestId,
+        descriptor: &str,
+    ) -> Result<(), RepositoryError> {
+        sqlx::query!(
+            r#"UPDATE ai_requests SET system_prompt_override = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
+            descriptor,
+            id.as_str()
+        )
+        .execute(self.write_pool())
+        .await?;
+        Ok(())
+    }
+
+    #[must_use = "this returns a Result that should not be ignored"]
     pub async fn insert(&self, record: &AiRequestRecord) -> Result<AiRequestId, RepositoryError> {
         self.insert_with_id(&AiRequestId::generate(), record).await
     }

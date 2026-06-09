@@ -8,9 +8,12 @@ use axum::body::Body;
 use axum::response::Response;
 use http::HeaderValue;
 use systemprompt_ai::repository::AiSafetyFindingRepository;
-use systemprompt_ai::{Finding, InsertSafetyFinding, SafetyConfig};
+use systemprompt_ai::{
+    Finding, InsertSafetyFinding, OverrideAction, OverrideContext, OverrideEngine, SafetyConfig,
+};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId};
+use systemprompt_models::profile::GatewayConfig;
 
 use super::super::audit::GatewayAudit;
 use super::super::policy::GatewayPolicySpec;
@@ -29,6 +32,30 @@ pub(super) struct FinalizeCtx {
     pub(super) policy: GatewayPolicySpec,
     pub(super) inbound: Arc<dyn InboundAdapter>,
     pub(super) request_model: String,
+}
+
+pub(super) async fn apply_system_prompt_override(
+    config: &GatewayConfig,
+    provider: &ProviderId,
+    upstream_model: &str,
+    request: &mut CanonicalRequest,
+) -> Option<String> {
+    let engine = OverrideEngine::global();
+    if config.system_prompt_overrides.is_empty() && !engine.has_extensions() {
+        return None;
+    }
+    let ctx = OverrideContext::builder(provider.clone(), ModelId::new(&request.model))
+        .upstream_model(ModelId::new(upstream_model))
+        .current_system(request.system.clone())
+        .build();
+    let resolution = engine.resolve(&config.system_prompt_overrides, &ctx).await;
+    let descriptor = resolution.audit_descriptor();
+    match resolution.action {
+        OverrideAction::Replace(prompt) => request.system = Some(prompt),
+        OverrideAction::Strip => request.system = None,
+        OverrideAction::Passthrough => {},
+    }
+    descriptor
 }
 
 pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Response<Body> {

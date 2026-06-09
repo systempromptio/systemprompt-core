@@ -60,7 +60,9 @@ pub use services::gateway::{
     Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry,
     GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicScanner,
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
-    NullScanner, QuotaWindow, SafetyConfig, SafetyScanner, SafetyScannerRegistration, Severity,
+    NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
+    OverrideError, OverrideResolution, OverrideSource, QuotaWindow, SafetyConfig, SafetyScanner,
+    SafetyScannerRegistration, Severity, SystemPromptOverride, SystemPromptOverrideRegistration,
     load_from_yaml as load_gateway_policies_from_yaml,
 };
 pub use services::storage::{ImageStorage, StorageConfig};

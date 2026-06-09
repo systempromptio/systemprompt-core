@@ -18,7 +18,9 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 
-use self::finalize::{FinalizeCtx, attach_request_id, finalize, run_request_safety_scan};
+use self::finalize::{
+    FinalizeCtx, apply_system_prompt_override, attach_request_id, finalize, run_request_safety_scan,
+};
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::policy::PolicyResolver;
 use super::protocol::canonical::CanonicalRequest;
@@ -74,7 +76,7 @@ impl GatewayService {
         inputs: DispatchInputs,
     ) -> Result<Response<Body>, DispatchError> {
         let DispatchInputs {
-            request,
+            mut request,
             raw_body,
             ctx,
             inbound,
@@ -190,6 +192,12 @@ impl GatewayService {
         enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
         let upstream_model = route.effective_upstream_model(&request.model).to_owned();
+        if let Some(descriptor) =
+            apply_system_prompt_override(config, &provider.name, &upstream_model, &mut request)
+                .await
+        {
+            audit.set_system_prompt_override(&descriptor).await;
+        }
         let model_limits = provider.find_model(&upstream_model).map(|m| m.limits);
         let outbound_ctx = OutboundCtx {
             route: route.as_ref(),
