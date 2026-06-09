@@ -1,6 +1,7 @@
 // JSON: protocol boundary — body shape is owned by the models::wire Anthropic
 // codec.
 use serde_json::Value;
+use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::anthropic;
 
 use super::super::super::canonical::CanonicalRequest;
@@ -15,7 +16,7 @@ use super::super::super::canonical::CanonicalRequest;
 pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
-    max_output_tokens: Option<u32>,
+    limits: Option<ModelLimits>,
 ) -> Value {
-    anthropic::build_request_body(request, upstream_model, max_output_tokens)
+    anthropic::build_request_body(request, upstream_model, limits)
 }

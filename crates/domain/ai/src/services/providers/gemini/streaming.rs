@@ -29,7 +29,7 @@ pub(super) async fn generate_stream(
     .with_stream(true)
     .into_request();
 
-    let body = gemini::build_request_body(&canonical, None, None);
+    let body = gemini::build_request_body(&canonical, None);
     let response = transport::post(provider, &body, params.model, true).await?;
 
     let events = gemini::sse_to_canonical_events(response.bytes_stream(), params.model.to_owned());

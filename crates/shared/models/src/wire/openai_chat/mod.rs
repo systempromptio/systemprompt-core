@@ -28,6 +28,7 @@ pub use request::build_request_body;
 pub use response::parse_response;
 pub use streaming::sse_to_canonical_events;
 
+use crate::services::ai::ModelLimits;
 use crate::wire::canonical::CanonicalRequest;
 
 pub(crate) fn is_reasoning_model(model: &str) -> bool {
@@ -40,8 +41,9 @@ pub(crate) fn is_reasoning_model(model: &str) -> bool {
 pub(crate) fn output_token_ceiling(
     request: &CanonicalRequest,
     upstream_model: &str,
-    max_output_tokens: Option<u32>,
+    limits: Option<ModelLimits>,
 ) -> u32 {
+    let max_output_tokens = limits.map(|l| l.max_output_tokens);
     match max_output_tokens {
         Some(cap) if cap > 0 && is_reasoning_model(upstream_model) => cap,
         _ => super::clamp_output_tokens(request.max_tokens, max_output_tokens),

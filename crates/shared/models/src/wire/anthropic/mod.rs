@@ -19,6 +19,7 @@ use serde_json::{Map, Value, json};
 
 use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
+use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, CanonicalToolChoice,
     ImageSource, ResponseFormat, Role, SearchConfig,
@@ -39,7 +40,7 @@ pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
 pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
-    max_output_tokens: Option<u32>,
+    limits: Option<ModelLimits>,
 ) -> Value {
     let messages: Vec<Value> = request
         .messages
@@ -54,7 +55,7 @@ pub fn build_request_body(
         "max_tokens".into(),
         Value::from(crate::wire::clamp_output_tokens(
             request.max_tokens,
-            max_output_tokens,
+            limits.map(|l| l.max_output_tokens),
         )),
     );
     obj.insert("messages".into(), Value::Array(messages));
@@ -88,8 +89,6 @@ pub fn build_request_body(
     if !tools.is_empty() {
         obj.insert("tools".into(), Value::Array(tools));
     }
-    // A server-tool search turn must not pin tool_choice or stream — Anthropic
-    // rejects the web_search tool combined with either.
     if searching {
         if let Some(thinking) = &request.thinking {
             insert_thinking(&mut obj, thinking);

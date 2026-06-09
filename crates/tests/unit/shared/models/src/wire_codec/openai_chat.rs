@@ -1,6 +1,7 @@
 //! `OpenAI` Chat Completions wire-codec tests.
 
 use serde_json::{Value, json};
+use systemprompt_models::services::ai::ModelLimits;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalToolChoice, ReasoningEffort, ResponseFormat, Role,
 };
@@ -46,7 +47,7 @@ fn openai_chat_emits_max_completion_tokens_not_max_tokens() {
 
 #[test]
 fn openai_chat_caps_reasoning_model_to_model_max_output() {
-    let body = openai_chat::build_request_body(&base_request(), "gpt-5", Some(128_000));
+    let body = openai_chat::build_request_body(&base_request(), "gpt-5", Some(ModelLimits { max_output_tokens: 128_000, ..Default::default() }));
     assert_eq!(
         body["max_completion_tokens"],
         json!(128_000),
@@ -56,7 +57,7 @@ fn openai_chat_caps_reasoning_model_to_model_max_output() {
 
 #[test]
 fn openai_chat_keeps_caller_budget_for_non_reasoning_model() {
-    let body = openai_chat::build_request_body(&base_request(), "gpt-4o", Some(128_000));
+    let body = openai_chat::build_request_body(&base_request(), "gpt-4o", Some(ModelLimits { max_output_tokens: 128_000, ..Default::default() }));
     assert_eq!(
         body["max_completion_tokens"],
         json!(32),
@@ -250,7 +251,7 @@ fn openai_chat_plain_user_text_still_collapses_to_string() {
 fn openai_chat_clamps_non_reasoning_output_down_to_cap() {
     let mut req = base_request();
     req.max_tokens = 32_000;
-    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(4096));
+    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
     assert_eq!(
         body["max_completion_tokens"],
         json!(4096),
@@ -262,7 +263,7 @@ fn openai_chat_clamps_non_reasoning_output_down_to_cap() {
 fn openai_chat_clamp_never_raises_below_cap_budget() {
     let mut req = base_request();
     req.max_tokens = 1000;
-    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(4096));
+    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
     assert_eq!(
         body["max_completion_tokens"],
         json!(1000),

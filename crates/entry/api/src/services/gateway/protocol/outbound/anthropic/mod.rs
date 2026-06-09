@@ -31,11 +31,7 @@ pub struct AnthropicOutbound;
 #[async_trait]
 impl OutboundAdapter for AnthropicOutbound {
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = request::build_request_body(
-            ctx.request,
-            ctx.upstream_model,
-            ctx.model_limits.map(|l| l.max_output_tokens),
-        );
+        let body = request::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
         let url = format!("{}/messages", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();

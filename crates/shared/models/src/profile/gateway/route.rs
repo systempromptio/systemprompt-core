@@ -86,16 +86,6 @@ pub fn slugify_pattern(pattern: &str) -> String {
     out
 }
 
-// Format: <slug>-<6 hex chars> where the hex digest is the first 6 chars of an
-// FNV-1a 64 hash over the labelled (model_pattern, provider) segments. FNV-1a
-// is used deliberately over `std::hash::DefaultHasher`: the route id is
-// persisted in `access_control_entities`/`_rules` and the resolver is
-// fail-closed, so the id must be stable *by contract*. DefaultHasher's
-// algorithm is explicitly allowed to change between Rust releases; a toolchain
-// bump would silently re-key every route and resurrect `unknown to access
-// control` denials. FNV-1a never moves. The collision check in
-// GatewayConfig::validate() guards against the vanishingly unlikely case of two
-// operator-authored patterns colliding on the 6-hex tail.
 #[must_use]
 pub fn synthesize_route_id(model_pattern: &str, provider: &str) -> RouteId {
     let h = fnv1a_segments(&[

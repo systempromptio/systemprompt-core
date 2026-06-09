@@ -14,8 +14,6 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
     })?;
     let mut profile = Profile::from_yaml(&content, path)?;
 
-    // The registry is the authority for upstream connectivity; validate it
-    // before any layer that references it.
     profile.providers.validate()?;
 
     let Some(state) = profile.gateway.take() else {
@@ -24,10 +22,6 @@ pub fn load_profile_with_catalog(path: &Path) -> ProfileResult<Profile> {
 
     let mut spec = state.into_spec();
 
-    // Route ids are synthesized deterministically from (pattern, provider), so
-    // this in-memory backfill yields identical ids on every load. Loading never
-    // writes back to disk — that avoids both the concurrent-invocation write
-    // race and the risk of baking interpolated `${VAR}` values into the source.
     profile_gateway::backfill_route_ids(&mut spec);
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));

@@ -141,8 +141,6 @@ pub(super) async fn run_request_safety_scan(
     findings
 }
 
-// Response-phase scanning is audit-only: the response is already streaming to
-// the caller by the time it runs, so findings are recorded but never block.
 async fn run_response_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,

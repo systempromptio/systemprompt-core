@@ -9,6 +9,7 @@ use serde_json::{Map, Value, json};
 
 use crate::profile::WireProtocol;
 use crate::schema::SchemaSanitizer;
+use crate::services::ai::ModelLimits;
 use crate::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
     ResponseFormat, Role, SearchConfig,
@@ -17,7 +18,7 @@ use crate::wire::canonical::{
 pub fn build_request_body(
     request: &CanonicalRequest,
     upstream_model: &str,
-    max_output_tokens: Option<u32>,
+    limits: Option<ModelLimits>,
 ) -> Value {
     let mut input: Vec<Value> = Vec::new();
     for msg in &request.messages {
@@ -36,7 +37,7 @@ pub fn build_request_body(
         Value::from(crate::wire::openai_chat::output_token_ceiling(
             request,
             upstream_model,
-            max_output_tokens,
+            limits,
         )),
     );
     if let Some(sys) = &request.system {
@@ -191,11 +192,6 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
 }
 
 fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
-    // Anthropic carries tool results as `tool_result` blocks inside *user*
-    // messages; the Responses API needs them as standalone
-    // `function_call_output` items following the assistant's `function_call`,
-    // before any new user text. Emit those first, then a `message` only if
-    // non-tool content remains.
     input.extend(msg.content.iter().filter_map(tool_result_to_output));
     let parts: Vec<Value> = msg
         .content

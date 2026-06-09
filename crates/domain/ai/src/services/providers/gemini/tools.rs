@@ -50,7 +50,7 @@ pub(super) async fn generate_with_tools(
     let mut canonical = build.into_request();
     canonical.thinking = thinking_for(params.model);
 
-    let body = gemini::build_request_body(&canonical, None, None);
+    let body = gemini::build_request_body(&canonical, None);
     let value = transport::post(provider, &body, params.model, false)
         .await?
         .json()
@@ -102,7 +102,6 @@ pub(super) async fn generate_with_tool_results(
         .iter()
         .zip(params.tool_results.iter())
         .map(|(tc, tr)| CanonicalContent::ToolResult {
-            // Gemini matches a functionResponse to its call by name, not id.
             tool_use_id: tc.name.clone(),
             content: tool_result_content(tr),
             is_error: tr.is_error.unwrap_or(false),
@@ -117,7 +116,7 @@ pub(super) async fn generate_with_tool_results(
         });
     }
 
-    let body = gemini::build_request_body(&canonical, None, None);
+    let body = gemini::build_request_body(&canonical, None);
     let value = transport::post(provider, &body, params.model, false)
         .await?
         .json()

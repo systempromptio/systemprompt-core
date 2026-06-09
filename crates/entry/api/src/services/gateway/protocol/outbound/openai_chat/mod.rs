@@ -28,11 +28,7 @@ pub struct OpenAiChatOutbound;
 #[async_trait]
 impl OutboundAdapter for OpenAiChatOutbound {
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
-        let body = codec::build_request_body(
-            ctx.request,
-            ctx.upstream_model,
-            ctx.model_limits.map(|l| l.max_output_tokens),
-        );
+        let body = codec::build_request_body(ctx.request, ctx.upstream_model, ctx.model_limits);
         let url = format!("{}/chat/completions", ctx.endpoint.trim_end_matches('/'));
 
         let client = reqwest::Client::new();
