@@ -3,12 +3,13 @@
 //! [`extract_user_context`] decodes via
 //! [`super::validate::decode_rs256_claims`]
 //! with [`ValidationPolicy::session_context`] (signature, RS256, `kid`, `exp`,
-//! `nbf` + leeway), then re-derives `user_type` from `scope` so a forged or
-//! mis-minted type claim cannot ride past the gate, and returns the subset of
-//! claims the request-context layer consumes ([`JwtUserContext`]). Issuer and
-//! audience pinning is left to the stateful validators that hold deployment
-//! config ([`crate::AuthValidationService`]); this path instead binds the
-//! token to a live session and user row in the database after decode.
+//! `nbf` + leeway, first-party `aud`), then re-derives `user_type` from
+//! `scope` so a forged or mis-minted type claim cannot ride past the gate, and
+//! returns the subset of claims the request-context layer consumes
+//! ([`JwtUserContext`]). Issuer pinning is left to the stateful validators
+//! that hold deployment config ([`crate::AuthValidationService`]); this path
+//! instead binds the token to a live session and user row in the database
+//! after decode.
 
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{Actor, ClientId, SessionId, UserId};

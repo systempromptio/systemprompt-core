@@ -6,6 +6,13 @@
 //! live here and nowhere else, so the validators cannot drift apart. The only
 //! per-call knob is [`ValidationPolicy`].
 //!
+//! Audience validation is always on: every policy carries a non-empty expected
+//! audience set, and a policy that reaches the decoder with an empty set is
+//! rejected as [`AuthError::EmptyAudiencePolicy`] rather than silently
+//! accepting any `aud`. [`ValidationPolicy::session_context`] pins
+//! [`JwtAudience::FIRST_PARTY`], so a token minted for a narrower surface
+//! (`hook`, a custom resource) cannot ride the session middleware.
+//!
 //! Federated subject-token verification (token-exchange) is deliberately *not*
 //! a caller: it resolves keys from an external issuer's JWKS rather than this
 //! deployment's signing authority, so it is a genuinely different operation.
@@ -16,27 +23,18 @@ use systemprompt_models::auth::{JwtAudience, JwtClaims};
 use crate::error::{AuthError, AuthResult};
 use crate::keys::authority;
 
-/// Clock-skew tolerance (seconds) for `exp`/`nbf`/`iat`. Pinned explicitly so
-/// deployments see the value in review rather than inheriting the
-/// `jsonwebtoken` default.
 pub const JWT_LEEWAY_SECONDS: u64 = 30;
 
-/// The claim checks applied on top of the always-on signature, RS256, and
-/// `kid` enforcement. An empty `audiences` slice disables the `aud` check.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ValidationPolicy<'a> {
-    pub validate_exp: bool,
-    pub validate_nbf: bool,
-    pub leeway_seconds: u64,
-    pub issuer: Option<&'a str>,
-    pub audiences: &'a [JwtAudience],
+    validate_exp: bool,
+    validate_nbf: bool,
+    leeway_seconds: u64,
+    issuer: Option<&'a str>,
+    audiences: &'a [JwtAudience],
 }
 
 impl<'a> ValidationPolicy<'a> {
-    /// Stateless decode for request-context middleware that performs its own
-    /// DB-backed session and user checks after decode. Validates `exp` and
-    /// `nbf` (with leeway); issuer and audience are enforced by the stateful
-    /// validators that hold deployment config, not here.
     #[must_use]
     pub const fn session_context() -> Self {
         Self {
@@ -44,12 +42,10 @@ impl<'a> ValidationPolicy<'a> {
             validate_nbf: true,
             leeway_seconds: JWT_LEEWAY_SECONDS,
             issuer: None,
-            audiences: &[],
+            audiences: JwtAudience::FIRST_PARTY,
         }
     }
 
-    /// Full first-party validation: `exp` + `nbf` + issuer pinning + audience
-    /// membership, with the standard leeway.
     #[must_use]
     pub const fn issuer_scoped(issuer: &'a str, audiences: &'a [JwtAudience]) -> Self {
         Self {
@@ -63,6 +59,10 @@ impl<'a> ValidationPolicy<'a> {
 }
 
 pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthResult<JwtClaims> {
+    if policy.audiences.is_empty() {
+        return Err(AuthError::EmptyAudiencePolicy);
+    }
+
     let header = decode_header(token).map_err(AuthError::InvalidToken)?;
     if header.alg != Algorithm::RS256 {
         return Err(AuthError::UnsupportedAlgorithm {
@@ -81,12 +81,8 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
     if let Some(issuer) = policy.issuer {
         validation.set_issuer(&[issuer]);
     }
-    if policy.audiences.is_empty() {
-        validation.validate_aud = false;
-    } else {
-        let audience_strs: Vec<&str> = policy.audiences.iter().map(JwtAudience::as_str).collect();
-        validation.set_audience(&audience_strs);
-    }
+    let audience_strs: Vec<&str> = policy.audiences.iter().map(JwtAudience::as_str).collect();
+    validation.set_audience(&audience_strs);
 
     decode::<JwtClaims>(token, key, &validation)
         .map(|data| data.claims)

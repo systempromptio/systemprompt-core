@@ -11,10 +11,10 @@
 //!   `scope` (defence-in-depth against a forged claim), and surfacing every
 //!   failure as an [`crate::AuthError`] variant.
 //!
-//! Issuer/audience/`nbf` validation for full session decode lives in
+//! Issuer pinning for full session decode lives in
 //! [`crate::AuthValidationService`]; the bare [`decode::extract_user_context`]
-//! is used by request-context middleware that does its own session and user
-//! lookups against the database after decode.
+//! enforces a first-party `aud` and is used by request-context middleware that
+//! does its own session and user lookups against the database after decode.
 
 pub mod decode;
 pub mod mint;

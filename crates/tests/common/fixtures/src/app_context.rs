@@ -54,7 +54,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         jwt_issuer: "test".to_string(),
         jwt_access_token_expiration: 3600,
         jwt_refresh_token_expiration: 86_400,
-        jwt_audiences: vec![],
+        jwt_audiences: systemprompt_models::auth::JwtAudience::standard(),
         allowed_resource_audiences: vec![],
         trusted_issuers: vec![],
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),

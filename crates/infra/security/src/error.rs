@@ -39,6 +39,9 @@ pub enum AuthError {
     #[error("token has unsupported algorithm `{got}`; only RS256 is accepted")]
     UnsupportedAlgorithm { got: String },
 
+    #[error("audience policy is empty; token decoding requires at least one expected audience")]
+    EmptyAudiencePolicy,
+
     #[error("token is missing `kid` header")]
     MissingKid,
 
