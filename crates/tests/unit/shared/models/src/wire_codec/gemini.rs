@@ -15,7 +15,7 @@ fn gemini_request_emits_max_output_tokens_and_sampling() {
     req.temperature = Some(0.5);
     req.top_p = Some(0.25);
     req.top_k = Some(40);
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     let cfg = &body["generationConfig"];
     assert_eq!(cfg["maxOutputTokens"], json!(32));
     assert_eq!(cfg["temperature"], json!(0.5));
@@ -24,10 +24,22 @@ fn gemini_request_emits_max_output_tokens_and_sampling() {
 }
 
 #[test]
+fn gemini_clamps_max_output_tokens_down_to_model_cap() {
+    let mut req = base_request();
+    req.max_tokens = 32_000;
+    let body = gemini::build_request_body(&req, None, Some(4096));
+    assert_eq!(
+        body["generationConfig"]["maxOutputTokens"],
+        json!(4096),
+        "maxOutputTokens must be clamped down to the model-card cap when one is known"
+    );
+}
+
+#[test]
 fn gemini_request_emits_system_instruction() {
     let mut req = base_request();
     req.system = Some("be terse".to_owned());
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be terse");
 }
 
@@ -48,7 +60,7 @@ fn gemini_tool_config_modes() {
         let mut req = base_request();
         req.tools = vec![plain_tool()];
         req.tool_choice = Some(choice);
-        let body = gemini::build_request_body(&req, None);
+        let body = gemini::build_request_body(&req, None, None);
         let cfg = &body["toolConfig"]["functionCallingConfig"];
         assert_eq!(cfg["mode"], mode);
         match allowed {
@@ -66,7 +78,7 @@ fn gemini_request_adds_search_and_url_context_tools() {
         context_size: None,
         urls: vec!["https://example.com".to_owned()],
     });
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     let tools = body["tools"].as_array().expect("tools");
     assert!(tools.iter().any(|t| t.get("googleSearch").is_some()));
     assert!(tools.iter().any(|t| t.get("urlContext").is_some()));
@@ -76,7 +88,7 @@ fn gemini_request_adds_search_and_url_context_tools() {
 fn gemini_request_adds_code_execution_tool() {
     let mut req = base_request();
     req.code_execution = true;
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     let tools = body["tools"].as_array().expect("tools");
     assert!(tools.iter().any(|t| t.get("codeExecution").is_some()));
 }
@@ -88,7 +100,7 @@ fn gemini_url_image_downgraded_to_text() {
         role: Role::User,
         content: vec![image_url("https://example.com/cat.png")],
     }];
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     assert_eq!(
         body["contents"][0]["parts"][0]["text"],
         "https://example.com/cat.png"
@@ -103,7 +115,7 @@ fn gemini_response_format_json_schema_sets_mime_and_schema() {
         schema: json!({"type": "object"}),
         strict: true,
     });
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     let cfg = &body["generationConfig"];
     assert_eq!(cfg["responseMimeType"], "application/json");
     assert_eq!(cfg["responseSchema"]["type"], "object");
@@ -113,7 +125,7 @@ fn gemini_response_format_json_schema_sets_mime_and_schema() {
 fn gemini_tools_strip_unsupported_schema_keywords() {
     let mut req = base_request();
     req.tools = vec![tool_with_unsupported_keywords()];
-    let body = gemini::build_request_body(&req, Some(24576));
+    let body = gemini::build_request_body(&req, Some(24576), None);
     let params = &body["tools"][0]["functionDeclarations"][0]["parameters"];
     assert!(params.get("$schema").is_none(), "$schema must be stripped");
     assert!(
@@ -141,7 +153,7 @@ fn gemini_clamps_thinking_budget_to_model_card_cap() {
         enabled: true,
         budget_tokens: Some(31999),
     });
-    let body = gemini::build_request_body(&req, Some(24576));
+    let body = gemini::build_request_body(&req, Some(24576), None);
     assert_eq!(
         body["generationConfig"]["thinkingConfig"]["thinkingBudget"],
         json!(24576)
@@ -155,7 +167,7 @@ fn gemini_leaves_thinking_budget_unclamped_without_cap() {
         enabled: true,
         budget_tokens: Some(8192),
     });
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     assert_eq!(
         body["generationConfig"]["thinkingConfig"]["thinkingBudget"],
         json!(8192)
@@ -169,7 +181,7 @@ fn gemini_request_emits_thought_signature_on_function_call() {
         role: Role::Assistant,
         content: vec![tool_use(Some("sig=="))],
     });
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     let part = body["contents"]
         .as_array()
         .and_then(|c| c.iter().find(|m| m["role"] == "model"))
@@ -186,7 +198,7 @@ fn gemini_request_omits_thought_signature_when_absent() {
         role: Role::Assistant,
         content: vec![tool_use(None)],
     });
-    let body = gemini::build_request_body(&req, None);
+    let body = gemini::build_request_body(&req, None, None);
     let part = body["contents"]
         .as_array()
         .and_then(|c| c.iter().find(|m| m["role"] == "model"))

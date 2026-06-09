@@ -41,6 +41,60 @@ fn openai_responses_keeps_caller_budget_for_non_reasoning_model() {
 }
 
 #[test]
+fn openai_responses_clamps_non_reasoning_output_down_to_cap() {
+    let mut req = base_request();
+    req.max_tokens = 32_000;
+    let body = openai_responses::build_request_body(&req, "gpt-4o", Some(4096));
+    assert_eq!(
+        body["max_output_tokens"],
+        json!(4096),
+        "a non-reasoning model's output must be clamped down to the model-card cap"
+    );
+}
+
+#[test]
+fn openai_responses_emits_function_call_output_for_user_tool_result() {
+    // Anthropic delivers tool results as `tool_result` blocks inside a *user*
+    // message; the Responses codec must still emit them as
+    // `function_call_output` items (before any user text), not drop them.
+    let mut req = base_request();
+    req.messages = vec![
+        CanonicalMessage {
+            role: Role::Assistant,
+            content: vec![CanonicalContent::ToolUse {
+                id: "call_X".to_owned(),
+                name: "lookup".to_owned(),
+                input: json!({"q": "rust"}),
+                signature: None,
+            }],
+        },
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![
+                CanonicalContent::ToolResult {
+                    tool_use_id: "call_X".to_owned(),
+                    content: vec![CanonicalContent::Text("42".to_owned())],
+                    is_error: false,
+                    structured_content: None,
+                    meta: None,
+                },
+                CanonicalContent::Text("thanks".to_owned()),
+            ],
+        },
+    ];
+    let body = openai_responses::build_request_body(&req, "upstream", None);
+    let input = body["input"].as_array().expect("input");
+    assert_eq!(input[0]["type"], "function_call");
+    assert_eq!(input[0]["call_id"], "call_X");
+    // tool output precedes the trailing user text.
+    assert_eq!(input[1]["type"], "function_call_output");
+    assert_eq!(input[1]["call_id"], "call_X");
+    assert_eq!(input[1]["output"], "42");
+    assert_eq!(input[2]["type"], "message");
+    assert_eq!(input[2]["role"], "user");
+}
+
+#[test]
 fn openai_responses_uses_input_array_and_instructions() {
     let mut req = base_request();
     req.system = Some("be terse".to_owned());

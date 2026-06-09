@@ -9,7 +9,6 @@
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_models::profile::WireProtocol;
 use systemprompt_models::wire::gemini;
 
 use super::super::canonical_response::CanonicalResponse;
@@ -29,14 +28,11 @@ pub struct GeminiOutbound;
 
 #[async_trait]
 impl OutboundAdapter for GeminiOutbound {
-    fn provider_tag(&self) -> &'static str {
-        WireProtocol::Gemini.as_tag()
-    }
-
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
         let body = gemini::build_request_body(
             ctx.request,
             ctx.model_limits.and_then(|l| l.max_thinking_budget),
+            ctx.model_limits.map(|l| l.max_output_tokens),
         );
         let path = gemini::upstream_path(ctx.upstream_model, ctx.request.stream);
         let url = format!("{}{path}", ctx.endpoint.trim_end_matches('/'));
@@ -53,7 +49,7 @@ impl OutboundAdapter for GeminiOutbound {
 
         let upstream_response = req.send().await.map_err(|e| {
             anyhow::Error::new(UpstreamError::Transport {
-                provider: self.provider_tag(),
+                provider: ctx.route.provider.as_str().to_owned(),
                 source: e,
             })
         })?;
@@ -65,7 +61,7 @@ impl OutboundAdapter for GeminiOutbound {
                 .await
                 .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
             return Err(anyhow::Error::new(UpstreamError::Status {
-                provider: self.provider_tag(),
+                provider: ctx.route.provider.as_str().to_owned(),
                 status: status.as_u16(),
                 message: extract_upstream_message(&err),
             }));

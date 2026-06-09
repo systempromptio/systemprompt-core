@@ -12,9 +12,13 @@
 //! from the same completion budget as visible output, so a caller `max_tokens`
 //! — which on the inbound Anthropic surface bounds only visible output — can be
 //! consumed entirely by reasoning and trigger an upstream output-limit
-//! rejection. `output_token_ceiling` therefore raises the upstream ceiling to
-//! the model maximum for these families; `is_reasoning_model` identifies
-//! them. Both `OpenAI` codecs (Chat Completions and Responses) share these.
+//! rejection. `output_token_ceiling` therefore uses the full model-card cap as
+//! the budget for these families; `is_reasoning_model` identifies them. For
+//! every other model it clamps the caller's `max_tokens` *down* to the cap when
+//! one is known (never raising it) — keeping the upstream within the model's
+//! real output limit and giving operators a per-request TPM lever via the
+//! model card's `limits.max_output_tokens`. Both `OpenAI` codecs (Chat
+//! Completions and Responses) share these.
 
 mod request;
 mod response;
@@ -40,6 +44,6 @@ pub(crate) fn output_token_ceiling(
 ) -> u32 {
     match max_output_tokens {
         Some(cap) if cap > 0 && is_reasoning_model(upstream_model) => cap,
-        _ => request.max_tokens,
+        _ => super::clamp_output_tokens(request.max_tokens, max_output_tokens),
     }
 }

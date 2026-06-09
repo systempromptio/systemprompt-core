@@ -3,8 +3,11 @@
 //! Wire idiosyncrasies encoded here: the output-token limit is emitted as
 //! `max_completion_tokens` (gpt-5 / o-series reject the legacy `max_tokens`)
 //! and sized via [`super::output_token_ceiling`] so reasoning models are not
-//! starved of budget, and streamed usage requires
-//! `stream_options.include_usage`.
+//! starved of budget; streamed usage requires `stream_options.include_usage`;
+//! and Anthropic tool results — which arrive inside *user* messages — are
+//! rendered as standalone `{role: "tool"}` messages emitted before any user
+//! text, since the API requires them to immediately follow the assistant's
+//! `tool_calls`.
 
 // JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
 // JSON.
@@ -118,34 +121,45 @@ fn canonical_message_to_chat(msg: &CanonicalMessage) -> Vec<Value> {
         Role::Tool => msg
             .content
             .iter()
-            .filter_map(|c| match c {
-                CanonicalContent::ToolResult {
-                    tool_use_id,
-                    content,
-                    ..
-                } => Some(json!({
-                    "role": "tool",
-                    "tool_call_id": tool_use_id,
-                    "content": flatten_text(content),
-                })),
-                _ => None,
-            })
+            .filter_map(tool_result_to_message)
             .collect(),
     }
 }
 
+fn tool_result_to_message(part: &CanonicalContent) -> Option<Value> {
+    if let CanonicalContent::ToolResult {
+        tool_use_id,
+        content,
+        ..
+    } = part
+    {
+        Some(json!({
+            "role": "tool",
+            "tool_call_id": tool_use_id,
+            "content": flatten_text(content),
+        }))
+    } else {
+        None
+    }
+}
+
 fn render_user_message(content: &[CanonicalContent]) -> Vec<Value> {
+    let mut out: Vec<Value> = content.iter().filter_map(tool_result_to_message).collect();
     let parts: Vec<Value> = content.iter().filter_map(content_to_chat_part).collect();
+    if parts.is_empty() {
+        return out;
+    }
     if parts.iter().all(is_text_part) {
         let text = parts
             .iter()
             .filter_map(|p| p.get("text").and_then(Value::as_str))
             .collect::<Vec<_>>()
             .join("");
-        vec![json!({ "role": "user", "content": text })]
+        out.push(json!({ "role": "user", "content": text }));
     } else {
-        vec![json!({ "role": "user", "content": parts })]
+        out.push(json!({ "role": "user", "content": parts }));
     }
+    out
 }
 
 fn render_assistant_message(content: &[CanonicalContent]) -> Vec<Value> {

@@ -31,7 +31,7 @@ pub async fn generate_with_code_execution(
         .with_code_execution(true)
         .into_request();
 
-    let body = gemini::build_request_body(&canonical, None);
+    let body = gemini::build_request_body(&canonical, None, None);
     let value: Value = transport::post(provider, &body, model, false)
         .await?
         .json()

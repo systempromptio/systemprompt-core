@@ -1,4 +1,8 @@
 //! `OpenAI` Responses request build: canonical request → Responses input body.
+//!
+//! Anthropic tool results arrive inside *user* messages; the Responses API
+//! needs them as standalone `function_call_output` items that follow the
+//! matching `function_call`, so they are emitted before any new user content.
 
 // JSON: protocol boundary — OpenAI Responses wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
@@ -122,22 +126,25 @@ fn web_search_tool(search: &SearchConfig) -> Value {
     Value::Object(t)
 }
 
-fn render_tool_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
-    for part in &msg.content {
-        if let CanonicalContent::ToolResult {
-            tool_use_id,
-            content,
-            ..
-        } = part
-        {
-            let output = flatten_text_parts(content);
-            input.push(json!({
-                "type": "function_call_output",
-                "call_id": tool_use_id,
-                "output": output,
-            }));
-        }
+fn tool_result_to_output(part: &CanonicalContent) -> Option<Value> {
+    if let CanonicalContent::ToolResult {
+        tool_use_id,
+        content,
+        ..
+    } = part
+    {
+        Some(json!({
+            "type": "function_call_output",
+            "call_id": tool_use_id,
+            "output": flatten_text_parts(content),
+        }))
+    } else {
+        None
     }
+}
+
+fn render_tool_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
+    input.extend(msg.content.iter().filter_map(tool_result_to_output));
 }
 
 fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
@@ -184,6 +191,12 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
 }
 
 fn render_user_or_system(msg: &CanonicalMessage, input: &mut Vec<Value>) {
+    // Anthropic carries tool results as `tool_result` blocks inside *user*
+    // messages; the Responses API needs them as standalone
+    // `function_call_output` items following the assistant's `function_call`,
+    // before any new user text. Emit those first, then a `message` only if
+    // non-tool content remains.
+    input.extend(msg.content.iter().filter_map(tool_result_to_output));
     let parts: Vec<Value> = msg
         .content
         .iter()

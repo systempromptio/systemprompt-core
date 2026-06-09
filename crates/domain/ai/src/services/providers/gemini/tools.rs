@@ -50,7 +50,7 @@ pub(super) async fn generate_with_tools(
     let mut canonical = build.into_request();
     canonical.thinking = thinking_for(params.model);
 
-    let body = gemini::build_request_body(&canonical, None);
+    let body = gemini::build_request_body(&canonical, None, None);
     let value = transport::post(provider, &body, params.model, false)
         .await?
         .json()
@@ -117,7 +117,7 @@ pub(super) async fn generate_with_tool_results(
         });
     }
 
-    let body = gemini::build_request_body(&canonical, None);
+    let body = gemini::build_request_body(&canonical, None, None);
     let value = transport::post(provider, &body, params.model, false)
         .await?
         .json()

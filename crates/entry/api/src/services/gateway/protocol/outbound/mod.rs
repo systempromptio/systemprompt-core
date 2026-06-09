@@ -31,13 +31,13 @@ use super::canonical_response::{CanonicalEvent, CanonicalResponse};
 pub enum UpstreamError {
     #[error("{provider} returned {status}: {message}")]
     Status {
-        provider: &'static str,
+        provider: String,
         status: u16,
         message: String,
     },
     #[error("{provider} request failed: {source}")]
     Transport {
-        provider: &'static str,
+        provider: String,
         #[source]
         source: reqwest::Error,
     },
@@ -80,7 +80,6 @@ pub enum OutboundOutcome {
 // `Arc<dyn OutboundAdapter>`, so the trait must stay dyn-compatible.
 #[async_trait]
 pub trait OutboundAdapter: Send + Sync {
-    fn provider_tag(&self) -> &'static str;
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome>;
 }
 

@@ -9,7 +9,7 @@ use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
 
 fn status(code: u16) -> UpstreamError {
     UpstreamError::Status {
-        provider: "openai",
+        provider: "openai".to_owned(),
         status: code,
         message: "boom detail".to_owned(),
     }

@@ -36,7 +36,11 @@ pub fn auth_headers(api_key: &str) -> [(&'static str, String); 3] {
 }
 
 #[must_use]
-pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
+pub fn build_request_body(
+    request: &CanonicalRequest,
+    upstream_model: &str,
+    max_output_tokens: Option<u32>,
+) -> Value {
     let messages: Vec<Value> = request
         .messages
         .iter()
@@ -46,7 +50,13 @@ pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> V
 
     let mut obj = Map::new();
     obj.insert("model".into(), Value::String(upstream_model.to_owned()));
-    obj.insert("max_tokens".into(), Value::from(request.max_tokens));
+    obj.insert(
+        "max_tokens".into(),
+        Value::from(crate::wire::clamp_output_tokens(
+            request.max_tokens,
+            max_output_tokens,
+        )),
+    );
     obj.insert("messages".into(), Value::Array(messages));
     if let Some(sys) = &request.system {
         obj.insert("system".into(), Value::String(sys.clone()));

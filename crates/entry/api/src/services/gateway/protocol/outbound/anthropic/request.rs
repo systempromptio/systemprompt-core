@@ -12,6 +12,10 @@ use super::super::super::canonical::CanonicalRequest;
         reason = "items are re-exported via `test_api` only when the feature is on"
     )
 )]
-pub fn build_request_body(request: &CanonicalRequest, upstream_model: &str) -> Value {
-    anthropic::build_request_body(request, upstream_model)
+pub fn build_request_body(
+    request: &CanonicalRequest,
+    upstream_model: &str,
+    max_output_tokens: Option<u32>,
+) -> Value {
+    anthropic::build_request_body(request, upstream_model, max_output_tokens)
 }

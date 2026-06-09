@@ -23,3 +23,18 @@ pub mod gemini;
 pub mod openai_chat;
 pub mod openai_responses;
 pub mod sse;
+
+/// Clamps a caller's output budget down to the model card's cap, never up.
+///
+/// This keeps the upstream within the model's real output limit (otherwise a
+/// `400` when the client's reservation exceeds the ceiling) and doubles
+/// `limits.max_output_tokens` as an operator-set per-request output cap. Every
+/// outbound codec runs `max_tokens` through this; the `OpenAI` reasoning-model
+/// carve-out lives in `openai_chat::output_token_ceiling`.
+#[must_use]
+pub fn clamp_output_tokens(requested: u32, max_output_tokens: Option<u32>) -> u32 {
+    match max_output_tokens {
+        Some(cap) if cap > 0 => requested.min(cap),
+        _ => requested,
+    }
+}

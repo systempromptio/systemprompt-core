@@ -34,7 +34,7 @@ fn truncates_oversized_fallback_body_to_500_chars() {
 #[test]
 fn status_error_display_carries_provider_status_and_message() {
     let shown = UpstreamError::Status {
-        provider: "anthropic",
+        provider: "anthropic".to_owned(),
         status: 400,
         message: "bad request".to_owned(),
     }

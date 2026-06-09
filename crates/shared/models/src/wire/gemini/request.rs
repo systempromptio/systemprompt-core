@@ -15,19 +15,28 @@ use crate::wire::canonical::{
     ResponseFormat, Role,
 };
 
-/// Clamps the requested thinking budget to `max_thinking_budget`.
+/// Clamps Gemini's thinking and output budgets so an out-of-range value can't
+/// be rejected upstream.
 ///
-/// `max_thinking_budget` is the upstream model's ceiling (from its model card);
-/// clamping stops Gemini rejecting an out-of-range `thinkingBudget`. `None`
-/// leaves the budget untouched.
+/// `thinkingBudget` is clamped to the model card's `max_thinking_budget`;
+/// `maxOutputTokens` via [`crate::wire::clamp_output_tokens`]. A `None` cap
+/// leaves that budget alone.
 #[must_use]
-pub fn build_request_body(request: &CanonicalRequest, max_thinking_budget: Option<u32>) -> Value {
+pub fn build_request_body(
+    request: &CanonicalRequest,
+    max_thinking_budget: Option<u32>,
+    max_output_tokens: Option<u32>,
+) -> Value {
     let body = GeminiRequest {
         contents: contents(request),
         system_instruction: request.system.as_ref().map(|s| GeminiSystemInstruction {
             parts: vec![GeminiPart::Text { text: s.clone() }],
         }),
-        generation_config: Some(generation_config(request, max_thinking_budget)),
+        generation_config: Some(generation_config(
+            request,
+            max_thinking_budget,
+            max_output_tokens,
+        )),
         tools: tools(request),
         tool_config: request.tool_choice.as_ref().map(tool_config),
     };
@@ -37,6 +46,7 @@ pub fn build_request_body(request: &CanonicalRequest, max_thinking_budget: Optio
 fn generation_config(
     request: &CanonicalRequest,
     max_thinking_budget: Option<u32>,
+    max_output_tokens: Option<u32>,
 ) -> GeminiGenerationConfig {
     let (response_mime_type, response_schema) = match &request.response_format {
         Some(ResponseFormat::JsonSchema { schema, .. }) => {
@@ -49,7 +59,10 @@ fn generation_config(
         temperature: request.temperature,
         top_p: request.top_p,
         top_k: request.top_k,
-        max_output_tokens: Some(request.max_tokens),
+        max_output_tokens: Some(crate::wire::clamp_output_tokens(
+            request.max_tokens,
+            max_output_tokens,
+        )),
         stop_sequences: if request.stop_sequences.is_empty() {
             None
         } else {

@@ -203,7 +203,7 @@ impl GatewayService {
         let outcome = match upstream.send(outbound_ctx).await {
             Ok(o) => o,
             Err(e) => {
-                audit_upstream_failure(&audit, upstream.provider_tag(), &request.model, &e).await;
+                audit_upstream_failure(&audit, provider.name.as_str(), &request.model, &e).await;
                 return Err(DispatchError::Recorded(e));
             },
         };

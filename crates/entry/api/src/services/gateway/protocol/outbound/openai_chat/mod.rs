@@ -27,10 +27,6 @@ pub struct OpenAiChatOutbound;
 
 #[async_trait]
 impl OutboundAdapter for OpenAiChatOutbound {
-    fn provider_tag(&self) -> &'static str {
-        "openai"
-    }
-
     async fn send(&self, ctx: OutboundCtx<'_>) -> Result<OutboundOutcome> {
         let body = codec::build_request_body(
             ctx.request,
@@ -51,7 +47,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
 
         let upstream_response = req.send().await.map_err(|e| {
             anyhow::Error::new(UpstreamError::Transport {
-                provider: self.provider_tag(),
+                provider: ctx.route.provider.as_str().to_owned(),
                 source: e,
             })
         })?;
@@ -63,7 +59,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
                 .await
                 .unwrap_or_else(|e| format!("<failed to read upstream body: {e}>"));
             return Err(anyhow::Error::new(UpstreamError::Status {
-                provider: self.provider_tag(),
+                provider: ctx.route.provider.as_str().to_owned(),
                 status: status.as_u16(),
                 message: extract_upstream_message(&err),
             }));

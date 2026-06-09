@@ -8,6 +8,28 @@ use systemprompt_models::wire::openai_chat;
 
 use super::{base_request, image_url, plain_tool};
 
+fn tool_result(id: &str, text: &str) -> CanonicalContent {
+    CanonicalContent::ToolResult {
+        tool_use_id: id.to_owned(),
+        content: vec![CanonicalContent::Text(text.to_owned())],
+        is_error: false,
+        structured_content: None,
+        meta: None,
+    }
+}
+
+fn assistant_tool_call(id: &str) -> CanonicalMessage {
+    CanonicalMessage {
+        role: Role::Assistant,
+        content: vec![CanonicalContent::ToolUse {
+            id: id.to_owned(),
+            name: "lookup".to_owned(),
+            input: json!({"q": "rust"}),
+            signature: None,
+        }],
+    }
+}
+
 #[test]
 fn openai_chat_emits_max_completion_tokens_not_max_tokens() {
     let body = openai_chat::build_request_body(&base_request(), "upstream", None);
@@ -148,6 +170,104 @@ fn openai_chat_emits_json_schema_response_format() {
     assert_eq!(body["response_format"]["type"], "json_schema");
     assert_eq!(body["response_format"]["json_schema"]["name"], "result");
     assert_eq!(body["response_format"]["json_schema"]["strict"], true);
+}
+
+#[test]
+fn openai_chat_emits_tool_message_after_assistant_tool_call() {
+    let mut req = base_request();
+    req.messages = vec![
+        assistant_tool_call("call_X"),
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![tool_result("call_X", "42")],
+        },
+    ];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    let messages = body["messages"].as_array().expect("messages");
+    // assistant tool_calls[].id immediately followed by {role:tool, tool_call_id}.
+    let assistant = &messages[0];
+    assert_eq!(assistant["role"], "assistant");
+    assert_eq!(assistant["tool_calls"][0]["id"], "call_X");
+    let tool = &messages[1];
+    assert_eq!(tool["role"], "tool");
+    assert_eq!(tool["tool_call_id"], "call_X");
+    assert_eq!(tool["content"], "42");
+    assert_eq!(messages.len(), 2, "no stray user message for a tool-only turn");
+}
+
+#[test]
+fn openai_chat_emits_one_tool_message_per_result_ids_preserved() {
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![
+            tool_result("call_A", "a"),
+            tool_result("call_B", "b"),
+        ],
+    }];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    let messages = body["messages"].as_array().expect("messages");
+    assert_eq!(messages.len(), 2, "one tool message per result, no user message");
+    assert_eq!(messages[0]["role"], "tool");
+    assert_eq!(messages[0]["tool_call_id"], "call_A");
+    assert_eq!(messages[1]["tool_call_id"], "call_B");
+}
+
+#[test]
+fn openai_chat_tool_results_precede_trailing_user_text() {
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![
+            tool_result("call_A", "a"),
+            CanonicalContent::Text("and now this".to_owned()),
+        ],
+    }];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    let messages = body["messages"].as_array().expect("messages");
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["role"], "tool");
+    assert_eq!(messages[0]["tool_call_id"], "call_A");
+    assert_eq!(messages[1]["role"], "user");
+    assert_eq!(messages[1]["content"], "and now this");
+}
+
+#[test]
+fn openai_chat_plain_user_text_still_collapses_to_string() {
+    let mut req = base_request();
+    req.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![CanonicalContent::Text("just text".to_owned())],
+    }];
+    let body = openai_chat::build_request_body(&req, "upstream", None);
+    let messages = body["messages"].as_array().expect("messages");
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0]["role"], "user");
+    assert_eq!(messages[0]["content"], "just text");
+}
+
+#[test]
+fn openai_chat_clamps_non_reasoning_output_down_to_cap() {
+    let mut req = base_request();
+    req.max_tokens = 32_000;
+    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(4096));
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(4096),
+        "a non-reasoning model's output must be clamped down to the model-card cap"
+    );
+}
+
+#[test]
+fn openai_chat_clamp_never_raises_below_cap_budget() {
+    let mut req = base_request();
+    req.max_tokens = 1000;
+    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(4096));
+    assert_eq!(
+        body["max_completion_tokens"],
+        json!(1000),
+        "the clamp takes the min and never raises the caller's budget"
+    );
 }
 
 #[test]

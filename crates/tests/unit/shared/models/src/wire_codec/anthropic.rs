@@ -11,15 +11,27 @@ use super::{base_request, image_url, plain_tool, tool_use, tool_with_unsupported
 
 #[test]
 fn anthropic_emits_max_tokens() {
-    let body = anthropic::build_request_body(&base_request(), "upstream");
+    let body = anthropic::build_request_body(&base_request(), "upstream", None);
     assert_eq!(body["max_tokens"], json!(32));
+}
+
+#[test]
+fn anthropic_clamps_max_tokens_down_to_model_cap() {
+    let mut req = base_request();
+    req.max_tokens = 32_000;
+    let body = anthropic::build_request_body(&req, "upstream", Some(4096));
+    assert_eq!(
+        body["max_tokens"],
+        json!(4096),
+        "max_tokens must be clamped down to the model-card cap when one is known"
+    );
 }
 
 #[test]
 fn anthropic_sets_system_field() {
     let mut req = base_request();
     req.system = Some("be terse".to_owned());
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     assert_eq!(body["system"], "be terse");
 }
 
@@ -27,7 +39,7 @@ fn anthropic_sets_system_field() {
 fn anthropic_serializes_regular_tools() {
     let mut req = base_request();
     req.tools = vec![plain_tool()];
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     let tool = &body["tools"][0];
     assert_eq!(tool["name"], "lookup");
     assert_eq!(tool["description"], "look something up");
@@ -50,7 +62,7 @@ fn anthropic_tool_choice_variants() {
         let mut req = base_request();
         req.tools = vec![plain_tool()];
         req.tool_choice = Some(choice);
-        let body = anthropic::build_request_body(&req, "upstream");
+        let body = anthropic::build_request_body(&req, "upstream", None);
         assert_eq!(body["tool_choice"], expected);
     }
 }
@@ -69,7 +81,7 @@ fn anthropic_renders_base64_and_url_image_blocks() {
             image_url("https://example.com/cat.png"),
         ],
     }];
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     let blocks = body["messages"][0]["content"].as_array().expect("blocks");
     assert_eq!(blocks[0]["type"], "image");
     assert_eq!(blocks[0]["source"]["type"], "base64");
@@ -85,7 +97,7 @@ fn anthropic_tool_and_system_roles_map_to_user() {
         role: Role::Tool,
         content: vec![CanonicalContent::Text("result".to_owned())],
     }];
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     assert_eq!(body["messages"][0]["role"], "user");
 }
 
@@ -97,7 +109,7 @@ fn anthropic_json_schema_becomes_forced_structured_output_tool() {
         schema: json!({"type": "object"}),
         strict: true,
     });
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     let tools = body["tools"].as_array().expect("tools array");
     assert!(tools.iter().any(|t| t["name"] == "structured_output"));
     assert_eq!(body["tool_choice"]["type"], "tool");
@@ -114,7 +126,7 @@ fn anthropic_search_turn_omits_tool_choice_and_stream() {
         context_size: None,
         urls: Vec::new(),
     });
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     let tools = body["tools"].as_array().expect("tools array");
     assert!(tools.iter().any(|t| t["name"] == "web_search"));
     assert!(body.get("tool_choice").is_none());
@@ -125,7 +137,7 @@ fn anthropic_search_turn_omits_tool_choice_and_stream() {
 fn anthropic_tools_keep_supported_keywords_but_drop_schema_metadata() {
     let mut req = base_request();
     req.tools = vec![tool_with_unsupported_keywords()];
-    let body = anthropic::build_request_body(&req, "upstream");
+    let body = anthropic::build_request_body(&req, "upstream", None);
     let schema = &body["tools"][0]["input_schema"];
     assert!(schema.get("$schema").is_none(), "$schema metadata stripped");
     assert_eq!(schema["additionalProperties"], json!(false));

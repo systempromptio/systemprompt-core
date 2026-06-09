@@ -35,7 +35,7 @@ pub(super) async fn generate(
     .with_sampling(params.sampling)
     .into_request();
 
-    let body = gemini::build_request_body(&canonical, None);
+    let body = gemini::build_request_body(&canonical, None, None);
     let value: Value = transport::post(provider, &body, params.model, false)
         .await?
         .json()
@@ -71,7 +71,7 @@ pub(super) async fn generate_with_schema(
     .with_response_format(Some(response_format))
     .into_request();
 
-    let body = gemini::build_request_body(&canonical, None);
+    let body = gemini::build_request_body(&canonical, None, None);
     let value: Value = transport::post(provider, &body, params.base.model, false)
         .await?
         .json()

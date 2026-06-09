@@ -68,7 +68,7 @@ pub async fn generate_with_web_search(
     .with_search(Some(search))
     .into_request();
 
-    let body = anthropic::build_request_body(&canonical, params.model);
+    let body = anthropic::build_request_body(&canonical, params.model, None);
     let value: Value = post_body(provider, &body).await?.json().await?;
     let parsed = anthropic::parse_response(&value, params.model);
     Ok(canonical_bridge::to_search_grounded(start, &parsed))

@@ -34,7 +34,7 @@ impl AnthropicProvider {
         .with_stream(true)
         .into_request();
 
-        let body = anthropic::build_request_body(&canonical, params.model);
+        let body = anthropic::build_request_body(&canonical, params.model, None);
         let response = post_body(self, &body).await?;
 
         let stream = response

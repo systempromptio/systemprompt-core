@@ -14,7 +14,7 @@ use systemprompt_api::services::gateway::protocol::outbound::anthropic::Anthropi
 use systemprompt_api::services::gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_api::services::gateway::protocol::outbound::{
-    OutboundAdapter, OutboundCtx, OutboundOutcome,
+    OutboundAdapter, OutboundCtx, OutboundOutcome, UpstreamError,
 };
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_models::profile::GatewayRoute;
@@ -309,11 +309,16 @@ async fn openai_responses_outbound_buffered_parses_response() {
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));
 }
 
-#[tokio::test]
-async fn provider_tags_are_stable() {
-    assert_eq!(AnthropicOutbound.provider_tag(), "anthropic");
-    assert_eq!(OpenAiChatOutbound.provider_tag(), "openai");
-    let _ = OpenAiResponsesOutbound.provider_tag();
+#[test]
+fn upstream_status_error_carries_real_provider_name() {
+    // The OpenAI-chat wire family backs many providers (Cerebras, z.ai, ...);
+    // the error must surface the resolved provider name, not the wire tag.
+    let err = UpstreamError::Status {
+        provider: "cerebras".to_owned(),
+        status: 429,
+        message: "rate limited".to_owned(),
+    };
+    assert_eq!(err.to_string(), "cerebras returned 429: rate limited");
 }
 
 // Ensure each adapter exercises tool/tool_choice/stop_sequences variants by
