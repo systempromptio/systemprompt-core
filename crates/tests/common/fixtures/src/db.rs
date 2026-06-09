@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use systemprompt_database::{Database, DbPool};
+use tokio::sync::OnceCell;
 
 pub fn fixture_database_url() -> Result<String> {
     dotenvy::dotenv().ok();
@@ -16,9 +17,16 @@ pub fn fixture_database_url() -> Result<String> {
         .map_err(|_| anyhow::anyhow!("DATABASE_URL must be set for DB-backed integration tests"))
 }
 
+static SHARED_POOL: OnceCell<DbPool> = OnceCell::const_new();
+
 pub async fn fixture_db_pool(url: &str) -> Result<DbPool> {
-    let database = Database::new_postgres(url)
-        .await
-        .context("failed to connect to the integration-test Postgres instance")?;
-    Ok(Arc::new(database))
+    let pool = SHARED_POOL
+        .get_or_try_init(|| async {
+            Database::new_postgres(url)
+                .await
+                .map(Arc::new)
+                .context("failed to connect to the integration-test Postgres instance")
+        })
+        .await?;
+    Ok(Arc::clone(pool))
 }
