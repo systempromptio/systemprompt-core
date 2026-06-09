@@ -54,17 +54,16 @@ pub(super) fn mount_extension_routes(
             ext_router_config.router
         };
 
-        if let Some(tx) = events {
-            if tx
+        if let Some(tx) = events
+            && tx
                 .unbounded_send(StartupEvent::ExtensionRouteMounted {
                     name: ext_name.to_owned(),
                     path: base_path.to_owned(),
                     auth_required: requires_auth,
                 })
                 .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
-            }
+        {
+            tracing::debug!("Startup event receiver dropped");
         }
 
         if base_path == "/" {

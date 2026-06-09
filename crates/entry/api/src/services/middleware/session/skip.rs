@@ -36,13 +36,13 @@ pub fn should_skip_session_tracking(path: &str) -> bool {
         return true;
     }
 
-    if let Some(last_segment) = path.rsplit('/').next() {
-        if last_segment.contains('.') {
-            let extension = last_segment.rsplit('.').next().unwrap_or("");
-            match extension {
-                "html" | "htm" => {},
-                _ => return true,
-            }
+    if let Some(last_segment) = path.rsplit('/').next()
+        && last_segment.contains('.')
+    {
+        let extension = last_segment.rsplit('.').next().unwrap_or("");
+        match extension {
+            "html" | "htm" => {},
+            _ => return true,
         }
     }
 

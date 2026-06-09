@@ -50,12 +50,11 @@ impl PolicyResolver {
     }
 
     pub async fn resolve(&self) -> GatewayPolicySpec {
-        if let Ok(cache) = self.cache.read() {
-            if let Some(entry) = cache.as_ref() {
-                if entry.fetched_at.elapsed() < CACHE_TTL {
-                    return entry.spec.clone();
-                }
-            }
+        if let Ok(cache) = self.cache.read()
+            && let Some(entry) = cache.as_ref()
+            && entry.fetched_at.elapsed() < CACHE_TTL
+        {
+            return entry.spec.clone();
         }
 
         let rows = match self.repo.find_for_global().await {

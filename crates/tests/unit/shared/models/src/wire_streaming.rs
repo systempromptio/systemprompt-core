@@ -796,9 +796,15 @@ mod crlf_framing {
     #[tokio::test]
     async fn gemini_crlf_frame_yields_events() {
         let events = collect_gemini(one_frame(GEMINI_CRLF.to_owned())).await;
-        assert!(matches!(events.first(), Some(CanonicalEvent::MessageStart { .. })));
+        assert!(matches!(
+            events.first(),
+            Some(CanonicalEvent::MessageStart { .. })
+        ));
         assert!(has_text(&events, "hi"));
-        assert!(matches!(events.last(), Some(CanonicalEvent::MessageStop { .. })));
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop { .. })
+        ));
     }
 
     #[tokio::test]
@@ -807,20 +813,29 @@ mod crlf_framing {
         let (a, b) = GEMINI_CRLF.split_at(mid);
         let events = collect_gemini(chunks(vec![a, b])).await;
         assert!(has_text(&events, "hi"));
-        assert!(matches!(events.last(), Some(CanonicalEvent::MessageStop { .. })));
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop { .. })
+        ));
     }
 
     #[tokio::test]
     async fn openai_chat_crlf_frame_yields_events() {
         let events = collect_openai_chat(one_frame(OPENAI_CHAT_CRLF.to_owned())).await;
         assert!(has_text(&events, "hi"));
-        assert!(matches!(events.last(), Some(CanonicalEvent::MessageStop { .. })));
+        assert!(matches!(
+            events.last(),
+            Some(CanonicalEvent::MessageStop { .. })
+        ));
     }
 
     #[tokio::test]
     async fn openai_responses_crlf_frame_yields_events() {
         let events = collect_openai_responses(one_frame(OPENAI_RESPONSES_CRLF.to_owned())).await;
-        assert!(matches!(events.first(), Some(CanonicalEvent::MessageStart { .. })));
+        assert!(matches!(
+            events.first(),
+            Some(CanonicalEvent::MessageStart { .. })
+        ));
         assert!(has_text(&events, "hi"));
     }
 }

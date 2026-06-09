@@ -241,5 +241,8 @@ fn bridge_profile_build_excludes_backend_provider() {
 
     assert!(response.providers.iter().all(|p| p.name != "minimax"));
     assert!(!response.models.iter().any(|m| m == "MiniMax-M2"));
-    assert_eq!(response.models, vec!["claude-3-7-sonnet-20250219".to_owned()]);
+    assert_eq!(
+        response.models,
+        vec!["claude-3-7-sonnet-20250219".to_owned()]
+    );
 }

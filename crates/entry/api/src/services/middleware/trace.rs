@@ -11,10 +11,10 @@ pub async fn inject_trace_header(request: Request, next: Next) -> Response {
 
     let mut response = next.run(request).await;
 
-    if let Some(id) = trace_id {
-        if let Ok(header_value) = id.parse() {
-            response.headers_mut().insert("x-trace-id", header_value);
-        }
+    if let Some(id) = trace_id
+        && let Ok(header_value) = id.parse()
+    {
+        response.headers_mut().insert("x-trace-id", header_value);
     }
 
     response

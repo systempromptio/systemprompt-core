@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_bridge::config::paths::SYNTHETIC_PLUGIN_NAME;
+use systemprompt_bridge::config::paths::{LEGACY_ORG_PLUGINS_METADATA, SYNTHETIC_PLUGIN_NAME};
 use systemprompt_bridge::gateway::manifest::{
     AgentEntry, AgentId, AgentName, ManagedMcpServer, SignedManifest, SkillEntry, ValidatedUrl,
 };
@@ -9,7 +9,6 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
     ManagedMcpServerName, ManifestSignature, Sha256Digest, SkillId, SkillName,
 };
-use systemprompt_bridge::config::paths::LEGACY_ORG_PLUGINS_METADATA;
 use systemprompt_bridge::sync::{prune_stale_locations_in, write_synthetic_plugin};
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -260,12 +259,14 @@ fn version_json_is_stable_across_manifest_version_churn() {
     let root = tempdir();
 
     let mut m1 = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
-    m1.manifest_version = ManifestVersion::try_new("2026-01-01T00:00:00Z-aaaaaaaaaaaaaaaa").unwrap();
+    m1.manifest_version =
+        ManifestVersion::try_new("2026-01-01T00:00:00Z-aaaaaaaaaaaaaaaa").unwrap();
     write_synthetic_plugin(&root, &m1).unwrap();
     let v1 = fs::read_to_string(synthetic_root(&root).join("version.json")).unwrap();
 
     let mut m2 = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
-    m2.manifest_version = ManifestVersion::try_new("2026-09-09T09:09:09Z-bbbbbbbbbbbbbbbb").unwrap();
+    m2.manifest_version =
+        ManifestVersion::try_new("2026-09-09T09:09:09Z-bbbbbbbbbbbbbbbb").unwrap();
     write_synthetic_plugin(&root, &m2).unwrap();
     let v2 = fs::read_to_string(synthetic_root(&root).join("version.json")).unwrap();
 
@@ -276,9 +277,16 @@ fn version_json_is_stable_across_manifest_version_churn() {
 fn version_json_changes_when_skill_content_changes() {
     let a = tempdir();
     let b = tempdir();
-    write_synthetic_plugin(&a, &manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![])).unwrap();
-    write_synthetic_plugin(&b, &manifest_with(vec![skill("alpha", "# different\n")], vec![], vec![]))
-        .unwrap();
+    write_synthetic_plugin(
+        &a,
+        &manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]),
+    )
+    .unwrap();
+    write_synthetic_plugin(
+        &b,
+        &manifest_with(vec![skill("alpha", "# different\n")], vec![], vec![]),
+    )
+    .unwrap();
     let va = fs::read_to_string(synthetic_root(&a).join("version.json")).unwrap();
     let vb = fs::read_to_string(synthetic_root(&b).join("version.json")).unwrap();
     assert_ne!(va, vb, "version.json must change when content changes");
@@ -294,7 +302,8 @@ fn idempotent_rewrite_does_not_touch_existing_plugin() {
     fs::write(&sentinel, b"keep").unwrap();
 
     let mut m2 = manifest_with(vec![skill("alpha", "# a\n")], vec![], vec![]);
-    m2.manifest_version = ManifestVersion::try_new("2026-12-12T12:12:12Z-cccccccccccccccc").unwrap();
+    m2.manifest_version =
+        ManifestVersion::try_new("2026-12-12T12:12:12Z-cccccccccccccccc").unwrap();
     write_synthetic_plugin(&root, &m2).unwrap();
 
     assert!(

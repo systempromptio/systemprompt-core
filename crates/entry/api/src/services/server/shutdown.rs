@@ -71,10 +71,10 @@ pub(super) async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) 
         handle.abort();
     }
 
-    if let Some(handle) = scheduler {
-        if let Err(e) = handle.shutdown().await {
-            tracing::warn!(error = %e, "Scheduler failed to drain cleanly");
-        }
+    if let Some(handle) = scheduler
+        && let Err(e) = handle.shutdown().await
+    {
+        tracing::warn!(error = %e, "Scheduler failed to drain cleanly");
     }
 
     terminate_children(ctx).await;

@@ -68,7 +68,7 @@ impl AuthResult {
         }
     }
 
-    pub fn context_mut(&mut self) -> &mut RequestContext {
+    pub const fn context_mut(&mut self) -> &mut RequestContext {
         match self {
             Self::Anonymous(ctx) => ctx,
             Self::Authenticated(auth_ctx) => &mut auth_ctx.context,

@@ -27,7 +27,14 @@ fn openai_responses_emits_max_output_tokens_not_max_tokens() {
 
 #[test]
 fn openai_responses_caps_reasoning_model_to_model_max_output() {
-    let body = openai_responses::build_request_body(&base_request(), "o3", Some(ModelLimits { max_output_tokens: 100_000, ..Default::default() }));
+    let body = openai_responses::build_request_body(
+        &base_request(),
+        "o3",
+        Some(ModelLimits {
+            max_output_tokens: 100_000,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_output_tokens"],
         json!(100_000),
@@ -37,7 +44,14 @@ fn openai_responses_caps_reasoning_model_to_model_max_output() {
 
 #[test]
 fn openai_responses_keeps_caller_budget_for_non_reasoning_model() {
-    let body = openai_responses::build_request_body(&base_request(), "gpt-4o", Some(ModelLimits { max_output_tokens: 100_000, ..Default::default() }));
+    let body = openai_responses::build_request_body(
+        &base_request(),
+        "gpt-4o",
+        Some(ModelLimits {
+            max_output_tokens: 100_000,
+            ..Default::default()
+        }),
+    );
     assert_eq!(body["max_output_tokens"], json!(32));
 }
 
@@ -45,7 +59,14 @@ fn openai_responses_keeps_caller_budget_for_non_reasoning_model() {
 fn openai_responses_clamps_non_reasoning_output_down_to_cap() {
     let mut req = base_request();
     req.max_tokens = 32_000;
-    let body = openai_responses::build_request_body(&req, "gpt-4o", Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
+    let body = openai_responses::build_request_body(
+        &req,
+        "gpt-4o",
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_output_tokens"],
         json!(4096),

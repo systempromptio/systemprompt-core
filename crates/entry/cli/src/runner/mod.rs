@@ -67,10 +67,10 @@ async fn run_inner() -> Result<()> {
         systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
     }
 
-    if desc.profile() {
-        if let Some(external_db_url) = bootstrap_profile(&cli, &desc, &cli_config).await? {
-            return run_with_database_url(cli.command, &cli_config, &external_db_url).await;
-        }
+    if desc.profile()
+        && let Some(external_db_url) = bootstrap_profile(&cli, &desc, &cli_config).await?
+    {
+        return run_with_database_url(cli.command, &cli_config, &external_db_url).await;
     }
 
     dispatch_command(cli.command, &cli_config).await
@@ -233,10 +233,10 @@ fn resolve_log_level(cli_config: &CliConfig) -> Option<String> {
         return Some(level.to_owned());
     }
 
-    if let Ok(profile_path) = bootstrap::resolve_profile(cli_config.profile_override.as_deref()) {
-        if let Some(log_level) = bootstrap::try_load_log_level(&profile_path) {
-            return Some(log_level.as_tracing_filter().to_owned());
-        }
+    if let Ok(profile_path) = bootstrap::resolve_profile(cli_config.profile_override.as_deref())
+        && let Some(log_level) = bootstrap::try_load_log_level(&profile_path)
+    {
+        return Some(log_level.as_tracing_filter().to_owned());
     }
 
     Some("warn".to_owned())

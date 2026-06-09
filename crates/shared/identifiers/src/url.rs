@@ -127,13 +127,13 @@ fn validate_authority(after_scheme: &str, scheme: &str) -> Result<(), IdValidati
         } else {
             host_part.split(':').nth(1)
         };
-        if let Some(port) = port_part {
-            if port.is_empty() || port.starts_with('/') {
-                return Err(IdValidationError::invalid(
-                    "ValidatedUrl",
-                    "port cannot be empty when ':' is present",
-                ));
-            }
+        if let Some(port) = port_part
+            && (port.is_empty() || port.starts_with('/'))
+        {
+            return Err(IdValidationError::invalid(
+                "ValidatedUrl",
+                "port cannot be empty when ':' is present",
+            ));
         }
     }
 

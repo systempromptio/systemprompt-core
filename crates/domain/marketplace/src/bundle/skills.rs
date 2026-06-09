@@ -129,10 +129,10 @@ fn collect_aux(base: &Path, current: &Path, kebab: &str, subdir: &str, bundle: &
             collect_aux(base, &path, kebab, subdir, bundle);
             continue;
         }
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            if BINARY_EXTS.contains(&ext.to_lowercase().as_str()) {
-                continue;
-            }
+        if let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && BINARY_EXTS.contains(&ext.to_lowercase().as_str())
+        {
+            continue;
         }
         let Ok(bytes) = std::fs::read(&path) else {
             continue;

@@ -37,16 +37,16 @@ pub(super) async fn execute(args: CreateArgs, _config: &CliConfig) -> Result<Com
         return Err(anyhow!("Email cannot be empty"));
     }
 
-    if args.if_not_exists {
-        if let Some(existing) = user_service.find_by_name(&args.name).await? {
-            let output = UserCreatedOutput {
-                id: existing.id.clone(),
-                name: existing.name.clone(),
-                email: existing.email.clone(),
-                message: format!("User '{}' already exists", existing.name),
-            };
-            return Ok(CommandOutput::card_value("User Exists", &output));
-        }
+    if args.if_not_exists
+        && let Some(existing) = user_service.find_by_name(&args.name).await?
+    {
+        let output = UserCreatedOutput {
+            id: existing.id.clone(),
+            name: existing.name.clone(),
+            email: existing.email.clone(),
+            message: format!("User '{}' already exists", existing.name),
+        };
+        return Ok(CommandOutput::card_value("User Exists", &output));
     }
 
     let user = user_service

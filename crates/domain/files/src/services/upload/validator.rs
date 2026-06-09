@@ -211,16 +211,14 @@ impl FileValidator {
     }
 
     pub fn get_extension(mime_type: &str, filename: Option<&str>) -> String {
-        if let Some(name) = filename {
-            if let Some(ext) = name.rsplit('.').next() {
-                if !ext.is_empty()
-                    && ext.len() <= 10
-                    && ext != name
-                    && ext.chars().all(|c| c.is_ascii_alphanumeric())
-                {
-                    return ext.to_lowercase();
-                }
-            }
+        if let Some(name) = filename
+            && let Some(ext) = name.rsplit('.').next()
+            && !ext.is_empty()
+            && ext.len() <= 10
+            && ext != name
+            && ext.chars().all(|c| c.is_ascii_alphanumeric())
+        {
+            return ext.to_lowercase();
         }
 
         let lower = mime_type.to_lowercase();

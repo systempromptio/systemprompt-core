@@ -55,11 +55,11 @@ impl ValidationSummary {
         self.disabled.push(name);
     }
 
-    pub fn total_active(&self) -> usize {
+    pub const fn total_active(&self) -> usize {
         self.valid.len() + self.installed.len() + self.updated.len()
     }
 
-    pub fn has_changes(&self) -> bool {
+    pub const fn has_changes(&self) -> bool {
         !self.installed.is_empty()
             || !self.updated.is_empty()
             || !self.schemas_applied.is_empty()
@@ -214,11 +214,11 @@ impl ProgressSummary {
         }
     }
 
-    pub fn add_success(&mut self) {
+    pub const fn add_success(&mut self) {
         self.completed += 1;
     }
 
-    pub fn add_failure(&mut self) {
+    pub const fn add_failure(&mut self) {
         self.failed += 1;
     }
 

@@ -74,10 +74,10 @@ fn build_config_for_filter(
             .with_mcp_servers(services_config.map_or_else(HashMap::new, |s| s.mcp_servers.clone())),
         ShowFilter::Skills => {
             let mut full = FullConfig::empty();
-            if let (Some(_cfg), Some(p)) = (config, paths) {
-                if let Some(skills) = load_skills_config(p) {
-                    full = full.with_skills(skills);
-                }
+            if let (Some(_cfg), Some(p)) = (config, paths)
+                && let Some(skills) = load_skills_config(p)
+            {
+                full = full.with_skills(skills);
             }
             full
         },
@@ -88,10 +88,10 @@ fn build_config_for_filter(
         },
         ShowFilter::Content => {
             let mut full = FullConfig::empty();
-            if let Some(p) = paths {
-                if let Some(content) = load_content_config(p) {
-                    full = full.with_content(content);
-                }
+            if let Some(p) = paths
+                && let Some(content) = load_content_config(p)
+            {
+                full = full.with_content(content);
             }
             full
         },
@@ -117,10 +117,10 @@ fn build_full_config(
 
     if let Some(cfg) = config {
         full = full.with_environment(build_env_config(cfg, paths));
-        if let Some(p) = paths {
-            if let Some(skills) = load_skills_config(p) {
-                full = full.with_skills(skills);
-            }
+        if let Some(p) = paths
+            && let Some(skills) = load_skills_config(p)
+        {
+            full = full.with_skills(skills);
         }
     }
 
@@ -133,10 +133,10 @@ fn build_full_config(
             .with_web(sc.web.clone());
     }
 
-    if let Some(p) = paths {
-        if let Some(content) = load_content_config(p) {
-            full = full.with_content(content);
-        }
+    if let Some(p) = paths
+        && let Some(content) = load_content_config(p)
+    {
+        full = full.with_content(content);
     }
 
     full

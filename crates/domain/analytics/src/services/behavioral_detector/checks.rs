@@ -103,18 +103,18 @@ impl BehavioralBotDetector {
             return;
         }
 
-        if let Some(variance) = compute_timing_variance(&input.request_timestamps) {
-            if variance < thresholds::TIMING_VARIANCE_MIN {
-                *score += scoring::REGULAR_TIMING;
-                signals.push(BehavioralSignal {
-                    signal_type: SignalType::RegularTiming,
-                    points: scoring::REGULAR_TIMING,
-                    details: format!(
-                        "Request timing variance {:.3} is suspiciously regular",
-                        variance
-                    ),
-                });
-            }
+        if let Some(variance) = compute_timing_variance(&input.request_timestamps)
+            && variance < thresholds::TIMING_VARIANCE_MIN
+        {
+            *score += scoring::REGULAR_TIMING;
+            signals.push(BehavioralSignal {
+                signal_type: SignalType::RegularTiming,
+                points: scoring::REGULAR_TIMING,
+                details: format!(
+                    "Request timing variance {:.3} is suspiciously regular",
+                    variance
+                ),
+            });
         }
     }
 
@@ -150,15 +150,15 @@ impl BehavioralBotDetector {
         score: &mut i32,
         signals: &mut Vec<BehavioralSignal>,
     ) {
-        if let Some(ref ua) = input.user_agent {
-            if is_outdated_browser(ua) {
-                *score += scoring::OUTDATED_BROWSER;
-                signals.push(BehavioralSignal {
-                    signal_type: SignalType::OutdatedBrowser,
-                    points: scoring::OUTDATED_BROWSER,
-                    details: "Browser version is outdated".to_owned(),
-                });
-            }
+        if let Some(ref ua) = input.user_agent
+            && is_outdated_browser(ua)
+        {
+            *score += scoring::OUTDATED_BROWSER;
+            signals.push(BehavioralSignal {
+                signal_type: SignalType::OutdatedBrowser,
+                points: scoring::OUTDATED_BROWSER,
+                details: "Browser version is outdated".to_owned(),
+            });
         }
     }
 

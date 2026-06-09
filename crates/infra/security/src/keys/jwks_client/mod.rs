@@ -131,10 +131,10 @@ impl JwksClient {
 pub fn parse_max_age(header: &str) -> Option<Duration> {
     for directive in header.split(',') {
         let trimmed = directive.trim();
-        if let Some(rest) = trimmed.strip_prefix("max-age=") {
-            if let Ok(secs) = rest.trim().parse::<u64>() {
-                return Some(Duration::from_secs(secs));
-            }
+        if let Some(rest) = trimmed.strip_prefix("max-age=")
+            && let Ok(secs) = rest.trim().parse::<u64>()
+        {
+            return Some(Duration::from_secs(secs));
         }
     }
     None

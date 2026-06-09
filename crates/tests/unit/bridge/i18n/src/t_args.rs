@@ -111,7 +111,10 @@ fn t_args_arg_order_independent() {
 #[test]
 fn t_args_substituted_value_may_contain_unicode() {
     assert_eq!(
-        t_args("agents-status-cloud-signed-in", &[("email", "tëst@exämple.io")]),
+        t_args(
+            "agents-status-cloud-signed-in",
+            &[("email", "tëst@exämple.io")]
+        ),
         "signed in as tëst@exämple.io"
     );
 }

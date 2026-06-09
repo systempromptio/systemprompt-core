@@ -153,10 +153,10 @@ impl ScannerDetector {
         request_count: Option<i64>,
         duration_seconds: Option<i64>,
     ) -> bool {
-        if let Some(p) = path {
-            if Self::is_scanner_path(p) {
-                return true;
-            }
+        if let Some(p) = path
+            && Self::is_scanner_path(p)
+        {
+            return true;
         }
 
         match user_agent {
@@ -170,10 +170,10 @@ impl ScannerDetector {
             },
         }
 
-        if let (Some(count), Some(duration)) = (request_count, duration_seconds) {
-            if Self::is_high_velocity(count, duration) {
-                return true;
-            }
+        if let (Some(count), Some(duration)) = (request_count, duration_seconds)
+            && Self::is_high_velocity(count, duration)
+        {
+            return true;
         }
 
         false

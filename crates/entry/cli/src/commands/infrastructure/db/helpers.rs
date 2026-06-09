@@ -33,10 +33,10 @@ pub(super) fn format_bytes(bytes: i64) -> String {
 }
 
 pub(super) fn extract_relation_name(msg: &str) -> String {
-    if let Some(start) = msg.find('"') {
-        if let Some(end) = msg[start + 1..].find('"') {
-            return msg[start + 1..start + 1 + end].to_string();
-        }
+    if let Some(start) = msg.find('"')
+        && let Some(end) = msg[start + 1..].find('"')
+    {
+        return msg[start + 1..start + 1 + end].to_string();
     }
     "unknown".to_owned()
 }

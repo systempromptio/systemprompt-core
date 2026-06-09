@@ -27,11 +27,11 @@ pub(super) fn lookup_geoip(
         return None;
     }
 
-    if let std::net::IpAddr::V4(ipv4) = ip {
-        if ipv4.is_private() || ipv4.is_link_local() {
-            tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: private or link-local address");
-            return None;
-        }
+    if let std::net::IpAddr::V4(ipv4) = ip
+        && (ipv4.is_private() || ipv4.is_link_local())
+    {
+        tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: private or link-local address");
+        return None;
     }
 
     let lookup_result = match reader.lookup(ip) {

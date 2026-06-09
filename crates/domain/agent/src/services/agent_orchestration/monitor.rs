@@ -153,7 +153,7 @@ impl MonitoringReport {
         }
     }
 
-    pub fn total_agents(&self) -> usize {
+    pub const fn total_agents(&self) -> usize {
         self.healthy.len() + self.unhealthy.len() + self.failed.len()
     }
 

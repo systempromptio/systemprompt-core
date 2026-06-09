@@ -169,10 +169,10 @@ fn log_validation_errors(errors: &[ValidationError]) {
 }
 
 fn extract_path_from_url(url: &str) -> Result<String> {
-    if let Some(pos) = url.find("://") {
-        if let Some(slash_pos) = url[pos + 3..].find('/') {
-            return Ok(url[pos + 3 + slash_pos..].to_string());
-        }
+    if let Some(pos) = url.find("://")
+        && let Some(slash_pos) = url[pos + 3..].find('/')
+    {
+        return Ok(url[pos + 3 + slash_pos..].to_string());
     }
 
     if url.starts_with('/') {

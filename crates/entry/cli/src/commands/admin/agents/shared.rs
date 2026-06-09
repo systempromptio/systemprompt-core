@@ -69,7 +69,7 @@ pub struct AgentArgs {
 }
 
 impl AgentArgs {
-    pub fn has_any_value(&self) -> bool {
+    pub const fn has_any_value(&self) -> bool {
         self.port.is_some()
             || self.endpoint.is_some()
             || self.dev_only

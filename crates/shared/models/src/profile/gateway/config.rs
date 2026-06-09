@@ -208,12 +208,12 @@ impl GatewayConfig {
                 });
             }
         }
-        if let Some(provider) = self.default_provider.as_ref() {
-            if registry.find_provider(provider.as_str()).is_none() {
-                return Err(GatewayProfileError::DefaultProviderNotInRegistry {
-                    provider: provider.as_str().to_owned(),
-                });
-            }
+        if let Some(provider) = self.default_provider.as_ref()
+            && registry.find_provider(provider.as_str()).is_none()
+        {
+            return Err(GatewayProfileError::DefaultProviderNotInRegistry {
+                provider: provider.as_str().to_owned(),
+            });
         }
         for route in &self.routes {
             if registry.find_provider(route.provider.as_str()).is_none() {
@@ -225,12 +225,12 @@ impl GatewayConfig {
         }
         for rule in &self.system_prompt_overrides {
             rule.validate()?;
-            if let Some(provider) = rule.provider.as_ref() {
-                if registry.find_provider(provider.as_str()).is_none() {
-                    return Err(GatewayProfileError::OverrideProviderNotInRegistry {
-                        provider: provider.as_str().to_owned(),
-                    });
-                }
+            if let Some(provider) = rule.provider.as_ref()
+                && registry.find_provider(provider.as_str()).is_none()
+            {
+                return Err(GatewayProfileError::OverrideProviderNotInRegistry {
+                    provider: provider.as_str().to_owned(),
+                });
             }
         }
         Ok(())

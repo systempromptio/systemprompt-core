@@ -61,16 +61,17 @@ pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: 
 }
 
 pub fn validate_optional_path(report: &mut ValidationReport, field: &str, path: Option<&String>) {
-    if let Some(p) = path {
-        if !p.is_empty() && !std::path::Path::new(p).exists() {
-            report.add_warning(
-                ValidationWarning::new(
-                    format!("paths.{field}"),
-                    format!("Path does not exist: {p}"),
-                )
-                .with_suggestion("Create the path or remove the config entry"),
-            );
-        }
+    if let Some(p) = path
+        && !p.is_empty()
+        && !std::path::Path::new(p).exists()
+    {
+        report.add_warning(
+            ValidationWarning::new(
+                format!("paths.{field}"),
+                format!("Path does not exist: {p}"),
+            )
+            .with_suggestion("Create the path or remove the config entry"),
+        );
     }
 }
 

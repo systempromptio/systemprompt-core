@@ -54,15 +54,14 @@ impl ApiServer {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        if let Some(ref tx) = self.events {
-            if tx
+        if let Some(ref tx) = self.events
+            && tx
                 .unbounded_send(StartupEvent::ServerBinding {
                     address: addr.to_owned(),
                 })
                 .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
-            }
+        {
+            tracing::debug!("Startup event receiver dropped");
         }
 
         let listener = self.create_listener(addr).await?;
@@ -91,10 +90,10 @@ impl ApiServer {
 pub fn setup_api_server(ctx: &AppContext, events: Option<StartupEventSender>) -> Result<ApiServer> {
     let rate_config = &ctx.config().rate_limits;
 
-    if rate_config.disabled {
-        if let Some(ref tx) = events {
-            tx.warning("Rate limiting disabled - development mode only");
-        }
+    if rate_config.disabled
+        && let Some(ref tx) = events
+    {
+        tx.warning("Rate limiting disabled - development mode only");
     }
 
     let router = configure_routes(ctx, events.as_ref())?;

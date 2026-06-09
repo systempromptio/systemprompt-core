@@ -11,14 +11,18 @@ use systemprompt_identifiers::{Actor, AiToolCallId, ContextId, SessionId, TraceI
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
-use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
 async fn provider() -> Option<McpToolProvider> {
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
     let registry = RegistryService::new(fixture_user_id());
-    Some(McpToolProvider::new(db, registry, &ResilienceSettings::default()))
+    Some(McpToolProvider::new(
+        db,
+        registry,
+        &ResilienceSettings::default(),
+    ))
 }
 
 fn base_ctx() -> ToolContext {

@@ -15,7 +15,7 @@ pub enum AnalyticsEventType {
 }
 
 impl AnalyticsEventType {
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         match self {
             Self::PageView => "page_view",
             Self::PageExit => "page_exit",

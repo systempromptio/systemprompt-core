@@ -1,19 +1,20 @@
-// Tests for the A2A server state and SSE-stream entry point. `create_sse_stream`
-// is driven both when a permit is available (stream returned, the spawned task
-// then fails to load the unconfigured agent and exits quietly) and when the
-// global concurrency cap is exhausted (StreamRejected). The handler-state
-// Debug/Clone surface is exercised directly.
+// Tests for the A2A server state and SSE-stream entry point.
+// `create_sse_stream` is driven both when a permit is available (stream
+// returned, the spawned task then fails to load the unconfigured agent and
+// exits quietly) and when the global concurrency cap is exhausted
+// (StreamRejected). The handler-state Debug/Clone surface is exercised
+// directly.
 
 use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
 use systemprompt_agent::services::a2a_server::streaming::{
-    create_sse_stream, CreateSseStreamParams, StreamRejected,
+    CreateSseStreamParams, StreamRejected, create_sse_stream,
 };
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, UserId};
 
-use super::a2a_helpers::{make_handler_state, request_context, StubAiProvider};
+use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
 use crate::repository::try_pool;
 
 fn message(ctx: &ContextId) -> Message {

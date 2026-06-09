@@ -167,10 +167,10 @@ impl PortService {
         let mut blocked_ports = Vec::new();
 
         for &port in ports {
-            if process::is_port_in_use(port) {
-                if let Ok(Some(pid)) = find_process_using_port(port) {
-                    blocked_ports.push((port, pid));
-                }
+            if process::is_port_in_use(port)
+                && let Ok(Some(pid)) = find_process_using_port(port)
+            {
+                blocked_ports.push((port, pid));
             }
         }
 

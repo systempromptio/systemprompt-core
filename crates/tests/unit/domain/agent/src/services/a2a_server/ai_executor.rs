@@ -6,15 +6,15 @@
 
 use std::sync::Arc;
 
+use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::a2a_server::processing::ai_executor::{
     SynthesizeToolResultsParams, process_without_tools, synthesize_tool_results_with_artifacts,
 };
 use systemprompt_agent::services::a2a_server::processing::message::StreamEvent;
-use systemprompt_agent::services::SkillService;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use tokio::sync::mpsc;
 
-use super::a2a_helpers::{ai_messages, request_context, runtime_info, StubAiProvider};
+use super::a2a_helpers::{StubAiProvider, ai_messages, request_context, runtime_info};
 
 fn ctx() -> systemprompt_models::execution::context::RequestContext {
     request_context(
@@ -27,20 +27,11 @@ fn ctx() -> systemprompt_models::execution::context::RequestContext {
 
 #[tokio::test]
 async fn process_without_tools_accumulates_streamed_text() {
-    let provider = Arc::new(
-        StubAiProvider::new().with_text_stream(&["Hello, ", "world"]),
-    );
+    let provider = Arc::new(StubAiProvider::new().with_text_stream(&["Hello, ", "world"]));
     let runtime = runtime_info("exec-agent");
     let (tx, mut rx) = mpsc::channel(32);
 
-    let result = process_without_tools(
-        provider,
-        &runtime,
-        ai_messages("hi"),
-        tx,
-        ctx(),
-    )
-    .await;
+    let result = process_without_tools(provider, &runtime, ai_messages("hi"), tx, ctx()).await;
 
     let (text, tool_calls, tool_results) = result.expect("ok");
     assert_eq!(text, "Hello, world");
@@ -65,15 +56,9 @@ async fn process_without_tools_empty_stream_yields_empty_text() {
     let runtime = runtime_info("exec-agent");
     let (tx, _rx) = mpsc::channel(8);
 
-    let (text, _, _) = process_without_tools(
-        provider,
-        &runtime,
-        ai_messages("hi"),
-        tx,
-        ctx(),
-    )
-    .await
-    .expect("ok");
+    let (text, _, _) = process_without_tools(provider, &runtime, ai_messages("hi"), tx, ctx())
+        .await
+        .expect("ok");
     assert!(text.is_empty());
 }
 
@@ -83,14 +68,7 @@ async fn process_without_tools_stream_failure_is_err_and_emits_error_event() {
     let runtime = runtime_info("exec-agent");
     let (tx, mut rx) = mpsc::channel(8);
 
-    let result = process_without_tools(
-        provider,
-        &runtime,
-        ai_messages("hi"),
-        tx,
-        ctx(),
-    )
-    .await;
+    let result = process_without_tools(provider, &runtime, ai_messages("hi"), tx, ctx()).await;
     assert!(result.is_err());
 
     let mut saw_error = false;

@@ -69,16 +69,16 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
                 continue;
             }
 
-            if let Some(parent) = &sitemap.parent_route {
-                if parent.enabled {
-                    urls.push(SitemapUrl {
-                        loc: format!("{}{}", base_url, parent.url),
-                        lastmod: today.clone(),
-                        changefreq: parent.changefreq.clone(),
-                        priority: parent.priority,
-                        alternates: Vec::new(),
-                    });
-                }
+            if let Some(parent) = &sitemap.parent_route
+                && parent.enabled
+            {
+                urls.push(SitemapUrl {
+                    loc: format!("{}{}", base_url, parent.url),
+                    lastmod: today.clone(),
+                    changefreq: parent.changefreq.clone(),
+                    priority: parent.priority,
+                    alternates: Vec::new(),
+                });
             }
 
             if !args.include_dynamic && sitemap.url_pattern.contains("{slug}") {

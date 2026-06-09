@@ -97,10 +97,11 @@ fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
     let mut ids = Vec::new();
     for entry in std::fs::read_dir(plugins_path)? {
         let entry = entry?;
-        if entry.path().is_dir() && entry.path().join("config.yaml").exists() {
-            if let Some(name) = entry.file_name().to_str() {
-                ids.push(name.to_owned());
-            }
+        if entry.path().is_dir()
+            && entry.path().join("config.yaml").exists()
+            && let Some(name) = entry.file_name().to_str()
+        {
+            ids.push(name.to_owned());
         }
     }
     ids.sort();

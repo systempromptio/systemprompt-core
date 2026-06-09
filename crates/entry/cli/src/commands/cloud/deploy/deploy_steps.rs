@@ -70,10 +70,10 @@ pub(in crate::commands::cloud) async fn deploy_with_secrets(
     } else {
         HashMap::new()
     };
-    if !env_secrets.contains_key("SIGNING_KEY_PEM") {
-        if let Some(pem) = super::read_signing_key_pem_at(&profile_dir.join("signing_key.pem"))? {
-            env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
-        }
+    if !env_secrets.contains_key("SIGNING_KEY_PEM")
+        && let Some(pem) = super::read_signing_key_pem_at(&profile_dir.join("signing_key.pem"))?
+    {
+        env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
     }
     if !env_secrets.is_empty() {
         let spinner = CliService::spinner("Syncing secrets...");

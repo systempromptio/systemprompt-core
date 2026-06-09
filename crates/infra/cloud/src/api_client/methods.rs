@@ -77,10 +77,10 @@ impl CloudApiClient {
     async fn tenant_access_token(&self) -> CloudResult<String> {
         {
             let cached = self.tenant_token_cache.lock().await;
-            if let Some((token, expires_at)) = cached.as_ref() {
-                if *expires_at > Instant::now() + TOKEN_REFRESH_MARGIN {
-                    return Ok(token.clone());
-                }
+            if let Some((token, expires_at)) = cached.as_ref()
+                && *expires_at > Instant::now() + TOKEN_REFRESH_MARGIN
+            {
+                return Ok(token.clone());
             }
         }
         self.exchange_token().await

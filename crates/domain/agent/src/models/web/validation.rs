@@ -12,10 +12,10 @@ pub fn extract_port_from_url(url: &str) -> Option<u16> {
         .strip_prefix("http://")
         .or_else(|| url.strip_prefix("https://"))
     {
-        if let Some(host_part) = url_after_protocol.split('/').next() {
-            if let Some(port_str) = host_part.split(':').nth(1) {
-                return port_str.parse().ok();
-            }
+        if let Some(host_part) = url_after_protocol.split('/').next()
+            && let Some(port_str) = host_part.split(':').nth(1)
+        {
+            return port_str.parse().ok();
         }
         if url.starts_with("https://") {
             Some(443)

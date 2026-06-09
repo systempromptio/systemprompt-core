@@ -97,18 +97,18 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         task_metadata,
     });
 
-    if let Some(ref metadata) = complete_task.metadata {
-        if let Err(e) = metadata.validate() {
-            tracing::error!(error = %e, "Task metadata validation failed");
-            let error_event = AgUiEventBuilder::run_error(
-                format!("Validation failed: {e}"),
-                Some("VALIDATION_ERROR".to_owned()),
-            );
-            if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-                tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-            }
-            return;
+    if let Some(ref metadata) = complete_task.metadata
+        && let Err(e) = metadata.validate()
+    {
+        tracing::error!(error = %e, "Task metadata validation failed");
+        let error_event = AgUiEventBuilder::run_error(
+            format!("Validation failed: {e}"),
+            Some("VALIDATION_ERROR".to_owned()),
+        );
+        if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
+            tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
         }
+        return;
     }
 
     let Some(agent_message) = complete_task.status.message.clone() else {

@@ -47,13 +47,13 @@ fn drain_frames(buf: &mut Vec<u8>, msg_id: &mut String) -> Vec<Result<CanonicalE
                 if data.trim() == "[DONE]" {
                     continue;
                 }
-                if let Ok(value) = serde_json::from_str::<Value>(data) {
-                    if let Some(ev) = anthropic::event_from_sse(&value, msg_id) {
-                        if let CanonicalEvent::MessageStart { id, .. } = &ev {
-                            msg_id.clone_from(id);
-                        }
-                        events.push(Ok(ev));
+                if let Ok(value) = serde_json::from_str::<Value>(data)
+                    && let Some(ev) = anthropic::event_from_sse(&value, msg_id)
+                {
+                    if let CanonicalEvent::MessageStart { id, .. } = &ev {
+                        msg_id.clone_from(id);
                     }
+                    events.push(Ok(ev));
                 }
             }
         }

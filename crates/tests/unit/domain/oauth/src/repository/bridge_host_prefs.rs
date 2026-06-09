@@ -96,9 +96,13 @@ async fn model_protocols_set_load_and_clear() {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp-mp");
-    seed_user_row(&pool, &user_id, &format!("{}@bhp.invalid", user_id.as_str()))
-        .await
-        .expect("seed user");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
 
     let host = format!("host-{}", Uuid::new_v4().simple());
 
@@ -115,12 +119,10 @@ async fn model_protocols_set_load_and_clear() {
         .await
         .expect("set list");
     let loaded = repo.load_model_protocols(&user_id).await.expect("load");
-    assert_eq!(
-        loaded,
-        vec![(host.clone(), vec!["anthropic".to_owned()])]
-    );
+    assert_eq!(loaded, vec![(host.clone(), vec!["anthropic".to_owned()])]);
 
-    // Empty list means "all models" — still a present override (distinct from absent).
+    // Empty list means "all models" — still a present override (distinct from
+    // absent).
     repo.set_model_protocols(&user_id, &host, Some(&[]))
         .await
         .expect("set all");
@@ -148,9 +150,13 @@ async fn model_protocols_do_not_perturb_enabled_state() {
     let pool = fixture_db_pool(&url).await.expect("pool");
     let repo = BridgeHostPrefsRepository::new(&pool).expect("repo");
     let user_id = unique_user_id("bhp-iso");
-    seed_user_row(&pool, &user_id, &format!("{}@bhp.invalid", user_id.as_str()))
-        .await
-        .expect("seed user");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
 
     let host = format!("host-{}", Uuid::new_v4().simple());
 
@@ -160,10 +166,7 @@ async fn model_protocols_do_not_perturb_enabled_state() {
         .await
         .expect("set filter");
     assert!(
-        repo.list_enabled(&user_id)
-            .await
-            .expect("list")
-            .is_empty(),
+        repo.list_enabled(&user_id).await.expect("list").is_empty(),
         "model-filter override must not register an enable-state row"
     );
 }

@@ -8,8 +8,8 @@ use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
 };
 use systemprompt_agent::services::a2a_server::streaming::broadcast::{
-    broadcast_artifact_created, broadcast_task_completed, broadcast_task_created,
-    BroadcastTaskCreatedParams,
+    BroadcastTaskCreatedParams, broadcast_artifact_created, broadcast_task_completed,
+    broadcast_task_created,
 };
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId, UserId};
 

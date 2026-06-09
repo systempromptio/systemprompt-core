@@ -32,12 +32,11 @@ pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
                 .extensions()
                 .iter()
                 .filter(|ext| {
-                    if let Some(ref filter) = args.filter {
-                        if !ext.id().to_lowercase().contains(&filter.to_lowercase())
-                            && !ext.name().to_lowercase().contains(&filter.to_lowercase())
-                        {
-                            return false;
-                        }
+                    if let Some(ref filter) = args.filter
+                        && !ext.id().to_lowercase().contains(&filter.to_lowercase())
+                        && !ext.name().to_lowercase().contains(&filter.to_lowercase())
+                    {
+                        return false;
                     }
 
                     if let Some(ref cap) = args.capability {
@@ -96,16 +95,15 @@ pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
                 continue;
             }
 
-            if let Some(ref filter) = args.filter {
-                if !ext
+            if let Some(ref filter) = args.filter
+                && !ext
                     .manifest
                     .extension
                     .name
                     .to_lowercase()
                     .contains(&filter.to_lowercase())
-                {
-                    continue;
-                }
+            {
+                continue;
             }
 
             extensions.push(ExtensionSummary {

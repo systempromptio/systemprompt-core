@@ -54,13 +54,13 @@ impl ChartRenderer {
                 if let Some(datasets) = data.get("datasets").and_then(JsonValue::as_array) {
                     config.datasets.clone_from(datasets);
                 }
-                if let Some(data_arr) = data.get("data").and_then(JsonValue::as_array) {
-                    if config.datasets.is_empty() {
-                        config.datasets = vec![serde_json::json!({
-                            "label": artifact.title.as_deref().unwrap_or("Data"),
-                            "data": data_arr
-                        })];
-                    }
+                if let Some(data_arr) = data.get("data").and_then(JsonValue::as_array)
+                    && config.datasets.is_empty()
+                {
+                    config.datasets = vec![serde_json::json!({
+                        "label": artifact.title.as_deref().unwrap_or("Data"),
+                        "data": data_arr
+                    })];
                 }
             }
         }
@@ -95,10 +95,8 @@ impl ChartConfig {
             .iter()
             .map(|ds| {
                 let mut dataset = ds.clone();
-                if is_area {
-                    if let Some(obj) = dataset.as_object_mut() {
-                        obj.insert("fill".to_owned(), JsonValue::Bool(true));
-                    }
+                if is_area && let Some(obj) = dataset.as_object_mut() {
+                    obj.insert("fill".to_owned(), JsonValue::Bool(true));
                 }
                 dataset
             })

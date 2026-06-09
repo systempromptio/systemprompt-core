@@ -103,14 +103,14 @@ pub(super) fn resolve_profile_path_from_session(
     session: &CliSession,
     active_profile: Option<&str>,
 ) -> Result<Option<PathBuf>> {
-    if let Some(expected) = active_profile {
-        if session.profile_name.as_str() != expected {
-            anyhow::bail!(
-                "No session for active profile '{}'.\n\nRun 'systemprompt admin session login' to \
+    if let Some(expected) = active_profile
+        && session.profile_name.as_str() != expected
+    {
+        anyhow::bail!(
+            "No session for active profile '{}'.\n\nRun 'systemprompt admin session login' to \
                  authenticate.",
-                expected
-            );
-        }
+            expected
+        );
     }
     match &session.profile_path {
         Some(path) if path.exists() => Ok(Some(path.clone())),

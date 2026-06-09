@@ -119,10 +119,10 @@ impl ConfigValidator {
         let mut empty = Vec::new();
 
         for var in &critical_vars {
-            if let Some(value) = config.variables.get(*var) {
-                if value.is_empty() || value == "''" || value == "\"\"" {
-                    empty.push(*var);
-                }
+            if let Some(value) = config.variables.get(*var)
+                && (value.is_empty() || value == "''" || value == "\"\"")
+            {
+                empty.push(*var);
             }
         }
 
@@ -148,10 +148,11 @@ impl ConfigValidator {
         let mut invalid = Vec::new();
 
         for url_var in &url_vars {
-            if let Some(url) = config.variables.get(*url_var) {
-                if !url.is_empty() && !url_regex.is_match(url) {
-                    invalid.push(format!("{url_var} = {url}"));
-                }
+            if let Some(url) = config.variables.get(*url_var)
+                && !url.is_empty()
+                && !url_regex.is_match(url)
+            {
+                invalid.push(format!("{url_var} = {url}"));
             }
         }
 
@@ -188,20 +189,18 @@ impl ConfigValidator {
     fn check_environment_specific(config: &EnvironmentConfig, report: &mut ValidationReport) {
         match config.environment {
             DeployEnvironment::Production => {
-                if let Some(use_https) = config.variables.get("USE_HTTPS") {
-                    if use_https != "true" {
-                        CliService::warning("Production environment should have USE_HTTPS=true");
-                        report.add_warning("Production should have USE_HTTPS=true".to_owned());
-                    }
+                if let Some(use_https) = config.variables.get("USE_HTTPS")
+                    && use_https != "true"
+                {
+                    CliService::warning("Production environment should have USE_HTTPS=true");
+                    report.add_warning("Production should have USE_HTTPS=true".to_owned());
                 }
 
-                if let Some(rust_log) = config.variables.get("RUST_LOG") {
-                    if rust_log == "debug" {
-                        CliService::warning(
-                            "Production environment should not have RUST_LOG=debug",
-                        );
-                        report.add_warning("Production should not have RUST_LOG=debug".to_owned());
-                    }
+                if let Some(rust_log) = config.variables.get("RUST_LOG")
+                    && rust_log == "debug"
+                {
+                    CliService::warning("Production environment should not have RUST_LOG=debug");
+                    report.add_warning("Production should not have RUST_LOG=debug".to_owned());
                 }
 
                 CliService::success(&format!(

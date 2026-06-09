@@ -48,22 +48,21 @@ fn format_metadata_value(key: &str, value: &Value) -> String {
 }
 
 fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> String {
-    if let Some(meta) = metadata {
-        if let Ok(parsed) = serde_json::from_str::<Value>(meta) {
-            match event_type {
-                "AI" => {
-                    if let Some(latency) = parsed.get("latency_ms").and_then(Value::as_i64) {
-                        return format!("{}ms", latency);
-                    }
-                },
-                "MCP" => {
-                    if let Some(exec_time) = parsed.get("execution_time_ms").and_then(Value::as_i64)
-                    {
-                        return format!("{}ms", exec_time);
-                    }
-                },
-                _ => {},
-            }
+    if let Some(meta) = metadata
+        && let Ok(parsed) = serde_json::from_str::<Value>(meta)
+    {
+        match event_type {
+            "AI" => {
+                if let Some(latency) = parsed.get("latency_ms").and_then(Value::as_i64) {
+                    return format!("{}ms", latency);
+                }
+            },
+            "MCP" => {
+                if let Some(exec_time) = parsed.get("execution_time_ms").and_then(Value::as_i64) {
+                    return format!("{}ms", exec_time);
+                }
+            },
+            _ => {},
         }
     }
     "-".to_owned()
@@ -141,15 +140,14 @@ fn print_event_context(event: &TraceEvent) {
 }
 
 fn print_event_metadata(event: &TraceEvent) {
-    if let Some(ref metadata) = event.metadata {
-        if let Ok(parsed) = serde_json::from_str::<Value>(metadata) {
-            if let Some(obj) = parsed.as_object() {
-                for (key, value) in obj {
-                    if !value.is_null() {
-                        let formatted_value = format_metadata_value(key, value);
-                        CliService::info(&format!("           {key}: {formatted_value}"));
-                    }
-                }
+    if let Some(ref metadata) = event.metadata
+        && let Ok(parsed) = serde_json::from_str::<Value>(metadata)
+        && let Some(obj) = parsed.as_object()
+    {
+        for (key, value) in obj {
+            if !value.is_null() {
+                let formatted_value = format_metadata_value(key, value);
+                CliService::info(&format!("           {key}: {formatted_value}"));
             }
         }
     }

@@ -110,13 +110,13 @@ impl WebhookService {
             });
         }
 
-        if let (Some(_secret), Some(signature)) = (&endpoint.secret, &request.signature) {
-            if !Self::verify_signature_internal(&endpoint, &request.body, signature)? {
-                return Ok(WebhookResponse {
-                    status: 401,
-                    body: Some(serde_json::json!({"error": "Invalid signature"})),
-                });
-            }
+        if let (Some(_secret), Some(signature)) = (&endpoint.secret, &request.signature)
+            && !Self::verify_signature_internal(&endpoint, &request.body, signature)?
+        {
+            return Ok(WebhookResponse {
+                status: 401,
+                body: Some(serde_json::json!({"error": "Invalid signature"})),
+            });
         }
 
         let event_type = request

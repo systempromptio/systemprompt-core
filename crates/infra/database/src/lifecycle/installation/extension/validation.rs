@@ -10,14 +10,14 @@ pub(super) fn validate_table_ownership(
     let mut owners: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
     for p in prepared {
         for table in &p.owned_tables {
-            if let Some(prev) = owners.insert(table.as_str(), p.extension_id.as_str()) {
-                if prev != p.extension_id {
-                    return Err(LoaderError::DuplicateTableOwner {
-                        table: table.clone(),
-                        extension_a: prev.to_owned(),
-                        extension_b: p.extension_id.clone(),
-                    });
-                }
+            if let Some(prev) = owners.insert(table.as_str(), p.extension_id.as_str())
+                && prev != p.extension_id
+            {
+                return Err(LoaderError::DuplicateTableOwner {
+                    table: table.clone(),
+                    extension_a: prev.to_owned(),
+                    extension_b: p.extension_id.clone(),
+                });
             }
         }
     }

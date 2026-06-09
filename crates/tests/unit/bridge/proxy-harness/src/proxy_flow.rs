@@ -260,9 +260,7 @@ async fn sse_messages_response_streams_back_and_taps_usage() {
 
     Mock::given(method("POST"))
         .and(path("/v1/messages"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_raw(sse.as_bytes(), "text/event-stream"),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_raw(sse.as_bytes(), "text/event-stream"))
         .mount(&h.gateway)
         .await;
 

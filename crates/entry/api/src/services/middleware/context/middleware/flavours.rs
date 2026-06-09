@@ -45,16 +45,16 @@ impl PublicContextMiddleware {
         };
 
         let headers = request.headers();
-        if let Some(context_id) = headers.get("x-context-id") {
-            if let Ok(id) = context_id.to_str() {
-                req_ctx.execution.context_id = ContextId::new(id.to_owned());
-            }
+        if let Some(context_id) = headers.get("x-context-id")
+            && let Ok(id) = context_id.to_str()
+        {
+            req_ctx.execution.context_id = ContextId::new(id.to_owned());
         }
 
-        if let Some(agent_name) = headers.get("x-agent-name") {
-            if let Ok(name) = agent_name.to_str() {
-                req_ctx.execution.agent_name = AgentName::new(name.to_owned());
-            }
+        if let Some(agent_name) = headers.get("x-agent-name")
+            && let Ok(name) = agent_name.to_str()
+        {
+            req_ctx.execution.agent_name = AgentName::new(name.to_owned());
         }
 
         let span = create_request_span(&req_ctx);

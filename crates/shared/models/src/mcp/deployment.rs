@@ -120,16 +120,15 @@ pub struct Deployment {
 
 impl Deployment {
     pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
-        if matches!(self.server_type, McpServerType::Internal) {
-            if let Some(ep) = self.endpoint.as_deref() {
-                if ep.starts_with("http://") || ep.starts_with("https://") {
-                    return Err(ConfigValidationError::invalid_field(format!(
-                        "MCP server '{name}': endpoint must be a relative path (e.g. \
+        if matches!(self.server_type, McpServerType::Internal)
+            && let Some(ep) = self.endpoint.as_deref()
+            && (ep.starts_with("http://") || ep.starts_with("https://"))
+        {
+            return Err(ConfigValidationError::invalid_field(format!(
+                "MCP server '{name}': endpoint must be a relative path (e.g. \
                          /api/v1/mcp/{name}/mcp) or omitted; the host is derived from \
                          server.api_external_url. Remove the scheme+host prefix."
-                    )));
-                }
-            }
+            )));
         }
         Ok(())
     }

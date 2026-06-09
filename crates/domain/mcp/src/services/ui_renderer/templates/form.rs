@@ -22,25 +22,25 @@ impl FormRenderer {
     fn extract_fields(artifact: &Artifact) -> Vec<FormField> {
         let mut fields = Vec::new();
 
-        if let Some(hints) = &artifact.metadata.rendering_hints {
-            if let Some(field_defs) = hints.get("fields").and_then(JsonValue::as_array) {
-                for def in field_defs {
-                    if let Some(field) = FormField::from_json(def) {
-                        fields.push(field);
-                    }
+        if let Some(hints) = &artifact.metadata.rendering_hints
+            && let Some(field_defs) = hints.get("fields").and_then(JsonValue::as_array)
+        {
+            for def in field_defs {
+                if let Some(field) = FormField::from_json(def) {
+                    fields.push(field);
                 }
             }
         }
 
         for part in &artifact.parts {
-            if let Some(data) = part.as_data() {
-                if let Some(form_fields) = data.get("fields").and_then(JsonValue::as_array) {
-                    for def in form_fields {
-                        if let Some(field) = FormField::from_json(def) {
-                            if !fields.iter().any(|f| f.name == field.name) {
-                                fields.push(field);
-                            }
-                        }
+            if let Some(data) = part.as_data()
+                && let Some(form_fields) = data.get("fields").and_then(JsonValue::as_array)
+            {
+                for def in form_fields {
+                    if let Some(field) = FormField::from_json(def)
+                        && !fields.iter().any(|f| f.name == field.name)
+                    {
+                        fields.push(field);
                     }
                 }
             }

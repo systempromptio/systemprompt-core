@@ -125,14 +125,13 @@ impl LogEntry {
         if self.message.is_empty() {
             return Err(LoggingError::EmptyMessage);
         }
-        if let Some(metadata) = &self.metadata {
-            if !metadata.is_object()
-                && !metadata.is_array()
-                && !metadata.is_string()
-                && !metadata.is_null()
-            {
-                return Err(LoggingError::InvalidMetadata);
-            }
+        if let Some(metadata) = &self.metadata
+            && !metadata.is_object()
+            && !metadata.is_array()
+            && !metadata.is_string()
+            && !metadata.is_null()
+        {
+            return Err(LoggingError::InvalidMetadata);
         }
         Ok(())
     }

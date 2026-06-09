@@ -240,10 +240,10 @@ impl TemplateValidator {
     fn find_argument_for_template(value: &Value, template: &str) -> String {
         if let Value::Object(obj) = value {
             for (key, val) in obj {
-                if let Value::String(s) = val {
-                    if s == template {
-                        return key.clone();
-                    }
+                if let Value::String(s) = val
+                    && s == template
+                {
+                    return key.clone();
                 }
                 let nested = Self::find_argument_for_template(val, template);
                 if !nested.is_empty() {

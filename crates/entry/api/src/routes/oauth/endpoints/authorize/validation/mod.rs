@@ -100,21 +100,21 @@ pub fn validate_oauth_parameters(
         ));
     }
 
-    if let Some(response_mode) = &params.response_mode {
-        if response_mode != "query" {
-            return Err(format!(
-                "Unsupported response_mode '{response_mode}'. Only 'query' mode is supported."
-            ));
-        }
+    if let Some(response_mode) = &params.response_mode
+        && response_mode != "query"
+    {
+        return Err(format!(
+            "Unsupported response_mode '{response_mode}'. Only 'query' mode is supported."
+        ));
     }
 
     validate_pkce(params)?;
     validate_display_and_prompt(params)?;
 
-    if let Some(max_age) = params.max_age {
-        if max_age < 0 {
-            return Err("max_age must be a non-negative integer".to_owned());
-        }
+    if let Some(max_age) = params.max_age
+        && max_age < 0
+    {
+        return Err("max_age must be a non-negative integer".to_owned());
     }
 
     if let Some(resource) = &params.resource {

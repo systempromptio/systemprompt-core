@@ -22,15 +22,12 @@ pub(super) fn load_from_profile_config() -> ConfigResult<Secrets> {
     let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
     let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
 
-    if is_subprocess || is_fly_environment {
-        if let Ok(pepper) = std::env::var("OAUTH_AT_REST_PEPPER") {
-            if pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH {
-                tracing::debug!(
-                    "Using OAUTH_AT_REST_PEPPER from environment (subprocess/container mode)"
-                );
-                return load_from_env();
-            }
-        }
+    if (is_subprocess || is_fly_environment)
+        && let Ok(pepper) = std::env::var("OAUTH_AT_REST_PEPPER")
+        && pepper.len() >= OAUTH_AT_REST_PEPPER_MIN_LENGTH
+    {
+        tracing::debug!("Using OAUTH_AT_REST_PEPPER from environment (subprocess/container mode)");
+        return load_from_env();
     }
 
     let profile =

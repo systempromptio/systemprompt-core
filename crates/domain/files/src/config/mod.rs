@@ -108,22 +108,22 @@ impl FilesConfig {
     pub fn ensure_storage_structure(&self) -> Vec<String> {
         let mut errors = Vec::new();
 
-        if !self.storage_root.exists() {
-            if let Err(e) = std::fs::create_dir_all(&self.storage_root) {
-                errors.push(format!(
-                    "Failed to create storage root {}: {}",
-                    self.storage_root.display(),
-                    e
-                ));
-                return errors;
-            }
+        if !self.storage_root.exists()
+            && let Err(e) = std::fs::create_dir_all(&self.storage_root)
+        {
+            errors.push(format!(
+                "Failed to create storage root {}: {}",
+                self.storage_root.display(),
+                e
+            ));
+            return errors;
         }
 
         for dir in [self.files(), self.images()] {
-            if !dir.exists() {
-                if let Err(e) = std::fs::create_dir_all(&dir) {
-                    errors.push(format!("Failed to create {}: {}", dir.display(), e));
-                }
+            if !dir.exists()
+                && let Err(e) = std::fs::create_dir_all(&dir)
+            {
+                errors.push(format!("Failed to create {}: {}", dir.display(), e));
             }
         }
 

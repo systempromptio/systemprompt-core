@@ -64,7 +64,7 @@ impl ContentConfigErrors {
         self.errors.push(error);
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.errors.is_empty()
     }
 

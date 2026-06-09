@@ -90,31 +90,31 @@ pub fn oauth_to_security_config(
     reason = "concrete HashMap is the documented input type"
 )]
 pub fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_external_url: &str) {
-    if let Some(SecurityScheme::OAuth2 { flows, .. }) = schemes.get_mut("oauth2") {
-        if let Some(auth_code) = flows.authorization_code.as_mut() {
-            auth_code.authorization_url = auth_code.authorization_url.as_ref().map(|url| {
-                if url.starts_with('/') {
-                    format!("{api_external_url}{url}")
-                } else {
-                    url.clone()
-                }
-            });
+    if let Some(SecurityScheme::OAuth2 { flows, .. }) = schemes.get_mut("oauth2")
+        && let Some(auth_code) = flows.authorization_code.as_mut()
+    {
+        auth_code.authorization_url = auth_code.authorization_url.as_ref().map(|url| {
+            if url.starts_with('/') {
+                format!("{api_external_url}{url}")
+            } else {
+                url.clone()
+            }
+        });
 
-            auth_code.token_url = auth_code.token_url.as_ref().map(|url| {
-                if url.starts_with('/') {
-                    format!("{api_external_url}{url}")
-                } else {
-                    url.clone()
-                }
-            });
+        auth_code.token_url = auth_code.token_url.as_ref().map(|url| {
+            if url.starts_with('/') {
+                format!("{api_external_url}{url}")
+            } else {
+                url.clone()
+            }
+        });
 
-            auth_code.refresh_url = auth_code.refresh_url.as_ref().map(|url| {
-                if url.starts_with('/') {
-                    format!("{api_external_url}{url}")
-                } else {
-                    url.clone()
-                }
-            });
-        }
+        auth_code.refresh_url = auth_code.refresh_url.as_ref().map(|url| {
+            if url.starts_with('/') {
+                format!("{api_external_url}{url}")
+            } else {
+                url.clone()
+            }
+        });
     }
 }

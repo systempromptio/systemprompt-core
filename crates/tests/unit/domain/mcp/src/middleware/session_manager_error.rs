@@ -1,7 +1,7 @@
 //! Tests for [`DatabaseSessionManagerError`] Display and Error source.
 
-use systemprompt_mcp::middleware::session_handler::DatabaseSessionManagerError;
 use systemprompt_mcp::McpDomainError;
+use systemprompt_mcp::middleware::session_handler::DatabaseSessionManagerError;
 
 #[test]
 fn session_not_found_display() {
@@ -29,7 +29,10 @@ fn database_variant_display() {
     let inner = McpDomainError::Internal("db fail".to_owned());
     let e = DatabaseSessionManagerError::Database(inner);
     let s = e.to_string();
-    assert!(s.contains("db fail") || s.contains("Database") || s.contains("database"), "got: {s}");
+    assert!(
+        s.contains("db fail") || s.contains("Database") || s.contains("database"),
+        "got: {s}"
+    );
 }
 
 #[test]

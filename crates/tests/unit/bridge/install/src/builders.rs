@@ -133,8 +133,5 @@ fn uninstall_summary_builder_chains_setters() {
         summary.managed_profile,
         ManagedProfileOutcome::Removed("profile-id")
     ));
-    assert!(matches!(
-        summary.credentials,
-        CredentialsOutcome::Purged(_)
-    ));
+    assert!(matches!(summary.credentials, CredentialsOutcome::Purged(_)));
 }

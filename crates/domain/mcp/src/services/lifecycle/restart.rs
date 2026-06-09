@@ -37,15 +37,15 @@ async fn verify_clean_state(
         )));
     }
 
-    if let Some(service) = manager.database().get_service_by_name(&config.name).await? {
-        if service.status == "running" {
-            tracing::warn!(service = %config.name, "Database shows service as running, cleaning up");
-            manager
-                .database()
-                .update_service_status(&config.name, "stopped")
-                .await?;
-            manager.database().clear_service_pid(&config.name).await?;
-        }
+    if let Some(service) = manager.database().get_service_by_name(&config.name).await?
+        && service.status == "running"
+    {
+        tracing::warn!(service = %config.name, "Database shows service as running, cleaning up");
+        manager
+            .database()
+            .update_service_status(&config.name, "stopped")
+            .await?;
+        manager.database().clear_service_pid(&config.name).await?;
     }
 
     tracing::debug!(service = %config.name, "Clean state verified");

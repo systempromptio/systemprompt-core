@@ -39,14 +39,12 @@ async fn copy_files_by_extension(
         let path = entry.path();
         let matches_ext = path.extension().is_some_and(|e| e == ext);
 
-        if matches_ext {
-            if let Some(file_name) = path.file_name() {
-                let dest = dest_dir.join(file_name);
-                fs::copy(&path, &dest).await.map_err(|e| {
-                    PublishError::other(format!("Failed to copy {file_name:?}: {e}"))
-                })?;
-                copied += 1;
-            }
+        if matches_ext && let Some(file_name) = path.file_name() {
+            let dest = dest_dir.join(file_name);
+            fs::copy(&path, &dest).await.map_err(|e| {
+                PublishError::other(format!("Failed to copy {}: {e}", file_name.display()))
+            })?;
+            copied += 1;
         }
     }
 

@@ -69,8 +69,12 @@ fn windows_policy_values_includes_valid_org_uuid() {
         None,
         Some("f8e4d915-f8ad-5304-ab0d-c1bf895df963"),
     );
-    assert!(values.iter().any(|(k, _, v)| *k == "deploymentOrganizationUuid"
-        && v == "f8e4d915-f8ad-5304-ab0d-c1bf895df963"));
+    assert!(
+        values
+            .iter()
+            .any(|(k, _, v)| *k == "deploymentOrganizationUuid"
+                && v == "f8e4d915-f8ad-5304-ab0d-c1bf895df963")
+    );
 }
 
 #[cfg(target_os = "windows")]

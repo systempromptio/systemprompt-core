@@ -170,23 +170,23 @@ impl GatewayService {
         let reservation = quota::precheck_and_reserve(db, &ctx.user_id, &policy.quota_windows)
             .await
             .map_err(DispatchError::Recorded)?;
-        if let Some(decision) = reservation {
-            if !decision.allow {
-                let msg = format!(
-                    "quota exceeded for window {}s (used {}/{:?})",
-                    decision.window_seconds, decision.state.requests, decision.limit_requests
-                );
-                if let Err(e) = audit.fail(&msg).await {
-                    tracing::warn!(error = %e, "quota audit fail failed");
-                }
-                return Err(DispatchError::Recorded(
-                    QuotaExceeded {
-                        message: msg,
-                        retry_after_seconds: decision.window_seconds,
-                    }
-                    .into(),
-                ));
+        if let Some(decision) = reservation
+            && !decision.allow
+        {
+            let msg = format!(
+                "quota exceeded for window {}s (used {}/{:?})",
+                decision.window_seconds, decision.state.requests, decision.limit_requests
+            );
+            if let Err(e) = audit.fail(&msg).await {
+                tracing::warn!(error = %e, "quota audit fail failed");
             }
+            return Err(DispatchError::Recorded(
+                QuotaExceeded {
+                    message: msg,
+                    retry_after_seconds: decision.window_seconds,
+                }
+                .into(),
+            ));
         }
 
         enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;

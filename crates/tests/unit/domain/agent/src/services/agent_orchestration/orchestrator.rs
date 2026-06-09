@@ -1,9 +1,10 @@
 // DB-backed tests for `AgentOrchestrator`: construction (which runs startup
 // reconciliation), the read/list/status verbs, and the DB-only cleanup/delete
-// paths. Real process spawning is never exercised — `start_agent`/`enable_agent`
-// shell out to spawn a worker binary and probe a port, so they are left to
-// integration coverage. We register a non-signalable PID (> i32::MAX) so the
-// status path reconciles "recorded running but dead" deterministically.
+// paths. Real process spawning is never exercised —
+// `start_agent`/`enable_agent` shell out to spawn a worker binary and probe a
+// port, so they are left to integration coverage. We register a non-signalable
+// PID (> i32::MAX) so the status path reconciles "recorded running but dead"
+// deterministically.
 
 use std::sync::Arc;
 

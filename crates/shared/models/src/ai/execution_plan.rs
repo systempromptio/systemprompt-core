@@ -44,7 +44,7 @@ impl PlanningResult {
         matches!(self, Self::ToolCalls { .. })
     }
 
-    pub fn tool_count(&self) -> usize {
+    pub const fn tool_count(&self) -> usize {
         match self {
             Self::DirectResponse { .. } => 0,
             Self::ToolCalls { calls, .. } => calls.len(),

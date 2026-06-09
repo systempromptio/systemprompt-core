@@ -1,7 +1,7 @@
 use std::fs;
 
 use systemprompt_bridge::validate::{
-    count_installed_plugins, summarise_last_sync, CheckLevel, CheckLine, ValidationReport,
+    CheckLevel, CheckLine, ValidationReport, count_installed_plugins, summarise_last_sync,
 };
 
 fn line(level: CheckLevel, label: &str, value: &str) -> CheckLine {

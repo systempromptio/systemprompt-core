@@ -67,17 +67,17 @@ impl GatewayAudit {
 
     async fn persist_request_messages(&self, request: &CanonicalRequest) {
         let mut seq = 0i32;
-        if let Some(system) = &request.system {
-            if !system.is_empty() {
-                if let Err(e) = self
-                    .requests
-                    .insert_message(&self.ctx.ai_request_id, "system", system, seq)
-                    .await
-                {
-                    tracing::warn!(error = %e, "insert system message failed");
-                }
-                seq += 1;
+        if let Some(system) = &request.system
+            && !system.is_empty()
+        {
+            if let Err(e) = self
+                .requests
+                .insert_message(&self.ctx.ai_request_id, "system", system, seq)
+                .await
+            {
+                tracing::warn!(error = %e, "insert system message failed");
             }
+            seq += 1;
         }
         for msg in &request.messages {
             let role = match msg.role {

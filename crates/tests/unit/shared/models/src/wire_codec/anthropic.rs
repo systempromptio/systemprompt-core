@@ -1,8 +1,8 @@
 //! Anthropic Messages wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::wire::anthropic;
 use systemprompt_models::services::ai::ModelLimits;
+use systemprompt_models::wire::anthropic;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalToolChoice, ContentBlockKind,
     ImageSource, ResponseFormat, Role, SearchConfig,
@@ -20,7 +20,14 @@ fn anthropic_emits_max_tokens() {
 fn anthropic_clamps_max_tokens_down_to_model_cap() {
     let mut req = base_request();
     req.max_tokens = 32_000;
-    let body = anthropic::build_request_body(&req, "upstream", Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
+    let body = anthropic::build_request_body(
+        &req,
+        "upstream",
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_tokens"],
         json!(4096),

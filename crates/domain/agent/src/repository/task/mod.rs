@@ -117,10 +117,10 @@ impl TaskRepository {
         })
         .await?;
 
-        if let Some(ref provider) = self.session_analytics_provider {
-            if let Err(e) = provider.increment_task_count(params.session_id).await {
-                tracing::warn!(error = %e, "Failed to increment analytics task count");
-            }
+        if let Some(ref provider) = self.session_analytics_provider
+            && let Err(e) = provider.increment_task_count(params.session_id).await
+        {
+            tracing::warn!(error = %e, "Failed to increment analytics task count");
         }
 
         Ok(result)

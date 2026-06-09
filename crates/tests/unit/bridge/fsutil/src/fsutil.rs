@@ -79,7 +79,10 @@ fn read_optional_returns_some_for_existing_file() {
     let path = dir.path().join("present.txt");
     fs::write(&path, "content here").unwrap();
 
-    assert_eq!(read_optional(&path).unwrap(), Some("content here".to_owned()));
+    assert_eq!(
+        read_optional(&path).unwrap(),
+        Some("content here".to_owned())
+    );
 }
 
 #[test]
@@ -115,7 +118,10 @@ fn copy_dir_recursive_copies_nested_tree() {
     copy_dir_recursive(&src, &dst).unwrap();
 
     assert_eq!(fs::read(dst.join("top.txt")).unwrap(), b"top");
-    assert_eq!(fs::read(dst.join("nested").join("mid.txt")).unwrap(), b"mid");
+    assert_eq!(
+        fs::read(dst.join("nested").join("mid.txt")).unwrap(),
+        b"mid"
+    );
     assert_eq!(
         fs::read(dst.join("nested").join("deeper").join("low.txt")).unwrap(),
         b"low"

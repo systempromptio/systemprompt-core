@@ -67,11 +67,11 @@ pub(super) fn resolve_and_display_profile(
 }
 
 pub(super) fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
-    if let Some(profile_input) = cli_profile_override {
-        if crate::shared::is_path_input(profile_input) {
-            return crate::shared::resolve_profile_from_path(profile_input)
-                .map_err(|e| anyhow::anyhow!("{}", e));
-        }
+    if let Some(profile_input) = cli_profile_override
+        && crate::shared::is_path_input(profile_input)
+    {
+        return crate::shared::resolve_profile_from_path(profile_input)
+            .map_err(|e| anyhow::anyhow!("{}", e));
     }
 
     let session_profile_path = get_active_session_profile_path();
@@ -88,18 +88,17 @@ fn get_active_session_profile_path() -> Option<PathBuf> {
 
     let store = SessionStore::load(&sessions_dir)?;
 
-    if let Some(profile_name) = store.active_profile_name.as_deref() {
-        if let Some(path) = resolve_profile_path_by_name(&paths, profile_name) {
-            return Some(path);
-        }
+    if let Some(profile_name) = store.active_profile_name.as_deref()
+        && let Some(path) = resolve_profile_path_by_name(&paths, profile_name)
+    {
+        return Some(path);
     }
 
-    if let Some(session) = store.active_session() {
-        if let Some(path) = &session.profile_path {
-            if path.exists() {
-                return Some(path.clone());
-            }
-        }
+    if let Some(session) = store.active_session()
+        && let Some(path) = &session.profile_path
+        && path.exists()
+    {
+        return Some(path.clone());
     }
 
     None

@@ -104,7 +104,9 @@ fn marketplace_root(home: &Path) -> PathBuf {
 }
 
 fn plugin_src(home: &Path) -> PathBuf {
-    marketplace_root(home).join("plugins").join("systemprompt-managed")
+    marketplace_root(home)
+        .join("plugins")
+        .join("systemprompt-managed")
 }
 
 fn marketplace_json(home: &Path) -> PathBuf {
@@ -128,7 +130,11 @@ fn cache_install(home: &Path) -> PathBuf {
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .collect();
-    assert_eq!(dirs.len(), 1, "expected one installed version dir, got {dirs:?}");
+    assert_eq!(
+        dirs.len(),
+        1,
+        "expected one installed version dir, got {dirs:?}"
+    );
     dirs.pop().unwrap()
 }
 
@@ -145,11 +151,18 @@ fn apply(m: &SignedManifest, home: &Path) {
 fn skill_lands_in_marketplace_source_and_cache_install() {
     with_codex_home(|home| {
         apply(
-            &manifest_with(vec![skill("research", "# Research\n")], vec![], vec!["codex-cli".into()]),
+            &manifest_with(
+                vec![skill("research", "# Research\n")],
+                vec![],
+                vec!["codex-cli".into()],
+            ),
             home,
         );
 
-        let src = plugin_src(home).join("skills").join("research").join("SKILL.md");
+        let src = plugin_src(home)
+            .join("skills")
+            .join("research")
+            .join("SKILL.md");
         assert!(src.is_file(), "skill missing in source at {src:?}");
         let body = fs::read_to_string(&src).unwrap();
         assert!(body.contains("name: research"));
@@ -157,8 +170,14 @@ fn skill_lands_in_marketplace_source_and_cache_install() {
 
         // Codex treats the version dir under its cache as the install; without it
         // the plugin shows "not installed".
-        let cached = cache_install(home).join("skills").join("research").join("SKILL.md");
-        assert!(cached.is_file(), "skill missing in cache install at {cached:?}");
+        let cached = cache_install(home)
+            .join("skills")
+            .join("research")
+            .join("SKILL.md");
+        assert!(
+            cached.is_file(),
+            "skill missing in cache install at {cached:?}"
+        );
     });
 }
 
@@ -166,15 +185,25 @@ fn skill_lands_in_marketplace_source_and_cache_install() {
 fn marketplace_json_declares_installed_by_default_local_plugin() {
     with_codex_home(|home| {
         apply(
-            &manifest_with(vec![skill("research", "# x\n")], vec![], vec!["codex-cli".into()]),
+            &manifest_with(
+                vec![skill("research", "# x\n")],
+                vec![],
+                vec!["codex-cli".into()],
+            ),
             home,
         );
 
         let body = fs::read_to_string(marketplace_json(home)).expect("marketplace.json exists");
         assert!(body.contains("\"name\": \"systemprompt\""), "got: {body}");
         assert!(body.contains("\"source\": \"local\""), "got: {body}");
-        assert!(body.contains("\"path\": \"./plugins/systemprompt-managed\""), "got: {body}");
-        assert!(body.contains("\"installation\": \"INSTALLED_BY_DEFAULT\""), "got: {body}");
+        assert!(
+            body.contains("\"path\": \"./plugins/systemprompt-managed\""),
+            "got: {body}"
+        );
+        assert!(
+            body.contains("\"installation\": \"INSTALLED_BY_DEFAULT\""),
+            "got: {body}"
+        );
     });
 }
 
@@ -182,16 +211,26 @@ fn marketplace_json_declares_installed_by_default_local_plugin() {
 fn plugin_json_points_at_skills_and_has_content_version() {
     with_codex_home(|home| {
         apply(
-            &manifest_with(vec![skill("research", "# x\n")], vec![], vec!["codex-cli".into()]),
+            &manifest_with(
+                vec![skill("research", "# x\n")],
+                vec![],
+                vec!["codex-cli".into()],
+            ),
             home,
         );
 
         let body =
             fs::read_to_string(plugin_src(home).join(".codex-plugin").join("plugin.json")).unwrap();
-        assert!(body.contains("\"name\": \"systemprompt-managed\""), "got: {body}");
+        assert!(
+            body.contains("\"name\": \"systemprompt-managed\""),
+            "got: {body}"
+        );
         assert!(body.contains("\"skills\": \"./skills/\""), "got: {body}");
         // version is a content hash, NOT the (churning) gateway manifest_version.
-        assert!(!body.contains("2026-04-30T12:00:00Z-deadbeef"), "version should not be manifest_version: {body}");
+        assert!(
+            !body.contains("2026-04-30T12:00:00Z-deadbeef"),
+            "version should not be manifest_version: {body}"
+        );
     });
 }
 
@@ -199,17 +238,27 @@ fn plugin_json_points_at_skills_and_has_content_version() {
 fn mcp_lands_in_top_level_config_not_plugin() {
     with_codex_home(|home| {
         apply(
-            &manifest_with(vec![], vec![mcp("primary", "https://mcp.example.invalid/api")], vec!["codex-cli".into()]),
+            &manifest_with(
+                vec![],
+                vec![mcp("primary", "https://mcp.example.invalid/api")],
+                vec!["codex-cli".into()],
+            ),
             home,
         );
 
         let cfg = read_cfg(home);
         assert!(cfg.contains("[mcp_servers.primary]"), "got: {cfg}");
-        assert!(cfg.contains("/mcp/primary"), "routes via loopback proxy: {cfg}");
+        assert!(
+            cfg.contains("/mcp/primary"),
+            "routes via loopback proxy: {cfg}"
+        );
         assert!(cfg.contains("Authorization"), "got: {cfg}");
 
         // MCP is no longer bundled in the plugin.
-        assert!(!plugin_src(home).join(".mcp.json").exists(), "no plugin .mcp.json");
+        assert!(
+            !plugin_src(home).join(".mcp.json").exists(),
+            "no plugin .mcp.json"
+        );
     });
 }
 
@@ -227,43 +276,88 @@ fn registers_marketplace_and_enables_plugin_preserving_foreign_keys() {
         .unwrap();
 
         apply(
-            &manifest_with(vec![skill("research", "# x\n")], vec![mcp("primary", "https://mcp.example.invalid/api")], vec!["codex-cli".into()]),
+            &manifest_with(
+                vec![skill("research", "# x\n")],
+                vec![mcp("primary", "https://mcp.example.invalid/api")],
+                vec!["codex-cli".into()],
+            ),
             home,
         );
 
         let cfg = read_cfg(home);
-        assert!(cfg.contains("model_provider = \"openai\""), "user scalar wiped: {cfg}");
-        assert!(cfg.contains("[mcp_servers.node_repl]"), "user stdio MCP wiped: {cfg}");
-        assert!(cfg.contains("[plugins.\"user-thing@somewhere\"]"), "sibling plugin wiped: {cfg}");
-        assert!(cfg.contains("[marketplaces.systemprompt]"), "marketplace not registered: {cfg}");
+        assert!(
+            cfg.contains("model_provider = \"openai\""),
+            "user scalar wiped: {cfg}"
+        );
+        assert!(
+            cfg.contains("[mcp_servers.node_repl]"),
+            "user stdio MCP wiped: {cfg}"
+        );
+        assert!(
+            cfg.contains("[plugins.\"user-thing@somewhere\"]"),
+            "sibling plugin wiped: {cfg}"
+        );
+        assert!(
+            cfg.contains("[marketplaces.systemprompt]"),
+            "marketplace not registered: {cfg}"
+        );
         assert!(cfg.contains("source_type = \"local\""), "got: {cfg}");
-        assert!(cfg.contains("[plugins.\"systemprompt-managed@systemprompt\"]"), "managed plugin missing: {cfg}");
+        assert!(
+            cfg.contains("[plugins.\"systemprompt-managed@systemprompt\"]"),
+            "managed plugin missing: {cfg}"
+        );
     });
 }
 
 #[test]
 fn second_apply_is_idempotent_byte_stable() {
     with_codex_home(|home| {
-        let m = manifest_with(vec![skill("research", "# x\n")], vec![mcp("primary", "https://mcp.example.invalid/api")], vec!["codex-cli".into()]);
+        let m = manifest_with(
+            vec![skill("research", "# x\n")],
+            vec![mcp("primary", "https://mcp.example.invalid/api")],
+            vec!["codex-cli".into()],
+        );
         apply(&m, home);
         let pj = plugin_src(home).join(".codex-plugin").join("plugin.json");
         let first_plugin = fs::read(&pj).unwrap();
         let first_cfg = read_cfg(home);
 
         apply(&m, home);
-        assert_eq!(first_plugin, fs::read(&pj).unwrap(), "plugin.json changed on no-op apply");
-        assert_eq!(first_cfg, read_cfg(home), "config.toml changed on no-op apply");
+        assert_eq!(
+            first_plugin,
+            fs::read(&pj).unwrap(),
+            "plugin.json changed on no-op apply"
+        );
+        assert_eq!(
+            first_cfg,
+            read_cfg(home),
+            "config.toml changed on no-op apply"
+        );
     });
 }
 
 #[test]
 fn content_change_bumps_version() {
     with_codex_home(|home| {
-        apply(&manifest_with(vec![skill("research", "# v1\n")], vec![], vec!["codex-cli".into()]), home);
+        apply(
+            &manifest_with(
+                vec![skill("research", "# v1\n")],
+                vec![],
+                vec!["codex-cli".into()],
+            ),
+            home,
+        );
         let pj = plugin_src(home).join(".codex-plugin").join("plugin.json");
         let v1 = fs::read_to_string(&pj).unwrap();
 
-        apply(&manifest_with(vec![skill("research", "# v2 changed\n")], vec![], vec!["codex-cli".into()]), home);
+        apply(
+            &manifest_with(
+                vec![skill("research", "# v2 changed\n")],
+                vec![],
+                vec!["codex-cli".into()],
+            ),
+            home,
+        );
         let v2 = fs::read_to_string(&pj).unwrap();
         assert_ne!(v1, v2, "version should change when a skill changes");
     });
@@ -278,20 +372,42 @@ fn clear_removes_marketplace_tree_and_config_blocks() {
         )
         .unwrap();
         apply(
-            &manifest_with(vec![skill("research", "# x\n")], vec![mcp("primary", "https://mcp.example.invalid/api")], vec!["codex-cli".into()]),
+            &manifest_with(
+                vec![skill("research", "# x\n")],
+                vec![mcp("primary", "https://mcp.example.invalid/api")],
+                vec!["codex-cli".into()],
+            ),
             home,
         );
         assert!(plugin_src(home).is_dir());
 
         CodexCliSync.clear().unwrap();
 
-        assert!(!marketplace_root(home).exists(), "marketplace tree should be removed on clear");
-        assert!(!cache_base(home).exists(), "cache install should be removed on clear");
+        assert!(
+            !marketplace_root(home).exists(),
+            "marketplace tree should be removed on clear"
+        );
+        assert!(
+            !cache_base(home).exists(),
+            "cache install should be removed on clear"
+        );
         let cfg = read_cfg(home);
-        assert!(!cfg.contains("[marketplaces.systemprompt]"), "marketplace block must be gone: {cfg}");
-        assert!(!cfg.contains("systemprompt-managed@systemprompt"), "plugin block must be gone: {cfg}");
-        assert!(!cfg.contains("[mcp_servers.primary]"), "bridge MCP must be gone: {cfg}");
-        assert!(cfg.contains("[plugins.\"user-thing@somewhere\"]"), "sibling plugin must survive clear: {cfg}");
+        assert!(
+            !cfg.contains("[marketplaces.systemprompt]"),
+            "marketplace block must be gone: {cfg}"
+        );
+        assert!(
+            !cfg.contains("systemprompt-managed@systemprompt"),
+            "plugin block must be gone: {cfg}"
+        );
+        assert!(
+            !cfg.contains("[mcp_servers.primary]"),
+            "bridge MCP must be gone: {cfg}"
+        );
+        assert!(
+            cfg.contains("[plugins.\"user-thing@somewhere\"]"),
+            "sibling plugin must survive clear: {cfg}"
+        );
     });
 }
 
@@ -302,26 +418,54 @@ fn install_replaces_legacy_current_version_dir() {
         fs::create_dir_all(&legacy).unwrap();
         fs::write(legacy.join("plugin.json"), "{}").unwrap();
 
-        apply(&manifest_with(vec![skill("research", "# x\n")], vec![], vec!["codex-cli".into()]), home);
+        apply(
+            &manifest_with(
+                vec![skill("research", "# x\n")],
+                vec![],
+                vec!["codex-cli".into()],
+            ),
+            home,
+        );
 
-        assert!(!cache_base(home).join("current").exists(), "legacy version dir should be removed");
+        assert!(
+            !cache_base(home).join("current").exists(),
+            "legacy version dir should be removed"
+        );
         let install = cache_install(home);
         assert_ne!(install.file_name().unwrap(), "current");
-        assert!(install.join("skills").join("research").join("SKILL.md").is_file());
+        assert!(
+            install
+                .join("skills")
+                .join("research")
+                .join("SKILL.md")
+                .is_file()
+        );
     });
 }
 
 #[test]
 fn empty_manifest_registers_nothing() {
     with_codex_home(|home| {
-        apply(&manifest_with(vec![], vec![], vec!["codex-cli".into()]), home);
+        apply(
+            &manifest_with(vec![], vec![], vec!["codex-cli".into()]),
+            home,
+        );
 
-        assert!(!marketplace_root(home).exists(), "no content => no marketplace tree");
+        assert!(
+            !marketplace_root(home).exists(),
+            "no content => no marketplace tree"
+        );
         let cfg_path = home.join("config.toml");
         if cfg_path.is_file() {
             let cfg = read_cfg(home);
-            assert!(!cfg.contains("[marketplaces.systemprompt]"), "no marketplace for empty manifest: {cfg}");
-            assert!(!cfg.contains("systemprompt-managed@systemprompt"), "no plugin block for empty manifest: {cfg}");
+            assert!(
+                !cfg.contains("[marketplaces.systemprompt]"),
+                "no marketplace for empty manifest: {cfg}"
+            );
+            assert!(
+                !cfg.contains("systemprompt-managed@systemprompt"),
+                "no plugin block for empty manifest: {cfg}"
+            );
         }
     });
 }

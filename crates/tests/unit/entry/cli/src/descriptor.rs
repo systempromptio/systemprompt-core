@@ -9,7 +9,10 @@ fn session_switch_initializes_paths_so_token_generation_can_sign() {
         profile_name: "production".to_owned(),
     }
     .descriptor();
-    assert!(desc.paths(), "switch must init paths/Config to sign a token");
+    assert!(
+        desc.paths(),
+        "switch must init paths/Config to sign a token"
+    );
     assert!(desc.secrets());
     assert!(desc.skip_validation());
 }

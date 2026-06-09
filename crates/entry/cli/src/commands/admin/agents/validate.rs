@@ -78,64 +78,64 @@ pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<Comman
             });
         }
 
-        if agent.enabled {
-            if let Some(provider_name) = &agent.metadata.provider {
-                match services_config.ai.providers.get(provider_name) {
-                    None => {
+        if agent.enabled
+            && let Some(provider_name) = &agent.metadata.provider
+        {
+            match services_config.ai.providers.get(provider_name) {
+                None => {
+                    errors.push(ValidationIssue {
+                        source: name.clone(),
+                        message: format!(
+                            "Provider '{}' is not configured in ai.providers",
+                            provider_name
+                        ),
+                        suggestion: None,
+                    });
+                },
+                Some(provider_config) => {
+                    if !provider_config.enabled {
                         errors.push(ValidationIssue {
                             source: name.clone(),
                             message: format!(
-                                "Provider '{}' is not configured in ai.providers",
+                                "Provider '{}' is disabled in AI config (set enabled: true)",
                                 provider_name
                             ),
                             suggestion: None,
                         });
-                    },
-                    Some(provider_config) => {
-                        if !provider_config.enabled {
+                    }
+
+                    match registry.find_provider(provider_name) {
+                        None => {
                             errors.push(ValidationIssue {
                                 source: name.clone(),
                                 message: format!(
-                                    "Provider '{}' is disabled in AI config (set enabled: true)",
+                                    "Provider '{}' has no connectivity entry in the profile \
+                                         registry",
                                     provider_name
                                 ),
                                 suggestion: None,
                             });
-                        }
-
-                        match registry.find_provider(provider_name) {
-                            None => {
+                        },
+                        Some(entry) => {
+                            let secret_name = entry.api_key_secret.as_str();
+                            let key_present = secrets
+                                .as_ref()
+                                .and_then(|s| s.get(secret_name))
+                                .is_some_and(|k| !k.is_empty());
+                            if !key_present {
                                 errors.push(ValidationIssue {
                                     source: name.clone(),
                                     message: format!(
-                                        "Provider '{}' has no connectivity entry in the profile \
-                                         registry",
-                                        provider_name
+                                        "No API key configured for provider '{}' (secret '{}' \
+                                             not found)",
+                                        provider_name, secret_name
                                     ),
                                     suggestion: None,
                                 });
-                            },
-                            Some(entry) => {
-                                let secret_name = entry.api_key_secret.as_str();
-                                let key_present = secrets
-                                    .as_ref()
-                                    .and_then(|s| s.get(secret_name))
-                                    .is_some_and(|k| !k.is_empty());
-                                if !key_present {
-                                    errors.push(ValidationIssue {
-                                        source: name.clone(),
-                                        message: format!(
-                                            "No API key configured for provider '{}' (secret '{}' \
-                                             not found)",
-                                            provider_name, secret_name
-                                        ),
-                                        suggestion: None,
-                                    });
-                                }
-                            },
-                        }
-                    },
-                }
+                            }
+                        },
+                    }
+                },
             }
         }
 

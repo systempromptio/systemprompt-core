@@ -43,12 +43,12 @@ pub(super) fn validate_resource_uri(
             "Resource URI host '{host}' is an internal or private network address"
         ));
     }
-    if let Some(url::Host::Ipv4(ip)) = url.host() {
-        if ip.is_loopback() {
-            return Err(format!(
-                "Resource URI host '{ip}' is an internal or private (loopback) network address"
-            ));
-        }
+    if let Some(url::Host::Ipv4(ip)) = url.host()
+        && ip.is_loopback()
+    {
+        return Err(format!(
+            "Resource URI host '{ip}' is an internal or private (loopback) network address"
+        ));
     }
     // Defer the broader private-range / link-local / blocked-IP check to the
     // workspace-canonical guard. The scheme gate is OAuth's own concern (we

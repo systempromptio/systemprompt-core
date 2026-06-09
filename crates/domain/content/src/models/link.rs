@@ -163,17 +163,17 @@ pub struct ContentJourneyNode {
 
 impl CampaignLink {
     pub fn get_full_url(&self) -> String {
-        if let Some(ref params_json) = self.utm_params {
-            if let Ok(params) = serde_json::from_str::<UtmParams>(params_json) {
-                let query = params.to_query_string();
-                if !query.is_empty() {
-                    let separator = if self.target_url.contains('?') {
-                        "&"
-                    } else {
-                        "?"
-                    };
-                    return format!("{}{}{}", self.target_url, separator, query);
-                }
+        if let Some(ref params_json) = self.utm_params
+            && let Ok(params) = serde_json::from_str::<UtmParams>(params_json)
+        {
+            let query = params.to_query_string();
+            if !query.is_empty() {
+                let separator = if self.target_url.contains('?') {
+                    "&"
+                } else {
+                    "?"
+                };
+                return format!("{}{}{}", self.target_url, separator, query);
             }
         }
         self.target_url.clone()

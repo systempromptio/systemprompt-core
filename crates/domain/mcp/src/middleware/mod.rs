@@ -27,10 +27,10 @@ pub fn extract_bearer_token(
         .get("authorization")
         .and_then(|v| v.to_str().ok());
 
-    if let Some(auth) = auth_header {
-        if let Some(token) = auth.strip_prefix("Bearer ") {
-            return Ok(Some(token.to_owned()));
-        }
+    if let Some(auth) = auth_header
+        && let Some(token) = auth.strip_prefix("Bearer ")
+    {
+        return Ok(Some(token.to_owned()));
     }
 
     Ok(None)

@@ -15,8 +15,18 @@ fn ph(name: &str, surface: ApiSurface, configured: bool, models: &[&str]) -> Pro
 #[test]
 fn filters_to_accepted_surface() {
     let health = vec![
-        ph("anthropic", ApiSurface::Anthropic, true, &["claude-sonnet-4-6"]),
-        ph("gemini", ApiSurface::Gemini, true, &["gemini-3.1-flash-lite-preview"]),
+        ph(
+            "anthropic",
+            ApiSurface::Anthropic,
+            true,
+            &["claude-sonnet-4-6"],
+        ),
+        ph(
+            "gemini",
+            ApiSurface::Gemini,
+            true,
+            &["gemini-3.1-flash-lite-preview"],
+        ),
         ph("openai", ApiSurface::OpenAi, true, &["gpt-5"]),
     ];
 
@@ -49,7 +59,12 @@ fn flags_unconfigured_matching_provider() {
 fn available_only_counts_matching_surface() {
     let health = vec![
         ph("openai", ApiSurface::OpenAi, true, &["gpt-5"]),
-        ph("anthropic", ApiSurface::Anthropic, false, &["claude-sonnet-4-6"]),
+        ph(
+            "anthropic",
+            ApiSurface::Anthropic,
+            false,
+            &["claude-sonnet-4-6"],
+        ),
     ];
 
     let view = host_model_view(&health, &[ApiSurface::Anthropic]);

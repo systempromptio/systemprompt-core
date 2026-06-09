@@ -124,10 +124,10 @@ pub(super) async fn send_result(
     result: CloudResult<CheckoutCallbackResult>,
 ) {
     let sender = tx.lock().await.take();
-    if let Some(sender) = sender {
-        if sender.send(result).is_err() {
-            tracing::warn!("Checkout result receiver dropped");
-        }
+    if let Some(sender) = sender
+        && sender.send(result).is_err()
+    {
+        tracing::warn!("Checkout result receiver dropped");
     }
 }
 

@@ -41,23 +41,23 @@ pub async fn handle(request: Request<Body>) -> Response<Body> {
         return accepted();
     }
 
-    if let Ok(req) = ExportTraceServiceRequest::decode(body_bytes.as_ref()) {
-        if !req.resource_spans.is_empty() {
-            ingest_traces(req);
-            return accepted();
-        }
+    if let Ok(req) = ExportTraceServiceRequest::decode(body_bytes.as_ref())
+        && !req.resource_spans.is_empty()
+    {
+        ingest_traces(req);
+        return accepted();
     }
-    if let Ok(req) = ExportLogsServiceRequest::decode(body_bytes.as_ref()) {
-        if !req.resource_logs.is_empty() {
-            ingest_logs(req);
-            return accepted();
-        }
+    if let Ok(req) = ExportLogsServiceRequest::decode(body_bytes.as_ref())
+        && !req.resource_logs.is_empty()
+    {
+        ingest_logs(req);
+        return accepted();
     }
-    if let Ok(req) = ExportMetricsServiceRequest::decode(body_bytes.as_ref()) {
-        if !req.resource_metrics.is_empty() {
-            ingest_metrics(&req);
-            return accepted();
-        }
+    if let Ok(req) = ExportMetricsServiceRequest::decode(body_bytes.as_ref())
+        && !req.resource_metrics.is_empty()
+    {
+        ingest_metrics(&req);
+        return accepted();
     }
 
     tracing::warn!(

@@ -79,13 +79,13 @@ pub(super) fn build_messages(
             .metadata
             .clone()
             .unwrap_or_else(|| serde_json::json!({}));
-        if let Some(client_id) = &msg_row.client_message_id {
-            if let Some(obj) = final_metadata.as_object_mut() {
-                obj.insert(
-                    "clientMessageId".to_owned(),
-                    serde_json::Value::String(client_id.clone()),
-                );
-            }
+        if let Some(client_id) = &msg_row.client_message_id
+            && let Some(obj) = final_metadata.as_object_mut()
+        {
+            obj.insert(
+                "clientMessageId".to_owned(),
+                serde_json::Value::String(client_id.clone()),
+            );
         }
 
         let role = match msg_row.role.as_str() {

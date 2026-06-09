@@ -87,11 +87,11 @@ impl AiResponse {
         self
     }
 
-    pub fn has_tool_calls(&self) -> bool {
+    pub const fn has_tool_calls(&self) -> bool {
         !self.tool_calls.is_empty()
     }
 
-    pub fn has_tool_results(&self) -> bool {
+    pub const fn has_tool_results(&self) -> bool {
         !self.tool_results.is_empty()
     }
 }

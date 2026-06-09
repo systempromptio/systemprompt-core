@@ -98,10 +98,10 @@ pub async fn get_running_servers(
     let mut running_configs = Vec::new();
 
     for service in all_services {
-        if service.status == "running" {
-            if let Some(config) = registry.find_server(&service.name)? {
-                running_configs.push(config);
-            }
+        if service.status == "running"
+            && let Some(config) = registry.find_server(&service.name)?
+        {
+            running_configs.push(config);
         }
     }
 

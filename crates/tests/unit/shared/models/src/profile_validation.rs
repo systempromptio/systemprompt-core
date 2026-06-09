@@ -1,8 +1,8 @@
-use systemprompt_models::profile::default_resource_audiences;
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
+    default_resource_audiences,
 };
-use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::services::SystemAdminConfig;
 use systemprompt_models::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,

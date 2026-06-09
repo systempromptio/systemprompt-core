@@ -14,7 +14,10 @@ fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
 
 #[test]
 fn required_secrets_present_passes() {
-    let secrets = map(&[("oauth_at_rest_pepper", "x"), ("database_url", "postgres://")]);
+    let secrets = map(&[
+        ("oauth_at_rest_pepper", "x"),
+        ("database_url", "postgres://"),
+    ]);
     assert_eq!(check_required_secrets(&secrets).status, CheckStatus::Pass);
 }
 

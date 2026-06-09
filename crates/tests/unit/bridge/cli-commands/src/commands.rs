@@ -7,7 +7,9 @@
 //! are invoked directly from the synchronous `temp_env::with_vars` closure (no
 //! outer tokio runtime, which would nest-panic).
 
-use systemprompt_bridge::cli::{clean, login, logout, oauth_client, status, sync, validate, whoami};
+use systemprompt_bridge::cli::{
+    clean, login, logout, oauth_client, status, sync, validate, whoami,
+};
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -78,7 +80,8 @@ fn login_stores_pat_then_logout_and_clean_remove_it() {
         let _ = clean::cmd_clean();
         // clean wipes the config back to a fresh splash.
         assert!(
-            !cfg_path.exists() || std::fs::read_to_string(&cfg_path).map_or(true, |c| !c.contains("sp-live")),
+            !cfg_path.exists()
+                || std::fs::read_to_string(&cfg_path).map_or(true, |c| !c.contains("sp-live")),
             "logout/clean should drop the stored PAT"
         );
     });

@@ -23,9 +23,15 @@ async fn replace_rule_substitutes_prompt() {
     let resolution = OverrideEngine::global()
         .resolve(&rules, &ctx("cerebras", "claude-opus-4-8", Some("huge")))
         .await;
-    assert_eq!(resolution.action, OverrideAction::Replace("light".to_owned()));
+    assert_eq!(
+        resolution.action,
+        OverrideAction::Replace("light".to_owned())
+    );
     assert_eq!(resolution.source, Some(OverrideSource::Config));
-    assert_eq!(resolution.audit_descriptor().as_deref(), Some("config:replace"));
+    assert_eq!(
+        resolution.audit_descriptor().as_deref(),
+        Some("config:replace")
+    );
 }
 
 #[tokio::test]
@@ -40,7 +46,10 @@ async fn strip_rule_removes_prompt() {
         .resolve(&rules, &ctx("cerebras", "claude-3-7-sonnet", Some("huge")))
         .await;
     assert_eq!(resolution.action, OverrideAction::Strip);
-    assert_eq!(resolution.audit_descriptor().as_deref(), Some("config:strip"));
+    assert_eq!(
+        resolution.audit_descriptor().as_deref(),
+        Some("config:strip")
+    );
 }
 
 #[tokio::test]
@@ -63,7 +72,10 @@ async fn first_matching_rule_wins() {
     let resolution = OverrideEngine::global()
         .resolve(&rules, &ctx("cerebras", "claude-opus-4-8", None))
         .await;
-    assert_eq!(resolution.action, OverrideAction::Replace("first".to_owned()));
+    assert_eq!(
+        resolution.action,
+        OverrideAction::Replace("first".to_owned())
+    );
 }
 
 #[tokio::test]

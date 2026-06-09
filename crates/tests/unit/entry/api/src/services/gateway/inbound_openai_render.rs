@@ -167,7 +167,11 @@ fn render_terminal_item_done_carries_finalized_function_call() {
     let inbound = OpenAiResponsesInbound;
     let snapshot = sample_response();
     let frame = inbound
-        .render_terminal_event(&CanonicalEvent::ContentBlockStop { index: 1 }, &snapshot, "m")
+        .render_terminal_event(
+            &CanonicalEvent::ContentBlockStop { index: 1 },
+            &snapshot,
+            "m",
+        )
         .expect("terminal frame");
     let frames = parse_sse_data(&frame);
     let args_done = frames

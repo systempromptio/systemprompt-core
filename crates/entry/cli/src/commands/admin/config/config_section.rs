@@ -154,10 +154,10 @@ impl ConfigSection {
 
             if path.is_dir() {
                 Self::collect_yaml_recursive(&path, files)?;
-            } else if let Some(ext) = path.extension() {
-                if ext == "yaml" || ext == "yml" {
-                    files.push(path);
-                }
+            } else if let Some(ext) = path.extension()
+                && (ext == "yaml" || ext == "yml")
+            {
+                files.push(path);
             }
         }
         Ok(())

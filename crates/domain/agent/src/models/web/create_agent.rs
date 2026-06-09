@@ -143,28 +143,28 @@ impl CreateAgentRequest {
             return Err("Version must be in semantic version format (e.g., 1.0.0)".to_owned());
         }
 
-        if let Some(ref mcp_servers) = self.mcp_servers {
-            if !mcp_servers.is_empty() {
-                let available_servers = list_available_mcp_servers().await?;
-                let mut invalid_servers = Vec::new();
+        if let Some(ref mcp_servers) = self.mcp_servers
+            && !mcp_servers.is_empty()
+        {
+            let available_servers = list_available_mcp_servers().await?;
+            let mut invalid_servers = Vec::new();
 
-                for server in mcp_servers {
-                    if !available_servers.contains(server) {
-                        invalid_servers.push(server.clone());
+            for server in mcp_servers {
+                if !available_servers.contains(server) {
+                    invalid_servers.push(server.clone());
+                }
+            }
+
+            if !invalid_servers.is_empty() {
+                return Err(format!(
+                    "Invalid MCP server(s): {}. Available servers: {}",
+                    invalid_servers.join(", "),
+                    if available_servers.is_empty() {
+                        "(none)".to_owned()
+                    } else {
+                        available_servers.join(", ")
                     }
-                }
-
-                if !invalid_servers.is_empty() {
-                    return Err(format!(
-                        "Invalid MCP server(s): {}. Available servers: {}",
-                        invalid_servers.join(", "),
-                        if available_servers.is_empty() {
-                            "(none)".to_owned()
-                        } else {
-                            available_servers.join(", ")
-                        }
-                    ));
-                }
+                ));
             }
         }
 

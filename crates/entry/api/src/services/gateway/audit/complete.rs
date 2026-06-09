@@ -98,14 +98,13 @@ impl GatewayAudit {
             tracing::warn!(error = %e, ai_request_id = %self.ctx.ai_request_id, "payload insert (response) failed");
         }
 
-        if let Some(assistant_text) = super::super::parse::extract_assistant_text(response) {
-            if let Err(e) = self
+        if let Some(assistant_text) = super::super::parse::extract_assistant_text(response)
+            && let Err(e) = self
                 .requests
                 .add_response_message(&self.ctx.ai_request_id, &assistant_text)
                 .await
-            {
-                tracing::warn!(error = %e, "assistant response message insert failed");
-            }
+        {
+            tracing::warn!(error = %e, "assistant response message insert failed");
         }
     }
 

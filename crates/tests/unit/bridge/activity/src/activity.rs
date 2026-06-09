@@ -56,10 +56,16 @@ fn snapshot_since_filters_by_id() {
 
     let all = log.snapshot_since(0);
     assert_eq!(all.len(), 5);
-    assert_eq!(all.iter().map(|e| e.id).collect::<Vec<_>>(), vec![1, 2, 3, 4, 5]);
+    assert_eq!(
+        all.iter().map(|e| e.id).collect::<Vec<_>>(),
+        vec![1, 2, 3, 4, 5]
+    );
 
     let after_two = log.snapshot_since(2);
-    assert_eq!(after_two.iter().map(|e| e.id).collect::<Vec<_>>(), vec![3, 4, 5]);
+    assert_eq!(
+        after_two.iter().map(|e| e.id).collect::<Vec<_>>(),
+        vec![3, 4, 5]
+    );
 
     let after_last = log.snapshot_since(5);
     assert!(after_last.is_empty());
@@ -136,7 +142,10 @@ fn emit_hook_called_for_every_append_in_order() {
     log.append("three");
 
     let recorded = captured.lock().expect("lock poisoned");
-    assert_eq!(*recorded, vec!["one".to_string(), "two".to_string(), "three".to_string()]);
+    assert_eq!(
+        *recorded,
+        vec!["one".to_string(), "two".to_string(), "three".to_string()]
+    );
 }
 
 #[test]

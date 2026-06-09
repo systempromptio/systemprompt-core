@@ -176,13 +176,12 @@ fn process_tool_calls(
             .get("function")
             .and_then(|f| f.get("arguments"))
             .and_then(Value::as_str)
+            && !args.is_empty()
         {
-            if !args.is_empty() {
-                events.push(Ok(CanonicalEvent::ToolUseDelta {
-                    index: canonical_index,
-                    partial_json: args.to_owned(),
-                }));
-            }
+            events.push(Ok(CanonicalEvent::ToolUseDelta {
+                index: canonical_index,
+                partial_json: args.to_owned(),
+            }));
         }
     }
 }

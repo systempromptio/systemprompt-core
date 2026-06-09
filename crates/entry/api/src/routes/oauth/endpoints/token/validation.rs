@@ -47,16 +47,15 @@ pub async fn validate_authorization_code(
         )
         .await?;
 
-    if let Some(req_resource) = params.request_resource {
-        if let Some(ref stored_resource) = result.resource {
-            if req_resource != stored_resource {
-                return Err(anyhow::anyhow!(
-                    "Resource parameter mismatch: expected '{}', got '{}'",
-                    stored_resource,
-                    req_resource
-                ));
-            }
-        }
+    if let Some(req_resource) = params.request_resource
+        && let Some(ref stored_resource) = result.resource
+        && req_resource != stored_resource
+    {
+        return Err(anyhow::anyhow!(
+            "Resource parameter mismatch: expected '{}', got '{}'",
+            stored_resource,
+            req_resource
+        ));
     }
 
     Ok(result)

@@ -79,10 +79,10 @@ async fn load_task_completed(
         Some(messages)
     };
 
-    if !execution_steps.is_empty() {
-        if let Some(ref mut metadata) = task.metadata {
-            metadata.execution_steps = Some(execution_steps.clone());
-        }
+    if !execution_steps.is_empty()
+        && let Some(ref mut metadata) = task.metadata
+    {
+        metadata.execution_steps = Some(execution_steps.clone());
     }
 
     let payload = json!({

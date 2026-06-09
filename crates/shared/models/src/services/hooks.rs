@@ -220,7 +220,7 @@ pub enum HookType {
 }
 
 impl HookEventsConfig {
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.pre_tool_use.is_empty()
             && self.post_tool_use.is_empty()
             && self.post_tool_use_failure.is_empty()

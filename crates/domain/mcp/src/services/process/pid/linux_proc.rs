@@ -127,10 +127,10 @@ pub(super) fn get_port_by_pid_proc(pid: u32) -> Option<u16> {
         }
 
         let local_addr = parts.get(1).copied().unwrap_or("");
-        if let Some(port_str) = local_addr.split(':').next_back() {
-            if let Ok(port) = u16::from_str_radix(port_str, 16) {
-                return Some(port);
-            }
+        if let Some(port_str) = local_addr.split(':').next_back()
+            && let Ok(port) = u16::from_str_radix(port_str, 16)
+        {
+            return Some(port);
         }
     }
 

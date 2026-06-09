@@ -46,13 +46,13 @@ pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOut
     )?;
 
     let web_config_path = profile.paths.web_config();
-    if let Ok(web_content) = fs::read_to_string(&web_config_path) {
-        if web_content.contains(&format!("- {}", name)) {
-            CliService::warning(&format!(
-                "Content type '{}' is referenced in web config. You may need to update {}",
-                name, web_config_path
-            ));
-        }
+    if let Ok(web_content) = fs::read_to_string(&web_config_path)
+        && web_content.contains(&format!("- {}", name))
+    {
+        CliService::warning(&format!(
+            "Content type '{}' is referenced in web config. You may need to update {}",
+            name, web_config_path
+        ));
     }
 
     content_config.content_sources.remove(&name);

@@ -43,12 +43,11 @@ fn lookup(
     gateway: Option<&GatewayConfig>,
     registry: &ProviderRegistry,
 ) -> Option<ModelPricing> {
-    if let Some(gw) = gateway {
-        if let Some(route) = gw.find_route(model) {
-            if let Some(p) = route.pricing {
-                return Some(p);
-            }
-        }
+    if let Some(gw) = gateway
+        && let Some(route) = gw.find_route(model)
+        && let Some(p) = route.pricing
+    {
+        return Some(p);
     }
     registry_pricing(registry, gateway, model)
 }
@@ -60,13 +59,12 @@ fn registry_pricing(
     gateway: Option<&GatewayConfig>,
     model: &str,
 ) -> Option<ModelPricing> {
-    if let Some(route) = gateway.and_then(|gw| gw.find_route(model)) {
-        if let Some(m) = route
+    if let Some(route) = gateway.and_then(|gw| gw.find_route(model))
+        && let Some(m) = route
             .resolve(registry)
             .and_then(|entry| entry.find_model(model))
-        {
-            return Some(m.pricing);
-        }
+    {
+        return Some(m.pricing);
     }
     registry
         .providers

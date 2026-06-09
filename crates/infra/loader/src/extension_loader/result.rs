@@ -9,7 +9,7 @@ pub struct ExtensionValidationResult {
 
 impl ExtensionValidationResult {
     #[must_use]
-    pub fn is_valid(&self) -> bool {
+    pub const fn is_valid(&self) -> bool {
         self.missing_binaries.is_empty()
     }
 

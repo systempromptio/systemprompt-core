@@ -111,17 +111,17 @@ impl OAuthRepository {
             ));
         }
 
-        if let Some(expected_uri) = redirect_uri {
-            if row.redirect_uri != expected_uri {
-                tracing::warn!(
-                    expected = %expected_uri,
-                    actual = %row.redirect_uri,
-                    "Redirect URI mismatch"
-                );
-                return Err(OauthError::Validation(
-                    "Invalid authorization code".to_owned(),
-                ));
-            }
+        if let Some(expected_uri) = redirect_uri
+            && row.redirect_uri != expected_uri
+        {
+            tracing::warn!(
+                expected = %expected_uri,
+                actual = %row.redirect_uri,
+                "Redirect URI mismatch"
+            );
+            return Err(OauthError::Validation(
+                "Invalid authorization code".to_owned(),
+            ));
         }
 
         if let Some(ref challenge) = row.code_challenge {

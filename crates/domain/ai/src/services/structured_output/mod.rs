@@ -20,11 +20,11 @@ impl StructuredOutputProcessor {
         let json_value =
             parser::JsonParser::extract_json(content, options.extraction_pattern.as_deref())?;
 
-        if let ResponseFormat::JsonSchema { schema, strict, .. } = format {
-            if options.validate_schema.unwrap_or(true) {
-                let is_strict = strict.unwrap_or(true);
-                validator::SchemaValidator::validate(&json_value, schema, is_strict)?;
-            }
+        if let ResponseFormat::JsonSchema { schema, strict, .. } = format
+            && options.validate_schema.unwrap_or(true)
+        {
+            let is_strict = strict.unwrap_or(true);
+            validator::SchemaValidator::validate(&json_value, schema, is_strict)?;
         }
 
         Ok(json_value)

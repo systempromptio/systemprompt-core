@@ -81,12 +81,11 @@ pub async fn login_for_profile(
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
 
-    if !args.force_new {
-        if let Some(output) =
+    if !args.force_new
+        && let Some(output) =
             try_use_existing_session(&sessions_dir, &session_key, args, &db_pool).await?
-        {
-            return Ok(output);
-        }
+    {
+        return Ok(output);
     }
 
     let admin_name = &profile.system_admin.username;

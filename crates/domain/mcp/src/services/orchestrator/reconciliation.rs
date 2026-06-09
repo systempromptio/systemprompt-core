@@ -79,13 +79,13 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
 }
 
 fn notify_cleanup(events: Option<&StartupEventSender>, count: usize, reason: &str) {
-    if let Some(tx) = events {
-        if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
+    if let Some(tx) = events
+        && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
             name: format!("{} disabled service(s)", count),
             reason: reason.to_owned(),
-        }) {
-            tracing::warn!(error = %e, "Failed to send cleanup notification");
-        }
+        })
+    {
+        tracing::warn!(error = %e, "Failed to send cleanup notification");
     }
 }
 
@@ -125,13 +125,13 @@ fn log_and_notify_cleanup(
 
     tracing::info!(count = count, message);
 
-    if let Some(tx) = events {
-        if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
+    if let Some(tx) = events
+        && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
             name: format!("{} processes", count),
             reason: reason.to_owned(),
-        }) {
-            tracing::warn!(error = %e, "Failed to send cleanup notification");
-        }
+        })
+    {
+        tracing::warn!(error = %e, "Failed to send cleanup notification");
     }
 }
 
@@ -160,13 +160,13 @@ async fn kill_single_server(
 ) -> McpDomainResult<()> {
     if let Ok(Some(service_info)) = database.get_service_by_name(server_name).await {
         if let Some(pid) = service_info.pid {
-            if let Some(tx) = events {
-                if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
+            if let Some(tx) = events
+                && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
                     name: server_name.to_owned(),
                     reason: "Restarting to ensure fresh state".to_owned(),
-                }) {
-                    tracing::warn!(error = %e, "Failed to send cleanup notification");
-                }
+                })
+            {
+                tracing::warn!(error = %e, "Failed to send cleanup notification");
             }
             if let Err(e) =
                 ProcessService::terminate_gracefully_verified(pid as u32, server_name).await

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
+use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{expand_home, resolve_path, resolve_with_home};
 use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileStyle, ProfileType,

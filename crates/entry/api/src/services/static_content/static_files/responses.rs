@@ -27,23 +27,23 @@ pub(super) async fn not_found_response(
     headers: &HeaderMap,
 ) -> axum::response::Response {
     let custom_404 = dist_dir.join("404.html");
-    if custom_404.exists() {
-        if let Ok(content) = tokio::fs::read(&custom_404).await {
-            let etag = compute_etag(&content);
-            if etag_matches(headers, &etag) {
-                return not_modified_response(&etag, CACHE_HTML);
-            }
-            return (
-                StatusCode::NOT_FOUND,
-                [
-                    (header::CONTENT_TYPE, "text/html".to_owned()),
-                    (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
-                    (header::ETAG, etag),
-                ],
-                content,
-            )
-                .into_response();
+    if custom_404.exists()
+        && let Ok(content) = tokio::fs::read(&custom_404).await
+    {
+        let etag = compute_etag(&content);
+        if etag_matches(headers, &etag) {
+            return not_modified_response(&etag, CACHE_HTML);
         }
+        return (
+            StatusCode::NOT_FOUND,
+            [
+                (header::CONTENT_TYPE, "text/html".to_owned()),
+                (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
+                (header::ETAG, etag),
+            ],
+            content,
+        )
+            .into_response();
     }
 
     (

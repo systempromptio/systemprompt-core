@@ -49,14 +49,13 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
 
         tracing::info!("Starting PLAN → EXECUTE → RESPOND flow");
 
-        if let Ok(step) = tracking.track_understanding(task_id.clone()).await {
-            if context
+        if let Ok(step) = tracking.track_understanding(task_id.clone()).await
+            && context
                 .tx
                 .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
-            {
-                tracing::debug!("Stream receiver dropped");
-            }
+        {
+            tracing::debug!("Stream receiver dropped");
         }
 
         let tools = context
@@ -71,14 +70,13 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
             .track_planning_async(task_id.clone(), None, None)
             .await;
 
-        if let Ok((_, ref step)) = planning_tracked {
-            if context
+        if let Ok((_, ref step)) = planning_tracked
+            && context
                 .tx
                 .try_send(StreamEvent::ExecutionStepUpdate { step: step.clone() })
                 .is_err()
-            {
-                tracing::debug!("Stream receiver dropped");
-            }
+        {
+            tracing::debug!("Stream receiver dropped");
         }
 
         let request = build_ai_request(&context, messages.clone());
@@ -88,10 +86,10 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
         let planning_result = match planning_result {
             Ok(result) => result,
             Err(e) => {
-                if let Ok((tracked, _)) = planning_tracked {
-                    if let Err(fail_err) = tracking.fail(&tracked, e.to_string()).await {
-                        tracing::warn!(error = %fail_err, "Failed to record planning failure");
-                    }
+                if let Ok((tracked, _)) = planning_tracked
+                    && let Err(fail_err) = tracking.fail(&tracked, e.to_string()).await
+                {
+                    tracing::warn!(error = %fail_err, "Failed to record planning failure");
                 }
                 return Err(AgentServiceError::Internal(format!("{e}")));
             },

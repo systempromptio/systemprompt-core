@@ -107,20 +107,20 @@ pub(super) fn resolve_system_prompt_includes(
     config: &mut ServicesConfig,
 ) -> ConfigLoadResult<()> {
     for (name, agent) in &mut config.agents {
-        if let Some(ref system_prompt) = agent.metadata.system_prompt {
-            if let Some(include_path) = system_prompt.strip_prefix("!include ") {
-                let full_path = base_path.join(include_path.trim());
-                let resolved = fs::read_to_string(&full_path).map_err(|e| ConfigLoadError::Io {
-                    path: full_path.clone(),
-                    source: e,
-                })?;
-                tracing::debug!(
-                    agent = %name,
-                    path = %full_path.display(),
-                    "resolved system_prompt include"
-                );
-                agent.metadata.system_prompt = Some(resolved);
-            }
+        if let Some(ref system_prompt) = agent.metadata.system_prompt
+            && let Some(include_path) = system_prompt.strip_prefix("!include ")
+        {
+            let full_path = base_path.join(include_path.trim());
+            let resolved = fs::read_to_string(&full_path).map_err(|e| ConfigLoadError::Io {
+                path: full_path.clone(),
+                source: e,
+            })?;
+            tracing::debug!(
+                agent = %name,
+                path = %full_path.display(),
+                "resolved system_prompt include"
+            );
+            agent.metadata.system_prompt = Some(resolved);
         }
     }
 

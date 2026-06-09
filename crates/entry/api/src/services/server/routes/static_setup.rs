@@ -18,32 +18,30 @@ pub(super) fn build_static_router(
     let path = ctx.app_paths().system().content_config().to_path_buf();
     let content_matcher = path.to_str().map_or_else(
         || {
-            if let Some(tx) = events {
-                if tx
+            if let Some(tx) = events
+                && tx
                     .unbounded_send(StartupEvent::Warning {
                         message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_owned(),
                         context: None,
                     })
                     .is_err()
-                {
-                    tracing::debug!("Startup event receiver dropped");
-                }
+            {
+                tracing::debug!("Startup event receiver dropped");
             }
             Arc::new(StaticContentMatcher::empty())
         },
         |path_str| match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
             Err(e) => {
-                if let Some(tx) = events {
-                    if tx
+                if let Some(tx) = events
+                    && tx
                         .unbounded_send(StartupEvent::Warning {
                             message: format!("Failed to load content config: {e}"),
                             context: Some("Static content matching will be disabled".to_owned()),
                         })
                         .is_err()
-                    {
-                        tracing::debug!("Startup event receiver dropped");
-                    }
+                {
+                    tracing::debug!("Startup event receiver dropped");
                 }
                 Arc::new(StaticContentMatcher::empty())
             },

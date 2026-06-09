@@ -99,23 +99,23 @@ fn detect_cycles(extensions: &HashMap<String, Arc<dyn Extension>>) -> Result<(),
 
     let mut path = Vec::new();
     for id in extensions.keys() {
-        if color.get(id.as_str()) == Some(&WHITE) {
-            if let Err(cycle_path) = dfs(id.as_str(), extensions, &mut color, &mut path) {
-                let Some(&cycle_start) = cycle_path.last() else {
-                    return Err(LoaderError::CircularDependency {
-                        chain: "unknown cycle".to_owned(),
-                    });
-                };
-                let cycle_start_idx = cycle_path
-                    .iter()
-                    .position(|&x| x == cycle_start)
-                    .unwrap_or(0);
-                let cycle: Vec<_> = cycle_path[cycle_start_idx..].to_vec();
-
+        if color.get(id.as_str()) == Some(&WHITE)
+            && let Err(cycle_path) = dfs(id.as_str(), extensions, &mut color, &mut path)
+        {
+            let Some(&cycle_start) = cycle_path.last() else {
                 return Err(LoaderError::CircularDependency {
-                    chain: cycle.join(" -> "),
+                    chain: "unknown cycle".to_owned(),
                 });
-            }
+            };
+            let cycle_start_idx = cycle_path
+                .iter()
+                .position(|&x| x == cycle_start)
+                .unwrap_or(0);
+            let cycle: Vec<_> = cycle_path[cycle_start_idx..].to_vec();
+
+            return Err(LoaderError::CircularDependency {
+                chain: cycle.join(" -> "),
+            });
         }
     }
 

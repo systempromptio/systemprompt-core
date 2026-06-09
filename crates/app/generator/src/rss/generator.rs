@@ -105,10 +105,10 @@ pub async fn generate_feed_with_providers(
 }
 
 async fn ensure_parent_exists(path: &Path) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent).await?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent).await?;
     }
     Ok(())
 }

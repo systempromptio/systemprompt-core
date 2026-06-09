@@ -57,22 +57,22 @@ impl Profile {
             }
         }
 
-        if let Some(web_path) = &self.paths.web_path {
-            if !web_path.is_empty() {
-                if !web_path.starts_with("/app/web") {
-                    errors.push(format!(
-                        "Cloud profile web_path should start with /app/web, got: {}. Note: \
+        if let Some(web_path) = &self.paths.web_path
+            && !web_path.is_empty()
+        {
+            if !web_path.starts_with("/app/web") {
+                errors.push(format!(
+                    "Cloud profile web_path should start with /app/web, got: {}. Note: \
                          web_path points to the parent of dist/, e.g., /app/web for /app/web/dist",
-                        web_path
-                    ));
-                }
-                if web_path.contains("/services/web") {
-                    errors.push(format!(
-                        "Cloud profile web_path should be /app/web (for dist output), not \
+                    web_path
+                ));
+            }
+            if web_path.contains("/services/web") {
+                errors.push(format!(
+                    "Cloud profile web_path should be /app/web (for dist output), not \
                          /app/services/web (which is for templates/config). Got: {}",
-                        web_path
-                    ));
-                }
+                    web_path
+                ));
             }
         }
     }
@@ -155,12 +155,12 @@ impl Profile {
         let Some(pool) = self.database.pool.as_ref() else {
             return;
         };
-        if let Some(max) = pool.max_connections {
-            if !(1..=500).contains(&max) {
-                errors.push(format!(
-                    "database.pool.max_connections must be between 1 and 500 (got {max})"
-                ));
-            }
+        if let Some(max) = pool.max_connections
+            && !(1..=500).contains(&max)
+        {
+            errors.push(format!(
+                "database.pool.max_connections must be between 1 and 500 (got {max})"
+            ));
         }
         if pool.acquire_timeout_secs == Some(0) {
             errors.push("database.pool.acquire_timeout_secs must be greater than 0".to_owned());

@@ -140,8 +140,8 @@ pub(super) fn spawn_behavioral_detection_task(
 
         let result = BehavioralBotDetector::analyze(&input);
 
-        if result.score > 0 {
-            if let Err(e) = session_repo
+        if result.score > 0
+            && let Err(e) = session_repo
                 .update_behavioral_detection(
                     &session_id_for_update,
                     result.score,
@@ -149,9 +149,8 @@ pub(super) fn spawn_behavioral_detection_task(
                     result.reason.as_deref(),
                 )
                 .await
-            {
-                tracing::error!(error = %e, "Failed to update behavioral detection");
-            }
+        {
+            tracing::error!(error = %e, "Failed to update behavioral detection");
         }
     });
 }

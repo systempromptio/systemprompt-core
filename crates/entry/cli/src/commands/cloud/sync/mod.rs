@@ -132,15 +132,15 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
     });
     let tenant = store.find_tenant(tenant_id.as_str());
 
-    if let Some(t) = tenant {
-        if t.is_local() {
-            return Err(anyhow!(
-                "Cannot sync local tenant '{}' to cloud. Local tenants are for development \
+    if let Some(t) = tenant
+        && t.is_local()
+    {
+        return Err(anyhow!(
+            "Cannot sync local tenant '{}' to cloud. Local tenants are for development \
                  only.\nCreate a cloud tenant with 'systemprompt cloud tenant create' or select \
                  an existing cloud tenant with 'systemprompt cloud profile create'.",
-                tenant_id
-            ));
-        }
+            tenant_id
+        ));
     }
 
     let hostname = tenant.and_then(|t| t.hostname.clone()).ok_or_else(|| {

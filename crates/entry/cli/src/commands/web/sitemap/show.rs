@@ -38,15 +38,15 @@ pub(super) fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutp
                 continue;
             }
 
-            if let Some(parent) = &sitemap.parent_route {
-                if parent.enabled {
-                    routes.push(SitemapRoute {
-                        url: parent.url.clone(),
-                        priority: parent.priority,
-                        changefreq: parent.changefreq.clone(),
-                        source: format!("{} (parent)", name),
-                    });
-                }
+            if let Some(parent) = &sitemap.parent_route
+                && parent.enabled
+            {
+                routes.push(SitemapRoute {
+                    url: parent.url.clone(),
+                    priority: parent.priority,
+                    changefreq: parent.changefreq.clone(),
+                    source: format!("{} (parent)", name),
+                });
             }
 
             routes.push(SitemapRoute {

@@ -8,10 +8,10 @@ pub async fn inject_served_by(request: Request, next: Next) -> Response {
 
     let mut response = next.run(request).await;
 
-    if let Some(id) = instance_id {
-        if let Ok(header_value) = id.parse() {
-            response.headers_mut().insert("x-served-by", header_value);
-        }
+    if let Some(id) = instance_id
+        && let Ok(header_value) = id.parse()
+    {
+        response.headers_mut().insert("x-served-by", header_value);
     }
 
     response

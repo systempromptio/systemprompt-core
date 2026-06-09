@@ -166,15 +166,15 @@ impl ContextService {
             artifact_name, artifact.metadata.artifact_type, artifact.id
         );
 
-        if let Some(description) = &artifact.description {
-            if !description.is_empty() {
-                let truncated = if description.len() > 300 {
-                    format!("{}...", &description[..300])
-                } else {
-                    description.clone()
-                };
-                content.push_str(&format!("\n{truncated}"));
-            }
+        if let Some(description) = &artifact.description
+            && !description.is_empty()
+        {
+            let truncated = if description.len() > 300 {
+                format!("{}...", &description[..300])
+            } else {
+                description.clone()
+            };
+            content.push_str(&format!("\n{truncated}"));
         }
 
         content

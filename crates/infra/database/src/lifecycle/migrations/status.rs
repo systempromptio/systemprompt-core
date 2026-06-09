@@ -112,16 +112,16 @@ impl MigrationService<'_> {
         for m in &defined {
             let current_checksum = m.checksum();
             if applied_versions.contains(&m.version) {
-                if let Some(&stored_checksum) = applied_checksums.get(&m.version) {
-                    if stored_checksum != current_checksum {
-                        drift.push(ChecksumDrift {
-                            extension_id: ext_id.to_owned(),
-                            version: m.version,
-                            name: m.name.clone(),
-                            stored_checksum: stored_checksum.to_owned(),
-                            current_checksum,
-                        });
-                    }
+                if let Some(&stored_checksum) = applied_checksums.get(&m.version)
+                    && stored_checksum != current_checksum
+                {
+                    drift.push(ChecksumDrift {
+                        extension_id: ext_id.to_owned(),
+                        version: m.version,
+                        name: m.name.clone(),
+                        stored_checksum: stored_checksum.to_owned(),
+                        current_checksum,
+                    });
                 }
             } else {
                 pending.push(PendingMigration {

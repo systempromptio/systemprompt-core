@@ -97,10 +97,10 @@ impl AgentReconciler {
 
         for agent_id in running_pids {
             let status = self.db_service.get_status(&agent_id).await?;
-            if let crate::services::agent_orchestration::AgentStatus::Running { pid, .. } = status {
-                if !process::process_exists(pid) {
-                    report.orphaned_processes.push((agent_id, pid));
-                }
+            if let crate::services::agent_orchestration::AgentStatus::Running { pid, .. } = status
+                && !process::process_exists(pid)
+            {
+                report.orphaned_processes.push((agent_id, pid));
             }
         }
 
@@ -157,11 +157,11 @@ impl ConsistencyReport {
         }
     }
 
-    pub fn has_inconsistencies(&self) -> bool {
+    pub const fn has_inconsistencies(&self) -> bool {
         !self.inconsistent_running.is_empty() || !self.orphaned_processes.is_empty()
     }
 
-    pub fn total_agents(&self) -> usize {
+    pub const fn total_agents(&self) -> usize {
         self.consistent_running.len() + self.inconsistent_running.len() + self.failed.len()
     }
 

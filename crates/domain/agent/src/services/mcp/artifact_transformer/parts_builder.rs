@@ -10,59 +10,59 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
         return Ok(parts);
     }
 
-    if let Some(content) = artifact.get("content") {
-        if let Some(arr) = content.as_array() {
-            for item in arr {
-                if let Some(content_type) = item.get("type").and_then(|t| t.as_str()) {
-                    match content_type {
-                        "text" => {
-                            if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                parts.push(Part::Text(TextPart {
-                                    text: text.to_owned(),
-                                }));
-                            }
-                        },
-                        "image" => {
-                            if let Some(data) = item.get("data").and_then(|d| d.as_str()) {
-                                let mime_type = item
-                                    .get("mimeType")
-                                    .and_then(|m| m.as_str())
-                                    .map(str::to_owned);
+    if let Some(content) = artifact.get("content")
+        && let Some(arr) = content.as_array()
+    {
+        for item in arr {
+            if let Some(content_type) = item.get("type").and_then(|t| t.as_str()) {
+                match content_type {
+                    "text" => {
+                        if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                            parts.push(Part::Text(TextPart {
+                                text: text.to_owned(),
+                            }));
+                        }
+                    },
+                    "image" => {
+                        if let Some(data) = item.get("data").and_then(|d| d.as_str()) {
+                            let mime_type = item
+                                .get("mimeType")
+                                .and_then(|m| m.as_str())
+                                .map(str::to_owned);
 
-                                parts.push(Part::File(FilePart {
-                                    file: FileContent {
-                                        bytes: Some(data.to_owned()),
-                                        mime_type,
-                                        name: None,
-                                        url: None,
-                                    },
-                                }));
-                            }
-                        },
-                        "resource" => {
-                            if let Some(uri) = item.get("uri").and_then(|u| u.as_str()) {
-                                let mime_type = item
-                                    .get("mimeType")
-                                    .and_then(|m| m.as_str())
-                                    .map(str::to_owned);
+                            parts.push(Part::File(FilePart {
+                                file: FileContent {
+                                    bytes: Some(data.to_owned()),
+                                    mime_type,
+                                    name: None,
+                                    url: None,
+                                },
+                            }));
+                        }
+                    },
+                    "resource" => {
+                        if let Some(uri) = item.get("uri").and_then(|u| u.as_str()) {
+                            let mime_type = item
+                                .get("mimeType")
+                                .and_then(|m| m.as_str())
+                                .map(str::to_owned);
 
-                                parts.push(Part::File(FilePart {
-                                    file: FileContent {
-                                        name: Some(uri.to_owned()),
-                                        mime_type,
-                                        bytes: None,
-                                        url: None,
-                                    },
-                                }));
-                            }
-                        },
-                        _ => {},
-                    }
+                            parts.push(Part::File(FilePart {
+                                file: FileContent {
+                                    name: Some(uri.to_owned()),
+                                    mime_type,
+                                    bytes: None,
+                                    url: None,
+                                },
+                            }));
+                        }
+                    },
+                    _ => {},
                 }
             }
-            if !parts.is_empty() {
-                return Ok(parts);
-            }
+        }
+        if !parts.is_empty() {
+            return Ok(parts);
         }
     }
 

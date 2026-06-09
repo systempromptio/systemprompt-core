@@ -121,10 +121,10 @@ pub fn parse_response(value: &Value, fallback_model: &str) -> CanonicalResponse 
 }
 
 fn collect_message_content(msg: ChatMessage, content: &mut Vec<CanonicalContent>) {
-    if let Some(text) = msg.content {
-        if !text.is_empty() {
-            content.push(CanonicalContent::Text(text));
-        }
+    if let Some(text) = msg.content
+        && !text.is_empty()
+    {
+        content.push(CanonicalContent::Text(text));
     }
     for tc in msg.tool_calls {
         let args = if tc.function.arguments.is_empty() {

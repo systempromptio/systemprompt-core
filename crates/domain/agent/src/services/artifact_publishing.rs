@@ -82,15 +82,15 @@ impl ArtifactPublishingService {
     async fn validate_execution_id(&self, artifact: &Artifact) -> Artifact {
         let mut validated = artifact.clone();
 
-        if let Some(exec_id) = &validated.metadata.mcp_execution_id {
-            if !self.execution_id_exists(exec_id).await {
-                tracing::warn!(
-                    mcp_execution_id = %exec_id,
-                    artifact_id = %artifact.id,
-                    "mcp_execution_id not found in mcp_tool_executions, setting to NULL"
-                );
-                validated.metadata.mcp_execution_id = None;
-            }
+        if let Some(exec_id) = &validated.metadata.mcp_execution_id
+            && !self.execution_id_exists(exec_id).await
+        {
+            tracing::warn!(
+                mcp_execution_id = %exec_id,
+                artifact_id = %artifact.id,
+                "mcp_execution_id not found in mcp_tool_executions, setting to NULL"
+            );
+            validated.metadata.mcp_execution_id = None;
         }
 
         validated
@@ -99,16 +99,16 @@ impl ArtifactPublishingService {
     async fn enrich_artifact_with_skill(&self, artifact: &Artifact) -> Artifact {
         let mut enriched = artifact.clone();
 
-        if let Some(skill_id) = &enriched.metadata.skill_id {
-            if enriched.metadata.skill_name.is_none() {
-                match self.skill_service.load_skill_metadata(skill_id).await {
-                    Ok(meta) => enriched.metadata.skill_name = Some(meta.name),
-                    Err(e) => tracing::debug!(
-                        skill_id = %skill_id,
-                        error = %e,
-                        "skill metadata not available; leaving skill_name empty"
-                    ),
-                }
+        if let Some(skill_id) = &enriched.metadata.skill_id
+            && enriched.metadata.skill_name.is_none()
+        {
+            match self.skill_service.load_skill_metadata(skill_id).await {
+                Ok(meta) => enriched.metadata.skill_name = Some(meta.name),
+                Err(e) => tracing::debug!(
+                    skill_id = %skill_id,
+                    error = %e,
+                    "skill metadata not available; leaving skill_name empty"
+                ),
             }
         }
 

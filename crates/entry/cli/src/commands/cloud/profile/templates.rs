@@ -136,12 +136,12 @@ pub fn save_secrets(
         );
     }
 
-    if let Some(internal) = db_urls.internal {
-        if Profile::is_masked_database_url(internal) {
-            CliService::warning(
-                "Internal database URL appears to be masked. Credentials may not work correctly.",
-            );
-        }
+    if let Some(internal) = db_urls.internal
+        && Profile::is_masked_database_url(internal)
+    {
+        CliService::warning(
+            "Internal database URL appears to be masked. Credentials may not work correctly.",
+        );
     }
 
     if let Some(parent) = secrets_path.parent() {

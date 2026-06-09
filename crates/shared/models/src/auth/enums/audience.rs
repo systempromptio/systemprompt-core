@@ -23,7 +23,7 @@ pub enum JwtAudience {
 impl JwtAudience {
     pub const FIRST_PARTY: &'static [Self] = &[Self::Web, Self::Api, Self::A2a, Self::Mcp];
 
-    pub fn as_str(&self) -> &str {
+    pub const fn as_str(&self) -> &str {
         match self {
             Self::Web => "web",
             Self::Api => "api",

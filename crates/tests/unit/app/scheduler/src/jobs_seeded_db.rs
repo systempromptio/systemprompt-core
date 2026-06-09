@@ -57,7 +57,11 @@ fn unique_ip(class_b: &str) -> String {
     // so parallel test processes never alias onto one address and race on the
     // shared `banned_ips` table.
     let pid = std::process::id();
-    format!("{class_b}.{}.{}", ((pid >> 8) & 0xff) as u8, (pid & 0xff) as u8)
+    format!(
+        "{class_b}.{}.{}",
+        ((pid >> 8) & 0xff) as u8,
+        (pid & 0xff) as u8
+    )
 }
 
 mod behavioral_analysis_seeded {
@@ -66,9 +70,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_flags_high_request_count_fingerprint() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_hireq");
 
@@ -114,9 +116,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_counts_flagged_as_processed() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_counted");
 
@@ -162,9 +162,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_flags_sustained_velocity_fingerprint() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_velocity");
 
@@ -193,7 +191,10 @@ mod behavioral_analysis_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must succeed with a velocity-flagged fingerprint");
+        assert!(
+            result.success,
+            "job must succeed with a velocity-flagged fingerprint"
+        );
 
         sqlx::query!(
             "DELETE FROM fingerprint_reputation WHERE fingerprint_hash = $1",
@@ -207,9 +208,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_flags_excessive_sessions_fingerprint() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_sessions");
 
@@ -238,7 +237,10 @@ mod behavioral_analysis_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must succeed with an excessive-sessions fingerprint");
+        assert!(
+            result.success,
+            "job must succeed with an excessive-sessions fingerprint"
+        );
 
         sqlx::query!(
             "DELETE FROM fingerprint_reputation WHERE fingerprint_hash = $1",
@@ -252,9 +254,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_triggers_ban_path_for_abuse_threshold_crossed() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_ban");
         let ip = unique_ip("10.0");
@@ -286,7 +286,10 @@ mod behavioral_analysis_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must report success even when banning IPs");
+        assert!(
+            result.success,
+            "job must report success even when banning IPs"
+        );
 
         sqlx::query!(
             "DELETE FROM fingerprint_reputation WHERE fingerprint_hash = $1",
@@ -305,9 +308,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_handles_reputation_decay_below_threshold() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_decay");
 
@@ -351,9 +352,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_skips_ban_when_no_ip_address() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let hash = unique_id("fp_noip");
 
@@ -400,9 +399,7 @@ mod behavioral_analysis_seeded {
     #[tokio::test]
     async fn execute_multiple_fingerprints_all_branches() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let fp_high_req = unique_id("fp_multi_req");
         let fp_velocity = unique_id("fp_multi_vel");
@@ -434,7 +431,10 @@ mod behavioral_analysis_seeded {
             .await
             .expect("execute must not error with multiple fingerprints");
 
-        assert!(result.success, "job must succeed with multiple seeded fingerprints");
+        assert!(
+            result.success,
+            "job must succeed with multiple seeded fingerprints"
+        );
         assert!(
             result.items_processed.unwrap_or(0) >= 2,
             "at least the two threshold-crossing fingerprints must be counted"
@@ -486,9 +486,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_bans_high_volume_ip() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("192.168");
         let mut session_ids = Vec::new();
@@ -505,7 +503,10 @@ mod malicious_ip_blacklist_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must report success after banning a high-volume IP");
+        assert!(
+            result.success,
+            "job must report success after banning a high-volume IP"
+        );
 
         assert!(
             result.items_processed.unwrap_or(0) >= 1,
@@ -527,9 +528,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_bans_scanner_ip() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("172.16");
         let mut session_ids = Vec::new();
@@ -546,7 +545,10 @@ mod malicious_ip_blacklist_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must report success after banning a scanner IP");
+        assert!(
+            result.success,
+            "job must report success after banning a scanner IP"
+        );
 
         for sid in &session_ids {
             sqlx::query!("DELETE FROM user_sessions WHERE session_id = $1", sid)
@@ -563,9 +565,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_bans_datacenter_ip() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("47.79");
         let sid = unique_id("datacenter_sess");
@@ -578,7 +578,10 @@ mod malicious_ip_blacklist_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must succeed after processing datacenter IP");
+        assert!(
+            result.success,
+            "job must succeed after processing datacenter IP"
+        );
 
         sqlx::query!("DELETE FROM user_sessions WHERE session_id = $1", sid)
             .execute(&*pg)
@@ -593,9 +596,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_bans_high_risk_country_ip() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("10.20");
         let mut session_ids = Vec::new();
@@ -612,7 +613,10 @@ mod malicious_ip_blacklist_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must succeed after processing high-risk country IP");
+        assert!(
+            result.success,
+            "job must succeed after processing high-risk country IP"
+        );
 
         for sid in &session_ids {
             sqlx::query!("DELETE FROM user_sessions WHERE session_id = $1", sid)
@@ -629,9 +633,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_skips_already_banned_ip() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("192.0");
 
@@ -680,9 +682,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_handles_non_high_risk_country_not_banned() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let ip = unique_ip("10.30");
         let mut session_ids = Vec::new();
@@ -699,7 +699,10 @@ mod malicious_ip_blacklist_seeded {
             .await
             .expect("execute must not error");
 
-        assert!(result.success, "job must succeed when country is not in high-risk list");
+        assert!(
+            result.success,
+            "job must succeed when country is not in high-risk list"
+        );
 
         for sid in &session_ids {
             sqlx::query!("DELETE FROM user_sessions WHERE session_id = $1", sid)
@@ -716,9 +719,7 @@ mod malicious_ip_blacklist_seeded {
     #[tokio::test]
     async fn execute_processes_sessions_without_ip_gracefully() {
         let (pool, url) = pool_or_skip!();
-        let pg = pool
-            .write_pool_arc()
-            .expect("write pool must be available");
+        let pg = pool.write_pool_arc().expect("write pool must be available");
 
         let mut session_ids = Vec::new();
         for i in 0u64..5 {

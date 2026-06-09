@@ -56,10 +56,10 @@ pub(in crate::commands::cloud) fn load_secrets_json(
 
     if let Some(obj) = json.as_object() {
         for (key, value) in obj {
-            if let Some(s) = value.as_str() {
-                if !s.is_empty() {
-                    secrets.insert(key.clone(), s.to_owned());
-                }
+            if let Some(s) = value.as_str()
+                && !s.is_empty()
+            {
+                secrets.insert(key.clone(), s.to_owned());
             }
         }
     }

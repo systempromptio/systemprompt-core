@@ -30,18 +30,18 @@ fn render_terminal(result: &CommandOutput) {
 
     match result.artifact() {
         CliArtifact::Text { artifact } => {
-            if result.title().is_none() {
-                if let Some(title) = &artifact.title {
-                    CliService::section(title);
-                }
+            if result.title().is_none()
+                && let Some(title) = &artifact.title
+            {
+                CliService::section(title);
             }
             CliService::output(&artifact.content);
         },
         CliArtifact::CopyPasteText { artifact } => {
-            if result.title().is_none() {
-                if let Some(title) = &artifact.title {
-                    CliService::section(title);
-                }
+            if result.title().is_none()
+                && let Some(title) = &artifact.title
+            {
+                CliService::section(title);
             }
             CliService::output(&artifact.content);
         },

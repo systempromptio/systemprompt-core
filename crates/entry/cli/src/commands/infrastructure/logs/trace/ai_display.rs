@@ -109,13 +109,12 @@ pub(super) fn print_task_info(task_info: &TaskInfo) {
     let table = Table::new(rows).with(Style::rounded()).to_string();
     CliService::info(&table);
 
-    if task_info.status == "failed" {
-        if let Some(ref error) = task_info.error_message {
-            if !error.is_empty() {
-                CliService::error("Error:");
-                print_content_block(error);
-            }
-        }
+    if task_info.status == "failed"
+        && let Some(ref error) = task_info.error_message
+        && !error.is_empty()
+    {
+        CliService::error("Error:");
+        print_content_block(error);
     }
 }
 
@@ -157,14 +156,13 @@ pub(super) fn print_execution_steps(steps: &[ExecutionStep]) {
     CliService::info(&table);
 
     for step in steps {
-        if step.status == "failed" {
-            if let Some(ref error) = step.error_message {
-                if !error.is_empty() {
-                    let step_type = step.step_type.clone().unwrap_or_else(|| "step".to_owned());
-                    CliService::error(&format!("  {step_type} failed:"));
-                    print_content_block(error);
-                }
-            }
+        if step.status == "failed"
+            && let Some(ref error) = step.error_message
+            && !error.is_empty()
+        {
+            let step_type = step.step_type.clone().unwrap_or_else(|| "step".to_owned());
+            CliService::error(&format!("  {step_type} failed:"));
+            print_content_block(error);
         }
     }
 }

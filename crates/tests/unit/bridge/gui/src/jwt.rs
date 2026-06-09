@@ -1,7 +1,8 @@
 use systemprompt_bridge::gui::state::{VerifiedIdentity, decode_jwt_identity_unverified};
 
 // Hand-built unsigned JWT. The payload segment is the URL_SAFE_NO_PAD base64
-// of {"email":"a@b.com","sub":"user_1","tenant_id":"tenant_1","exp":1893456000}.
+// of {"email":"a@b.com","sub":"user_1","tenant_id":"tenant_1","exp":
+// 1893456000}.
 const VALID_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJlbWFpbCI6ImFAYi5jb20iLCJzdWIiOiJ1c2VyXzEiLCJ0ZW5hbnRfaWQiOiJ0ZW5hbnRfMSIsImV4cCI6MTg5MzQ1NjAwMH0.sig";
 
 // Payload segment is base64url of `{}` (all claims absent).

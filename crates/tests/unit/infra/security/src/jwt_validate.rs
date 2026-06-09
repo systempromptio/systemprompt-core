@@ -1,9 +1,9 @@
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, TokenType, UserType};
+use systemprompt_security::AuthError;
 use systemprompt_security::jwt::{JWT_LEEWAY_SECONDS, ValidationPolicy, decode_rs256_claims};
 use systemprompt_security::keys::authority;
-use systemprompt_security::AuthError;
 use systemprompt_test_fixtures::install_test_signing_key;
 
 fn make_claims(issuer: &str, aud: Vec<JwtAudience>) -> JwtClaims {
@@ -44,8 +44,7 @@ fn mint_active_kid(claims: &JwtClaims) -> String {
 #[test]
 fn session_context_accepts_first_party_audience() {
     let token = mint_active_kid(&make_claims("test", JwtAudience::standard()));
-    let claims =
-        decode_rs256_claims(&token, &ValidationPolicy::session_context()).expect("decode");
+    let claims = decode_rs256_claims(&token, &ValidationPolicy::session_context()).expect("decode");
     assert_eq!(claims.sub, "u1");
 }
 
@@ -86,9 +85,8 @@ fn session_context_accepts_mixed_bridge_and_mcp_audience() {
 fn issuer_scoped_rejects_wrong_audience() {
     let token = mint_active_kid(&make_claims("my.issuer", vec![JwtAudience::Web]));
     let auds = [JwtAudience::Mcp];
-    let err =
-        decode_rs256_claims(&token, &ValidationPolicy::issuer_scoped("my.issuer", &auds))
-            .unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::issuer_scoped("my.issuer", &auds))
+        .unwrap_err();
     assert!(
         matches!(err, AuthError::InvalidToken(_)),
         "expected InvalidToken for non-intersecting aud, got {err:?}"
@@ -99,9 +97,8 @@ fn issuer_scoped_rejects_wrong_audience() {
 fn issuer_scoped_rejects_wrong_issuer() {
     let token = mint_active_kid(&make_claims("other.issuer", JwtAudience::standard()));
     let auds = [JwtAudience::Web];
-    let err =
-        decode_rs256_claims(&token, &ValidationPolicy::issuer_scoped("my.issuer", &auds))
-            .unwrap_err();
+    let err = decode_rs256_claims(&token, &ValidationPolicy::issuer_scoped("my.issuer", &auds))
+        .unwrap_err();
     assert!(
         matches!(err, AuthError::InvalidToken(_)),
         "expected InvalidToken for wrong issuer, got {err:?}"

@@ -54,12 +54,12 @@ impl TextStreamState {
         &self,
         message_id: &MessageId,
     ) {
-        if self.message_started {
-            if let Some(ref webhook_context) = self.webhook_context {
-                let end_event = AgUiEventBuilder::text_message_end(message_id.as_str());
-                if let Err(e) = webhook_context.broadcast_agui(end_event).await {
-                    tracing::error!(error = %e, "Failed to broadcast TEXT_MESSAGE_END");
-                }
+        if self.message_started
+            && let Some(ref webhook_context) = self.webhook_context
+        {
+            let end_event = AgUiEventBuilder::text_message_end(message_id.as_str());
+            if let Err(e) = webhook_context.broadcast_agui(end_event).await {
+                tracing::error!(error = %e, "Failed to broadcast TEXT_MESSAGE_END");
             }
         }
     }

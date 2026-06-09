@@ -185,10 +185,8 @@ async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
 
     let env_profile_set = std::env::var("SYSTEMPROMPT_PROFILE").is_ok();
 
-    if !env_profile_set {
-        if let Some(ctx) = try_session_from_active_key(config).await? {
-            return Ok(ctx);
-        }
+    if !env_profile_set && let Some(ctx) = try_session_from_active_key(config).await? {
+        return Ok(ctx);
     }
 
     let profile = ProfileBootstrap::get()

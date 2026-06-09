@@ -20,6 +20,10 @@ mod job_config;
 #[cfg(test)]
 mod jobs;
 #[cfg(test)]
+mod jobs_db;
+#[cfg(test)]
+mod jobs_seeded_db;
+#[cfg(test)]
 mod models;
 #[cfg(test)]
 mod orchestration;
@@ -27,8 +31,6 @@ mod orchestration;
 mod posix_backend;
 #[cfg(test)]
 mod process_cleanup;
-#[cfg(test)]
-mod jobs_db;
 #[cfg(test)]
 mod reconciler_db;
 #[cfg(test)]
@@ -39,8 +41,6 @@ mod service_config_manifest;
 mod service_management_db;
 #[cfg(test)]
 mod state_transitions;
-#[cfg(test)]
-mod jobs_seeded_db;
 #[cfg(test)]
 mod state_verifier_seeded_db;
 #[cfg(test)]

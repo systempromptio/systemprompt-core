@@ -119,10 +119,10 @@ pub fn is_outdated_browser(user_agent: &str) -> bool {
 
     if let Some(pos) = ua_lower.find("chrome/") {
         let version_str = &ua_lower[pos + 7..];
-        if let Some(dot_pos) = version_str.find('.') {
-            if let Ok(major) = version_str[..dot_pos].parse::<i32>() {
-                return major < CHROME_MIN_VERSION;
-            }
+        if let Some(dot_pos) = version_str.find('.')
+            && let Ok(major) = version_str[..dot_pos].parse::<i32>()
+        {
+            return major < CHROME_MIN_VERSION;
         }
     }
 

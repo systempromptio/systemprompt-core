@@ -13,10 +13,10 @@ impl Environment {
             return Self::from_string(&env);
         }
 
-        if let Ok(env) = std::env::var("RAILWAY_ENVIRONMENT") {
-            if env == "production" {
-                return Self::Production;
-            }
+        if let Ok(env) = std::env::var("RAILWAY_ENVIRONMENT")
+            && env == "production"
+        {
+            return Self::Production;
         }
 
         if let Ok(env) = std::env::var("NODE_ENV") {

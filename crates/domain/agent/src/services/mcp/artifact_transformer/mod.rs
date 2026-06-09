@@ -49,13 +49,13 @@ pub fn parse_tool_response(
         .into());
     }
 
-    if let Some(obj) = structured_content.as_object() {
-        if obj.is_empty() {
-            return Err(RowParseError::MissingField {
-                field: "structured_content (received empty object {})".to_owned(),
-            }
-            .into());
+    if let Some(obj) = structured_content.as_object()
+        && obj.is_empty()
+    {
+        return Err(RowParseError::MissingField {
+            field: "structured_content (received empty object {})".to_owned(),
         }
+        .into());
     }
 
     serde_json::from_value(structured_content.clone()).map_err(|e| {

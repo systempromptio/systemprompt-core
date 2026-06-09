@@ -37,11 +37,11 @@ impl ReconciliationResult {
         }
     }
 
-    pub fn is_success(&self) -> bool {
+    pub const fn is_success(&self) -> bool {
         self.failed.is_empty()
     }
 
-    pub fn total_actions(&self) -> usize {
+    pub const fn total_actions(&self) -> usize {
         self.started.len() + self.stopped.len() + self.restarted.len() + self.cleaned_up.len()
     }
 }

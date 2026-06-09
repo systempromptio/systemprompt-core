@@ -52,7 +52,7 @@ impl MarketplaceCandidate {
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.plugins.is_empty()
             && self.skills.is_empty()
             && self.agents.is_empty()

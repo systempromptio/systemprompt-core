@@ -12,11 +12,11 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
 pub(super) fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
-    if let Ok(metadata) = fs::metadata(log_path) {
-        if metadata.len() > MAX_LOG_SIZE {
-            let backup_path = log_path.with_extension("log.old");
-            fs::rename(log_path, &backup_path)?;
-        }
+    if let Ok(metadata) = fs::metadata(log_path)
+        && metadata.len() > MAX_LOG_SIZE
+    {
+        let backup_path = log_path.with_extension("log.old");
+        fs::rename(log_path, &backup_path)?;
     }
     Ok(())
 }

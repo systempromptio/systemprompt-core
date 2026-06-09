@@ -130,5 +130,8 @@ fn agent_session_user_from_jwt_claims_maps_fields() {
     assert_eq!(user.id.as_str(), "sub-1");
     assert_eq!(user.username, "bob");
     assert_eq!(user.user_type, "admin");
-    assert_eq!(user.permissions, vec!["admin".to_string(), "user".to_string()]);
+    assert_eq!(
+        user.permissions,
+        vec!["admin".to_string(), "user".to_string()]
+    );
 }

@@ -180,20 +180,20 @@ impl StreamableHttpClient for HttpClientWithContext {
             .send()
             .await
             .map_err(StreamableHttpError::Client)?;
-        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            if let Some(header) = response.headers().get(WWW_AUTHENTICATE) {
-                let header = header
-                    .to_str()
-                    .map_err(|_e| {
-                        StreamableHttpError::UnexpectedServerResponse(std::borrow::Cow::from(
-                            "invalid www-authenticate header value",
-                        ))
-                    })?
-                    .to_owned();
-                return Err(StreamableHttpError::UnexpectedServerResponse(
-                    std::borrow::Cow::from(format!("auth required: {header}")),
-                ));
-            }
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED
+            && let Some(header) = response.headers().get(WWW_AUTHENTICATE)
+        {
+            let header = header
+                .to_str()
+                .map_err(|_e| {
+                    StreamableHttpError::UnexpectedServerResponse(std::borrow::Cow::from(
+                        "invalid www-authenticate header value",
+                    ))
+                })?
+                .to_owned();
+            return Err(StreamableHttpError::UnexpectedServerResponse(
+                std::borrow::Cow::from(format!("auth required: {header}")),
+            ));
         }
         let response = response
             .error_for_status()

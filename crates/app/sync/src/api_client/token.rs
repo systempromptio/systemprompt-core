@@ -34,10 +34,8 @@ impl SyncApiClient {
         };
 
         let mut cached = self.cached_sync_token.lock().await;
-        if !force_refresh {
-            if let Some(token) = cached.as_ref() {
-                return Ok(token.clone());
-            }
+        if !force_refresh && let Some(token) = cached.as_ref() {
+            return Ok(token.clone());
         }
 
         let token = exchange_subject_token_at(&self.client, origin, &self.token).await?;

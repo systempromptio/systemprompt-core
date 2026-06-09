@@ -14,7 +14,7 @@ pub fn truncate_with_ellipsis(text: &str, max_len: usize) -> String {
     format!("{}...", &text[..boundary])
 }
 
-fn find_char_boundary(s: &str, target: usize) -> usize {
+const fn find_char_boundary(s: &str, target: usize) -> usize {
     if target >= s.len() {
         return s.len();
     }

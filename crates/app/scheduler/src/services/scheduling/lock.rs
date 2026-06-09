@@ -31,17 +31,16 @@ pub(super) struct JobLockGuard {
 
 impl JobLockGuard {
     pub(super) async fn release(mut self) {
-        if let Some(mut conn) = self.conn.take() {
-            if let Err(e) = sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", self.key)
+        if let Some(mut conn) = self.conn.take()
+            && let Err(e) = sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", self.key)
                 .fetch_one(conn.as_mut())
                 .await
-            {
-                warn!(
-                    job_name = %self.job_name,
-                    error = %e,
-                    "Failed to release job advisory lock; connection recycle will clear it"
-                );
-            }
+        {
+            warn!(
+                job_name = %self.job_name,
+                error = %e,
+                "Failed to release job advisory lock; connection recycle will clear it"
+            );
         }
     }
 }

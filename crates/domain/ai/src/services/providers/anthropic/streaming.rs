@@ -75,10 +75,10 @@ impl SseState {
                     continue;
                 };
                 self.capture_message_id(&value);
-                if let Some(event) = anthropic::event_from_sse(&value, &self.message_id) {
-                    if let Some(chunk) = canonical_bridge::event_to_chunk(event) {
-                        chunks.push(Ok(chunk));
-                    }
+                if let Some(event) = anthropic::event_from_sse(&value, &self.message_id)
+                    && let Some(chunk) = canonical_bridge::event_to_chunk(event)
+                {
+                    chunks.push(Ok(chunk));
                 }
             }
         }
@@ -86,14 +86,13 @@ impl SseState {
     }
 
     fn capture_message_id(&mut self, value: &Value) {
-        if value.get("type").and_then(Value::as_str) == Some("message_start") {
-            if let Some(id) = value
+        if value.get("type").and_then(Value::as_str) == Some("message_start")
+            && let Some(id) = value
                 .get("message")
                 .and_then(|m| m.get("id"))
                 .and_then(Value::as_str)
-            {
-                id.clone_into(&mut self.message_id);
-            }
+        {
+            id.clone_into(&mut self.message_id);
         }
     }
 }

@@ -55,10 +55,7 @@ name = "second"
         server.get("token").and_then(toml::Value::as_str),
         Some("***REDACTED***"),
     );
-    assert_eq!(
-        server.get("host").and_then(toml::Value::as_str),
-        Some("h"),
-    );
+    assert_eq!(server.get("host").and_then(toml::Value::as_str), Some("h"),);
 
     let items = value
         .get("items")

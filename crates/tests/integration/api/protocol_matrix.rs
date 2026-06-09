@@ -123,7 +123,8 @@ fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
 #[test]
 fn openai_responses_outbound_request_builder_uses_responses_shape() {
     let req = fixture_request("gpt-5", false);
-    let body = outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream", None);
+    let body =
+        outbound_openai_responses::test_api::build_request_body(&req, "gpt-5-upstream", None);
     assert_eq!(body["model"], "gpt-5-upstream");
     assert!(body.get("input").is_some() || body.get("messages").is_some());
 }

@@ -184,10 +184,10 @@ fn collect_output_item(
                         });
                     }
                 }
-                if matches!(part.kind.as_str(), "output_text" | "text") {
-                    if let Some(text) = part.text {
-                        content.push(CanonicalContent::Text(text));
-                    }
+                if matches!(part.kind.as_str(), "output_text" | "text")
+                    && let Some(text) = part.text
+                {
+                    content.push(CanonicalContent::Text(text));
                 }
             }
         },

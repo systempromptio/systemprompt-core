@@ -32,10 +32,10 @@ pub async fn inject_security_headers(
         headers.insert("permissions-policy", value);
     }
 
-    if let Some(ref csp) = config.content_security_policy {
-        if let Ok(value) = HeaderValue::from_str(csp) {
-            headers.insert("content-security-policy", value);
-        }
+    if let Some(ref csp) = config.content_security_policy
+        && let Ok(value) = HeaderValue::from_str(csp)
+    {
+        headers.insert("content-security-policy", value);
     }
 
     response

@@ -11,10 +11,10 @@ impl JsonParser {
             return Ok(json);
         }
 
-        if let Some(pattern) = custom_pattern {
-            if let Some(json) = Self::extract_with_pattern(content, pattern)? {
-                return Ok(json);
-            }
+        if let Some(pattern) = custom_pattern
+            && let Some(json) = Self::extract_with_pattern(content, pattern)?
+        {
+            return Ok(json);
         }
 
         let patterns = vec![

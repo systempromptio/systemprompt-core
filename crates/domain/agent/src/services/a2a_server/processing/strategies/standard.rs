@@ -37,14 +37,13 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         let tracking = ExecutionTrackingService::new(Arc::clone(&context.execution_step_repo));
         let task_id = TaskId::new(context.task_id.as_str());
 
-        if let Ok(step) = tracking.track_understanding(task_id.clone()).await {
-            if context
+        if let Ok(step) = tracking.track_understanding(task_id.clone()).await
+            && context
                 .tx
                 .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
-            {
-                tracing::debug!("Stream receiver dropped during execution");
-            }
+        {
+            tracing::debug!("Stream receiver dropped during execution");
         }
 
         let (accumulated_text, tool_calls, tool_results) = process_without_tools(
@@ -61,14 +60,13 @@ impl ExecutionStrategy for StandardExecutionStrategy {
             )
         })?;
 
-        if let Ok(step) = tracking.track_completion(task_id).await {
-            if context
+        if let Ok(step) = tracking.track_completion(task_id).await
+            && context
                 .tx
                 .try_send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
-            {
-                tracing::debug!("Stream receiver dropped during completion");
-            }
+        {
+            tracing::debug!("Stream receiver dropped during completion");
         }
 
         Ok(ExecutionResult {

@@ -101,14 +101,14 @@ pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResol
 }
 
 fn expand_path(path_str: &str) -> PathBuf {
-    if path_str.starts_with('~') {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(
-                path_str
-                    .strip_prefix("~/")
-                    .unwrap_or_else(|| &path_str[1..]),
-            );
-        }
+    if path_str.starts_with('~')
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(
+            path_str
+                .strip_prefix("~/")
+                .unwrap_or_else(|| &path_str[1..]),
+        );
     }
     PathBuf::from(path_str)
 }
@@ -139,14 +139,12 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
 
     {
         let paths = crate::paths::ResolvedPaths::discover().sessions_dir();
-        if let Ok(store) = systemprompt_cloud::SessionStore::load_or_create(&paths) {
-            if let Some(session) = store.find_by_profile_name(name) {
-                if let Some(ref profile_path) = session.profile_path {
-                    if profile_path.exists() {
-                        return Ok(Some(profile_path.clone()));
-                    }
-                }
-            }
+        if let Ok(store) = systemprompt_cloud::SessionStore::load_or_create(&paths)
+            && let Some(session) = store.find_by_profile_name(name)
+            && let Some(ref profile_path) = session.profile_path
+            && profile_path.exists()
+        {
+            return Ok(Some(profile_path.clone()));
         }
     }
 

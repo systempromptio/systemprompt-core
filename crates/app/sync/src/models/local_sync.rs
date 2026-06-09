@@ -64,7 +64,7 @@ impl Default for ContentDiffResult {
 }
 
 impl ContentDiffResult {
-    pub fn has_changes(&self) -> bool {
+    pub const fn has_changes(&self) -> bool {
         !self.added.is_empty() || !self.removed.is_empty() || !self.modified.is_empty()
     }
 }

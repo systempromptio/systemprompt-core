@@ -203,10 +203,10 @@ impl ResponseHandler {
 
         for (key, value) in &response_headers {
             let key_str = key.as_str();
-            if let Ok(value_str) = value.to_str() {
-                if Self::should_preserve_header(key_str) {
-                    axum_response = axum_response.header(key_str, value_str);
-                }
+            if let Ok(value_str) = value.to_str()
+                && Self::should_preserve_header(key_str)
+            {
+                axum_response = axum_response.header(key_str, value_str);
             }
         }
 

@@ -15,17 +15,16 @@ use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAut
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_models::AiMessage;
 use systemprompt_models::ai::provider_trait::GenerateResponseParams;
 use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
 use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, GoogleSearchParams, McpTool, PlanningResult,
-    SearchGroundedResponse, StreamChunk,
+    SearchGroundedResponse, StreamChunk, ToolModelOverrides,
 };
-use systemprompt_models::ai::ToolModelOverrides;
 use systemprompt_models::errors::ProviderResult;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::services::PluginComponentRef;
-use systemprompt_models::AiMessage;
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
@@ -269,9 +268,7 @@ pub(crate) fn make_handler_state(
 }
 
 pub(crate) fn agent_config(name: &str) -> systemprompt_models::AgentConfig {
-    use systemprompt_models::{
-        AgentCardConfig, AgentMetadataConfig, CapabilitiesConfig,
-    };
+    use systemprompt_models::{AgentCardConfig, AgentMetadataConfig, CapabilitiesConfig};
     systemprompt_models::AgentConfig {
         name: name.to_owned(),
         port: 9100,

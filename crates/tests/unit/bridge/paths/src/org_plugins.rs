@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
-#[cfg(target_os = "macos")]
-use systemprompt_bridge::config::paths::{Scope, org_plugins_effective};
 #[cfg(not(target_os = "windows"))]
 use systemprompt_bridge::config::paths::legacy_org_plugins_roots;
 use systemprompt_bridge::config::paths::{
     LEGACY_ORG_PLUGINS_METADATA, all_known_org_plugins_roots, org_plugins_system, org_plugins_user,
 };
+#[cfg(target_os = "macos")]
+use systemprompt_bridge::config::paths::{Scope, org_plugins_effective};
 
 #[test]
 fn all_known_roots_include_the_system_root() {

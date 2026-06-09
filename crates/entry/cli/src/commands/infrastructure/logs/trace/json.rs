@@ -40,10 +40,10 @@ pub(super) fn print_json(
                     Value::String(context_id.to_string()),
                 );
             }
-            if let Some(ref metadata) = e.metadata {
-                if let Ok(parsed) = serde_json::from_str::<Value>(metadata) {
-                    obj.insert("metadata".to_owned(), parsed);
-                }
+            if let Some(ref metadata) = e.metadata
+                && let Ok(parsed) = serde_json::from_str::<Value>(metadata)
+            {
+                obj.insert("metadata".to_owned(), parsed);
             }
 
             Value::Object(obj)

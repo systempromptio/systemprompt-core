@@ -13,7 +13,10 @@ fn new_sets_all_fields_with_no_detail() {
     assert_eq!(value["scope"], json!("gateway"));
     assert_eq!(value["code"], json!("unreachable"));
     assert_eq!(value["message"], json!("boom"));
-    assert!(value.get("detail").is_none(), "detail must be skipped when None");
+    assert!(
+        value.get("detail").is_none(),
+        "detail must be skipped when None"
+    );
 }
 
 #[test]
@@ -59,8 +62,14 @@ fn reply_script_contains_id_and_payload_json() {
     let script = reply_script(7, &payload);
 
     let body = serde_json::to_string(&payload).expect("serialize payload");
-    assert!(script.contains("reply(7, "), "script should embed the request id: {script}");
-    assert!(script.contains(&body), "script should embed the payload JSON: {script}");
+    assert!(
+        script.contains("reply(7, "),
+        "script should embed the request id: {script}"
+    );
+    assert!(
+        script.contains(&body),
+        "script should embed the payload JSON: {script}"
+    );
 }
 
 #[test]
@@ -83,5 +92,8 @@ fn emit_script_contains_channel_and_payload() {
         "script should embed the JSON-encoded channel: {script}"
     );
     let body = serde_json::to_string(&payload).expect("serialize payload");
-    assert!(script.contains(&body), "script should embed the payload JSON: {script}");
+    assert!(
+        script.contains(&body),
+        "script should embed the payload JSON: {script}"
+    );
 }

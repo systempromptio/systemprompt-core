@@ -42,10 +42,10 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
     let mut servers = Vec::new();
 
     for (name, deployment) in &services_config.mcp_servers {
-        if let Some(ref filter) = args.server {
-            if name != filter {
-                continue;
-            }
+        if let Some(ref filter) = args.server
+            && name != filter
+        {
+            continue;
         }
 
         let running_info = running_servers.iter().find(|s| &s.name == name);

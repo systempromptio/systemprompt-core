@@ -9,17 +9,14 @@
 
 use std::sync::Arc;
 
-use rmcp::ServerHandler;
 use rmcp::model::{
     CallToolRequestParams, CallToolResult, Content, Implementation, ListToolsResult,
     PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
 };
 use rmcp::service::RequestContext;
-use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService,
-};
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
-use rmcp::{ErrorData as McpError, RoleServer};
+use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
+use rmcp::{ErrorData as McpError, RoleServer, ServerHandler};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 

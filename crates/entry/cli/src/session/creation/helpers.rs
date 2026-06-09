@@ -189,10 +189,10 @@ pub(super) async fn resolve_admin_with_fallback(
             if let Err(init_err) = CredentialsBootstrap::try_init().await {
                 tracing::debug!(error = %init_err, "Credentials init failed during fallback");
             }
-            if let Ok(creds) = CredentialsBootstrap::require() {
-                if creds.user_email != user_email {
-                    return get_or_create_admin(db_pool, &creds.user_email, context_type).await;
-                }
+            if let Ok(creds) = CredentialsBootstrap::require()
+                && creds.user_email != user_email
+            {
+                return get_or_create_admin(db_pool, &creds.user_email, context_type).await;
             }
             Err(e)
         },

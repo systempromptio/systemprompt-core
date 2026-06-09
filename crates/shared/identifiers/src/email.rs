@@ -75,13 +75,13 @@ impl Email {
                 "domain cannot contain consecutive dots",
             ));
         }
-        if let Some(tld) = domain.rsplit('.').next() {
-            if tld.len() < 2 {
-                return Err(IdValidationError::invalid(
-                    "Email",
-                    "TLD must be at least 2 characters",
-                ));
-            }
+        if let Some(tld) = domain.rsplit('.').next()
+            && tld.len() < 2
+        {
+            return Err(IdValidationError::invalid(
+                "Email",
+                "TLD must be at least 2 characters",
+            ));
         }
         Ok(Self(value))
     }

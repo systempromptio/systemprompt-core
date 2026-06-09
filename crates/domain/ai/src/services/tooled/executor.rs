@@ -154,10 +154,10 @@ fn resolve_model_config(
     tool: &McpTool,
     agent_overrides: &ToolModelOverrides,
 ) -> Option<systemprompt_models::ai::ToolModelConfig> {
-    if let Some(server_overrides) = agent_overrides.get(tool.service_id.as_str()) {
-        if let Some(tool_override) = server_overrides.get(&tool.name) {
-            return Some(tool_override.clone());
-        }
+    if let Some(server_overrides) = agent_overrides.get(tool.service_id.as_str())
+        && let Some(tool_override) = server_overrides.get(&tool.name)
+    {
+        return Some(tool_override.clone());
     }
     tool.model_config.clone()
 }

@@ -100,10 +100,10 @@ where
 }
 
 fn is_retryable(err: &sqlx::Error) -> bool {
-    if let sqlx::Error::Io(io_err) = err {
-        if io_err.kind() == std::io::ErrorKind::ConnectionRefused {
-            return true;
-        }
+    if let sqlx::Error::Io(io_err) = err
+        && io_err.kind() == std::io::ErrorKind::ConnectionRefused
+    {
+        return true;
     }
     let msg = err.to_string();
     msg.contains("unexpected response from SSLRequest") || msg.contains("starting up")

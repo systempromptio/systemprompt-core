@@ -74,16 +74,15 @@ pub(super) async fn execute(
 
     let result = run_startup(&target, &options, config, &tx).await;
 
-    if let Err(e) = &result {
-        if tx
+    if let Err(e) = &result
+        && tx
             .unbounded_send(StartupEvent::StartupFailed {
                 error: e.to_string(),
                 duration: start_time.elapsed(),
             })
             .is_err()
-        {
-            tracing::debug!("Failed to send startup failed event (receiver dropped)");
-        }
+    {
+        tracing::debug!("Failed to send startup failed event (receiver dropped)");
     }
 
     drop(tx);

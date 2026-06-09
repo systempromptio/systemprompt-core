@@ -147,10 +147,10 @@ impl SchemaSanitizer {
     }
 
     fn convert_const_to_enum(&self, obj: &mut Map<String, Value>) {
-        if !self.capabilities.features.const_values {
-            if let Some(const_val) = obj.remove("const") {
-                obj.insert("enum".to_owned(), json!([const_val]));
-            }
+        if !self.capabilities.features.const_values
+            && let Some(const_val) = obj.remove("const")
+        {
+            obj.insert("enum".to_owned(), json!([const_val]));
         }
     }
 
@@ -162,11 +162,11 @@ impl SchemaSanitizer {
     }
 
     fn sanitize_properties(&self, obj: &mut Map<String, Value>) {
-        if let Some(properties) = obj.get_mut("properties") {
-            if let Some(props_obj) = properties.as_object_mut() {
-                for value in props_obj.values_mut() {
-                    *value = self.sanitize(value.clone());
-                }
+        if let Some(properties) = obj.get_mut("properties")
+            && let Some(props_obj) = properties.as_object_mut()
+        {
+            for value in props_obj.values_mut() {
+                *value = self.sanitize(value.clone());
             }
         }
     }
@@ -179,21 +179,21 @@ impl SchemaSanitizer {
 
     fn sanitize_composition_keywords(&self, obj: &mut Map<String, Value>) {
         for keyword in ["anyOf", "oneOf", "allOf"] {
-            if let Some(arr_val) = obj.get_mut(keyword) {
-                if let Some(arr) = arr_val.as_array_mut() {
-                    for item in arr.iter_mut() {
-                        *item = self.sanitize(item.clone());
-                    }
+            if let Some(arr_val) = obj.get_mut(keyword)
+                && let Some(arr) = arr_val.as_array_mut()
+            {
+                for item in arr.iter_mut() {
+                    *item = self.sanitize(item.clone());
                 }
             }
         }
     }
 
     fn sanitize_additional_properties(&self, obj: &mut Map<String, Value>) {
-        if let Some(additional_props) = obj.get_mut("additionalProperties") {
-            if additional_props.is_object() {
-                *additional_props = self.sanitize(additional_props.clone());
-            }
+        if let Some(additional_props) = obj.get_mut("additionalProperties")
+            && additional_props.is_object()
+        {
+            *additional_props = self.sanitize(additional_props.clone());
         }
     }
 }

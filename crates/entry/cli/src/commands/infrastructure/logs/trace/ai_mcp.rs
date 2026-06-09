@@ -36,11 +36,11 @@ pub(super) async fn print_mcp_executions(
     CliService::info(&table);
 
     for exec in executions {
-        if exec.status == "failed" {
-            if let Some(ref error) = exec.error_message {
-                CliService::error(&format!("  {} failed:", exec.tool_name));
-                print_content_block(error);
-            }
+        if exec.status == "failed"
+            && let Some(ref error) = exec.error_message
+        {
+            CliService::error(&format!("  {} failed:", exec.tool_name));
+            print_content_block(error);
         }
 
         print_tool_io(exec, show_full);
@@ -48,10 +48,9 @@ pub(super) async fn print_mcp_executions(
         if let Ok(linked_requests) = service
             .get_mcp_linked_ai_requests(&exec.mcp_execution_id)
             .await
+            && !linked_requests.is_empty()
         {
-            if !linked_requests.is_empty() {
-                print_mcp_linked_ai_requests(service, &linked_requests, &exec.tool_name).await;
-            }
+            print_mcp_linked_ai_requests(service, &linked_requests, &exec.tool_name).await;
         }
     }
 }
@@ -72,28 +71,28 @@ fn print_tool_io(exec: &McpToolExecution, show_full: bool) {
             }
         }
 
-        if let Some(ref output_str) = exec.output {
-            if !output_str.is_empty() {
-                CliService::info("    result:");
-                if show_full || output_str.len() <= 500 {
-                    print_tool_content(output_str);
-                } else {
-                    print_tool_content(&truncate(output_str, 500));
-                    CliService::info("    [Truncated - use --tool-results for full output]");
-                }
+        if let Some(ref output_str) = exec.output
+            && !output_str.is_empty()
+        {
+            CliService::info("    result:");
+            if show_full || output_str.len() <= 500 {
+                print_tool_content(output_str);
+            } else {
+                print_tool_content(&truncate(output_str, 500));
+                CliService::info("    [Truncated - use --tool-results for full output]");
             }
         }
     }
 }
 
 fn print_tool_content(content: &str) {
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
-        if let Ok(pretty) = serde_json::to_string_pretty(&json) {
-            for line in pretty.lines() {
-                CliService::info(&format!("      {line}"));
-            }
-            return;
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(content)
+        && let Ok(pretty) = serde_json::to_string_pretty(&json)
+    {
+        for line in pretty.lines() {
+            CliService::info(&format!("      {line}"));
         }
+        return;
     }
     for line in content.lines() {
         CliService::info(&format!("      {line}"));

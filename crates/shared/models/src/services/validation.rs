@@ -29,14 +29,14 @@ impl ServicesConfig {
             )));
         }
 
-        if let Some(id) = &self.settings.default_marketplace_id {
-            if !self.marketplaces.keys().any(|k| k.as_str() == id.as_str()) {
-                return Err(ConfigValidationError::unknown_reference(format!(
-                    "settings.default_marketplace_id '{}' does not match any configured \
+        if let Some(id) = &self.settings.default_marketplace_id
+            && !self.marketplaces.keys().any(|k| k.as_str() == id.as_str())
+        {
+            return Err(ConfigValidationError::unknown_reference(format!(
+                "settings.default_marketplace_id '{}' does not match any configured \
                      marketplace",
-                    id.as_str()
-                )));
-            }
+                id.as_str()
+            )));
         }
 
         Ok(())

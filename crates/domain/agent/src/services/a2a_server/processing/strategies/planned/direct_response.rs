@@ -13,35 +13,31 @@ pub(super) async fn handle_direct_response(
     planning_tracked: std::result::Result<(TrackedStep, ExecutionStep), AgentServiceError>,
     task_id: TaskId,
 ) -> Result<ExecutionResult> {
-    if let Ok((tracked, _)) = planning_tracked {
-        if let Ok(step) = tracking
+    if let Ok((tracked, _)) = planning_tracked
+        && let Ok(step) = tracking
             .complete_planning(
                 tracked,
                 Some("Direct response - no tools needed".to_owned()),
                 None,
             )
             .await
-        {
-            if exec_ctx
-                .tx
-                .try_send(StreamEvent::ExecutionStepUpdate { step })
-                .is_err()
-            {
-                tracing::debug!("Stream receiver dropped");
-            }
-        }
+        && exec_ctx
+            .tx
+            .try_send(StreamEvent::ExecutionStepUpdate { step })
+            .is_err()
+    {
+        tracing::debug!("Stream receiver dropped");
     }
 
     tracing::info!("Direct response (no tools needed)");
 
-    if let Ok(step) = tracking.track_completion(task_id).await {
-        if exec_ctx
+    if let Ok(step) = tracking.track_completion(task_id).await
+        && exec_ctx
             .tx
             .try_send(StreamEvent::ExecutionStepUpdate { step })
             .is_err()
-        {
-            tracing::debug!("Stream receiver dropped");
-        }
+    {
+        tracing::debug!("Stream receiver dropped");
     }
 
     if exec_ctx

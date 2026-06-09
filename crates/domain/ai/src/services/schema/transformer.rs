@@ -34,10 +34,10 @@ fn collect_required_fields(base: &Value, variant: &Value, discriminator_field: &
 
     if let Some(base_arr) = base.get("required").and_then(|r| r.as_array()) {
         for item in base_arr {
-            if let Some(field) = item.as_str() {
-                if field != discriminator_field {
-                    all_required.push(json!(field));
-                }
+            if let Some(field) = item.as_str()
+                && field != discriminator_field
+            {
+                all_required.push(json!(field));
             }
         }
     }

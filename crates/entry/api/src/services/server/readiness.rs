@@ -30,19 +30,19 @@ pub fn get_readiness_receiver() -> broadcast::Receiver<ReadinessEvent> {
 
 pub fn signal_ready() {
     API_READY.store(true, Ordering::SeqCst);
-    if let Some(sender) = READINESS_SENDER.get() {
-        if sender.send(ReadinessEvent::ApiReady).is_err() {
-            tracing::debug!("No readiness receivers subscribed");
-        }
+    if let Some(sender) = READINESS_SENDER.get()
+        && sender.send(ReadinessEvent::ApiReady).is_err()
+    {
+        tracing::debug!("No readiness receivers subscribed");
     }
 }
 
 pub fn signal_shutdown() {
     API_READY.store(false, Ordering::SeqCst);
-    if let Some(sender) = READINESS_SENDER.get() {
-        if sender.send(ReadinessEvent::ApiShuttingDown).is_err() {
-            tracing::debug!("No readiness receivers subscribed");
-        }
+    if let Some(sender) = READINESS_SENDER.get()
+        && sender.send(ReadinessEvent::ApiShuttingDown).is_err()
+    {
+        tracing::debug!("No readiness receivers subscribed");
     }
 }
 

@@ -87,17 +87,17 @@ fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
 }
 
 fn rotate_log_if_needed(log_path: &Path) {
-    if let Ok(metadata) = fs::metadata(log_path) {
-        if metadata.len() > MAX_LOG_SIZE {
-            let backup_path = log_path.with_extension("log.old");
-            if let Err(e) = fs::rename(log_path, &backup_path) {
-                tracing::warn!(
-                    error = %e,
-                    log_path = %log_path.display(),
-                    backup_path = %backup_path.display(),
-                    "Failed to rotate MCP log file"
-                );
-            }
+    if let Ok(metadata) = fs::metadata(log_path)
+        && metadata.len() > MAX_LOG_SIZE
+    {
+        let backup_path = log_path.with_extension("log.old");
+        if let Err(e) = fs::rename(log_path, &backup_path) {
+            tracing::warn!(
+                error = %e,
+                log_path = %log_path.display(),
+                backup_path = %backup_path.display(),
+                "Failed to rotate MCP log file"
+            );
         }
     }
 }

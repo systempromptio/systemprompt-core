@@ -135,10 +135,10 @@ fn analyze_view_from(select: &pg_query::protobuf::SelectStmt) -> Option<ViewFrom
         } else {
             None
         };
-        if let Some(alias) = rv.alias.as_ref() {
-            if !alias.aliasname.is_empty() {
-                alias_map.push((alias.aliasname.clone(), rv.relname.clone()));
-            }
+        if let Some(alias) = rv.alias.as_ref()
+            && !alias.aliasname.is_empty()
+        {
+            alias_map.push((alias.aliasname.clone(), rv.relname.clone()));
         }
     }
     Some(ViewFrom {

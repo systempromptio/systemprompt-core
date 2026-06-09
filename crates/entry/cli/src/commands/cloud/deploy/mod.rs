@@ -193,10 +193,10 @@ async fn provision_secrets(
         std::collections::HashMap::new()
     };
 
-    if !env_secrets.contains_key("SIGNING_KEY_PEM") {
-        if let Some(pem) = read_signing_key_pem(profile, profile_dir)? {
-            env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
-        }
+    if !env_secrets.contains_key("SIGNING_KEY_PEM")
+        && let Some(pem) = read_signing_key_pem(profile, profile_dir)?
+    {
+        env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
     }
 
     if !env_secrets.is_empty() {

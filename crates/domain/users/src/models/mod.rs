@@ -168,10 +168,10 @@ impl UserApiKey {
         if self.revoked_at.is_some() {
             return false;
         }
-        if let Some(expires_at) = self.expires_at {
-            if now >= expires_at {
-                return false;
-            }
+        if let Some(expires_at) = self.expires_at
+            && now >= expires_at
+        {
+            return false;
         }
         true
     }

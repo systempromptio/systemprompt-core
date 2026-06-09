@@ -3,7 +3,9 @@
 //! [`SchemaValidationMode::Skip`] returns without touching the provider, so the
 //! `validate_and_apply` call is exercisable with a synthetic config alone.
 
-use systemprompt_mcp::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
+use systemprompt_mcp::services::schema::{
+    SchemaValidationMode, SchemaValidationReport, SchemaValidator,
+};
 use systemprompt_models::mcp::deployment::SchemaDefinition;
 
 struct NoopProvider;
@@ -62,7 +64,8 @@ impl systemprompt_database::DatabaseProvider for NoopProvider {
 
     async fn begin_transaction(
         &self,
-    ) -> systemprompt_database::DatabaseResult<Box<dyn systemprompt_database::DatabaseTransaction>> {
+    ) -> systemprompt_database::DatabaseResult<Box<dyn systemprompt_database::DatabaseTransaction>>
+    {
         Err(systemprompt_database::RepositoryError::not_found("no tx"))
     }
 
@@ -114,8 +117,14 @@ async fn skip_mode_returns_ok_with_warning() {
     assert_eq!(report.validated, 0);
     assert_eq!(report.created, 0);
     assert!(report.errors.is_empty());
-    assert!(!report.warnings.is_empty(), "skip mode should add a warning");
-    assert!(report.warnings[0].contains("skipped") || report.warnings[0].to_lowercase().contains("skip"));
+    assert!(
+        !report.warnings.is_empty(),
+        "skip mode should add a warning"
+    );
+    assert!(
+        report.warnings[0].contains("skipped")
+            || report.warnings[0].to_lowercase().contains("skip")
+    );
 }
 
 #[tokio::test]
@@ -134,12 +143,30 @@ async fn skip_mode_empty_schemas_returns_ok() {
 
 #[test]
 fn schema_validation_mode_from_string_coverage() {
-    assert_eq!(SchemaValidationMode::from_string("strict"), SchemaValidationMode::Strict);
-    assert_eq!(SchemaValidationMode::from_string("skip"), SchemaValidationMode::Skip);
-    assert_eq!(SchemaValidationMode::from_string("auto_migrate"), SchemaValidationMode::AutoMigrate);
-    assert_eq!(SchemaValidationMode::from_string("STRICT"), SchemaValidationMode::Strict);
-    assert_eq!(SchemaValidationMode::from_string("SKIP"), SchemaValidationMode::Skip);
-    assert_eq!(SchemaValidationMode::from_string("unknown"), SchemaValidationMode::AutoMigrate);
+    assert_eq!(
+        SchemaValidationMode::from_string("strict"),
+        SchemaValidationMode::Strict
+    );
+    assert_eq!(
+        SchemaValidationMode::from_string("skip"),
+        SchemaValidationMode::Skip
+    );
+    assert_eq!(
+        SchemaValidationMode::from_string("auto_migrate"),
+        SchemaValidationMode::AutoMigrate
+    );
+    assert_eq!(
+        SchemaValidationMode::from_string("STRICT"),
+        SchemaValidationMode::Strict
+    );
+    assert_eq!(
+        SchemaValidationMode::from_string("SKIP"),
+        SchemaValidationMode::Skip
+    );
+    assert_eq!(
+        SchemaValidationMode::from_string("unknown"),
+        SchemaValidationMode::AutoMigrate
+    );
 }
 
 #[test]

@@ -45,17 +45,17 @@ pub async fn precheck_and_reserve(
             })
             .await?;
 
-        if let Some(max) = window.max_requests {
-            if state.requests > max {
-                return Ok(Some(QuotaDecision {
-                    allow: false,
-                    window_seconds: window.window_seconds,
-                    limit_requests: Some(max),
-                    limit_input_tokens: window.max_input_tokens,
-                    limit_output_tokens: window.max_output_tokens,
-                    state,
-                }));
-            }
+        if let Some(max) = window.max_requests
+            && state.requests > max
+        {
+            return Ok(Some(QuotaDecision {
+                allow: false,
+                window_seconds: window.window_seconds,
+                limit_requests: Some(max),
+                limit_input_tokens: window.max_input_tokens,
+                limit_output_tokens: window.max_output_tokens,
+                state,
+            }));
         }
     }
     Ok(None)

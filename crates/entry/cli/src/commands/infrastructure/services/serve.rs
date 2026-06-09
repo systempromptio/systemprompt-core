@@ -22,16 +22,16 @@ pub async fn execute_with_events(
     }
 
     if let Some(pid) = check_port_available(port) {
-        if let Some(tx) = events {
-            if let Err(e) = tx.unbounded_send(StartupEvent::PortConflict { port, pid }) {
-                tracing::debug!(error = %e, "startup event channel closed: PortConflict");
-            }
+        if let Some(tx) = events
+            && let Err(e) = tx.unbounded_send(StartupEvent::PortConflict { port, pid })
+        {
+            tracing::debug!(error = %e, "startup event channel closed: PortConflict");
         }
         handle_port_conflict(port, pid, kill_port_process, config, events).await?;
-        if let Some(tx) = events {
-            if let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port }) {
-                tracing::debug!(error = %e, "startup event channel closed: PortConflictResolved");
-            }
+        if let Some(tx) = events
+            && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
+        {
+            tracing::debug!(error = %e, "startup event channel closed: PortConflictResolved");
         }
     } else if let Some(tx) = events {
         tx.port_available(port);

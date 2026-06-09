@@ -179,16 +179,15 @@ impl AnalyticsMiddleware {
                 .await
                 .unwrap_or((None, None));
 
-            if let (Some(count), Some(duration)) = (request_count, duration_seconds) {
-                if ScannerDetector::is_high_velocity(count, duration) {
-                    if let Err(e) = session_repo.mark_as_scanner(&session_id).await {
-                        tracing::warn!(
-                            error = %e,
-                            session_id = %session_id,
-                            "Failed to mark high-velocity session as scanner"
-                        );
-                    }
-                }
+            if let (Some(count), Some(duration)) = (request_count, duration_seconds)
+                && ScannerDetector::is_high_velocity(count, duration)
+                && let Err(e) = session_repo.mark_as_scanner(&session_id).await
+            {
+                tracing::warn!(
+                    error = %e,
+                    session_id = %session_id,
+                    "Failed to mark high-velocity session as scanner"
+                );
             }
         });
     }

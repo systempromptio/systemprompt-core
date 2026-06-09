@@ -12,10 +12,7 @@ use systemprompt_models::auth::{
 };
 use systemprompt_security::authz::{AuthzContext, EntityRef};
 
-fn claims_with(
-    roles: Vec<String>,
-    attributes: BTreeMap<String, serde_json::Value>,
-) -> JwtClaims {
+fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Value>) -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
         sub: "user_42".to_string(),
@@ -45,10 +42,7 @@ fn claims_with(
 fn forwards_roles_and_attributes_from_claims() {
     let mut attrs = BTreeMap::new();
     attrs.insert("acme.desk".to_owned(), serde_json::json!("fixed-income"));
-    let claims = claims_with(
-        vec!["eng".to_owned(), "platform".to_owned()],
-        attrs.clone(),
-    );
+    let claims = claims_with(vec!["eng".to_owned(), "platform".to_owned()], attrs.clone());
     let act_chain: Vec<Actor> = vec![Actor::user(UserId::new("user_42"))];
 
     let req = build_mcp_authz_request("server-x", &claims, act_chain.clone(), None);

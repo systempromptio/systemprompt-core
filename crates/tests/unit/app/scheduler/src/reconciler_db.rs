@@ -7,11 +7,11 @@
 
 use std::sync::Arc;
 
+use systemprompt_models::ServiceType;
 use systemprompt_scheduler::{
     DesiredStatus, ReconciliationResult, ServiceAction, ServiceConfig, ServiceReconciler,
     ServiceStateVerifier,
 };
-use systemprompt_models::ServiceType;
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
 macro_rules! pool_or_skip {
@@ -54,9 +54,7 @@ mod reconciler_db {
         // whole workspace against one database) such rows leak in from other
         // crates. Assert on config-driven actions, not on global DB emptiness.
         assert!(
-            result.started.is_empty()
-                && result.stopped.is_empty()
-                && result.restarted.is_empty(),
+            result.started.is_empty() && result.stopped.is_empty() && result.restarted.is_empty(),
             "no configs → no start/stop/restart actions (only orphan cleanup is allowed)"
         );
     }
@@ -225,13 +223,20 @@ mod state_verifier_db {
             .filter(|s| s.name == "sv-disabled-absent")
             .collect();
 
-        assert_eq!(matching.len(), 1, "disabled config must produce exactly one state");
+        assert_eq!(
+            matching.len(),
+            1,
+            "disabled config must produce exactly one state"
+        );
         let state = &matching[0];
         assert_eq!(state.desired_status, DesiredStatus::Disabled);
         assert!(
             matches!(
                 state.needs_action,
-                ServiceAction::CleanupDb | ServiceAction::CleanupProcess | ServiceAction::Stop | ServiceAction::None
+                ServiceAction::CleanupDb
+                    | ServiceAction::CleanupProcess
+                    | ServiceAction::Stop
+                    | ServiceAction::None
             ),
             "disabled + not-running service must map to a cleanup or no-op action, got {:?}",
             state.needs_action

@@ -23,17 +23,16 @@ pub async fn ensure_session(
 ) -> Result<SessionInfo> {
     let config = systemprompt_models::Config::get()?;
 
-    if let Ok(token) = TokenExtractor::browser_only().extract(headers) {
-        if let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences) {
-            if let Some(session_id) = claims.session_id {
-                return Ok(SessionInfo {
-                    session_id: SessionId::new(session_id),
-                    user_id: UserId::new(claims.sub),
-                    is_new: false,
-                    jwt_token: Some(token),
-                });
-            }
-        }
+    if let Ok(token) = TokenExtractor::browser_only().extract(headers)
+        && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
+        && let Some(session_id) = claims.session_id
+    {
+        return Ok(SessionInfo {
+            session_id: SessionId::new(session_id),
+            user_id: UserId::new(claims.sub),
+            is_new: false,
+            jwt_token: Some(token),
+        });
     }
 
     let user_service = UserService::new(ctx.db_pool())?;

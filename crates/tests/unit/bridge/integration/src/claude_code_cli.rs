@@ -6,7 +6,9 @@
 use std::path::Path;
 
 use serde_json::{Map, Value, json};
-use systemprompt_bridge::integration::claude_code_cli::json_io::{object_entry, read_optional_object};
+use systemprompt_bridge::integration::claude_code_cli::json_io::{
+    object_entry, read_optional_object,
+};
 use systemprompt_bridge::integration::claude_code_cli::marketplace::{
     installed_entry, marketplace_value, strip_known_marketplace, upsert_known_marketplace,
 };
@@ -36,7 +38,11 @@ fn installed_entry_is_user_scoped_with_version() {
 #[test]
 fn read_optional_object_none_for_missing() {
     let d = tempdir().unwrap();
-    assert!(read_optional_object(&d.path().join("nope.json")).unwrap().is_none());
+    assert!(
+        read_optional_object(&d.path().join("nope.json"))
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -56,7 +62,11 @@ fn read_optional_object_aborts_on_malformed_without_clobbering() {
     let p = d.path().join("k.json");
     std::fs::write(&p, b"{ not json").unwrap();
     assert!(read_optional_object(&p).is_err());
-    assert_eq!(std::fs::read(&p).unwrap(), b"{ not json", "file left intact");
+    assert_eq!(
+        std::fs::read(&p).unwrap(),
+        b"{ not json",
+        "file left intact"
+    );
 }
 
 #[test]
@@ -80,8 +90,15 @@ fn upsert_known_marketplace_writes_last_updated_and_preserves_foreign() {
     .unwrap();
     upsert_known_marketplace(d.path(), "2026-02-03T04:05:06Z").unwrap();
     let km = read(&d.path().join("known_marketplaces.json"));
-    assert_eq!(km["org-provisioned"]["lastUpdated"], json!("2026-02-03T04:05:06Z"));
-    assert_eq!(km["someones-mp"]["source"]["repo"], json!("a/b"), "foreign preserved");
+    assert_eq!(
+        km["org-provisioned"]["lastUpdated"],
+        json!("2026-02-03T04:05:06Z")
+    );
+    assert_eq!(
+        km["someones-mp"]["source"]["repo"],
+        json!("a/b"),
+        "foreign preserved"
+    );
 }
 
 #[test]

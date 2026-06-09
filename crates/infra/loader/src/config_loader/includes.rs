@@ -80,12 +80,12 @@ fn reject_settings_at_include(content: &str, path: &Path) -> ConfigLoadResult<()
         // the structured Yaml error variant with the proper context.
         Err(_) => return Ok(()),
     };
-    if let serde_yaml::Value::Mapping(map) = value {
-        if map.contains_key(serde_yaml::Value::String("settings".into())) {
-            return Err(ConfigLoadError::IncludeMustNotSetGlobalSettings {
-                path: path.to_path_buf(),
-            });
-        }
+    if let serde_yaml::Value::Mapping(map) = value
+        && map.contains_key(serde_yaml::Value::String("settings".into()))
+    {
+        return Err(ConfigLoadError::IncludeMustNotSetGlobalSettings {
+            path: path.to_path_buf(),
+        });
     }
     Ok(())
 }

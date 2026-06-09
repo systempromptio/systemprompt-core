@@ -125,10 +125,8 @@ impl Secrets {
     }
 
     pub fn effective_database_url(&self, external_db_access: bool) -> &str {
-        if external_db_access {
-            if let Some(url) = &self.external_database_url {
-                return url;
-            }
+        if external_db_access && let Some(url) = &self.external_database_url {
+            return url;
         }
         &self.database_url
     }

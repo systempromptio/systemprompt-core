@@ -61,10 +61,10 @@ impl CloudContext {
 
         self.profile = Some(profile);
 
-        if let Some(ref cloud_config) = profile.cloud {
-            if let Some(ref tenant_id) = cloud_config.tenant_id {
-                self.tenant = Self::resolve_tenant(tenant_id)?;
-            }
+        if let Some(ref cloud_config) = profile.cloud
+            && let Some(ref tenant_id) = cloud_config.tenant_id
+        {
+            self.tenant = Self::resolve_tenant(tenant_id)?;
         }
 
         Ok(self)

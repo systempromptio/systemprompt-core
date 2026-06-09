@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use systemprompt_bridge::ids::{
-    BearerToken, LoopbackSecret, PatToken, PinnedPubKey, ProxySecret,
-};
+use systemprompt_bridge::ids::{BearerToken, LoopbackSecret, PatToken, PinnedPubKey, ProxySecret};
 
 const LONG_SECRET: &str = "sp-live-0123456789abcdef";
 const SHORT_SECRET: &str = "short";

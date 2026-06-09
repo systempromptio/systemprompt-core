@@ -17,7 +17,7 @@ use systemprompt_agent::services::a2a_server::handlers::push_notification_config
 };
 use systemprompt_identifiers::TaskId;
 
-use super::a2a_helpers::{make_handler_state, StubAiProvider};
+use super::a2a_helpers::{StubAiProvider, make_handler_state};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
 
 fn config(url: &str) -> PushNotificationConfig {
@@ -97,7 +97,12 @@ async fn get_unknown_task_returns_empty_configs() {
     .await;
     let (status, body) = get.expect("get ok");
     assert_eq!(status, axum::http::StatusCode::OK);
-    assert!(body.0["result"]["configs"].as_array().expect("array").is_empty());
+    assert!(
+        body.0["result"]["configs"]
+            .as_array()
+            .expect("array")
+            .is_empty()
+    );
 }
 
 #[tokio::test]
@@ -135,5 +140,8 @@ async fn set_for_unknown_task_fails_on_fk() {
         },
     )
     .await;
-    assert!(set.is_err(), "FK violation should surface as an error tuple");
+    assert!(
+        set.is_err(),
+        "FK violation should surface as an error tuple"
+    );
 }

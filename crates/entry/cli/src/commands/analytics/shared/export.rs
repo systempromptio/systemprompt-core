@@ -25,10 +25,10 @@ pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
 }
 
 pub fn ensure_export_dir(path: &Path) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent).context("Failed to create export directory")?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.exists()
+    {
+        fs::create_dir_all(parent).context("Failed to create export directory")?;
     }
     Ok(())
 }

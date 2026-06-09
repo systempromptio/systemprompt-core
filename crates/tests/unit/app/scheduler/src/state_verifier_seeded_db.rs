@@ -99,7 +99,10 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed");
 
-        let state = states.iter().find(|s| s.name == name).expect("state present");
+        let state = states
+            .iter()
+            .find(|s| s.name == name)
+            .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
         assert_eq!(
@@ -137,7 +140,10 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed");
 
-        let state = states.iter().find(|s| s.name == name).expect("state present");
+        let state = states
+            .iter()
+            .find(|s| s.name == name)
+            .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
         assert_eq!(
@@ -170,7 +176,10 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed");
 
-        let state = states.iter().find(|s| s.name == name).expect("state present");
+        let state = states
+            .iter()
+            .find(|s| s.name == name)
+            .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
         assert_eq!(
@@ -208,7 +217,10 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed");
 
-        let state = states.iter().find(|s| s.name == name).expect("state present");
+        let state = states
+            .iter()
+            .find(|s| s.name == name)
+            .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
         assert_eq!(
@@ -241,7 +253,10 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed");
 
-        let state = states.iter().find(|s| s.name == name).expect("state present");
+        let state = states
+            .iter()
+            .find(|s| s.name == name)
+            .expect("state present");
 
         assert_eq!(state.desired_status, DesiredStatus::Disabled);
         assert_eq!(
@@ -274,7 +289,10 @@ mod state_verifier_seeded {
             .await
             .expect("get_verified_states must succeed");
 
-        let state = states.iter().find(|s| s.name == name).expect("state present");
+        let state = states
+            .iter()
+            .find(|s| s.name == name)
+            .expect("state present");
 
         use systemprompt_models::RuntimeStatus;
         assert_eq!(
@@ -473,14 +491,12 @@ mod reconciler_seeded {
             .expect("reconcile must succeed");
 
         if result.cleaned_up.contains(&name) {
-            let row_count: i64 = sqlx::query_scalar!(
-                "SELECT COUNT(*) FROM services WHERE name = $1",
-                name
-            )
-            .fetch_one(&*pg)
-            .await
-            .expect("count query")
-            .unwrap_or(0);
+            let row_count: i64 =
+                sqlx::query_scalar!("SELECT COUNT(*) FROM services WHERE name = $1", name)
+                    .fetch_one(&*pg)
+                    .await
+                    .expect("count query")
+                    .unwrap_or(0);
 
             assert_eq!(
                 row_count, 0,

@@ -102,28 +102,26 @@ impl PersistenceService {
                 ))
             })?;
 
-        if !artifacts_already_published {
-            if let Some(artifacts) = &task.artifacts {
-                let context_id = &task.context_id;
-                let publishing_service = ArtifactPublishingService::new(&self.db_pool)?;
-                for artifact in artifacts {
-                    publishing_service
-                        .publish_from_a2a(artifact, &task.id, context_id)
-                        .await
-                        .map_err(|e| {
-                            AgentServiceError::Internal(format!(
-                                "Failed to publish artifact {}: {}",
-                                artifact.id, e
-                            ))
-                        })?;
-                }
-
-                tracing::info!(
-                    task_id = %task.id,
-                    artifact_count = artifacts.len(),
-                    "Published artifacts for task"
-                );
+        if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
+            let context_id = &task.context_id;
+            let publishing_service = ArtifactPublishingService::new(&self.db_pool)?;
+            for artifact in artifacts {
+                publishing_service
+                    .publish_from_a2a(artifact, &task.id, context_id)
+                    .await
+                    .map_err(|e| {
+                        AgentServiceError::Internal(format!(
+                            "Failed to publish artifact {}: {}",
+                            artifact.id, e
+                        ))
+                    })?;
             }
+
+            tracing::info!(
+                task_id = %task.id,
+                artifact_count = artifacts.len(),
+                "Published artifacts for task"
+            );
         }
 
         tracing::info!(

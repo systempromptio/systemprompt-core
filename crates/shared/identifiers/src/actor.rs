@@ -88,12 +88,11 @@ impl Actor {
 
     #[must_use]
     pub fn from_tool_name(user_id: UserId, agent_id: Option<&str>, tool_name: &str) -> Self {
-        if let Some(rest) = tool_name.strip_prefix("mcp__") {
-            if let Some(server) = rest.split("__").next() {
-                if !server.is_empty() {
-                    return Self::mcp(user_id, server);
-                }
-            }
+        if let Some(rest) = tool_name.strip_prefix("mcp__")
+            && let Some(server) = rest.split("__").next()
+            && !server.is_empty()
+        {
+            return Self::mcp(user_id, server);
         }
         match agent_id {
             Some(id) if !id.is_empty() => Self::agent(user_id, id),

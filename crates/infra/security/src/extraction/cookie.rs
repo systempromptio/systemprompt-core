@@ -38,10 +38,10 @@ impl CookieExtractor {
         for cookie in cookie_header.split(';') {
             let cookie = cookie.trim();
             let cookie_prefix = format!("{}=", self.cookie_name);
-            if let Some(value) = cookie.strip_prefix(&cookie_prefix) {
-                if !value.is_empty() {
-                    return Ok(value.to_owned());
-                }
+            if let Some(value) = cookie.strip_prefix(&cookie_prefix)
+                && !value.is_empty()
+            {
+                return Ok(value.to_owned());
             }
         }
 

@@ -28,7 +28,13 @@ fn gemini_request_emits_max_output_tokens_and_sampling() {
 fn gemini_clamps_max_output_tokens_down_to_model_cap() {
     let mut req = base_request();
     req.max_tokens = 32_000;
-    let body = gemini::build_request_body(&req, Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["generationConfig"]["maxOutputTokens"],
         json!(4096),
@@ -126,7 +132,13 @@ fn gemini_response_format_json_schema_sets_mime_and_schema() {
 fn gemini_tools_strip_unsupported_schema_keywords() {
     let mut req = base_request();
     req.tools = vec![tool_with_unsupported_keywords()];
-    let body = gemini::build_request_body(&req, Some(ModelLimits { max_thinking_budget: Some(24576), ..Default::default() }));
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_thinking_budget: Some(24576),
+            ..Default::default()
+        }),
+    );
     let params = &body["tools"][0]["functionDeclarations"][0]["parameters"];
     assert!(params.get("$schema").is_none(), "$schema must be stripped");
     assert!(
@@ -154,7 +166,13 @@ fn gemini_clamps_thinking_budget_to_model_card_cap() {
         enabled: true,
         budget_tokens: Some(31999),
     });
-    let body = gemini::build_request_body(&req, Some(ModelLimits { max_thinking_budget: Some(24576), ..Default::default() }));
+    let body = gemini::build_request_body(
+        &req,
+        Some(ModelLimits {
+            max_thinking_budget: Some(24576),
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["generationConfig"]["thinkingConfig"]["thinkingBudget"],
         json!(24576)

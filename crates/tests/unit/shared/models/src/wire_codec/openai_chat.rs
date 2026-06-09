@@ -47,7 +47,14 @@ fn openai_chat_emits_max_completion_tokens_not_max_tokens() {
 
 #[test]
 fn openai_chat_caps_reasoning_model_to_model_max_output() {
-    let body = openai_chat::build_request_body(&base_request(), "gpt-5", Some(ModelLimits { max_output_tokens: 128_000, ..Default::default() }));
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "gpt-5",
+        Some(ModelLimits {
+            max_output_tokens: 128_000,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_completion_tokens"],
         json!(128_000),
@@ -57,7 +64,14 @@ fn openai_chat_caps_reasoning_model_to_model_max_output() {
 
 #[test]
 fn openai_chat_keeps_caller_budget_for_non_reasoning_model() {
-    let body = openai_chat::build_request_body(&base_request(), "gpt-4o", Some(ModelLimits { max_output_tokens: 128_000, ..Default::default() }));
+    let body = openai_chat::build_request_body(
+        &base_request(),
+        "gpt-4o",
+        Some(ModelLimits {
+            max_output_tokens: 128_000,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_completion_tokens"],
         json!(32),
@@ -193,7 +207,11 @@ fn openai_chat_emits_tool_message_after_assistant_tool_call() {
     assert_eq!(tool["role"], "tool");
     assert_eq!(tool["tool_call_id"], "call_X");
     assert_eq!(tool["content"], "42");
-    assert_eq!(messages.len(), 2, "no stray user message for a tool-only turn");
+    assert_eq!(
+        messages.len(),
+        2,
+        "no stray user message for a tool-only turn"
+    );
 }
 
 #[test]
@@ -201,14 +219,15 @@ fn openai_chat_emits_one_tool_message_per_result_ids_preserved() {
     let mut req = base_request();
     req.messages = vec![CanonicalMessage {
         role: Role::User,
-        content: vec![
-            tool_result("call_A", "a"),
-            tool_result("call_B", "b"),
-        ],
+        content: vec![tool_result("call_A", "a"), tool_result("call_B", "b")],
     }];
     let body = openai_chat::build_request_body(&req, "upstream", None);
     let messages = body["messages"].as_array().expect("messages");
-    assert_eq!(messages.len(), 2, "one tool message per result, no user message");
+    assert_eq!(
+        messages.len(),
+        2,
+        "one tool message per result, no user message"
+    );
     assert_eq!(messages[0]["role"], "tool");
     assert_eq!(messages[0]["tool_call_id"], "call_A");
     assert_eq!(messages[1]["tool_call_id"], "call_B");
@@ -251,7 +270,14 @@ fn openai_chat_plain_user_text_still_collapses_to_string() {
 fn openai_chat_clamps_non_reasoning_output_down_to_cap() {
     let mut req = base_request();
     req.max_tokens = 32_000;
-    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
+    let body = openai_chat::build_request_body(
+        &req,
+        "zai-glm-4.7",
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_completion_tokens"],
         json!(4096),
@@ -263,7 +289,14 @@ fn openai_chat_clamps_non_reasoning_output_down_to_cap() {
 fn openai_chat_clamp_never_raises_below_cap_budget() {
     let mut req = base_request();
     req.max_tokens = 1000;
-    let body = openai_chat::build_request_body(&req, "zai-glm-4.7", Some(ModelLimits { max_output_tokens: 4096, ..Default::default() }));
+    let body = openai_chat::build_request_body(
+        &req,
+        "zai-glm-4.7",
+        Some(ModelLimits {
+            max_output_tokens: 4096,
+            ..Default::default()
+        }),
+    );
     assert_eq!(
         body["max_completion_tokens"],
         json!(1000),

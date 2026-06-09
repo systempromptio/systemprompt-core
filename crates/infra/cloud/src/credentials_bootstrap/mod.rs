@@ -27,25 +27,25 @@ impl CredentialsBootstrap {
         if Self::is_fly_container() {
             tracing::debug!("Fly.io container detected, loading credentials from environment");
             let creds = Self::load_from_env();
-            if let Some(ref c) = creds {
-                if let Err(e) = Self::validate_with_api(c).await {
-                    if Self::allow_unvalidated() {
-                        tracing::warn!(
-                            target: "security_audit",
-                            error = %e,
-                            "cloud credentials unvalidated; proceeding under SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1"
-                        );
-                    } else {
-                        return Err(CredentialsBootstrapError::ApiValidationFailed {
-                            message: format!(
-                                "tenant pod credentials rejected by api.systemprompt.io (token in \
+            if let Some(ref c) = creds
+                && let Err(e) = Self::validate_with_api(c).await
+            {
+                if Self::allow_unvalidated() {
+                    tracing::warn!(
+                        target: "security_audit",
+                        error = %e,
+                        "cloud credentials unvalidated; proceeding under SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1"
+                    );
+                } else {
+                    return Err(CredentialsBootstrapError::ApiValidationFailed {
+                        message: format!(
+                            "tenant pod credentials rejected by api.systemprompt.io (token in \
                                  SYSTEMPROMPT_API_TOKEN). Re-run 'systemprompt cloud deploy' or \
                                  set SYSTEMPROMPT_ALLOW_UNVALIDATED_CREDS=1 to bypass. \
                                  Underlying: {e}"
-                            ),
-                        }
-                        .into());
+                        ),
                     }
+                    .into());
                 }
             }
             CREDENTIALS

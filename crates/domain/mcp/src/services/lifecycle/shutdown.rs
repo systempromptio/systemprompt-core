@@ -33,12 +33,11 @@ async fn find_running_process(
     manager: &LifecycleOrchestrator,
     config: &McpServerConfig,
 ) -> McpDomainResult<Option<u32>> {
-    if let Some(db_service) = manager.database().get_service_by_name(&config.name).await? {
-        if let Some(db_pid) = db_service.pid {
-            if ProcessService::is_running(db_pid as u32) {
-                return Ok(Some(db_pid as u32));
-            }
-        }
+    if let Some(db_service) = manager.database().get_service_by_name(&config.name).await?
+        && let Some(db_pid) = db_service.pid
+        && ProcessService::is_running(db_pid as u32)
+    {
+        return Ok(Some(db_pid as u32));
     }
 
     ProcessService::find_pid_by_port(config.port)

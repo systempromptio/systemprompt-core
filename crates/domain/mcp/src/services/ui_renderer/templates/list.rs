@@ -31,12 +31,12 @@ impl ListRenderer {
                             items.push(list_item);
                         }
                     }
-                } else if let Some(obj) = data.as_object() {
-                    if let Some(items_arr) = obj.get("items").and_then(JsonValue::as_array) {
-                        for item in items_arr {
-                            if let Some(list_item) = ListItem::from_json(item) {
-                                items.push(list_item);
-                            }
+                } else if let Some(obj) = data.as_object()
+                    && let Some(items_arr) = obj.get("items").and_then(JsonValue::as_array)
+                {
+                    for item in items_arr {
+                        if let Some(list_item) = ListItem::from_json(item) {
+                            items.push(list_item);
                         }
                     }
                 }

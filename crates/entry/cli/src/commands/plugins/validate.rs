@@ -39,16 +39,15 @@ pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> CommandOutput
             }
         }
 
-        if ext.config_prefix().is_some() {
-            if let Some(schema) = ext.config_schema() {
-                if schema.is_null() {
-                    warnings.push(ValidationWarning {
-                        extension_id: Some(ext.id().to_owned()),
-                        warning_type: "config".to_owned(),
-                        message: "Config prefix defined but schema is null".to_owned(),
-                    });
-                }
-            }
+        if ext.config_prefix().is_some()
+            && let Some(schema) = ext.config_schema()
+            && schema.is_null()
+        {
+            warnings.push(ValidationWarning {
+                extension_id: Some(ext.id().to_owned()),
+                warning_type: "config".to_owned(),
+                message: "Config prefix defined but schema is null".to_owned(),
+            });
         }
     }
 

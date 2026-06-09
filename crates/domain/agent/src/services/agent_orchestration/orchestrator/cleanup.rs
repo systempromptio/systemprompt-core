@@ -170,10 +170,9 @@ impl AgentOrchestrator {
             if let AgentStatus::Running {
                 pid: tracked_pid, ..
             } = status
+                && tracked_pid == pid
             {
-                if tracked_pid == pid {
-                    return Ok(true);
-                }
+                return Ok(true);
             }
         }
         Ok(false)
@@ -190,10 +189,10 @@ impl AgentOrchestrator {
             for env_var in environ_str.split('\0') {
                 if env_var.starts_with("AGENT_ID=") || env_var.starts_with("AGENT_UUID=") {
                     agent_id = env_var.split('=').nth(1).map(str::to_owned);
-                } else if env_var.starts_with("AGENT_PORT=") {
-                    if let Some(port_str) = env_var.split('=').nth(1) {
-                        port = port_str.parse::<u16>().ok();
-                    }
+                } else if env_var.starts_with("AGENT_PORT=")
+                    && let Some(port_str) = env_var.split('=').nth(1)
+                {
+                    port = port_str.parse::<u16>().ok();
                 }
             }
 

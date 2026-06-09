@@ -19,17 +19,16 @@ pub async fn serve_homepage(
                 if let Some(client_etag) = headers
                     .get(header::IF_NONE_MATCH)
                     .and_then(|v| v.to_str().ok())
+                    && client_etag == etag
                 {
-                    if client_etag == etag {
-                        return (
-                            StatusCode::NOT_MODIFIED,
-                            [
-                                (header::ETAG, etag),
-                                (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
-                            ],
-                        )
-                            .into_response();
-                    }
+                    return (
+                        StatusCode::NOT_MODIFIED,
+                        [
+                            (header::ETAG, etag),
+                            (header::CACHE_CONTROL, CACHE_HTML.to_owned()),
+                        ],
+                    )
+                        .into_response();
                 }
 
                 return (

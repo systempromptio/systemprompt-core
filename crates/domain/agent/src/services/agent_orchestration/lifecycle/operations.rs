@@ -158,11 +158,11 @@ impl AgentLifecycle {
     pub async fn cleanup_crashed_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
         let status = self.db_service.get_status(agent_name).await?;
 
-        if let AgentStatus::Running { pid, .. } = status {
-            if !process::process_exists(pid) {
-                self.db_service.mark_crashed(agent_name).await?;
-                tracing::info!(agent_name = %agent_name, "Marked crashed agent as failed in database");
-            }
+        if let AgentStatus::Running { pid, .. } = status
+            && !process::process_exists(pid)
+        {
+            self.db_service.mark_crashed(agent_name).await?;
+            tracing::info!(agent_name = %agent_name, "Marked crashed agent as failed in database");
         }
 
         Ok(())

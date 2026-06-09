@@ -12,10 +12,10 @@ fn alter_table_targets(sql: &str) -> Result<Vec<String>, String> {
         let Some(node) = stmt.stmt.and_then(|s| s.node) else {
             continue;
         };
-        if let pg_query::NodeEnum::AlterTableStmt(alter) = node {
-            if let Some(rv) = alter.relation {
-                out.push(rv.relname);
-            }
+        if let pg_query::NodeEnum::AlterTableStmt(alter) = node
+            && let Some(rv) = alter.relation
+        {
+            out.push(rv.relname);
         }
     }
     Ok(out)

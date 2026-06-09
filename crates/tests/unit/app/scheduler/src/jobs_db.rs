@@ -24,10 +24,7 @@ macro_rules! pool_or_skip {
     }};
 }
 
-fn make_test_ctx(
-    pool: &systemprompt_database::DbPool,
-    url: &str,
-) -> JobContext {
+fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
     let app_ctx = fixture_app_context(pool, url)

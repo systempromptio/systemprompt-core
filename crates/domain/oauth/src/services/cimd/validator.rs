@@ -55,12 +55,12 @@ impl ClientValidator {
     ) -> Result<ClientValidation> {
         let metadata = self.cimd_fetcher.fetch_metadata(client_id).await?;
 
-        if let Some(uri) = redirect_uri {
-            if !metadata.has_redirect_uri(uri) {
-                return Err(crate::error::OauthError::Internal(format!(
-                    "redirect_uri '{uri}' not registered in CIMD metadata for {client_id}"
-                )));
-            }
+        if let Some(uri) = redirect_uri
+            && !metadata.has_redirect_uri(uri)
+        {
+            return Err(crate::error::OauthError::Internal(format!(
+                "redirect_uri '{uri}' not registered in CIMD metadata for {client_id}"
+            )));
         }
 
         Ok(ClientValidation::Cimd {

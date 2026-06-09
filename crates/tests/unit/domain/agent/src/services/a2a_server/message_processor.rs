@@ -7,14 +7,14 @@
 use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
 use systemprompt_agent::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams, ProcessMessageStreamParams,
     StreamEvent,
 };
-use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
-use super::a2a_helpers::{request_context, runtime_info, StubAiProvider};
+use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool};
 
 fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
@@ -172,5 +172,8 @@ async fn process_message_stream_provider_failure_emits_error() {
             break;
         }
     }
-    assert!(saw_error, "expected an Error stream event on provider failure");
+    assert!(
+        saw_error,
+        "expected an Error stream event on provider failure"
+    );
 }
