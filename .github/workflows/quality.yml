@@ -27,6 +27,38 @@ jobs:
       - uses: extractions/setup-just@v2
       - run: just lint
 
+  docs:
+    name: Rustdoc (warnings as errors)
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --workspace --no-deps --all-features
+
+  source-gates:
+    name: Schema / SQL / error-boundary linters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v2
+      - run: just lint-schema
+      - run: just lint-extensions
+      - run: just lint-sqlx
+      - run: just lint-http-errors
+      - run: just lint-no-untyped-admin
+
+  msrv:
+    name: MSRV check (Rust 1.88)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace
+
   audit:
     name: cargo-audit
     runs-on: ubuntu-latest
