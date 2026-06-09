@@ -154,9 +154,6 @@ pub trait SystemPromptOverride: Send + Sync {
     async fn evaluate(&self, ctx: &OverrideContext) -> Result<OverrideAction, OverrideError>;
 }
 
-/// Compile-time registration of a [`SystemPromptOverride`] implementation,
-/// collected via `inventory` and folded into the engine after the profile's
-/// declarative rules.
 #[derive(Debug, Clone, Copy)]
 pub struct SystemPromptOverrideRegistration {
     pub name: &'static str,

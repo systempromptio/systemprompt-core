@@ -118,8 +118,6 @@ pub(super) async fn finalize(outcome: OutboundOutcome, fctx: FinalizeCtx) -> Res
     }
 }
 
-/// Returns the findings so the dispatch path can enforce `block_categories`:
-/// the request phase blocks, unlike the audit-only response phase.
 pub(super) async fn run_request_safety_scan(
     db: &DbPool,
     ai_request_id: &AiRequestId,

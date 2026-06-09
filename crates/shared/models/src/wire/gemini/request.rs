@@ -18,10 +18,6 @@ use crate::wire::canonical::{
 
 /// Clamps Gemini's thinking and output budgets so an out-of-range value can't
 /// be rejected upstream.
-///
-/// `thinkingBudget` is clamped to the model card's `max_thinking_budget`;
-/// `maxOutputTokens` via [`crate::wire::clamp_output_tokens`]. A `None` cap
-/// leaves that budget alone.
 #[must_use]
 pub fn build_request_body(request: &CanonicalRequest, limits: Option<ModelLimits>) -> Value {
     let body = GeminiRequest {

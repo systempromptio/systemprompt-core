@@ -40,8 +40,6 @@ pub struct GatewayConfigSpec {
     pub auth_scheme: String,
     #[serde(default = "default_inference_path_prefix")]
     pub inference_path_prefix: String,
-    /// Ordered system-prompt override rules, evaluated first-match-wins against
-    /// the resolved provider and requested model at dispatch.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub system_prompt_overrides: Vec<SystemPromptRule>,
 }

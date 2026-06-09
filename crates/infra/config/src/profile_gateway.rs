@@ -1,16 +1,14 @@
 //! Gateway-section post-parse helpers for the profile loader.
 //!
-//! Catalog resolution itself lives in
-//! [`systemprompt_models::profile::GatewayConfigSpec::resolve`]; this
-//! module only owns the in-memory route-id backfill applied to the parsed
-//! spec before resolution.
+//! Resolution itself lives in
+//! [`systemprompt_models::profile::GatewayConfigSpec::resolve`]; this module
+//! owns the in-memory fix-ups applied to the parsed spec beforehand: route-id
+//! backfill and `!include` prompt resolution.
 
 use std::path::Path;
 
 use systemprompt_models::profile::{GatewayConfigSpec, ProfileError, ProfileResult};
 
-/// Ids are deterministic, so this in-memory backfill is reapplied identically
-/// on every load rather than persisted to disk.
 pub fn backfill_route_ids(spec: &mut GatewayConfigSpec) -> bool {
     let mut mutated = false;
     for route in &mut spec.routes {
@@ -22,11 +20,6 @@ pub fn backfill_route_ids(spec: &mut GatewayConfigSpec) -> bool {
     mutated
 }
 
-/// Resolve `!include <path>` prompt bodies in system-prompt override rules.
-///
-/// Each file is read relative to the profile directory; a missing file is a
-/// hard load error (fail-closed), consistent with the services loader. Like
-/// route-id backfill this never writes back to disk.
 pub fn resolve_override_prompt_includes(
     base_dir: &Path,
     spec: &mut GatewayConfigSpec,

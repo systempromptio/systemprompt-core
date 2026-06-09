@@ -43,9 +43,6 @@ pub enum UpstreamError {
     },
 }
 
-/// Pulls the provider's `error.message` from a JSON error body (the shape
-/// `OpenAI`, Anthropic, and Gemini all use), falling back to the raw body
-/// truncated so logs and client responses stay bounded.
 pub fn extract_upstream_message(body: &str) -> String {
     serde_json::from_str::<serde_json::Value>(body)
         .ok()
@@ -60,10 +57,6 @@ pub struct OutboundCtx<'a> {
     pub api_key: &'a str,
     pub request: &'a CanonicalRequest,
     pub upstream_model: &'a str,
-    /// Limits from the resolved upstream model card, when the requested model
-    /// maps to a known catalog entry. Codecs use this to clamp
-    /// provider-specific values (e.g. Gemini's `thinkingBudget`) to what
-    /// the upstream accepts.
     pub model_limits: Option<ModelLimits>,
 }
 
