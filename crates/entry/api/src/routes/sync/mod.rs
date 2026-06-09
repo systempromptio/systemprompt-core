@@ -7,6 +7,7 @@ use axum::Router;
 use axum::routing::get;
 use systemprompt_runtime::AppContext;
 
+mod archive;
 mod files;
 mod types;
 
