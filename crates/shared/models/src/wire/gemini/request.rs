@@ -16,8 +16,6 @@ use crate::wire::canonical::{
     ResponseFormat, Role,
 };
 
-/// Clamps Gemini's thinking and output budgets so an out-of-range value can't
-/// be rejected upstream.
 #[must_use]
 pub fn build_request_body(request: &CanonicalRequest, limits: Option<ModelLimits>) -> Value {
     let body = GeminiRequest {
