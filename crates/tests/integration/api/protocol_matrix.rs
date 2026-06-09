@@ -103,7 +103,8 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
 #[test]
 fn anthropic_outbound_request_builder_carries_model_and_messages() {
     let req = fixture_request("claude-3-5-sonnet", false);
-    let body = outbound_anthropic::test_api::build_request_body(&req, "claude-3-5-sonnet-upstream");
+    let body =
+        outbound_anthropic::test_api::build_request_body(&req, "claude-3-5-sonnet-upstream", None);
     assert_eq!(body["model"], "claude-3-5-sonnet-upstream");
     assert_eq!(body["max_tokens"], 256);
     assert!(body["messages"].is_array());
