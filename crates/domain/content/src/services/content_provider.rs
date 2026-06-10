@@ -25,9 +25,11 @@ impl DefaultContentProvider {
 impl ContentProvider for DefaultContentProvider {
     type Error = ContentError;
 
-    async fn get_content(&self, id: &str) -> Result<Option<ContentItem>, Self::Error> {
-        let content_id = systemprompt_identifiers::ContentId::new(id);
-        let content = self.repo.get_by_id(&content_id).await?;
+    async fn get_content(
+        &self,
+        id: &systemprompt_identifiers::ContentId,
+    ) -> Result<Option<ContentItem>, Self::Error> {
+        let content = self.repo.get_by_id(id).await?;
 
         Ok(content.map(|c| ContentItem {
             id: c.id,
