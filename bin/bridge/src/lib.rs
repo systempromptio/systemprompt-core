@@ -1,11 +1,15 @@
 #![expect(
     clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
     clippy::module_name_repetitions,
     clippy::similar_names,
     reason = "bridge crate-wide pedantic carve-outs: docs are tracked in CHANGELOG; module \
               repetition is structural; similar names are platform-paired (e.g., \
               macos_*/windows_*)"
+)]
+#![allow(
+    clippy::missing_panics_doc,
+    reason = "fulfilled only when the macos/windows GUI modules compile, so expect would fail \
+              on Linux builds"
 )]
 
 pub mod activity;
