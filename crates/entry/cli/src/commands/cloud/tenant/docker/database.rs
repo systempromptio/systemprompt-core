@@ -4,7 +4,7 @@
 //! `docker exec`, sanitising identifiers before they reach the SQL text.
 
 use anyhow::{Context, Result, bail};
-use std::process::Command;
+use systemprompt_cloud::DockerCli;
 use systemprompt_logging::CliService;
 
 use super::config::{SHARED_ADMIN_USER, SHARED_CONTAINER_NAME};
@@ -37,8 +37,8 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
         "SELECT 1 FROM pg_database WHERE datname = '{}'",
         safe_db_name
     );
-    let check_output = Command::new("docker")
-        .args([
+    let check_output = DockerCli::new()
+        .output(&[
             "exec",
             SHARED_CONTAINER_NAME,
             "psql",
@@ -46,7 +46,6 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
             "-tAc",
             &check_query,
         ])
-        .output()
         .with_context(|| {
             format!(
                 "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` checking for database \
@@ -64,8 +63,8 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
     }
 
     let create_query = format!("CREATE DATABASE \"{}\"", safe_db_name);
-    let status = Command::new("docker")
-        .args([
+    let status = DockerCli::new()
+        .status(&[
             "exec",
             SHARED_CONTAINER_NAME,
             "psql",
@@ -73,7 +72,6 @@ pub(in crate::commands::cloud::tenant) fn create_database_for_tenant(
             "-c",
             &create_query,
         ])
-        .status()
         .with_context(|| {
             format!(
                 "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` creating database \
@@ -105,17 +103,14 @@ pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
          pg_backend_pid()",
         safe_db_name
     );
-    if let Err(e) = Command::new("docker")
-        .args([
-            "exec",
-            SHARED_CONTAINER_NAME,
-            "psql",
-            &database_url,
-            "-c",
-            &terminate_query,
-        ])
-        .status()
-    {
+    if let Err(e) = DockerCli::new().status(&[
+        "exec",
+        SHARED_CONTAINER_NAME,
+        "psql",
+        &database_url,
+        "-c",
+        &terminate_query,
+    ]) {
         tracing::debug!(
             error = %e,
             db = %safe_db_name,
@@ -124,8 +119,8 @@ pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
     }
 
     let drop_query = format!("DROP DATABASE IF EXISTS \"{}\"", safe_db_name);
-    let status = Command::new("docker")
-        .args([
+    let status = DockerCli::new()
+        .status(&[
             "exec",
             SHARED_CONTAINER_NAME,
             "psql",
@@ -133,7 +128,6 @@ pub(in crate::commands::cloud::tenant) fn drop_database_for_tenant(
             "-c",
             &drop_query,
         ])
-        .status()
         .with_context(|| {
             format!(
                 "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` dropping database \
@@ -182,8 +176,8 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
 }
 
 fn admin_psql_capture(sql: &str, action: &str) -> Result<String> {
-    let output = Command::new("docker")
-        .args([
+    let output = DockerCli::new()
+        .output(&[
             "exec",
             SHARED_CONTAINER_NAME,
             "psql",
@@ -194,7 +188,6 @@ fn admin_psql_capture(sql: &str, action: &str) -> Result<String> {
             "-tAc",
             sql,
         ])
-        .output()
         .with_context(|| {
             format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` {action}")
         })?;
@@ -203,8 +196,8 @@ fn admin_psql_capture(sql: &str, action: &str) -> Result<String> {
 }
 
 fn admin_psql_execute(sql: &str, action: &str) -> Result<bool> {
-    let status = Command::new("docker")
-        .args([
+    let status = DockerCli::new()
+        .status(&[
             "exec",
             SHARED_CONTAINER_NAME,
             "psql",
@@ -215,7 +208,6 @@ fn admin_psql_execute(sql: &str, action: &str) -> Result<bool> {
             "-c",
             sql,
         ])
-        .status()
         .with_context(|| {
             format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` {action}")
         })?;

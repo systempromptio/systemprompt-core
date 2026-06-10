@@ -1,10 +1,13 @@
-use anyhow::{Result, bail};
+//! Validation of a profile's Dockerfile against the discovered MCP binaries.
+
 use std::collections::HashSet;
 use std::path::Path;
 
-use systemprompt_cloud::constants::container;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::ServicesConfig;
+
+use crate::constants::container;
+use crate::error::{CloudError, CloudResult};
 
 pub fn get_required_mcp_copy_lines(
     project_root: &Path,
@@ -80,13 +83,13 @@ pub fn validate_profile_dockerfile(
     dockerfile_path: &Path,
     project_root: &Path,
     services_config: &ServicesConfig,
-) -> Result<()> {
+) -> CloudResult<()> {
     if !dockerfile_path.exists() {
-        bail!(
+        return Err(CloudError::dockerfile(format!(
             "Dockerfile not found at {}\n\nCreate a profile first with: systemprompt cloud \
              profile create",
             dockerfile_path.display()
-        );
+        )));
     }
 
     let content = std::fs::read_to_string(dockerfile_path)?;
@@ -95,32 +98,26 @@ pub fn validate_profile_dockerfile(
 
     match (missing.is_empty(), stale.is_empty()) {
         (true, true) => Ok(()),
-        (false, true) => {
-            bail!(
-                "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
-                 lines:\n\n{}",
-                dockerfile_path.display(),
-                missing.join(", "),
-                get_required_mcp_copy_lines(project_root, services_config).join("\n")
-            );
-        },
-        (true, false) => {
-            bail!(
-                "Dockerfile at {} has COPY commands for dev-only or removed \
-                 binaries:\n\n{}\n\nRemove these lines or regenerate with: systemprompt cloud \
-                 profile create",
-                dockerfile_path.display(),
-                stale.join(", ")
-            );
-        },
-        (false, false) => {
-            bail!(
-                "Dockerfile at {} has issues:\n\nMissing binaries: {}\nDev-only/stale binaries: \
-                 {}\n\nRegenerate with: systemprompt cloud profile create",
-                dockerfile_path.display(),
-                missing.join(", "),
-                stale.join(", ")
-            );
-        },
+        (false, true) => Err(CloudError::dockerfile(format!(
+            "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
+             lines:\n\n{}",
+            dockerfile_path.display(),
+            missing.join(", "),
+            get_required_mcp_copy_lines(project_root, services_config).join("\n")
+        ))),
+        (true, false) => Err(CloudError::dockerfile(format!(
+            "Dockerfile at {} has COPY commands for dev-only or removed \
+             binaries:\n\n{}\n\nRemove these lines or regenerate with: systemprompt cloud \
+             profile create",
+            dockerfile_path.display(),
+            stale.join(", ")
+        ))),
+        (false, false) => Err(CloudError::dockerfile(format!(
+            "Dockerfile at {} has issues:\n\nMissing binaries: {}\nDev-only/stale binaries: \
+             {}\n\nRegenerate with: systemprompt cloud profile create",
+            dockerfile_path.display(),
+            missing.join(", "),
+            stale.join(", ")
+        ))),
     }
 }

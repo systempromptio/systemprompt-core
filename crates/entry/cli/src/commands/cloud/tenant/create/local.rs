@@ -9,8 +9,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use std::fs;
-use std::process::Command;
-use systemprompt_cloud::{ProjectContext, StoredTenant};
+use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
@@ -218,9 +217,8 @@ async fn start_container(
         .to_str()
         .ok_or_else(|| anyhow!("Invalid compose path"))?;
 
-    let status = Command::new("docker")
-        .args(["compose", "-f", compose_path_str, "up", "-d"])
-        .status()
+    let status = DockerCli::new()
+        .status(&["compose", "-f", compose_path_str, "up", "-d"])
         .context("Failed to execute docker compose. Is Docker running?")?;
 
     if !status.success() {

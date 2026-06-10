@@ -13,7 +13,7 @@ use clap::Subcommand;
 use crate::context::CommandContext;
 use crate::shared::render_result;
 
-pub(super) use helpers::{load_secrets_json, map_secrets_to_env_vars, sync_cloud_credentials};
+pub(super) use helpers::sync_cloud_credentials;
 
 #[derive(Debug, Subcommand)]
 pub enum SecretsCommands {

@@ -7,7 +7,6 @@
 pub mod auth;
 pub mod db;
 mod deploy;
-pub mod dockerfile;
 pub mod doctor;
 mod domain;
 mod init;
@@ -201,7 +200,7 @@ fn execute_dockerfile(config: &CliConfig) -> Result<()> {
     use types::DockerfileOutput;
 
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let content = dockerfile::generate_dockerfile_content(project.as_path());
+    let content = systemprompt_cloud::deploy::generate_dockerfile_content(project.as_path());
 
     let output = DockerfileOutput {
         content: content.clone(),

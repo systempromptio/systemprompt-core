@@ -1,18 +1,14 @@
 //! Renders the deployment Dockerfile from discovered extensions and config.
-//!
-//! [`DockerfileBuilder`] composes the runtime image: storage directories,
-//! MCP binary copies, extension asset copies, and the profile-aware
-//! environment block.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::constants::{container, storage};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::{CliPaths, ServicesConfig};
 
-use super::super::tenant::find_services_config;
+use super::find_services_config;
+use crate::constants::{container, storage};
 
 #[derive(Debug)]
 pub struct DockerfileBuilder<'a> {
@@ -44,11 +40,13 @@ impl<'a> DockerfileBuilder<'a> {
         }
     }
 
+    #[must_use]
     pub const fn with_profile(mut self, name: &'a str) -> Self {
         self.profile_name = Some(name);
         self
     }
 
+    #[must_use]
     pub fn build(&self) -> String {
         let mcp_section = self.mcp_copy_section();
         let env_section = self.env_section();

@@ -23,8 +23,8 @@ use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use super::deploy::resolve_profile;
-use super::secrets::load_secrets_json;
 use crate::cli_settings::CliConfig;
+use systemprompt_cloud::secrets_env::load_secrets_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CheckStatus {

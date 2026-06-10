@@ -7,11 +7,11 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 
-use super::super::dockerfile::validate_profile_dockerfile;
 pub(super) use super::super::secrets::sync_cloud_credentials;
-use super::super::tenant::{find_services_config, get_credentials};
-use crate::shared::docker::{build_docker_image, docker_login, docker_push};
+use super::super::tenant::get_credentials;
 use crate::shared::project::ProjectRoot;
+use systemprompt_cloud::deploy::{find_services_config, validate_profile_dockerfile};
+use systemprompt_cloud::{DockerCli, secrets_env};
 
 pub(in crate::commands::cloud) async fn deploy_with_secrets(
     client: &CloudApiClient,
@@ -36,18 +36,19 @@ pub(in crate::commands::cloud) async fn deploy_with_secrets(
     );
     CliService::key_value("Image", &image);
 
+    let docker = DockerCli::new();
     let spinner = CliService::spinner("Building Docker image...");
-    build_docker_image(project.as_path(), &dockerfile, &image)?;
+    docker.build_image(project.as_path(), &dockerfile, &image)?;
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 
     let spinner = CliService::spinner("Pushing to registry...");
-    docker_login(
+    docker.login(
         &registry_token.registry,
         &registry_token.username,
         &registry_token.token,
     )?;
-    docker_push(&image)?;
+    docker.push(&image)?;
     spinner.finish_and_clear();
     CliService::success("Image pushed");
 
@@ -64,14 +65,12 @@ pub(in crate::commands::cloud) async fn deploy_with_secrets(
     let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
 
     let mut env_secrets = if secrets_path.exists() {
-        super::super::secrets::map_secrets_to_env_vars(super::super::secrets::load_secrets_json(
-            &secrets_path,
-        )?)
+        secrets_env::map_secrets_to_env_vars(secrets_env::load_secrets_json(&secrets_path)?)
     } else {
         HashMap::new()
     };
     if !env_secrets.contains_key("SIGNING_KEY_PEM")
-        && let Some(pem) = super::read_signing_key_pem_at(&profile_dir.join("signing_key.pem"))?
+        && let Some(pem) = secrets_env::read_signing_key_pem(&profile_dir.join("signing_key.pem"))?
     {
         env_secrets.insert("SIGNING_KEY_PEM".to_owned(), pem);
     }

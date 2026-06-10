@@ -18,6 +18,13 @@
 //!   state.
 //! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
 //!   and project files.
+//! - [`profile_authoring`] — pure [`Profile`](systemprompt_models::Profile)
+//!   construction for local and cloud deployment targets.
+//! - [`deploy`] — Dockerfile rendering ([`DockerfileBuilder`]) and validation
+//!   for the deployment image.
+//! - [`secrets_env`] — deploy-time mapping of `secrets.json` to environment
+//!   variables, including the signing-key PEM transport encoding.
+//! - [`DockerCli`] — Docker invocations behind a [`CommandRunner`] seam.
 //!
 //! ## Errors
 //!
@@ -42,9 +49,13 @@ pub mod constants;
 pub mod context;
 pub mod credentials;
 pub mod credentials_bootstrap;
+pub mod deploy;
+pub mod docker;
 pub mod error;
 pub mod oauth;
 pub mod paths;
+pub mod profile_authoring;
+pub mod secrets_env;
 pub mod tenants;
 
 pub use api_client::{
@@ -60,6 +71,8 @@ pub use constants::api::{PRODUCTION_URL, SANDBOX_URL};
 pub use context::{CloudContext, ResolvedTenant};
 pub use credentials::CloudCredentials;
 pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError};
+pub use deploy::DockerfileBuilder;
+pub use docker::{CommandRunner, CommandSpec, DockerCli, SystemCommandRunner};
 pub use error::{CloudError, CloudResult};
 pub use oauth::{OAuthTemplates, run_oauth_flow};
 pub use paths::{

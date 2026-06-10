@@ -22,12 +22,12 @@ use crate::commands::cloud::tenant::get_credentials;
 use systemprompt_models::profile::TrustedIssuer;
 
 use super::api_keys::ApiKeys;
-use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::templates::{
     DatabaseUrls, get_services_path, save_dockerfile, save_dockerignore, save_entrypoint,
     save_profile, save_secrets, update_ai_config_default_provider,
 };
 use super::{CreateArgs, TenantTypeArg};
+use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 
 #[derive(Debug)]
 pub struct CreatedProfile {

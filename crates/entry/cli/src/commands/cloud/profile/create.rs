@@ -17,7 +17,6 @@ use systemprompt_identifiers::TenantId;
 
 use super::CreateArgs;
 use super::api_keys::{ApiKeys, collect_api_keys};
-use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::profile_steps::{
@@ -26,6 +25,7 @@ use super::profile_steps::{
 };
 use super::templates::{get_services_path, save_profile, update_ai_config_default_provider};
 use crate::cli_settings::CliConfig;
+use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 
 pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
 

@@ -2,8 +2,7 @@ use anyhow::Result;
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
-use std::process::Command;
-use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
@@ -102,9 +101,8 @@ async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Invalid compose path"))?;
 
-    let status = Command::new("docker")
-        .args(["compose", "-f", compose_path_str, "up", "-d"])
-        .status()
+    let status = DockerCli::new()
+        .status(&["compose", "-f", compose_path_str, "up", "-d"])
         .map_err(|_e| anyhow::anyhow!("Failed to execute docker compose. Is Docker running?"))?;
 
     if !status.success() {

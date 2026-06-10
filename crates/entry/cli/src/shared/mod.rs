@@ -7,10 +7,8 @@
 //! generate pooled execution entry points.
 
 pub mod command_result;
-pub mod docker;
 pub mod parsers;
 pub mod paths;
-pub mod process;
 pub mod profile;
 pub mod project;
 pub mod text;

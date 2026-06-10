@@ -15,7 +15,13 @@ mod credentials;
 #[cfg(test)]
 mod credentials_bootstrap_error;
 #[cfg(test)]
+mod deploy_dockerfile;
+#[cfg(test)]
+mod deploy_validation;
+#[cfg(test)]
 mod discovered_project;
+#[cfg(test)]
+mod docker_cli;
 #[cfg(test)]
 mod environment;
 #[cfg(test)]
@@ -27,7 +33,11 @@ mod jwt;
 #[cfg(test)]
 mod paths;
 #[cfg(test)]
+mod profile_authoring;
+#[cfg(test)]
 mod project_paths;
+#[cfg(test)]
+mod secrets_env;
 #[cfg(test)]
 mod session_key;
 #[cfg(test)]

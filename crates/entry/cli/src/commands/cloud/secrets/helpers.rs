@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
@@ -41,85 +41,6 @@ pub(in crate::commands::cloud) fn get_tenant_and_secrets_path() -> Result<(Tenan
     }
 
     Ok((tenant_id, secrets_path))
-}
-
-pub(in crate::commands::cloud) fn load_secrets_json(
-    path: &PathBuf,
-) -> Result<HashMap<String, String>> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read {}", path.display()))?;
-
-    let json: serde_json::Value =
-        serde_json::from_str(&content).with_context(|| "Failed to parse secrets.json")?;
-
-    let mut secrets = HashMap::new();
-
-    if let Some(obj) = json.as_object() {
-        for (key, value) in obj {
-            if let Some(s) = value.as_str()
-                && !s.is_empty()
-            {
-                secrets.insert(key.clone(), s.to_owned());
-            }
-        }
-    }
-
-    Ok(secrets)
-}
-
-pub(in crate::commands::cloud) fn map_secrets_to_env_vars(
-    secrets: HashMap<String, String>,
-) -> HashMap<String, String> {
-    use systemprompt_cloud::constants::env_vars;
-
-    let has_internal = secrets.contains_key("internal_database_url");
-
-    let mut result: HashMap<String, String> = secrets
-        .into_iter()
-        .filter_map(|(k, v)| {
-            let env_key = to_env_var_name(&k, has_internal)?;
-            if env_vars::is_system_managed(&env_key) {
-                tracing::warn!(key = %env_key, "Skipping system-managed variable from secrets.json");
-                return None;
-            }
-            Some((env_key, v))
-        })
-        .collect();
-
-    let custom_keys: Vec<String> = result
-        .keys()
-        .filter(|k| !is_standard_env_var(k))
-        .cloned()
-        .collect();
-
-    if !custom_keys.is_empty() {
-        result.insert(env_vars::CUSTOM_SECRETS.to_owned(), custom_keys.join(","));
-    }
-
-    result
-}
-
-fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
-    match key {
-        "gemini" => Some("GEMINI_API_KEY".to_owned()),
-        "anthropic" => Some("ANTHROPIC_API_KEY".to_owned()),
-        "openai" => Some("OPENAI_API_KEY".to_owned()),
-        "internal_database_url" => Some("DATABASE_URL".to_owned()),
-        "database_url" if has_internal_db_url => None,
-        _ => Some(key.to_uppercase()),
-    }
-}
-
-fn is_standard_env_var(key: &str) -> bool {
-    matches!(
-        key,
-        "OAUTH_AT_REST_PEPPER"
-            | "DATABASE_URL"
-            | "GEMINI_API_KEY"
-            | "ANTHROPIC_API_KEY"
-            | "OPENAI_API_KEY"
-            | "GITHUB_TOKEN"
-    )
 }
 
 pub(in crate::commands::cloud) async fn sync_cloud_credentials(

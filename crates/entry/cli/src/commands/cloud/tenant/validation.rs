@@ -1,5 +1,5 @@
 use anyhow::{Context, Result, anyhow, bail};
-use std::path::Path;
+use systemprompt_cloud::deploy::find_services_config;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_logging::CliService;
 use systemprompt_models::ServicesConfig;
@@ -49,14 +49,6 @@ pub(super) fn validate_build_ready() -> Result<BuildValidationResult> {
     let required_secrets = validate_ai_config(&services_config)?;
 
     Ok(BuildValidationResult { required_secrets })
-}
-
-pub fn find_services_config(root: &Path) -> Result<std::path::PathBuf> {
-    let path = root.join("services/config/config.yaml");
-    if path.exists() {
-        return Ok(path);
-    }
-    bail!("Services config not found.\n\nExpected at: services/config/config.yaml");
 }
 
 fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {

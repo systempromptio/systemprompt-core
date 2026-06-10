@@ -13,7 +13,6 @@ use systemprompt_models::CliPaths;
 mod scaffolding;
 pub(super) mod templates;
 
-use super::dockerfile;
 use crate::cli_settings::CliConfig;
 use scaffolding::generate_services_boilerplate;
 
@@ -115,7 +114,7 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
         .context("Failed to create .dockerignore")?;
     CliService::info("  Created .systemprompt/.dockerignore");
 
-    let dockerfile_content = dockerfile::generate_dockerfile_content(project_root);
+    let dockerfile_content = systemprompt_cloud::deploy::generate_dockerfile_content(project_root);
     std::fs::write(dir.join("Dockerfile"), dockerfile_content)
         .context("Failed to create Dockerfile")?;
     CliService::info("  Created .systemprompt/Dockerfile");

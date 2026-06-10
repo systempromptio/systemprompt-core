@@ -20,13 +20,13 @@ use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, ge
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
-use super::dockerfile::validate_profile_dockerfile;
 pub(super) use super::secrets::sync_cloud_credentials;
-use super::tenant::{find_services_config, get_credentials};
+use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
-use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
 use config::DeployConfig;
+use systemprompt_cloud::deploy::{find_services_config, validate_profile_dockerfile};
+use systemprompt_cloud::{DockerCli, secrets_env};
 use systemprompt_loader::ConfigLoader;
 
 pub(super) struct DeployArgs {
@@ -199,8 +199,9 @@ async fn build_and_push_image(
     );
     CliService::key_value("Image", &image);
 
+    let docker = DockerCli::new();
     let spinner = CliService::spinner("Building Docker image...");
-    build_docker_image(project.as_path(), &deploy_config.dockerfile, &image)?;
+    docker.build_image(project.as_path(), &deploy_config.dockerfile, &image)?;
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 
@@ -208,12 +209,12 @@ async fn build_and_push_image(
         CliService::info("Push skipped (--skip-push)");
     } else {
         let spinner = CliService::spinner("Pushing to registry...");
-        docker_login(
+        docker.login(
             &registry_token.registry,
             &registry_token.username,
             &registry_token.token,
         )?;
-        docker_push(&image)?;
+        docker.push(&image)?;
         spinner.finish_and_clear();
         CliService::success("Image pushed");
     }
@@ -232,7 +233,7 @@ async fn provision_secrets(
 
     let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
     let mut env_secrets = if secrets_path.exists() {
-        super::secrets::map_secrets_to_env_vars(super::secrets::load_secrets_json(&secrets_path)?)
+        secrets_env::map_secrets_to_env_vars(secrets_env::load_secrets_json(&secrets_path)?)
     } else {
         CliService::warning("No secrets.json found - skipping secrets sync");
         std::collections::HashMap::new()
@@ -275,20 +276,5 @@ fn read_signing_key_pem(
     profile_dir: &std::path::Path,
 ) -> Result<Option<String>> {
     let path = super::doctor::resolve_signing_key_path(profile, profile_dir);
-    read_signing_key_pem_at(&path)
-}
-
-pub(in crate::commands::cloud) fn read_signing_key_pem_at(
-    path: &std::path::Path,
-) -> Result<Option<String>> {
-    use base64::Engine;
-
-    if !path.exists() {
-        return Ok(None);
-    }
-    let pem = std::fs::read_to_string(path)
-        .with_context(|| format!("reading signing key {}", path.display()))?;
-    Ok(Some(
-        base64::engine::general_purpose::STANDARD.encode(pem.as_bytes()),
-    ))
+    secrets_env::read_signing_key_pem(&path).map_err(Into::into)
 }

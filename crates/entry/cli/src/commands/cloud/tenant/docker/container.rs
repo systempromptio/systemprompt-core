@@ -7,17 +7,15 @@
 use anyhow::{Context, Result, anyhow, bail};
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 use std::time::Duration;
-use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::config::{SHARED_CONTAINER_NAME, SHARED_VOLUME_NAME, shared_config_path};
 
 pub(in crate::commands::cloud) fn is_shared_container_running() -> bool {
-    let output = Command::new("docker")
-        .args(["ps", "-q", "-f", &format!("name={}", SHARED_CONTAINER_NAME)])
-        .output();
+    let filter = format!("name={}", SHARED_CONTAINER_NAME);
+    let output = DockerCli::new().output(&["ps", "-q", "-f", &filter]);
 
     match output {
         Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
@@ -29,14 +27,12 @@ pub(in crate::commands::cloud) fn is_shared_container_running() -> bool {
 }
 
 pub(in crate::commands::cloud) fn get_container_password() -> Option<String> {
-    let output = Command::new("docker")
-        .args([
-            "inspect",
-            SHARED_CONTAINER_NAME,
-            "--format",
-            "{{range .Config.Env}}{{println .}}{{end}}",
-        ])
-        .output();
+    let output = DockerCli::new().output(&[
+        "inspect",
+        SHARED_CONTAINER_NAME,
+        "--format",
+        "{{range .Config.Env}}{{println .}}{{end}}",
+    ]);
 
     match output {
         Ok(out) if out.status.success() => {
@@ -60,15 +56,8 @@ pub(in crate::commands::cloud) fn get_container_password() -> Option<String> {
 }
 
 pub(in crate::commands::cloud) fn check_volume_exists() -> bool {
-    let output = Command::new("docker")
-        .args([
-            "volume",
-            "ls",
-            "-q",
-            "-f",
-            &format!("name={}", SHARED_VOLUME_NAME),
-        ])
-        .output();
+    let filter = format!("name={}", SHARED_VOLUME_NAME);
+    let output = DockerCli::new().output(&["volume", "ls", "-q", "-f", &filter]);
 
     match output {
         Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
@@ -80,9 +69,8 @@ pub(in crate::commands::cloud) fn check_volume_exists() -> bool {
 }
 
 pub(in crate::commands::cloud) fn remove_shared_volume() -> Result<()> {
-    let status = Command::new("docker")
-        .args(["volume", "rm", SHARED_VOLUME_NAME])
-        .status()
+    let status = DockerCli::new()
+        .status(&["volume", "rm", SHARED_VOLUME_NAME])
         .context("Failed to remove PostgreSQL volume")?;
 
     if !status.success() {
@@ -96,6 +84,7 @@ pub(in crate::commands::cloud) fn remove_shared_volume() -> Result<()> {
 }
 
 pub(in crate::commands::cloud) fn stop_shared_container() -> Result<()> {
+    let docker = DockerCli::new();
     let ctx = ProjectContext::discover();
     let compose_path = ctx.docker_dir().join("shared.yaml");
 
@@ -105,9 +94,8 @@ pub(in crate::commands::cloud) fn stop_shared_container() -> Result<()> {
             .ok_or_else(|| anyhow!("Invalid compose path"))?;
 
         CliService::info("Stopping shared PostgreSQL container...");
-        let status = Command::new("docker")
-            .args(["compose", "-f", compose_path_str, "down", "-v"])
-            .status()
+        let status = docker
+            .status(&["compose", "-f", compose_path_str, "down", "-v"])
             .context("Failed to stop shared container")?;
 
         if !status.success() {
@@ -115,23 +103,13 @@ pub(in crate::commands::cloud) fn stop_shared_container() -> Result<()> {
         }
     }
 
-    let output = Command::new("docker")
-        .args([
-            "ps",
-            "-aq",
-            "-f",
-            &format!("name={}", SHARED_CONTAINER_NAME),
-        ])
-        .output()?;
+    let filter = format!("name={}", SHARED_CONTAINER_NAME);
+    let output = docker.output(&["ps", "-aq", "-f", &filter])?;
 
     let container_id = String::from_utf8_lossy(&output.stdout).trim().to_owned();
     if !container_id.is_empty() {
-        Command::new("docker")
-            .args(["stop", &container_id])
-            .status()?;
-        Command::new("docker")
-            .args(["rm", &container_id])
-            .status()?;
+        docker.status(&["stop", &container_id])?;
+        docker.status(&["rm", &container_id])?;
     }
 
     let config_path = shared_config_path();
@@ -152,9 +130,10 @@ pub(in crate::commands::cloud) async fn wait_for_postgres_healthy(
         .to_str()
         .ok_or_else(|| anyhow!("Invalid compose path"))?;
 
+    let docker = DockerCli::new();
     loop {
-        let output = Command::new("docker")
-            .args([
+        let output = docker
+            .output(&[
                 "compose",
                 "-f",
                 compose_path_str,
@@ -162,7 +141,6 @@ pub(in crate::commands::cloud) async fn wait_for_postgres_healthy(
                 "--format",
                 "{{.Health}}",
             ])
-            .output()
             .context("Failed to check container health")?;
 
         let health = String::from_utf8_lossy(&output.stdout).trim().to_owned();

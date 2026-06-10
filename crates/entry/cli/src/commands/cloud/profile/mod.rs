@@ -6,7 +6,6 @@
 
 mod api_keys;
 mod args;
-mod builders;
 mod create;
 mod create_setup;
 mod create_tenant;

@@ -27,7 +27,7 @@ pub use list::list_tenants;
 pub use rotate::rotate_credentials;
 pub use select::{get_credentials, resolve_tenant_id};
 pub use show::show_tenant;
-pub use validation::{check_build_ready, find_services_config};
+pub use validation::check_build_ready;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};

@@ -114,6 +114,23 @@ pub enum CloudError {
     #[error("Provisioning failed: {message}")]
     ProvisioningFailed { message: String },
 
+    #[error("{message}")]
+    Deploy {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
+    #[error("{message}")]
+    Dockerfile { message: String },
+
+    #[error("{message}")]
+    Docker {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
     #[error("Authentication failed. Please run 'systemprompt cloud login' again.")]
     Unauthorized,
 
@@ -128,6 +145,46 @@ impl CloudError {
     pub fn other(message: impl Into<String>) -> Self {
         Self::Other {
             message: message.into(),
+        }
+    }
+
+    pub fn deploy(message: impl Into<String>) -> Self {
+        Self::Deploy {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn deploy_with(
+        message: impl Into<String>,
+        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
+        Self::Deploy {
+            message: message.into(),
+            source: Some(source.into()),
+        }
+    }
+
+    pub fn dockerfile(message: impl Into<String>) -> Self {
+        Self::Dockerfile {
+            message: message.into(),
+        }
+    }
+
+    pub fn docker(message: impl Into<String>) -> Self {
+        Self::Docker {
+            message: message.into(),
+            source: None,
+        }
+    }
+
+    pub fn docker_with(
+        message: impl Into<String>,
+        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
+        Self::Docker {
+            message: message.into(),
+            source: Some(source.into()),
         }
     }
 

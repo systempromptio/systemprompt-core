@@ -31,6 +31,9 @@ impl CloudError {
             Self::CheckoutFlow { .. } => "Cloud checkout flow failed",
             Self::SseStream { .. } => "Cloud SSE stream failed",
             Self::ProvisioningFailed { .. } => "Tenant provisioning failed",
+            Self::Deploy { .. } => "Cloud deploy failed",
+            Self::Dockerfile { .. } => "Dockerfile validation failed",
+            Self::Docker { .. } => "Docker command failed",
             Self::Unauthorized => "Cloud API rejected this token",
             Self::HttpStatus { .. } => "Cloud API returned a non-success status",
             Self::Other { .. } => "Cloud operation failed",
@@ -75,7 +78,11 @@ impl CloudError {
             Self::CheckoutFlow { .. } => "Re-run the checkout flow",
             Self::SseStream { .. } => "Retry the operation; the server falls back to polling",
             Self::ProvisioningFailed { .. } => "Inspect 'systemprompt cloud status' for details",
-            Self::Other { .. } => "Inspect the error message and try again",
+            Self::Dockerfile { .. } => {
+                "Regenerate the Dockerfile with 'systemprompt cloud profile create'"
+            },
+            Self::Docker { .. } => "Check that Docker is installed and running",
+            Self::Deploy { .. } | Self::Other { .. } => "Inspect the error message and try again",
         }
     }
 

@@ -13,9 +13,9 @@ use systemprompt_models::{CliPaths, Profile};
 
 use crate::commands::cloud::init::templates::ai_config;
 
-use crate::cloud::dockerfile::DockerfileBuilder;
+use systemprompt_cloud::deploy::DockerfileBuilder;
 
-pub use crate::shared::profile::{generate_display_name, generate_oauth_at_rest_pepper};
+use crate::shared::profile::generate_oauth_at_rest_pepper;
 
 pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
     let header = format!(
