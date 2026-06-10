@@ -13,7 +13,7 @@ cognitive-complexity-threshold = 30
 type-complexity-threshold = 250
 
 # FUNCTION SIZE - Keep functions focused and readable
-too-many-lines-threshold = 150
+too-many-lines-threshold = 75
 
 # FUNCTION PARAMETERS - Use structs when exceeding threshold
 # Target: 5 parameters (consider builder pattern or config struct)
