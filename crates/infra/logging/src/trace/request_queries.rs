@@ -117,62 +117,9 @@ pub(super) async fn get_ai_request_stats(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
 ) -> Result<AiRequestStats> {
-    let totals = sqlx::query_as!(
-        TotalRow,
-        r#"
-        SELECT
-            COUNT(*) as "request_count",
-            COALESCE(SUM(input_tokens), 0) as "total_input_tokens",
-            COALESCE(SUM(output_tokens), 0) as "total_output_tokens",
-            COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-            COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-        FROM ai_requests
-        WHERE ($1::timestamptz IS NULL OR created_at >= $1)
-        "#,
-        since
-    )
-    .fetch_one(&**pool)
-    .await?;
-
-    let provider_rows = sqlx::query_as!(
-        ProviderRow,
-        r#"
-        SELECT
-            provider as "provider!",
-            COUNT(*) as "request_count",
-            COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-            COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-            COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-        FROM ai_requests
-        WHERE ($1::timestamptz IS NULL OR created_at >= $1)
-        GROUP BY provider
-        ORDER BY request_count DESC
-        "#,
-        since
-    )
-    .fetch_all(&**pool)
-    .await?;
-
-    let model_rows = sqlx::query_as!(
-        ModelRow,
-        r#"
-        SELECT
-            model as "model!",
-            provider as "provider!",
-            COUNT(*) as "request_count",
-            COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-            COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-            COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-        FROM ai_requests
-        WHERE ($1::timestamptz IS NULL OR created_at >= $1)
-        GROUP BY model, provider
-        ORDER BY request_count DESC
-        LIMIT 10
-        "#,
-        since
-    )
-    .fetch_all(&**pool)
-    .await?;
+    let totals = fetch_request_totals(pool, since).await?;
+    let provider_rows = fetch_provider_stats(pool, since).await?;
+    let model_rows = fetch_model_stats(pool, since).await?;
 
     Ok(AiRequestStats {
         total_requests: totals.request_count.unwrap_or(0),
@@ -202,6 +149,81 @@ pub(super) async fn get_ai_request_stats(
             })
             .collect(),
     })
+}
+
+async fn fetch_request_totals(
+    pool: &Arc<PgPool>,
+    since: Option<DateTime<Utc>>,
+) -> Result<TotalRow> {
+    sqlx::query_as!(
+        TotalRow,
+        r#"
+        SELECT
+            COUNT(*) as "request_count",
+            COALESCE(SUM(input_tokens), 0) as "total_input_tokens",
+            COALESCE(SUM(output_tokens), 0) as "total_output_tokens",
+            COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
+            COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
+        FROM ai_requests
+        WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+        "#,
+        since
+    )
+    .fetch_one(&**pool)
+    .await
+    .map_err(Into::into)
+}
+
+async fn fetch_provider_stats(
+    pool: &Arc<PgPool>,
+    since: Option<DateTime<Utc>>,
+) -> Result<Vec<ProviderRow>> {
+    sqlx::query_as!(
+        ProviderRow,
+        r#"
+        SELECT
+            provider as "provider!",
+            COUNT(*) as "request_count",
+            COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
+            COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
+            COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
+        FROM ai_requests
+        WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+        GROUP BY provider
+        ORDER BY request_count DESC
+        "#,
+        since
+    )
+    .fetch_all(&**pool)
+    .await
+    .map_err(Into::into)
+}
+
+async fn fetch_model_stats(
+    pool: &Arc<PgPool>,
+    since: Option<DateTime<Utc>>,
+) -> Result<Vec<ModelRow>> {
+    sqlx::query_as!(
+        ModelRow,
+        r#"
+        SELECT
+            model as "model!",
+            provider as "provider!",
+            COUNT(*) as "request_count",
+            COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
+            COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
+            COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
+        FROM ai_requests
+        WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+        GROUP BY model, provider
+        ORDER BY request_count DESC
+        LIMIT 10
+        "#,
+        since
+    )
+    .fetch_all(&**pool)
+    .await
+    .map_err(Into::into)
 }
 
 pub(super) async fn find_ai_request_detail(
