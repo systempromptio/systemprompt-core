@@ -6,6 +6,8 @@
 //! - DesiredStatus and ServiceAction state types
 //! - VerifiedServiceState action determination logic
 //! - ReconciliationResult tracking and success conditions
+//! - StartupPlan / RestartPlan pure plan computation
+//! - JobExecutionService parameter parsing, selection, and run recording
 
 #![allow(clippy::all)]
 
@@ -18,6 +20,8 @@ mod extended_jobs;
 #[cfg(test)]
 mod job_config;
 #[cfg(test)]
+mod job_execution_db;
+#[cfg(test)]
 mod jobs;
 #[cfg(test)]
 mod jobs_db;
@@ -27,6 +31,8 @@ mod jobs_seeded_db;
 mod models;
 #[cfg(test)]
 mod orchestration;
+#[cfg(test)]
+mod plans;
 #[cfg(test)]
 mod posix_backend;
 #[cfg(test)]

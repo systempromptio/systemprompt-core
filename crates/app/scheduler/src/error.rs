@@ -32,6 +32,15 @@ pub enum SchedulerError {
     #[error("Job execution failed: {job_name} - {error}")]
     JobExecutionFailed { job_name: String, error: String },
 
+    #[error("Invalid parameter format '{parameter}'. Use KEY=VALUE format.")]
+    InvalidJobParameter { parameter: String },
+
+    #[error("No jobs found with tag '{tag}'")]
+    NoJobsWithTag { tag: String },
+
+    #[error("Specify job name(s), use --all, or use --tag <tag> to run jobs")]
+    NoJobsSelected,
+
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 

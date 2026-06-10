@@ -1,19 +1,17 @@
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
-pub(super) use crate::presentation::StartupRenderer;
-use anyhow::{Context, Result};
+use crate::presentation::StartupRenderer;
+use anyhow::Result;
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_agent::AgentState;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::{StartupPlan, StartupRequest};
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
+
+use super::lifecycle;
 
 pub(super) struct ServiceTarget {
     pub api: bool,
@@ -100,6 +98,13 @@ async fn run_startup(
     ctx: &CommandContext,
     events: &systemprompt_traits::StartupEventSender,
 ) -> Result<String> {
+    let plan = StartupPlan::compute(StartupRequest {
+        api: target.api,
+        agents: target.agents,
+        mcp: target.mcp,
+        skip_migrate: options.skip_migrate,
+    });
+
     events.phase_started(Phase::PreFlight);
 
     match CredentialsBootstrap::get() {
@@ -113,7 +118,7 @@ async fn run_startup(
 
     events.phase_completed(Phase::PreFlight);
 
-    if !options.skip_migrate {
+    if plan.run_migrations {
         events.phase_started(Phase::Database);
         super::super::db::execute(
             super::super::db::DbCommands::Migrate {
@@ -125,7 +130,7 @@ async fn run_startup(
         events.phase_completed(Phase::Database);
     }
 
-    if target.api {
+    if plan.start_api {
         let api_url = super::serve::execute_with_events(
             true,
             options.kill_port_process,
@@ -136,7 +141,7 @@ async fn run_startup(
         return Ok(api_url);
     }
 
-    if target.agents && !target.api {
+    if plan.agents_standalone_notice {
         events.phase_started(Phase::Agents);
         events.warning("Standalone agent start not supported");
         events.info("Agents are managed by the API server lifecycle");
@@ -144,7 +149,7 @@ async fn run_startup(
         events.phase_completed(Phase::Agents);
     }
 
-    if target.mcp && !target.api {
+    if plan.mcp_standalone_notice {
         events.phase_started(Phase::McpServers);
         events.warning("Standalone MCP server start not supported");
         events.info("MCP servers are managed by the API server lifecycle");
@@ -158,12 +163,6 @@ async fn run_startup(
     ))
 }
 
-async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
-    let registry = AgentRegistry::new()?;
-    let agent = registry.get_agent(agent_identifier).await?;
-    Ok(agent.name)
-}
-
 pub(super) async fn execute_individual_agent(
     ctx: &Arc<AppContext>,
     agent: &str,
@@ -171,19 +170,8 @@ pub(super) async fn execute_individual_agent(
 ) -> Result<()> {
     CliService::section(&format!("Starting Agent: {}", agent));
 
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
-    );
-    let agent_state = Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
-        jwt_provider,
-    ));
-    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")?;
-
-    let name = resolve_agent_name(agent).await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
+    let name = lifecycle::resolve_agent_name(agent).await?;
     let service_id = orchestrator.start_agent(&name, None).await?;
 
     CliService::success(&format!(
@@ -201,13 +189,7 @@ pub(super) async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Starting MCP Server: {}", server_name));
 
-    let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-    )
-    .context("Failed to initialize MCP manager")?;
-
+    let manager = lifecycle::mcp_orchestrator(ctx)?;
     manager.start_services(Some(server_name.to_owned())).await?;
 
     CliService::success(&format!("MCP server {} started successfully", server_name));

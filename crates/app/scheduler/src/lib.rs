@@ -8,8 +8,12 @@
 //! - A small set of built-in jobs ([`BehavioralAnalysisJob`],
 //!   [`CleanupInactiveSessionsJob`], …) that drive analytics and security
 //!   maintenance.
+//! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
+//!   and records each run.
 //! - Process- and database-level service reconciliation primitives
-//!   ([`ProcessCleanup`], [`ServiceReconciler`], [`ServiceStateVerifier`]).
+//!   ([`ProcessCleanup`], [`ServiceReconciler`], [`ServiceStateVerifier`]),
+//!   plus pure start/restart planning ([`StartupPlan`], [`RestartPlan`]) for
+//!   composition roots.
 //!
 //! # Public error surface
 //!
@@ -51,8 +55,10 @@ pub use jobs::{
 pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig};
 pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
-    DbServiceRecord, DesiredStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
-    RuntimeStatus, SchedulerHandle, SchedulerService, ServiceAction, ServiceConfig,
-    ServiceManagementService, ServiceReconciler, ServiceStateVerifier, ServiceType,
-    VerifiedServiceState,
+    DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService, JobRunReport,
+    JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome, ProcessCleanup,
+    ProcessInfo, ReconciliationResult, RestartPlan, RestartScope, RestartTarget, RuntimeStatus,
+    SchedulerHandle, SchedulerService, ServiceAction, ServiceConfig, ServiceManagementService,
+    ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
+    StartupRequest, VerifiedServiceState, parse_job_parameters,
 };

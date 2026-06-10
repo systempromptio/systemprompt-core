@@ -1,23 +1,28 @@
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 use anyhow::Result;
-use std::sync::Arc;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
+use systemprompt_scheduler::{
+    OrphanCleanupReport, OrphanDisposition, ProcessCleanup, ServiceManagementService,
+};
 
 use super::get_api_port;
 use super::types::CleanupOutput;
 
-pub(super) async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    yes: bool,
+    dry_run: bool,
+    ctx: &CommandContext,
+) -> Result<CommandOutput> {
+    let config = &ctx.cli;
     let quiet = config.is_json_output();
     if !quiet {
         CliService::section("Cleaning Up Services");
     }
 
-    let ctx = Arc::new(AppContext::new().await?);
-    let service_mgmt = ServiceManagementService::new(ctx.db_pool())?;
+    let app = ctx.app_context().await?;
+    let service_mgmt = ServiceManagementService::new(app.db_pool())?;
     let api_port = get_api_port();
 
     if !quiet {
@@ -41,14 +46,11 @@ pub(super) async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Res
         config,
     )?;
 
-    let mut cleaned = stop_running_services(&running_services, &service_mgmt, quiet).await?;
-    cleaned += stop_api_server(api_port, quiet).await?;
+    let report = service_mgmt.cleanup_all_orphans(api_port).await?;
+    render_cleanup_report(&report, quiet);
 
-    let stale_count = service_mgmt.cleanup_stale_entries().await.unwrap_or(0) as usize;
-    if stale_count > 0 && !quiet {
-        CliService::info(&format!("Cleaned {} stale database entries", stale_count));
-    }
-
+    let cleaned = report.services_cleaned();
+    let stale_count = usize::try_from(report.stale_entries_removed).unwrap_or(usize::MAX);
     let message = format_cleanup_message(cleaned, quiet);
     let output = CleanupOutput {
         services_cleaned: cleaned,
@@ -57,6 +59,35 @@ pub(super) async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Res
         message,
     };
     Ok(CommandOutput::card_value("Service Cleanup", &output))
+}
+
+fn render_cleanup_report(report: &OrphanCleanupReport, quiet: bool) {
+    if quiet {
+        return;
+    }
+    for outcome in &report.outcomes {
+        match outcome.disposition {
+            OrphanDisposition::StaleEntry => {
+                CliService::info(&format!(
+                    "Cleaning stale entry: {} (PID {} not running)",
+                    outcome.name, outcome.pid
+                ));
+            },
+            OrphanDisposition::Stopped => {
+                CliService::info(&format!(
+                    "Stopping {} (PID: {}, port: {})...",
+                    outcome.name, outcome.pid, outcome.port
+                ));
+            },
+        }
+    }
+    CliService::info("Stopping API server...");
+    if report.stale_entries_removed > 0 {
+        CliService::info(&format!(
+            "Cleaned {} stale database entries",
+            report.stale_entries_removed
+        ));
+    }
 }
 
 fn no_services_result(quiet: bool, dry_run: bool) -> CommandOutput {
@@ -120,52 +151,6 @@ fn log_service_state(service: &systemprompt_database::ServiceConfig) {
             service.name, pid
         ));
     }
-}
-
-async fn stop_running_services(
-    running_services: &[systemprompt_database::ServiceConfig],
-    service_mgmt: &ServiceManagementService,
-    quiet: bool,
-) -> Result<usize> {
-    let mut cleaned = 0usize;
-    for service in running_services {
-        let Some(pid) = service.pid else { continue };
-        let pid_u32 = pid as u32;
-        if !ProcessCleanup::process_exists(pid_u32) {
-            if !quiet {
-                CliService::info(&format!(
-                    "Cleaning stale entry: {} (PID {} not running)",
-                    service.name, pid
-                ));
-            }
-            if let Err(e) = service_mgmt.mark_service_stopped(&service.name).await {
-                tracing::warn!(service = %service.name, error = %e, "mark_service_stopped failed");
-            }
-            cleaned += 1;
-            continue;
-        }
-        if !quiet {
-            CliService::info(&format!(
-                "Stopping {} (PID: {}, port: {})...",
-                service.name, pid, service.port
-            ));
-        }
-        service_mgmt.cleanup_orphaned_service(service).await?;
-        cleaned += 1;
-    }
-    Ok(cleaned)
-}
-
-async fn stop_api_server(api_port: u16, quiet: bool) -> Result<usize> {
-    if !quiet {
-        CliService::info("Stopping API server...");
-    }
-    let api_killed = ProcessCleanup::check_port(api_port)
-        .map_or_else(Vec::new, |pid| ProcessCleanup::kill_port(api_port, pid));
-    let cleaned = usize::from(!api_killed.is_empty());
-    ProcessCleanup::kill_by_pattern("systemprompt serve api");
-    ProcessCleanup::wait_for_port_free(api_port, 3, 1000).await?;
-    Ok(cleaned)
 }
 
 fn format_cleanup_message(cleaned: usize, quiet: bool) -> String {

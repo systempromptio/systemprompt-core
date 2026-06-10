@@ -1,12 +1,12 @@
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
-use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
 
+use super::super::lifecycle;
 use super::super::types::RestartOutput;
 
 pub async fn execute_api(config: &CliConfig) -> Result<CommandOutput> {
@@ -76,8 +76,8 @@ pub async fn execute_agent(
         CliService::section(&format!("Restarting Agent: {}", agent));
     }
 
-    let orchestrator = super::create_orchestrator(ctx).await?;
-    let name = super::resolve_name(agent).await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
+    let name = lifecycle::resolve_agent_name(agent).await?;
     let service_id = orchestrator.restart_agent(&name, None).await?;
 
     let message = format!(
@@ -116,12 +116,7 @@ pub async fn execute_mcp(
         CliService::section(&format!("{} MCP Server: {}", action, server_name));
     }
 
-    let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-    )
-    .context("Failed to initialize MCP manager")?;
+    let manager = lifecycle::mcp_orchestrator(ctx)?;
 
     if build {
         manager

@@ -1,12 +1,16 @@
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
-use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::{
+    RestartPlan, RestartScope, RestartTarget, ServiceSnapshot, ServiceType,
+};
 
+use super::super::lifecycle;
 use super::super::types::RestartOutput;
 
 pub async fn execute_all_agents(
@@ -19,39 +23,18 @@ pub async fn execute_all_agents(
         CliService::section("Restarting All Agents");
     }
 
-    let orchestrator = super::create_orchestrator(ctx).await?;
-    let agent_registry = AgentRegistry::new()?;
-    let all_agents = orchestrator.list_all().await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
+    let snapshots = agent_snapshots(&orchestrator).await?;
+    let plan = RestartPlan::compute(RestartScope::AllAgents, &snapshots);
 
     let mut restarted = 0usize;
     let mut failed = 0usize;
 
-    for (agent_id, _status) in &all_agents {
-        let Ok(agent_config) = agent_registry.get_agent(agent_id).await else {
-            continue;
-        };
-
-        if !agent_config.enabled {
-            continue;
-        }
-
+    for target in &plan.targets {
         if !quiet {
-            CliService::info(&format!("Restarting agent: {}", agent_config.name));
+            CliService::info(&format!("Restarting agent: {}", target.name));
         }
-        match orchestrator.restart_agent(agent_id, None).await {
-            Ok(_) => {
-                restarted += 1;
-                if !quiet {
-                    CliService::success(&format!("  {} restarted", agent_config.name));
-                }
-            },
-            Err(e) => {
-                failed += 1;
-                if !quiet {
-                    CliService::error(&format!("  Failed to restart {}: {}", agent_config.name, e));
-                }
-            },
-        }
+        restart_agent_target(&orchestrator, target, &mut restarted, &mut failed, quiet).await;
     }
 
     let message = super::format_batch_message("agents", restarted, failed, quiet);
@@ -74,41 +57,28 @@ pub async fn execute_all_mcp(ctx: &Arc<AppContext>, config: &CliConfig) -> Resul
         CliService::section("Restarting All MCP Servers");
     }
 
-    let mcp_manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-    )
-    .context("Failed to initialize MCP manager")?;
-
-    ctx.mcp_registry().validate()?;
-    let servers = ctx.mcp_registry().get_enabled_servers()?;
+    let mcp_manager = lifecycle::mcp_orchestrator(ctx)?;
+    let snapshots = mcp_snapshots(ctx, false).await?;
+    let plan = RestartPlan::compute(RestartScope::AllMcp, &snapshots);
 
     let mut restarted = 0usize;
     let mut failed = 0usize;
 
-    for server in servers {
-        if !server.enabled {
-            continue;
-        }
-
+    for target in &plan.targets {
         if !quiet {
-            CliService::info(&format!("Restarting MCP server: {}", server.name));
+            CliService::info(&format!("Restarting MCP server: {}", target.name));
         }
-        match mcp_manager
-            .restart_services(Some(server.name.clone()))
-            .await
-        {
+        match mcp_manager.restart_services(Some(target.id.clone())).await {
             Ok(()) => {
                 restarted += 1;
                 if !quiet {
-                    CliService::success(&format!("  {} restarted", server.name));
+                    CliService::success(&format!("  {} restarted", target.name));
                 }
             },
             Err(e) => {
                 failed += 1;
                 if !quiet {
-                    CliService::error(&format!("  Failed to restart {}: {}", server.name, e));
+                    CliService::error(&format!("  Failed to restart {}: {}", target.name, e));
                 }
             },
         }
@@ -137,11 +107,46 @@ pub async fn execute_failed(ctx: &Arc<AppContext>, config: &CliConfig) -> Result
         CliService::section("Restarting Failed Services");
     }
 
+    let handles = lifecycle::OrchestratorHandles::build(ctx).await?;
+
+    let mut snapshots = agent_snapshots(&handles.agents).await?;
+    snapshots.extend(mcp_snapshots(ctx, true).await?);
+    let plan = RestartPlan::compute(RestartScope::Failed, &snapshots);
+
     let mut restarted_count = 0usize;
     let mut failed_count = 0usize;
 
-    restart_failed_agents(ctx, &mut restarted_count, &mut failed_count, quiet).await?;
-    restart_failed_mcp(ctx, &mut restarted_count, &mut failed_count, quiet).await?;
+    for target in &plan.targets {
+        match target.service_type {
+            ServiceType::Agent => {
+                if !quiet {
+                    CliService::info(&format!("Restarting failed agent: {}", target.name));
+                }
+                restart_agent_target(
+                    &handles.agents,
+                    target,
+                    &mut restarted_count,
+                    &mut failed_count,
+                    quiet,
+                )
+                .await;
+            },
+            ServiceType::Mcp => {
+                if !quiet {
+                    CliService::info(&format!("Restarting MCP server: {}", target.name));
+                }
+                restart_mcp_target(
+                    &handles.mcp,
+                    target,
+                    &mut restarted_count,
+                    &mut failed_count,
+                    quiet,
+                )
+                .await;
+            },
+            ServiceType::Api => {},
+        }
+    }
 
     let message = if restarted_count > 0 {
         let msg = format!("Restarted {} failed services", restarted_count);
@@ -178,110 +183,104 @@ pub async fn execute_failed(ctx: &Arc<AppContext>, config: &CliConfig) -> Result
     ))
 }
 
-async fn restart_failed_agents(
-    ctx: &Arc<AppContext>,
-    restarted_count: &mut usize,
-    failed_count: &mut usize,
+async fn restart_mcp_target(
+    orchestrator: &systemprompt_mcp::services::McpOrchestrator,
+    target: &RestartTarget,
+    restarted: &mut usize,
+    failed: &mut usize,
     quiet: bool,
-) -> Result<()> {
-    let orchestrator = super::create_orchestrator(ctx).await?;
-    let agent_registry = AgentRegistry::new()?;
+) {
+    match orchestrator.restart_services(Some(target.id.clone())).await {
+        Ok(()) => {
+            *restarted += 1;
+            if !quiet {
+                CliService::success(&format!("  {} restarted", target.name));
+            }
+        },
+        Err(e) => {
+            *failed += 1;
+            if !quiet {
+                CliService::error(&format!("  Failed to restart {}: {}", target.name, e));
+            }
+        },
+    }
+}
 
+async fn restart_agent_target(
+    orchestrator: &AgentOrchestrator,
+    target: &RestartTarget,
+    restarted: &mut usize,
+    failed: &mut usize,
+    quiet: bool,
+) {
+    match orchestrator.restart_agent(&target.id, None).await {
+        Ok(_) => {
+            *restarted += 1;
+            if !quiet {
+                CliService::success(&format!("  {} restarted", target.name));
+            }
+        },
+        Err(e) => {
+            *failed += 1;
+            if !quiet {
+                CliService::error(&format!("  Failed to restart {}: {}", target.name, e));
+            }
+        },
+    }
+}
+
+async fn agent_snapshots(orchestrator: &AgentOrchestrator) -> Result<Vec<ServiceSnapshot>> {
+    let agent_registry = AgentRegistry::new()?;
     let all_agents = orchestrator.list_all().await?;
+
+    let mut snapshots = Vec::with_capacity(all_agents.len());
     for (agent_id, status) in &all_agents {
         let Ok(agent_config) = agent_registry.get_agent(agent_id).await else {
             continue;
         };
 
-        if !agent_config.enabled {
-            continue;
-        }
-
-        if let systemprompt_agent::services::agent_orchestration::AgentStatus::Failed { .. } =
-            status
-        {
-            if !quiet {
-                CliService::info(&format!("Restarting failed agent: {}", agent_config.name));
-            }
-            match orchestrator.restart_agent(agent_id, None).await {
-                Ok(_) => {
-                    *restarted_count += 1;
-                    if !quiet {
-                        CliService::success(&format!("  {} restarted", agent_config.name));
-                    }
-                },
-                Err(e) => {
-                    *failed_count += 1;
-                    if !quiet {
-                        CliService::error(&format!(
-                            "  Failed to restart {}: {}",
-                            agent_config.name, e
-                        ));
-                    }
-                },
-            }
-        }
+        snapshots.push(ServiceSnapshot {
+            service_type: ServiceType::Agent,
+            id: agent_id.clone(),
+            name: agent_config.name,
+            enabled: agent_config.enabled,
+            healthy: !matches!(status, AgentStatus::Failed { .. }),
+        });
     }
-
-    Ok(())
+    Ok(snapshots)
 }
 
-async fn restart_failed_mcp(
-    ctx: &Arc<AppContext>,
-    restarted_count: &mut usize,
-    failed_count: &mut usize,
-    quiet: bool,
-) -> Result<()> {
-    let mcp_manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-    )
-    .context("Failed to initialize MCP manager")?;
-
+async fn mcp_snapshots(ctx: &Arc<AppContext>, probe_health: bool) -> Result<Vec<ServiceSnapshot>> {
     ctx.mcp_registry().validate()?;
     let servers = ctx.mcp_registry().get_enabled_servers()?;
 
+    let mut snapshots = Vec::with_capacity(servers.len());
     for server in servers {
         if !server.enabled {
             continue;
         }
 
-        let database = systemprompt_mcp::services::DatabaseService::new(
-            Arc::clone(ctx.db_pool()),
-            Arc::clone(ctx.app_paths_arc()),
-            ctx.mcp_registry().clone(),
-        );
-        let service_info = database.get_service_by_name(&server.name).await?;
-
-        let needs_restart = match service_info {
-            Some(info) => info.status != "running",
-            None => true,
+        let healthy = if probe_health {
+            let database = systemprompt_mcp::services::DatabaseService::new(
+                Arc::clone(ctx.db_pool()),
+                Arc::clone(ctx.app_paths_arc()),
+                ctx.mcp_registry().clone(),
+            );
+            database
+                .get_service_by_name(&server.name)
+                .await?
+                .is_some_and(|info| info.status == "running")
+        } else {
+            true
         };
 
-        if needs_restart {
-            if !quiet {
-                CliService::info(&format!("Restarting MCP server: {}", server.name));
-            }
-            match mcp_manager
-                .restart_services(Some(server.name.clone()))
-                .await
-            {
-                Ok(()) => {
-                    *restarted_count += 1;
-                    if !quiet {
-                        CliService::success(&format!("  {} restarted", server.name));
-                    }
-                },
-                Err(e) => {
-                    *failed_count += 1;
-                    if !quiet {
-                        CliService::error(&format!("  Failed to restart {}: {}", server.name, e));
-                    }
-                },
-            }
-        }
+        snapshots.push(ServiceSnapshot {
+            service_type: ServiceType::Mcp,
+            id: server.name.clone(),
+            name: server.name.clone(),
+            enabled: true,
+            healthy,
+        });
     }
-
-    Ok(())
+    Ok(snapshots)
 }

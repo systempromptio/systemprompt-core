@@ -1,27 +1,24 @@
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_agent::AgentState;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
-use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
+use systemprompt_scheduler::ServiceManagementService;
 
-use super::get_api_port;
 use super::start::ServiceTarget;
 use super::types::{StopIndividualOutput, StopServiceOutput};
+use super::{get_api_port, lifecycle};
 
 pub(super) async fn execute(
     target: ServiceTarget,
     force: bool,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<CommandOutput> {
-    let ctx = Arc::new(AppContext::new().await?);
-    let service_mgmt = ServiceManagementService::new(ctx.db_pool())?;
+    let config = &ctx.cli;
+    let app = ctx.app_context().await?;
+    let service_mgmt = ServiceManagementService::new(app.db_pool())?;
 
     let mcp_stopped = if target.mcp {
         if !config.is_json_output() {
@@ -69,19 +66,12 @@ pub(super) async fn execute(
 async fn stop_api(force: bool, quiet: bool) -> Result<()> {
     let port = get_api_port();
 
-    if let Some(pid) = ProcessCleanup::check_port(port) {
-        if !quiet {
-            CliService::info(&format!("Stopping API server (PID: {})...", pid));
-        }
-        if force {
-            ProcessCleanup::kill_process(pid);
-        } else {
-            ProcessCleanup::terminate_gracefully(pid, 100).await;
-        }
-        ProcessCleanup::kill_port(port, pid);
+    let stopped_pid = ServiceManagementService::stop_api_by_port(port, force).await?;
+    if let Some(pid) = stopped_pid
+        && !quiet
+    {
+        CliService::info(&format!("Stopping API server (PID: {})...", pid));
     }
-
-    ProcessCleanup::wait_for_port_free(port, 5, 200).await?;
 
     if !quiet {
         CliService::success("API server stopped");
@@ -147,12 +137,6 @@ async fn stop_mcp_servers(
     Ok(stopped)
 }
 
-async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
-    let registry = AgentRegistry::new()?;
-    let agent = registry.get_agent(agent_identifier).await?;
-    Ok(agent.name)
-}
-
 pub(super) async fn execute_individual_agent(
     ctx: &Arc<AppContext>,
     agent: &str,
@@ -163,19 +147,8 @@ pub(super) async fn execute_individual_agent(
         CliService::section(&format!("Stopping Agent: {}", agent));
     }
 
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
-    );
-    let agent_state = Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
-        jwt_provider,
-    ));
-    let orchestrator = AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")?;
-
-    let name = resolve_agent_name(agent).await?;
+    let orchestrator = lifecycle::agent_orchestrator(ctx).await?;
+    let name = lifecycle::resolve_agent_name(agent).await?;
 
     if force {
         orchestrator.delete_agent(&name).await?;
@@ -208,13 +181,7 @@ pub(super) async fn execute_individual_mcp(
         CliService::section(&format!("Stopping MCP Server: {}", server_name));
     }
 
-    let manager = McpOrchestrator::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::clone(ctx.app_paths_arc()),
-        ctx.mcp_registry().clone(),
-    )
-    .context("Failed to initialize MCP manager")?;
-
+    let manager = lifecycle::mcp_orchestrator(ctx)?;
     manager.stop_services(Some(server_name.to_owned())).await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);

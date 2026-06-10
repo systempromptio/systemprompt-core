@@ -3,49 +3,19 @@
 //!
 //! Re-exports the per-target entry points ([`execute_api`], [`execute_agent`],
 //! [`execute_mcp`]) and the batch entry points ([`execute_all_agents`],
-//! [`execute_all_mcp`], [`execute_failed`]), plus the orchestrator/state
-//! construction helpers they both rely on.
+//! [`execute_all_mcp`], [`execute_failed`]). Batch paths compute a
+//! [`systemprompt_scheduler::RestartPlan`] from the observed service state
+//! and drive the orchestrators composed in the parent module's `lifecycle`.
 
 mod batch;
 mod single;
 
-use anyhow::{Context, Result};
-use std::sync::Arc;
-use systemprompt_agent::AgentState;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
-use systemprompt_oauth::JwtValidationProviderImpl;
-use systemprompt_runtime::AppContext;
 
 use super::get_api_port;
 
 pub use batch::{execute_all_agents, execute_all_mcp, execute_failed};
 pub use single::{execute_agent, execute_api, execute_mcp};
-
-pub(super) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
-    );
-    Ok(Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
-        jwt_provider,
-    )))
-}
-
-pub(super) async fn resolve_name(agent_identifier: &str) -> Result<String> {
-    let registry = AgentRegistry::new()?;
-    let agent = registry.get_agent(agent_identifier).await?;
-    Ok(agent.name)
-}
-
-pub(super) async fn create_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
-    let agent_state = create_agent_state(ctx)?;
-    AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
-        .await
-        .context("Failed to initialize agent orchestrator")
-}
 
 pub(super) fn format_batch_message(
     service_label: &str,

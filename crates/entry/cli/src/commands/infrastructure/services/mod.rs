@@ -7,6 +7,7 @@
 
 mod cleanup;
 mod dispatch;
+mod lifecycle;
 pub mod restart;
 pub mod serve;
 mod start;

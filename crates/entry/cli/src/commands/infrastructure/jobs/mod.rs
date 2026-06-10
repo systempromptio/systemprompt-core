@@ -65,7 +65,7 @@ pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         JobsCommands::Run(args) => {
-            render_result(&run::execute(args).await?, &ctx.cli);
+            render_result(&run::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::History(args) => {
