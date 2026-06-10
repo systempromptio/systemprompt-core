@@ -7,8 +7,11 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::AppPaths;
-use systemprompt_template_provider::{ComponentContext, PageContext, PagePrepareContext};
+use systemprompt_template_provider::{
+    ComponentContext, DynPagePrerenderer, PageContext, PagePrepareContext,
+};
 use tokio::fs;
 
 use crate::error::{GeneratorResult as Result, PublishError};
@@ -76,97 +79,140 @@ async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<Page
                 continue;
             }
 
-            let render_spec = prerenderer
-                .prepare(&prepare_ctx)
-                .await
-                .map_err(|e| PublishError::page_prerenderer_failed(page_type, e.to_string()))?;
-
-            let Some(spec) = render_spec else {
-                tracing::debug!(page_type = %page_type, locale = %locale, "Prerenderer returned None, skipping");
-                continue;
+            let render = RenderPageParams {
+                ctx,
+                prerenderer,
+                prepare_ctx: &prepare_ctx,
+                locale,
+                locale_prefix: &locale_prefix,
             };
 
-            if !ctx.template_registry.has_template(&spec.template_name) {
-                tracing::warn!(
-                    page_type = %page_type,
-                    template = %spec.template_name,
-                    "Template not found, skipping page"
-                );
-                continue;
+            if let Some(result) = render_prerenderer_page(&render).await? {
+                rendered_page_types.insert(page_type.to_owned());
+                results.push(result);
             }
-
-            let mut page_data = spec.base_data;
-            if let Some(obj) = page_data.as_object_mut() {
-                obj.insert(
-                    "locale".to_owned(),
-                    serde_json::Value::String(locale.to_string()),
-                );
-            }
-
-            let page_ctx = PageContext::new(page_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
-                .with_locale(locale);
-            let providers = ctx.template_registry.page_providers_for(page_type);
-            let provider_ids: Vec<_> = providers.iter().map(|p| p.provider_id()).collect();
-
-            tracing::debug!(
-                page_type = %page_type,
-                locale = %locale,
-                provider_count = providers.len(),
-                provider_ids = ?provider_ids,
-                "Collecting page data from providers"
-            );
-
-            for provider in &providers {
-                let data = provider.provide_page_data(&page_ctx).await.map_err(|e| {
-                    PublishError::provider_failed(provider.provider_id(), e.to_string())
-                })?;
-                merge_json_data(&mut page_data, &data);
-            }
-
-            let component_ctx = ComponentContext::for_page(&ctx.web_config);
-            render_components(
-                &ctx.template_registry,
-                page_type,
-                &component_ctx,
-                &mut page_data,
-            )
-            .await;
-
-            let html = ctx
-                .template_registry
-                .render(&spec.template_name, &page_data)
-                .map_err(|e| {
-                    PublishError::render_failed(&spec.template_name, None, e.to_string())
-                })?;
-
-            let prefixed_output = if locale_prefix.is_empty() {
-                spec.output_path.clone()
-            } else {
-                PathBuf::from(locale_prefix.trim_start_matches('/')).join(&spec.output_path)
-            };
-            let output_path = ctx.dist_dir.join(&prefixed_output);
-
-            if let Some(parent) = output_path.parent() {
-                fs::create_dir_all(parent).await?;
-            }
-
-            fs::write(&output_path, html).await?;
-
-            tracing::info!(
-                page_type = %page_type,
-                locale = %locale,
-                path = %output_path.display(),
-                "Generated page"
-            );
-
-            rendered_page_types.insert(page_type.to_owned());
-
-            results.push(PagePrerenderResult {
-                page_type: page_type.to_owned(),
-                output_path,
-            });
         }
     }
 
     Ok(results)
+}
+
+struct RenderPageParams<'a> {
+    ctx: &'a PrerenderContext,
+    prerenderer: &'a DynPagePrerenderer,
+    prepare_ctx: &'a PagePrepareContext<'a>,
+    locale: &'a LocaleCode,
+    locale_prefix: &'a str,
+}
+
+async fn render_prerenderer_page(
+    params: &RenderPageParams<'_>,
+) -> Result<Option<PagePrerenderResult>> {
+    let RenderPageParams {
+        ctx,
+        prerenderer,
+        prepare_ctx,
+        locale,
+        locale_prefix,
+    } = params;
+
+    let page_type = prerenderer.page_type();
+
+    let render_spec = prerenderer
+        .prepare(prepare_ctx)
+        .await
+        .map_err(|e| PublishError::page_prerenderer_failed(page_type, e.to_string()))?;
+
+    let Some(spec) = render_spec else {
+        tracing::debug!(page_type = %page_type, locale = %locale, "Prerenderer returned None, skipping");
+        return Ok(None);
+    };
+
+    if !ctx.template_registry.has_template(&spec.template_name) {
+        tracing::warn!(
+            page_type = %page_type,
+            template = %spec.template_name,
+            "Template not found, skipping page"
+        );
+        return Ok(None);
+    }
+
+    let page_data = collect_page_data(ctx, page_type, locale, spec.base_data).await?;
+
+    let html = ctx
+        .template_registry
+        .render(&spec.template_name, &page_data)
+        .map_err(|e| PublishError::render_failed(&spec.template_name, None, e.to_string()))?;
+
+    let prefixed_output = if locale_prefix.is_empty() {
+        spec.output_path.clone()
+    } else {
+        PathBuf::from(locale_prefix.trim_start_matches('/')).join(&spec.output_path)
+    };
+    let output_path = ctx.dist_dir.join(&prefixed_output);
+
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent).await?;
+    }
+
+    fs::write(&output_path, html).await?;
+
+    tracing::info!(
+        page_type = %page_type,
+        locale = %locale,
+        path = %output_path.display(),
+        "Generated page"
+    );
+
+    Ok(Some(PagePrerenderResult {
+        page_type: page_type.to_owned(),
+        output_path,
+    }))
+}
+
+async fn collect_page_data(
+    ctx: &PrerenderContext,
+    page_type: &str,
+    locale: &LocaleCode,
+    base_data: serde_json::Value,
+) -> Result<serde_json::Value> {
+    let mut page_data = base_data;
+    if let Some(obj) = page_data.as_object_mut() {
+        obj.insert(
+            "locale".to_owned(),
+            serde_json::Value::String(locale.to_string()),
+        );
+    }
+
+    let page_ctx =
+        PageContext::new(page_type, &ctx.web_config, &ctx.config, &ctx.db_pool).with_locale(locale);
+    let providers = ctx.template_registry.page_providers_for(page_type);
+    let provider_ids: Vec<_> = providers.iter().map(|p| p.provider_id()).collect();
+
+    tracing::debug!(
+        page_type = %page_type,
+        locale = %locale,
+        provider_count = providers.len(),
+        provider_ids = ?provider_ids,
+        "Collecting page data from providers"
+    );
+
+    for provider in &providers {
+        let data = provider
+            .provide_page_data(&page_ctx)
+            .await
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+        merge_json_data(&mut page_data, &data);
+    }
+
+    let component_ctx = ComponentContext::for_page(&ctx.web_config);
+    render_components(
+        &ctx.template_registry,
+        page_type,
+        &component_ctx,
+        &mut page_data,
+    )
+    .await;
+
+    Ok(page_data)
 }

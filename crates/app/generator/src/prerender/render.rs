@@ -33,13 +33,10 @@ pub(super) struct RenderSingleItemParams<'a> {
 pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> GeneratorResult<()> {
     let RenderSingleItemParams {
         ctx,
-        source_name,
         sitemap_config,
         locale_prefix,
         item,
-        all_items,
-        popular_ids,
-        config_value,
+        ..
     } = params;
 
     let slug = item
@@ -66,52 +63,15 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
         .and_then(|s| LocaleCode::try_new(s).ok())
         .unwrap_or_else(|| ctx.web_config.i18n.default_locale.clone());
 
-    let mut template_data = serde_json::json!({
-        "CONTENT": toc_result.content_html,
-        "TOC_HTML": toc_result.toc_html,
-        "SLUG": slug,
-        "locale": locale.as_str(),
-    });
-
-    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
-        .with_content_item(item)
-        .with_all_items(all_items)
-        .with_locale(&locale);
-
-    for provider in ctx.template_registry.page_providers_for(content_type) {
-        let data = provider
-            .provide_page_data(&page_ctx)
-            .await
-            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
-        merge_json_data(&mut template_data, &data);
-    }
-
-    let component_ctx =
-        ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
-    render_components(
-        &ctx.template_registry,
+    let template_data = build_template_data(&BuildTemplateDataParams {
+        params,
         content_type,
-        &component_ctx,
-        &mut template_data,
-    )
-    .await;
-
-    let extender_ctx =
-        ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
-            .with_content_html(&toc_result.content_html)
-            .with_url_pattern(&sitemap_config.url_pattern)
-            .with_source_name(source_name)
-            .build();
-
-    for extender in ctx.template_registry.extenders_for(content_type) {
-        if let Err(e) = extender.extend(&extender_ctx, &mut template_data).await {
-            tracing::warn!(
-                extender_id = %extender.extender_id(),
-                error = %e,
-                "Template data extender failed"
-            );
-        }
-    }
+        slug,
+        locale: &locale,
+        content_html: &toc_result.content_html,
+        toc_html: &toc_result.toc_html,
+    })
+    .await?;
 
     let available_templates = ctx.template_registry.available_content_types();
     let template_name = ctx
@@ -136,6 +96,81 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
         &html,
     )
     .await
+}
+
+struct BuildTemplateDataParams<'a> {
+    params: &'a RenderSingleItemParams<'a>,
+    content_type: &'a str,
+    slug: &'a str,
+    locale: &'a LocaleCode,
+    content_html: &'a str,
+    toc_html: &'a str,
+}
+
+async fn build_template_data(
+    args: &BuildTemplateDataParams<'_>,
+) -> GeneratorResult<serde_json::Value> {
+    let RenderSingleItemParams {
+        ctx,
+        source_name,
+        sitemap_config,
+        item,
+        all_items,
+        popular_ids,
+        config_value,
+        ..
+    } = args.params;
+    let content_type = args.content_type;
+    let locale = args.locale;
+
+    let mut template_data = serde_json::json!({
+        "CONTENT": args.content_html,
+        "TOC_HTML": args.toc_html,
+        "SLUG": args.slug,
+        "locale": locale.as_str(),
+    });
+
+    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
+        .with_content_item(item)
+        .with_all_items(all_items)
+        .with_locale(locale);
+
+    for provider in ctx.template_registry.page_providers_for(content_type) {
+        let data = provider
+            .provide_page_data(&page_ctx)
+            .await
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+        merge_json_data(&mut template_data, &data);
+    }
+
+    let component_ctx =
+        ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
+    render_components(
+        &ctx.template_registry,
+        content_type,
+        &component_ctx,
+        &mut template_data,
+    )
+    .await;
+
+    let extender_ctx =
+        ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
+            .with_content_html(args.content_html)
+            .with_url_pattern(&sitemap_config.url_pattern)
+            .with_source_name(source_name)
+            .build();
+
+    for extender in ctx.template_registry.extenders_for(content_type) {
+        if let Err(e) = extender.extend(&extender_ctx, &mut template_data).await {
+            tracing::warn!(
+                extender_id = %extender.extender_id(),
+                error = %e,
+                "Template data extender failed"
+            );
+        }
+    }
+
+    Ok(template_data)
 }
 
 async fn write_rendered_page(

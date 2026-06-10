@@ -56,36 +56,60 @@ pub(super) async fn load_prerender_context(
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
-    let template_dir = get_templates_path(&web_config, paths);
-    if !template_dir.exists() {
+    let extension_template_path = get_templates_path(&web_config, paths);
+    if !extension_template_path.exists() {
         return Err(PublishError::config(format!(
             "Template directory not found: {}. Configure profile.paths.web_path or \
              web_config.yaml paths.templates",
-            template_dir.display()
+            extension_template_path.display()
         )));
     }
-    let extension_template_path = template_dir;
 
+    let registry_builder = base_registry_builder(&extension_template_path).await?;
+    let (registry_builder, mut content_data_providers) = register_extensions(registry_builder)?;
+
+    content_data_providers.sort_by_key(|p| p.priority());
+
+    let template_registry = registry_builder
+        .build_and_init()
+        .await
+        .map_err(|e| PublishError::other(format!("Failed to initialize template registry: {e}")))?;
+
+    let dist_dir = paths.web().dist().to_path_buf();
+
+    Ok(PrerenderContext {
+        db_pool,
+        config,
+        web_config,
+        template_registry,
+        dist_dir,
+        content_data_providers,
+    })
+}
+
+async fn base_registry_builder(
+    extension_template_path: &std::path::Path,
+) -> GeneratorResult<TemplateRegistryBuilder> {
     let extension_provider = CoreTemplateProvider::discover_with_priority(
-        &extension_template_path,
+        extension_template_path,
         CoreTemplateProvider::EXTENSION_PRIORITY,
     )
     .await
     .map_err(|e| PublishError::other(format!("Failed to discover extension templates: {e}")))?;
 
-    let embedded_defaults = EmbeddedDefaultsProvider;
-
-    let loader = FileSystemLoader::with_path(&extension_template_path);
-
     let extension_provider: DynTemplateProvider = Arc::new(extension_provider);
-    let embedded_defaults: DynTemplateProvider = Arc::new(embedded_defaults);
-    let loader: DynTemplateLoader = Arc::new(loader);
+    let embedded_defaults: DynTemplateProvider = Arc::new(EmbeddedDefaultsProvider);
+    let loader: DynTemplateLoader = Arc::new(FileSystemLoader::with_path(extension_template_path));
 
-    let mut registry_builder = TemplateRegistryBuilder::new()
+    Ok(TemplateRegistryBuilder::new()
         .with_provider(extension_provider)
         .with_provider(embedded_defaults)
-        .with_loader(loader);
+        .with_loader(loader))
+}
 
+fn register_extensions(
+    mut registry_builder: TemplateRegistryBuilder,
+) -> GeneratorResult<(TemplateRegistryBuilder, Vec<Arc<dyn ContentDataProvider>>)> {
     let extensions = ExtensionRegistry::discover().map_err(PublishError::other)?;
     tracing::debug!(
         extension_count = extensions.extensions().len(),
@@ -123,21 +147,5 @@ pub(super) async fn load_prerender_context(
         content_data_providers.extend(content_providers);
     }
 
-    content_data_providers.sort_by_key(|p| p.priority());
-
-    let template_registry = registry_builder
-        .build_and_init()
-        .await
-        .map_err(|e| PublishError::other(format!("Failed to initialize template registry: {e}")))?;
-
-    let dist_dir = paths.web().dist().to_path_buf();
-
-    Ok(PrerenderContext {
-        db_pool,
-        config,
-        web_config,
-        template_registry,
-        dist_dir,
-        content_data_providers,
-    })
+    Ok((registry_builder, content_data_providers))
 }
