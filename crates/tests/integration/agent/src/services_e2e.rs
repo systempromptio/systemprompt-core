@@ -7,10 +7,11 @@ use systemprompt_agent::repository::task::RepoCreateTaskParams;
 use systemprompt_agent::services::context::ContextService;
 use systemprompt_agent::services::context_provider::ContextProviderService;
 use systemprompt_agent::services::execution_tracking::ExecutionTrackingService;
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::PlannedTool;
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
+use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 use systemprompt_traits::ContextProvider;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
@@ -39,11 +40,9 @@ struct ServicesFixture {
 impl ServicesFixture {
     async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
-        let url = std::env::var("DATABASE_URL")
-            .expect("DATABASE_URL must be set for agent integration tests");
-        let database = Database::new_postgres(&url).await?;
-        let pool = database.pool_arc()?.as_ref().clone();
-        let db: DbPool = Arc::new(database);
+        let url = fixture_database_url()?;
+        let db = fixture_db_pool(&url).await?;
+        let pool = db.pool_arc()?.as_ref().clone();
 
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = UserId::new(format!("svc_user_{tag}"));
