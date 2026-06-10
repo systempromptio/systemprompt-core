@@ -27,7 +27,7 @@ mod types;
 
 use anyhow::{Context, Result, bail};
 use std::sync::Arc;
-use systemprompt_database::{DatabaseAdminService, QueryExecutor};
+use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor};
 
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
@@ -46,15 +46,7 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
         return Ok(());
     };
 
-    let pool = ctx
-        .db_pool()
-        .await
-        .context("Failed to connect to database. Check your profile configuration.")?;
-    let write_pool = pool
-        .write_pool_arc()
-        .context("Database must be PostgreSQL")?;
-    let admin_service = DatabaseAdminService::new(Arc::clone(&write_pool));
-    let query_executor = QueryExecutor::new(write_pool);
+    let (pool, admin_service, query_executor) = connect_services(ctx).await?;
 
     match cmd {
         DbCommands::Query {
@@ -114,6 +106,21 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
         DbCommands::Size => introspect::execute_size(&admin_service, config).await,
         DbCommands::Doctor => doctor::execute_doctor(&pool, config).await,
     }
+}
+
+async fn connect_services(
+    ctx: &CommandContext,
+) -> Result<(DbPool, DatabaseAdminService, QueryExecutor)> {
+    let pool = ctx
+        .db_pool()
+        .await
+        .context("Failed to connect to database. Check your profile configuration.")?;
+    let write_pool = pool
+        .write_pool_arc()
+        .context("Database must be PostgreSQL")?;
+    let admin_service = DatabaseAdminService::new(Arc::clone(&write_pool));
+    let query_executor = QueryExecutor::new(write_pool);
+    Ok((pool, admin_service, query_executor))
 }
 
 async fn run_query(

@@ -2,15 +2,16 @@
 //!
 //! Collapses an extension's migrations `1..=through` into a single `000`
 //! baseline file, optionally rewriting the recorded migration rows with
-//! `--apply`. Computes the baseline target path inside the extension's source
-//! crate and emits the manual follow-up steps the operator must complete.
+//! `--apply`. Baseline placement and writing are delegated to
+//! [`SquashBaselineService`]; this module emits the manual follow-up steps the
+//! operator must complete.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow};
 use systemprompt_database::services::DatabaseProvider;
-use systemprompt_database::{Database, MigrationService, SquashPlan};
+use systemprompt_database::{Database, MigrationService, SquashBaselineService, SquashPlan};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_models::Config;
@@ -73,9 +74,10 @@ async fn run_squash(
         .await
         .map_err(|e| anyhow!("Squash failed: {}", e))?;
 
-    let baseline_path = baseline_target_path(extension_id, through)?;
+    let cwd = std::env::current_dir().context("Failed to read current working directory")?;
+    let baseline_path = SquashBaselineService::baseline_target_path(&cwd, extension_id, through)?;
     let baseline_path_written = if apply {
-        write_baseline_file(&baseline_path, &plan.baseline_sql)?;
+        SquashBaselineService::write_baseline_file(&baseline_path, &plan.baseline_sql)?;
         true
     } else {
         false
@@ -189,53 +191,4 @@ fn build_follow_up(plan: &SquashPlan, baseline_path: &Path, apply: bool) -> Vec<
         through = plan.through
     ));
     steps
-}
-
-fn write_baseline_file(path: &Path, sql: &str) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
-    }
-    std::fs::write(path, sql)
-        .with_context(|| format!("Failed to write baseline SQL to {}", path.display()))?;
-    Ok(())
-}
-
-fn baseline_target_path(extension_id: &str, through: u32) -> Result<PathBuf> {
-    let crate_dir = locate_extension_crate(extension_id)?;
-    Ok(crate_dir
-        .join("schema")
-        .join("migrations")
-        .join(format!("000_baseline_v{through}.sql")))
-}
-
-fn locate_extension_crate(extension_id: &str) -> Result<PathBuf> {
-    let cwd = std::env::current_dir().context("Failed to read current working directory")?;
-    let repo_root = find_repo_root(&cwd).unwrap_or(cwd);
-
-    let layers = ["domain", "infra", "app", "shared", "entry"];
-    let mut tried = Vec::new();
-    for layer in layers {
-        let candidate = repo_root.join("crates").join(layer).join(extension_id);
-        if candidate.join("Cargo.toml").is_file() {
-            return Ok(candidate);
-        }
-        tried.push(candidate.display().to_string());
-    }
-
-    bail!(
-        "Could not locate source crate for extension '{extension_id}'. Tried: {tried:?}. The \
-         squash tool maps extension id → crate dir as crates/{{layer}}/{{id}}; if your extension \
-         lives elsewhere, write the baseline file by hand."
-    );
-}
-
-fn find_repo_root(start: &Path) -> Option<PathBuf> {
-    let mut cur = start;
-    loop {
-        if cur.join("Cargo.toml").is_file() && cur.join("crates").is_dir() {
-            return Some(cur.to_path_buf());
-        }
-        cur = cur.parent()?;
-    }
 }

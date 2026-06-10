@@ -13,6 +13,7 @@
 //! - DatabaseCliDisplay formatting
 //! - DatabaseExtension
 //! - Migration structs (AppliedMigration, MigrationResult, MigrationStatus)
+//! - SquashBaselineService crate location and baseline-file writes
 
 #[cfg(test)]
 mod error;
@@ -38,3 +39,6 @@ mod resilience;
 
 #[cfg(test)]
 mod services;
+
+#[cfg(test)]
+mod squash_baseline;

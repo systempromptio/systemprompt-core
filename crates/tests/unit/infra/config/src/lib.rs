@@ -11,6 +11,8 @@
 //! - ConfigValidator validation rules
 //! - ValidationReport error and warning tracking
 //! - Schema validation functions
+//! - ProviderCatalogService registry mutations
+//! - SecurityConfigService security-section mutations
 
 #[cfg(test)]
 mod services;

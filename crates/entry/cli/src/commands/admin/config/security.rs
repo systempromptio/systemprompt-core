@@ -1,8 +1,16 @@
+//! `admin config security` — show and edit the profile's security section.
+//!
+//! Parses the operator's arguments and delegates the mutation to
+//! [`SecurityConfigService`], then revalidates the whole profile before
+//! writing it back.
+
 use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::{
+    ProfileBootstrap, SecurityChange, SecurityConfigService, SecurityUpdate,
+};
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{TrustedIssuer, default_resource_audiences};
+use systemprompt_models::profile::TrustedIssuer;
 
 use super::profile_io::{load_profile, save_profile};
 use super::types::{SecurityConfigOutput, SecuritySetOutput};
@@ -108,66 +116,18 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile(profile_path)?;
-    let mut changes: Vec<SecuritySetOutput> = Vec::new();
 
-    if let Some(ref issuer) = args.jwt_issuer {
-        let old = profile.security.issuer.clone();
-        profile.security.issuer.clone_from(issuer);
-        changes.push(SecuritySetOutput {
-            field: "jwt_issuer".to_owned(),
-            old_value: old,
-            new_value: issuer.clone(),
-            message: format!("Updated JWT issuer to {}", issuer),
-        });
-    }
-
-    if let Some(expiry) = args.access_expiry {
-        if expiry <= 0 {
-            bail!("Access token expiry must be positive");
-        }
-        let old = profile.security.access_token_expiration;
-        profile.security.access_token_expiration = expiry;
-        changes.push(SecuritySetOutput {
-            field: "access_token_expiration".to_owned(),
-            old_value: old.to_string(),
-            new_value: expiry.to_string(),
-            message: format!("Updated access token expiry to {} seconds", expiry),
-        });
-    }
-
-    if let Some(expiry) = args.refresh_expiry {
-        if expiry <= 0 {
-            bail!("Refresh token expiry must be positive");
-        }
-        let old = profile.security.refresh_token_expiration;
-        profile.security.refresh_token_expiration = expiry;
-        changes.push(SecuritySetOutput {
-            field: "refresh_token_expiration".to_owned(),
-            old_value: old.to_string(),
-            new_value: expiry.to_string(),
-            message: format!("Updated refresh token expiry to {} seconds", expiry),
-        });
-    }
-
-    if !args.resource_audiences.is_empty() {
-        let old = profile.security.allowed_resource_audiences.join(",");
-        let mut merged = default_resource_audiences();
-        for aud in &args.resource_audiences {
-            if !merged.contains(aud) {
-                merged.push(aud.clone());
-            }
-        }
-        profile
-            .security
-            .allowed_resource_audiences
-            .clone_from(&merged);
-        changes.push(SecuritySetOutput {
-            field: "allowed_resource_audiences".to_owned(),
-            old_value: old,
-            new_value: merged.join(","),
-            message: "Updated allowed resource audiences".to_owned(),
-        });
-    }
+    let update = SecurityUpdate {
+        jwt_issuer: args.jwt_issuer.clone(),
+        access_token_expiration: args.access_expiry,
+        refresh_token_expiration: args.refresh_expiry,
+        resource_audiences: args.resource_audiences.clone(),
+    };
+    let changes: Vec<SecuritySetOutput> =
+        SecurityConfigService::apply_update(&mut profile.security, &update)?
+            .into_iter()
+            .map(to_output)
+            .collect();
 
     save_profile(&profile, profile_path)?;
     render_changes(&changes, config);
@@ -183,43 +143,32 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, config: &CliConfig) -
             if args.issuer.is_empty() || args.jwks_uri.is_empty() || args.audience.is_empty() {
                 bail!("--issuer, --jwks-uri, and --audience are all required");
             }
-            profile
-                .security
-                .trusted_issuers
-                .retain(|t| t.issuer != args.issuer);
-            profile.security.trusted_issuers.push(TrustedIssuer {
-                issuer: args.issuer.clone(),
-                jwks_uri: args.jwks_uri.clone(),
-                audience: args.audience.clone(),
-            });
-            SecuritySetOutput {
-                field: "trusted_issuers".to_owned(),
-                old_value: String::new(),
-                new_value: args.issuer.clone(),
-                message: format!("Added trusted issuer {}", args.issuer),
-            }
+            SecurityConfigService::upsert_trusted_issuer(
+                &mut profile.security,
+                TrustedIssuer {
+                    issuer: args.issuer.clone(),
+                    jwks_uri: args.jwks_uri.clone(),
+                    audience: args.audience.clone(),
+                },
+            )
         },
         TrustedIssuerCommands::Remove { issuer } => {
-            let before = profile.security.trusted_issuers.len();
-            profile
-                .security
-                .trusted_issuers
-                .retain(|t| &t.issuer != issuer);
-            if profile.security.trusted_issuers.len() == before {
-                bail!("No trusted issuer found with issuer {}", issuer);
-            }
-            SecuritySetOutput {
-                field: "trusted_issuers".to_owned(),
-                old_value: issuer.clone(),
-                new_value: String::new(),
-                message: format!("Removed trusted issuer {}", issuer),
-            }
+            SecurityConfigService::remove_trusted_issuer(&mut profile.security, issuer)?
         },
     };
 
     save_profile(&profile, profile_path)?;
-    render_changes(std::slice::from_ref(&change), config);
+    render_changes(&[to_output(change)], config);
     Ok(())
+}
+
+fn to_output(change: SecurityChange) -> SecuritySetOutput {
+    SecuritySetOutput {
+        field: change.field,
+        old_value: change.old_value,
+        new_value: change.new_value,
+        message: change.message,
+    }
 }
 
 fn render_changes(changes: &[SecuritySetOutput], config: &CliConfig) {

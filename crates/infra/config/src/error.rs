@@ -104,6 +104,21 @@ pub enum ConfigError {
     )]
     MissingSystemAdmin,
 
+    #[error("No provider named {name}")]
+    ProviderNotFound { name: String },
+
+    #[error("No model with id {id} under provider {provider}")]
+    ModelNotFound { id: String, provider: String },
+
+    #[error("Access token expiry must be positive")]
+    NonPositiveAccessTokenExpiry,
+
+    #[error("Refresh token expiry must be positive")]
+    NonPositiveRefreshTokenExpiry,
+
+    #[error("No trusted issuer found with issuer {issuer}")]
+    TrustedIssuerNotFound { issuer: String },
+
     #[error("{message}")]
     Other { message: String },
 }

@@ -1,20 +1,19 @@
 //! `admin config catalog` — edit the profile's provider registry
 //! (`profile.providers`).
 //!
-//! Mutates the typed `ProviderRegistry` on the profile — adding or removing
-//! providers and the models each provider serves — then revalidates the whole
-//! profile before writing it back. This is how an instance declares a custom
-//! provider such as `minimax` (its wire protocol, endpoint, credential, and
-//! model catalog) without hand-editing YAML.
+//! Parses the operator's arguments into typed specs and delegates the registry
+//! mutation to [`ProviderCatalogService`], then revalidates the whole profile
+//! before writing it back. This is how an instance declares a custom provider
+//! such as `minimax` (its wire protocol, endpoint, credential, and model
+//! catalog) without hand-editing YAML.
 
 use std::collections::HashMap;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use clap::{Args, Subcommand};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::{ModelSpec, ProfileBootstrap, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_models::Profile;
-use systemprompt_models::profile::{ApiSurface, ProviderEntry, ProviderModel, WireProtocol};
+use systemprompt_models::profile::{ApiSurface, WireProtocol};
 
 use super::profile_io::{load_profile, save_profile};
 use super::types::ConfigMutationOutput;
@@ -104,13 +103,31 @@ pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()
 
     let message = match command {
         CatalogCommands::Provider(ProviderCommands::List) => unreachable!("handled above"),
-        CatalogCommands::Provider(ProviderCommands::Add(args)) => add_provider(&mut profile, args)?,
-        CatalogCommands::Provider(ProviderCommands::Remove { name }) => {
-            remove_provider(&mut profile, name)?
+        CatalogCommands::Provider(ProviderCommands::Add(args)) => {
+            ProviderCatalogService::upsert_provider(&mut profile.providers, provider_spec(args)?);
+            format!(
+                "Provider {} (wire {}, surface {}) added",
+                args.name, args.wire, args.surface
+            )
         },
-        CatalogCommands::Model(ModelCommands::Add(args)) => add_model(&mut profile, args)?,
+        CatalogCommands::Provider(ProviderCommands::Remove { name }) => {
+            ProviderCatalogService::remove_provider(
+                &mut profile.providers,
+                &ProviderId::new(name),
+            )?;
+            format!("Provider {} removed", name)
+        },
+        CatalogCommands::Model(ModelCommands::Add(args)) => {
+            ProviderCatalogService::upsert_model(&mut profile.providers, model_spec(args))?;
+            format!("Model {} added to {}", args.id, args.provider)
+        },
         CatalogCommands::Model(ModelCommands::Remove { provider, id }) => {
-            remove_model(&mut profile, provider, id)?
+            ProviderCatalogService::remove_model(
+                &mut profile.providers,
+                &ProviderId::new(provider),
+                &ModelId::new(id),
+            )?;
+            format!("Model {} removed from {}", id, provider)
         },
     };
 
@@ -157,78 +174,24 @@ fn parse_headers(raw: &[String]) -> Result<HashMap<String, String>> {
         .collect()
 }
 
-fn add_provider(profile: &mut Profile, args: &ProviderAddArgs) -> Result<String> {
-    // Preserve the existing model catalog when replacing a provider in place.
-    let models = profile
-        .providers
-        .find_provider(&args.name)
-        .map(|p| p.models.clone())
-        .unwrap_or_default();
-    let entry = ProviderEntry {
+fn provider_spec(args: &ProviderAddArgs) -> Result<ProviderSpec> {
+    Ok(ProviderSpec {
         name: ProviderId::new(&args.name),
         wire: parse_wire(&args.wire)?,
         surface: parse_surface(&args.surface)?,
         endpoint: args.endpoint.clone(),
         api_key_secret: SecretName::new(&args.api_key_secret),
         extra_headers: parse_headers(&args.headers)?,
-        models,
-    };
-    profile
-        .providers
-        .providers
-        .retain(|p| p.name.as_str() != args.name);
-    profile.providers.providers.push(entry);
-    Ok(format!(
-        "Provider {} (wire {}, surface {}) added",
-        args.name, args.wire, args.surface
-    ))
+    })
 }
 
-fn remove_provider(profile: &mut Profile, name: &str) -> Result<String> {
-    let before = profile.providers.providers.len();
-    profile
-        .providers
-        .providers
-        .retain(|p| p.name.as_str() != name);
-    if profile.providers.providers.len() == before {
-        bail!("No provider named {}", name);
-    }
-    Ok(format!("Provider {} removed", name))
-}
-
-fn add_model(profile: &mut Profile, args: &ModelAddArgs) -> Result<String> {
-    let provider = profile
-        .providers
-        .providers
-        .iter_mut()
-        .find(|p| p.name.as_str() == args.provider)
-        .ok_or_else(|| anyhow::anyhow!("No provider named {}", args.provider))?;
-    let model = ProviderModel {
+fn model_spec(args: &ModelAddArgs) -> ModelSpec {
+    ModelSpec {
+        provider: ProviderId::new(&args.provider),
         id: ModelId::new(&args.id),
         aliases: args.aliases.iter().map(ModelId::new).collect(),
         upstream_model: args.upstream_model.clone(),
-        pricing: systemprompt_models::services::ai::ModelPricing::default(),
-        capabilities: systemprompt_models::services::ai::ModelCapabilities::default(),
-        limits: systemprompt_models::services::ai::ModelLimits::default(),
-    };
-    provider.models.retain(|m| m.id.as_str() != args.id);
-    provider.models.push(model);
-    Ok(format!("Model {} added to {}", args.id, args.provider))
-}
-
-fn remove_model(profile: &mut Profile, provider_name: &str, id: &str) -> Result<String> {
-    let provider = profile
-        .providers
-        .providers
-        .iter_mut()
-        .find(|p| p.name.as_str() == provider_name)
-        .ok_or_else(|| anyhow::anyhow!("No provider named {}", provider_name))?;
-    let before = provider.models.len();
-    provider.models.retain(|m| m.id.as_str() != id);
-    if provider.models.len() == before {
-        bail!("No model with id {} under provider {}", id, provider_name);
     }
-    Ok(format!("Model {} removed from {}", id, provider_name))
 }
 
 fn list_providers(config: &CliConfig) -> Result<()> {

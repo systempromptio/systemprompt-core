@@ -14,6 +14,9 @@
 //!   [`systemprompt_models::Config`] from the active profile.
 //! - [`ConfigService`], [`ConfigValidator`] — utilities used by the
 //!   `systemprompt cloud config` deployment pipeline.
+//! - [`ProviderCatalogService`], [`SecurityConfigService`] — typed mutations of
+//!   the profile's provider registry and security section, backing the `admin
+//!   config catalog` / `admin config security` CLI surfaces.
 //! - [`SkillConfigValidator`] — `DomainConfig` implementation that walks
 //!   `skills/` and reports missing or malformed manifests.
 //!
@@ -54,7 +57,8 @@ pub use error::{ConfigError, ConfigResult};
 pub use profile_loader::load_profile_with_catalog;
 pub use services::{
     ConfigService, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
-    EnvironmentConfig, ValidationReport, generate_schema, validate_config, validate_yaml_file,
-    validate_yaml_str,
+    EnvironmentConfig, ModelSpec, ProviderCatalogService, ProviderSpec, SecurityChange,
+    SecurityConfigService, SecurityUpdate, ValidationReport, generate_schema, validate_config,
+    validate_yaml_file, validate_yaml_str,
 };
 pub use skill_validator::SkillConfigValidator;

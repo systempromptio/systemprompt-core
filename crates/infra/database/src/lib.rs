@@ -19,6 +19,9 @@
 //!   extension-supplied DDL.
 //! - [`DatabaseAdminService`], [`QueryExecutor`], [`AdminSql`],
 //!   [`SafeIdentifier`] — admin/introspection layer used by the CLI.
+//! - [`SquashBaselineService`] — locates an extension's source crate in the
+//!   workspace layout and writes squashed migration baselines; filesystem-only,
+//!   with its own [`SquashBaselineError`].
 //! - [`resilience`] — domain-agnostic resilience primitives
 //!   ([`resilience::ResilienceGuard`], [`resilience::CircuitBreaker`],
 //!   [`resilience::Bulkhead`], [`resilience::retry_async`]) wrapping outbound
@@ -54,6 +57,7 @@ pub mod models;
 pub mod repository;
 pub mod resilience;
 pub mod services;
+pub mod squash_baseline;
 
 pub use extension::DatabaseExtension;
 
@@ -82,6 +86,7 @@ pub use repository::{
     CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PgDbPool, ServiceConfig,
     ServiceRepository,
 };
+pub use squash_baseline::{SquashBaselineError, SquashBaselineService};
 
 pub use admin::{
     AdminSql, AdminSqlError, DEFAULT_READONLY_ROW_LIMIT, DatabaseAdminService, IdentifierError,
