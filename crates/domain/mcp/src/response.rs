@@ -69,44 +69,12 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
 
-        let output_schema = T::validated_schema();
-        if let Some(content_obj) = structured_content.as_object() {
-            let content_keys: Vec<&String> = content_obj.keys().collect();
-
-            if let Some(schema_props) = output_schema.get("properties").and_then(|p| p.as_object())
-            {
-                let schema_keys: Vec<&String> = schema_props.keys().collect();
-                let extra_keys: Vec<&&String> = content_keys
-                    .iter()
-                    .filter(|k| !schema_props.contains_key(k.as_str()))
-                    .collect();
-
-                if !extra_keys.is_empty() {
-                    tracing::error!(
-                        tool = %tool_name,
-                        ?content_keys,
-                        ?schema_keys,
-                        ?extra_keys,
-                        "structured_content has keys not in output_schema"
-                    );
-                }
-
-                tracing::debug!(
-                    tool = %tool_name,
-                    artifact_id = %artifact_id,
-                    ?content_keys,
-                    schema_valid = extra_keys.is_empty(),
-                    "MCP response validation"
-                );
-            } else {
-                tracing::debug!(
-                    tool = %tool_name,
-                    artifact_id = %artifact_id,
-                    ?content_keys,
-                    "MCP response built (no schema properties to validate against)"
-                );
-            }
-        }
+        log_schema_validation(
+            &tool_name,
+            &artifact_id,
+            &structured_content,
+            &T::validated_schema(),
+        );
 
         let create_artifact = CreateMcpArtifact {
             artifact_id: artifact_id.clone(),
@@ -135,6 +103,52 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         }
         Ok(result)
     }
+}
+
+fn log_schema_validation(
+    tool_name: &str,
+    artifact_id: &ArtifactId,
+    structured_content: &JsonValue,
+    output_schema: &JsonValue,
+) {
+    let Some(content_obj) = structured_content.as_object() else {
+        return;
+    };
+    let content_keys: Vec<&String> = content_obj.keys().collect();
+
+    let Some(schema_props) = output_schema.get("properties").and_then(|p| p.as_object()) else {
+        tracing::debug!(
+            tool = %tool_name,
+            artifact_id = %artifact_id,
+            ?content_keys,
+            "MCP response built (no schema properties to validate against)"
+        );
+        return;
+    };
+
+    let schema_keys: Vec<&String> = schema_props.keys().collect();
+    let extra_keys: Vec<&&String> = content_keys
+        .iter()
+        .filter(|k| !schema_props.contains_key(k.as_str()))
+        .collect();
+
+    if !extra_keys.is_empty() {
+        tracing::error!(
+            tool = %tool_name,
+            ?content_keys,
+            ?schema_keys,
+            ?extra_keys,
+            "structured_content has keys not in output_schema"
+        );
+    }
+
+    tracing::debug!(
+        tool = %tool_name,
+        artifact_id = %artifact_id,
+        ?content_keys,
+        schema_valid = extra_keys.is_empty(),
+        "MCP response validation"
+    );
 }
 
 impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {

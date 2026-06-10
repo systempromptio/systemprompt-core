@@ -102,6 +102,42 @@ fn rotate_log_if_needed(log_path: &Path) {
     }
 }
 
+fn open_server_log(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<fs::File> {
+    let log_dir = paths.system().logs();
+    fs::create_dir_all(&log_dir).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Failed to create logs directory: {}: {e}",
+            log_dir.display()
+        ))
+    })?;
+
+    let log_file_path = log_dir.join(format!("mcp-{}.log", config.name));
+    rotate_log_if_needed(&log_file_path);
+
+    fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_file_path)
+        .map_err(|e| {
+            crate::error::McpDomainError::Internal(format!(
+                "Failed to create log file: {}: {e}",
+                log_file_path.display()
+            ))
+        })
+}
+
+fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(String, String)> {
+    let tools_config_json = serde_json::to_string(&config.tools).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!("Failed to serialize tools config: {e}"))
+    })?;
+    let server_model_config_json = serde_json::to_string(&config.model_config).map_err(|e| {
+        crate::error::McpDomainError::Internal(format!(
+            "Failed to serialize server model config: {e}"
+        ))
+    })?;
+    Ok((tools_config_json, server_model_config_json))
+}
+
 pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<u32> {
     let binary_path = paths.build().resolve_binary(&config.binary).map_err(|e| {
         crate::error::McpDomainError::Internal(format!("{}: {e}", {
@@ -114,36 +150,8 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
 
     let config_global = Config::get()?;
 
-    let log_dir = paths.system().logs();
-    fs::create_dir_all(&log_dir).map_err(|e| {
-        crate::error::McpDomainError::Internal(format!(
-            "Failed to create logs directory: {}: {e}",
-            log_dir.display()
-        ))
-    })?;
-
-    let log_file_path = log_dir.join(format!("mcp-{}.log", config.name));
-    rotate_log_if_needed(&log_file_path);
-
-    let log_file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_file_path)
-        .map_err(|e| {
-            crate::error::McpDomainError::Internal(format!(
-                "Failed to create log file: {}: {e}",
-                log_file_path.display()
-            ))
-        })?;
-
-    let tools_config_json = serde_json::to_string(&config.tools).map_err(|e| {
-        crate::error::McpDomainError::Internal(format!("Failed to serialize tools config: {e}"))
-    })?;
-    let server_model_config_json = serde_json::to_string(&config.model_config).map_err(|e| {
-        crate::error::McpDomainError::Internal(format!(
-            "Failed to serialize server model config: {e}"
-        ))
-    })?;
+    let log_file = open_server_log(paths, config)?;
+    let (tools_config_json, server_model_config_json) = serialize_server_configs(config)?;
 
     let profile_path = ProfileBootstrap::get_path().map_err(|e| {
         crate::error::McpDomainError::Internal(format!(

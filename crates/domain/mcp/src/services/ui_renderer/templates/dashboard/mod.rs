@@ -47,6 +47,61 @@ impl DashboardRenderer {
         sections
     }
 
+    fn build_tabs_nav(sections: &[DashboardSection]) -> String {
+        let tabs = sections
+            .iter()
+            .enumerate()
+            .fold(String::new(), |mut acc, (i, s)| {
+                let active = if i == 0 { " active" } else { "" };
+                acc.push_str(&format!(
+                    r#"<button class="tab-btn{active}" data-target="{id}">{title}</button>"#,
+                    active = active,
+                    id = html_escape(&s.id),
+                    title = html_escape(&s.title),
+                ));
+                acc
+            });
+
+        format!(r#"<div class="tabs-nav">{tabs}</div>"#)
+    }
+
+    fn build_chart_configs(sections: &[DashboardSection]) -> Vec<JsonValue> {
+        sections
+            .iter()
+            .filter(|s| matches!(s.section_type, SectionType::Chart))
+            .map(|s| {
+                let chart_type = s
+                    .data
+                    .get("chart_type")
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or("bar");
+                let labels = s
+                    .data
+                    .get("labels")
+                    .cloned()
+                    .unwrap_or(serde_json::json!([]));
+                let datasets = s
+                    .data
+                    .get("datasets")
+                    .cloned()
+                    .unwrap_or(serde_json::json!([]));
+
+                serde_json::json!({
+                    "id": format!("chart-{}", s.id),
+                    "type": chart_type,
+                    "data": {
+                        "labels": labels,
+                        "datasets": datasets
+                    },
+                    "options": {
+                        "responsive": true,
+                        "maintainAspectRatio": false
+                    }
+                })
+            })
+            .collect()
+    }
+
     fn extract_layout(artifact: &Artifact) -> DashboardLayout {
         artifact
             .metadata
@@ -96,59 +151,12 @@ impl UiRenderer for DashboardRenderer {
         let sections_html: String = sections.iter().map(DashboardSection::render_html).collect();
 
         let tabs_nav = if matches!(layout, DashboardLayout::Tabs) {
-            let tabs = sections
-                .iter()
-                .enumerate()
-                .fold(String::new(), |mut acc, (i, s)| {
-                    let active = if i == 0 { " active" } else { "" };
-                    acc.push_str(&format!(
-                        r#"<button class="tab-btn{active}" data-target="{id}">{title}</button>"#,
-                        active = active,
-                        id = html_escape(&s.id),
-                        title = html_escape(&s.title),
-                    ));
-                    acc
-                });
-
-            format!(r#"<div class="tabs-nav">{tabs}</div>"#)
+            Self::build_tabs_nav(&sections)
         } else {
             String::new()
         };
 
-        let chart_configs: Vec<JsonValue> = sections
-            .iter()
-            .filter(|s| matches!(s.section_type, SectionType::Chart))
-            .map(|s| {
-                let chart_type = s
-                    .data
-                    .get("chart_type")
-                    .and_then(JsonValue::as_str)
-                    .unwrap_or("bar");
-                let labels = s
-                    .data
-                    .get("labels")
-                    .cloned()
-                    .unwrap_or(serde_json::json!([]));
-                let datasets = s
-                    .data
-                    .get("datasets")
-                    .cloned()
-                    .unwrap_or(serde_json::json!([]));
-
-                serde_json::json!({
-                    "id": format!("chart-{}", s.id),
-                    "type": chart_type,
-                    "data": {
-                        "labels": labels,
-                        "datasets": datasets
-                    },
-                    "options": {
-                        "responsive": true,
-                        "maintainAspectRatio": false
-                    }
-                })
-            })
-            .collect();
+        let chart_configs = Self::build_chart_configs(&sections);
 
         let body = format!(
             r#"<div class="container">

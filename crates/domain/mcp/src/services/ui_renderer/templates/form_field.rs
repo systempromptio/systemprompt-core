@@ -64,13 +64,32 @@ impl FormField {
         })
     }
 
-    pub(super) fn render_html(&self) -> String {
-        let required_attr = if self.required { " required" } else { "" };
-        let placeholder_attr = self.placeholder.as_ref().map_or_else(String::new, |p| {
-            format!(r#" placeholder="{}""#, html_escape(p))
+    fn render_select(&self, required_attr: &str) -> String {
+        let options_html = self.options.iter().fold(String::new(), |mut acc, o| {
+            let selected = self
+                .default_value
+                .as_ref()
+                .and_then(JsonValue::as_str)
+                .is_some_and(|dv| dv == o.value);
+            acc.push_str(&format!(
+                r#"<option value="{value}"{selected}>{label}</option>"#,
+                value = html_escape(&o.value),
+                selected = if selected { " selected" } else { "" },
+                label = html_escape(&o.label),
+            ));
+            acc
         });
 
-        let input_html = match self.field_type.as_str() {
+        format!(
+            r#"<select name="{name}" id="{name}" class="form-input"{required}>{options}</select>"#,
+            name = html_escape(&self.name),
+            required = required_attr,
+            options = options_html,
+        )
+    }
+
+    fn render_input(&self, required_attr: &str, placeholder_attr: &str) -> String {
+        match self.field_type.as_str() {
             "textarea" => format!(
                 r#"<textarea name="{name}" id="{name}" class="form-input"{required}{placeholder}>{value}</textarea>"#,
                 name = html_escape(&self.name),
@@ -82,29 +101,7 @@ impl FormField {
                     .and_then(JsonValue::as_str)
                     .unwrap_or(""),
             ),
-            "select" => {
-                let options_html = self.options.iter().fold(String::new(), |mut acc, o| {
-                    let selected = self
-                        .default_value
-                        .as_ref()
-                        .and_then(JsonValue::as_str)
-                        .is_some_and(|dv| dv == o.value);
-                    acc.push_str(&format!(
-                        r#"<option value="{value}"{selected}>{label}</option>"#,
-                        value = html_escape(&o.value),
-                        selected = if selected { " selected" } else { "" },
-                        label = html_escape(&o.label),
-                    ));
-                    acc
-                });
-
-                format!(
-                    r#"<select name="{name}" id="{name}" class="form-input"{required}>{options}</select>"#,
-                    name = html_escape(&self.name),
-                    required = required_attr,
-                    options = options_html,
-                )
-            },
+            "select" => self.render_select(required_attr),
             "checkbox" => {
                 let checked = self
                     .default_value
@@ -159,7 +156,16 @@ impl FormField {
                     .and_then(JsonValue::as_str)
                     .unwrap_or(""),
             ),
-        };
+        }
+    }
+
+    pub(super) fn render_html(&self) -> String {
+        let required_attr = if self.required { " required" } else { "" };
+        let placeholder_attr = self.placeholder.as_ref().map_or_else(String::new, |p| {
+            format!(r#" placeholder="{}""#, html_escape(p))
+        });
+
+        let input_html = self.render_input(required_attr, &placeholder_attr);
 
         let required_mark = if self.required {
             r#"<span class="required-mark">*</span>"#
