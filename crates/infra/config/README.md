@@ -36,7 +36,7 @@ Profile-based configuration for systemprompt.io AI governance infrastructure. Bo
 
 This crate is the bootstrap layer for the platform. It loads the active profile YAML, the matching secrets document, and installs both into process-wide singletons before any other layer (database, runtime, agent) starts. It also exposes the deployment-time `ConfigService` used by `systemprompt cloud config` and a `DomainConfig` validator for skill manifests.
 
-- **Type-state bootstrap**: `BootstrapSequence` enforces *profile before secrets* at compile time.
+- **Bootstrap singletons**: `ProfileBootstrap` and `SecretsBootstrap` install the process-global profile and secrets, in that order; ordering is enforced by the entry-crate boot sequence.
 - **Profile loading**: Parses `.systemprompt/profiles/<name>/profile.yaml`, with optional catalog overlay.
 - **Secrets loading**: Reads the secrets document referenced by the active profile and seeds the in-process store.
 - **Runtime config construction**: Builds a `systemprompt_models::Config` from the active profile.
@@ -54,7 +54,7 @@ src/
 ├── profile_gateway.rs          # Profile lookup gateway
 ├── skill_validator.rs          # SkillConfigValidator (DomainConfig impl)
 ├── bootstrap/
-│   ├── mod.rs                  # BootstrapSequence, type-state markers, presets
+│   ├── mod.rs                  # Bootstrap entry points and re-exports
 │   ├── profile.rs              # ProfileBootstrap singleton
 │   ├── manifest.rs             # Manifest signing seed helpers
 │   └── secrets/
@@ -73,7 +73,7 @@ src/
 ```
 
 ### `bootstrap/`
-Process-wide cells for the active profile and secrets document, plus the type-state `BootstrapSequence` that drives `Uninitialized → ProfileInitialized → SecretsInitialized → BootstrapComplete`. Manifest seed helpers (`generate_seed`, `decode_seed`, `persist_seed`) live alongside.
+Process-wide cells for the active profile and secrets document. `ProfileBootstrap::init` (or `init_from_path`) installs the active profile; `SecretsBootstrap::init` then loads the secrets document it references. The *profile before secrets* ordering is a runtime invariant of the entry-crate boot sequence (`crates/entry/cli/src/runner/bootstrap.rs`), which interleaves credential and routing resolution between the two steps. Manifest seed helpers (`generate_seed`, `decode_seed`, `persist_seed`) live alongside.
 
 ### `config_loader.rs`
 Builds a runtime `Config` from the active profile via `init_config`, `try_init_config`, `init_config_from_profile`, and `build_from_profile`. `validate_database_config` checks database wiring before startup.
@@ -93,12 +93,13 @@ systemprompt-config = "0.14.0"
 
 ```rust
 use systemprompt_config::{
-    presets, BootstrapSequence, ConfigResult, init_config_from_profile,
+    ConfigResult, ProfileBootstrap, SecretsBootstrap, init_config_from_profile,
 };
 
 fn boot() -> ConfigResult<()> {
-    let complete = presets::standard()?;
-    let config = init_config_from_profile(complete.profile())?;
+    let profile = ProfileBootstrap::init()?;
+    SecretsBootstrap::init()?;
+    let config = init_config_from_profile(profile)?;
     let _ = config;
     Ok(())
 }
@@ -109,14 +110,12 @@ fn boot() -> ConfigResult<()> {
 ```rust
 use systemprompt_config::{
     // Bootstrap
-    BootstrapSequence, BootstrapComplete, BootstrapState,
-    ProfileBootstrap, ProfileInitialized, ProfileBootstrapError,
-    SecretsBootstrap, SecretsInitialized, SecretsBootstrapError,
-    Uninitialized, presets,
+    ProfileBootstrap, ProfileBootstrapError,
+    SecretsBootstrap, SecretsBootstrapError,
     build_loaded_secrets_message, load_secrets_from_path,
     log_secrets_issue, log_secrets_skip, log_secrets_warn,
     decode_seed, generate_seed, persist_seed,
-    JWT_SECRET_MIN_LENGTH, MANIFEST_SIGNING_SEED_BYTES,
+    MANIFEST_SIGNING_SEED_BYTES,
 
     // Runtime config
     build_from_profile, init_config, init_config_from_profile,
