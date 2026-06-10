@@ -32,87 +32,103 @@ pub(super) async fn callback_handler(
     if let (Some(transaction_id), Some(tenant_id)) =
         (params.transaction_id.clone(), params.tenant_id.clone())
     {
-        match params.status.as_deref() {
-            Some("completed") => {
-                let html = state
-                    .success_template
-                    .replace("{{TENANT_ID}}", tenant_id.as_str());
-                let result = Ok(CheckoutCallbackResult {
-                    transaction_id,
-                    tenant_id,
-                    fly_app_name: None,
-                    needs_deploy: false,
-                });
-                send_result(&state.tx, result).await;
-                return Html(html);
-            },
-            Some(status) => {
-                send_result(
-                    &state.tx,
-                    Err(CloudError::CheckoutFlow {
-                        message: format!("Checkout status: {status}"),
-                    }),
-                )
-                .await;
-                return Html(state.error_template.clone());
-            },
-            None => {
-                send_result(
-                    &state.tx,
-                    Err(CloudError::CheckoutFlow {
-                        message: "Checkout callback missing required 'status' parameter".to_owned(),
-                    }),
-                )
-                .await;
-                return Html(state.error_template.clone());
-            },
-        }
+        return handle_transaction_status(&state, &params, transaction_id, tenant_id).await;
     }
 
     if params.status.as_deref() == Some("pending") {
-        if let Some(checkout_session_id) = params.checkout_session_id.clone() {
-            CliService::info("Payment confirmed, waiting for provisioning...");
-
-            let api_client = Arc::clone(&state.api_client);
-            let tx = Arc::clone(&state.tx);
-            let transaction_id = params.transaction_id.clone().unwrap_or_else(|| {
-                systemprompt_identifiers::TransactionId::new(checkout_session_id.as_str())
-            });
-
-            tokio::spawn(async move {
-                match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
-                    Ok(prov_result) => {
-                        let result = Ok(CheckoutCallbackResult {
-                            transaction_id,
-                            tenant_id: prov_result.event.tenant_id,
-                            fly_app_name: prov_result.event.fly_app_name,
-                            needs_deploy: prov_result.needs_deploy,
-                        });
-                        send_result(&tx, result).await;
-                    },
-                    Err(e) => {
-                        send_result(&tx, Err(e)).await;
-                    },
-                }
-            });
-
-            return Html(state.waiting_template.clone());
-        }
-
-        send_result(
-            &state.tx,
-            Err(CloudError::CheckoutFlow {
-                message: "Pending status but no checkout_session_id".to_owned(),
-            }),
-        )
-        .await;
-        return Html(state.error_template.clone());
+        return handle_pending_provisioning(&state, &params).await;
     }
 
     send_result(
         &state.tx,
         Err(CloudError::CheckoutFlow {
             message: "Missing transaction_id or tenant_id in callback".to_owned(),
+        }),
+    )
+    .await;
+    Html(state.error_template.clone())
+}
+
+async fn handle_transaction_status(
+    state: &Arc<AppState>,
+    params: &CallbackParams,
+    transaction_id: systemprompt_identifiers::TransactionId,
+    tenant_id: systemprompt_identifiers::TenantId,
+) -> Html<String> {
+    match params.status.as_deref() {
+        Some("completed") => {
+            let html = state
+                .success_template
+                .replace("{{TENANT_ID}}", tenant_id.as_str());
+            let result = Ok(CheckoutCallbackResult {
+                transaction_id,
+                tenant_id,
+                fly_app_name: None,
+                needs_deploy: false,
+            });
+            send_result(&state.tx, result).await;
+            Html(html)
+        },
+        Some(status) => {
+            send_result(
+                &state.tx,
+                Err(CloudError::CheckoutFlow {
+                    message: format!("Checkout status: {status}"),
+                }),
+            )
+            .await;
+            Html(state.error_template.clone())
+        },
+        None => {
+            send_result(
+                &state.tx,
+                Err(CloudError::CheckoutFlow {
+                    message: "Checkout callback missing required 'status' parameter".to_owned(),
+                }),
+            )
+            .await;
+            Html(state.error_template.clone())
+        },
+    }
+}
+
+async fn handle_pending_provisioning(
+    state: &Arc<AppState>,
+    params: &CallbackParams,
+) -> Html<String> {
+    if let Some(checkout_session_id) = params.checkout_session_id.clone() {
+        CliService::info("Payment confirmed, waiting for provisioning...");
+
+        let api_client = Arc::clone(&state.api_client);
+        let tx = Arc::clone(&state.tx);
+        let transaction_id = params.transaction_id.clone().unwrap_or_else(|| {
+            systemprompt_identifiers::TransactionId::new(checkout_session_id.as_str())
+        });
+
+        tokio::spawn(async move {
+            match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
+                Ok(prov_result) => {
+                    let result = Ok(CheckoutCallbackResult {
+                        transaction_id,
+                        tenant_id: prov_result.event.tenant_id,
+                        fly_app_name: prov_result.event.fly_app_name,
+                        needs_deploy: prov_result.needs_deploy,
+                    });
+                    send_result(&tx, result).await;
+                },
+                Err(e) => {
+                    send_result(&tx, Err(e)).await;
+                },
+            }
+        });
+
+        return Html(state.waiting_template.clone());
+    }
+
+    send_result(
+        &state.tx,
+        Err(CloudError::CheckoutFlow {
+            message: "Pending status but no checkout_session_id".to_owned(),
         }),
     )
     .await;
