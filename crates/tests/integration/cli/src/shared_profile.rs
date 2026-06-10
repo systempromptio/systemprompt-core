@@ -1,6 +1,6 @@
 use systemprompt_cli::shared::profile::{
-    DiscoveredProfile, ProfileResolutionError, discover_profiles, generate_display_name,
-    generate_oauth_at_rest_pepper, is_path_input, resolve_profile_from_path, resolve_profile_path,
+    DiscoveredProfile, ProfileResolutionError, discover_profiles, generate_oauth_at_rest_pepper,
+    is_path_input, resolve_profile_from_path, resolve_profile_path,
 };
 use tempfile::tempdir;
 
@@ -34,26 +34,7 @@ fn is_path_input_rejects_bare_names() {
     assert!(!is_path_input("staging-east"));
 }
 
-#[test]
-fn generate_display_name_known_aliases() {
-    assert_eq!(generate_display_name("dev"), "Development");
-    assert_eq!(generate_display_name("DEVELOPMENT"), "Development");
-    assert_eq!(generate_display_name("prod"), "Production");
-    assert_eq!(generate_display_name("production"), "Production");
-    assert_eq!(generate_display_name("staging"), "Staging");
-    assert_eq!(generate_display_name("stage"), "Staging");
-    assert_eq!(generate_display_name("test"), "Test");
-    assert_eq!(generate_display_name("testing"), "Test");
-    assert_eq!(generate_display_name("local"), "Local Development");
-    assert_eq!(generate_display_name("cloud"), "Cloud");
-}
 
-#[test]
-fn generate_display_name_falls_through_to_capitalize() {
-    assert_eq!(generate_display_name("custom"), "Custom");
-    assert_eq!(generate_display_name(""), "");
-    assert_eq!(generate_display_name("abc"), "Abc");
-}
 
 #[test]
 fn generate_oauth_at_rest_pepper_is_64_alphanumeric() {

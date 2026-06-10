@@ -19,7 +19,6 @@ pub(crate) mod env_lock {
 }
 
 #[cfg(test)]
-mod cloud_dockerfile_validation;
 #[cfg(test)]
 mod cloud_profile_templates;
 #[cfg(test)]

@@ -1,17 +1,17 @@
 //! Pre-deploy validation of the project's build artifacts.
 //!
-//! [`DeployConfig`] locates the release binary and profile Dockerfile, then
-//! asserts that required extension assets, storage, and template directories
-//! exist inside the Docker build context before a cloud deploy proceeds.
+//! [`DeployArtifacts`] locates the release binary and profile Dockerfile,
+//! then asserts that required extension assets, storage, and template
+//! directories exist inside the Docker build context before a cloud deploy
+//! proceeds.
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Result, anyhow, bail};
 use systemprompt_cloud::ProjectContext;
-use systemprompt_cloud::constants::build;
 use systemprompt_extension::{AssetPaths, ExtensionRegistry};
+use systemprompt_models::paths::constants::build;
 
-use crate::shared::project::ProjectRoot;
+use crate::error::{SyncError, SyncResult};
 
 struct ProjectAssetPaths {
     storage_files: PathBuf,
@@ -28,38 +28,37 @@ impl AssetPaths for ProjectAssetPaths {
 }
 
 #[derive(Debug)]
-pub(super) struct DeployConfig {
+pub struct DeployArtifacts {
     pub binary: PathBuf,
     pub dockerfile: PathBuf,
     project_root: PathBuf,
 }
 
-impl DeployConfig {
-    pub(super) fn from_project(project: &ProjectRoot, profile_name: &str) -> Result<Self> {
-        let root = project.as_path();
-        let binary = root
+impl DeployArtifacts {
+    pub fn resolve(project_root: &Path, profile_name: &str) -> SyncResult<Self> {
+        let binary = project_root
             .join(build::CARGO_TARGET)
             .join("release")
             .join(build::BINARY_NAME);
 
-        let ctx = ProjectContext::new(root.to_path_buf());
+        let ctx = ProjectContext::new(project_root.to_path_buf());
         let dockerfile = ctx.profile_dockerfile(profile_name);
 
-        let config = Self {
+        let artifacts = Self {
             binary,
             dockerfile,
-            project_root: root.to_path_buf(),
+            project_root: project_root.to_path_buf(),
         };
-        config.validate()?;
-        Ok(config)
+        artifacts.validate()?;
+        Ok(artifacts)
     }
 
-    fn validate(&self) -> Result<()> {
+    fn validate(&self) -> SyncResult<()> {
         if !self.binary.exists() {
-            return Err(anyhow!(
+            return Err(SyncError::BuildArtifacts(format!(
                 "Release binary not found: {}\n\nRun: cargo build --release --bin systemprompt",
                 self.binary.display()
-            ));
+            )));
         }
 
         self.validate_extension_assets()?;
@@ -67,16 +66,16 @@ impl DeployConfig {
         self.validate_templates_directory()?;
 
         if !self.dockerfile.exists() {
-            return Err(anyhow!(
+            return Err(SyncError::BuildArtifacts(format!(
                 "Dockerfile not found: {}\n\nCreate a Dockerfile at this location",
                 self.dockerfile.display()
-            ));
+            )));
         }
 
         Ok(())
     }
 
-    fn validate_extension_assets(&self) -> Result<()> {
+    fn validate_extension_assets(&self) -> SyncResult<()> {
         let paths = ProjectAssetPaths {
             storage_files: self.project_root.join("storage/files"),
             web_dist: self.project_root.join("web/dist"),
@@ -111,56 +110,56 @@ impl DeployConfig {
         }
 
         if !missing.is_empty() {
-            bail!(
+            return Err(SyncError::BuildArtifacts(format!(
                 "Missing required extension assets:\n  {}\n\nCreate these files or mark them as \
                  optional.",
                 missing.join("\n  ")
-            );
+            )));
         }
 
         if !outside_context.is_empty() {
-            bail!(
+            return Err(SyncError::BuildArtifacts(format!(
                 "Extension assets outside Docker build context:\n  {}\n\nMove assets inside the \
                  project directory.",
                 outside_context.join("\n  ")
-            );
+            )));
         }
 
         Ok(())
     }
 
-    fn validate_storage_directory(&self) -> Result<()> {
+    fn validate_storage_directory(&self) -> SyncResult<()> {
         let storage_dir = self.project_root.join("storage");
 
         if !storage_dir.exists() {
-            bail!(
+            return Err(SyncError::BuildArtifacts(format!(
                 "Storage directory not found: {}\n\nExpected: storage/\n\nCreate this directory \
                  for files, images, and other assets.",
                 storage_dir.display()
-            );
+            )));
         }
 
         let files_dir = storage_dir.join("files");
         if !files_dir.exists() {
-            bail!(
+            return Err(SyncError::BuildArtifacts(format!(
                 "Storage files directory not found: {}\n\nExpected: storage/files/\n\nThis \
                  directory is required for serving static assets.",
                 files_dir.display()
-            );
+            )));
         }
 
         Ok(())
     }
 
-    fn validate_templates_directory(&self) -> Result<()> {
+    fn validate_templates_directory(&self) -> SyncResult<()> {
         let templates_dir = self.project_root.join("services/web/templates");
 
         if !templates_dir.exists() {
-            bail!(
-                "Templates directory not found: {}\n\nExpected: services/web/templates/\n\nCreate \
-                 this directory with your HTML templates.",
+            return Err(SyncError::BuildArtifacts(format!(
+                "Templates directory not found: {}\n\nExpected: \
+                 services/web/templates/\n\nCreate this directory with your HTML templates.",
                 templates_dir.display()
-            );
+            )));
         }
 
         Ok(())

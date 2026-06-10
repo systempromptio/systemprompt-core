@@ -1,7 +1,6 @@
 use anyhow::{Result, bail};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
+use systemprompt_cloud::ProfilePath;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 
@@ -41,26 +40,4 @@ pub(in crate::commands::cloud) fn get_tenant_and_secrets_path() -> Result<(Tenan
     }
 
     Ok((tenant_id, secrets_path))
-}
-
-pub(in crate::commands::cloud) async fn sync_cloud_credentials(
-    api_client: &CloudApiClient,
-    tenant_id: &TenantId,
-    creds: &CloudCredentials,
-) -> Result<Vec<String>> {
-    let mut secrets = HashMap::new();
-
-    secrets.insert("SYSTEMPROMPT_API_TOKEN".to_owned(), creds.api_token.clone());
-
-    secrets.insert(
-        "SYSTEMPROMPT_USER_EMAIL".to_owned(),
-        creds.user_email.clone(),
-    );
-
-    secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_owned(), "true".to_owned());
-
-    api_client
-        .set_secrets(tenant_id, secrets)
-        .await
-        .map_err(Into::into)
 }

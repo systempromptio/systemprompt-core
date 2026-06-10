@@ -46,7 +46,9 @@ walkdir = { workspace = true }
 
 # Domain crates for local sync
 systemprompt-agent = { workspace = true }
+systemprompt-cloud = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }

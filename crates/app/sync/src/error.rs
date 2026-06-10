@@ -68,12 +68,44 @@ domain_error! {
 
         #[error("internal: {0}")]
         Internal(String),
+
+        #[error("{0}")]
+        Cloud(#[from] systemprompt_cloud::CloudError),
+
+        #[error("{0}")]
+        ConfigLoad(#[from] systemprompt_loader::ConfigLoadError),
+
+        #[error("{0}")]
+        ExtensionDiscovery(#[from] systemprompt_extension::LoaderError),
+
+        #[error("Hostname not configured for tenant.\nRun: systemprompt cloud login")]
+        HostnameNotConfigured,
+
+        #[error("Pre-deploy sync failed. Use --no-sync to skip (WARNING: may lose data).")]
+        PreDeploySyncFailed,
+
+        #[error("{stage} failed: {source}")]
+        PreSyncStage {
+            stage: &'static str,
+            #[source]
+            source: Box<SyncError>,
+        },
+
+        #[error("{0}")]
+        BuildArtifacts(String),
     }
 }
 
 impl SyncError {
     pub fn internal(cause: impl std::fmt::Display) -> Self {
         Self::Internal(cause.to_string())
+    }
+
+    pub fn pre_sync_stage(stage: &'static str, source: Self) -> Self {
+        Self::PreSyncStage {
+            stage,
+            source: Box::new(source),
+        }
     }
 
     pub fn invalid_input(cause: impl std::fmt::Display) -> Self {

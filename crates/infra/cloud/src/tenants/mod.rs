@@ -1,8 +1,12 @@
-//! On-disk representation of cloud tenants the CLI knows about.
+//! On-disk representation of cloud tenants the CLI knows about, plus the
+//! provisioning flow that creates them.
 //!
 //! [`StoredTenant`] is the per-tenant record; [`TenantStore`] (in
-//! `tenant_store.rs`) is the persistent map keyed by tenant id.
+//! `tenant_store.rs`) is the persistent map keyed by tenant id;
+//! [`TenantProvisioningService`] (in `provisioning.rs`) turns a
+//! [`TenantCreatePlan`] into a provisioned [`StoredTenant`].
 
+mod provisioning;
 mod tenant_store;
 
 use serde::{Deserialize, Serialize};
@@ -10,6 +14,10 @@ use validator::Validate;
 
 use crate::api_client::TenantInfo;
 
+pub use provisioning::{
+    ProvisionedTenant, ProvisioningProgress, ProvisioningProgressEvent, TenantCreatePlan,
+    TenantProvisioningService, swap_to_external_host,
+};
 pub use tenant_store::TenantStore;
 
 #[derive(Debug)]

@@ -47,4 +47,6 @@ mod stored_tenant_extra;
 #[cfg(test)]
 mod tenant_api_tests;
 #[cfg(test)]
+mod tenant_provisioning;
+#[cfg(test)]
 mod tenants;

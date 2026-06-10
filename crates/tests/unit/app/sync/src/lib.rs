@@ -30,6 +30,8 @@ mod database_export;
 #[cfg(test)]
 mod database_sync_failure;
 #[cfg(test)]
+mod deploy_orchestrator;
+#[cfg(test)]
 mod diff;
 #[cfg(test)]
 mod edge_cases;

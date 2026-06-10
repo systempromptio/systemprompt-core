@@ -8,6 +8,9 @@
 //!
 //! - [`SyncService`], [`SyncConfig`], [`SyncConfigBuilder`] — high-level façade
 //!   that wires everything together for `cloud sync` commands.
+//! - [`deploy::DeployOrchestrator`] — full `cloud deploy` pipeline (pre-sync,
+//!   artifact validation, image build/push, secret provisioning, deploy) behind
+//!   a [`deploy::DeployProgress`] rendering seam.
 //! - [`SyncApiClient`] — low-level HTTP client for the cloud API.
 //! - [`ContentLocalSync`] — disk ↔ database sync for content.
 //! - [`ContentDiffCalculator`] — pure diff computation.
@@ -24,6 +27,7 @@ mod result;
 pub mod api_client;
 pub mod crate_deploy;
 pub mod database;
+pub mod deploy;
 pub mod diff;
 pub mod error;
 pub mod export;

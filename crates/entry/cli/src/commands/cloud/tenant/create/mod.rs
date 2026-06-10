@@ -6,9 +6,11 @@
 
 mod cloud;
 mod local;
+mod progress;
 
-pub use cloud::{create_cloud_tenant, swap_to_external_host};
+pub use cloud::create_cloud_tenant;
 pub use local::{create_external_tenant, create_local_tenant};
+pub use systemprompt_cloud::tenants::swap_to_external_host;
 
 fn sanitize_database_name(name: &str) -> String {
     let sanitized: String = name

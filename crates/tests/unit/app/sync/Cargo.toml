@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-sync = { workspace = true }
+systemprompt-cloud = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-content = { workspace = true }

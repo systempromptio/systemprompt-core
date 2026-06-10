@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 use systemprompt_cli::cloud::profile::templates::{
-    generate_display_name, generate_oauth_at_rest_pepper, get_services_path, save_dockerignore,
-    save_entrypoint, update_ai_config_default_provider, validate_connection,
+    get_services_path, save_dockerignore, save_entrypoint, update_ai_config_default_provider,
+    validate_connection,
 };
+use systemprompt_cli::shared::profile::generate_oauth_at_rest_pepper;
 use tempfile::tempdir;
 
 use crate::env_lock;
@@ -108,11 +109,6 @@ async fn validate_connection_returns_false_for_unreachable_url() {
     assert!(!ok);
 }
 
-#[test]
-fn generate_display_name_normalises_input() {
-    let name = generate_display_name("hello-world");
-    assert!(!name.is_empty());
-}
 
 #[test]
 fn generate_oauth_at_rest_pepper_produces_unique_values() {

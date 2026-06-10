@@ -1,29 +1,32 @@
 //! Cloud tenant creation via subscription checkout.
 //!
-//! Validates a release build, drives the plan/region selection and Paddle
-//! checkout callback, waits for provisioning, retrieves database credentials,
-//! optionally enables external database access, and writes a profile for the
-//! new tenant.
+//! Validates a release build, prompts for the plan, region, and external
+//! database access, then hands a [`TenantCreatePlan`] to the cloud crate's
+//! [`TenantProvisioningService`], which drives the Paddle checkout callback,
+//! provisioning wait, and credential retrieval. Afterwards a profile is
+//! written for the new tenant and, when required, the initial deploy runs
+//! through the sync crate's [`DeployOrchestrator`].
 
 use anyhow::{Context, Result, anyhow, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};
-use systemprompt_cloud::constants::api::{DB_PRODUCTION_HOST, DB_SANDBOX_HOST};
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
+use systemprompt_cloud::tenants::{TenantCreatePlan, TenantProvisioningService};
 use systemprompt_cloud::{
-    CheckoutTemplates, CloudApiClient, CloudCredentials, StoredTenant, TenantType,
+    CheckoutTemplates, CloudApiClient, CloudCredentials, ProfilePath, ProjectContext, StoredTenant,
 };
 use systemprompt_identifiers::{PriceId, TenantId};
 use systemprompt_logging::CliService;
-use url::Url;
+use systemprompt_sync::deploy::{DeployOptions, DeployOrchestrator, DeployRequest};
 
-pub(super) use crate::cloud::deploy::deploy_with_secrets;
+use crate::cloud::deploy::CliDeployProgress;
 use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
-use systemprompt_cloud::{run_checkout_callback_flow, wait_for_provisioning};
+use crate::shared::project::ProjectRoot;
 
 use super::super::validation::{validate_build_ready, warn_required_secrets};
+use super::progress::CliProvisioningProgress;
 
 pub async fn create_cloud_tenant(
     creds: &CloudCredentials,
@@ -39,54 +42,13 @@ pub async fn create_cloud_tenant(
 
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
-    let selected_plan = select_plan(&client).await?;
-    let selected_region = select_region()?;
+    let plan = assemble_plan(&client).await?;
 
-    let redirect_uri = format!("http://127.0.0.1:{}/callback", CALLBACK_PORT);
-    let spinner = CliService::spinner("Creating checkout session...");
-    let checkout = client
-        .create_checkout(&selected_plan, selected_region, Some(&redirect_uri))
+    let progress = CliProvisioningProgress::new();
+    let provisioned = TenantProvisioningService::new(&client)
+        .provision(&plan, &progress)
         .await?;
-    spinner.finish_and_clear();
-
-    let templates = CheckoutTemplates {
-        success_html: CHECKOUT_SUCCESS_HTML,
-        error_html: CHECKOUT_ERROR_HTML,
-        waiting_html: WAITING_HTML,
-    };
-
-    let result = run_checkout_callback_flow(&client, &checkout.checkout_url, templates).await?;
-    let tenant_id = result.tenant_id.clone();
-    CliService::success(&format!(
-        "Checkout complete! Tenant ID: {}",
-        tenant_id.as_str()
-    ));
-
-    let spinner = CliService::spinner("Waiting for infrastructure provisioning...");
-    wait_for_provisioning(&client, &tenant_id, |event| {
-        if let Some(msg) = &event.message {
-            CliService::info(msg);
-        }
-    })
-    .await?;
-    spinner.finish_and_clear();
-    CliService::success("Tenant provisioned successfully");
-
-    let internal_database_url = fetch_credentials(&client, &tenant_id).await?;
-
-    let (external_db_access, external_database_url) =
-        configure_external_access(&client, &tenant_id, &internal_database_url).await?;
-
-    let stored_tenant = build_stored_tenant(
-        &client,
-        &tenant_id,
-        TenantDatabaseConfig {
-            external_database_url,
-            internal_database_url,
-            external_db_access,
-        },
-    )
-    .await?;
+    let stored_tenant = provisioned.tenant;
 
     CliService::section("Profile Setup");
     let profile_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -105,15 +67,33 @@ pub async fn create_cloud_tenant(
     )?;
     CliService::success(&format!("Profile '{}' created", profile.name));
 
-    if result.needs_deploy {
+    if provisioned.needs_deploy {
         CliService::section("Initial Deploy");
         CliService::info("Deploying your code with profile configuration...");
-        deploy_with_secrets(&client, &tenant_id, &profile.name).await?;
+        run_initial_deploy(creds, &stored_tenant, &profile.name).await?;
     }
 
     warn_required_secrets(&validation.required_secrets);
 
     Ok(stored_tenant)
+}
+
+async fn assemble_plan(client: &CloudApiClient) -> Result<TenantCreatePlan> {
+    let price_id = select_plan(client).await?;
+    let region = select_region()?;
+    let external_db_access = prompt_external_access()?;
+
+    Ok(TenantCreatePlan {
+        price_id,
+        region: region.to_owned(),
+        redirect_uri: format!("http://127.0.0.1:{}/callback", CALLBACK_PORT),
+        external_db_access,
+        templates: CheckoutTemplates {
+            success_html: CHECKOUT_SUCCESS_HTML,
+            error_html: CHECKOUT_ERROR_HTML,
+            waiting_html: WAITING_HTML,
+        },
+    })
 }
 
 async fn select_plan(client: &CloudApiClient) -> Result<PriceId> {
@@ -151,23 +131,7 @@ fn select_region() -> Result<&'static str> {
     Ok(AVAILABLE[region_selection].0)
 }
 
-async fn fetch_credentials(client: &CloudApiClient, tenant_id: &TenantId) -> Result<String> {
-    let spinner = CliService::spinner("Fetching database credentials...");
-    let status = client.get_tenant_status(tenant_id).await?;
-    let secrets_url = status
-        .secrets_url
-        .ok_or_else(|| anyhow!("Tenant is ready but secrets URL is missing"))?;
-    let secrets = client.fetch_secrets(&secrets_url).await?;
-    spinner.finish_and_clear();
-    CliService::success("Database credentials retrieved");
-    Ok(secrets.database_url)
-}
-
-async fn configure_external_access(
-    client: &CloudApiClient,
-    tenant_id: &TenantId,
-    internal_database_url: &str,
-) -> Result<(bool, Option<String>)> {
+fn prompt_external_access() -> Result<bool> {
     CliService::section("Database Access");
     CliService::info(
         "External database access allows direct PostgreSQL connections from your local machine.",
@@ -181,101 +145,40 @@ async fn configure_external_access(
 
     if !enable_external {
         CliService::info("External access disabled. Some local features will be limited.");
-        return Ok((false, None));
     }
 
-    let spinner = CliService::spinner("Enabling external database access...");
-    match client.set_external_db_access(tenant_id, true).await {
-        Ok(_) => {
-            let external_url = swap_to_external_host(internal_database_url);
-            spinner.finish_and_clear();
-            CliService::success("External database access enabled");
-            print_database_connection_info(&external_url);
-            Ok((true, Some(external_url)))
+    Ok(enable_external)
+}
+
+async fn run_initial_deploy(
+    creds: &CloudCredentials,
+    tenant: &StoredTenant,
+    profile_name: &str,
+) -> Result<()> {
+    let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
+    let ctx = ProjectContext::discover();
+    let profile_dir = ctx.profile_dir(profile_name);
+
+    let request = DeployRequest {
+        tenant_id: TenantId::new(tenant.id.clone()),
+        tenant_name: tenant.name.clone(),
+        profile_name: profile_name.to_owned(),
+        project_root: project.as_path().to_path_buf(),
+        credentials: creds.clone(),
+        hostname: tenant.hostname.clone(),
+        secrets_path: ProfilePath::Secrets.resolve(&profile_dir),
+        signing_key_path: profile_dir.join("signing_key.pem"),
+        options: DeployOptions {
+            skip_push: false,
+            dry_run: false,
+            pre_sync: None,
         },
-        Err(e) => {
-            spinner.finish_and_clear();
-            CliService::warning(&format!("Failed to enable external access: {}", e));
-            CliService::info("You can enable it later with 'systemprompt cloud tenant edit'");
-            Ok((false, None))
-        },
-    }
-}
-
-struct TenantDatabaseConfig {
-    external_database_url: Option<String>,
-    internal_database_url: String,
-    external_db_access: bool,
-}
-
-async fn build_stored_tenant(
-    client: &CloudApiClient,
-    tenant_id: &TenantId,
-    db_config: TenantDatabaseConfig,
-) -> Result<StoredTenant> {
-    let spinner = CliService::spinner("Syncing new tenant...");
-    let response = client.get_user().await?;
-    spinner.finish_and_clear();
-
-    let new_tenant = response
-        .tenants
-        .iter()
-        .find(|t| t.id == tenant_id.as_str())
-        .ok_or_else(|| anyhow!("New tenant not found after checkout"))?;
-
-    Ok(StoredTenant {
-        id: new_tenant.id.clone(),
-        name: new_tenant.name.clone(),
-        tenant_type: TenantType::Cloud,
-        app_id: new_tenant.app_id.clone(),
-        hostname: new_tenant.hostname.clone(),
-        region: new_tenant.region.clone(),
-        database_url: db_config.external_database_url,
-        internal_database_url: Some(db_config.internal_database_url),
-        external_db_access: db_config.external_db_access,
-        shared_container_db: None,
-    })
-}
-
-pub fn swap_to_external_host(url: &str) -> String {
-    let Ok(parsed) = Url::parse(url) else {
-        return url.to_owned();
     };
 
-    let host = parsed.host_str().unwrap_or("");
-    let external_host = if host.contains("sandbox") {
-        DB_SANDBOX_HOST
-    } else {
-        DB_PRODUCTION_HOST
-    };
+    let progress = CliDeployProgress::non_interactive();
+    DeployOrchestrator::new()
+        .deploy(&request, &progress)
+        .await?;
 
-    url.replace(host, external_host)
-        .replace("sslmode=disable", "sslmode=require")
-}
-
-fn print_database_connection_info(url: &str) {
-    let Ok(parsed) = Url::parse(url) else {
-        return;
-    };
-
-    let host = parsed.host_str().unwrap_or("unknown");
-    let port = parsed.port().unwrap_or(5432);
-    let database = parsed.path().trim_start_matches('/');
-    let username = parsed.username();
-    let password = parsed.password().unwrap_or("********");
-
-    CliService::section("Database Connection");
-    CliService::key_value("Host", host);
-    CliService::key_value("Port", &port.to_string());
-    CliService::key_value("Database", database);
-    CliService::key_value("User", username);
-    CliService::key_value("Password", password);
-    CliService::key_value("SSL", "required");
-    CliService::info("");
-    CliService::key_value("Connection URL", url);
-    CliService::info("");
-    CliService::info(&format!(
-        "Connect with psql:\n  PGPASSWORD='{}' psql -h {} -p {} -U {} -d {}",
-        password, host, port, username, database
-    ));
+    Ok(())
 }

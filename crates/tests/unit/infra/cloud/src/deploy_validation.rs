@@ -1,7 +1,7 @@
 //! Unit tests for deploy Dockerfile validation and services-config discovery
 
 use systemprompt_cloud::deploy::{
-    find_services_config, validate_dockerfile_has_mcp_binaries,
+    find_services_config, get_required_mcp_copy_lines, validate_dockerfile_has_mcp_binaries,
     validate_dockerfile_has_no_stale_binaries, validate_profile_dockerfile,
 };
 use systemprompt_models::ServicesConfig;
@@ -99,4 +99,53 @@ fn test_validate_profile_dockerfile_passes_clean_file() {
     let config = ServicesConfig::default();
 
     validate_profile_dockerfile(&dockerfile_path, temp.path(), &config).unwrap();
+}
+
+#[test]
+fn test_get_required_mcp_copy_lines_with_no_extensions_is_empty() {
+    let temp = TempDir::new().unwrap();
+    let lines = get_required_mcp_copy_lines(temp.path(), &ServicesConfig::default());
+    assert!(lines.is_empty());
+}
+
+#[test]
+fn test_stale_extractor_reports_each_specific_binary() {
+    let temp = TempDir::new().unwrap();
+    let dockerfile = "FROM rust\nCOPY target/release/systemprompt-foo /bin/\nCOPY \
+                      target/release/systemprompt-bar /bin/\n";
+    let stale =
+        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    assert_eq!(stale.len(), 2);
+    assert!(stale.iter().any(|s| s == "systemprompt-foo"));
+    assert!(stale.iter().any(|s| s == "systemprompt-bar"));
+}
+
+#[test]
+fn test_stale_extractor_ignores_non_systemprompt_copy_lines() {
+    let temp = TempDir::new().unwrap();
+    let dockerfile = "FROM rust\nCOPY target/release/other-tool /bin/\nCOPY src/ /app/src/\n";
+    let stale =
+        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    assert!(stale.is_empty());
+}
+
+#[test]
+fn test_no_release_copy_lines_extracts_nothing() {
+    let temp = TempDir::new().unwrap();
+    let dockerfile = "FROM rust\nWORKDIR /app\n";
+    let stale =
+        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    assert!(stale.is_empty());
+    let missing =
+        validate_dockerfile_has_mcp_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    assert!(missing.is_empty());
+}
+
+#[test]
+fn test_bare_systemprompt_wildcard_is_filtered_from_extraction() {
+    let temp = TempDir::new().unwrap();
+    let dockerfile = "COPY target/release/systemprompt-* /bin/\n";
+    let stale =
+        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    assert!(stale.is_empty());
 }
