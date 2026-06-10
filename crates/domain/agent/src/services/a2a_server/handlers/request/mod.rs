@@ -9,8 +9,9 @@ mod non_streaming;
 mod streaming;
 mod validation;
 
+use axum::body::Body;
 use axum::extract::{Json, Request, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use serde_json::json;
 use std::sync::Arc;
@@ -52,70 +53,18 @@ pub async fn handle_agent_request(
     let (parts, body) = request.into_parts();
     let headers = parts.headers.clone();
 
-    let Ok(body_bytes) = axum::body::to_bytes(body, usize::MAX).await else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "jsonrpc": "2.0",
-                "error": {"code": -32700, "message": "Failed to read request body"},
-                "id": null
-            })),
-        )
-            .into_response();
+    let jsonrpc_request = match parse_json_rpc_body(body).await {
+        Ok(req) => req,
+        Err(response) => return response,
     };
-
-    let payload: serde_json::Value = match serde_json::from_slice(&body_bytes) {
-        Ok(p) => p,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32700, "message": "Invalid JSON"},
-                    "id": null
-                })),
-            )
-                .into_response();
-        },
-    };
-
-    let jsonrpc_request =
-        match serde_json::from_value::<crate::models::a2a::A2aJsonRpcRequest>(payload) {
-            Ok(req) => req,
-            Err(e) => {
-                let error_response = JsonRpcErrorBuilder::invalid_request()
-                    .with_data(json!(
-                        "Request must be valid JSON-RPC 2.0 with jsonrpc, method, params, and id"
-                    ))
-                    .log_error(format!("Invalid JSON-RPC request: {e}"))
-                    .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0));
-                return (StatusCode::BAD_REQUEST, Json(error_response)).into_response();
-            },
-        };
 
     let request_id = jsonrpc_request.id.clone();
     tracing::info!(method = %jsonrpc_request.method, "Processing A2A JSON-RPC method");
 
     let requires_oauth = should_require_oauth(&state).await;
 
-    if requires_oauth {
-        tracing::info!("Request requires OAuth2 authentication");
-
-        let required_scopes = {
-            let config = state.config.read().await;
-            config.oauth.scopes.clone()
-        };
-
-        if let Err((status, error_response)) = validate_oauth_for_request(
-            &headers,
-            &request_id,
-            &required_scopes,
-            state.oauth_state.jwt_provider.as_ref(),
-        )
-        .await
-        {
-            return (status, Json(error_response)).into_response();
-        }
+    if requires_oauth && let Err(response) = enforce_oauth(&state, &headers, &request_id).await {
+        return response;
     }
 
     let is_streaming = jsonrpc_request.method == methods::SEND_STREAMING_MESSAGE;
@@ -147,7 +96,84 @@ pub async fn handle_agent_request(
     let response_result =
         handle_non_streaming_request(a2a_request, &state, &enriched_context).await;
 
-    let json_rpc_response = match response_result {
+    let json_rpc_response = build_json_rpc_response(response_result, &request_id);
+
+    let latency_ms = start_time.elapsed().as_millis();
+    let latency_ms = i64::try_from(latency_ms).unwrap_or(i64::MAX);
+    tracing::info!(latency_ms = %latency_ms, oauth = %requires_oauth, method = %jsonrpc_request.method, "A2A request processed");
+
+    (StatusCode::OK, Json(json_rpc_response)).into_response()
+}
+
+async fn parse_json_rpc_body(
+    body: Body,
+) -> Result<crate::models::a2a::A2aJsonRpcRequest, axum::response::Response> {
+    let Ok(body_bytes) = axum::body::to_bytes(body, usize::MAX).await else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "jsonrpc": "2.0",
+                "error": {"code": -32700, "message": "Failed to read request body"},
+                "id": null
+            })),
+        )
+            .into_response());
+    };
+
+    let payload: serde_json::Value = match serde_json::from_slice(&body_bytes) {
+        Ok(p) => p,
+        Err(_) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32700, "message": "Invalid JSON"},
+                    "id": null
+                })),
+            )
+                .into_response());
+        },
+    };
+
+    serde_json::from_value::<crate::models::a2a::A2aJsonRpcRequest>(payload).map_err(|e| {
+        let error_response = JsonRpcErrorBuilder::invalid_request()
+            .with_data(json!(
+                "Request must be valid JSON-RPC 2.0 with jsonrpc, method, params, and id"
+            ))
+            .log_error(format!("Invalid JSON-RPC request: {e}"))
+            .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0));
+        (StatusCode::BAD_REQUEST, Json(error_response)).into_response()
+    })
+}
+
+async fn enforce_oauth(
+    state: &AgentHandlerState,
+    headers: &HeaderMap,
+    request_id: &crate::models::a2a::jsonrpc::NumberOrString,
+) -> Result<(), axum::response::Response> {
+    tracing::info!("Request requires OAuth2 authentication");
+
+    let required_scopes = {
+        let config = state.config.read().await;
+        config.oauth.scopes.clone()
+    };
+
+    validate_oauth_for_request(
+        headers,
+        request_id,
+        &required_scopes,
+        state.oauth_state.jwt_provider.as_ref(),
+    )
+    .await
+    .map(|_| ())
+    .map_err(|(status, error_response)| (status, Json(error_response)).into_response())
+}
+
+fn build_json_rpc_response(
+    response_result: Result<crate::models::a2a::Task, Box<dyn std::error::Error + Send + Sync>>,
+    request_id: &crate::models::a2a::jsonrpc::NumberOrString,
+) -> serde_json::Value {
+    match response_result {
         Ok(task) => match serde_json::to_value(task) {
             Ok(task_value) => json!({
                 "jsonrpc": "2.0",
@@ -157,17 +183,11 @@ pub async fn handle_agent_request(
             Err(e) => JsonRpcErrorBuilder::internal_error()
                 .with_data(json!("Task serialization failed"))
                 .log_error(format!("Failed to serialize task response: {e}"))
-                .build(&request_id),
+                .build(request_id),
         },
         Err(e) => JsonRpcErrorBuilder::internal_error()
             .with_data(json!(format!("Request handling failed: {e}")))
             .log_error(format!("A2A request handling failed: {e}"))
-            .build(&request_id),
-    };
-
-    let latency_ms = start_time.elapsed().as_millis();
-    let latency_ms = i64::try_from(latency_ms).unwrap_or(i64::MAX);
-    tracing::info!(latency_ms = %latency_ms, oauth = %requires_oauth, method = %jsonrpc_request.method, "A2A request processed");
-
-    (StatusCode::OK, Json(json_rpc_response)).into_response()
+            .build(request_id),
+    }
 }

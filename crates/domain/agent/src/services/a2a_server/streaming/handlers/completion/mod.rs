@@ -7,6 +7,7 @@
 
 mod complete;
 mod error;
+mod success;
 
 pub(in crate::services::a2a_server::streaming) use complete::{
     HandleCompleteParams, handle_complete,

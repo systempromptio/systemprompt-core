@@ -19,23 +19,11 @@ pub async fn update_task_state(
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let status = task_state_to_db_string(state);
     let task_id_str = task_id.as_str();
 
     let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
 
-    let current = sqlx::query!(
-        r#"SELECT status, version FROM agent_tasks WHERE task_id = $1 FOR UPDATE"#,
-        task_id_str
-    )
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(RepositoryError::database)?
-    .ok_or_else(|| RepositoryError::NotFound(format!("task {task_id_str}")))?;
-
-    let current_state: TaskState = current.status.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
-    })?;
+    let (current_state, expected_version) = lock_task_state(&mut tx, task_id_str).await?;
 
     if current_state == state {
         tx.commit().await.map_err(RepositoryError::database)?;
@@ -48,9 +36,49 @@ pub async fn update_task_state(
         )));
     }
 
-    let expected_version = current.version;
+    let rows_affected =
+        execute_state_update(&mut tx, state, timestamp, task_id_str, expected_version).await?;
 
-    let rows_affected = if state == TaskState::Completed {
+    if rows_affected == 0 {
+        return Err(RepositoryError::ConstraintViolation(format!(
+            "stale task update for {task_id_str}: expected version {expected_version}"
+        )));
+    }
+
+    tx.commit().await.map_err(RepositoryError::database)?;
+    Ok(())
+}
+
+async fn lock_task_state(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    task_id_str: &str,
+) -> Result<(TaskState, i64), RepositoryError> {
+    let current = sqlx::query!(
+        r#"SELECT status, version FROM agent_tasks WHERE task_id = $1 FOR UPDATE"#,
+        task_id_str
+    )
+    .fetch_optional(&mut **tx)
+    .await
+    .map_err(RepositoryError::database)?
+    .ok_or_else(|| RepositoryError::NotFound(format!("task {task_id_str}")))?;
+
+    let current_state: TaskState = current.status.parse().map_err(|e: String| {
+        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
+    })?;
+
+    Ok((current_state, current.version))
+}
+
+async fn execute_state_update(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    state: TaskState,
+    timestamp: &chrono::DateTime<chrono::Utc>,
+    task_id_str: &str,
+    expected_version: i64,
+) -> Result<u64, RepositoryError> {
+    let status = task_state_to_db_string(state);
+
+    let result = if state == TaskState::Completed {
         sqlx::query!(
             r#"UPDATE agent_tasks
                SET status = $1,
@@ -66,10 +94,8 @@ pub async fn update_task_state(
             task_id_str,
             expected_version
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
-        .map_err(RepositoryError::database)?
-        .rows_affected()
     } else if state == TaskState::Working {
         sqlx::query!(
             r#"UPDATE agent_tasks
@@ -84,10 +110,8 @@ pub async fn update_task_state(
             task_id_str,
             expected_version
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
-        .map_err(RepositoryError::database)?
-        .rows_affected()
     } else {
         sqlx::query!(
             r#"UPDATE agent_tasks
@@ -101,20 +125,11 @@ pub async fn update_task_state(
             task_id_str,
             expected_version
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
-        .map_err(RepositoryError::database)?
-        .rows_affected()
     };
 
-    if rows_affected == 0 {
-        return Err(RepositoryError::ConstraintViolation(format!(
-            "stale task update for {task_id_str}: expected version {expected_version}"
-        )));
-    }
-
-    tx.commit().await.map_err(RepositoryError::database)?;
-    Ok(())
+    Ok(result.map_err(RepositoryError::database)?.rows_affected())
 }
 
 pub async fn apply_notification_status(
@@ -139,18 +154,7 @@ pub async fn update_task_failed_with_error(
 
     let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
 
-    let current = sqlx::query!(
-        r#"SELECT status, version FROM agent_tasks WHERE task_id = $1 FOR UPDATE"#,
-        task_id_str
-    )
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(RepositoryError::database)?
-    .ok_or_else(|| RepositoryError::NotFound(format!("task {task_id_str}")))?;
-
-    let current_state: TaskState = current.status.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
-    })?;
+    let (current_state, expected_version) = lock_task_state(&mut tx, task_id_str).await?;
 
     if current_state == TaskState::Failed {
         tx.commit().await.map_err(RepositoryError::database)?;
@@ -162,8 +166,6 @@ pub async fn update_task_failed_with_error(
             "invalid task state transition for {task_id_str}: {current_state:?} -> Failed"
         )));
     }
-
-    let expected_version = current.version;
 
     let rows_affected = sqlx::query!(
         r#"UPDATE agent_tasks SET

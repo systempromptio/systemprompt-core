@@ -9,11 +9,11 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder, RequestContext, TaskMetadata};
+use systemprompt_models::{AgUiEventBuilder, RequestContext, TaskMetadata};
 use systemprompt_traits::validation::Validate;
 use tokio::sync::mpsc::Sender;
 
-use super::send_a2a_status_event;
+use super::success::{BroadcastTaskSuccessParams, broadcast_task_success};
 use crate::models::a2a::{
     Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
 };
@@ -21,8 +21,8 @@ use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams,
 };
-use crate::services::a2a_server::streaming::broadcast_task_completed;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
+use crate::services::shared::AgentServiceError;
 
 pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub tx: &'a Sender<Event>,
@@ -58,33 +58,12 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         task_repo,
         processor,
     } = params;
-    let completed_timestamp = chrono::Utc::now();
-    if let Err(e) = task_repo
-        .update_task_state(task_id, TaskState::Completed, &completed_timestamp)
-        .await
-    {
-        tracing::error!(task_id = %task_id, error = %e, "Failed to update task state");
-    }
+    mark_task_completed(task_repo, task_id).await;
 
-    let artifacts_for_task = if artifacts.is_empty() {
-        None
-    } else {
-        Some(artifacts.clone())
-    };
+    let artifacts_for_task = (!artifacts.is_empty()).then(|| artifacts.clone());
 
-    let task_metadata = match TaskMetadata::new_validated_agent_message(agent_name.to_owned()) {
-        Ok(metadata) => metadata,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to create TaskMetadata");
-            let error_event = AgUiEventBuilder::run_error(
-                format!("Internal error: {e}"),
-                Some("METADATA_ERROR".to_owned()),
-            );
-            if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-                tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-            }
-            return;
-        },
+    let Some(task_metadata) = resolve_validated_metadata(agent_name, webhook_context).await else {
+        return;
     };
 
     let complete_task = build_complete_task(BuildCompleteTaskParams {
@@ -97,29 +76,14 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         task_metadata,
     });
 
-    if let Some(ref metadata) = complete_task.metadata
-        && let Err(e) = metadata.validate()
-    {
-        tracing::error!(error = %e, "Task metadata validation failed");
-        let error_event = AgUiEventBuilder::run_error(
-            format!("Validation failed: {e}"),
-            Some("VALIDATION_ERROR".to_owned()),
-        );
-        if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-            tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-        }
-        return;
-    }
-
     let Some(agent_message) = complete_task.status.message.clone() else {
         tracing::error!("Task status message is None");
-        let error_event = AgUiEventBuilder::run_error(
+        report_run_error(
+            webhook_context,
             "Task status message cannot be None".to_owned(),
-            Some("INTERNAL_ERROR".to_owned()),
-        );
-        if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-            tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-        }
+            "INTERNAL_ERROR",
+        )
+        .await;
         return;
     };
 
@@ -135,24 +99,7 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         .await
     {
         Err(e) => {
-            let error_msg = format!("Failed to complete task and persist messages: {}", e);
-            tracing::error!(task_id = %task_id, error = %e, "Failed to complete task and persist messages");
-
-            let failed_timestamp = chrono::Utc::now();
-            if let Err(update_err) = task_repo
-                .update_task_failed_with_error(task_id, &error_msg, &failed_timestamp)
-                .await
-            {
-                tracing::error!(task_id = %task_id, error = %update_err, "Failed to update task to failed state");
-            }
-
-            let error_event = AgUiEventBuilder::run_error(
-                format!("Failed to persist task: {e}"),
-                Some("PERSISTENCE_ERROR".to_owned()),
-            );
-            if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-                tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-            }
+            handle_persistence_failure(task_repo, task_id, webhook_context, &e).await;
         },
         Ok(task_with_timing) => {
             broadcast_task_success(BroadcastTaskSuccessParams {
@@ -170,6 +117,80 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
             .await;
         },
     }
+}
+
+async fn mark_task_completed(task_repo: &TaskRepository, task_id: &TaskId) {
+    let completed_timestamp = chrono::Utc::now();
+    if let Err(e) = task_repo
+        .update_task_state(task_id, TaskState::Completed, &completed_timestamp)
+        .await
+    {
+        tracing::error!(task_id = %task_id, error = %e, "Failed to update task state");
+    }
+}
+
+async fn resolve_validated_metadata(
+    agent_name: &str,
+    webhook_context: &WebhookContext,
+) -> Option<TaskMetadata> {
+    let task_metadata = match TaskMetadata::new_validated_agent_message(agent_name.to_owned()) {
+        Ok(metadata) => metadata,
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to create TaskMetadata");
+            report_run_error(
+                webhook_context,
+                format!("Internal error: {e}"),
+                "METADATA_ERROR",
+            )
+            .await;
+            return None;
+        },
+    };
+
+    if let Err(e) = task_metadata.validate() {
+        tracing::error!(error = %e, "Task metadata validation failed");
+        report_run_error(
+            webhook_context,
+            format!("Validation failed: {e}"),
+            "VALIDATION_ERROR",
+        )
+        .await;
+        return None;
+    }
+
+    Some(task_metadata)
+}
+
+async fn report_run_error(webhook_context: &WebhookContext, message: String, code: &str) {
+    let error_event = AgUiEventBuilder::run_error(message, Some(code.to_owned()));
+    if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
+        tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
+    }
+}
+
+async fn handle_persistence_failure(
+    task_repo: &TaskRepository,
+    task_id: &TaskId,
+    webhook_context: &WebhookContext,
+    e: &AgentServiceError,
+) {
+    let error_msg = format!("Failed to complete task and persist messages: {}", e);
+    tracing::error!(task_id = %task_id, error = %e, "Failed to complete task and persist messages");
+
+    let failed_timestamp = chrono::Utc::now();
+    if let Err(update_err) = task_repo
+        .update_task_failed_with_error(task_id, &error_msg, &failed_timestamp)
+        .await
+    {
+        tracing::error!(task_id = %task_id, error = %update_err, "Failed to update task to failed state");
+    }
+
+    report_run_error(
+        webhook_context,
+        format!("Failed to persist task: {e}"),
+        "PERSISTENCE_ERROR",
+    )
+    .await;
 }
 
 struct BuildCompleteTaskParams<'a> {
@@ -223,75 +244,4 @@ fn build_complete_task(params: BuildCompleteTaskParams<'_>) -> Task {
         created_at: Some(now),
         last_modified: Some(now),
     }
-}
-
-struct BroadcastTaskSuccessParams<'a> {
-    tx: &'a Sender<Event>,
-    webhook_context: &'a WebhookContext,
-    task_id: &'a TaskId,
-    context_id: &'a ContextId,
-    message_id: &'a str,
-    full_text: &'a str,
-    artifact_count: usize,
-    task_with_timing: &'a Task,
-    context: &'a RequestContext,
-    auth_token: &'a str,
-}
-
-async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_>) {
-    let completed_status = TaskStatus {
-        state: TaskState::Completed,
-        message: Some(Message {
-            role: MessageRole::Agent,
-            parts: vec![Part::Text(TextPart {
-                text: params.full_text.to_owned(),
-            })],
-            message_id: MessageId::new(params.message_id.to_owned()),
-            task_id: Some(params.task_id.clone()),
-            context_id: params.context_id.clone(),
-            metadata: None,
-            extensions: None,
-            reference_task_ids: None,
-        }),
-        timestamp: Some(chrono::Utc::now()),
-    };
-    send_a2a_status_event(
-        params.tx,
-        params.task_id,
-        params.context_id,
-        completed_status,
-        true,
-    );
-
-    let a2a_event = A2AEventBuilder::task_status_update(
-        params.task_id.clone(),
-        params.context_id.clone(),
-        TaskState::Completed,
-        Some(params.full_text.to_owned()),
-    );
-    if let Err(e) = params.webhook_context.broadcast_a2a(a2a_event).await {
-        tracing::error!(error = %e, "Failed to broadcast A2A task_status_update");
-    }
-
-    let agui_result = serde_json::json!({
-        "text": params.full_text,
-        "artifactCount": params.artifact_count,
-        "taskId": params.task_id.as_str(),
-        "contextId": params.context_id.as_str()
-    });
-    let event = AgUiEventBuilder::run_finished(
-        params.context_id.clone(),
-        params.task_id.clone(),
-        Some(agui_result),
-    );
-    if let Err(e) = params.webhook_context.broadcast_agui(event).await {
-        tracing::error!(error = %e, "Failed to broadcast RUN_FINISHED");
-    }
-
-    broadcast_task_completed(
-        params.task_with_timing,
-        params.context.user_id(),
-        params.auth_token,
-    )
-    .await;
 }

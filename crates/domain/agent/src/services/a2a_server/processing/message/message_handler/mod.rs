@@ -27,7 +27,7 @@ use crate::services::a2a_server::streaming::broadcast::{
     BroadcastTaskCreatedParams, broadcast_task_created,
 };
 use crate::services::shared::{AgentServiceError, Result};
-use systemprompt_identifiers::{MessageId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 
 impl MessageProcessor {
@@ -61,71 +61,11 @@ impl MessageProcessor {
             "Context validated"
         );
 
-        let task_id = message.task_id.clone().map_or_else(
-            || {
-                let new_task_id = TaskId::new(Uuid::new_v4().to_string());
-                tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
-                new_task_id
-            },
-            |existing_task_id| {
-                tracing::info!(task_id = %existing_task_id, "Continuing existing task");
-                existing_task_id
-            },
-        );
+        let task_id = resolve_task_id(&message);
+        let task = new_submitted_task(&task_id, context_id, agent_name);
 
-        let metadata = TaskMetadata::new_agent_message(agent_name.to_owned());
-
-        let task = Task {
-            id: task_id.clone(),
-            context_id: context_id.clone(),
-            status: TaskStatus {
-                state: TaskState::Submitted,
-                message: None,
-                timestamp: Some(chrono::Utc::now()),
-            },
-            history: None,
-            artifacts: None,
-            metadata: Some(metadata),
-            created_at: Some(chrono::Utc::now()),
-            last_modified: Some(chrono::Utc::now()),
-        };
-
-        if let Err(e) = self
-            .task_repo
-            .create_task(crate::repository::task::RepoCreateTaskParams {
-                task: &task,
-                user_id: &UserId::new(context.user_id().as_str()),
-                session_id: &SessionId::new(context.session_id().as_str()),
-                trace_id: &TraceId::new(context.trace_id().as_str()),
-                agent_name,
-            })
-            .await
-        {
-            return Err(AgentServiceError::Internal(format!(
-                "Failed to persist task at start: {e}"
-            )));
-        }
-
-        tracing::info!(task_id = %task_id, "Task persisted to database");
-
-        broadcast_task_created(BroadcastTaskCreatedParams {
-            task_id: &task_id,
-            context_id,
-            user_id: context.user_id().as_str(),
-            user_message: &message,
-            agent_name,
-            token: context.auth_token().as_str(),
-        })
-        .await;
-
-        let working_timestamp = chrono::Utc::now();
-        if let Err(e) = self
-            .task_repo
-            .update_task_state(&task_id, TaskState::Working, &working_timestamp)
-            .await
-        {
-            tracing::error!(task_id = %task_id, error = %e, "Failed to mark task as working");
-        }
+        self.persist_and_announce(&task, &message, agent_name, context)
+            .await?;
 
         let stream_processor = StreamProcessor {
             ai_service: Arc::clone(&self.ai_service),
@@ -154,28 +94,7 @@ impl MessageProcessor {
             tool_artifacts,
         );
 
-        let agent_message = task.status.message.clone().unwrap_or_else(|| {
-            let client_message_id = message
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("clientMessageId"))
-                .cloned();
-
-            let metadata = client_message_id.map(|id| serde_json::json!({"clientMessageId": id}));
-
-            Message {
-                role: MessageRole::Agent,
-                parts: vec![Part::Text(TextPart {
-                    text: response_text.clone(),
-                })],
-                message_id: MessageId::generate(),
-                task_id: Some(task.id.clone()),
-                context_id: task.context_id.clone(),
-                metadata,
-                extensions: None,
-                reference_task_ids: None,
-            }
-        });
+        let agent_message = resolve_agent_message(&task, &message, &response_text);
 
         if context.user_type() == systemprompt_models::auth::UserType::Anon {
             tracing::warn!(
@@ -200,6 +119,53 @@ impl MessageProcessor {
         .await;
 
         Ok(task)
+    }
+
+    async fn persist_and_announce(
+        &self,
+        task: &Task,
+        message: &Message,
+        agent_name: &str,
+        context: &RequestContext,
+    ) -> Result<()> {
+        if let Err(e) = self
+            .task_repo
+            .create_task(crate::repository::task::RepoCreateTaskParams {
+                task,
+                user_id: &UserId::new(context.user_id().as_str()),
+                session_id: &SessionId::new(context.session_id().as_str()),
+                trace_id: &TraceId::new(context.trace_id().as_str()),
+                agent_name,
+            })
+            .await
+        {
+            return Err(AgentServiceError::Internal(format!(
+                "Failed to persist task at start: {e}"
+            )));
+        }
+
+        tracing::info!(task_id = %task.id, "Task persisted to database");
+
+        broadcast_task_created(BroadcastTaskCreatedParams {
+            task_id: &task.id,
+            context_id: &task.context_id,
+            user_id: context.user_id().as_str(),
+            user_message: message,
+            agent_name,
+            token: context.auth_token().as_str(),
+        })
+        .await;
+
+        let working_timestamp = chrono::Utc::now();
+        if let Err(e) = self
+            .task_repo
+            .update_task_state(&task.id, TaskState::Working, &working_timestamp)
+            .await
+        {
+            tracing::error!(task_id = %task.id, error = %e, "Failed to mark task as working");
+        }
+
+        Ok(())
     }
 
     async fn persist_or_mark_failed(
@@ -239,4 +205,60 @@ impl MessageProcessor {
 
         Err(e)
     }
+}
+
+fn resolve_task_id(message: &Message) -> TaskId {
+    message.task_id.clone().map_or_else(
+        || {
+            let new_task_id = TaskId::new(Uuid::new_v4().to_string());
+            tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
+            new_task_id
+        },
+        |existing_task_id| {
+            tracing::info!(task_id = %existing_task_id, "Continuing existing task");
+            existing_task_id
+        },
+    )
+}
+
+fn new_submitted_task(task_id: &TaskId, context_id: &ContextId, agent_name: &str) -> Task {
+    Task {
+        id: task_id.clone(),
+        context_id: context_id.clone(),
+        status: TaskStatus {
+            state: TaskState::Submitted,
+            message: None,
+            timestamp: Some(chrono::Utc::now()),
+        },
+        history: None,
+        artifacts: None,
+        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_owned())),
+        created_at: Some(chrono::Utc::now()),
+        last_modified: Some(chrono::Utc::now()),
+    }
+}
+
+fn resolve_agent_message(task: &Task, user_message: &Message, response_text: &str) -> Message {
+    task.status.message.clone().unwrap_or_else(|| {
+        let client_message_id = user_message
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("clientMessageId"))
+            .cloned();
+
+        let metadata = client_message_id.map(|id| serde_json::json!({"clientMessageId": id}));
+
+        Message {
+            role: MessageRole::Agent,
+            parts: vec![Part::Text(TextPart {
+                text: response_text.to_owned(),
+            })],
+            message_id: MessageId::generate(),
+            task_id: Some(task.id.clone()),
+            context_id: task.context_id.clone(),
+            metadata,
+            extensions: None,
+            reference_task_ids: None,
+        }
+    })
 }

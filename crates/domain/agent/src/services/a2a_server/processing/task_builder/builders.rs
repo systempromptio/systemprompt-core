@@ -5,7 +5,8 @@
 //! message history and per-tool artifacts for a multi-turn agentic run.
 
 use super::TaskBuilder;
-use super::helpers::{content_to_json, extract_text_from_content};
+use super::helpers::content_to_json;
+use super::history::{BuildHistoryParams, build_history};
 use crate::models::a2a::{
     Artifact, DataPart, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
 };
@@ -137,110 +138,6 @@ pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
         created_at: Some(chrono::Utc::now()),
         last_modified: Some(chrono::Utc::now()),
     }
-}
-
-struct BuildHistoryParams<'a> {
-    ctx_id: &'a ContextId,
-    task_id: &'a TaskId,
-    user_message: Message,
-    tool_calls: &'a [ToolCall],
-    tool_results: &'a [CallToolResult],
-    final_response: &'a str,
-}
-
-fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
-    let BuildHistoryParams {
-        ctx_id,
-        task_id,
-        user_message,
-        tool_calls,
-        tool_results,
-        final_response,
-    } = params;
-    let mut history = Vec::new();
-    history.push(user_message);
-
-    let mut iteration = 1;
-    let mut call_idx = 0;
-
-    while call_idx < tool_calls.len() {
-        let iteration_calls: Vec<_> = tool_calls
-            .iter()
-            .skip(call_idx)
-            .take_while(|_| call_idx < tool_calls.len())
-            .cloned()
-            .collect();
-
-        if iteration_calls.is_empty() {
-            break;
-        }
-
-        history.push(Message {
-            role: MessageRole::Agent,
-            parts: vec![Part::Text(TextPart {
-                text: format!("Executing {} tool(s)...", iteration_calls.len()),
-            })],
-            message_id: MessageId::generate(),
-            task_id: Some(task_id.clone()),
-            context_id: ctx_id.clone(),
-            metadata: Some(json!({
-                "iteration": iteration,
-                "tool_calls": iteration_calls.iter().map(|tc| {
-                    json!({"id": tc.ai_tool_call_id.as_ref(), "name": tc.name})
-                }).collect::<Vec<_>>()
-            })),
-            extensions: None,
-            reference_task_ids: None,
-        });
-
-        let results_text = iteration_calls
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, call)| {
-                let result_idx = call_idx + idx;
-                tool_results.get(result_idx).map(|r| {
-                    let content_text = extract_text_from_content(&r.content);
-                    format!("Tool '{}' result: {}", call.name, content_text)
-                })
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        history.push(Message {
-            role: MessageRole::User,
-            parts: vec![Part::Text(TextPart { text: results_text })],
-            message_id: MessageId::generate(),
-            task_id: Some(task_id.clone()),
-            context_id: ctx_id.clone(),
-            metadata: Some(json!({
-                "iteration": iteration,
-                "tool_results": true
-            })),
-            extensions: None,
-            reference_task_ids: None,
-        });
-
-        call_idx += iteration_calls.len();
-        iteration += 1;
-    }
-
-    history.push(Message {
-        role: MessageRole::Agent,
-        parts: vec![Part::Text(TextPart {
-            text: final_response.to_owned(),
-        })],
-        message_id: MessageId::generate(),
-        task_id: Some(task_id.clone()),
-        context_id: ctx_id.clone(),
-        metadata: Some(json!({
-            "iteration": iteration,
-            "final_synthesis": true
-        })),
-        extensions: None,
-        reference_task_ids: None,
-    });
-
-    history
 }
 
 fn build_artifacts(

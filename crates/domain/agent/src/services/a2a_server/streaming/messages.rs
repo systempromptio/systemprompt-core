@@ -80,56 +80,59 @@ pub async fn create_sse_stream(
     tokio::spawn(async move {
         let _permit = permit;
         tracing::info!("Inside tokio::spawn - task execution started");
-
-        let Ok(setup) = setup_stream(input, &tx).await else {
-            return;
-        };
-
-        tracing::info!(agent = %setup.agent_name, "Starting message stream processing for agent");
-
-        match setup
-            .processor
-            .process_message_stream(ProcessMessageStreamParams {
-                a2a_message: &setup.message,
-                agent_runtime: &setup.agent_runtime,
-                agent_name: &setup.agent_name,
-                context: &setup.context,
-                task_id: setup.task_id.clone(),
-            })
-            .await
-        {
-            Ok(chunk_rx) => {
-                let params = ProcessEventsParams {
-                    tx,
-                    chunk_rx,
-                    task_id: setup.task_id,
-                    context_id: setup.context_id,
-                    message_id: setup.message_id,
-                    original_message: setup.message,
-                    agent_name: setup.agent_name,
-                    context: setup.context,
-                    task_repo: setup.task_repo,
-                    processor: setup.processor,
-                    request_id: setup.request_id,
-                };
-                process_events(params).await;
-            },
-            Err(e) => {
-                let webhook_context = WebhookContext::new(
-                    setup.context.user_id().clone(),
-                    setup.context.auth_token().as_str(),
-                );
-                handle_stream_creation_error(
-                    &webhook_context,
-                    e,
-                    &setup.task_id,
-                    &setup.context_id,
-                    &setup.task_repo,
-                )
-                .await;
-            },
-        }
+        run_stream(input, tx).await;
     });
 
     Ok(ReceiverStream::new(rx))
+}
+
+async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
+    let Ok(setup) = setup_stream(input, &tx).await else {
+        return;
+    };
+
+    tracing::info!(agent = %setup.agent_name, "Starting message stream processing for agent");
+
+    match setup
+        .processor
+        .process_message_stream(ProcessMessageStreamParams {
+            a2a_message: &setup.message,
+            agent_runtime: &setup.agent_runtime,
+            agent_name: &setup.agent_name,
+            context: &setup.context,
+            task_id: setup.task_id.clone(),
+        })
+        .await
+    {
+        Ok(chunk_rx) => {
+            let params = ProcessEventsParams {
+                tx,
+                chunk_rx,
+                task_id: setup.task_id,
+                context_id: setup.context_id,
+                message_id: setup.message_id,
+                original_message: setup.message,
+                agent_name: setup.agent_name,
+                context: setup.context,
+                task_repo: setup.task_repo,
+                processor: setup.processor,
+                request_id: setup.request_id,
+            };
+            process_events(params).await;
+        },
+        Err(e) => {
+            let webhook_context = WebhookContext::new(
+                setup.context.user_id().clone(),
+                setup.context.auth_token().as_str(),
+            );
+            handle_stream_creation_error(
+                &webhook_context,
+                e,
+                &setup.task_id,
+                &setup.context_id,
+                &setup.task_repo,
+            )
+            .await;
+        },
+    }
 }

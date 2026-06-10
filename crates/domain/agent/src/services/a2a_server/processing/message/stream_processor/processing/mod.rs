@@ -17,9 +17,10 @@ use super::helpers::{
     SynthesizeFinalResponseParams, build_artifacts_from_results, synthesize_final_response,
 };
 use crate::models::AgentRuntimeInfo;
+use crate::models::a2a::Artifact;
 use crate::services::a2a_server::processing::message::{ProcessMessageStreamParams, StreamEvent};
 use crate::services::a2a_server::processing::strategies::{
-    ExecutionContext, ExecutionStrategySelector,
+    ExecutionContext, ExecutionResult, ExecutionStrategySelector,
 };
 use crate::services::shared::Result;
 use systemprompt_identifiers::AgentName;
@@ -148,16 +149,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
     .await;
 
     let ai_messages_for_synthesis = ai_messages.clone();
-
-    let has_tools = !agent_runtime.mcp_servers.include.is_empty();
-    tracing::info!(
-        mcp_server_count = agent_runtime.mcp_servers.include.len(),
-        has_tools = has_tools,
-        "Agent MCP server status"
-    );
-
     let ai_service_for_builder = Arc::clone(&ai_service);
-    let strategy = ExecutionStrategySelector::select_strategy(has_tools);
 
     let execution_context = ExecutionContext {
         ai_service: Arc::clone(&ai_service),
@@ -171,62 +163,24 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         execution_step_repo: Arc::clone(&execution_step_repo),
     };
 
-    let execution_result = match strategy.execute(execution_context, ai_messages).await {
-        Ok(result) => result,
-        Err(e) => {
-            tracing::error!(error = %e, "Execution failed");
-            let tracking =
-                crate::services::ExecutionTrackingService::new(Arc::clone(&execution_step_repo));
-            if let Err(fail_err) = tracking
-                .fail_in_progress_steps(&task_id, &e.to_string())
-                .await
-            {
-                tracing::error!(error = %fail_err, "Failed to mark steps as failed");
-            }
-            if let Err(send_err) = tx.try_send(StreamEvent::Error(format!("Execution failed: {e}")))
-            {
-                tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
-            }
-            return;
-        },
+    let Some(execution_result) = run_strategy(execution_context, ai_messages).await else {
+        return;
     };
 
-    let accumulated_text = execution_result.accumulated_text;
-    let tool_calls = execution_result.tool_calls;
-    let tool_results = execution_result.tool_results;
-    let tools = execution_result.tools;
-
-    tracing::info!(
-        text_len = accumulated_text.len(),
-        tool_call_count = tool_calls.len(),
-        tool_result_count = tool_results.len(),
-        "Processing complete"
-    );
-
-    let artifacts = match build_artifacts_from_results(
-        &tool_results,
-        &tool_calls,
-        &tools,
+    let Some(artifacts) = build_artifacts_or_report(
+        &execution_result,
         &context_id_for_artifacts,
         &task_id_for_artifacts,
-    ) {
-        Ok(artifacts) => artifacts,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to build artifacts from tool results");
-            if let Err(send_err) =
-                tx.try_send(StreamEvent::Error(format!("Artifact building failed: {e}")))
-            {
-                tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
-            }
-            return;
-        },
+        &tx,
+    ) else {
+        return;
     };
 
     let final_text = synthesize_final_response(SynthesizeFinalResponseParams {
-        tool_calls: &tool_calls,
-        tool_results: &tool_results,
+        tool_calls: &execution_result.tool_calls,
+        tool_results: &execution_result.tool_results,
         artifacts: &artifacts,
-        accumulated_text: &accumulated_text,
+        accumulated_text: &execution_result.accumulated_text,
         ai_service: ai_service_for_builder,
         agent_runtime: &agent_runtime,
         ai_messages_for_synthesis,
@@ -236,6 +190,87 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
     })
     .await;
 
+    send_complete_event(&tx, final_text, artifacts);
+}
+
+async fn run_strategy(
+    execution_context: ExecutionContext,
+    ai_messages: Vec<AiMessage>,
+) -> Option<ExecutionResult> {
+    let has_tools = !execution_context
+        .agent_runtime
+        .mcp_servers
+        .include
+        .is_empty();
+    tracing::info!(
+        mcp_server_count = execution_context.agent_runtime.mcp_servers.include.len(),
+        has_tools = has_tools,
+        "Agent MCP server status"
+    );
+
+    let strategy = ExecutionStrategySelector::select_strategy(has_tools);
+    let task_id = execution_context.task_id.clone();
+    let tx = execution_context.tx.clone();
+    let execution_step_repo = Arc::clone(&execution_context.execution_step_repo);
+
+    match strategy.execute(execution_context, ai_messages).await {
+        Ok(result) => {
+            tracing::info!(
+                text_len = result.accumulated_text.len(),
+                tool_call_count = result.tool_calls.len(),
+                tool_result_count = result.tool_results.len(),
+                "Processing complete"
+            );
+            Some(result)
+        },
+        Err(e) => {
+            tracing::error!(error = %e, "Execution failed");
+            let tracking = crate::services::ExecutionTrackingService::new(execution_step_repo);
+            if let Err(fail_err) = tracking
+                .fail_in_progress_steps(&task_id, &e.to_string())
+                .await
+            {
+                tracing::error!(error = %fail_err, "Failed to mark steps as failed");
+            }
+            report_stream_error(&tx, format!("Execution failed: {e}"));
+            None
+        },
+    }
+}
+
+fn build_artifacts_or_report(
+    execution_result: &ExecutionResult,
+    context_id: &systemprompt_identifiers::ContextId,
+    task_id: &systemprompt_identifiers::TaskId,
+    tx: &mpsc::Sender<StreamEvent>,
+) -> Option<Vec<Artifact>> {
+    match build_artifacts_from_results(
+        &execution_result.tool_results,
+        &execution_result.tool_calls,
+        &execution_result.tools,
+        context_id,
+        task_id,
+    ) {
+        Ok(artifacts) => Some(artifacts),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to build artifacts from tool results");
+            report_stream_error(tx, format!("Artifact building failed: {e}"));
+            None
+        },
+    }
+}
+
+fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, message: String) {
+    if let Err(send_err) = tx.try_send(StreamEvent::Error(message)) {
+        tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
+    }
+}
+
+fn send_complete_event(
+    tx: &mpsc::Sender<StreamEvent>,
+    final_text: String,
+    artifacts: Vec<Artifact>,
+) {
     tracing::info!(artifact_count = artifacts.len(), "Sending Complete event");
     for (idx, artifact) in artifacts.iter().enumerate() {
         tracing::info!(
@@ -246,13 +281,14 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         );
     }
 
+    let artifact_count = artifacts.len();
     let send_result = tx.try_send(StreamEvent::Complete {
         full_text: final_text,
-        artifacts: artifacts.clone(),
+        artifacts,
     });
     if send_result.is_err() {
         tracing::error!("Failed to send Complete event, channel closed");
     } else {
-        tracing::info!(artifact_count = artifacts.len(), "Sent Complete event");
+        tracing::info!(artifact_count = artifact_count, "Sent Complete event");
     }
 }

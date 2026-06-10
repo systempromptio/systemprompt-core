@@ -76,102 +76,41 @@ pub struct A2aJsonRpcRequest {
 impl A2aJsonRpcRequest {
     pub fn parse_request(&self) -> Result<A2aRequestParams, A2aParseError> {
         match self.method.as_str() {
-            methods::SEND_MESSAGE => {
-                let params: MessageSendParams = serde_json::from_value(self.params.clone())
-                    .map_err(|e| A2aParseError::InvalidParams {
-                        method: self.method.clone(),
-                        error: e.to_string(),
-                    })?;
-                Ok(A2aRequestParams::SendMessage(params))
-            },
-            methods::GET_TASK => {
-                let params: TaskQueryParams =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
-                    })?;
-                Ok(A2aRequestParams::GetTask(params))
-            },
-            methods::CANCEL_TASK => {
-                let params: TaskIdParams =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
-                    })?;
-                Ok(A2aRequestParams::CancelTask(params))
-            },
-            methods::GET_EXTENDED_AGENT_CARD => {
-                let params: serde_json::Value = serde_json::from_value(self.params.clone())
-                    .map_err(|e| A2aParseError::InvalidParams {
-                        method: self.method.clone(),
-                        error: e.to_string(),
-                    })?;
-                Ok(A2aRequestParams::GetAuthenticatedExtendedCard(params))
-            },
+            methods::SEND_MESSAGE => Ok(A2aRequestParams::SendMessage(self.parse_params()?)),
+            methods::GET_TASK => Ok(A2aRequestParams::GetTask(self.parse_params()?)),
+            methods::CANCEL_TASK => Ok(A2aRequestParams::CancelTask(self.parse_params()?)),
+            methods::GET_EXTENDED_AGENT_CARD => Ok(A2aRequestParams::GetAuthenticatedExtendedCard(
+                self.parse_params()?,
+            )),
             methods::SEND_STREAMING_MESSAGE => {
-                let params: MessageSendParams = serde_json::from_value(self.params.clone())
-                    .map_err(|e| A2aParseError::InvalidParams {
-                        method: self.method.clone(),
-                        error: e.to_string(),
-                    })?;
-                Ok(A2aRequestParams::SendStreamingMessage(params))
+                Ok(A2aRequestParams::SendStreamingMessage(self.parse_params()?))
             },
             methods::SUBSCRIBE_TO_TASK => {
-                let params: TaskResubscriptionRequest = serde_json::from_value(self.params.clone())
-                    .map_err(|e| A2aParseError::InvalidParams {
-                        method: self.method.clone(),
-                        error: e.to_string(),
-                    })?;
-                Ok(A2aRequestParams::TaskResubscription(params))
+                Ok(A2aRequestParams::TaskResubscription(self.parse_params()?))
             },
-            methods::CREATE_TASK_PUSH_NOTIFICATION_CONFIG => {
-                let params: SetTaskPushNotificationConfigRequest =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
-                    })?;
-                Ok(A2aRequestParams::SetTaskPushNotificationConfig(params))
-            },
-            methods::GET_TASK_PUSH_NOTIFICATION_CONFIG => {
-                let params: GetTaskPushNotificationConfigRequest =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
-                    })?;
-                Ok(A2aRequestParams::GetTaskPushNotificationConfig(params))
-            },
-            methods::LIST_TASK_PUSH_NOTIFICATION_CONFIGS => {
-                let params: ListTaskPushNotificationConfigRequest =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
-                    })?;
-                Ok(A2aRequestParams::ListTaskPushNotificationConfig(params))
-            },
-            methods::DELETE_TASK_PUSH_NOTIFICATION_CONFIG => {
-                let params: DeleteTaskPushNotificationConfigRequest =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
-                    })?;
-                Ok(A2aRequestParams::DeleteTaskPushNotificationConfig(params))
-            },
+            methods::CREATE_TASK_PUSH_NOTIFICATION_CONFIG => Ok(
+                A2aRequestParams::SetTaskPushNotificationConfig(self.parse_params()?),
+            ),
+            methods::GET_TASK_PUSH_NOTIFICATION_CONFIG => Ok(
+                A2aRequestParams::GetTaskPushNotificationConfig(self.parse_params()?),
+            ),
+            methods::LIST_TASK_PUSH_NOTIFICATION_CONFIGS => Ok(
+                A2aRequestParams::ListTaskPushNotificationConfig(self.parse_params()?),
+            ),
+            methods::DELETE_TASK_PUSH_NOTIFICATION_CONFIG => Ok(
+                A2aRequestParams::DeleteTaskPushNotificationConfig(self.parse_params()?),
+            ),
             _ => Err(A2aParseError::UnsupportedMethod {
                 method: self.method.clone(),
             }),
         }
+    }
+
+    fn parse_params<T: serde::de::DeserializeOwned>(&self) -> Result<T, A2aParseError> {
+        serde_json::from_value(self.params.clone()).map_err(|e| A2aParseError::InvalidParams {
+            method: self.method.clone(),
+            error: e.to_string(),
+        })
     }
 }
 

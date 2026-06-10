@@ -10,7 +10,7 @@ mod recording;
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::ai::{
-    GenerateResponseParams, PlanValidationError, PlannedToolCall, TemplateValidator,
+    ExecutionState, GenerateResponseParams, PlanValidationError, PlannedToolCall, TemplateValidator,
 };
 use systemprompt_models::{AiMessage, ExecutionStep, McpTool, PlannedTool, TrackedStep};
 
@@ -54,22 +54,7 @@ pub(super) async fn handle_tool_calls(
         "Tool calls planned"
     );
 
-    let planned_tools: Vec<PlannedTool> = calls
-        .iter()
-        .map(|c| PlannedTool {
-            tool_name: c.tool_name.clone(),
-            arguments: c.arguments.clone(),
-        })
-        .collect();
-
-    emit_planning_complete(
-        tracking,
-        planning_tracked,
-        reasoning,
-        planned_tools,
-        context,
-    )
-    .await;
+    emit_planning_complete(tracking, planning_tracked, reasoning, &calls, context).await;
 
     let tool_output_schemas = TemplateValidator::get_tool_output_schemas(&calls, &tools);
     if let Err(validation_errors) = TemplateValidator::validate_plan(&calls, &tool_output_schemas) {
@@ -102,19 +87,7 @@ pub(super) async fn handle_tool_calls(
         emit(context, StreamEvent::ExecutionStepUpdate { step });
     }
 
-    let tool_error_message: Option<String> = if has_failures {
-        Some(
-            state
-                .failed_results()
-                .iter()
-                .filter_map(|r| r.error.as_ref())
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join("; "),
-        )
-    } else {
-        None
-    };
+    let tool_error_message = join_failure_errors(&state, has_failures);
 
     let response =
         synthesize_response(context, messages, &execution_summary, tool_error_message).await?;
@@ -138,13 +111,33 @@ fn emit(context: &ExecutionContext, event: StreamEvent) {
     }
 }
 
+fn join_failure_errors(state: &ExecutionState, has_failures: bool) -> Option<String> {
+    has_failures.then(|| {
+        state
+            .failed_results()
+            .iter()
+            .filter_map(|r| r.error.as_ref())
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join("; ")
+    })
+}
+
 async fn emit_planning_complete(
     tracking: &ExecutionTrackingService,
     planning_tracked: std::result::Result<(TrackedStep, ExecutionStep), AgentServiceError>,
     reasoning: String,
-    planned_tools: Vec<PlannedTool>,
+    calls: &[PlannedToolCall],
     context: &ExecutionContext,
 ) {
+    let planned_tools: Vec<PlannedTool> = calls
+        .iter()
+        .map(|c| PlannedTool {
+            tool_name: c.tool_name.clone(),
+            arguments: c.arguments.clone(),
+        })
+        .collect();
+
     if let Ok((tracked, _)) = planning_tracked
         && let Ok(step) = tracking
             .complete_planning(tracked, Some(reasoning), Some(planned_tools))

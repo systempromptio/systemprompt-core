@@ -149,30 +149,21 @@ impl ArtifactPublishingService {
     }
 
     pub async fn publish_from_mcp(&self, params: PublishFromMcpParams<'_>) -> Result<()> {
-        let PublishFromMcpParams {
-            artifact,
-            task_id,
-            context_id,
-            tool_name,
-            tool_args,
-            request_context,
-            call_source,
-        } = params;
-        let enriched_artifact = self.enrich_artifact_with_skill(artifact).await;
+        let enriched_artifact = self.enrich_artifact_with_skill(params.artifact).await;
         let validated_artifact = self.validate_execution_id(&enriched_artifact).await;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
             artifact_type = %validated_artifact.metadata.artifact_type,
-            tool_name = %tool_name,
-            task_id = %task_id,
-            context_id = %context_id,
+            tool_name = %params.tool_name,
+            task_id = %params.task_id,
+            context_id = %params.context_id,
             source = "mcp_direct_call",
             "Publishing artifact from direct MCP tool execution"
         );
 
         self.artifact_repo
-            .create_artifact(task_id, context_id, &validated_artifact)
+            .create_artifact(params.task_id, params.context_id, &validated_artifact)
             .await
             .map_err(|e| {
                 AgentServiceError::Internal(format!("Failed to persist artifact: {}", e))
@@ -183,64 +174,75 @@ impl ArtifactPublishingService {
             "Artifact persisted to database"
         );
 
-        if call_source == CallSource::Direct {
-            tracing::info!("Creating technical messages for direct MCP call");
-
-            let (user_message_id, _seq) = self
-                .message_service
-                .create_tool_execution_message(super::CreateToolExecutionMessageParams {
-                    task_id,
-                    context_id,
-                    tool_name,
-                    tool_args,
-                    request_context,
-                })
+        if params.call_source == CallSource::Direct {
+            self.create_direct_call_messages(&params, &validated_artifact)
                 .await?;
-
-            tracing::info!(
-                message_id = %user_message_id,
-                tool_name = %tool_name,
-                "Created synthetic user message for MCP tool"
-            );
-
-            let agent_message = Message {
-                role: MessageRole::Agent,
-                message_id: MessageId::generate(),
-                task_id: Some(task_id.clone()),
-                context_id: context_id.clone(),
-                parts: vec![Part::Text(TextPart {
-                    text: format!(
-                        "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",
-                        validated_artifact.id, validated_artifact.metadata.artifact_type
-                    ),
-                })],
-                metadata: Some(json!({
-                    "source": "mcp_direct_call_response",
-                    "tool_name": tool_name,
-                    "artifact_id": validated_artifact.id,
-                    "artifact_type": validated_artifact.metadata.artifact_type,
-                })),
-                extensions: None,
-                reference_task_ids: None,
-            };
-
-            self.message_service
-                .persist_messages(super::PersistMessagesParams {
-                    task_id,
-                    context_id,
-                    messages: vec![agent_message],
-                    user_id: Some(request_context.user_id()),
-                    session_id: request_context.session_id(),
-                    trace_id: request_context.trace_id(),
-                })
-                .await?;
-
-            tracing::info!("Created agent response message with artifact reference");
         } else {
             tracing::info!(
                 "Skipping message creation for agentic tool call (AI will synthesize response)"
             );
         }
+
+        Ok(())
+    }
+
+    async fn create_direct_call_messages(
+        &self,
+        params: &PublishFromMcpParams<'_>,
+        artifact: &Artifact,
+    ) -> Result<()> {
+        tracing::info!("Creating technical messages for direct MCP call");
+
+        let (user_message_id, _seq) = self
+            .message_service
+            .create_tool_execution_message(super::CreateToolExecutionMessageParams {
+                task_id: params.task_id,
+                context_id: params.context_id,
+                tool_name: params.tool_name,
+                tool_args: params.tool_args,
+                request_context: params.request_context,
+            })
+            .await?;
+
+        tracing::info!(
+            message_id = %user_message_id,
+            tool_name = %params.tool_name,
+            "Created synthetic user message for MCP tool"
+        );
+
+        let agent_message = Message {
+            role: MessageRole::Agent,
+            message_id: MessageId::generate(),
+            task_id: Some(params.task_id.clone()),
+            context_id: params.context_id.clone(),
+            parts: vec![Part::Text(TextPart {
+                text: format!(
+                    "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",
+                    artifact.id, artifact.metadata.artifact_type
+                ),
+            })],
+            metadata: Some(json!({
+                "source": "mcp_direct_call_response",
+                "tool_name": params.tool_name,
+                "artifact_id": artifact.id,
+                "artifact_type": artifact.metadata.artifact_type,
+            })),
+            extensions: None,
+            reference_task_ids: None,
+        };
+
+        self.message_service
+            .persist_messages(super::PersistMessagesParams {
+                task_id: params.task_id,
+                context_id: params.context_id,
+                messages: vec![agent_message],
+                user_id: Some(params.request_context.user_id()),
+                session_id: params.request_context.session_id(),
+                trace_id: params.request_context.trace_id(),
+            })
+            .await?;
+
+        tracing::info!("Created agent response message with artifact reference");
 
         Ok(())
     }

@@ -61,40 +61,12 @@ pub async fn execute_tools_sequentially(
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
-        let tool_result = match result {
-            Ok(output) => {
-                tracing::info!(
-                    tool_name = %call.tool_name,
-                    duration_ms = duration_ms,
-                    "Tool completed successfully"
-                );
-
-                ToolCallResult::success(
-                    call.tool_name.clone(),
-                    call.arguments.clone(),
-                    output,
-                    duration_ms,
-                )
-            },
-            Err(e) => {
-                let error_msg = e.to_string();
-                tracing::error!(
-                    tool_name = %call.tool_name,
-                    duration_ms = duration_ms,
-                    error = %error_msg,
-                    "Tool failed"
-                );
-
-                ToolCallResult::failure(
-                    call.tool_name.clone(),
-                    call.arguments.clone(),
-                    error_msg,
-                    duration_ms,
-                )
-            },
-        };
-
-        state.add_result(tool_result);
+        state.add_result(finish_tool_call(
+            &call.tool_name,
+            call.arguments.clone(),
+            result,
+            duration_ms,
+        ));
 
         if state.halted {
             tracing::warn!(
@@ -134,18 +106,7 @@ pub async fn execute_tools_with_templates(
     for (index, call) in calls.iter().enumerate() {
         let start = Instant::now();
 
-        let resolved_arguments =
-            TemplateResolver::resolve_arguments(&call.arguments, &state.results);
-
-        let has_templates = call.arguments != resolved_arguments;
-        if has_templates {
-            tracing::info!(
-                tool_name = %call.tool_name,
-                original = %serde_json::to_string(&call.arguments).unwrap_or_else(|_| String::new()),
-                resolved = %serde_json::to_string(&resolved_arguments).unwrap_or_else(|_| String::new()),
-                "Resolved templates for tool"
-            );
-        }
+        let resolved_arguments = resolve_call_arguments(call, &state);
 
         tracing::info!(
             index = index + 1,
@@ -160,40 +121,12 @@ pub async fn execute_tools_with_templates(
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
-        let tool_result = match result {
-            Ok(output) => {
-                tracing::info!(
-                    tool_name = %call.tool_name,
-                    duration_ms = duration_ms,
-                    "Tool completed successfully"
-                );
-
-                ToolCallResult::success(
-                    call.tool_name.clone(),
-                    resolved_arguments,
-                    output,
-                    duration_ms,
-                )
-            },
-            Err(e) => {
-                let error_msg = e.to_string();
-                tracing::error!(
-                    tool_name = %call.tool_name,
-                    duration_ms = duration_ms,
-                    error = %error_msg,
-                    "Tool failed"
-                );
-
-                ToolCallResult::failure(
-                    call.tool_name.clone(),
-                    resolved_arguments,
-                    error_msg,
-                    duration_ms,
-                )
-            },
-        };
-
-        state.add_result(tool_result);
+        state.add_result(finish_tool_call(
+            &call.tool_name,
+            resolved_arguments,
+            result,
+            duration_ms,
+        ));
 
         if state.halted {
             tracing::warn!(
@@ -214,6 +147,51 @@ pub async fn execute_tools_with_templates(
     );
 
     Ok(state)
+}
+
+fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Value {
+    let resolved_arguments = TemplateResolver::resolve_arguments(&call.arguments, &state.results);
+
+    if call.arguments != resolved_arguments {
+        tracing::info!(
+            tool_name = %call.tool_name,
+            original = %serde_json::to_string(&call.arguments).unwrap_or_else(|_| String::new()),
+            resolved = %serde_json::to_string(&resolved_arguments).unwrap_or_else(|_| String::new()),
+            "Resolved templates for tool"
+        );
+    }
+
+    resolved_arguments
+}
+
+fn finish_tool_call(
+    tool_name: &str,
+    arguments: Value,
+    result: Result<Value>,
+    duration_ms: u64,
+) -> ToolCallResult {
+    match result {
+        Ok(output) => {
+            tracing::info!(
+                tool_name = %tool_name,
+                duration_ms = duration_ms,
+                "Tool completed successfully"
+            );
+
+            ToolCallResult::success(tool_name.to_owned(), arguments, output, duration_ms)
+        },
+        Err(e) => {
+            let error_msg = e.to_string();
+            tracing::error!(
+                tool_name = %tool_name,
+                duration_ms = duration_ms,
+                error = %error_msg,
+                "Tool failed"
+            );
+
+            ToolCallResult::failure(tool_name.to_owned(), arguments, error_msg, duration_ms)
+        },
+    }
 }
 
 pub fn format_results_for_response(state: &ExecutionState) -> String {

@@ -38,57 +38,7 @@ impl TaskRepository {
             .await
             .map_err(RepositoryError::database)?;
 
-        let status = task_state_to_db_string(task.status.state);
-        let metadata_json = task
-            .metadata
-            .as_ref().map_or_else(|| serde_json::json!({}), |m| {
-                serde_json::to_value(m).unwrap_or_else(|e| {
-                    tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task metadata");
-                    serde_json::json!({})
-                })
-            });
-
-        let task_id_str = task.id.as_str();
-        let is_completed = task.status.state == TaskState::Completed;
-
-        let result = if is_completed {
-            sqlx::query!(
-                r#"UPDATE agent_tasks SET
-                    status = $1,
-                    status_timestamp = $2,
-                    metadata = $3,
-                    updated_at = CURRENT_TIMESTAMP,
-                    completed_at = CURRENT_TIMESTAMP,
-                    started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                    execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
-                WHERE task_id = $4"#,
-                status,
-                task.status.timestamp,
-                metadata_json,
-                task_id_str
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(RepositoryError::database)?
-        } else {
-            sqlx::query!(
-                r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, metadata = $3, updated_at = CURRENT_TIMESTAMP WHERE task_id = $4"#,
-                status,
-                task.status.timestamp,
-                metadata_json,
-                task_id_str
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(RepositoryError::database)?
-        };
-
-        if result.rows_affected() == 0 {
-            return Err(RepositoryError::NotFound(format!(
-                "Task not found for update: {}",
-                task.id
-            )));
-        }
+        update_task_row(&mut tx, task).await?;
 
         let context_id_ref = &task.context_id;
         let upload_ctx = self
@@ -102,33 +52,21 @@ impl TaskRepository {
                 trace_id: Some(trace_id),
             });
 
-        let user_seq = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
-        persist_message_sqlx(PersistMessageSqlxParams {
-            tx: &mut tx,
-            message: user_message,
-            task_id: &task.id,
-            context_id: context_id_ref,
-            sequence_number: user_seq,
-            user_id,
-            session_id,
-            trace_id,
-            upload_ctx: upload_ctx.as_ref(),
-        })
-        .await?;
-
-        let agent_seq = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
-        persist_message_sqlx(PersistMessageSqlxParams {
-            tx: &mut tx,
-            message: agent_message,
-            task_id: &task.id,
-            context_id: context_id_ref,
-            sequence_number: agent_seq,
-            user_id,
-            session_id,
-            trace_id,
-            upload_ctx: upload_ctx.as_ref(),
-        })
-        .await?;
+        for message in [user_message, agent_message] {
+            let sequence_number = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
+            persist_message_sqlx(PersistMessageSqlxParams {
+                tx: &mut tx,
+                message,
+                task_id: &task.id,
+                context_id: context_id_ref,
+                sequence_number,
+                user_id,
+                session_id,
+                trace_id,
+                upload_ctx: upload_ctx.as_ref(),
+            })
+            .await?;
+        }
 
         tx.commit().await.map_err(RepositoryError::database)?;
 
@@ -182,4 +120,64 @@ impl TaskRepository {
 
         Ok(())
     }
+}
+
+async fn update_task_row(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    task: &Task,
+) -> Result<(), RepositoryError> {
+    let status = task_state_to_db_string(task.status.state);
+    let metadata_json = task.metadata.as_ref().map_or_else(
+        || serde_json::json!({}),
+        |m| {
+            serde_json::to_value(m).unwrap_or_else(|e| {
+                tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task metadata");
+                serde_json::json!({})
+            })
+        },
+    );
+
+    let task_id_str = task.id.as_str();
+    let is_completed = task.status.state == TaskState::Completed;
+
+    let result = if is_completed {
+        sqlx::query!(
+            r#"UPDATE agent_tasks SET
+                    status = $1,
+                    status_timestamp = $2,
+                    metadata = $3,
+                    updated_at = CURRENT_TIMESTAMP,
+                    completed_at = CURRENT_TIMESTAMP,
+                    started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+                    execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
+                WHERE task_id = $4"#,
+            status,
+            task.status.timestamp,
+            metadata_json,
+            task_id_str
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(RepositoryError::database)?
+    } else {
+        sqlx::query!(
+            r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, metadata = $3, updated_at = CURRENT_TIMESTAMP WHERE task_id = $4"#,
+            status,
+            task.status.timestamp,
+            metadata_json,
+            task_id_str
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(RepositoryError::database)?
+    };
+
+    if result.rows_affected() == 0 {
+        return Err(RepositoryError::NotFound(format!(
+            "Task not found for update: {}",
+            task.id
+        )));
+    }
+
+    Ok(())
 }

@@ -6,6 +6,7 @@
 
 mod builders;
 pub mod helpers;
+mod history;
 
 pub use builders::{
     BuildMultiturnTaskParams, build_canceled_task, build_completed_task, build_mock_task,
