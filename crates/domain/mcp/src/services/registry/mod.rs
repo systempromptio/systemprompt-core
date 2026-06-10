@@ -14,6 +14,4 @@ pub mod resolver;
 pub mod trait_impl;
 pub mod validator;
 
-pub use resolver::RegistryResolver as RegistryService;
-
-pub type McpServerRegistry = RegistryService;
+pub use resolver::RegistryService;

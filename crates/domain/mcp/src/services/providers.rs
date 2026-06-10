@@ -2,10 +2,10 @@ use systemprompt_traits::{
     McpServerMetadata, McpServiceProvider, McpServiceProviderError, McpServiceResult,
 };
 
-use super::registry::McpServerRegistry;
+use super::registry::RegistryService;
 use crate::mcp_protocol_version_str;
 
-impl McpServiceProvider for McpServerRegistry {
+impl McpServiceProvider for RegistryService {
     fn protocol_version(&self) -> &str {
         mcp_protocol_version_str()
     }
