@@ -11,8 +11,9 @@ use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::config_authoring::AgentConfigAuthoringService;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
@@ -47,7 +48,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
     require_confirmation(&confirm_message, args.yes, config)?;
 
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let services_dir = Path::new(&profile.paths.services);
+    let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
 
     let orchestrator = match build_orchestrator().await {
         Ok(orchestrator) => orchestrator,
@@ -71,7 +72,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
             agent_name,
             agent_port,
             orchestrator.as_ref(),
-            services_dir,
+            &authoring,
             args.force,
         )
         .await;
@@ -162,7 +163,7 @@ async fn delete_single_agent(
     agent_name: &str,
     agent_port: Option<u16>,
     orchestrator: Option<&AgentOrchestrator>,
-    services_dir: &Path,
+    authoring: &AgentConfigAuthoringService,
     force: bool,
 ) -> Result<(), String> {
     CliService::info(&format!("Deleting agent '{}'...", agent_name));
@@ -185,7 +186,7 @@ async fn delete_single_agent(
         ));
     }
 
-    match ConfigWriter::delete_agent(agent_name, services_dir) {
+    match authoring.delete(agent_name) {
         Ok(()) => {
             CliService::success(&format!("Agent '{}' deleted", agent_name));
             Ok(())

@@ -9,10 +9,7 @@ use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_logging::CliService;
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
-use systemprompt_oauth::services::generation::{
-    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt,
-};
+use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::UserService;
 
 use crate::shared::CommandOutput;
@@ -88,45 +85,30 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
     let user_uuid = Uuid::parse_str(user.id.as_str())
         .with_context(|| format!("User id '{}' is not a valid UUID", user.id))?;
 
-    let authenticated = AuthenticatedUser::new_with_roles(
-        user_uuid,
-        user.name.clone(),
-        user.email,
-        vec![Permission::HookGovern, Permission::HookTrack],
-        // Why: a hook-scoped (aud=hook) credential authorizes on scope + plugin_id,
-        // never roles; carrying the minting admin's roles would be inert privilege.
-        Vec::new(),
-    );
-
-    let signing = JwtSigningParams {
-        issuer: &profile.security.issuer,
+    let subject = PluginTokenSubject {
+        id: user_uuid,
+        username: user.name,
+        email: user.email,
     };
 
-    let session_id = systemprompt_identifiers::SessionId::generate();
-    let jti = generate_access_token_jti();
-
-    let expires_in_hours = i64::from(args.duration_days) * 24;
-    let config = JwtConfig {
-        permissions: vec![Permission::HookGovern, Permission::HookTrack],
-        audience: vec![JwtAudience::Hook],
-        expires_in_hours: Some(expires_in_hours),
-        resource: Some("plugin".to_owned()),
-        plugin_id: Some(args.plugin_id.clone()),
-    };
-
-    let token = generate_jwt(&authenticated, config, jti.clone(), &session_id, &signing)
-        .context("Failed to mint plugin-scope JWT")?;
+    let issued = PluginTokenService::issue(
+        subject,
+        &profile.security.issuer,
+        args.plugin_id.clone(),
+        args.duration_days,
+    )
+    .context("Failed to mint plugin-scope JWT")?;
 
     let output = IssuePluginTokenOutput {
         plugin_id: args.plugin_id,
         email,
         expires_in_days: args.duration_days,
-        jti,
-        token: token.clone(),
+        jti: issued.jti,
+        token: issued.token.clone(),
     };
 
     if args.token_only {
-        CliService::output(&token);
+        CliService::output(&issued.token);
         return Ok(CommandOutput::card_value("Plugin-scope JWT", &output).with_skip_render());
     }
 

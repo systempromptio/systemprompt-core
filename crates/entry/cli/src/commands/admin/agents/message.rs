@@ -9,7 +9,7 @@ use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart, methods};
 use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
 use super::message_streaming::execute_streaming;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::resolve_required;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -68,8 +68,50 @@ pub(super) fn extract_text_from_parts(parts: &[Part]) -> String {
         .join("\n")
 }
 
-pub(super) async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(config).await?;
+fn build_send_request(
+    message_text: &str,
+    context_id: &ContextId,
+    task_id: Option<TaskId>,
+    stream: bool,
+    blocking: bool,
+) -> Request<MessageSendParams> {
+    let method = if stream {
+        methods::SEND_STREAMING_MESSAGE
+    } else {
+        methods::SEND_MESSAGE
+    };
+
+    Request {
+        jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
+        method: method.to_owned(),
+        params: MessageSendParams {
+            message: Message {
+                role: MessageRole::User,
+                parts: vec![Part::Text(TextPart {
+                    text: message_text.to_owned(),
+                })],
+                message_id: MessageId::generate(),
+                task_id,
+                context_id: context_id.clone(),
+                metadata: None,
+                extensions: None,
+                reference_task_ids: None,
+            },
+            configuration: blocking.then_some(MessageSendConfiguration {
+                blocking: Some(true),
+                accepted_output_modes: None,
+                history_length: None,
+                push_notification_config: None,
+            }),
+            metadata: None,
+        },
+        id: RequestId::String(MessageId::generate().to_string()),
+    }
+}
+
+pub(super) async fn execute(args: MessageArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
+    let session_ctx = get_or_create_session(ctx).await?;
 
     let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
@@ -94,42 +136,13 @@ pub(super) async fn execute(args: MessageArgs, config: &CliConfig) -> Result<Com
     let auth_token = session_ctx.session_token().as_str();
 
     let task_id: Option<TaskId> = args.task.map(TaskId::new);
-
-    let message_id = MessageId::generate();
-    let request_id = RequestId::String(MessageId::generate().to_string());
-
-    let method = if args.stream {
-        methods::SEND_STREAMING_MESSAGE
-    } else {
-        methods::SEND_MESSAGE
-    };
-
-    let request = Request {
-        jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
-        method: method.to_owned(),
-        params: MessageSendParams {
-            message: Message {
-                role: MessageRole::User,
-                parts: vec![Part::Text(TextPart {
-                    text: message_text.clone(),
-                })],
-                message_id,
-                task_id,
-                context_id: context_id.clone(),
-                metadata: None,
-                extensions: None,
-                reference_task_ids: None,
-            },
-            configuration: args.blocking.then_some(MessageSendConfiguration {
-                blocking: Some(true),
-                accepted_output_modes: None,
-                history_length: None,
-                push_notification_config: None,
-            }),
-            metadata: None,
-        },
-        id: request_id,
-    };
+    let request = build_send_request(
+        &message_text,
+        &context_id,
+        task_id,
+        args.stream,
+        args.blocking,
+    );
 
     let use_json = args.json;
 

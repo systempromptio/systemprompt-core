@@ -107,13 +107,13 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
         AgentsCommands::Registry(args) => registry::execute(args, &ctx.cli)
             .await
             .context("Failed to get agent registry")?,
-        AgentsCommands::Message(args) => message::execute(args, &ctx.cli)
+        AgentsCommands::Message(args) => message::execute(args, ctx)
             .await
             .context("Failed to send message to agent")?,
-        AgentsCommands::Task(args) => task::execute(args, &ctx.cli)
+        AgentsCommands::Task(args) => task::execute(args, ctx)
             .await
             .context("Failed to get task details")?,
-        AgentsCommands::Tools(args) => tools::execute(args, &ctx.cli)
+        AgentsCommands::Tools(args) => tools::execute(args, ctx)
             .await
             .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {

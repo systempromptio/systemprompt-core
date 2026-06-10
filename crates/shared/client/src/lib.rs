@@ -1,9 +1,10 @@
 //! HTTP API client for systemprompt.io deployments.
 //!
-//! The crate exposes a single type, [`SystempromptClient`], which wraps a
-//! pre-configured [`reqwest::Client`] and a small set of typed methods for the
-//! routes documented in `systemprompt-models::ApiPaths`. All errors flow
-//! through the [`ClientError`] enum.
+//! [`SystempromptClient`] wraps a pre-configured [`reqwest::Client`] and a
+//! small set of typed methods for the routes documented in
+//! `systemprompt-models::ApiPaths`. [`RemoteCliExecutor`] streams remote CLI
+//! command output over server-sent events into a caller-supplied
+//! [`OutputSink`]. All errors flow through the [`ClientError`] enum.
 //!
 //! # Feature flags
 //!
@@ -24,6 +25,8 @@
 
 mod client;
 mod error;
+mod remote_cli;
 
 pub use client::SystempromptClient;
 pub use error::{ClientError, ClientResult};
+pub use remote_cli::{OutputSink, RemoteCliExecutor, RemoteCliRequest};

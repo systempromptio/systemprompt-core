@@ -1,6 +1,4 @@
-use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_models::services::AgentConfig;
 
 #[derive(Debug, Args, Default, Clone)]
 pub struct AgentArgs {
@@ -90,44 +88,4 @@ impl AgentArgs {
             || !self.mcp_servers.is_empty()
             || !self.skills.is_empty()
     }
-}
-
-pub(super) fn apply_set_value(agent: &mut AgentConfig, key: &str, value: &str) -> Result<()> {
-    match key {
-        "card.displayName" | "card.display_name" => {
-            value.clone_into(&mut agent.card.display_name);
-        },
-        "card.description" => {
-            value.clone_into(&mut agent.card.description);
-        },
-        "card.version" => {
-            value.clone_into(&mut agent.card.version);
-        },
-        "endpoint" => {
-            value.clone_into(&mut agent.endpoint);
-        },
-        "is_primary" => {
-            agent.is_primary = value
-                .parse()
-                .map_err(|_e| anyhow!("Invalid boolean value for is_primary: '{}'", value))?;
-        },
-        "default" => {
-            agent.default = value
-                .parse()
-                .map_err(|_e| anyhow!("Invalid boolean value for default: '{}'", value))?;
-        },
-        "dev_only" => {
-            agent.dev_only = value
-                .parse()
-                .map_err(|_e| anyhow!("Invalid boolean value for dev_only: '{}'", value))?;
-        },
-        _ => {
-            return Err(anyhow!(
-                "Unknown configuration key: '{}'. Supported keys: card.displayName, \
-                 card.description, card.version, endpoint, is_primary, default, dev_only",
-                key
-            ));
-        },
-    }
-    Ok(())
 }

@@ -5,6 +5,7 @@
 //! - SystempromptClient construction, token management, and API methods
 //! - HTTP request handling (GET, POST, PUT, DELETE)
 //! - Error response parsing and network error handling
+//! - Remote CLI execution over SSE (RemoteCliExecutor + OutputSink)
 
 #[cfg(test)]
 mod client;
@@ -12,3 +13,5 @@ mod client;
 mod error;
 #[cfg(test)]
 mod http;
+#[cfg(test)]
+mod remote_cli;

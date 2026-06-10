@@ -1,12 +1,14 @@
 //! Service layer for the agent crate.
 //!
 //! Submodules group runtime services by responsibility: the embedded A2A HTTP
-//! server, orchestration of agent processes, MCP tool bridging, registry,
-//! disk-backed skills, message and context services, and shared helpers.
+//! server, orchestration of agent processes, on-disk agent config authoring,
+//! MCP tool bridging, registry, disk-backed skills, message and context
+//! services, and shared helpers.
 
 pub mod a2a_server;
 pub mod agent_orchestration;
 pub mod artifact_publishing;
+pub mod config_authoring;
 pub mod context;
 pub mod context_provider;
 pub mod execution_tracking;
@@ -26,6 +28,10 @@ pub use agent_orchestration::{
 };
 
 pub use registry::AgentRegistry;
+
+pub use config_authoring::{
+    AgentConfigAuthoringService, AgentCreateRequest, AgentEditRequest, ConfigAuthoringError,
+};
 
 pub use external_integrations::{
     IntegrationError, IntegrationResult, RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint,

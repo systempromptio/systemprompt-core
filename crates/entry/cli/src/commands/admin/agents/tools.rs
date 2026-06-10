@@ -9,6 +9,7 @@ use super::tools_mcp::{list_tools_authenticated, list_tools_unauthenticated};
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
 use crate::commands::plugins::mcp::types::McpToolEntry;
+use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::SessionToken;
@@ -43,7 +44,8 @@ struct CollectedTools {
     servers_queried: usize,
 }
 
-pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_agent_name(args.name, config, &services_config)?;
@@ -59,7 +61,7 @@ pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<Comma
         return Ok(no_servers_output(&name));
     }
 
-    let session_ctx = get_or_create_session(config).await?;
+    let session_ctx = get_or_create_session(ctx).await?;
 
     let ctx = AppContext::new()
         .await

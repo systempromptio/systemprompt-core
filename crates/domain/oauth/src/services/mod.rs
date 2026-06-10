@@ -1,11 +1,12 @@
-//! OAuth domain services: token generation, JWT, session, `WebAuthn`, CIMD,
-//! validation, templating.
+//! OAuth domain services: token generation, JWT, plugin-scoped token minting,
+//! session, `WebAuthn`, CIMD, validation, templating.
 
 pub mod bridge;
 pub mod cimd;
 pub mod generation;
 pub mod http;
 pub mod jwt;
+pub mod plugin_token;
 pub mod providers;
 pub mod session;
 pub mod templating;
@@ -19,6 +20,7 @@ pub use bridge::{
 };
 pub use http::is_browser_request;
 pub use jwt::{AuthService, TokenValidator, extract_bearer_token, extract_cookie_token};
+pub use plugin_token::{IssuedPluginToken, PluginTokenService, PluginTokenSubject};
 pub use session::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };

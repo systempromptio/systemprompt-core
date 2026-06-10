@@ -1,15 +1,17 @@
 //! Decides whether a command runs locally or is forwarded to a remote tenant.
 //!
 //! [`determine_execution_target`] resolves the active profile and tenant store
-//! into an [`ExecutionTarget`]; the `remote` submodule carries the forwarding
-//! transport.
+//! into an [`ExecutionTarget`]; [`execute_remote`] adapts the terminal to the
+//! SSE transport in `systemprompt_client::RemoteCliExecutor`.
 
-pub(super) mod remote;
+use std::io::{self, Write};
 
 use anyhow::{Context, Result};
+use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
 use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{ContextId, SessionToken};
+use systemprompt_logging::CliService;
 
 use crate::paths::ResolvedPaths;
 
@@ -94,4 +96,46 @@ fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::
         .get_valid_session(session_key)
         .cloned()
         .context("No active session. Run 'systemprompt admin session login'.")
+}
+
+struct StdioSink {
+    stdout: io::Stdout,
+    stderr: io::Stderr,
+}
+
+impl OutputSink for StdioSink {
+    fn stdout_chunk(&mut self, data: &str) -> io::Result<()> {
+        write!(self.stdout, "{}", data)?;
+        self.stdout.flush()
+    }
+
+    fn stderr_chunk(&mut self, data: &str) -> io::Result<()> {
+        write!(self.stderr, "{}", data)?;
+        self.stderr.flush()
+    }
+
+    fn error_message(&mut self, message: &str) {
+        CliService::error(message);
+    }
+}
+
+pub(in crate::runner) async fn execute_remote(
+    hostname: &str,
+    token: &str,
+    context: &str,
+    args: &[String],
+    timeout_secs: u64,
+) -> Result<i32> {
+    let executor = RemoteCliExecutor::new(&format!("https://{hostname}"), timeout_secs)
+        .context("Failed to create HTTP client")?;
+    let mut sink = StdioSink {
+        stdout: io::stdout(),
+        stderr: io::stderr(),
+    };
+    let request = RemoteCliRequest {
+        token,
+        context,
+        args,
+    };
+    Ok(executor.execute(request, &mut sink).await?)
 }

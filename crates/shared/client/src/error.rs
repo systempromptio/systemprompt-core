@@ -31,6 +31,12 @@ pub enum ClientError {
 
     #[error("Invalid configuration: {message}")]
     ConfigError { message: String },
+
+    #[error("Failed to create event stream")]
+    EventStreamSetup,
+
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 impl ClientError {

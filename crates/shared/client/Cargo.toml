@@ -19,6 +19,7 @@ workspace = true
 [dependencies]
 # HTTP client
 reqwest = { workspace = true }
+reqwest-eventsource = { workspace = true }
 
 # Async runtime
 tokio = { workspace = true }
