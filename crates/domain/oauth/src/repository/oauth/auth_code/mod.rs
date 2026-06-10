@@ -68,8 +68,7 @@ impl OAuthRepository {
         code_verifier: Option<&str>,
     ) -> OauthResult<AuthCodeValidationResult> {
         let now = Utc::now();
-        let code_str = code.as_str();
-        let code_hash = hash_at_rest(code_str)?;
+        let code_hash = hash_at_rest(code.as_str())?;
 
         // Atomically claim the code: only one concurrent caller wins the
         // `used_at IS NULL` race. The application-level checks below run
@@ -88,9 +87,7 @@ impl OAuthRepository {
         .await?;
 
         let Some(row) = claimed else {
-            return self
-                .handle_unclaimable_auth_code(code_str, &code_hash)
-                .await;
+            return self.handle_unclaimable_auth_code(&code_hash).await;
         };
 
         if row.client_id != client_id.as_str() {
@@ -144,7 +141,6 @@ impl OAuthRepository {
     /// revoke the entire refresh-token family per RFC 6819 §5.2.2.3.
     async fn handle_unclaimable_auth_code(
         &self,
-        code_str: &str,
         code_hash: &str,
     ) -> OauthResult<AuthCodeValidationResult> {
         let existing = sqlx::query!(
@@ -163,7 +159,7 @@ impl OAuthRepository {
 
         if row.used_at.is_some() {
             tracing::warn!(
-                code = %code_str,
+                code_hash = %code_hash,
                 "Authorization code replay detected"
             );
 
@@ -183,7 +179,7 @@ impl OAuthRepository {
                     .await?;
                     tracing::warn!(
                         event = "auth_code_replay_detected",
-                        code = %code_str,
+                        code_hash = %code_hash,
                         family_id = %family,
                         revoked_count = result.rows_affected(),
                         "Revoked refresh-token family after auth-code replay"
@@ -191,14 +187,14 @@ impl OAuthRepository {
                 } else {
                     tracing::warn!(
                         event = "auth_code_replay_detected",
-                        code = %code_str,
+                        code_hash = %code_hash,
                         "Linked refresh token already gone; no family to revoke"
                     );
                 }
             } else {
                 tracing::warn!(
                     event = "auth_code_replay_detected",
-                    code = %code_str,
+                    code_hash = %code_hash,
                     "No refresh token linked to replayed auth code"
                 );
             }
