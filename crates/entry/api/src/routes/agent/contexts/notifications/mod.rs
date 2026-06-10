@@ -3,6 +3,7 @@
 //! Validates the JSON-RPC envelope, resolves the owning user, then persists,
 //! processes, and broadcasts the notification to the context's live streams.
 
+mod error;
 mod handlers;
 
 use std::sync::Arc;
@@ -18,6 +19,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_runtime::AppContext;
 
+use crate::error::ApiHttpError;
 use handlers::{
     broadcast_notification, mark_notification_broadcasted, persist_notification,
     process_notification,
@@ -34,35 +36,26 @@ pub async fn handle_context_notification(
     Path(context_id): Path<String>,
     State(app_context): State<AppContext>,
     Json(notification): Json<A2aNotification>,
-) -> Response {
+) -> Result<Response, ApiHttpError> {
     let db = app_context.db_pool();
 
-    let ctx_repo = match ContextRepository::new(db) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": format!("Database error: {e}")})),
-            )
-                .into_response();
-        },
-    };
+    let ctx_repo = ContextRepository::new(db)?;
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
     let user_id = match resolve_context_user(&ctx_repo, &context_id).await {
         Ok(uid) => uid,
-        Err(response) => return response,
+        Err(response) => return Ok(response),
     };
 
     if notification.jsonrpc != "2.0" {
         tracing::error!(jsonrpc_version = %notification.jsonrpc, "Invalid JSON-RPC version");
 
-        return (
+        return Ok((
             StatusCode::BAD_REQUEST,
             Json(json!({"error": "Invalid JSON-RPC version, must be 2.0"})),
         )
-            .into_response();
+            .into_response());
     }
 
     let agent_id = notification
@@ -72,51 +65,22 @@ pub async fn handle_context_notification(
         .unwrap_or("unknown")
         .to_owned();
 
-    let notification_id = match persist_notification(
-        Arc::clone(db),
-        &context_id,
-        &agent_id,
-        &notification,
-    )
-    .await
-    {
-        Ok(id) => id,
-        Err(e) => {
-            tracing::error!(error = %e, context_id = %context_id, "Failed to persist notification");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "error": "Failed to persist notification",
-                    "details": e.to_string()
-                })),
-            )
-                .into_response();
-        },
-    };
+    let notification_id =
+        persist_notification(Arc::clone(db), &context_id, &agent_id, &notification).await?;
     tracing::debug!(notification_id = %notification_id, context_id = %context_id, "Persisted notification");
 
-    if let Err(e) = process_notification(app_context.clone(), &notification).await {
-        tracing::error!(error = %e, notification_id = %notification_id, "Failed to process notification");
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "error": "Failed to process notification",
-                "details": e.to_string()
-            })),
-        )
-            .into_response();
-    }
+    process_notification(app_context.clone(), &notification).await?;
 
     broadcast_and_mark(db, &context_id, &user_id, &notification, notification_id).await;
 
-    (
+    Ok((
         StatusCode::OK,
         Json(json!({
             "status": "received",
             "notification_id": notification_id
         })),
     )
-        .into_response()
+        .into_response())
 }
 
 async fn resolve_context_user(
@@ -160,16 +124,10 @@ async fn broadcast_and_mark(
     notification: &A2aNotification,
     notification_id: i32,
 ) {
-    match broadcast_notification(context_id, user_id, notification).await {
-        Ok(broadcast_count) => {
-            tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
+    let broadcast_count = broadcast_notification(context_id, user_id, notification).await;
+    tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
-            if let Err(e) = mark_notification_broadcasted(Arc::clone(db), notification_id).await {
-                tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
-            }
-        },
-        Err(e) => {
-            tracing::error!(error = %e, notification_id = %notification_id, "Failed to broadcast notification");
-        },
+    if let Err(e) = mark_notification_broadcasted(Arc::clone(db), notification_id).await {
+        tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
     }
 }

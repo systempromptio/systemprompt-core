@@ -10,6 +10,7 @@ use systemprompt_runtime::{AppContext, create_request_span};
 
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;
+use crate::error::ApiHttpError;
 use systemprompt_agent::repository::context::ContextRepository;
 
 fn record_task_span(req_ctx: &systemprompt_models::RequestContext, request: &WebhookRequest) {
@@ -79,31 +80,17 @@ pub async fn broadcast_context_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
     State(app_context): State<AppContext>,
     Json(request): Json<WebhookRequest>,
-) -> Response {
+) -> Result<Response, ApiHttpError> {
     let start_time = std::time::Instant::now();
     record_task_span(&req_ctx, &request);
 
     if let Err(response) = authorize_broadcast(app_context.db_pool(), &req_ctx, &request).await {
-        return response;
+        return Ok(response);
     }
 
     tracing::debug!(event_type = %request.event_type, entity_id = %request.entity_id, context_id = %request.context_id, user_id = %request.user_id, "Webhook received");
 
-    let webhook_data = match load_event_data(&app_context, &request).await {
-        Ok(data) => data,
-        Err(e) => {
-            tracing::error!(error = %e, event_type = %request.event_type, entity_id = %request.entity_id, "Failed to load event data");
-
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "error": "Failed to load event data",
-                    "details": e.to_string()
-                })),
-            )
-                .into_response();
-        },
-    };
+    let webhook_data = load_event_data(&app_context, &request).await?;
 
     let event = AgUiEventBuilder::custom(CustomPayload::Generic(GenericCustomPayload {
         name: webhook_data.event_name.clone(),
@@ -116,7 +103,7 @@ pub async fn broadcast_context_event(
 
     tracing::debug!(event_type = %webhook_data.event_name, connection_count = %count, user_id = %request.user_id, duration_ms = %start_time.elapsed().as_millis(), "Webhook processed");
 
-    (
+    Ok((
         StatusCode::OK,
         Json(json!({
             "status": "broadcasted",
@@ -124,5 +111,5 @@ pub async fn broadcast_context_event(
             "event_type": webhook_data.event_name
         })),
     )
-        .into_response()
+        .into_response())
 }

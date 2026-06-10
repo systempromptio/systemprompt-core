@@ -4,6 +4,7 @@ use systemprompt_identifiers::{MessageId, TaskId, UserId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
 
+use super::error::LoadEventError;
 use super::types::{AgUiWebhookData, WebhookRequest};
 use super::validation::validate_json_serializable;
 use systemprompt_agent::repository::content::ArtifactRepository;
@@ -14,7 +15,7 @@ use systemprompt_agent::repository::task::TaskRepository;
 pub(super) async fn load_event_data(
     app_context: &AppContext,
     request: &WebhookRequest,
-) -> Result<AgUiWebhookData, anyhow::Error> {
+) -> Result<AgUiWebhookData, LoadEventError> {
     let db = app_context.db_pool();
 
     match request.event_type.as_str() {
@@ -24,17 +25,14 @@ pub(super) async fn load_event_data(
         "context_updated" => load_context_updated(db, request).await,
         "execution_step" => load_execution_step(request),
         "task_created" => load_task_created(request),
-        _ => Err(anyhow::anyhow!(
-            "Unknown event type: {}",
-            request.event_type
-        )),
+        other => Err(LoadEventError::UnknownEventType(other.to_owned())),
     }
 }
 
 async fn load_task_completed(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
-) -> Result<AgUiWebhookData, anyhow::Error> {
+) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = TaskRepository::new(db)?;
     let artifact_repo = ArtifactRepository::new(db)?;
     let step_repo = ExecutionStepRepository::new(db)?;
@@ -43,14 +41,15 @@ async fn load_task_completed(
     let timestamp = chrono::Utc::now();
     task_repo
         .update_task_state(&task_id, TaskState::Completed, &timestamp)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to complete task: {}", e))?;
+        .await?;
 
     let mut task = task_repo
         .get_task(&task_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to load task: {}", e))?
-        .ok_or_else(|| anyhow::anyhow!("Task not found: {}", request.entity_id))?;
+        .await?
+        .ok_or_else(|| LoadEventError::NotFound {
+            entity: "Task",
+            id: request.entity_id.clone(),
+        })?;
 
     let artifacts = artifact_repo
         .get_artifacts_by_task(&task_id)
@@ -91,8 +90,7 @@ async fn load_task_completed(
         "executionSteps": if execution_steps.is_empty() { None } else { Some(&execution_steps) },
     });
 
-    validate_json_serializable(&payload)
-        .map_err(|e| anyhow::anyhow!("JSON validation failed: {}", e))?;
+    validate_json_serializable(&payload).map_err(LoadEventError::InvalidPayload)?;
 
     Ok(AgUiWebhookData {
         event_name: "task_completed".to_owned(),
@@ -103,15 +101,17 @@ async fn load_task_completed(
 async fn load_artifact_created(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
-) -> Result<AgUiWebhookData, anyhow::Error> {
+) -> Result<AgUiWebhookData, LoadEventError> {
     let artifact_repo = ArtifactRepository::new(db)?;
 
     let artifact_id = systemprompt_identifiers::ArtifactId::new(&request.entity_id);
     let artifact = artifact_repo
         .get_artifact_by_id(&artifact_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to load artifact: {}", e))?
-        .ok_or_else(|| anyhow::anyhow!("Artifact not found: {}", request.entity_id))?;
+        .await?
+        .ok_or_else(|| LoadEventError::NotFound {
+            entity: "Artifact",
+            id: request.entity_id.clone(),
+        })?;
 
     Ok(AgUiWebhookData {
         event_name: "artifact".to_owned(),
@@ -126,12 +126,11 @@ async fn load_artifact_created(
 async fn load_message_received(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
-) -> Result<AgUiWebhookData, anyhow::Error> {
+) -> Result<AgUiWebhookData, LoadEventError> {
     let task_repo = TaskRepository::new(db)?;
     let exists = task_repo
         .message_exists(&MessageId::new(request.entity_id.clone()))
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to load message: {}", e))?;
+        .await?;
 
     if exists {
         Ok(AgUiWebhookData {
@@ -141,22 +140,22 @@ async fn load_message_received(
             }),
         })
     } else {
-        Err(anyhow::anyhow!("Message not found: {}", request.entity_id))
+        Err(LoadEventError::NotFound {
+            entity: "Message",
+            id: request.entity_id.clone(),
+        })
     }
 }
 
 async fn load_context_updated(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
-) -> Result<AgUiWebhookData, anyhow::Error> {
+) -> Result<AgUiWebhookData, LoadEventError> {
     let context_repo = ContextRepository::new(db)?;
     let context_id = request.context_id.clone();
     let user_id = UserId::new(request.user_id.clone());
 
-    let context = context_repo
-        .get_context(&context_id, &user_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to load context: {}", e))?;
+    let context = context_repo.get_context(&context_id, &user_id).await?;
 
     Ok(AgUiWebhookData {
         event_name: "context_updated".to_owned(),
@@ -167,14 +166,17 @@ async fn load_context_updated(
     })
 }
 
-fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
+fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData, LoadEventError> {
     let step_data = request
         .step_data
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("step_data required for execution_step events"))?;
+        .ok_or(LoadEventError::MissingField("step_data"))?;
 
-    let step: ExecutionStep = serde_json::from_value(step_data.clone())
-        .map_err(|e| anyhow::anyhow!("Invalid step_data format: {}", e))?;
+    let step: ExecutionStep =
+        serde_json::from_value(step_data.clone()).map_err(|e| LoadEventError::Deserialize {
+            field: "step_data",
+            source: e,
+        })?;
 
     let event_name = match step.status {
         systemprompt_models::StepStatus::Completed => "step_finished",
@@ -196,27 +198,23 @@ struct TaskCreatedData {
     task: systemprompt_agent::models::a2a::Task,
 }
 
-fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
-    let task_data = request.task_data.as_ref().ok_or_else(|| {
-        anyhow::anyhow!(
-            "task_created event MUST include task_data. Task ID: {}",
-            request.entity_id
-        )
-    })?;
+fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, LoadEventError> {
+    let task_data = request
+        .task_data
+        .as_ref()
+        .ok_or(LoadEventError::MissingField("task_data"))?;
 
-    let payload: TaskCreatedData = serde_json::from_value(task_data.clone()).map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to deserialize task_created data for task {}: {}",
-            request.entity_id,
-            e
-        )
-    })?;
+    let payload: TaskCreatedData =
+        serde_json::from_value(task_data.clone()).map_err(|e| LoadEventError::Deserialize {
+            field: "task_data",
+            source: e,
+        })?;
 
     if payload.task.history.as_ref().is_none_or(Vec::is_empty) {
-        return Err(anyhow::anyhow!(
-            "task_created payload has empty history - user message is missing! Task ID: {}",
+        return Err(LoadEventError::InvalidPayload(format!(
+            "task_created payload has empty history for task {}",
             request.entity_id
-        ));
+        )));
     }
 
     Ok(AgUiWebhookData {

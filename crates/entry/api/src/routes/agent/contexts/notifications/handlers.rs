@@ -8,16 +8,16 @@ use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload}
 use systemprompt_runtime::AppContext;
 
 use super::A2aNotification;
+use super::error::NotificationError;
 
 pub(super) async fn persist_notification(
     db: systemprompt_database::DbPool,
     context: &str,
     agent: &str,
     notification: &A2aNotification,
-) -> Result<i32, anyhow::Error> {
+) -> Result<i32, NotificationError> {
     let repo = ContextNotificationRepository::new(&db)?;
-    let notification_data =
-        serde_json::to_value(notification).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let notification_data = serde_json::to_value(notification)?;
     let id = repo
         .insert(
             &ContextId::new(context),
@@ -32,7 +32,7 @@ pub(super) async fn persist_notification(
 pub(super) async fn process_notification(
     app_context: AppContext,
     notification: &A2aNotification,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), NotificationError> {
     let db = app_context.db_pool();
 
     match notification.method.as_str() {
@@ -41,17 +41,17 @@ pub(super) async fn process_notification(
                 .params
                 .get("taskId")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing taskId in notification"))?;
+                .ok_or(NotificationError::MissingField("taskId"))?;
 
             let status = notification
                 .params
                 .get("status")
-                .ok_or_else(|| anyhow::anyhow!("Missing status in notification"))?;
+                .ok_or(NotificationError::MissingField("status"))?;
 
             let state = status
                 .get("state")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("Missing state in status"))?;
+                .ok_or(NotificationError::MissingField("status.state"))?;
 
             let timestamp = status
                 .get("timestamp")
@@ -73,7 +73,7 @@ pub(super) async fn broadcast_notification(
     context: &str,
     user_id: &UserId,
     notification: &A2aNotification,
-) -> Result<usize, anyhow::Error> {
+) -> usize {
     let mut total_broadcasts = 0;
 
     match notification.method.as_str() {
@@ -120,13 +120,13 @@ pub(super) async fn broadcast_notification(
         _ => {},
     }
 
-    Ok(total_broadcasts)
+    total_broadcasts
 }
 
 pub(super) async fn mark_notification_broadcasted(
     db: systemprompt_database::DbPool,
     notification_id: i32,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), NotificationError> {
     let repo = ContextNotificationRepository::new(&db)?;
     repo.mark_broadcasted(notification_id).await?;
     Ok(())

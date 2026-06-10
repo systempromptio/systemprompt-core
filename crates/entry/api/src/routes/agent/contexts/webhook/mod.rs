@@ -5,6 +5,7 @@
 
 mod broadcast_handlers;
 mod context_broadcast;
+mod error;
 mod event_loader;
 mod types;
 mod validation;
