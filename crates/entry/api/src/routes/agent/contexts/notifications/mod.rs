@@ -14,7 +14,8 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_identifiers::ContextId;
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_runtime::AppContext;
 
 use handlers::{
@@ -49,33 +50,9 @@ pub async fn handle_context_notification(
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
-    let user_id = match ctx_repo
-        .find_user_id_for_context(&ContextId::new(context_id.clone()))
-        .await
-    {
-        Ok(Some(uid)) => uid,
-        Ok(None) => {
-            tracing::error!(context_id = %context_id, "Context not found");
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({
-                    "error": "Context not found",
-                    "context_id": context_id
-                })),
-            )
-                .into_response();
-        },
-        Err(e) => {
-            tracing::error!(error = %e, context_id = %context_id, "Context not found");
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({
-                    "error": "Context not found",
-                    "context_id": context_id
-                })),
-            )
-                .into_response();
-        },
+    let user_id = match resolve_context_user(&ctx_repo, &context_id).await {
+        Ok(uid) => uid,
+        Err(response) => return response,
     };
 
     if notification.jsonrpc != "2.0" {
@@ -95,61 +72,104 @@ pub async fn handle_context_notification(
         .unwrap_or("unknown")
         .to_owned();
 
-    match persist_notification(Arc::clone(db), &context_id, &agent_id, &notification).await {
-        Ok(notification_id) => {
-            tracing::debug!(notification_id = %notification_id, context_id = %context_id, "Persisted notification");
-
-            match process_notification(app_context.clone(), &notification).await {
-                Ok(()) => {
-                    match broadcast_notification(&context_id, &user_id, &notification).await {
-                        Ok(broadcast_count) => {
-                            tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
-
-                            if let Err(e) =
-                                mark_notification_broadcasted(Arc::clone(db), notification_id).await
-                            {
-                                tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
-                            }
-                        },
-                        Err(e) => {
-                            tracing::error!(error = %e, notification_id = %notification_id, "Failed to broadcast notification");
-                        },
-                    }
-
-                    (
-                        StatusCode::OK,
-                        Json(json!({
-                            "status": "received",
-                            "notification_id": notification_id
-                        })),
-                    )
-                        .into_response()
-                },
-                Err(e) => {
-                    tracing::error!(error = %e, notification_id = %notification_id, "Failed to process notification");
-
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(json!({
-                            "error": "Failed to process notification",
-                            "details": e.to_string()
-                        })),
-                    )
-                        .into_response()
-                },
-            }
-        },
+    let notification_id = match persist_notification(
+        Arc::clone(db),
+        &context_id,
+        &agent_id,
+        &notification,
+    )
+    .await
+    {
+        Ok(id) => id,
         Err(e) => {
             tracing::error!(error = %e, context_id = %context_id, "Failed to persist notification");
-
-            (
+            return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({
                     "error": "Failed to persist notification",
                     "details": e.to_string()
                 })),
             )
-                .into_response()
+                .into_response();
+        },
+    };
+    tracing::debug!(notification_id = %notification_id, context_id = %context_id, "Persisted notification");
+
+    if let Err(e) = process_notification(app_context.clone(), &notification).await {
+        tracing::error!(error = %e, notification_id = %notification_id, "Failed to process notification");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "error": "Failed to process notification",
+                "details": e.to_string()
+            })),
+        )
+            .into_response();
+    }
+
+    broadcast_and_mark(db, &context_id, &user_id, &notification, notification_id).await;
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "status": "received",
+            "notification_id": notification_id
+        })),
+    )
+        .into_response()
+}
+
+async fn resolve_context_user(
+    ctx_repo: &ContextRepository,
+    context_id: &str,
+) -> Result<UserId, Response> {
+    match ctx_repo
+        .find_user_id_for_context(&ContextId::new(context_id))
+        .await
+    {
+        Ok(Some(uid)) => Ok(uid),
+        Ok(None) => {
+            tracing::error!(context_id = %context_id, "Context not found");
+            Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "error": "Context not found",
+                    "context_id": context_id
+                })),
+            )
+                .into_response())
+        },
+        Err(e) => {
+            tracing::error!(error = %e, context_id = %context_id, "Context not found");
+            Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "error": "Context not found",
+                    "context_id": context_id
+                })),
+            )
+                .into_response())
+        },
+    }
+}
+
+async fn broadcast_and_mark(
+    db: &DbPool,
+    context_id: &str,
+    user_id: &UserId,
+    notification: &A2aNotification,
+    notification_id: i32,
+) {
+    match broadcast_notification(context_id, user_id, notification).await {
+        Ok(broadcast_count) => {
+            tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
+
+            if let Err(e) = mark_notification_broadcasted(Arc::clone(db), notification_id).await {
+                tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
+            }
+        },
+        Err(e) => {
+            tracing::error!(error = %e, notification_id = %notification_id, "Failed to broadcast notification");
         },
     }
 }

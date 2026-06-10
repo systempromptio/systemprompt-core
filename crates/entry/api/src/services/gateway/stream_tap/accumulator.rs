@@ -131,6 +131,31 @@ fn build_response(state: &TapState) -> CanonicalResponse {
     }
 }
 
+fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {
+    let slot = match block {
+        ContentBlockKind::Text => BlockAccumulator::Text(String::new()),
+        ContentBlockKind::Thinking { signature } => BlockAccumulator::Thinking {
+            text: String::new(),
+            signature: signature.clone(),
+        },
+        ContentBlockKind::ToolUse {
+            id,
+            name,
+            signature,
+        } => BlockAccumulator::ToolUse {
+            id: id.clone(),
+            name: name.clone(),
+            partial: String::new(),
+            signature: signature.clone(),
+        },
+    };
+    let idx = index as usize;
+    while state.blocks.len() <= idx {
+        state.blocks.push(BlockAccumulator::Text(String::new()));
+    }
+    state.blocks[idx] = slot;
+}
+
 pub(super) fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
     match event {
         CanonicalEvent::MessageStart { id, model, usage } => {
@@ -141,28 +166,7 @@ pub(super) fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
             state.usage = *usage;
         },
         CanonicalEvent::ContentBlockStart { index, block } => {
-            let slot = match block {
-                ContentBlockKind::Text => BlockAccumulator::Text(String::new()),
-                ContentBlockKind::Thinking { signature } => BlockAccumulator::Thinking {
-                    text: String::new(),
-                    signature: signature.clone(),
-                },
-                ContentBlockKind::ToolUse {
-                    id,
-                    name,
-                    signature,
-                } => BlockAccumulator::ToolUse {
-                    id: id.clone(),
-                    name: name.clone(),
-                    partial: String::new(),
-                    signature: signature.clone(),
-                },
-            };
-            let idx = *index as usize;
-            while state.blocks.len() <= idx {
-                state.blocks.push(BlockAccumulator::Text(String::new()));
-            }
-            state.blocks[idx] = slot;
+            start_block(state, *index, block);
         },
         CanonicalEvent::TextDelta { index, text } => {
             if let Some(BlockAccumulator::Text(buf)) = state.blocks.get_mut(*index as usize) {

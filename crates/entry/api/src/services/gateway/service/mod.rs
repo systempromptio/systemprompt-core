@@ -6,6 +6,7 @@
 )]
 
 mod finalize;
+mod resolve;
 
 use std::sync::Arc;
 
@@ -15,19 +16,19 @@ use axum::response::Response;
 use bytes::Bytes;
 use systemprompt_ai::SafetyConfig;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_models::profile::{GatewayConfig, ProviderRegistry};
 
 use self::finalize::{
     FinalizeCtx, apply_system_prompt_override, attach_request_id, finalize, run_request_safety_scan,
 };
+use self::resolve::{ResolvedUpstream, resolve_upstream};
 use super::audit::{GatewayAudit, GatewayRequestContext};
-use super::policy::PolicyResolver;
+use super::policy::{PolicyResolver, QuotaWindow};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
-use super::protocol::outbound::OutboundCtx;
+use super::protocol::outbound::{OutboundCtx, OutboundOutcome};
 use super::quota;
-use super::registry::GatewayUpstreamRegistry;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 
@@ -88,70 +89,16 @@ impl GatewayService {
         }
 
         let ai_request_id = ctx.ai_request_id.clone();
-
-        if !config.is_model_exposed(registry, &request.model) {
-            tracing::warn!(
-                ai_request_id = %ai_request_id,
-                model = %request.model,
-                "Gateway denied: model not exposed by gateway policy or registry"
-            );
-            return Err(DispatchError::PreAudit(
-                PolicyDenied(format!(
-                    "model '{}' is not permitted by gateway policy",
-                    request.model
-                ))
-                .into(),
-            ));
-        }
-
-        let route = config
-            .resolve_route(registry, &request.model)
-            .ok_or_else(|| {
-                DispatchError::PreAudit(anyhow!(
-                    "No gateway route matches model '{}'",
-                    request.model
-                ))
-            })?;
-
-        let provider = route.resolve(registry).ok_or_else(|| {
-            DispatchError::PreAudit(anyhow!(
-                "Gateway route '{}' provider '{}' is not declared in profile.providers",
-                route.id.as_str(),
-                route.provider.as_str()
-            ))
-        })?;
-
-        let secrets = systemprompt_config::SecretsBootstrap::get()
-            .map_err(|e| DispatchError::PreAudit(anyhow!("Secrets not available: {e}")))?;
-
-        let upstream_api_key = secrets
-            .get(provider.api_key_secret.as_str())
-            .ok_or_else(|| {
-                DispatchError::PreAudit(anyhow!(
-                    "Gateway API key secret '{}' not configured",
-                    provider.api_key_secret.as_str()
-                ))
-            })?;
-
-        let upstream = GatewayUpstreamRegistry::global()
-            .get(provider.wire.as_tag())
-            .ok_or_else(|| {
-                DispatchError::PreAudit(anyhow!(
-                    "Gateway has no outbound adapter for wire protocol '{}'",
-                    provider.wire.as_tag()
-                ))
-            })?;
-
-        let is_streaming = request.stream;
+        let upstream = resolve_upstream(config, registry, &request, &ai_request_id)?;
 
         tracing::info!(
             ai_request_id = %ai_request_id,
             user_id = %ctx.user_id,
             model = %request.model,
-            provider = %route.provider,
-            upstream = %provider.endpoint,
+            provider = %upstream.route.provider,
+            upstream = %upstream.provider.endpoint,
             wire_protocol = %ctx.wire_protocol,
-            streaming = is_streaming,
+            streaming = request.stream,
             "Gateway request dispatched"
         );
 
@@ -167,54 +114,10 @@ impl GatewayService {
             tracing::error!(error = %e, "audit open failed — proceeding without audit row");
         }
 
-        let reservation = quota::precheck_and_reserve(db, &ctx.user_id, &policy.quota_windows)
-            .await
-            .map_err(DispatchError::Recorded)?;
-        if let Some(decision) = reservation
-            && !decision.allow
-        {
-            let msg = format!(
-                "quota exceeded for window {}s (used {}/{:?})",
-                decision.window_seconds, decision.state.requests, decision.limit_requests
-            );
-            if let Err(e) = audit.fail(&msg).await {
-                tracing::warn!(error = %e, "quota audit fail failed");
-            }
-            return Err(DispatchError::Recorded(
-                QuotaExceeded {
-                    message: msg,
-                    retry_after_seconds: decision.window_seconds,
-                }
-                .into(),
-            ));
-        }
-
+        enforce_quota(db, &ctx.user_id, &policy.quota_windows, &audit).await?;
         enforce_request_safety(db, &ai_request_id, &request, &policy.safety, &audit).await?;
 
-        let upstream_model = route.effective_upstream_model(&request.model).to_owned();
-        if let Some(descriptor) =
-            apply_system_prompt_override(config, &provider.name, &upstream_model, &mut request)
-                .await
-        {
-            audit.set_system_prompt_override(&descriptor).await;
-        }
-        let model_limits = provider.find_model(&upstream_model).map(|m| m.limits);
-        let outbound_ctx = OutboundCtx {
-            route: route.as_ref(),
-            endpoint: &provider.endpoint,
-            api_key: upstream_api_key,
-            request: &request,
-            upstream_model: &upstream_model,
-            model_limits,
-        };
-
-        let outcome = match upstream.send(outbound_ctx).await {
-            Ok(o) => o,
-            Err(e) => {
-                audit_upstream_failure(&audit, provider.name.as_str(), &request.model, &e).await;
-                return Err(DispatchError::Recorded(e));
-            },
-        };
+        let outcome = send_to_upstream(config, &upstream, &mut request, &audit).await?;
 
         let response = finalize(
             outcome,
@@ -230,6 +133,76 @@ impl GatewayService {
         .await;
         Ok(attach_request_id(response, &ai_request_id))
     }
+}
+
+async fn send_to_upstream(
+    config: &GatewayConfig,
+    upstream: &ResolvedUpstream<'_>,
+    request: &mut CanonicalRequest,
+    audit: &GatewayAudit,
+) -> Result<OutboundOutcome, DispatchError> {
+    let upstream_model = upstream
+        .route
+        .effective_upstream_model(&request.model)
+        .to_owned();
+    if let Some(descriptor) =
+        apply_system_prompt_override(config, &upstream.provider.name, &upstream_model, request)
+            .await
+    {
+        audit.set_system_prompt_override(&descriptor).await;
+    }
+    let model_limits = upstream
+        .provider
+        .find_model(&upstream_model)
+        .map(|m| m.limits);
+    let outbound_ctx = OutboundCtx {
+        route: upstream.route.as_ref(),
+        endpoint: &upstream.provider.endpoint,
+        api_key: upstream.api_key,
+        request,
+        upstream_model: &upstream_model,
+        model_limits,
+    };
+
+    match upstream.adapter.send(outbound_ctx).await {
+        Ok(o) => Ok(o),
+        Err(e) => {
+            audit_upstream_failure(audit, upstream.provider.name.as_str(), &request.model, &e)
+                .await;
+            Err(DispatchError::Recorded(e))
+        },
+    }
+}
+
+async fn enforce_quota(
+    db: &DbPool,
+    user_id: &UserId,
+    quota_windows: &[QuotaWindow],
+    audit: &GatewayAudit,
+) -> Result<(), DispatchError> {
+    let reservation = quota::precheck_and_reserve(db, user_id, quota_windows)
+        .await
+        .map_err(DispatchError::Recorded)?;
+    let Some(decision) = reservation else {
+        return Ok(());
+    };
+    if decision.allow {
+        return Ok(());
+    }
+    let msg = format!(
+        "quota exceeded for window {}s (used {}/{:?})",
+        decision.window_seconds, decision.state.requests, decision.limit_requests
+    );
+    if let Err(e) = audit.fail(&msg).await {
+        tracing::warn!(error = %e, "quota audit fail failed");
+    }
+    Err(DispatchError::Recorded(
+        QuotaExceeded {
+            message: msg,
+            retry_after_seconds: decision.window_seconds,
+        }
+        .into(),
+    ))
 }
 
 async fn enforce_request_safety(

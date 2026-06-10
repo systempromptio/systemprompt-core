@@ -6,7 +6,7 @@
 
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
-use axum::response::{IntoResponse, Redirect};
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -81,32 +81,46 @@ pub async fn handle_callback(
         },
     };
 
-    let Some(state_token) = params.state.as_deref().filter(|s| !s.is_empty()) else {
-        return (StatusCode::BAD_REQUEST, "Missing state parameter").into_response();
+    let redirect_destination =
+        match resolve_redirect_destination(&repo, params.state.as_deref()).await {
+            Ok(destination) => destination,
+            Err(response) => return response,
+        };
+
+    session_cookie_redirect(&token_response.access_token, &redirect_destination)
+}
+
+async fn resolve_redirect_destination(
+    repo: &OAuthRepository,
+    state_token: Option<&str>,
+) -> Result<String, Response> {
+    let Some(state_token) = state_token.filter(|s| !s.is_empty()) else {
+        return Err((StatusCode::BAD_REQUEST, "Missing state parameter").into_response());
     };
-    let redirect_destination = match repo.consume_state_binding(state_token).await {
-        Ok(Some(binding)) => binding.return_to,
+    match repo.consume_state_binding(state_token).await {
+        Ok(Some(binding)) => Ok(binding.return_to),
         Ok(None) => {
             tracing::warn!("state binding missing, expired, or already consumed");
-            return (StatusCode::BAD_REQUEST, "Invalid state parameter").into_response();
+            Err((StatusCode::BAD_REQUEST, "Invalid state parameter").into_response())
         },
         Err(e) => {
             tracing::error!(error = %e, "state binding lookup failed");
-            return (
+            Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to validate state",
             )
-                .into_response();
+                .into_response())
         },
-    };
+    }
+}
 
+fn session_cookie_redirect(access_token: &str, destination: &str) -> Response {
     let cookie = format!(
-        "access_token={}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
-        token_response.access_token,
+        "access_token={access_token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
         systemprompt_oauth::constants::token::COOKIE_MAX_AGE_SECONDS
     );
 
-    let mut response = Redirect::to(&redirect_destination).into_response();
+    let mut response = Redirect::to(destination).into_response();
     if let Ok(cookie_value) = HeaderValue::from_str(&cookie) {
         response
             .headers_mut()

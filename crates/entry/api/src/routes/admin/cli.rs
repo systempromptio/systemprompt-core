@@ -117,27 +117,84 @@ struct SessionEnv {
     auth_token: Option<String>,
 }
 
+fn build_cli_command(args: &[String], session_env: &SessionEnv) -> Command {
+    let mut cmd = Command::new(CLI_BINARY_PATH);
+    cmd.args(args)
+        .env("SYSTEMPROMPT_CLI_REMOTE", "1")
+        .env("SYSTEMPROMPT_SESSION_ID", &session_env.session)
+        .env("SYSTEMPROMPT_CONTEXT_ID", &session_env.context)
+        .env("SYSTEMPROMPT_USER_ID", &session_env.user)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+
+    if let Some(token) = &session_env.auth_token {
+        cmd.env("SYSTEMPROMPT_AUTH_TOKEN", token);
+    }
+    cmd
+}
+
+fn spawn_line_forwarder<R>(
+    reader: R,
+    tx: tokio::sync::mpsc::Sender<CliOutputEvent>,
+    make_event: fn(String) -> CliOutputEvent,
+) where
+    R: tokio::io::AsyncRead + Unpin + Send + 'static,
+{
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(reader).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if tx.send(make_event(format!("{line}\n"))).await.is_err() {
+                break;
+            }
+        }
+    });
+}
+
+async fn kill_on_timeout(
+    child: &mut tokio::process::Child,
+    timeout: Duration,
+) -> [CliOutputEvent; 2] {
+    tracing::warn!(timeout_secs = timeout.as_secs(), "CLI command timed out");
+    if let Err(e) = child.kill().await {
+        tracing::error!(error = %e, "Failed to kill CLI process");
+    }
+    [
+        CliOutputEvent::Error {
+            message: format!("Timeout after {}s", timeout.as_secs()),
+        },
+        CliOutputEvent::ExitCode { code: -1 },
+    ]
+}
+
+async fn wait_exit_events(mut child: tokio::process::Child) -> Vec<CliOutputEvent> {
+    match child.wait().await {
+        Ok(status) => {
+            let code = status.code().unwrap_or_else(|| {
+                tracing::debug!("Process terminated by signal");
+                -1
+            });
+            tracing::info!(exit_code = code, "CLI command completed");
+            vec![CliOutputEvent::ExitCode { code }]
+        },
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to wait for CLI process");
+            vec![
+                CliOutputEvent::Error {
+                    message: e.to_string(),
+                },
+                CliOutputEvent::ExitCode { code: -1 },
+            ]
+        },
+    }
+}
+
 fn create_cli_stream(
     args: Vec<String>,
     timeout: Duration,
     session_env: SessionEnv,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     async_stream::stream! {
-        let mut cmd = Command::new(CLI_BINARY_PATH);
-        cmd.args(&args)
-            .env("SYSTEMPROMPT_CLI_REMOTE", "1")
-            .env("SYSTEMPROMPT_SESSION_ID", &session_env.session)
-            .env("SYSTEMPROMPT_CONTEXT_ID", &session_env.context)
-            .env("SYSTEMPROMPT_USER_ID", &session_env.user)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
-
-        if let Some(token) = &session_env.auth_token {
-            cmd.env("SYSTEMPROMPT_AUTH_TOKEN", token);
-        }
-
-        let mut child = match cmd.spawn()
-        {
+        let mut child = match build_cli_command(&args, &session_env).spawn() {
             Ok(c) => c,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to spawn CLI process");
@@ -153,49 +210,13 @@ fn create_cli_stream(
         });
         yield Ok(cli_event_to_sse(&CliOutputEvent::Started { pid }));
 
-        let stdout = child.stdout.take();
-        let stderr = child.stderr.take();
-
         let (tx, mut rx) = tokio::sync::mpsc::channel::<CliOutputEvent>(100);
-
-        if let Some(stdout) = stdout {
-            let tx = tx.clone();
-            tokio::spawn(async move {
-                let reader = BufReader::new(stdout);
-                let mut lines = reader.lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    if tx
-                        .send(CliOutputEvent::Stdout {
-                            data: format!("{}\n", line),
-                        })
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-            });
+        if let Some(stdout) = child.stdout.take() {
+            spawn_line_forwarder(stdout, tx.clone(), |data| CliOutputEvent::Stdout { data });
         }
-
-        if let Some(stderr) = stderr {
-            let tx = tx.clone();
-            tokio::spawn(async move {
-                let reader = BufReader::new(stderr);
-                let mut lines = reader.lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    if tx
-                        .send(CliOutputEvent::Stderr {
-                            data: format!("{}\n", line),
-                        })
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-            });
+        if let Some(stderr) = child.stderr.take() {
+            spawn_line_forwarder(stderr, tx.clone(), |data| CliOutputEvent::Stderr { data });
         }
-
         drop(tx);
 
         let deadline = tokio::time::Instant::now() + timeout;
@@ -209,33 +230,16 @@ fn create_cli_stream(
                     }
                 }
                 () = tokio::time::sleep_until(deadline) => {
-                    tracing::warn!(timeout_secs = timeout.as_secs(), "CLI command timed out");
-                    if let Err(e) = child.kill().await {
-                        tracing::error!(error = %e, "Failed to kill CLI process");
+                    for event in kill_on_timeout(&mut child, timeout).await {
+                        yield Ok(cli_event_to_sse(&event));
                     }
-                    yield Ok(cli_event_to_sse(&CliOutputEvent::Error {
-                        message: format!("Timeout after {}s", timeout.as_secs())
-                    }));
-                    yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code: -1 }));
                     return;
                 }
             }
         }
 
-        match child.wait().await {
-            Ok(status) => {
-                let code = status.code().unwrap_or_else(|| {
-                    tracing::debug!("Process terminated by signal");
-                    -1
-                });
-                tracing::info!(exit_code = code, "CLI command completed");
-                yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code }));
-            }
-            Err(e) => {
-                tracing::error!(error = %e, "Failed to wait for CLI process");
-                yield Ok(cli_event_to_sse(&CliOutputEvent::Error { message: e.to_string() }));
-                yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code: -1 }));
-            }
+        for event in wait_exit_events(child).await {
+            yield Ok(cli_event_to_sse(&event));
         }
     }
 }

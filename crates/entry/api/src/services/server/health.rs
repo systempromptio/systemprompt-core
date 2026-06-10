@@ -7,7 +7,7 @@
 
 use axum::Json;
 use serde_json::json;
-use systemprompt_database::DatabaseQuery;
+use systemprompt_database::{DatabaseQuery, JsonRow};
 use systemprompt_runtime::AppContext;
 
 pub(super) const HEALTH_CHECK_QUERY: DatabaseQuery = DatabaseQuery::new("SELECT 1");
@@ -121,77 +121,86 @@ pub(super) async fn get_system_stats(
 
     let database =
         if let (Ok(size_row), Ok(tables), Ok(count_row)) = (&db_size, &table_sizes, &table_count) {
-            let size_bytes = size_row
-                .get("size_bytes")
-                .and_then(serde_json::Value::as_i64)
-                .unwrap_or(0);
-            let db_name = size_row
-                .get("db_name")
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("unknown");
-            let tbl_count = count_row
-                .get("count")
-                .and_then(serde_json::Value::as_i64)
-                .unwrap_or(0);
-
-            let top_tables: Vec<serde_json::Value> = tables
-                .iter()
-                .map(|row| {
-                    let name = row
-                        .get("table_name")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("?");
-                    let total = row
-                        .get("total_bytes")
-                        .and_then(serde_json::Value::as_i64)
-                        .unwrap_or(0);
-                    let rows = row
-                        .get("row_estimate")
-                        .and_then(serde_json::Value::as_i64)
-                        .unwrap_or(0);
-                    json!({
-                        "table_name": name,
-                        "total_size": human_bytes(total),
-                        "total_size_bytes": total,
-                        "row_estimate": rows
-                    })
-                })
-                .collect();
-
-            Some(json!({
-                "name": db_name,
-                "total_size": human_bytes(size_bytes),
-                "total_size_bytes": size_bytes,
-                "table_count": tbl_count,
-                "top_tables": top_tables
-            }))
+            Some(database_stats(size_row, tables, count_row))
         } else {
             None
         };
 
-    let logs = audit.ok().flatten().map(|row| {
-        let row_count = row
-            .get("row_count")
-            .and_then(serde_json::Value::as_i64)
-            .unwrap_or(0);
-        let size_bytes = row
-            .get("size_bytes")
-            .and_then(serde_json::Value::as_i64)
-            .unwrap_or(0);
-        json!({
-            "audit_rows": row_count,
-            "audit_size": human_bytes(size_bytes),
-            "audit_size_bytes": size_bytes,
-            "oldest": row.get("oldest"),
-            "newest": row.get("newest")
-        })
-    });
+    let logs = audit.ok().flatten().map(|row| audit_log_stats(&row));
 
     Some(json!({
         "database": database,
         "disk": disk,
         "logs": logs
     }))
+}
+
+fn database_stats(
+    size_row: &JsonRow,
+    tables: &[JsonRow],
+    count_row: &JsonRow,
+) -> serde_json::Value {
+    let size_bytes = size_row
+        .get("size_bytes")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    let db_name = size_row
+        .get("db_name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("unknown");
+    let tbl_count = count_row
+        .get("count")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+
+    let top_tables: Vec<serde_json::Value> = tables.iter().map(table_stats).collect();
+
+    json!({
+        "name": db_name,
+        "total_size": human_bytes(size_bytes),
+        "total_size_bytes": size_bytes,
+        "table_count": tbl_count,
+        "top_tables": top_tables
+    })
+}
+
+fn table_stats(row: &JsonRow) -> serde_json::Value {
+    let name = row
+        .get("table_name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("?");
+    let total = row
+        .get("total_bytes")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    let rows = row
+        .get("row_estimate")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    json!({
+        "table_name": name,
+        "total_size": human_bytes(total),
+        "total_size_bytes": total,
+        "row_estimate": rows
+    })
+}
+
+fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
+    let row_count = row
+        .get("row_count")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    let size_bytes = row
+        .get("size_bytes")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0);
+    json!({
+        "audit_rows": row_count,
+        "audit_size": human_bytes(size_bytes),
+        "audit_size_bytes": size_bytes,
+        "oldest": row.get("oldest"),
+        "newest": row.get("newest")
+    })
 }
 
 pub async fn handle_health(

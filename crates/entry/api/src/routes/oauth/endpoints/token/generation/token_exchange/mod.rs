@@ -64,43 +64,9 @@ pub async fn handle_token_exchange(
     let subject =
         validate_subject_token(request.subject_token, request.subject_token_type, global).await?;
 
-    let resource = match request.resource {
-        Some(value)
-            if !global
-                .allowed_resource_audiences
-                .iter()
-                .any(|allowed| allowed == value) =>
-        {
-            return Err(anyhow!(TokenError::InvalidTarget {
-                message: format!("'{value}' not in allowed_resource_audiences"),
-            }));
-        },
-        other => other,
-    };
+    let resource = validate_resource(request.resource, global)?;
 
-    let client = repo
-        .find_client_by_id(client_id)
-        .await?
-        .ok_or_else(|| anyhow!(TokenError::InvalidClient))?;
-    let owner = state
-        .user_provider()
-        .find_by_id(&client.owner_user_id)
-        .await
-        .map_err(|e| anyhow!("Failed to load client owner: {e}"))?
-        .ok_or_else(|| anyhow!("Client owner not found"))?;
-    if !owner.is_active {
-        return Err(anyhow!("Client owner is not active"));
-    }
-    let owner_perms: Vec<Permission> = owner
-        .roles
-        .iter()
-        .filter_map(|r| Permission::from_str(r).ok())
-        .collect();
-    let client_perms: Vec<Permission> = client
-        .scopes
-        .iter()
-        .filter_map(|s| Permission::from_str(s).ok())
-        .collect();
+    let grant = load_delegation_grant(repo, state, client_id).await?;
     let requested_perms = match request.scope {
         Some(s) => parse_permissions(s)?,
         None => subject.scope.clone(),
@@ -109,8 +75,8 @@ pub async fn handle_token_exchange(
     let final_perms = intersect_scopes(
         &requested_perms,
         &subject.scope,
-        &client_perms,
-        &owner_perms,
+        &grant.client_perms,
+        &grant.owner_perms,
     )?;
 
     let audience = resolve_audience(request.audience, global)?;
@@ -118,16 +84,16 @@ pub async fn handle_token_exchange(
     let issuer = &global.jwt_issuer;
     let act = build_act_chain(client_id, issuer, subject.prior_act);
 
-    let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
+    let owner_uuid = uuid::Uuid::parse_str(grant.owner_user_id.as_str())
         .map_err(|e| anyhow!("Client owner has a non-uuid id ({e})"))?;
     let delegated_user = AuthenticatedUser::new(
         owner_uuid,
-        owner.name.clone(),
-        owner.email.clone(),
+        grant.owner_name,
+        grant.owner_email,
         final_perms.clone(),
     );
 
-    let session_id = ensure_session(state, headers, &client.owner_user_id, global).await?;
+    let session_id = ensure_session(state, headers, &grant.owner_user_id, global).await?;
 
     let config = JwtConfig {
         permissions: final_perms.clone(),
@@ -162,6 +128,68 @@ pub async fn handle_token_exchange(
         refresh_token: None,
         scope: Some(scope_string),
         issued_token_type: Some(ACCESS_TOKEN_TYPE.to_owned()),
+    })
+}
+
+fn validate_resource<'a>(resource: Option<&'a str>, global: &Config) -> Result<Option<&'a str>> {
+    match resource {
+        Some(value)
+            if !global
+                .allowed_resource_audiences
+                .iter()
+                .any(|allowed| allowed == value) =>
+        {
+            Err(anyhow!(TokenError::InvalidTarget {
+                message: format!("'{value}' not in allowed_resource_audiences"),
+            }))
+        },
+        other => Ok(other),
+    }
+}
+
+struct DelegationGrant {
+    owner_user_id: UserId,
+    owner_name: String,
+    owner_email: String,
+    owner_perms: Vec<Permission>,
+    client_perms: Vec<Permission>,
+}
+
+async fn load_delegation_grant(
+    repo: &OAuthRepository,
+    state: &OAuthState,
+    client_id: &ClientId,
+) -> Result<DelegationGrant> {
+    let client = repo
+        .find_client_by_id(client_id)
+        .await?
+        .ok_or_else(|| anyhow!(TokenError::InvalidClient))?;
+    let owner = state
+        .user_provider()
+        .find_by_id(&client.owner_user_id)
+        .await
+        .map_err(|e| anyhow!("Failed to load client owner: {e}"))?
+        .ok_or_else(|| anyhow!("Client owner not found"))?;
+    if !owner.is_active {
+        return Err(anyhow!("Client owner is not active"));
+    }
+    let owner_perms = owner
+        .roles
+        .iter()
+        .filter_map(|r| Permission::from_str(r).ok())
+        .collect();
+    let client_perms = client
+        .scopes
+        .iter()
+        .filter_map(|s| Permission::from_str(s).ok())
+        .collect();
+
+    Ok(DelegationGrant {
+        owner_user_id: client.owner_user_id,
+        owner_name: owner.name,
+        owner_email: owner.email,
+        owner_perms,
+        client_perms,
     })
 }
 

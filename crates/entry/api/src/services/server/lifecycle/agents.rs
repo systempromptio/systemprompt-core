@@ -9,6 +9,9 @@ use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_models::AgentConfig;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{OptionalStartupEventExt, StartupEventSender};
@@ -17,27 +20,7 @@ pub(in crate::services::server) async fn reconcile_agents(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
-    use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-    use systemprompt_agent::services::registry::AgentRegistry;
-
-    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config()?);
-    let agent_state = Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
-        jwt_provider,
-    ));
-
-    let orchestrator =
-        match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
-            Ok(orch) => orch,
-            Err(e) => {
-                events.error(
-                    format!("Failed to initialize agent orchestrator: {e}"),
-                    true,
-                );
-                return Err(e.into());
-            },
-        };
+    let orchestrator = build_orchestrator(ctx, events).await?;
 
     let agent_registry = match AgentRegistry::new() {
         Ok(registry) => registry,
@@ -56,8 +39,62 @@ pub(in crate::services::server) async fn reconcile_agents(
     };
 
     let required_count = enabled_agents.len();
-    let orchestrator = &orchestrator;
+    let (started, failed_agents) =
+        start_enabled_agents(&orchestrator, &enabled_agents, events).await;
 
+    let started = if failed_agents.is_empty() {
+        started
+    } else {
+        handle_failed_agents(
+            started,
+            &failed_agents,
+            &agent_registry,
+            &orchestrator,
+            events,
+        )
+        .await?
+    };
+
+    if started < required_count {
+        return Err(anyhow::anyhow!(
+            "FATAL: Only {}/{} required agents started successfully\n\nAll enabled agents must be \
+             running for API to start.",
+            started,
+            required_count
+        ));
+    }
+
+    Ok(started)
+}
+
+async fn build_orchestrator(
+    ctx: &AppContext,
+    events: Option<&StartupEventSender>,
+) -> Result<AgentOrchestrator> {
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config()?);
+    let agent_state = Arc::new(AgentState::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::new(ctx.config().clone()),
+        jwt_provider,
+    ));
+
+    match AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), events).await {
+        Ok(orch) => Ok(orch),
+        Err(e) => {
+            events.error(
+                format!("Failed to initialize agent orchestrator: {e}"),
+                true,
+            );
+            Err(e.into())
+        },
+    }
+}
+
+async fn start_enabled_agents(
+    orchestrator: &AgentOrchestrator,
+    enabled_agents: &[AgentConfig],
+    events: Option<&StartupEventSender>,
+) -> (usize, Vec<(String, String)>) {
     let start_futures: Vec<_> = enabled_agents
         .iter()
         .map(|agent_config| {
@@ -75,49 +112,16 @@ pub(in crate::services::server) async fn reconcile_agents(
     let results = join_all(start_futures).await;
 
     let (succeeded, failed): (Vec<_>, Vec<_>) = results.into_iter().partition(Result::is_ok);
-
-    let started = succeeded.len();
     let failed_agents: Vec<(String, String)> = failed.into_iter().filter_map(Result::err).collect();
 
-    if !failed_agents.is_empty() {
-        let started = handle_failed_agents(
-            started,
-            &failed_agents,
-            &agent_registry,
-            orchestrator,
-            events,
-        )
-        .await?;
-
-        if started < required_count {
-            return Err(anyhow::anyhow!(
-                "FATAL: Only {}/{} required agents started successfully\n\nAll enabled agents \
-                 must be running for API to start.",
-                started,
-                required_count
-            ));
-        }
-
-        return Ok(started);
-    }
-
-    if started < required_count {
-        return Err(anyhow::anyhow!(
-            "FATAL: Only {}/{} required agents started successfully\n\nAll enabled agents must be \
-             running for API to start.",
-            started,
-            required_count
-        ));
-    }
-
-    Ok(started)
+    (succeeded.len(), failed_agents)
 }
 
 async fn handle_failed_agents(
     mut started: usize,
     failed_agents: &[(String, String)],
-    agent_registry: &systemprompt_agent::services::registry::AgentRegistry,
-    orchestrator: &systemprompt_agent::services::agent_orchestration::AgentOrchestrator,
+    agent_registry: &AgentRegistry,
+    orchestrator: &AgentOrchestrator,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
     events.warning_with_context(
@@ -173,7 +177,7 @@ async fn handle_failed_agents(
 }
 
 async fn enforce_clean_agent_state(
-    orchestrator: &systemprompt_agent::services::agent_orchestration::AgentOrchestrator,
+    orchestrator: &AgentOrchestrator,
     agent: &str,
     desired_port: u16,
     events: Option<&StartupEventSender>,

@@ -7,7 +7,7 @@
 
 use axum::http::HeaderMap;
 use std::str::FromStr;
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource};
+use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_models::Config;
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, parse_permissions, permissions_to_string,
@@ -60,6 +60,58 @@ pub enum ClientCredentialsError {
     ConfigUnavailable(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
+struct OwnerProfile {
+    name: String,
+    email: String,
+    permissions: Vec<Permission>,
+}
+
+async fn load_active_owner(
+    state: &OAuthState,
+    owner_user_id: &UserId,
+) -> Result<OwnerProfile, ClientCredentialsError> {
+    let owner = state
+        .user_provider()
+        .find_by_id(owner_user_id)
+        .await
+        .map_err(|e| ClientCredentialsError::UserProviderUnavailable(e.into()))?
+        .ok_or(ClientCredentialsError::OwnerNotFound)?;
+    if !owner.is_active {
+        return Err(ClientCredentialsError::OwnerInactive);
+    }
+    Ok(OwnerProfile {
+        permissions: scope_permissions(&owner.roles),
+        name: owner.name,
+        email: owner.email,
+    })
+}
+
+async fn create_client_session(
+    state: &OAuthState,
+    headers: &HeaderMap,
+    owner_user_id: &UserId,
+    expires_in: i64,
+) -> Result<SessionId, ClientCredentialsError> {
+    let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
+    let analytics = state.analytics_provider().extract_analytics(headers, None);
+
+    state
+        .analytics_provider()
+        .create_session(CreateSessionInput {
+            session_id: &session_id,
+            user_id: Some(owner_user_id),
+            analytics: &analytics,
+            session_source: SessionSource::Oauth,
+            is_bot: false,
+            is_ai_crawler: false,
+            expires_at,
+        })
+        .await
+        .map_err(|e| ClientCredentialsError::SessionCreate(e.into()))?;
+    Ok(session_id)
+}
+
 pub async fn generate_client_tokens(
     repo: &OAuthRepository,
     client_id: &ClientId,
@@ -80,26 +132,13 @@ pub async fn generate_client_tokens(
     let requested_permissions = match options.scope {
         Some(scope_str) => parse_permissions(scope_str)
             .map_err(|e| ClientCredentialsError::InvalidScope(e.to_string()))?,
-        None => client_scope_permissions(&client.scopes),
+        None => scope_permissions(&client.scopes),
     };
 
-    let owner = state
-        .user_provider()
-        .find_by_id(&client.owner_user_id)
-        .await
-        .map_err(|e| ClientCredentialsError::UserProviderUnavailable(e.into()))?
-        .ok_or(ClientCredentialsError::OwnerNotFound)?;
-    if !owner.is_active {
-        return Err(ClientCredentialsError::OwnerInactive);
-    }
-    let owner_permissions: Vec<Permission> = owner
-        .roles
-        .iter()
-        .filter_map(|r| Permission::from_str(r).ok())
-        .collect();
+    let owner = load_active_owner(state, &client.owner_user_id).await?;
 
     let permissions =
-        authorize_client_grant(&requested_permissions, &client.scopes, &owner_permissions)?;
+        authorize_client_grant(&requested_permissions, &client.scopes, &owner.permissions)?;
 
     let audience = resolve_audience(options.audience, global_config)?;
 
@@ -111,12 +150,8 @@ pub async fn generate_client_tokens(
 
     let owner_uuid = uuid::Uuid::parse_str(client.owner_user_id.as_str())
         .map_err(|e| ClientCredentialsError::OwnerIdMalformed(e.to_string()))?;
-    let authenticated = AuthenticatedUser::new(
-        owner_uuid,
-        owner.name.clone(),
-        owner.email.clone(),
-        permissions.clone(),
-    );
+    let authenticated =
+        AuthenticatedUser::new(owner_uuid, owner.name, owner.email, permissions.clone());
 
     let config = JwtConfig {
         permissions: permissions.clone(),
@@ -125,23 +160,8 @@ pub async fn generate_client_tokens(
         plugin_id: options.plugin_id.map(str::to_owned),
         ..Default::default()
     };
-    let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
-    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
-    let analytics = state.analytics_provider().extract_analytics(headers, None);
-
-    state
-        .analytics_provider()
-        .create_session(CreateSessionInput {
-            session_id: &session_id,
-            user_id: Some(&client.owner_user_id),
-            analytics: &analytics,
-            session_source: SessionSource::Oauth,
-            is_bot: false,
-            is_ai_crawler: false,
-            expires_at,
-        })
-        .await
-        .map_err(|e| ClientCredentialsError::SessionCreate(e.into()))?;
+    let session_id =
+        create_client_session(state, headers, &client.owner_user_id, expires_in).await?;
 
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
@@ -171,8 +191,8 @@ pub async fn generate_client_tokens(
     })
 }
 
-fn client_scope_permissions(client_scopes: &[String]) -> Vec<Permission> {
-    client_scopes
+fn scope_permissions(scopes: &[String]) -> Vec<Permission> {
+    scopes
         .iter()
         .filter_map(|s| Permission::from_str(s).ok())
         .collect()
@@ -205,7 +225,7 @@ fn authorize_client_grant(
     client_scopes: &[String],
     owner_permissions: &[Permission],
 ) -> Result<Vec<Permission>, ClientCredentialsError> {
-    let client_allowed = client_scope_permissions(client_scopes);
+    let client_allowed = scope_permissions(client_scopes);
 
     let mut granted: Vec<Permission> = Vec::with_capacity(requested.len());
     let mut missing_from_client: Vec<Permission> = Vec::new();

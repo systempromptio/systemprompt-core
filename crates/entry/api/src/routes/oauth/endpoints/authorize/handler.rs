@@ -63,6 +63,54 @@ fn with_redirect_if_set(err: OAuthHttpError, query: &AuthorizeQuery) -> OAuthHtt
     }
 }
 
+fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpError> {
+    match params.state.as_deref() {
+        None | Some("") => Err(OAuthHttpError::invalid_request(
+            "CSRF token (state parameter) is required",
+        )),
+        Some(state_str) => CsrfToken::new(state_str).map_err(|_e| {
+            OAuthHttpError::invalid_request("CSRF token (state parameter) is invalid")
+        }),
+    }
+}
+
+fn resolve_self_origins(base: &RequestBaseUrl) -> Result<SelfOrigins, OAuthHttpError> {
+    let primary_origin = Config::get()
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to load config for OAuth self-origin");
+            OAuthHttpError::server_error("Configuration unavailable")
+        })
+        .and_then(|c| {
+            reqwest::Url::parse(&c.api_external_url)
+                .map(|u| u.origin())
+                .map_err(|e| {
+                    tracing::error!(
+                        error = %e,
+                        api_external_url = %c.api_external_url,
+                        "api_external_url is not a valid URL — bootstrap validation should have caught this"
+                    );
+                    OAuthHttpError::server_error("Configuration invalid")
+                })
+        })?;
+    Ok(SelfOrigins::new(primary_origin, base.origin().clone()))
+}
+
+async fn render_webauthn_form(
+    repo: &OAuthRepository,
+    params: &AuthorizeQuery,
+    csrf_token: &CsrfToken,
+    resolved_scope: &str,
+) -> Result<Response, OAuthHttpError> {
+    let form_state = match same_origin_return_path(csrf_token.as_str()) {
+        Some(return_to) => issue_server_state(repo, &return_to, params).await?,
+        None => csrf_token.as_str().to_owned(),
+    };
+    let mut form_params = params.clone();
+    form_params.state = Some(form_state);
+    let webauthn_form = generate_webauthn_form(&form_params, resolved_scope);
+    Ok(Html(webauthn_form).into_response())
+}
+
 #[instrument(skip(repo, _req_ctx, params), fields(client_id = %params.client_id))]
 pub async fn handle_authorize_get(
     State(state): State<OAuthState>,
@@ -82,16 +130,7 @@ pub async fn handle_authorize_get(
         "Authorization request received"
     );
 
-    let csrf_token = match params.state.as_deref() {
-        None | Some("") => {
-            return Err(OAuthHttpError::invalid_request(
-                "CSRF token (state parameter) is required",
-            ));
-        },
-        Some(state_str) => CsrfToken::new(state_str).map_err(|_e| {
-            OAuthHttpError::invalid_request("CSRF token (state parameter) is invalid")
-        })?,
-    };
+    let csrf_token = require_csrf_token(&params)?;
 
     if params.response_type.is_empty() || params.client_id.as_str().is_empty() {
         let mut redirect_query = params.clone();
@@ -102,24 +141,7 @@ pub async fn handle_authorize_get(
         ));
     }
 
-    let primary_origin = Config::get()
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to load config for OAuth self-origin");
-            OAuthHttpError::server_error("Configuration unavailable")
-        })
-        .and_then(|c| {
-            reqwest::Url::parse(&c.api_external_url)
-                .map(|u| u.origin())
-                .map_err(|e| {
-                    tracing::error!(
-                        error = %e,
-                        api_external_url = %c.api_external_url,
-                        "api_external_url is not a valid URL — bootstrap validation should have caught this"
-                    );
-                    OAuthHttpError::server_error("Configuration invalid")
-                })
-        })?;
-    let self_origins = SelfOrigins::new(primary_origin, base.origin().clone());
+    let self_origins = resolve_self_origins(&base)?;
 
     if let Err(validation_error) = validate_oauth_parameters(&params, &self_origins) {
         return Err(with_redirect_if_set(
@@ -138,14 +160,7 @@ pub async fn handle_authorize_get(
                 "Authorization request validated"
             );
 
-            let form_state = match same_origin_return_path(csrf_token.as_str()) {
-                Some(return_to) => issue_server_state(&repo, &return_to, &params).await?,
-                None => csrf_token.as_str().to_owned(),
-            };
-            let mut form_params = params.clone();
-            form_params.state = Some(form_state);
-            let webauthn_form = generate_webauthn_form(&form_params, &resolved_scope);
-            Ok(Html(webauthn_form).into_response())
+            render_webauthn_form(&repo, &params, &csrf_token, &resolved_scope).await
         },
         Err(error) => {
             tracing::info!(
