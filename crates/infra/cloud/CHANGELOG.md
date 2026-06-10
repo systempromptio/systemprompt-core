@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- The minimum supported Rust version is 1.88.
+
+### Changed
+
+- Over-long functions were split into focused helpers to satisfy the workspace's 75-line function ceiling. No behavioural or API change.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

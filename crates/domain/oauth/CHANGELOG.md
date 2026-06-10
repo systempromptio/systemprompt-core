@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- Error enum tuple variants that wrapped a bare message string are now struct variants with a named `message` field; match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
+- The minimum supported Rust version is 1.88.
+
+### Changed
+
+- Over-long functions were split into focused helpers to satisfy the workspace's 75-line function ceiling. No behavioural or API change.
+
+### Fixed
+
+- Authorization codes are bound to the client that requested them and are rejected when redeemed by any other client.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

@@ -1,18 +1,28 @@
 # Changelog
 
-## [0.15.3] - 2026-06-09
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- Error enums in the published library crates now carry structured fields: tuple variants that wrapped a bare message string are struct variants with a named `message` field. Match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
+- JWT validation requires a first-party audience claim (`web`, `api`, `a2a`, or `mcp`). Tokens minted without an audience are rejected; re-issue long-lived tokens after upgrading.
+- The minimum supported Rust version is 1.88.
 
 ### Added
 
+- The profile's `database.pool` block configures the database connection pool (`max_connections`, `min_connections`, `acquire_timeout`, `idle_timeout`, `max_lifetime`). Values are validated at bootstrap, so a misconfigured pool fails the boot instead of degrading at runtime.
 - `gateway.system_prompt_overrides` declares ordered rules that replace or strip a request's system prompt before it is forwarded upstream, matched first-match-wins on the resolved provider and requested model (with `foo*` / `*foo` / `*` patterns). A `replace` rule's prompt body may be inlined or loaded from a file with `!include <path>`, resolved relative to the profile directory and fail-closed on a missing file. Extensions can contribute programmatic overrides through the `register_system_prompt_override!` macro. The applied override is recorded on the request's audit row as `system_prompt_override` (e.g. `config:replace`, `extension:<name>:strip`).
 
 ### Changed
 
 - The gateway clamps a caller's requested output-token limit down to the resolved model's configured `max_output_tokens` across every wire format (Anthropic, Gemini, OpenAI Chat, OpenAI Responses), never raising it, so a request cannot exceed the model's real output ceiling and `max_output_tokens` doubles as an operator-set per-request cap. OpenAI reasoning models continue to receive the full model cap as their completion budget.
+- Functions across the workspace now respect a clippy-enforced 75-line ceiling: over-long functions were split into focused helpers and nested conditionals collapsed into let-chains. No behavioural or API change.
 
 ### Fixed
 
 - OpenAI Chat and Responses requests now emit Anthropic tool-result blocks as standalone tool messages (`{role: "tool"}` and `function_call_output` respectively) before any new user text, matching each API's requirement that tool results immediately follow the assistant's tool calls.
+- Authorization codes are bound to the OAuth client that requested them and are rejected when redeemed by any other client.
+- Cloud-sync tar and gzip transfers run on blocking threads instead of stalling the async runtime.
 
 ## [0.15.2] - 2026-06-08
 

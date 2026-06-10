@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- Error enum tuple variants that wrapped a bare message string are now struct variants with a named `message` field; match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
+- The minimum supported Rust version is 1.88.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

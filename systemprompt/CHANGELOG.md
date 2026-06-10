@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- The minimum supported Rust version is 1.88.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

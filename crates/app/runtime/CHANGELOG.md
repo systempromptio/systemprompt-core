@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- The minimum supported Rust version is 1.88.
+
+### Changed
+
+- Database pool settings from the profile's `database.pool` block are validated and applied when the application context is built.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

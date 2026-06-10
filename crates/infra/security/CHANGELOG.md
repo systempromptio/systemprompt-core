@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.3] - 2026-06-10
+
+### Breaking
+
+- JWT validation requires a first-party audience claim (`web`, `api`, `a2a`, or `mcp`); tokens minted without an audience are rejected.
+- The minimum supported Rust version is 1.88.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed
