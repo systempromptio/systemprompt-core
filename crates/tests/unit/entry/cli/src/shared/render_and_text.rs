@@ -8,7 +8,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use serde::Serialize;
-use systemprompt_cli::cli_settings::{CliConfig, OutputFormat, set_global_config};
+use systemprompt_cli::cli_settings::{CliConfig, OutputFormat};
 use systemprompt_cli::shared::{ChartType, CommandOutput, render_result};
 use systemprompt_models::artifacts::{
     ChartArtifact, DashboardArtifact, ListItem, PresentationCardArtifact,
@@ -20,68 +20,72 @@ struct Row {
     count: u32,
 }
 
+fn config_for(format: OutputFormat) -> CliConfig {
+    CliConfig::default().with_output_format(format)
+}
+
 #[test]
 fn render_result_skip_render_is_noop() {
     let r = CommandOutput::text("ignored").with_skip_render();
-    render_result(&r);
+    render_result(&r, &config_for(OutputFormat::Table));
 }
 
 #[test]
 fn render_result_table_format_with_title() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Table));
+    let config = config_for(OutputFormat::Table);
     let rows = vec![Row {
         name: "a".into(),
         count: 1,
     }];
     let r = CommandOutput::table_of(vec!["name", "count"], &rows).with_title("Things");
-    render_result(&r);
+    render_result(&r, &config);
 }
 
 #[test]
 fn render_result_table_format_without_title() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Table));
+    let config = config_for(OutputFormat::Table);
     let r = CommandOutput::table(vec!["k"], vec![serde_json::json!({"k": "v"})]);
-    render_result(&r);
+    render_result(&r, &config);
 }
 
 #[test]
 fn render_result_json_format() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Json));
+    let config = config_for(OutputFormat::Json);
     let r = CommandOutput::card(PresentationCardArtifact::new("done")).with_title("Result");
-    render_result(&r);
+    render_result(&r, &config);
 }
 
 #[test]
 fn render_result_yaml_format() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Yaml));
+    let config = config_for(OutputFormat::Yaml);
     let r = CommandOutput::list(vec![ListItem::new("hello", "", "")]);
-    render_result(&r);
+    render_result(&r, &config);
 }
 
 #[test]
 fn render_result_text_in_table_mode_with_title() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Table));
+    let config = config_for(OutputFormat::Table);
     let r = CommandOutput::text("plain text content").with_title("Raw");
-    render_result(&r);
+    render_result(&r, &config);
 }
 
 #[test]
 fn render_result_text_in_json_mode() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Json));
+    let config = config_for(OutputFormat::Json);
     let r = CommandOutput::text("plain text");
-    render_result(&r);
+    render_result(&r, &config);
 }
 
 #[test]
 fn render_result_chart_dashboard_copy_paste_text() {
-    set_global_config(CliConfig::default().with_output_format(OutputFormat::Json));
-    render_result(&CommandOutput::chart(ChartArtifact::new(
-        "c",
-        ChartType::Bar,
-    )));
-    render_result(&CommandOutput::dashboard(DashboardArtifact::new("d")));
-    render_result(&CommandOutput::copy_paste("c"));
-    render_result(&CommandOutput::text("t"));
+    let config = config_for(OutputFormat::Json);
+    render_result(
+        &CommandOutput::chart(ChartArtifact::new("c", ChartType::Bar)),
+        &config,
+    );
+    render_result(&CommandOutput::dashboard(DashboardArtifact::new("d")), &config);
+    render_result(&CommandOutput::copy_paste("c"), &config);
+    render_result(&CommandOutput::text("t"), &config);
 }
 
 #[test]

@@ -13,9 +13,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -92,55 +91,27 @@ pub struct BotsOutput {
     pub bot_breakdown: Vec<BotRow>,
 }
 
-pub async fn execute(command: TrafficCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: TrafficCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
     match command {
         TrafficCommands::Sources(args) => {
-            let result = sources::execute(args, config).await?;
-            render_result(&result);
+            let result = sources::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Geo(args) => {
-            let result = geo::execute(args, config).await?;
-            render_result(&result);
+            let result = geo::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Devices(args) => {
-            let result = devices::execute(args, config).await?;
-            render_result(&result);
+            let result = devices::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         TrafficCommands::Bots(args) => {
-            let result = bots::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: TrafficCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        TrafficCommands::Sources(args) => {
-            let result = sources::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        TrafficCommands::Geo(args) => {
-            let result = geo::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        TrafficCommands::Devices(args) => {
-            let result = devices::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        TrafficCommands::Bots(args) => {
-            let result = bots::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = bots::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

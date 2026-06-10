@@ -15,8 +15,8 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOpState, SyncOperationResult, SyncService};
 
-use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::get_credentials;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum SyncCommands {
@@ -54,19 +54,19 @@ pub struct AdminUserSyncArgs {
     pub database_url: Option<String>,
 }
 
-pub async fn execute(cmd: Option<SyncCommands>, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: Option<SyncCommands>, ctx: &CommandContext) -> Result<()> {
     match cmd {
         Some(SyncCommands::Push(args)) => execute_cloud_sync(SyncDirection::Push, args).await,
         Some(SyncCommands::Pull(args)) => execute_cloud_sync(SyncDirection::Pull, args).await,
         Some(SyncCommands::AdminUser(args)) => execute_admin_user_sync(args).await,
         None => {
-            if !config.is_interactive() {
+            if !ctx.cli.is_interactive() {
                 return Err(anyhow!(
                     "Sync subcommand required in non-interactive mode. Use push, pull, or \
                      admin-user."
                 ));
             }
-            interactive::execute(config).await
+            interactive::execute(&ctx.cli).await
         },
     }
 }

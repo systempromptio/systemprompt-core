@@ -42,7 +42,7 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
         },
     };
 
-    render_result(&CommandOutput::card_value("Rate Limits", &output));
+    render_result(&CommandOutput::card_value("Rate Limits", &output), config);
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");
@@ -110,7 +110,10 @@ pub(super) fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
         },
     };
 
-    render_result(&CommandOutput::card_value("Tier Effective Limits", &output));
+    render_result(
+        &CommandOutput::card_value("Tier Effective Limits", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");
@@ -131,10 +134,10 @@ pub(super) fn execute_docs(config: &CliConfig) -> Result<()> {
         disabled: limits.disabled,
     };
 
-    render_result(&CommandOutput::card_value(
-        "Rate Limits Documentation",
-        &output,
-    ));
+    render_result(
+        &CommandOutput::card_value("Rate Limits Documentation", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
         CliService::warning("Rate limiting is currently DISABLED");

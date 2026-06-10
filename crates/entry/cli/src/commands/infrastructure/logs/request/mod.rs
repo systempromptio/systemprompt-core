@@ -11,10 +11,9 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 use systemprompt_models::artifacts::NoticeLine;
 
@@ -108,38 +107,18 @@ pub struct RequestShowOutput {
     pub linked_mcp_calls: Vec<ToolCallRow>,
 }
 
-pub async fn execute(command: RequestCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: RequestCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         RequestCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
+            let result = list::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestCommands::Show(args) => {
-            let result = show::execute(args, config).await?;
-            render_result(&result);
+            let result = show::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        RequestCommands::Stats(args) => stats::execute(args, config).await,
-    }
-}
-
-pub async fn execute_with_pool(
-    command: RequestCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        RequestCommands::List(args) => {
-            let result = list::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        RequestCommands::Show(args) => {
-            let result = show::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        RequestCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
+        RequestCommands::Stats(args) => stats::execute(args, ctx).await,
     }
 }

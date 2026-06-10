@@ -4,10 +4,9 @@ use clap::Args;
 use std::time::Duration;
 use systemprompt_logging::models::LogEntry;
 use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceService};
-use systemprompt_runtime::AppContext;
 use tokio::time;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct StreamArgs {
@@ -28,13 +27,12 @@ pub struct StreamArgs {
     pub clear: bool,
 }
 
-pub(super) async fn execute(args: StreamArgs, config: &CliConfig) -> Result<()> {
-    if config.is_json_output() {
+pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()> {
+    if ctx.cli.is_json_output() {
         return Err(anyhow!("JSON output is not supported in streaming mode"));
     }
 
-    let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
 
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 

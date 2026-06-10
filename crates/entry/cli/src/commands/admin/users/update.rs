@@ -1,11 +1,10 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService, UserStatus};
 
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -29,9 +28,9 @@ pub struct UpdateArgs {
     pub email_verified: Option<bool>,
 }
 
-pub(super) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     let existing = admin_service.find_user(&args.user).await?;

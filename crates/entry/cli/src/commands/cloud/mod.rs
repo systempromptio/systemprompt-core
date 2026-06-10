@@ -23,6 +23,7 @@ pub mod types;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
@@ -146,12 +147,12 @@ impl CloudCommands {
     }
 }
 
-pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
-        CloudCommands::Auth(cmd) => auth::execute(cmd, config).await,
-        CloudCommands::Init { force } => init::execute(force, config),
-        CloudCommands::Tenant { command } => tenant::execute(command, config).await,
-        CloudCommands::Profile { command } => profile::execute(command, config).await,
+        CloudCommands::Auth(cmd) => auth::execute(cmd, ctx).await,
+        CloudCommands::Init { force } => init::execute(force, &ctx.cli),
+        CloudCommands::Tenant { command } => tenant::execute(command, ctx).await,
+        CloudCommands::Profile { command } => profile::execute(command, ctx).await,
         CloudCommands::Deploy {
             skip_push,
             profile,
@@ -169,26 +170,29 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
                     dry_run,
                     check,
                 },
-                config,
+                &ctx.cli,
             )
             .await
         },
-        CloudCommands::Doctor { profile } => doctor::execute(profile, config).await,
+        CloudCommands::Doctor { profile } => doctor::execute(profile, &ctx.cli).await,
         CloudCommands::Status => {
-            let result = status::execute(config).await?;
-            crate::shared::render_result(&result);
+            let result = status::execute(&ctx.cli).await?;
+            crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
         CloudCommands::Restart { tenant, yes } => {
-            let result = restart::execute(tenant, yes, config).await?;
-            crate::shared::render_result(&result);
+            let result = restart::execute(tenant, yes, &ctx.cli).await?;
+            crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
-        CloudCommands::Sync { command } => sync::execute(command, config).await,
-        CloudCommands::Secrets(cmd) => secrets::execute(cmd, config).await,
-        CloudCommands::Dockerfile => execute_dockerfile(config),
-        CloudCommands::Db(cmd) => db::execute(cmd, config).await,
-        CloudCommands::Domain(cmd) => domain::execute(cmd, config).await,
+        CloudCommands::Sync { command } => sync::execute(command, ctx).await,
+        CloudCommands::Secrets(cmd) => secrets::execute(cmd, ctx).await,
+        CloudCommands::Dockerfile => execute_dockerfile(&ctx.cli),
+        CloudCommands::Db(cmd) => match ctx.database_url() {
+            Some(database_url) => db::execute_with_database_url(cmd, database_url, ctx).await,
+            None => db::execute(cmd, ctx).await,
+        },
+        CloudCommands::Domain(cmd) => domain::execute(cmd, ctx).await,
     }
 }
 
@@ -204,10 +208,10 @@ fn execute_dockerfile(config: &CliConfig) -> Result<()> {
     };
 
     if config.is_json_output() {
-        crate::shared::render_result(&crate::shared::CommandOutput::copy_paste_titled(
-            "Dockerfile",
-            output.content,
-        ));
+        crate::shared::render_result(
+            &crate::shared::CommandOutput::copy_paste_titled("Dockerfile", output.content),
+            config,
+        );
     } else {
         systemprompt_logging::CliService::output(&content);
     }

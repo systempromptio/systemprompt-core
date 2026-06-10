@@ -27,8 +27,7 @@ pub mod validate;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::CliConfig;
-use crate::cli_settings::get_global_config;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -76,39 +75,32 @@ pub enum ConfigCommands {
     Secret(secret::SecretCommands),
 }
 
-pub async fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         ConfigCommands::Show => {
-            let result = show::execute(config)?;
-            render_result(&result);
+            let result = show::execute(&ctx.cli)?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         ConfigCommands::List(args) => {
-            let result = list::execute(args, config);
-            render_result(&result);
+            let result = list::execute(args, &ctx.cli);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         ConfigCommands::Validate(args) => {
-            let result = validate::execute(&args, config)?;
-            render_result(&result);
+            let result = validate::execute(&args, &ctx.cli)?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, config),
-        ConfigCommands::Server(ref cmd) => server::execute(cmd, config),
-        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, config),
-        ConfigCommands::Security(ref cmd) => security::execute(cmd, config),
-        ConfigCommands::Paths(cmd) => paths::execute(cmd, config),
-        ConfigCommands::Provider(cmd) => provider::execute(cmd, config),
-        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, config).await,
-        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, config),
-        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, config).await,
-        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, config),
+        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, &ctx.cli),
+        ConfigCommands::Server(ref cmd) => server::execute(cmd, &ctx.cli),
+        ConfigCommands::Runtime(cmd) => runtime::execute(cmd, &ctx.cli),
+        ConfigCommands::Security(ref cmd) => security::execute(cmd, &ctx.cli),
+        ConfigCommands::Paths(cmd) => paths::execute(cmd, &ctx.cli),
+        ConfigCommands::Provider(cmd) => provider::execute(cmd, &ctx.cli),
+        ConfigCommands::Gateway(ref cmd) => gateway::execute(cmd, &ctx.cli).await,
+        ConfigCommands::Governance(ref cmd) => governance::execute(cmd, &ctx.cli),
+        ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli).await,
+        ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli),
     }
-}
-
-pub fn execute_default() -> Result<()> {
-    let config = get_global_config();
-    let result = show::execute(&config)?;
-    render_result(&result);
-    Ok(())
 }

@@ -4,7 +4,7 @@ use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::CliSessionAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
 use crate::CliConfig;
@@ -39,20 +39,12 @@ pub struct LiveArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(args: LiveArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
-}
-
 pub(super) async fn execute_with_pool(
     args: LiveArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
-    let mut args = args;
-    args.no_refresh = true;
     execute_internal(args, &repo, config).await
 }
 
@@ -138,7 +130,7 @@ async fn fetch_live_sessions(
 fn render_output(output: &LiveSessionsOutput, config: &CliConfig) {
     let result = CommandOutput::table_of(LIVE_SESSION_COLUMNS.to_vec(), &output.sessions)
         .with_title("Live Sessions");
-    render_result(&result);
+    render_result(&result, config);
 
     if !config.is_json_output() && output.sessions.is_empty() {
         CliService::warning("No active sessions");

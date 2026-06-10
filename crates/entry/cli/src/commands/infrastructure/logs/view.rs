@@ -5,12 +5,12 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::models::LogEntry;
 use systemprompt_logging::{CliService, LogFilter, LoggingMaintenanceService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -37,19 +37,9 @@ pub struct ViewArgs {
     pub since: Option<String>,
 }
 
-pub(super) async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
-    execute_inner(args, &service, config).await
-}
-
-pub(super) async fn execute_with_pool(
-    args: ViewArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<CommandOutput> {
-    let service = LoggingMaintenanceService::new(db_ctx.db_pool())?;
-    execute_inner(args, &service, config).await
+pub(super) async fn execute(args: ViewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
+    execute_inner(args, &service, &ctx.cli).await
 }
 
 async fn execute_inner(

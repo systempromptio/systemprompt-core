@@ -12,9 +12,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -75,45 +74,25 @@ pub struct LiveSessionsOutput {
     pub timestamp: String,
 }
 
-pub async fn execute(command: SessionsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: SessionsCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
     match command {
         SessionsCommands::Stats(args) => {
-            let result = stats::execute(args, config).await?;
-            render_result(&result);
+            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         SessionsCommands::Trends(args) => {
-            let result = trends::execute(args, config).await?;
-            render_result(&result);
+            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        SessionsCommands::Live(args) => {
-            let result = live::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: SessionsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        SessionsCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        SessionsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        SessionsCommands::Live(args) => {
-            let result = live::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+        SessionsCommands::Live(mut args) => {
+            if ctx.is_database_scoped() {
+                args.no_refresh = true;
+            }
+            let result = live::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

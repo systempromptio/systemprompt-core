@@ -13,9 +13,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -72,45 +71,22 @@ pub struct ConversationListOutput {
     pub total: i64,
 }
 
-pub async fn execute(command: ConversationsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: ConversationsCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
     match command {
         ConversationsCommands::Stats(args) => {
-            let result = stats::execute(args, config).await?;
-            render_result(&result);
+            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         ConversationsCommands::Trends(args) => {
-            let result = trends::execute(args, config).await?;
-            render_result(&result);
+            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         ConversationsCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: ConversationsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        ConversationsCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        ConversationsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        ConversationsCommands::List(args) => {
-            let result = list::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = list::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

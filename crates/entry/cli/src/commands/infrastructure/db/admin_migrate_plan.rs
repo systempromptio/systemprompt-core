@@ -72,7 +72,7 @@ async fn run_migrate_plan(
             &output.pending,
         )
         .with_title("Migration Plan");
-        render_result(&result);
+        render_result(&result, config);
     } else if output.pending.is_empty() {
         CliService::success("No pending migrations");
     } else {

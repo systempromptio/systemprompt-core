@@ -105,7 +105,7 @@ fn render(
                 .collect(),
         };
         let result = CommandOutput::card_value("Database Doctor", &report);
-        render_result(&result);
+        render_result(&result, config);
         return;
     }
 

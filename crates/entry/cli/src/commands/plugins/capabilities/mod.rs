@@ -48,25 +48,25 @@ pub enum CapabilitiesCommands {
 pub(super) fn execute(args: CapabilitiesArgs, config: &CliConfig) {
     match args.cmd {
         None => {
-            render_result(&execute_summary(config));
+            render_result(&execute_summary(config), config);
         },
         Some(CapabilitiesCommands::Jobs(args)) => {
-            render_result(&jobs::execute(&args, config));
+            render_result(&jobs::execute(&args, config), config);
         },
         Some(CapabilitiesCommands::Templates(args)) => {
-            render_result(&templates::execute(&args, config));
+            render_result(&templates::execute(&args, config), config);
         },
         Some(CapabilitiesCommands::Schemas(args)) => {
-            render_result(&schemas::execute(&args, config));
+            render_result(&schemas::execute(&args, config), config);
         },
         Some(CapabilitiesCommands::Tools(args)) => {
-            render_result(&tools::execute(&args, config));
+            render_result(&tools::execute(&args, config), config);
         },
         Some(CapabilitiesCommands::Roles(args)) => {
-            render_result(&roles::execute(&args, config));
+            render_result(&roles::execute(&args, config), config);
         },
         Some(CapabilitiesCommands::LlmProviders(args)) => {
-            render_result(&llm_providers::execute(&args, config));
+            render_result(&llm_providers::execute(&args, config), config);
         },
     }
 }

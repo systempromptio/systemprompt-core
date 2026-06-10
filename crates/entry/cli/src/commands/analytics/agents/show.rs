@@ -40,12 +40,6 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
-}
-
 pub(super) async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,

@@ -59,7 +59,7 @@ pub fn execute(command: &ServerCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-pub(super) fn execute_show(_config: &CliConfig) -> Result<()> {
+pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = ServerConfigOutput {
@@ -72,7 +72,10 @@ pub(super) fn execute_show(_config: &CliConfig) -> Result<()> {
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
     };
 
-    render_result(&CommandOutput::card_value("Server Configuration", &output));
+    render_result(
+        &CommandOutput::card_value("Server Configuration", &output),
+        config,
+    );
 
     Ok(())
 }
@@ -144,7 +147,7 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     save_profile(&profile, profile_path)?;
 
     for change in &changes {
-        render_result(&CommandOutput::card_value("Server Updated", change));
+        render_result(&CommandOutput::card_value("Server Updated", change), config);
     }
 
     if config.output_format() == OutputFormat::Table {

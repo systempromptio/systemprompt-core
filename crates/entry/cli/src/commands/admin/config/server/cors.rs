@@ -38,13 +38,13 @@ pub struct CorsRemoveArgs {
 
 pub(super) fn execute(command: &CorsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        CorsCommands::List => execute_list(),
+        CorsCommands::List => execute_list(config),
         CorsCommands::Add(args) => execute_add(args, config),
         CorsCommands::Remove(args) => execute_remove(args, config),
     }
 }
 
-fn execute_list() -> Result<()> {
+fn execute_list(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = CorsListOutput {
@@ -57,7 +57,10 @@ fn execute_list() -> Result<()> {
         .into_iter()
         .map(|origin| ListItem::new(origin, String::new(), String::new()))
         .collect();
-    render_result(&CommandOutput::list(items).with_title("CORS Allowed Origins"));
+    render_result(
+        &CommandOutput::list(items).with_title("CORS Allowed Origins"),
+        config,
+    );
 
     Ok(())
 }
@@ -72,7 +75,7 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
             origin: args.origin.clone(),
             message: format!("Origin {} already exists", args.origin),
         };
-        render_result(&CommandOutput::card_value("CORS Origin", &output));
+        render_result(&CommandOutput::card_value("CORS Origin", &output), config);
         return Ok(());
     }
 
@@ -87,7 +90,10 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Added CORS origin: {}", args.origin),
     };
-    render_result(&CommandOutput::card_value("CORS Origin Added", &output));
+    render_result(
+        &CommandOutput::card_value("CORS Origin Added", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -112,7 +118,7 @@ fn execute_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
             origin: args.origin.clone(),
             message: format!("Origin {} not found", args.origin),
         };
-        render_result(&CommandOutput::card_value("CORS Origin", &output));
+        render_result(&CommandOutput::card_value("CORS Origin", &output), config);
         return Ok(());
     }
 
@@ -123,7 +129,10 @@ fn execute_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
         origin: args.origin.clone(),
         message: format!("Removed CORS origin: {}", args.origin),
     };
-    render_result(&CommandOutput::card_value("CORS Origin Removed", &output));
+    render_result(
+        &CommandOutput::card_value("CORS Origin Removed", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

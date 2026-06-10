@@ -5,7 +5,7 @@
 
 mod generate_setup_token;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::Subcommand;
@@ -18,11 +18,11 @@ pub enum WebauthnCommands {
     GenerateSetupToken(generate_setup_token::Args),
 }
 
-pub(super) async fn execute(cmd: WebauthnCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: WebauthnCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         WebauthnCommands::GenerateSetupToken(args) => {
-            let result = generate_setup_token::execute(args, config).await?;
-            render_result(&result);
+            let result = generate_setup_token::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

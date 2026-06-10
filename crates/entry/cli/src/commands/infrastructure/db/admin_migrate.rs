@@ -92,7 +92,7 @@ async fn run_install(
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::success(&output.message);
     }

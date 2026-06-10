@@ -1,18 +1,16 @@
 //! Role-management subcommands for users.
 //!
 //! [`RoleCommands`] covers assigning arbitrary roles plus the built-in admin
-//! promote/demote shortcuts. All operations require full profile context, so
-//! [`execute_with_pool`] rejects the bare-pool path.
+//! promote/demote shortcuts. All operations require a full profile context.
 
 mod assign;
 mod demote;
 mod promote;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_database::DbPool;
 
 #[derive(Debug, Subcommand)]
 pub enum RoleCommands {
@@ -36,30 +34,26 @@ pub enum RoleCommands {
     Demote(demote::DemoteArgs),
 }
 
-pub(super) async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: RoleCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped() {
+        bail!("Role management operations require full profile context");
+    }
+
     match cmd {
         RoleCommands::Assign(args) => {
-            let result = assign::execute(args, config).await?;
-            render_result(&result);
+            let result = assign::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         RoleCommands::Promote(args) => {
-            let result = promote::execute(args, config).await?;
-            render_result(&result);
+            let result = promote::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         RoleCommands::Demote(args) => {
-            let result = demote::execute(args, config).await?;
-            render_result(&result);
+            let result = demote::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }
-}
-
-pub(super) fn execute_with_pool(
-    _cmd: RoleCommands,
-    _pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<()> {
-    bail!("Role management operations require full profile context")
 }

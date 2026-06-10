@@ -84,7 +84,7 @@ async fn execute_with_pool_inner(
             &output.executions,
         )
         .with_title("MCP Tool Executions");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         render_tool_list(&output, &args);
     }

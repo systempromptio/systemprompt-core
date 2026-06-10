@@ -4,7 +4,7 @@
 //! once at process start ([`EnvOverrides::from_process_env`]) and threaded
 //! through [`crate::context::CommandContext`]. Command code never calls
 //! `std::env::var` directly — tests construct the snapshot with
-//! [`EnvOverrides::from_iter`] instead of mutating process state.
+//! [`EnvOverrides::from_vars`] instead of mutating process state.
 
 use std::collections::HashMap;
 
@@ -39,7 +39,7 @@ impl EnvOverrides {
     }
 
     #[must_use]
-    pub fn from_iter<I, K, V>(vars: I) -> Self
+    pub fn from_vars<I, K, V>(vars: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
         K: Into<String>,

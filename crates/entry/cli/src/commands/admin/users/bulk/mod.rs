@@ -7,7 +7,7 @@
 mod delete;
 mod update;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::Subcommand;
@@ -21,16 +21,16 @@ pub enum BulkCommands {
     Update(update::UpdateArgs),
 }
 
-pub(super) async fn execute(cmd: BulkCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: BulkCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         BulkCommands::Delete(args) => {
-            let result = delete::execute(args, config).await?;
-            render_result(&result);
+            let result = delete::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         BulkCommands::Update(args) => {
-            let result = update::execute(args, config).await?;
-            render_result(&result);
+            let result = update::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

@@ -14,8 +14,7 @@ mod validate;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::CliConfig;
-use crate::cli_settings::get_global_config;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Subcommand)]
@@ -36,12 +35,8 @@ pub enum WebCommands {
     Validate(validate::ValidateArgs),
 }
 
-pub fn execute(command: WebCommands) -> Result<()> {
-    let config = get_global_config();
-    execute_with_config(command, &config)
-}
-
-pub fn execute_with_config(command: WebCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: WebCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     match command {
         WebCommands::ContentTypes(cmd) => content_types::execute(cmd, config),
         WebCommands::Templates(cmd) => templates::execute(cmd, config),
@@ -51,10 +46,10 @@ pub fn execute_with_config(command: WebCommands, config: &CliConfig) -> Result<(
             let output = validate::execute(&args, config)?;
             let valid = output.valid;
             let error_count = output.errors.len();
-            render_result(&CommandOutput::card_value(
-                "Web Configuration Validation",
-                &output,
-            ));
+            render_result(
+                &CommandOutput::card_value("Web Configuration Validation", &output),
+                config,
+            );
             if !valid {
                 return Err(anyhow::anyhow!(
                     "web configuration is invalid: {error_count} error(s), see report above",

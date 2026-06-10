@@ -26,7 +26,7 @@ pub use args::{CreateArgs, DeleteArgs, EditArgs, ProfileCommands, ShowFilter, Te
 pub use create::{CreatedProfile, create_profile_for_tenant};
 pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;
 use dialoguer::Select;
@@ -34,17 +34,17 @@ use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
-pub async fn execute(cmd: Option<ProfileCommands>, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: Option<ProfileCommands>, ctx: &CommandContext) -> Result<()> {
     if let Some(cmd) = cmd {
-        execute_command(cmd, config).await.map(drop)
+        execute_command(cmd, ctx).await.map(drop)
     } else {
-        if !config.is_interactive() {
+        if !ctx.cli.is_interactive() {
             return Err(anyhow::anyhow!(
                 "Profile subcommand required in non-interactive mode"
             ));
         }
         while let Some(cmd) = select_operation()? {
-            if execute_command(cmd, config).await? {
+            if execute_command(cmd, ctx).await? {
                 break;
             }
         }
@@ -52,12 +52,12 @@ pub async fn execute(cmd: Option<ProfileCommands>, config: &CliConfig) -> Result
     }
 }
 
-async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<bool> {
+async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        ProfileCommands::Create(args) => create::execute(&args, config).await.map(|()| true),
+        ProfileCommands::Create(args) => create::execute(&args, &ctx.cli).await.map(|()| true),
         ProfileCommands::List => {
-            let result = list::execute(config)?;
-            render_result(&result);
+            let result = list::execute(ctx)?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
         ProfileCommands::Show {
@@ -65,13 +65,13 @@ async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<boo
             filter,
             json,
             yaml,
-        } => show::execute(name.as_deref(), filter, json, yaml, config).map(|()| false),
+        } => show::execute(name.as_deref(), filter, json, yaml, ctx).map(|()| false),
         ProfileCommands::Delete(args) => {
-            let result = delete::execute(&args, config)?;
-            render_result(&result);
+            let result = delete::execute(&args, &ctx.cli)?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
-        ProfileCommands::Edit(args) => edit::execute(&args, config).map(|()| false),
+        ProfileCommands::Edit(args) => edit::execute(&args, ctx).map(|()| false),
     }
 }
 

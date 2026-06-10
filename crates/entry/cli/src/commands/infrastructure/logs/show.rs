@@ -101,7 +101,7 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
 
     if config.is_json_output() || json {
         let result = CommandOutput::card_value("Log Entry Details", &output);
-        render_result(&result);
+        render_result(&result, config);
         return;
     }
 
@@ -164,7 +164,7 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
             &output.logs,
         )
         .with_title("Logs for Trace");
-        render_result(&result);
+        render_result(&result, config);
         return;
     }
 

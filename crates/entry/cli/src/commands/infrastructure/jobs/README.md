@@ -596,7 +596,7 @@ CREATE TABLE scheduled_jobs (
 
 ## Compliance Checklist
 
-- [x] All `execute` functions accept `config: &CliConfig`
+- [x] Group dispatch accepts `ctx: &CommandContext`; leaf `execute` functions accept `config: &CliConfig`
 - [x] All commands return `CommandResult<T>` with proper artifact type
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
 - [x] No `println!` / `eprintln!` - uses `render_result()`

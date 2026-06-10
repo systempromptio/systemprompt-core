@@ -69,7 +69,10 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     };
 
     save_profile(&profile, profile_path)?;
-    render_result(&CommandOutput::card_value("Rate Limit Updated", &output));
+    render_result(
+        &CommandOutput::card_value("Rate Limit Updated", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -87,7 +90,10 @@ pub(super) fn execute_enable(config: &CliConfig) -> Result<()> {
             enabled: true,
             message: "Rate limiting is already enabled".to_owned(),
         };
-        render_result(&CommandOutput::card_value("Rate Limit Status", &output));
+        render_result(
+            &CommandOutput::card_value("Rate Limit Status", &output),
+            config,
+        );
         return Ok(());
     }
 
@@ -98,7 +104,10 @@ pub(super) fn execute_enable(config: &CliConfig) -> Result<()> {
         enabled: true,
         message: "Rate limiting enabled".to_owned(),
     };
-    render_result(&CommandOutput::card_value("Rate Limit Status", &output));
+    render_result(
+        &CommandOutput::card_value("Rate Limit Status", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -116,7 +125,10 @@ pub(super) fn execute_disable(config: &CliConfig) -> Result<()> {
             enabled: false,
             message: "Rate limiting is already disabled".to_owned(),
         };
-        render_result(&CommandOutput::card_value("Rate Limit Status", &output));
+        render_result(
+            &CommandOutput::card_value("Rate Limit Status", &output),
+            config,
+        );
         return Ok(());
     }
 
@@ -127,7 +139,10 @@ pub(super) fn execute_disable(config: &CliConfig) -> Result<()> {
         enabled: false,
         message: "Rate limiting disabled".to_owned(),
     };
-    render_result(&CommandOutput::card_value("Rate Limit Status", &output));
+    render_result(
+        &CommandOutput::card_value("Rate Limit Status", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

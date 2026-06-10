@@ -456,7 +456,7 @@ sp --json db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 
 ## Compliance Checklist
 
-- [x] All `execute` functions accept `config: &CliConfig`
+- [x] All `execute` entry points accept `ctx: &CommandContext`
 - [x] All output types derive `Serialize`, `Deserialize`
 - [x] No `println!` / `eprintln!` - uses `CliService`
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`

@@ -7,7 +7,7 @@ use systemprompt_analytics::RequestAnalyticsRepository;
 use systemprompt_analytics::models::cli::RequestListRow;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
@@ -61,12 +61,6 @@ pub(super) struct RequestListRowOutput {
 pub(super) struct RequestListOutput {
     pub total: i64,
     pub requests: Vec<RequestListRowOutput>,
-}
-
-pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub(super) async fn execute_with_pool(

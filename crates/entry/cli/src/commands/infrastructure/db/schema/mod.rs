@@ -65,7 +65,7 @@ pub(super) async fn execute_tables(
         let result =
             CommandOutput::table_of(vec!["name", "row_count", "size_bytes"], &output.tables)
                 .with_title("Schema");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::section("Tables");
 
@@ -144,7 +144,7 @@ pub(super) async fn execute_describe(
             &output.columns,
         )
         .with_title("Schema");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::section(&format!("Table: {} ({} rows)", table_name, row_count));
         CliService::subsection("Columns");
@@ -185,7 +185,7 @@ pub(super) async fn execute_info(admin: &DatabaseAdminService, config: &CliConfi
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Schema", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::section("Database Info");
         CliService::key_value("Database", &output.database);
@@ -221,7 +221,7 @@ pub(super) async fn execute_count(
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Row Count", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::info(&format!("{}: {} rows", table_name, count));
     }

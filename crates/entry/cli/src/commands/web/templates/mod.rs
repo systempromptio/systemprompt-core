@@ -38,27 +38,27 @@ pub fn execute(command: TemplatesCommands, config: &CliConfig) -> Result<()> {
     match command {
         TemplatesCommands::List(args) => {
             let result = list::execute(args, config).context("Failed to list templates")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Show(args) => {
             let result = show::execute(args, config).context("Failed to show template")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Create(args) => {
             let result = create::execute(args, config).context("Failed to create template")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Edit(args) => {
             let result = edit::execute(args, config).context("Failed to edit template")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         TemplatesCommands::Delete(args) => {
             let result = delete::execute(args, config).context("Failed to delete template")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
     }

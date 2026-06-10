@@ -10,11 +10,12 @@ use super::EditArgs;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
 use super::templates::save_profile;
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::resolve_profile_path;
 
-pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
-    let profile_path = resolve_profile_path(args.name.as_deref(), None)?;
+pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
+    let profile_path =
+        resolve_profile_path(args.name.as_deref(), ctx.env.profile.as_deref(), None)?;
     let profile_dir = profile_path
         .parent()
         .context("Invalid profile path")?
@@ -24,7 +25,7 @@ pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
         return apply_updates(args, &profile_path, &profile_dir);
     }
 
-    if !config.is_interactive() {
+    if !ctx.cli.is_interactive() {
         return Err(anyhow::anyhow!(
             "Profile edit requires --set-* flags in non-interactive mode.\nAvailable flags:\n  \
              --set-anthropic-key <KEY>\n  --set-openai-key <KEY>\n  --set-gemini-key <KEY>\n  \

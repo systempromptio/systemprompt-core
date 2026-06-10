@@ -14,6 +14,7 @@ use systemprompt_logging::CliService;
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum DomainCommands {
@@ -33,11 +34,11 @@ pub enum DomainCommands {
     },
 }
 
-pub(super) async fn execute(cmd: DomainCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: DomainCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         DomainCommands::Set { domain } => set_domain(domain).await,
         DomainCommands::Status => get_status().await,
-        DomainCommands::Remove { yes } => remove_domain(yes, config).await,
+        DomainCommands::Remove { yes } => remove_domain(yes, &ctx.cli).await,
     }
 }
 

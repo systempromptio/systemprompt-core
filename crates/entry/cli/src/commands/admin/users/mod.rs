@@ -1,10 +1,9 @@
 //! User administration command tree.
 //!
 //! [`UsersCommands`] groups the user CRUD, search, export, stats, merge, and
-//! the `bulk`, `role`, `session`, `ban`, and `webauthn` subcommand trees.
-//! [`execute`] runs against a full profile; [`execute_with_db`] serves the
-//! read-only subset that needs only a database pool and rejects write
-//! operations.
+//! the `bulk`, `role`, `session`, `ban`, and `webauthn` subcommand trees. On a
+//! `--database-url` invocation only the read-only commands are served; write
+//! operations require a full profile context.
 
 mod ban;
 mod bulk;
@@ -23,11 +22,10 @@ mod types;
 mod update;
 mod webauthn;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
 pub use types::*;
 
@@ -79,114 +77,76 @@ pub enum UsersCommands {
     Webauthn(webauthn::WebauthnCommands),
 }
 
-pub async fn execute(cmd: UsersCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped()
+        && matches!(
+            cmd,
+            UsersCommands::Create(_)
+                | UsersCommands::Update(_)
+                | UsersCommands::Delete(_)
+                | UsersCommands::Merge(_)
+                | UsersCommands::Bulk(_)
+                | UsersCommands::Webauthn(_)
+        )
+    {
+        bail!("Write operations require full profile context");
+    }
+
     match cmd {
         UsersCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
+            let result = list::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Show(args) => {
-            let result = show::execute(args, config).await?;
-            render_result(&result);
+            let result = show::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Search(args) => {
-            let result = search::execute(args, config).await?;
-            render_result(&result);
+            let result = search::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Create(args) => {
-            let result = create::execute(args, config).await?;
-            render_result(&result);
+            let result = create::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Update(args) => {
-            let result = update::execute(args, config).await?;
-            render_result(&result);
+            let result = update::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Delete(args) => {
-            let result = delete::execute(args, config).await?;
-            render_result(&result);
+            let result = delete::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Count(args) => {
-            let result = count::execute(args, config).await?;
-            render_result(&result);
+            let result = count::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Export(args) => {
-            let result = export::execute(args, config).await?;
-            render_result(&result);
+            let result = export::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Stats => {
-            let result = stats::execute(config).await?;
-            render_result(&result);
+            let result = stats::execute(ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         UsersCommands::Merge(args) => {
-            let result = merge::execute(args, config).await?;
-            render_result(&result);
+            let result = merge::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        UsersCommands::Bulk(cmd) => bulk::execute(cmd, config).await,
-        UsersCommands::Role(cmd) => role::execute(cmd, config).await,
-        UsersCommands::Session(cmd) => session::execute(cmd, config).await,
-        UsersCommands::Ban(cmd) => ban::execute(cmd, config).await,
-        UsersCommands::Webauthn(cmd) => webauthn::execute(cmd, config).await,
-    }
-}
-
-pub async fn execute_with_db(
-    cmd: UsersCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match cmd {
-        UsersCommands::List(args) => {
-            let result = list::execute_with_pool(args, db_ctx.db_pool(), config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        UsersCommands::Show(args) => {
-            let result = show::execute_with_pool(args, db_ctx.db_pool(), config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        UsersCommands::Search(args) => {
-            let result = search::execute_with_pool(args, db_ctx.db_pool(), config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        UsersCommands::Count(args) => {
-            let result = count::execute_with_pool(args, db_ctx.db_pool(), config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        UsersCommands::Export(args) => {
-            let result = export::execute_with_pool(args, db_ctx.db_pool(), config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        UsersCommands::Stats => {
-            let result = stats::execute_with_pool(db_ctx.db_pool(), config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        UsersCommands::Session(cmd) => {
-            session::execute_with_pool(cmd, db_ctx.db_pool(), config).await
-        },
-        UsersCommands::Ban(cmd) => ban::execute_with_pool(cmd, db_ctx.db_pool(), config).await,
-        UsersCommands::Role(cmd) => role::execute_with_pool(cmd, db_ctx.db_pool(), config),
-        UsersCommands::Create(_)
-        | UsersCommands::Update(_)
-        | UsersCommands::Delete(_)
-        | UsersCommands::Merge(_)
-        | UsersCommands::Bulk(_)
-        | UsersCommands::Webauthn(_) => {
-            bail!("Write operations require full profile context")
-        },
+        UsersCommands::Bulk(cmd) => bulk::execute(cmd, ctx).await,
+        UsersCommands::Role(cmd) => role::execute(cmd, ctx).await,
+        UsersCommands::Session(cmd) => session::execute(cmd, ctx).await,
+        UsersCommands::Ban(cmd) => ban::execute(cmd, ctx).await,
+        UsersCommands::Webauthn(cmd) => webauthn::execute(cmd, ctx).await,
     }
 }

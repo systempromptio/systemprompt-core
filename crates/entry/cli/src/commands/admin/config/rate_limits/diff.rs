@@ -51,6 +51,7 @@ pub(super) fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
     render_result(
         &CommandOutput::table_of(vec!["field", "current", "other"], &output.differences)
             .with_title("Rate Limits Diff"),
+        config,
     );
 
     if config.output_format() == OutputFormat::Table {

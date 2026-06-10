@@ -14,8 +14,8 @@ use std::process::Command;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_runtime::DatabaseContext;
 
-use crate::cli_settings::CliConfig;
 use crate::commands::infrastructure::db;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum CloudDbCommands {
@@ -193,33 +193,33 @@ impl CloudDbCommands {
     }
 }
 
-pub async fn execute(cmd: CloudDbCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: CloudDbCommands, ctx: &CommandContext) -> Result<()> {
     let profile_name = cmd.profile_name().to_owned();
     let db_url = load_cloud_database_url(&profile_name)?;
-    execute_inner(cmd, &profile_name, &db_url, config).await
+    execute_inner(cmd, &profile_name, &db_url, ctx).await
 }
 
 pub async fn execute_with_database_url(
     cmd: CloudDbCommands,
     database_url: &str,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
     let profile_name = cmd.profile_name().to_owned();
-    execute_inner(cmd, &profile_name, database_url, config).await
+    execute_inner(cmd, &profile_name, database_url, ctx).await
 }
 
 async fn execute_inner(
     cmd: CloudDbCommands,
     profile_name: &str,
     db_url: &str,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
     match &cmd {
         CloudDbCommands::Backup { format, output, .. } => {
             return backup::execute(profile_name, db_url, *format, output.as_deref());
         },
         CloudDbCommands::Restore { file, yes, .. } => {
-            return restore::execute(profile_name, db_url, file, *yes, config);
+            return restore::execute(profile_name, db_url, file, *yes, &ctx.cli);
         },
         _ => {},
     }
@@ -229,7 +229,9 @@ async fn execute_inner(
         .into_db_command()
         .ok_or_else(|| anyhow!("Unexpected command variant"))?;
 
-    db::execute_with_db(db_cmd, &db_ctx, config).await
+    let db_scoped =
+        CommandContext::with_database(ctx.cli.clone(), ctx.env.clone(), db_ctx, db_url.to_owned());
+    db::execute(db_cmd, &db_scoped).await
 }
 
 fn load_cloud_database_url(profile_name: &str) -> Result<String> {

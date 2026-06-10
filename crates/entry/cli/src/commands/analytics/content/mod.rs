@@ -12,9 +12,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -75,45 +74,22 @@ pub struct ContentTrendsOutput {
     pub points: Vec<ContentTrendPoint>,
 }
 
-pub async fn execute(command: ContentCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
     match command {
         ContentCommands::Stats(args) => {
-            let result = stats::execute(args, config).await?;
-            render_result(&result);
+            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         ContentCommands::Top(args) | ContentCommands::Popular(args) => {
-            let result = top::execute(args, config).await?;
-            render_result(&result);
+            let result = top::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         ContentCommands::Trends(args) => {
-            let result = trends::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: ContentCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        ContentCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        ContentCommands::Top(args) | ContentCommands::Popular(args) => {
-            let result = top::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        ContentCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

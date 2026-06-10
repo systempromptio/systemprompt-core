@@ -99,24 +99,18 @@ fn resolve_profile_from_path_missing_returns_not_found() {
 #[test]
 fn resolve_profile_path_no_profiles_in_empty_home() {
     let (_home, _g) = isolate_home();
-    let err = resolve_profile_path(None, None).unwrap_err();
+    let err = resolve_profile_path(None, None, None).unwrap_err();
     assert!(matches!(err, ProfileResolutionError::NoProfilesFound));
 }
 
 #[test]
-fn resolve_profile_path_from_env_var() {
+fn resolve_profile_path_from_env_override() {
     let (_home, _g) = isolate_home();
     let dir = tempdir().unwrap();
     let p = dir.path().join("profile.yaml");
     std::fs::write(&p, "name: env\n").unwrap();
-    unsafe {
-        std::env::set_var("SYSTEMPROMPT_PROFILE", p.to_str().unwrap());
-    }
-    let resolved = resolve_profile_path(None, None).unwrap();
+    let resolved = resolve_profile_path(None, Some(p.to_str().unwrap()), None).unwrap();
     assert_eq!(resolved, p);
-    unsafe {
-        std::env::remove_var("SYSTEMPROMPT_PROFILE");
-    }
 }
 
 #[test]
@@ -125,7 +119,7 @@ fn resolve_profile_path_with_cli_override_takes_priority() {
     let dir = tempdir().unwrap();
     let p = dir.path().join("profile.yaml");
     std::fs::write(&p, "name: override\n").unwrap();
-    let resolved = resolve_profile_path(Some(p.to_str().unwrap()), None).unwrap();
+    let resolved = resolve_profile_path(Some(p.to_str().unwrap()), None, None).unwrap();
     assert_eq!(resolved, p);
 }
 

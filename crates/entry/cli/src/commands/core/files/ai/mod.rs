@@ -31,21 +31,21 @@ pub async fn execute(cmd: AiCommands, config: &CliConfig) -> Result<()> {
             let result = list::execute(args, config)
                 .await
                 .context("Failed to list AI images")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         AiCommands::Show(args) => {
             let result = show::execute(args, config)
                 .await
                 .context("Failed to show AI image")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         AiCommands::Count(args) => {
             let result = count::execute(args, config)
                 .await
                 .context("Failed to count AI images")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
     }

@@ -36,7 +36,7 @@ use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use create_flow::tenant_create;
 
@@ -92,17 +92,17 @@ pub struct TenantCancelArgs {
     pub id: Option<String>,
 }
 
-pub async fn execute(cmd: Option<TenantCommands>, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Result<()> {
     if let Some(cmd) = cmd {
-        execute_command(cmd, config).await.map(drop)
+        execute_command(cmd, ctx).await.map(drop)
     } else {
-        if !config.is_interactive() {
+        if !ctx.cli.is_interactive() {
             return Err(anyhow::anyhow!(
                 "Tenant subcommand required in non-interactive mode"
             ));
         }
         while let Some(cmd) = select_operation()? {
-            if execute_command(cmd, config).await? {
+            if execute_command(cmd, ctx).await? {
                 break;
             }
         }
@@ -110,38 +110,39 @@ pub async fn execute(cmd: Option<TenantCommands>, config: &CliConfig) -> Result<
     }
 }
 
-async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool> {
+async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        TenantCommands::Create { region } => tenant_create(&region, config).await.map(|()| true),
+        TenantCommands::Create { region } => tenant_create(&region, &ctx.cli).await.map(|()| true),
         TenantCommands::List => {
-            let result = list_tenants(config).await?;
-            render_result(&result);
+            let result = list_tenants(&ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Show { id } => {
-            let result = show_tenant(id.as_ref(), config)?;
-            render_result(&result);
+            let result = show_tenant(id.as_ref(), &ctx.cli)?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Delete(args) => {
-            let result = delete_tenant(args, config).await?;
-            render_result(&result);
+            let result = delete_tenant(args, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Edit { id } => {
-            let result = edit_tenant(id, config)?;
-            render_result(&result);
+            let result = edit_tenant(id, &ctx.cli)?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::RotateCredentials(args) => {
             let result =
-                rotate_credentials(args.id, args.yes || !config.is_interactive(), config).await?;
-            render_result(&result);
+                rotate_credentials(args.id, args.yes || !ctx.cli.is_interactive(), &ctx.cli)
+                    .await?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Cancel(args) => {
-            let result = cancel_subscription(args, config).await?;
-            render_result(&result);
+            let result = cancel_subscription(args, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(false)
         },
     }

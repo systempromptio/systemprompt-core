@@ -64,7 +64,7 @@ pub enum ContentCommands {
     Files(files::ContentFilesCommands),
 }
 
-pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<()> {
+fn ensure_full_profile(command: &ContentCommands, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped()
         && matches!(
             command,
@@ -78,6 +78,11 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
     {
         bail!("This content command requires full profile context");
     }
+    Ok(())
+}
+
+pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<()> {
+    ensure_full_profile(&command, ctx)?;
 
     match command {
         ContentCommands::List(args) => {

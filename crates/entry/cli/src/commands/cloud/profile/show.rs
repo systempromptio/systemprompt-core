@@ -14,6 +14,7 @@ use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result, resolve_profile_path};
 
 pub(super) fn execute(
@@ -21,9 +22,9 @@ pub(super) fn execute(
     filter: ShowFilter,
     json_output: bool,
     yaml_output: bool,
-    _cli_config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
-    let profile_path = resolve_profile_path(name, None)?;
+    let profile_path = resolve_profile_path(name, ctx.env.profile.as_deref(), None)?;
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
@@ -41,7 +42,7 @@ pub(super) fn execute(
     let full_config =
         build_config_for_filter(filter, config, services_config.as_ref(), paths.as_ref());
 
-    output_config(&full_config, json_output, yaml_output);
+    output_config(&full_config, json_output, yaml_output, &ctx.cli);
     Ok(())
 }
 
@@ -202,10 +203,10 @@ pub(super) fn load_content_config(paths: &AppPaths) -> Option<ContentConfigRaw> 
     }
 }
 
-fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) {
+fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool, cli: &CliConfig) {
     if json_output {
         let result = CommandOutput::card_value("Profile Configuration", config);
-        render_result(&result);
+        render_result(&result, cli);
     } else if yaml_output {
         CliService::yaml(config);
     } else {

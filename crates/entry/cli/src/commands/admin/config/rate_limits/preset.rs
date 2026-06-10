@@ -28,7 +28,7 @@ pub(super) fn execute_preset(command: PresetCommands, config: &CliConfig) -> Res
     }
 }
 
-fn execute_preset_list(_config: &CliConfig) {
+fn execute_preset_list(config: &CliConfig) {
     let presets = vec![
         PresetInfo {
             name: "development".to_owned(),
@@ -51,10 +51,11 @@ fn execute_preset_list(_config: &CliConfig) {
     render_result(
         &CommandOutput::table_of(vec!["name", "description", "builtin"], &output.presets)
             .with_title("Available Presets"),
+        config,
     );
 }
 
-fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> {
+fn execute_preset_show(args: PresetShowArgs, config: &CliConfig) -> Result<()> {
     let limits = get_preset_config(&args.name)?;
     let description = get_preset_description(&args.name)?;
 
@@ -86,7 +87,10 @@ fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> 
         },
     };
 
-    render_result(&CommandOutput::card_value("Preset Configuration", &output));
+    render_result(
+        &CommandOutput::card_value("Preset Configuration", &output),
+        config,
+    );
 
     Ok(())
 }
@@ -152,6 +156,7 @@ fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()
     render_result(
         &CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
             .with_title("Preset Applied"),
+        config,
     );
 
     if config.output_format() == OutputFormat::Table {

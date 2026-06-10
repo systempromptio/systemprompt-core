@@ -1,4 +1,4 @@
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use anyhow::{Context, Result};
 use clap::Args;
 use std::process::Stdio;
@@ -15,7 +15,7 @@ pub struct RunArgs {
     pub args: Vec<String>,
 }
 
-pub(super) async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
 
     let extension = ExtensionLoader::find_cli_extension(&project_root, &args.extension)
@@ -53,11 +53,11 @@ pub(super) async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
         cmd.env("OAUTH_AT_REST_PEPPER", pepper);
     }
 
-    if let Ok(database_url) = std::env::var("DATABASE_URL") {
+    if let Some(database_url) = &ctx.env.database_url {
         cmd.env("DATABASE_URL", database_url);
     }
 
-    if config.is_json_output() && extension.supports_json_output() {
+    if ctx.cli.is_json_output() && extension.supports_json_output() {
         cmd.arg("--json");
     }
 

@@ -7,7 +7,7 @@ mod login;
 mod logout;
 mod whoami;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -38,21 +38,21 @@ pub struct LogoutArgs {
     pub yes: bool,
 }
 
-pub async fn execute(cmd: AuthCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: AuthCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         AuthCommands::Login { environment } => {
-            let result = login::execute(environment, config).await?;
-            render_result(&result);
+            let result = login::execute(environment, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         AuthCommands::Logout(args) => {
-            let result = logout::execute(args, config).await?;
-            render_result(&result);
+            let result = logout::execute(args, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         AuthCommands::Whoami => {
-            let result = whoami::execute(config).await?;
-            render_result(&result);
+            let result = whoami::execute(&ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

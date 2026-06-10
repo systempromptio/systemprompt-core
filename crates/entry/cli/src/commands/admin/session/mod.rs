@@ -11,7 +11,7 @@ pub mod types;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
 
@@ -44,31 +44,31 @@ impl DescribeCommand for SessionCommands {
     }
 }
 
-pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         SessionCommands::Show => {
-            let result = show::execute(config);
-            render_result(&result);
+            let result = show::execute(&ctx.cli);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         SessionCommands::Switch { profile_name } => {
-            let result = switch::execute(&profile_name, config).await?;
-            render_result(&result);
+            let result = switch::execute(&profile_name, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         SessionCommands::List => {
-            let result = list::execute(config);
-            render_result(&result);
+            let result = list::execute(&ctx.cli);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         SessionCommands::Login(args) => {
-            let result = login::execute(args, config).await?;
-            render_result(&result);
+            let result = login::execute(args, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         SessionCommands::Logout(ref args) => {
-            let result = logout::execute(args, config)?;
-            render_result(&result);
+            let result = logout::execute(args, &ctx.cli)?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

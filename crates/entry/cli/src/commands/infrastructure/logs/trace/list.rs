@@ -4,6 +4,7 @@ use std::sync::Arc;
 use systemprompt_logging::{CliService, TraceListFilter, TraceQueryService};
 
 use super::{TraceListOutput, TraceListRow};
+use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::{CommandOutput, render_result};
 
@@ -42,9 +43,13 @@ pub struct ListArgs {
     pub all: bool,
 }
 
-crate::define_pool_command!(ListArgs => (), no_config);
+crate::define_pool_command!(ListArgs => (), with_config);
 
-async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
+async fn execute_with_pool_inner(
+    args: ListArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let tool_pattern = args.tool.as_ref().map(|t| format!("%{}%", t));
 
@@ -108,7 +113,7 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
     )
     .with_title("Recent Traces");
 
-    render_result(&result);
+    render_result(&result, config);
 
     Ok(())
 }

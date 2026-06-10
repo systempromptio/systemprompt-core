@@ -1,11 +1,10 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_identifiers::SessionId;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
-use crate::CliConfig;
 use crate::commands::admin::users::types::SessionEndOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -32,15 +31,15 @@ pub struct EndArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: EndArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: EndArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will end user session(s). Use --yes to confirm."
         ));
     }
 
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     if args.all {

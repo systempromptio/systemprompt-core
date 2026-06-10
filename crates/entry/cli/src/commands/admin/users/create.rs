@@ -1,10 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::UserCreatedOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -25,9 +24,9 @@ pub struct CreateArgs {
     pub if_not_exists: bool,
 }
 
-pub(super) async fn execute(args: CreateArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
 
     if args.name.trim().is_empty() {
         return Err(anyhow!("Name cannot be empty"));

@@ -31,38 +31,18 @@ macro_rules! define_pool_command {
     ($args_ty:ty => $ret_ty:ty, with_config) => {
         pub(in $crate::commands::infrastructure::logs) async fn execute(
             args: $args_ty,
-            config: &$crate::CliConfig,
+            ctx: &$crate::context::CommandContext,
         ) -> ::anyhow::Result<$ret_ty> {
-            let ctx = ::systemprompt_runtime::AppContext::new().await?;
-            let pool = ctx.db_pool().pool_arc()?;
-            execute_with_pool_inner(args, &pool, config).await
-        }
-
-        pub(in $crate::commands::infrastructure::logs) async fn execute_with_pool(
-            args: $args_ty,
-            db_ctx: &::systemprompt_runtime::DatabaseContext,
-            config: &$crate::CliConfig,
-        ) -> ::anyhow::Result<$ret_ty> {
-            let pool = db_ctx.db_pool().pool_arc()?;
-            execute_with_pool_inner(args, &pool, config).await
+            let pool = ctx.db_pool().await?.pool_arc()?;
+            execute_with_pool_inner(args, &pool, &ctx.cli).await
         }
     };
     ($args_ty:ty => $ret_ty:ty, no_config) => {
         pub(in $crate::commands::infrastructure::logs) async fn execute(
             args: $args_ty,
-            _config: &$crate::CliConfig,
+            ctx: &$crate::context::CommandContext,
         ) -> ::anyhow::Result<$ret_ty> {
-            let ctx = ::systemprompt_runtime::AppContext::new().await?;
-            let pool = ctx.db_pool().pool_arc()?;
-            execute_with_pool_inner(args, &pool).await
-        }
-
-        pub(in $crate::commands::infrastructure::logs) async fn execute_with_pool(
-            args: $args_ty,
-            db_ctx: &::systemprompt_runtime::DatabaseContext,
-            _config: &$crate::CliConfig,
-        ) -> ::anyhow::Result<$ret_ty> {
-            let pool = db_ctx.db_pool().pool_arc()?;
+            let pool = ctx.db_pool().await?.pool_arc()?;
             execute_with_pool_inner(args, &pool).await
         }
     };

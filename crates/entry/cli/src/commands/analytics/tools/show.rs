@@ -7,7 +7,7 @@ use systemprompt_analytics::models::cli::{
     ToolAgentUsageRow, ToolErrorRow, ToolStatusBreakdownRow, ToolSummaryRow,
 };
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::{AgentUsageItem, ErrorItem, StatusBreakdownItem, ToolShowOutput, ToolStatsOutput};
 use crate::CliConfig;
@@ -34,12 +34,6 @@ pub struct ShowArgs {
 
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
-}
-
-pub(super) async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub(super) async fn execute_with_pool(

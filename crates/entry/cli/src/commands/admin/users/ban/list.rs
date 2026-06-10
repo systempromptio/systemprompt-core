@@ -1,11 +1,11 @@
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::BannedIpRepository;
 
 use crate::CliConfig;
 use crate::commands::admin::users::types::{BanListOutput, BanSummary};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -17,9 +17,8 @@ pub struct ListArgs {
     pub source: Option<String>,
 }
 
-pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

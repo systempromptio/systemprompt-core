@@ -19,7 +19,7 @@ mod show;
 use anyhow::Result;
 use clap::Subcommand;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 use systemprompt_generator as _;
@@ -54,38 +54,38 @@ pub enum JobsCommands {
     SessionCleanup(cleanup_sessions::CleanupSessionsArgs),
 }
 
-pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         JobsCommands::List => {
-            render_result(&list::execute());
+            render_result(&list::execute(), &ctx.cli);
             Ok(())
         },
         JobsCommands::Show(args) => {
-            render_result(&show::execute(args).await?);
+            render_result(&show::execute(args).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Run(args) => {
-            render_result(&run::execute(args).await?);
+            render_result(&run::execute(args).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::History(args) => {
-            render_result(&history::execute(args).await?);
+            render_result(&history::execute(args).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Enable(args) => {
-            render_result(&enable::execute(args).await?);
+            render_result(&enable::execute(args).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::Disable(args) => {
-            render_result(&disable::execute(args).await?);
+            render_result(&disable::execute(args).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::CleanupSessions(args) | JobsCommands::SessionCleanup(args) => {
-            render_result(&cleanup_sessions::execute(args).await?);
+            render_result(&cleanup_sessions::execute(args).await?, &ctx.cli);
             Ok(())
         },
         JobsCommands::LogCleanup(args) => {
-            render_result(&cleanup_logs::execute(args).await?);
+            render_result(&cleanup_logs::execute(args).await?, &ctx.cli);
             Ok(())
         },
     }

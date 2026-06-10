@@ -33,8 +33,7 @@ mod validate;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
-use crate::cli_settings::get_global_config;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -79,53 +78,48 @@ pub enum AgentsCommands {
     Run(run::RunArgs),
 }
 
-pub async fn execute(command: AgentsCommands) -> Result<()> {
-    let config = get_global_config();
-    execute_with_config(command, &config).await
-}
-
-pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()> {
     let result = match command {
         AgentsCommands::List(args) => {
-            list::execute(args, config).context("Failed to list agents")?
+            list::execute(args, &ctx.cli).context("Failed to list agents")?
         },
         AgentsCommands::Show(args) => {
-            show::execute(args, config).context("Failed to show agent")?
+            show::execute(args, &ctx.cli).context("Failed to show agent")?
         },
         AgentsCommands::Validate(args) => {
-            validate::execute(&args, config).context("Failed to validate agents")?
+            validate::execute(&args, &ctx.cli).context("Failed to validate agents")?
         },
         AgentsCommands::Create(args) => {
-            create::execute(args, config).context("Failed to create agent")?
+            create::execute(args, &ctx.cli).context("Failed to create agent")?
         },
         AgentsCommands::Edit(args) => {
-            edit::execute(&args, config).context("Failed to edit agent")?
+            edit::execute(&args, &ctx.cli).context("Failed to edit agent")?
         },
-        AgentsCommands::Delete(args) => delete::execute(args, config)
+        AgentsCommands::Delete(args) => delete::execute(args, &ctx.cli)
             .await
             .context("Failed to delete agent")?,
-        AgentsCommands::Status(args) => status::execute(args, config)
+        AgentsCommands::Status(args) => status::execute(args, &ctx.cli)
             .await
             .context("Failed to get agent status")?,
-        AgentsCommands::Logs(args) => logs::execute(args, config)
+        AgentsCommands::Logs(args) => logs::execute(args, &ctx.cli)
             .await
             .context("Failed to get agent logs")?,
-        AgentsCommands::Registry(args) => registry::execute(args, config)
+        AgentsCommands::Registry(args) => registry::execute(args, &ctx.cli)
             .await
             .context("Failed to get agent registry")?,
-        AgentsCommands::Message(args) => message::execute(args, config)
+        AgentsCommands::Message(args) => message::execute(args, &ctx.cli)
             .await
             .context("Failed to send message to agent")?,
-        AgentsCommands::Task(args) => task::execute(args, config)
+        AgentsCommands::Task(args) => task::execute(args, &ctx.cli)
             .await
             .context("Failed to get task details")?,
-        AgentsCommands::Tools(args) => tools::execute(args, config)
+        AgentsCommands::Tools(args) => tools::execute(args, &ctx.cli)
             .await
             .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {
             return run::execute(args).await.context("Failed to run agent");
         },
     };
-    render_result(&result);
+    render_result(&result, &ctx.cli);
     Ok(())
 }

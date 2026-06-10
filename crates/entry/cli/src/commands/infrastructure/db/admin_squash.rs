@@ -116,7 +116,7 @@ async fn run_squash(
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Migration Squash", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         render_squash_text(&plan, &baseline_path, &follow_up, &message, apply);
     }

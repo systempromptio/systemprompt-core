@@ -51,7 +51,7 @@ pub struct DisableArgs {
     pub provider: String,
 }
 
-pub fn execute(cmd: ProviderCommands, _config: &CliConfig) -> Result<()> {
+pub fn execute(cmd: ProviderCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         ProviderCommands::List(_args) => {
             let result = list_providers()?;
@@ -61,19 +61,29 @@ pub fn execute(cmd: ProviderCommands, _config: &CliConfig) -> Result<()> {
                     &result.providers,
                 )
                 .with_title("AI Providers"),
+                config,
             );
         },
         ProviderCommands::Set(args) => {
             let result = set_default_provider(&args.provider)?;
-            render_result(&CommandOutput::card_value("Provider Updated", &result));
+            render_result(
+                &CommandOutput::card_value("Provider Updated", &result),
+                config,
+            );
         },
         ProviderCommands::Enable(args) => {
             let result = set_provider_enabled(&args.provider, true)?;
-            render_result(&CommandOutput::card_value("Provider Enabled", &result));
+            render_result(
+                &CommandOutput::card_value("Provider Enabled", &result),
+                config,
+            );
         },
         ProviderCommands::Disable(args) => {
             let result = set_provider_enabled(&args.provider, false)?;
-            render_result(&CommandOutput::card_value("Provider Disabled", &result));
+            render_result(
+                &CommandOutput::card_value("Provider Disabled", &result),
+                config,
+            );
         },
     }
     Ok(())

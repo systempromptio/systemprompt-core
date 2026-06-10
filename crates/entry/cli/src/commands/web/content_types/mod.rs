@@ -39,27 +39,27 @@ pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> 
     match command {
         ContentTypesCommands::List(args) => {
             let result = list::execute(&args, config).context("Failed to list content types")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Show(args) => {
             let result = show::execute(args, config).context("Failed to show content type")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Create(args) => {
             let result = create::execute(args, config).context("Failed to create content type")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Edit(args) => {
             let result = edit::execute(&args, config).context("Failed to edit content type")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Delete(args) => {
             let result = delete::execute(args, config).context("Failed to delete content type")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
     }

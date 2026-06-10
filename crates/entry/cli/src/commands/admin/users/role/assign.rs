@@ -1,10 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
-use crate::CliConfig;
 use crate::commands::admin::users::types::RoleAssignOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -16,9 +15,9 @@ pub struct AssignArgs {
     pub roles: Vec<String>,
 }
 
-pub(super) async fn execute(args: AssignArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+pub(super) async fn execute(args: AssignArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     if args.roles.is_empty() {

@@ -92,7 +92,7 @@ pub(super) async fn execute(args: CallArgs, config: &CliConfig) -> Result<Comman
     let card = CommandOutput::card_value(format!("Tool Execution: {}", tool_name), &output);
 
     if let Some(msg) = failure {
-        render_result(&card);
+        render_result(&card, config);
         return Err(anyhow!(msg));
     }
 

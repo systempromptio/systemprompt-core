@@ -1,10 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
-use crate::CliConfig;
 use crate::commands::admin::users::types::BanAddOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 const CLI_BAN_SOURCE: &str = "cli";
@@ -23,9 +22,9 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub(super) async fn execute(args: AddArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
+pub(super) async fn execute(args: AddArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let ban_repository = BannedIpRepository::new(&pool)?;
 
     let duration = if args.permanent {
         BanDuration::Permanent

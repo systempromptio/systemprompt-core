@@ -94,9 +94,9 @@ pub struct ModelAddArgs {
     pub upstream_model: Option<String>,
 }
 
-pub async fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()> {
     if matches!(command, CatalogCommands::Provider(ProviderCommands::List)) {
-        return list_providers();
+        return list_providers(config);
     }
 
     let profile_path = ProfileBootstrap::get_path()?;
@@ -117,13 +117,16 @@ pub async fn execute(command: &CatalogCommands, _config: &CliConfig) -> Result<(
     save_profile(&profile, profile_path)?;
     let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
-    render_result(&CommandOutput::card_value(
-        "Provider Registry Updated",
-        &ConfigMutationOutput {
-            field: "providers".to_owned(),
-            message: super::reconcile::append_reconcile_notice(message, &outcome),
-        },
-    ));
+    render_result(
+        &CommandOutput::card_value(
+            "Provider Registry Updated",
+            &ConfigMutationOutput {
+                field: "providers".to_owned(),
+                message: super::reconcile::append_reconcile_notice(message, &outcome),
+            },
+        ),
+        config,
+    );
     Ok(())
 }
 
@@ -228,7 +231,7 @@ fn remove_model(profile: &mut Profile, provider_name: &str, id: &str) -> Result<
     Ok(format!("Model {} removed from {}", id, provider_name))
 }
 
-fn list_providers() -> Result<()> {
+fn list_providers(config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let profile = load_profile(profile_path)?;
     let items: Vec<ListItem> = profile
@@ -249,6 +252,9 @@ fn list_providers() -> Result<()> {
             ListItem::new(row, String::new(), String::new())
         })
         .collect();
-    render_result(&CommandOutput::list(items).with_title("Provider Registry"));
+    render_result(
+        &CommandOutput::list(items).with_title("Provider Registry"),
+        config,
+    );
     Ok(())
 }

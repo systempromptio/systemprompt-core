@@ -1,4 +1,5 @@
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 pub(super) use crate::presentation::StartupRenderer;
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -63,7 +64,7 @@ pub(super) struct StartupOptions {
 pub(super) async fn execute(
     target: ServiceTarget,
     options: StartupOptions,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
     let start_time = Instant::now();
 
@@ -72,7 +73,7 @@ pub(super) async fn execute(
     let renderer = StartupRenderer::new(rx);
     let render_handle = tokio::spawn(renderer.run());
 
-    let result = run_startup(&target, &options, config, &tx).await;
+    let result = run_startup(&target, &options, ctx, &tx).await;
 
     if let Err(e) = &result
         && tx
@@ -96,7 +97,7 @@ pub(super) async fn execute(
 async fn run_startup(
     target: &ServiceTarget,
     options: &StartupOptions,
-    config: &CliConfig,
+    ctx: &CommandContext,
     events: &systemprompt_traits::StartupEventSender,
 ) -> Result<String> {
     events.phase_started(Phase::PreFlight);
@@ -118,7 +119,7 @@ async fn run_startup(
             super::super::db::DbCommands::Migrate {
                 allow_checksum_drift: false,
             },
-            config,
+            ctx,
         )
         .await?;
         events.phase_completed(Phase::Database);
@@ -128,7 +129,7 @@ async fn run_startup(
         let api_url = super::serve::execute_with_events(
             true,
             options.kill_port_process,
-            config,
+            &ctx.cli,
             Some(events),
         )
         .await?;

@@ -9,6 +9,7 @@ use std::sync::Arc;
 use systemprompt_logging::TraceQueryService;
 
 use super::duration::parse_since;
+use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
@@ -59,9 +60,13 @@ pub struct DatabaseInfo {
     pub logs_table_rows: i64,
 }
 
-crate::define_pool_command!(SummaryArgs => (), no_config);
+crate::define_pool_command!(SummaryArgs => (), with_config);
 
-async fn execute_with_pool_inner(args: SummaryArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
+async fn execute_with_pool_inner(
+    args: SummaryArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let service = TraceQueryService::new(Arc::clone(pool));
 
@@ -105,7 +110,7 @@ async fn execute_with_pool_inner(args: SummaryArgs, pool: &Arc<sqlx::PgPool>) ->
         },
     };
 
-    render_result(&build_logs_summary(&output));
+    render_result(&build_logs_summary(&output), config);
 
     Ok(())
 }

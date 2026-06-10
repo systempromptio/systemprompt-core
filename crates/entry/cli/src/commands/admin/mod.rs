@@ -2,9 +2,8 @@
 //!
 //! [`AdminCommands`] groups user, agent, configuration, session, bridge,
 //! access-control, and signing-key management plus the setup and bootstrap
-//! flows. [`execute`] dispatches commands that resolve their own context;
-//! [`execute_with_db`] serves the subset that requires a shared
-//! [`systemprompt_runtime::DatabaseContext`].
+//! flows. On a `--database-url` invocation only the user-management subgroup
+//! is served; the rest require a full profile context.
 
 pub mod access_control;
 pub mod agents;
@@ -16,11 +15,10 @@ pub mod session;
 pub mod setup;
 pub mod users;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -66,35 +64,28 @@ pub enum AdminCommands {
     Keys(keys::KeysCommands),
 }
 
-pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped() && !matches!(cmd, AdminCommands::Users(_)) {
+        bail!("This command requires full profile context");
+    }
+
     match cmd {
-        AdminCommands::Users(cmd) => users::execute(cmd, config).await,
-        AdminCommands::Agents(cmd) => agents::execute(cmd).await,
-        AdminCommands::Config(cmd) => config::execute(cmd, config).await,
+        AdminCommands::Users(cmd) => users::execute(cmd, ctx).await,
+        AdminCommands::Agents(cmd) => agents::execute(cmd, ctx).await,
+        AdminCommands::Config(cmd) => config::execute(cmd, ctx).await,
         AdminCommands::Setup(args) => {
-            let result = setup::execute(args, config).await?;
-            render_result(&result);
+            let result = setup::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         AdminCommands::Bootstrap(args) => {
-            let result = bootstrap::execute(args, config).await?;
-            render_result(&result);
+            let result = bootstrap::execute(args, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        AdminCommands::Session(cmd) => session::execute(cmd, config).await,
-        AdminCommands::Bridge(cmd) => bridge::execute(cmd, config).await,
-        AdminCommands::AccessControl(cmd) => access_control::execute(cmd, config).await,
-        AdminCommands::Keys(cmd) => keys::execute(cmd).await,
-    }
-}
-
-pub async fn execute_with_db(
-    cmd: AdminCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match cmd {
-        AdminCommands::Users(cmd) => users::execute_with_db(cmd, db_ctx, config).await,
-        _ => anyhow::bail!("This command requires full profile context"),
+        AdminCommands::Session(cmd) => session::execute(cmd, ctx).await,
+        AdminCommands::Bridge(cmd) => bridge::execute(cmd, ctx).await,
+        AdminCommands::AccessControl(cmd) => access_control::execute(cmd, ctx).await,
+        AdminCommands::Keys(cmd) => keys::execute(cmd, ctx).await,
     }
 }

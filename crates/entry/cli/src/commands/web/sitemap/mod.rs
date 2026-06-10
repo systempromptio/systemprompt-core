@@ -25,12 +25,12 @@ pub fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()> {
     match command {
         SitemapCommands::Show(args) => {
             let result = show::execute(args, config).context("Failed to show sitemap")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         SitemapCommands::Generate(args) => {
             let result = generate::execute(&args, config).context("Failed to generate sitemap")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
     }

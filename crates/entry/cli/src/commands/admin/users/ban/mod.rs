@@ -1,9 +1,8 @@
 //! IP-ban management subcommands.
 //!
 //! [`BanCommands`] covers listing, adding, removing, checking, and cleaning up
-//! IP bans. Read-only commands run against a bare pool via
-//! [`execute_with_pool`]; write operations require full profile context and are
-//! dispatched by [`execute`].
+//! IP bans. On a `--database-url` invocation only the read-only commands are
+//! served; write operations require a full profile context.
 
 mod add;
 mod check;
@@ -11,11 +10,10 @@ mod cleanup;
 mod list;
 mod remove;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use systemprompt_database::DbPool;
 
 #[derive(Debug, Subcommand)]
 pub enum BanCommands {
@@ -35,54 +33,41 @@ pub enum BanCommands {
     Cleanup(cleanup::CleanupArgs),
 }
 
-pub(super) async fn execute(cmd: BanCommands, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(cmd: BanCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped()
+        && matches!(
+            cmd,
+            BanCommands::Add(_) | BanCommands::Remove(_) | BanCommands::Cleanup(_)
+        )
+    {
+        bail!("Write operations require full profile context");
+    }
+
     match cmd {
         BanCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
+            let result = list::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         BanCommands::Add(args) => {
-            let result = add::execute(args, config).await?;
-            render_result(&result);
+            let result = add::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         BanCommands::Remove(args) => {
-            let result = remove::execute(args, config).await?;
-            render_result(&result);
+            let result = remove::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         BanCommands::Check(args) => {
-            let result = check::execute(args, config).await?;
-            render_result(&result);
+            let result = check::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         BanCommands::Cleanup(args) => {
-            let result = cleanup::execute(args, config).await?;
-            render_result(&result);
+            let result = cleanup::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
-        },
-    }
-}
-
-pub(super) async fn execute_with_pool(
-    cmd: BanCommands,
-    pool: &DbPool,
-    config: &CliConfig,
-) -> Result<()> {
-    match cmd {
-        BanCommands::List(args) => {
-            let result = list::execute_with_pool(args, pool, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        BanCommands::Check(args) => {
-            let result = check::execute_with_pool(args, pool, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        BanCommands::Add(_) | BanCommands::Remove(_) | BanCommands::Cleanup(_) => {
-            bail!("Write operations require full profile context")
         },
     }
 }

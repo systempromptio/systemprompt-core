@@ -28,10 +28,10 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
         warnings,
     };
 
-    render_result(&CommandOutput::card_value(
-        "Rate Limits Validation",
-        &output,
-    ));
+    render_result(
+        &CommandOutput::card_value("Rate Limits Validation", &output),
+        config,
+    );
 
     if config.output_format() == OutputFormat::Table {
         if valid {
@@ -144,6 +144,7 @@ pub(super) fn execute_compare(config: &CliConfig) -> Result<()> {
             &output.endpoints,
         )
         .with_title("Rate Limits Comparison"),
+        config,
     );
 
     if config.output_format() == OutputFormat::Table && limits.disabled {

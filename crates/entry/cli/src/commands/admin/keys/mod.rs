@@ -9,6 +9,7 @@ mod issue_plugin_token;
 use anyhow::Result;
 use clap::Subcommand;
 
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -23,12 +24,12 @@ pub enum KeysCommands {
     IssuePluginToken(issue_plugin_token::IssuePluginTokenArgs),
 }
 
-pub async fn execute(cmd: KeysCommands) -> Result<()> {
+pub async fn execute(cmd: KeysCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         KeysCommands::Generate(args) => generate::execute(args),
         KeysCommands::IssuePluginToken(args) => {
             let result = issue_plugin_token::execute(args).await?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

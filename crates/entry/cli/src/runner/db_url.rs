@@ -9,8 +9,7 @@ use super::args::Commands;
 use crate::commands::{admin, cloud, core, infrastructure};
 
 pub(super) enum DbUrlRouting {
-    /// Dispatchable against the supplied connection alone (the
-    /// `execute_with_db` path), with no profile.
+    /// Dispatchable against the supplied connection alone, with no profile.
     Direct,
     /// Establishes its own context (setup wizard, bootstrap, session); the flag
     /// is ignored so the command runs its normal path.
@@ -21,8 +20,8 @@ pub(super) enum DbUrlRouting {
 
 impl Commands {
     /// The [`DbUrlRouting::Direct`] set must stay in lockstep with the
-    /// `execute_with_db` arms each domain exposes — those are the only commands
-    /// `run_with_database_url` can serve.
+    /// database-scoped gates in each group's `execute` — those are the only
+    /// commands `run_with_database_url` can serve.
     pub(super) const fn db_url_routing(&self) -> DbUrlRouting {
         match self {
             Self::Admin(

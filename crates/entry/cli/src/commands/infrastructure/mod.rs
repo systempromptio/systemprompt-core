@@ -1,8 +1,8 @@
 //! `infra` command group: services, database, jobs, and logs administration.
 //!
-//! Routes [`InfraCommands`] to the per-domain subcommand modules. [`execute`]
-//! is the standalone entry point; [`execute_with_db`] reuses an open
-//! [`DatabaseContext`] for the db and logs subtrees that only need a pool.
+//! Routes [`InfraCommands`] to the per-domain subcommand modules. On a
+//! `--database-url` invocation only the db and logs subtrees are served; the
+//! rest require a full profile context.
 
 pub mod db;
 pub mod jobs;
@@ -11,9 +11,8 @@ pub mod services;
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum InfraCommands {
@@ -33,23 +32,15 @@ pub enum InfraCommands {
     Logs(logs::LogsCommands),
 }
 
-pub async fn execute(cmd: InfraCommands, config: &CliConfig) -> Result<()> {
-    match cmd {
-        InfraCommands::Services(cmd) => services::execute(cmd, config).await,
-        InfraCommands::Db(cmd) => db::execute(cmd, config).await,
-        InfraCommands::Jobs(cmd) => jobs::execute(cmd, config).await,
-        InfraCommands::Logs(cmd) => logs::execute(cmd, config).await,
+pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped() && !matches!(cmd, InfraCommands::Db(_) | InfraCommands::Logs(_)) {
+        anyhow::bail!("This command requires full profile context");
     }
-}
 
-pub async fn execute_with_db(
-    cmd: InfraCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
     match cmd {
-        InfraCommands::Db(cmd) => db::execute_with_db(cmd, db_ctx, config).await,
-        InfraCommands::Logs(cmd) => logs::execute_with_db(cmd, db_ctx, config).await,
-        _ => anyhow::bail!("This command requires full profile context"),
+        InfraCommands::Services(cmd) => services::execute(cmd, ctx).await,
+        InfraCommands::Db(cmd) => db::execute(cmd, ctx).await,
+        InfraCommands::Jobs(cmd) => jobs::execute(cmd, ctx).await,
+        InfraCommands::Logs(cmd) => logs::execute(cmd, ctx).await,
     }
 }

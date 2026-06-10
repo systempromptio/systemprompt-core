@@ -2,10 +2,9 @@
 //!
 //! [`AnalyticsCommands`] routes to the per-domain subcommand trees (overview,
 //! conversations, agents, tools, requests, sessions, content, traffic, costs).
-//! Each variant dispatches to its module's `execute`; the `_with_db` path
-//! reuses a shared [`DatabaseContext`] pool instead of opening a new
-//! `AppContext` per command. The [`shared`] module holds the time-range and
-//! output formatting helpers used across all domains.
+//! Each variant dispatches to its module's `execute` against the invocation's
+//! [`CommandContext`]. The [`shared`] module holds the time-range and output
+//! formatting helpers used across all domains.
 
 pub mod agents;
 pub mod content;
@@ -20,9 +19,8 @@ pub mod traffic;
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -55,44 +53,21 @@ pub enum AnalyticsCommands {
     Costs(costs::CostsCommands),
 }
 
-pub async fn execute(command: AnalyticsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: AnalyticsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         AnalyticsCommands::Overview(args) => {
-            let result = overview::execute(args, config).await?;
-            render_result(&result);
+            let result =
+                overview::execute_with_pool(args, &ctx.database().await?, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        AnalyticsCommands::Conversations(cmd) => conversations::execute(cmd, config).await,
-        AnalyticsCommands::Agents(cmd) => agents::execute(cmd, config).await,
-        AnalyticsCommands::Tools(cmd) => tools::execute(cmd, config).await,
-        AnalyticsCommands::Requests(cmd) => requests::execute(cmd, config).await,
-        AnalyticsCommands::Sessions(cmd) => sessions::execute(cmd, config).await,
-        AnalyticsCommands::Content(cmd) => content::execute(cmd, config).await,
-        AnalyticsCommands::Traffic(cmd) => traffic::execute(cmd, config).await,
-        AnalyticsCommands::Costs(cmd) => costs::execute(cmd, config).await,
-    }
-}
-
-pub async fn execute_with_db(
-    command: AnalyticsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        AnalyticsCommands::Overview(args) => {
-            let result = overview::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        AnalyticsCommands::Conversations(cmd) => {
-            conversations::execute_with_pool(cmd, db_ctx, config).await
-        },
-        AnalyticsCommands::Agents(cmd) => agents::execute_with_pool(cmd, db_ctx, config).await,
-        AnalyticsCommands::Tools(cmd) => tools::execute_with_pool(cmd, db_ctx, config).await,
-        AnalyticsCommands::Requests(cmd) => requests::execute_with_pool(cmd, db_ctx, config).await,
-        AnalyticsCommands::Sessions(cmd) => sessions::execute_with_pool(cmd, db_ctx, config).await,
-        AnalyticsCommands::Content(cmd) => content::execute_with_pool(cmd, db_ctx, config).await,
-        AnalyticsCommands::Traffic(cmd) => traffic::execute_with_pool(cmd, db_ctx, config).await,
-        AnalyticsCommands::Costs(cmd) => costs::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Conversations(cmd) => conversations::execute(cmd, ctx).await,
+        AnalyticsCommands::Agents(cmd) => agents::execute(cmd, ctx).await,
+        AnalyticsCommands::Tools(cmd) => tools::execute(cmd, ctx).await,
+        AnalyticsCommands::Requests(cmd) => requests::execute(cmd, ctx).await,
+        AnalyticsCommands::Sessions(cmd) => sessions::execute(cmd, ctx).await,
+        AnalyticsCommands::Content(cmd) => content::execute(cmd, ctx).await,
+        AnalyticsCommands::Traffic(cmd) => traffic::execute(cmd, ctx).await,
+        AnalyticsCommands::Costs(cmd) => costs::execute(cmd, ctx).await,
     }
 }

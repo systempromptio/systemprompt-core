@@ -54,7 +54,7 @@ pub(in crate::commands::infrastructure::db) async fn execute_validate(
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Schema Validation", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::section("Schema Validation");
 

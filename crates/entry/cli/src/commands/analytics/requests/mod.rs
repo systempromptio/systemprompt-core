@@ -14,9 +14,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -84,55 +83,27 @@ pub struct ModelsOutput {
     pub total_requests: i64,
 }
 
-pub async fn execute(command: RequestsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: RequestsCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
     match command {
         RequestsCommands::Stats(args) => {
-            let result = stats::execute(args, config).await?;
-            render_result(&result);
+            let result = stats::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestsCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
+            let result = list::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestsCommands::Trends(args) => {
-            let result = trends::execute(args, config).await?;
-            render_result(&result);
+            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         RequestsCommands::Models(args) => {
-            let result = models::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: RequestsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        RequestsCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        RequestsCommands::List(args) => {
-            let result = list::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        RequestsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        RequestsCommands::Models(args) => {
-            let result = models::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = models::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

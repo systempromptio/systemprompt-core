@@ -28,12 +28,12 @@ pub enum PathsCommands {
 
 pub fn execute(command: PathsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        PathsCommands::Show => execute_show(),
+        PathsCommands::Show => execute_show(config),
         PathsCommands::Validate => execute_validate(config),
     }
 }
 
-pub(super) fn execute_show() -> Result<()> {
+pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = PathsConfigOutput {
@@ -63,7 +63,10 @@ pub(super) fn execute_show() -> Result<()> {
         }),
     };
 
-    render_result(&CommandOutput::card_value("Paths Configuration", &output));
+    render_result(
+        &CommandOutput::card_value("Paths Configuration", &output),
+        config,
+    );
 
     Ok(())
 }
@@ -82,6 +85,7 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     render_result(
         &CommandOutput::table_of(vec!["name", "path", "exists", "required"], &output.paths)
             .with_title("Paths Validation"),
+        config,
     );
 
     if config.output_format() == OutputFormat::Table {

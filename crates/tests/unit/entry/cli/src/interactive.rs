@@ -1,15 +1,16 @@
 //! Unit tests for the `interactive` module.
 //!
-//! All tests force non-interactive mode via
+//! The flag-bridging helpers are tested in non-interactive mode via
 //! `CliConfig::with_interactive(false)` so the dialoguer prompts never fire —
 //! every public function in `interactive` has an early-return branch for that
-//! case, and those branches are what we cover.
+//! case. Prompting behaviour itself is covered through `ScriptedPrompter`.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::interactive::{
-    confirm_optional, prompt_input, prompt_input_with_default, require_confirmation,
-    require_confirmation_default_yes, resolve_required, select_from_list, select_index,
+    Prompter, ScriptedPrompter, confirm_optional, prompt_input, prompt_input_with_default,
+    require_confirmation, require_confirmation_default_yes, resolve_required, select_from_list,
+    select_index,
 };
 use systemprompt_cli::{CliConfig, VerbosityLevel};
 
@@ -113,4 +114,88 @@ fn confirm_optional_non_interactive_returns_default_false() {
     let cfg = non_interactive();
     let got = confirm_optional("ok?", false, &cfg).expect("call should succeed");
     assert!(!got);
+}
+
+#[test]
+fn scripted_prompter_consumes_answers_in_order() {
+    let prompter = ScriptedPrompter::new(["first", "second"]);
+    assert_eq!(prompter.input("a?").expect("first answer"), "first");
+    assert_eq!(prompter.input("b?").expect("second answer"), "second");
+}
+
+#[test]
+fn scripted_prompter_exhausted_errors_with_prompt() {
+    let prompter = ScriptedPrompter::new(std::iter::empty::<String>());
+    let err = prompter.input("name?").unwrap_err();
+    assert!(err.to_string().contains("exhausted"));
+    assert!(err.to_string().contains("name?"));
+}
+
+#[test]
+fn scripted_prompter_confirm_parses_affirmatives() {
+    let prompter = ScriptedPrompter::new(["y", "yes", "TRUE", "no", "anything"]);
+    assert!(prompter.confirm("ok?", false).expect("y"));
+    assert!(prompter.confirm("ok?", false).expect("yes"));
+    assert!(prompter.confirm("ok?", false).expect("true"));
+    assert!(!prompter.confirm("ok?", true).expect("no"));
+    assert!(!prompter.confirm("ok?", true).expect("anything"));
+}
+
+#[test]
+fn scripted_prompter_input_with_default_empty_answer_uses_default() {
+    let prompter = ScriptedPrompter::new([""]);
+    let got = prompter
+        .input_with_default("name?", "anon")
+        .expect("call should succeed");
+    assert_eq!(got, "anon");
+}
+
+#[test]
+fn scripted_prompter_input_with_default_non_empty_answer_wins() {
+    let prompter = ScriptedPrompter::new(["given"]);
+    let got = prompter
+        .input_with_default("name?", "anon")
+        .expect("call should succeed");
+    assert_eq!(got, "given");
+}
+
+#[test]
+fn scripted_prompter_select_parses_index() {
+    let prompter = ScriptedPrompter::new(["1"]);
+    let items = vec!["a".to_string(), "b".to_string()];
+    let got = prompter.select("pick", &items).expect("call should succeed");
+    assert_eq!(got, 1);
+}
+
+#[test]
+fn scripted_prompter_select_out_of_range_errors() {
+    let prompter = ScriptedPrompter::new(["2"]);
+    let items = vec!["a".to_string(), "b".to_string()];
+    let err = prompter.select("pick", &items).unwrap_err();
+    assert!(err.to_string().contains("out of range"));
+}
+
+#[test]
+fn scripted_prompter_select_non_numeric_errors() {
+    let prompter = ScriptedPrompter::new(["b"]);
+    let items = vec!["a".to_string(), "b".to_string()];
+    let err = prompter.select("pick", &items).unwrap_err();
+    assert!(err.to_string().contains("not an index"));
+}
+
+#[test]
+fn scripted_prompter_password_returns_next_answer() {
+    let prompter = ScriptedPrompter::new(["s3cret"]);
+    let got = prompter.password("password?").expect("call should succeed");
+    assert_eq!(got, "s3cret");
+}
+
+#[test]
+fn scripted_prompter_answers_shared_across_methods() {
+    let prompter = ScriptedPrompter::new(["yes", "ed", "0"]);
+    let items = vec!["only".to_string()];
+    assert!(prompter.confirm("ok?", false).expect("confirm"));
+    assert_eq!(prompter.input("name?").expect("input"), "ed");
+    assert_eq!(prompter.select("pick", &items).expect("select"), 0);
+    assert!(prompter.input("extra?").is_err());
 }

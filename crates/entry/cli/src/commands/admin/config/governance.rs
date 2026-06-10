@@ -46,10 +46,10 @@ pub struct SetArgs {
     pub acknowledgement: Option<String>,
 }
 
-pub fn execute(command: &GovernanceCommands, _config: &CliConfig) -> Result<()> {
+pub fn execute(command: &GovernanceCommands, config: &CliConfig) -> Result<()> {
     match command {
-        GovernanceCommands::Show => execute_show(),
-        GovernanceCommands::Set(args) => execute_set(args),
+        GovernanceCommands::Show => execute_show(config),
+        GovernanceCommands::Set(args) => execute_set(args, config),
     }
 }
 
@@ -63,7 +63,7 @@ fn parse_mode(raw: &str) -> Result<AuthzMode> {
     }
 }
 
-fn execute_set(args: &SetArgs) -> Result<()> {
+fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     let mode = parse_mode(&args.mode)?;
 
     if matches!(mode, AuthzMode::Webhook) && args.url.is_none() {
@@ -94,17 +94,20 @@ fn execute_set(args: &SetArgs) -> Result<()> {
 
     save_profile(&profile, profile_path)?;
 
-    render_result(&CommandOutput::card_value(
-        "Governance Updated",
-        &ConfigMutationOutput {
-            field: "governance.authz".to_owned(),
-            message: format!("Authz mode set to {}", args.mode.to_lowercase()),
-        },
-    ));
+    render_result(
+        &CommandOutput::card_value(
+            "Governance Updated",
+            &ConfigMutationOutput {
+                field: "governance.authz".to_owned(),
+                message: format!("Authz mode set to {}", args.mode.to_lowercase()),
+            },
+        ),
+        config,
+    );
     Ok(())
 }
 
-fn execute_show() -> Result<()> {
+fn execute_show(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let summary = profile
         .governance
@@ -119,9 +122,9 @@ fn execute_show() -> Result<()> {
                 )
             },
         );
-    render_result(&CommandOutput::text_titled(
-        "Governance Configuration",
-        summary,
-    ));
+    render_result(
+        &CommandOutput::text_titled("Governance Configuration", summary),
+        config,
+    );
     Ok(())
 }

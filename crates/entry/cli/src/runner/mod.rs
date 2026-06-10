@@ -49,7 +49,13 @@ async fn run_inner() -> Result<()> {
     if let Some(database_url) = cli.database.database_url.clone() {
         match cli.command.as_ref().map(args::Commands::db_url_routing) {
             Some(db_url::DbUrlRouting::Direct) => {
-                return run_with_database_url(cli.command, cli_config, env, &database_url).await;
+                return Box::pin(run_with_database_url(
+                    cli.command,
+                    cli_config,
+                    env,
+                    &database_url,
+                ))
+                .await;
             },
             Some(db_url::DbUrlRouting::Unsupported) => bail!(
                 "This command cannot run with --database-url; it requires full profile \
@@ -72,7 +78,13 @@ async fn run_inner() -> Result<()> {
     if desc.profile()
         && let Some(external_db_url) = bootstrap_profile(&cli, &desc, &cli_config, &env).await?
     {
-        return run_with_database_url(cli.command, cli_config, env, &external_db_url).await;
+        return Box::pin(run_with_database_url(
+            cli.command,
+            cli_config,
+            env,
+            &external_db_url,
+        ))
+        .await;
     }
 
     let ctx = CommandContext::new(cli_config, env);
@@ -237,7 +249,8 @@ fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<Strin
         return Some(level.to_owned());
     }
 
-    if let Ok(profile_path) = bootstrap::resolve_profile(cli_config.profile_override.as_deref(), env)
+    if let Ok(profile_path) =
+        bootstrap::resolve_profile(cli_config.profile_override.as_deref(), env)
         && let Some(log_level) = bootstrap::try_load_log_level(&profile_path)
     {
         return Some(log_level.as_tracing_filter().to_owned());

@@ -144,6 +144,9 @@ impl SetupArgs {
     }
 }
 
-pub async fn execute(args: SetupArgs, config: &crate::CliConfig) -> Result<CommandOutput> {
-    wizard::execute(args, config).await
+pub async fn execute(
+    args: SetupArgs,
+    ctx: &crate::context::CommandContext,
+) -> Result<CommandOutput> {
+    wizard::execute(args, &ctx.cli).await
 }

@@ -79,9 +79,9 @@ pub struct RouteAddArgs {
     pub upstream_model: Option<String>,
 }
 
-pub async fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<()> {
+pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()> {
     if matches!(command, GatewayCommands::Route(RouteCommands::List)) {
-        return list_routes();
+        return list_routes(config);
     }
 
     let profile_path = ProfileBootstrap::get_path()?;
@@ -107,13 +107,16 @@ pub async fn execute(command: &GatewayCommands, _config: &CliConfig) -> Result<(
     save_profile(&profile, profile_path)?;
     let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;
 
-    render_result(&CommandOutput::card_value(
-        "Gateway Updated",
-        &ConfigMutationOutput {
-            field: "gateway".to_owned(),
-            message: super::reconcile::append_reconcile_notice(message, &outcome),
-        },
-    ));
+    render_result(
+        &CommandOutput::card_value(
+            "Gateway Updated",
+            &ConfigMutationOutput {
+                field: "gateway".to_owned(),
+                message: super::reconcile::append_reconcile_notice(message, &outcome),
+            },
+        ),
+        config,
+    );
     Ok(())
 }
 
@@ -180,7 +183,7 @@ fn validate_gateway(profile: &Profile) -> Result<()> {
         .map_err(|e| anyhow!("gateway validation failed: {e}"))
 }
 
-fn list_routes() -> Result<()> {
+fn list_routes(config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let profile = load_profile(profile_path)?;
     let items: Vec<ListItem> = profile
@@ -193,6 +196,9 @@ fn list_routes() -> Result<()> {
             ListItem::new(route, String::new(), String::new())
         })
         .collect();
-    render_result(&CommandOutput::list(items).with_title("Gateway Routes"));
+    render_result(
+        &CommandOutput::list(items).with_title("Gateway Routes"),
+        config,
+    );
     Ok(())
 }

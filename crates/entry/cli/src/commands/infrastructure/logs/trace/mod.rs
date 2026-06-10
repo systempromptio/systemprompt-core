@@ -24,10 +24,9 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AiRequestId, TraceId};
-use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -192,27 +191,12 @@ pub struct AiLookupOutput {
     pub linked_mcp_calls: Vec<ToolCallRow>,
 }
 
-pub async fn execute(command: TraceCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: TraceCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        TraceCommands::List(args) => list::execute(args, config).await,
+        TraceCommands::List(args) => list::execute(args, ctx).await,
         TraceCommands::Show(args) => {
-            let result = show::execute(args).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: TraceCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        TraceCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
-        TraceCommands::Show(args) => {
-            let result = show::execute_with_pool(args, db_ctx).await?;
-            render_result(&result);
+            let result = show::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

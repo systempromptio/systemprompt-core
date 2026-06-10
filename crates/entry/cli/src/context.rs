@@ -62,15 +62,11 @@ impl CommandContext {
 
     #[must_use]
     pub fn with_app_context(cli: CliConfig, env: EnvOverrides, app: Arc<AppContext>) -> Self {
-        let runtime = OnceCell::new();
-        // Why: `OnceCell::set` cannot fail on a freshly constructed cell; the
-        // discard keeps the constructor infallible.
-        let _ = runtime.set(app);
         Self {
             cli,
             env,
             prompter: Box::new(DialoguerPrompter),
-            runtime,
+            runtime: OnceCell::new_with(Some(app)),
             db: None,
             database_url: None,
         }
@@ -104,9 +100,7 @@ impl CommandContext {
 
     pub async fn app_context(&self) -> Result<&Arc<AppContext>> {
         if self.db.is_some() {
-            bail!(
-                "This command requires full profile initialization. Remove --database-url flag."
-            );
+            bail!("This command requires full profile initialization. Remove --database-url flag.");
         }
         self.runtime
             .get_or_try_init(|| async { AppContext::new().await.map(Arc::new) })
@@ -118,15 +112,25 @@ impl CommandContext {
         if let Some(db) = &self.db {
             return Ok(db.db_pool_arc());
         }
-        Ok(self.app_context().await?.db_pool().clone())
+        Ok(Arc::clone(self.app_context().await?.db_pool()))
     }
 
     pub async fn database(&self) -> Result<DatabaseContext> {
         if let Some(db) = &self.db {
             return Ok(db.clone());
         }
-        Ok(DatabaseContext::from_pool(
-            self.app_context().await?.db_pool().clone(),
-        ))
+        Ok(DatabaseContext::from_pool(Arc::clone(
+            self.app_context().await?.db_pool(),
+        )))
+    }
+}
+
+impl std::fmt::Debug for CommandContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CommandContext")
+            .field("cli", &self.cli)
+            .field("env", &self.env)
+            .field("database_scoped", &self.db.is_some())
+            .finish_non_exhaustive()
     }
 }

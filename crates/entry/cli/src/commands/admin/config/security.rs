@@ -66,13 +66,13 @@ pub struct TrustedIssuerAddArgs {
 
 pub fn execute(command: &SecurityCommands, config: &CliConfig) -> Result<()> {
     match command {
-        SecurityCommands::Show => execute_show(),
+        SecurityCommands::Show => execute_show(config),
         SecurityCommands::Set(args) => execute_set(args, config),
         SecurityCommands::TrustedIssuer(cmd) => execute_trusted_issuer(cmd, config),
     }
 }
 
-pub(super) fn execute_show() -> Result<()> {
+pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = SecurityConfigOutput {
@@ -87,10 +87,10 @@ pub(super) fn execute_show() -> Result<()> {
             .collect(),
     };
 
-    render_result(&CommandOutput::card_value(
-        "Security Configuration",
-        &output,
-    ));
+    render_result(
+        &CommandOutput::card_value("Security Configuration", &output),
+        config,
+    );
 
     Ok(())
 }
@@ -224,7 +224,10 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, config: &CliConfig) -
 
 fn render_changes(changes: &[SecuritySetOutput], config: &CliConfig) {
     for change in changes {
-        render_result(&CommandOutput::card_value("Security Updated", change));
+        render_result(
+            &CommandOutput::card_value("Security Updated", change),
+            config,
+        );
     }
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");

@@ -50,7 +50,8 @@ pub fn execute(command: PluginsCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         PluginsCommands::Generate(args) => {
-            let result = generate::execute(&args, &ctx.cli).context("Failed to generate plugins")?;
+            let result =
+                generate::execute(&args, &ctx.cli).context("Failed to generate plugins")?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

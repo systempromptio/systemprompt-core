@@ -10,7 +10,7 @@ use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::{CommandOutput, render_result};
 
-pub(super) async fn execute(profile_name: &str, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(profile_name: &str, config: &CliConfig) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
 
@@ -56,7 +56,7 @@ pub(super) async fn execute(profile_name: &str, _config: &CliConfig) -> Result<C
 
         let result =
             login::login_for_profile(&new_profile, profile_path_str, &secrets, &args).await?;
-        render_result(&result);
+        render_result(&result, config);
     }
 
     let output = SwitchOutput {

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::TraceQueryService;
 
+use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::{CommandOutput, render_result};
 
@@ -56,9 +57,13 @@ pub struct ModelStats {
     pub avg_latency_ms: i64,
 }
 
-crate::define_pool_command!(StatsArgs => (), no_config);
+crate::define_pool_command!(StatsArgs => (), with_config);
 
-async fn execute_with_pool_inner(args: StatsArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
+async fn execute_with_pool_inner(
+    args: StatsArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
     let service = TraceQueryService::new(Arc::clone(pool));
@@ -101,7 +106,7 @@ async fn execute_with_pool_inner(args: StatsArgs, pool: &Arc<sqlx::PgPool>) -> R
             .collect(),
     };
 
-    render_result(&build_request_stats(&output));
+    render_result(&build_request_stats(&output), config);
 
     Ok(())
 }

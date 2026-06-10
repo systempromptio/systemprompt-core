@@ -1,15 +1,14 @@
 use anyhow::Result;
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::UserStatsOutput;
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
-pub(super) async fn execute(config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(ctx.db_pool(), config).await
+pub(super) async fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(&ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(pool: &DbPool, _config: &CliConfig) -> Result<CommandOutput> {

@@ -10,9 +10,8 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TraceId;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum ToolsCommands {
@@ -42,18 +41,8 @@ pub struct ToolsListOutput {
     pub total: u64,
 }
 
-pub async fn execute(command: ToolsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: ToolsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
-        ToolsCommands::List(args) => list::execute(args, config).await,
-    }
-}
-
-pub async fn execute_with_pool(
-    command: ToolsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        ToolsCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
+        ToolsCommands::List(args) => list::execute(args, ctx).await,
     }
 }

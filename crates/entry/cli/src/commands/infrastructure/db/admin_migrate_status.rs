@@ -56,7 +56,7 @@ async fn run_migrate_status(
             &output.rows,
         )
         .with_title("Migration Status");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         render_status_text(&output);
     }

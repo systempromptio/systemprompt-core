@@ -75,20 +75,41 @@ fn resolve_profile_path_passes_through_path_override() {
     let yaml = dir.path().join("profile.yaml");
     std::fs::write(&yaml, "name: t\n").expect("write");
     let resolved =
-        resolve_profile_path(Some(yaml.to_str().expect("utf8")), None).expect("resolves");
+        resolve_profile_path(Some(yaml.to_str().expect("utf8")), None, None).expect("resolves");
+    assert_eq!(resolved, yaml);
+}
+
+#[test]
+fn resolve_profile_path_uses_env_override_when_no_cli_override() {
+    let dir = TempDir::new().expect("tempdir");
+    let yaml = dir.path().join("profile.yaml");
+    std::fs::write(&yaml, "name: t\n").expect("write");
+    let resolved =
+        resolve_profile_path(None, Some(yaml.to_str().expect("utf8")), None).expect("resolves");
     assert_eq!(resolved, yaml);
 }
 
 #[test]
 fn resolve_profile_path_uses_session_path_when_exists() {
-    if std::env::var("SYSTEMPROMPT_PROFILE").is_ok() {
-        // env var takes precedence over `from_session`; skip this scenario
-        // when the parent shell has it set.
-        return;
-    }
     let dir = TempDir::new().expect("tempdir");
     let yaml = dir.path().join("profile.yaml");
     std::fs::write(&yaml, "name: t\n").expect("write");
-    let resolved = resolve_profile_path(None, Some(yaml.clone())).expect("resolves");
+    let resolved = resolve_profile_path(None, None, Some(yaml.clone())).expect("resolves");
     assert_eq!(resolved, yaml);
+}
+
+#[test]
+fn resolve_profile_path_cli_override_beats_env_override() {
+    let dir = TempDir::new().expect("tempdir");
+    let cli_yaml = dir.path().join("cli.yaml");
+    let env_yaml = dir.path().join("env.yaml");
+    std::fs::write(&cli_yaml, "name: cli\n").expect("write");
+    std::fs::write(&env_yaml, "name: env\n").expect("write");
+    let resolved = resolve_profile_path(
+        Some(cli_yaml.to_str().expect("utf8")),
+        Some(env_yaml.to_str().expect("utf8")),
+        None,
+    )
+    .expect("resolves");
+    assert_eq!(resolved, cli_yaml);
 }

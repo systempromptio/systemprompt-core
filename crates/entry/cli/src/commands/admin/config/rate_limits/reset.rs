@@ -67,6 +67,7 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
     render_result(
         &CommandOutput::table_of(vec!["field", "old_value", "new_value"], &output.changes)
             .with_title("Rate Limits Reset"),
+        config,
     );
 
     if !args.dry_run && config.output_format() == OutputFormat::Table {

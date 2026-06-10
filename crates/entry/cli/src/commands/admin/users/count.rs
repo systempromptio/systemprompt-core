@@ -3,11 +3,11 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -23,9 +23,8 @@ pub(super) enum CountResult {
     Breakdown(UserCountBreakdownOutput),
 }
 
-pub(super) async fn execute(args: CountArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: CountArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::CostSummaryOutput;
 use crate::CliConfig;
@@ -27,12 +27,6 @@ pub struct SummaryArgs {
 
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
-}
-
-pub(super) async fn execute(args: SummaryArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub(super) async fn execute_with_pool(

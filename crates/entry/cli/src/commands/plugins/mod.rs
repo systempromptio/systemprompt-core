@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use systemprompt_extension::ExtensionRegistry;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
 
@@ -65,32 +65,32 @@ impl DescribeCommand for PluginsCommands {
     }
 }
 
-pub async fn execute(cmd: PluginsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         PluginsCommands::List(args) => {
-            render_result(&list::execute(&args, config));
+            render_result(&list::execute(&args, &ctx.cli), &ctx.cli);
             Ok(())
         },
         PluginsCommands::Show(args) => {
-            let result = show::execute(&args, config).context("Failed to show extension")?;
-            render_result(&result);
+            let result = show::execute(&args, &ctx.cli).context("Failed to show extension")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        PluginsCommands::Run(args) => run::execute(args, config).await,
+        PluginsCommands::Run(args) => run::execute(args, ctx).await,
         PluginsCommands::Validate(args) => {
-            render_result(&validate::execute(&args, config));
+            render_result(&validate::execute(&args, &ctx.cli), &ctx.cli);
             Ok(())
         },
         PluginsCommands::Config(args) => {
             let result =
-                config::execute(&args, config).context("Failed to get extension config")?;
-            render_result(&result);
+                config::execute(&args, &ctx.cli).context("Failed to get extension config")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         PluginsCommands::Capabilities(args) => {
-            capabilities::execute(args, config);
+            capabilities::execute(args, &ctx.cli);
             Ok(())
         },
-        PluginsCommands::Mcp(cmd) => mcp::execute_with_config(cmd, config).await,
+        PluginsCommands::Mcp(cmd) => mcp::execute(cmd, ctx).await,
     }
 }

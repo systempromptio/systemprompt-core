@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::TrafficAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::{DeviceRow, DevicesOutput};
 use crate::CliConfig;
@@ -31,12 +31,6 @@ pub struct DevicesArgs {
         help = "Include all sessions (ghost sessions, suspected bots that evaded detection)"
     )]
     pub include_all: bool,
-}
-
-pub(super) async fn execute(args: DevicesArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub(super) async fn execute_with_pool(

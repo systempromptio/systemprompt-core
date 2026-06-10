@@ -1,11 +1,11 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -19,9 +19,8 @@ pub struct ShowArgs {
     pub activity: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

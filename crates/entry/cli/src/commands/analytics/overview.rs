@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::OverviewAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::shared::{CsvBuilder, parse_time_range, resolve_export_path};
 use crate::CliConfig;
@@ -86,12 +86,6 @@ pub struct SessionMetrics {
 pub struct CostMetrics {
     pub total_cost_microdollars: i64,
     pub change_percent: Option<f64>,
-}
-
-pub async fn execute(args: OverviewArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = OverviewAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(

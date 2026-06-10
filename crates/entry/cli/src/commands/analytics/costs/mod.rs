@@ -13,9 +13,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -73,45 +72,22 @@ pub struct CostBreakdownOutput {
     pub total_cost_microdollars: i64,
 }
 
-pub async fn execute(command: CostsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: CostsCommands, ctx: &CommandContext) -> Result<()> {
+    let db_ctx = ctx.database().await?;
     match command {
         CostsCommands::Summary(args) => {
-            let result = summary::execute(args, config).await?;
-            render_result(&result);
+            let result = summary::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         CostsCommands::Trends(args) => {
-            let result = trends::execute(args, config).await?;
-            render_result(&result);
+            let result = trends::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         CostsCommands::Breakdown(args) => {
-            let result = breakdown::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-    }
-}
-
-pub async fn execute_with_pool(
-    command: CostsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        CostsCommands::Summary(args) => {
-            let result = summary::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        CostsCommands::Trends(args) => {
-            let result = trends::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        CostsCommands::Breakdown(args) => {
-            let result = breakdown::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = breakdown::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

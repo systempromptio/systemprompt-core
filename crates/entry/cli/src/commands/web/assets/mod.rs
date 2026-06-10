@@ -26,12 +26,12 @@ pub fn execute(command: AssetsCommands, config: &CliConfig) -> Result<()> {
     match command {
         AssetsCommands::List(args) => {
             let result = list::execute(args, config).context("Failed to list assets")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         AssetsCommands::Show(args) => {
             let result = show::execute(&args, config).context("Failed to show asset")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
     }

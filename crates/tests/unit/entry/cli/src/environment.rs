@@ -1,35 +1,38 @@
 //! Unit tests for the `environment` module.
-//!
-//! Note: `ExecutionEnvironment::detect` reads process-global env vars, and
-//! tests run in parallel within a single process. We don't mutate env vars
-//! here — we just assert the detect result is structurally consistent and
-//! the struct's derives behave.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_cli::environment::ExecutionEnvironment;
 
 #[test]
-fn detect_returns_consistent_struct() {
-    let env = ExecutionEnvironment::detect();
-    let env2 = ExecutionEnvironment::detect();
-    assert_eq!(env.is_fly, env2.is_fly);
-    assert_eq!(env.is_remote_cli, env2.is_remote_cli);
+fn from_env_empty_snapshot_is_all_false() {
+    let overrides = EnvOverrides::from_vars(std::iter::empty::<(String, String)>());
+    let env = ExecutionEnvironment::from_env(&overrides);
+    assert!(!env.is_fly);
+    assert!(!env.is_remote_cli);
 }
 
 #[test]
-fn detect_matches_env_vars() {
-    let env = ExecutionEnvironment::detect();
-    assert_eq!(env.is_fly, std::env::var("FLY_APP_NAME").is_ok());
-    assert_eq!(
-        env.is_remote_cli,
-        std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_ok()
-    );
+fn from_env_maps_fly_flag() {
+    let overrides = EnvOverrides::from_vars([("FLY_APP_NAME", "my-app")]);
+    let env = ExecutionEnvironment::from_env(&overrides);
+    assert!(env.is_fly);
+    assert!(!env.is_remote_cli);
+}
+
+#[test]
+fn from_env_maps_remote_cli_flag() {
+    let overrides = EnvOverrides::from_vars([("SYSTEMPROMPT_CLI_REMOTE", "1")]);
+    let env = ExecutionEnvironment::from_env(&overrides);
+    assert!(!env.is_fly);
+    assert!(env.is_remote_cli);
 }
 
 #[test]
 fn execution_environment_is_copy_clone_debug() {
-    let env = ExecutionEnvironment::detect();
+    let overrides = EnvOverrides::from_vars([("FLY_APP_NAME", "my-app")]);
+    let env = ExecutionEnvironment::from_env(&overrides);
     let copied = env;
     let cloned = env.clone();
     let _debug = format!("{:?}", env);

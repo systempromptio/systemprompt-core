@@ -126,7 +126,7 @@ async fn run_migrate_repair(
 
     if json || config.is_json_output() {
         let result = CommandOutput::card_value("Migration Repair", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         render_repair_text(&output);
     }

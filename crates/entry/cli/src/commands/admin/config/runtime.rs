@@ -42,12 +42,12 @@ pub struct SetArgs {
 
 pub fn execute(command: RuntimeCommands, config: &CliConfig) -> Result<()> {
     match command {
-        RuntimeCommands::Show => execute_show(),
+        RuntimeCommands::Show => execute_show(config),
         RuntimeCommands::Set(args) => execute_set(args, config),
     }
 }
 
-pub(super) fn execute_show() -> Result<()> {
+pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
     let output = RuntimeConfigOutput {
@@ -58,7 +58,10 @@ pub(super) fn execute_show() -> Result<()> {
         non_interactive: profile.runtime.non_interactive,
     };
 
-    render_result(&CommandOutput::card_value("Runtime Configuration", &output));
+    render_result(
+        &CommandOutput::card_value("Runtime Configuration", &output),
+        config,
+    );
 
     Ok(())
 }
@@ -131,7 +134,10 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     save_profile(&profile, profile_path)?;
 
     for change in &changes {
-        render_result(&CommandOutput::card_value("Runtime Updated", change));
+        render_result(
+            &CommandOutput::card_value("Runtime Updated", change),
+            config,
+        );
     }
 
     if config.output_format() == OutputFormat::Table {

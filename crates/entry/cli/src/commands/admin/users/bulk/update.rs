@@ -2,11 +2,10 @@ use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
-use crate::CliConfig;
 use crate::commands::admin::users::types::BulkUpdateOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -55,7 +54,7 @@ pub(super) enum UpdateResult {
     Executed(BulkUpdateOutput),
 }
 
-pub(super) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: UpdateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     if !args.yes && !args.dry_run {
         return Err(anyhow!(
             "This will update multiple users. Use --yes to confirm or --dry-run to preview."
@@ -77,8 +76,8 @@ pub(super) async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<Com
         ));
     }
 
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
 
     let users = user_service
         .list_by_filter(

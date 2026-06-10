@@ -101,7 +101,7 @@ async fn run_mark_applied(
 
     if json || config.is_json_output() {
         let result = CommandOutput::card_value("Migration Mark Applied", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::success(&message);
     }

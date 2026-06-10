@@ -180,12 +180,12 @@ pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
         RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, config),
         RateLimitsCommands::Export(args) => {
             let result = import_export::execute_export(&args, config)?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         RateLimitsCommands::Import(args) => {
             let result = import_export::execute_import(&args, config)?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         RateLimitsCommands::Diff(args) => diff::execute_diff(&args, config),

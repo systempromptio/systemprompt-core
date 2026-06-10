@@ -3,9 +3,9 @@
 //!
 //! Dispatches the [`LogsCommands`] subcommands (view, search, stream, export,
 //! cleanup, delete, summary, show, trace, request, tools, audit) and defines
-//! the serializable output rows shared across them. Two dispatch paths exist:
-//! [`execute`] boots its own context, while [`execute_with_db`] reuses an
-//! already-open [`DatabaseContext`] for the read-only subcommands.
+//! the serializable output rows shared across them. On a `--database-url`
+//! invocation only the read-only subcommands are served; stream, cleanup, and
+//! delete require a full profile context.
 
 mod audit;
 mod cleanup;
@@ -35,9 +35,8 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, TraceId};
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -162,64 +161,40 @@ pub struct LogExportOutput {
     pub file_path: Option<String>,
 }
 
-pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
-    match command {
-        LogsCommands::View(args) => {
-            let result = view::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        LogsCommands::Search(args) => {
-            let result = search::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        LogsCommands::Stream(args) => stream::execute(args, config).await,
-        LogsCommands::Export(args) => {
-            let result = export::execute(args, config).await?;
-            render_result(&result);
-            Ok(())
-        },
-        LogsCommands::Cleanup(args) => cleanup::execute(args, config).await,
-        LogsCommands::Delete(args) => delete::execute(args, config).await,
-        LogsCommands::Summary(args) => summary::execute(args, config).await,
-        LogsCommands::Show(args) => show::execute(args, config).await,
-        LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,
-        LogsCommands::Request(cmd) => request::execute(cmd, config).await,
-        LogsCommands::Tools(cmd) => tools::execute(cmd, config).await,
-        LogsCommands::Audit(args) => audit::execute(args, config).await,
+pub async fn execute(command: LogsCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped()
+        && matches!(
+            command,
+            LogsCommands::Stream(_) | LogsCommands::Cleanup(_) | LogsCommands::Delete(_)
+        )
+    {
+        bail!("This logs command requires full profile context");
     }
-}
 
-pub async fn execute_with_db(
-    command: LogsCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
     match command {
         LogsCommands::View(args) => {
-            let result = view::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = view::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         LogsCommands::Search(args) => {
-            let result = search::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = search::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        LogsCommands::Summary(args) => summary::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Stream(args) => stream::execute(args, ctx).await,
         LogsCommands::Export(args) => {
-            let result = export::execute_with_pool(args, db_ctx, config).await?;
-            render_result(&result);
+            let result = export::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        LogsCommands::Show(args) => show::execute_with_pool(args, db_ctx, config).await,
-        LogsCommands::Trace(cmd) => trace::execute_with_pool(cmd, db_ctx, config).await,
-        LogsCommands::Request(cmd) => request::execute_with_pool(cmd, db_ctx, config).await,
-        LogsCommands::Tools(cmd) => tools::execute_with_pool(cmd, db_ctx, config).await,
-        LogsCommands::Audit(args) => audit::execute_with_pool(args, db_ctx, config).await,
-        LogsCommands::Stream(_) | LogsCommands::Cleanup(_) | LogsCommands::Delete(_) => {
-            bail!("This logs command requires full profile context")
-        },
+        LogsCommands::Cleanup(args) => cleanup::execute(args, ctx).await,
+        LogsCommands::Delete(args) => delete::execute(args, ctx).await,
+        LogsCommands::Summary(args) => summary::execute(args, ctx).await,
+        LogsCommands::Show(args) => show::execute(args, ctx).await,
+        LogsCommands::Trace(cmd) => trace::execute(cmd, ctx).await,
+        LogsCommands::Request(cmd) => request::execute(cmd, ctx).await,
+        LogsCommands::Tools(cmd) => tools::execute(cmd, ctx).await,
+        LogsCommands::Audit(args) => audit::execute(args, ctx).await,
     }
 }

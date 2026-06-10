@@ -81,7 +81,7 @@ impl ScriptedPrompter {
     fn next_answer(&self, prompt: &str) -> Result<String> {
         self.answers
             .lock()
-            .map_err(|_| anyhow!("Scripted prompter lock poisoned"))?
+            .map_err(|e| anyhow!("Scripted prompter lock poisoned: {e}"))?
             .pop_front()
             .ok_or_else(|| anyhow!("Scripted prompter exhausted at prompt: {prompt}"))
     }
@@ -111,7 +111,7 @@ impl Prompter for ScriptedPrompter {
         let answer = self.next_answer(prompt)?;
         let idx: usize = answer
             .parse()
-            .map_err(|_| anyhow!("Scripted select answer '{answer}' is not an index"))?;
+            .map_err(|e| anyhow!("Scripted select answer '{answer}' is not an index: {e}"))?;
         if idx >= items.len() {
             return Err(anyhow!(
                 "Scripted select index {idx} out of range for {} items",
@@ -131,7 +131,13 @@ pub fn require_confirmation(
     skip_confirmation: bool,
     config: &CliConfig,
 ) -> Result<()> {
-    require_confirmation_with(&DialoguerPrompter, message, skip_confirmation, false, config)
+    require_confirmation_with(
+        &DialoguerPrompter,
+        message,
+        skip_confirmation,
+        false,
+        config,
+    )
 }
 
 pub fn require_confirmation_default_yes(

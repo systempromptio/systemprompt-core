@@ -3,10 +3,9 @@ use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
-use systemprompt_runtime::AppContext;
 
-use crate::CliConfig;
 use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, ClapArgs)]
@@ -18,9 +17,9 @@ pub struct Args {
     pub expires_minutes: u32,
 }
 
-pub(super) async fn execute(args: Args, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let oauth_repo = OAuthRepository::new(ctx.db_pool())?;
+pub(super) async fn execute(args: Args, ctx: &CommandContext) -> Result<CommandOutput> {
+    let app = ctx.app_context().await?;
+    let oauth_repo = OAuthRepository::new(app.db_pool())?;
 
     let user = oauth_repo
         .find_user_by_email(&args.email)
@@ -39,7 +38,7 @@ pub(super) async fn execute(args: Args, _config: &CliConfig) -> Result<CommandOu
 
     oauth_repo.store_setup_token(params).await?;
 
-    let external_url = ctx.config().api_external_url.clone();
+    let external_url = app.config().api_external_url.clone();
 
     let link_url = format!("{}/auth/link-passkey?token={}", external_url, raw_token);
 

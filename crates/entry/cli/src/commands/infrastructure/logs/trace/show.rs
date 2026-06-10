@@ -10,14 +10,15 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_identifiers::TaskId;
 use systemprompt_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::ai_trace_display::{execute_ai_trace, filter_log_events};
 use super::display::{print_event, print_table};
-use super::json::print_json;
+use super::json::build_json;
 use super::summary::{SummaryContext, print_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
-use crate::shared::CommandOutput;
+use crate::CliConfig;
+use crate::context::CommandContext;
+use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -68,33 +69,29 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_logging::ExecutionStepSummary,
 }
 
-pub(super) async fn execute(args: ShowArgs) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool).await
-}
-
-pub(super) async fn execute_with_pool(
-    args: ShowArgs,
-    db_ctx: &DatabaseContext,
-) -> Result<CommandOutput> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool).await
+pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?.pool_arc()?;
+    execute_with_pool_inner(args, &pool, &ctx.cli).await
 }
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
 ) -> Result<CommandOutput> {
     let ai_service = AiTraceService::new(Arc::clone(pool));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
 
-    execute_trace_view(&args, pool).await
+    execute_trace_view(&args, pool, config).await
 }
 
-async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result<CommandOutput> {
+async fn execute_trace_view(
+    args: &ShowArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let service = TraceQueryService::new(Arc::clone(pool));
 
     let (
@@ -141,7 +138,8 @@ async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result
     }
 
     if args.json {
-        print_json(&events, &args.id, &ai_summary, &mcp_summary, &step_summary);
+        let json_result = build_json(&events, &args.id, &ai_summary, &mcp_summary, &step_summary);
+        render_result(&json_result, config);
         return Ok(result.with_skip_render());
     }
 

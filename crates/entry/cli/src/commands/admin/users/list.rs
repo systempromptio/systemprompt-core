@@ -1,11 +1,11 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserRole, UserService, UserStatus};
 
 use super::types::{UserListOutput, UserSummary};
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -63,9 +63,8 @@ pub struct ListArgs {
     pub status: Option<StatusFilter>,
 }
 
-pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

@@ -1,10 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
-use crate::CliConfig;
 use crate::commands::admin::users::types::RoleAssignOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -12,9 +11,9 @@ pub struct PromoteArgs {
     pub identifier: String,
 }
 
-pub(super) async fn execute(args: PromoteArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+pub(super) async fn execute(args: PromoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
     let admin_service = UserAdminService::new(user_service);
 
     match admin_service.promote_to_admin(&args.identifier).await? {

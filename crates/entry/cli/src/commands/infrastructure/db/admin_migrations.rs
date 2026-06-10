@@ -101,7 +101,7 @@ async fn execute_migrations_status(
             &output.extensions,
         )
         .with_title("Migration Status");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         if total_pending == 0 {
             CliService::success("All migrations are up to date");
@@ -163,7 +163,7 @@ async fn execute_migrations_history(
         let result =
             CommandOutput::table_of(vec!["version", "name", "checksum"], &output.migrations)
                 .with_title("Migration History");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::info(&format!("Migration history for '{}':", extension_id));
         CliService::info(&format!("  Version: {}", ext.version()));

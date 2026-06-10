@@ -4,9 +4,11 @@ use systemprompt_runtime::AppContext;
 
 use super::{RestartTarget, ServicesCommands, StartTarget, StopTarget, restart, start, stop};
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
-pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<()> {
+    let config = &ctx.cli;
     match command {
         ServicesCommands::Start {
             target,
@@ -26,7 +28,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                 skip_migrate,
                 kill_port_process,
             };
-            execute_start(target, flags, options, config).await
+            execute_start(target, flags, options, ctx).await
         },
 
         ServicesCommands::Stop {
@@ -57,13 +59,13 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             health,
         } => {
             let result = super::status::execute(detailed, json, health, config).await?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
 
         ServicesCommands::Cleanup { yes, dry_run } => {
             let result = super::cleanup::execute(yes, dry_run, config).await?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
 
@@ -78,26 +80,26 @@ async fn execute_start(
     target: Option<StartTarget>,
     flags: start::ServiceFlags,
     options: start::StartupOptions,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
     if let Some(individual) = target {
-        let ctx = Arc::new(
+        let app = Arc::new(
             AppContext::new()
                 .await
                 .context("Failed to initialize application context")?,
         );
         return match individual {
             StartTarget::Agent { agent } => {
-                start::execute_individual_agent(&ctx, &agent, config).await
+                start::execute_individual_agent(&app, &agent, &ctx.cli).await
             },
             StartTarget::Mcp { server_name } => {
-                start::execute_individual_mcp(&ctx, &server_name, config).await
+                start::execute_individual_mcp(&app, &server_name, &ctx.cli).await
             },
         };
     }
 
     let service_target = start::ServiceTarget::from_flags(flags);
-    start::execute(service_target, options, config).await
+    start::execute(service_target, options, ctx).await
 }
 
 async fn execute_stop(
@@ -115,13 +117,13 @@ async fn execute_stop(
         return match individual {
             StopTarget::Agent { agent, force } => {
                 let result = stop::execute_individual_agent(&ctx, &agent, force, config).await?;
-                render_result(&result);
+                render_result(&result, config);
                 Ok(())
             },
             StopTarget::Mcp { server_name, force } => {
                 let result =
                     stop::execute_individual_mcp(&ctx, &server_name, force, config).await?;
-                render_result(&result);
+                render_result(&result, config);
                 Ok(())
             },
         };
@@ -129,7 +131,7 @@ async fn execute_stop(
 
     let service_target = start::ServiceTarget::from_flags(flags);
     let result = stop::execute(service_target, force, config).await?;
-    render_result(&result);
+    render_result(&result, config);
     Ok(())
 }
 
@@ -168,7 +170,7 @@ async fn execute_restart(
             },
         }
     };
-    render_result(&result);
+    render_result(&result, config);
     Ok(())
 }
 

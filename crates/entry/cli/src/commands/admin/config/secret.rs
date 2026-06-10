@@ -40,7 +40,7 @@ pub struct SetArgs {
     pub value: String,
 }
 
-pub fn execute(command: &SecretCommands, _config: &CliConfig) -> Result<()> {
+pub fn execute(command: &SecretCommands, config: &CliConfig) -> Result<()> {
     let SecretCommands::Set(args) = command;
 
     let profile_path = ProfileBootstrap::get_path()?;
@@ -54,13 +54,16 @@ pub fn execute(command: &SecretCommands, _config: &CliConfig) -> Result<()> {
 
     set_secret(&secrets_file, &args.name, &args.value)?;
 
-    render_result(&CommandOutput::card_value(
-        "Secret Updated",
-        &ConfigMutationOutput {
-            field: "secrets".to_owned(),
-            message: format!("Secret '{}' set", args.name),
-        },
-    ));
+    render_result(
+        &CommandOutput::card_value(
+            "Secret Updated",
+            &ConfigMutationOutput {
+                field: "secrets".to_owned(),
+                message: format!("Secret '{}' set", args.name),
+            },
+        ),
+        config,
+    );
     Ok(())
 }
 

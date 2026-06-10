@@ -2,11 +2,10 @@ use anyhow::{Result, anyhow};
 use chrono::Utc;
 use clap::Args;
 use systemprompt_logging::LoggingMaintenanceService;
-use systemprompt_runtime::AppContext;
 
 use super::LogCleanupOutput;
 use super::duration::parse_duration;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::require_confirmation;
 use crate::shared::{CommandOutput, render_result};
 
@@ -33,7 +32,7 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<()> {
     let cutoff_duration = match (&args.older_than, args.keep_last_days) {
         (Some(duration_str), None) => parse_duration(duration_str)?,
         (None, Some(days)) => chrono::Duration::days(days),
@@ -52,8 +51,7 @@ pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()>
     let cutoff_date = Utc::now() - cutoff_duration;
     let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S UTC").to_string();
 
-    let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
 
     if args.dry_run {
         let count = service
@@ -69,7 +67,7 @@ pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()>
         };
 
         let result = CommandOutput::card_value("Cleanup Preview (Dry Run)", &output);
-        render_result(&result);
+        render_result(&result, &ctx.cli);
         return Ok(());
     }
 
@@ -79,7 +77,7 @@ pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()>
             cutoff_str
         ),
         args.yes,
-        config,
+        &ctx.cli,
     )?;
 
     let deleted_count = service
@@ -95,7 +93,7 @@ pub(super) async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()>
     };
 
     let result = CommandOutput::card_value("Logs Cleaned Up", &output);
-    render_result(&result);
+    render_result(&result, &ctx.cli);
 
     Ok(())
 }

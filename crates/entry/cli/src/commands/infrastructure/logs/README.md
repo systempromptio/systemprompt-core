@@ -762,7 +762,7 @@ sp --json infra logs trace list | jq '.data.traces[] | select(.status == "failed
 
 ## Compliance Checklist
 
-- [x] All `execute` functions accept `config: &CliConfig`
+- [x] All `execute` entry points accept `ctx: &CommandContext`
 - [x] All commands return `CommandResult<T>` with proper artifact type
 - [x] `delete` command requires `--yes` / `-y` flag
 - [x] `cleanup` command requires `--older-than` or `--keep-last-days`

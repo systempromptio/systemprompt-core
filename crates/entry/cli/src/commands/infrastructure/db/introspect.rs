@@ -57,7 +57,7 @@ pub(super) async fn execute_indexes(
         let result =
             CommandOutput::table_of(vec!["table", "name", "columns", "unique"], &output.indexes)
                 .with_title("Database Schema");
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::section("Indexes");
 
@@ -112,7 +112,7 @@ pub(super) async fn execute_size(admin: &DatabaseAdminService, config: &CliConfi
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Size", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::section("Database Size");
         CliService::key_value("Total Size", &output.database_size);

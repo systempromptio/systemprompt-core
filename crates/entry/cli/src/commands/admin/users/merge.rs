@@ -1,10 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::UserMergeOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
@@ -19,7 +18,7 @@ pub struct MergeArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: MergeArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: MergeArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     if !args.yes {
         return Err(anyhow!(
             "This will merge the source user into the target user and DELETE the source. Use \
@@ -27,8 +26,8 @@ pub(super) async fn execute(args: MergeArgs, _config: &CliConfig) -> Result<Comm
         ));
     }
 
-    let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    let pool = ctx.db_pool().await?;
+    let user_service = UserService::new(&pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     let source_user = admin_service

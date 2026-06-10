@@ -14,17 +14,19 @@ use systemprompt_logging::CliService;
 use super::{ShowFilter, show};
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{ProfileListOutput, ProfileSummary};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
-pub(super) fn execute(config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = ProjectContext::discover();
-    let profiles_dir = ctx.profiles_dir();
+pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
+    let project = ProjectContext::discover();
+    let profiles_dir = project.profiles_dir();
 
     if !profiles_dir.exists() {
         return Ok(render_no_profiles(config));
     }
 
-    let current_profile_name = active_profile_name();
+    let current_profile_name = active_profile_name(ctx.env.profile.as_deref());
 
     let mut profiles = scan_profiles(&profiles_dir)?;
 
@@ -51,7 +53,7 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandOutput> {
 
     if !config.is_json_output() {
         if config.is_interactive() {
-            run_profile_picker(&profiles, current_profile_name.as_ref(), config)?;
+            run_profile_picker(&profiles, current_profile_name.as_ref(), ctx)?;
         } else {
             render_profile_lines(&profiles, current_profile_name.as_ref());
         }
@@ -63,9 +65,8 @@ pub(super) fn execute(config: &CliConfig) -> Result<CommandOutput> {
     )
 }
 
-fn active_profile_name() -> Option<String> {
-    let current_profile = std::env::var("SYSTEMPROMPT_PROFILE").ok();
-    current_profile.as_ref().and_then(|p| {
+fn active_profile_name(profile_env: Option<&str>) -> Option<String> {
+    profile_env.and_then(|p| {
         let path = PathBuf::from(p);
         path.parent()
             .and_then(|parent| parent.file_name())
@@ -121,7 +122,7 @@ fn profile_label(name: &str, has_secrets: bool, current: Option<&String>) -> Str
 fn run_profile_picker(
     profiles: &[(String, bool, PathBuf)],
     current: Option<&String>,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<()> {
     let options: Vec<String> = profiles
         .iter()
@@ -143,7 +144,7 @@ fn run_profile_picker(
         }
 
         let (profile_name, _, _) = &profiles[selection];
-        show::execute(Some(profile_name), ShowFilter::All, false, false, config)?;
+        show::execute(Some(profile_name), ShowFilter::All, false, false, ctx)?;
     }
 
     Ok(())

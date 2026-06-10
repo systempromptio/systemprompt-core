@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::{ContentTrendPoint, ContentTrendsOutput};
 use crate::CliConfig;
@@ -28,12 +28,6 @@ pub struct TrendsArgs {
 
     #[arg(long, help = "Export to CSV")]
     pub export: Option<PathBuf>,
-}
-
-pub(super) async fn execute(args: TrendsArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = ContentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub(super) async fn execute_with_pool(

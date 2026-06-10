@@ -1,10 +1,9 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::LoggingMaintenanceService;
-use systemprompt_runtime::AppContext;
 
 use super::LogDeleteOutput;
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::require_confirmation;
 use crate::shared::{CommandOutput, render_result};
 
@@ -14,15 +13,14 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<()> {
     require_confirmation(
         "Delete ALL log entries? This cannot be undone.",
         args.yes,
-        config,
+        &ctx.cli,
     )?;
 
-    let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
 
     let deleted_count = service
         .clear_all_logs()
@@ -36,7 +34,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> 
 
     let result = CommandOutput::card_value("Logs Deleted", &output);
 
-    render_result(&result);
+    render_result(&result, &ctx.cli);
 
     Ok(())
 }

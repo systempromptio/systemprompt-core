@@ -49,7 +49,7 @@ pub(super) async fn execute_assign_admin(
 
             if config.is_json_output() {
                 let result = CommandOutput::card_value("Database Admin", &output);
-                render_result(&result);
+                render_result(&result, config);
             } else {
                 CliService::success(&output.message);
                 CliService::info(&format!("   Roles: {:?}", new_roles));
@@ -67,7 +67,7 @@ pub(super) async fn execute_assign_admin(
 
             if config.is_json_output() {
                 let result = CommandOutput::card_value("Database Admin", &output);
-                render_result(&result);
+                render_result(&result, config);
             } else {
                 CliService::warning(&output.message);
             }
@@ -95,7 +95,7 @@ pub(super) async fn execute_status(admin: &DatabaseAdminService, config: &CliCon
 
     if config.is_json_output() {
         let result = CommandOutput::card_value("Database Admin", &output);
-        render_result(&result);
+        render_result(&result, config);
     } else {
         CliService::success("Database connection: OK");
         CliService::key_value("  Version", &output.version);

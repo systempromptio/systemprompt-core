@@ -36,28 +36,28 @@ pub async fn execute(cmd: ContentFilesCommands, config: &CliConfig) -> Result<()
             let result = link::execute(args, config)
                 .await
                 .context("Failed to link file to content")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentFilesCommands::Unlink(args) => {
             let result = unlink::execute(args, config)
                 .await
                 .context("Failed to unlink file from content")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentFilesCommands::List(args) => {
             let result = list::execute(args, config)
                 .await
                 .context("Failed to list content files")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
         ContentFilesCommands::Featured(args) => {
             let result = featured::execute(args, config)
                 .await
                 .context("Failed to get/set featured image")?;
-            render_result(&result);
+            render_result(&result, config);
             Ok(())
         },
     }

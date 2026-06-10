@@ -8,6 +8,7 @@ use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 use systemprompt_logging::TraceQueryService;
 
 use super::types::MessageRow;
+use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
 #[derive(Debug, Args)]
@@ -39,15 +40,19 @@ pub struct AuditToolCall {
     pub sequence: i32,
 }
 
-crate::define_pool_command!(AuditArgs => (), no_config);
+crate::define_pool_command!(AuditArgs => (), with_config);
 
-async fn execute_with_pool_inner(args: AuditArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
+async fn execute_with_pool_inner(
+    args: AuditArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let service = TraceQueryService::new(Arc::clone(pool));
 
     let row = service.find_ai_request_for_audit(&args.id).await?;
 
     let Some(row) = row else {
-        render_result(&not_found_output(&args.id));
+        render_result(&not_found_output(&args.id), config);
         return Ok(());
     };
 
@@ -86,7 +91,7 @@ async fn execute_with_pool_inner(args: AuditArgs, pool: &Arc<sqlx::PgPool>) -> R
             .collect(),
     };
 
-    render_result(&build_audit(&output));
+    render_result(&build_audit(&output), config);
 
     Ok(())
 }

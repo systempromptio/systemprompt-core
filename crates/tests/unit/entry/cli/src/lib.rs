@@ -21,6 +21,8 @@ mod commands;
 #[cfg(test)]
 mod descriptor;
 #[cfg(test)]
+mod env_overrides;
+#[cfg(test)]
 mod environment;
 #[cfg(test)]
 mod interactive;

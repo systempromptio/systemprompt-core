@@ -1,16 +1,16 @@
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 use serde_json::Value;
 use systemprompt_logging::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 
-pub(super) fn print_json(
+pub(super) fn build_json(
     events: &[TraceEvent],
     trace_id: &str,
     ai_summary: &AiRequestSummary,
     mcp_summary: &McpExecutionSummary,
     step_summary: &ExecutionStepSummary,
-) {
+) -> CommandOutput {
     let json_events: Vec<Value> = events
         .iter()
         .map(|e| {
@@ -75,6 +75,5 @@ pub(super) fn print_json(
     });
 
     let content = serde_json::to_string_pretty(&output).unwrap_or_else(|_| output.to_string());
-    let result = CommandOutput::copy_paste_titled("Trace JSON", content);
-    render_result(&result);
+    CommandOutput::copy_paste_titled("Trace JSON", content)
 }
