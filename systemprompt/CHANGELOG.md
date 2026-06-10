@@ -1,10 +1,16 @@
 # Changelog
 
-## [0.15.3] - 2026-06-10
+## [0.16.0] - 2026-06-10
+
+The facade re-exports the 0.16.0 surface of every member crate; see the per-crate changelogs for the breaking removals in `systemprompt-traits`, `systemprompt-extension`, and `systemprompt-mcp`.
 
 ### Breaking
 
 - The minimum supported Rust version is 1.88.
+
+### Changed
+
+- The usage snippets in the crate docs and README track the workspace version.
 
 ## [0.14.0] - 2026-06-01
 
@@ -64,3 +70,187 @@ The `systemprompt` facade tracks the workspace version. This release re-exports 
 - `systemprompt::models::JwtAudience::Bridge` (renamed from `Cowork`); persisted tokens with `aud: "cowork"` no longer validate.
 
 Feature flags are unchanged: `core` (default), `database`, `api`, `cli`, `full`.
+
+## [0.10.3] - 2026-05-18
+
+### Changed
+
+- A duplicate top-level re-export of `CredentialsBootstrap` was removed; it remains available as `systemprompt::credentials`.
+- Unused dependencies were dropped and `tracing` is a dev-dependency for the examples.
+
+## [0.10.2] - 2026-05-16
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.10.1] - 2026-05-15
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.10.0] - 2026-05-14
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.9.2] - 2026-05-12
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.9.1] - 2026-05-12
+
+### Changed
+
+- The prelude and the extension example track the schema-install pipeline overhaul in `systemprompt-database`; no new facade surface.
+
+## [0.9.0] - 2026-05-08
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.8.0] - 2026-05-07
+
+### Added
+
+- The `systemprompt::marketplace` module (`full` feature) re-exports `systemprompt-marketplace`, including the `MarketplaceFilter` trait.
+
+## [0.7.0] - 2026-05-06
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.6.1] - 2026-05-05
+
+### Changed
+
+- A stale prelude re-export was dropped; no new facade surface.
+
+## [0.6.0] - 2026-05-05
+
+### Added
+
+- Runnable examples per major feature flag (`api`, `cli`, `database`, `extension`), compiled in CI.
+- A crate-level feature matrix and expanded module docs on the docs.rs landing page.
+
+### Changed
+
+- The prelude is curated rather than a blanket re-export.
+
+## [0.5.0] - 2026-05-04
+
+### Added
+
+- Granular per-module feature flags, so consumers can enable individual domain modules instead of `full`.
+
+### Changed
+
+- Bootstrap I/O re-exports follow the move from `systemprompt-models` to `systemprompt-config`.
+
+## [0.4.2] - 2026-04-27
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.4.1] - 2026-04-27
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.4.0] - 2026-04-24
+
+### Removed
+
+- The dormant `GenericRepository` / `Entity` abstraction is removed from the prelude, following its deletion from `systemprompt-database`.
+
+## [0.3.1] - 2026-04-24
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.3.0] - 2026-04-22
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.2.4] - 2026-04-20
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.2.3] - 2026-04-20
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.2.2] - 2026-04-17
+
+### Changed
+
+- Feature wiring was updated in a workspace-wide feature-flag sweep; no surface change.
+
+## [0.2.1] - 2026-04-15
+
+### Changed
+
+- The crate description was updated; no API change.
+
+## [0.2.0] - 2026-04-15
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.1.24] - 2026-04-14
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.1.23] - 2026-04-14
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.1.22] - 2026-04-07
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.1.21] - 2026-04-02
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.1.20] - 2026-04-01
+
+### Changed
+
+- Workspace version bump; no API changes in this crate.
+
+## [0.1.19] - 2026-03-31
+
+### Changed
+
+- The `full` feature enables the `cli` display sinks in `systemprompt-logging`; the runtime and generator dependencies enable their `geolocation` and `image-processing` features.
+
+## [0.1.18] - 2026-03-27
+
+### Changed
+
+- The crate builds with the Rust 2024 edition.

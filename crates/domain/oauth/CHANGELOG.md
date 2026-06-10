@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.3] - 2026-06-10
+## [0.16.0] - 2026-06-10
 
 ### Breaking
 
@@ -14,6 +14,7 @@
 ### Fixed
 
 - Authorization codes are bound to the client that requested them and are rejected when redeemed by any other client.
+- Replay detection logs the stored authorization-code hash instead of the raw code.
 
 ## [0.14.0] - 2026-06-01
 

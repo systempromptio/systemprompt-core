@@ -1,9 +1,11 @@
 # Changelog
 
-## [0.15.3] - 2026-06-10
+## [0.16.0] - 2026-06-10
 
 ### Breaking
 
+- **Breaking:** `TypedExtensionRegistry::has_type` and `TypedExtensionRegistry::get_typed` are removed; they consulted a type index that was never populated and always reported absent. Dependency ordering is enforced at compile time by `ExtensionBuilder`.
+- **Breaking:** `DependencyList::validate` and the `MissingDependency` struct (under `types`) are removed for the same reason; `DependencyList::dependency_ids` is unchanged.
 - Error enum tuple variants that wrapped a bare message string are now struct variants with a named `message` field; match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
 - The minimum supported Rust version is 1.88.
 

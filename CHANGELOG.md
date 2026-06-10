@@ -1,9 +1,12 @@
 # Changelog
 
-## [0.15.3] - 2026-06-10
+## [0.16.0] - 2026-06-10
 
 ### Breaking
 
+- **Breaking:** The `artifact` module in `systemprompt-traits` (the `ArtifactSupport` trait and `schemas` helpers) is removed, and `ContentProvider::get_content` takes `&ContentId` instead of `&str`.
+- **Breaking:** `TypedExtensionRegistry::{has_type, get_typed}`, `DependencyList::validate`, and `MissingDependency` are removed from `systemprompt-extension`; they consulted a type index that was never populated. Dependency ordering remains compile-time enforced by `ExtensionBuilder`.
+- **Breaking:** The `McpServerRegistry` alias is removed from `systemprompt-mcp`. Migrate by using `RegistryService`.
 - Error enums in the published library crates now carry structured fields: tuple variants that wrapped a bare message string are struct variants with a named `message` field. Match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
 - JWT validation requires a first-party audience claim (`web`, `api`, `a2a`, or `mcp`). Tokens minted without an audience are rejected; re-issue long-lived tokens after upgrading.
 - The minimum supported Rust version is 1.88.
@@ -15,6 +18,7 @@
 
 ### Changed
 
+- Context-webhook event loading and notification handling in the API return typed errors; failure modes map to specific HTTP statuses (400/404) instead of a blanket 500.
 - The gateway clamps a caller's requested output-token limit down to the resolved model's configured `max_output_tokens` across every wire format (Anthropic, Gemini, OpenAI Chat, OpenAI Responses), never raising it, so a request cannot exceed the model's real output ceiling and `max_output_tokens` doubles as an operator-set per-request cap. OpenAI reasoning models continue to receive the full model cap as their completion budget.
 - Functions across the workspace now respect a clippy-enforced 75-line ceiling: over-long functions were split into focused helpers and nested conditionals collapsed into let-chains. No behavioural or API change.
 
@@ -22,6 +26,8 @@
 
 - OpenAI Chat and Responses requests now emit Anthropic tool-result blocks as standalone tool messages (`{role: "tool"}` and `function_call_output` respectively) before any new user text, matching each API's requirement that tool results immediately follow the assistant's tool calls.
 - Authorization codes are bound to the OAuth client that requested them and are rejected when redeemed by any other client.
+- OAuth replay detection logs the stored authorization-code hash instead of the raw code.
+- AI provider HTTP client-builder and tool-input serialization failures are logged before falling back.
 - Cloud-sync tar and gzip transfers run on blocking threads instead of stalling the async runtime.
 
 ## [0.15.2] - 2026-06-08
