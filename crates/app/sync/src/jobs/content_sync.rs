@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_models::{AppPaths, ContentConfigRaw};
+use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderError, ProviderResult};
 
 #[derive(Debug, Clone, Copy)]
@@ -56,16 +56,8 @@ impl Job for ContentSyncJob {
         let delete_orphans = get_bool_param(ctx, "delete_orphans");
         let override_existing = get_bool_param(ctx, "override_existing");
 
-        let config =
-            load_content_config(paths).map_err(|e| ProviderError::Configuration(e.to_string()))?;
         let services_path = paths.system().services();
-
-        let sources: Vec<_> = config
-            .content_sources
-            .into_iter()
-            .filter(|(_, source)| source.enabled)
-            .filter(|(_, source)| !source.allowed_content_types.contains(&"skill".to_owned()))
-            .collect();
+        let sources = load_enabled_sources(paths)?;
 
         if sources.is_empty() {
             let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -76,33 +68,7 @@ impl Job for ContentSyncJob {
         }
 
         let sync = ContentLocalSync::new(db_pool);
-        let mut all_diffs: Vec<ContentDiffEntry> = Vec::new();
-
-        for (name, source) in sources {
-            let source_path = resolve_source_path(&source.path, services_path);
-
-            let diff = sync
-                .calculate_diff(
-                    &source.source_id,
-                    &source_path,
-                    &source.allowed_content_types,
-                )
-                .await
-                .map_err(|e| {
-                    ProviderError::RenderFailed(format!(
-                        "Failed to calculate diff for source {name}: {e}"
-                    ))
-                })?;
-
-            all_diffs.push(ContentDiffEntry {
-                name,
-                source_id: source.source_id.clone(),
-                category_id: source.category_id.clone(),
-                path: source_path,
-                allowed_content_types: source.allowed_content_types.clone(),
-                diff,
-            });
-        }
+        let all_diffs = calculate_all_diffs(&sync, sources, services_path).await?;
 
         let has_changes = all_diffs.iter().any(|e| e.diff.has_changes());
 
@@ -142,6 +108,54 @@ impl Job for ContentSyncJob {
             .with_stats(result.items_synced as u64, result.errors.len() as u64)
             .with_duration(duration_ms))
     }
+}
+
+fn load_enabled_sources(paths: &AppPaths) -> ProviderResult<Vec<(String, ContentSourceConfigRaw)>> {
+    let config =
+        load_content_config(paths).map_err(|e| ProviderError::Configuration(e.to_string()))?;
+
+    Ok(config
+        .content_sources
+        .into_iter()
+        .filter(|(_, source)| source.enabled)
+        .filter(|(_, source)| !source.allowed_content_types.contains(&"skill".to_owned()))
+        .collect())
+}
+
+async fn calculate_all_diffs(
+    sync: &ContentLocalSync,
+    sources: Vec<(String, ContentSourceConfigRaw)>,
+    services_path: &Path,
+) -> ProviderResult<Vec<ContentDiffEntry>> {
+    let mut all_diffs: Vec<ContentDiffEntry> = Vec::new();
+
+    for (name, source) in sources {
+        let source_path = resolve_source_path(&source.path, services_path);
+
+        let diff = sync
+            .calculate_diff(
+                &source.source_id,
+                &source_path,
+                &source.allowed_content_types,
+            )
+            .await
+            .map_err(|e| {
+                ProviderError::RenderFailed(format!(
+                    "Failed to calculate diff for source {name}: {e}"
+                ))
+            })?;
+
+        all_diffs.push(ContentDiffEntry {
+            name,
+            source_id: source.source_id.clone(),
+            category_id: source.category_id.clone(),
+            path: source_path,
+            allowed_content_types: source.allowed_content_types.clone(),
+            diff,
+        });
+    }
+
+    Ok(all_diffs)
 }
 
 fn get_direction_from_params(ctx: &JobContext) -> SyncResult<LocalSyncDirection> {
