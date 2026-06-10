@@ -14,18 +14,22 @@ use systemprompt_models::Profile;
 use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;
+use crate::env_overrides::EnvOverrides;
 use crate::paths::ResolvedPaths;
 use crate::session::context::CliSessionContext;
 
-pub(super) fn try_session_from_env(profile: &Profile) -> Option<CliSessionContext> {
-    if std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_err() {
+pub(super) fn try_session_from_env(
+    profile: &Profile,
+    env: &EnvOverrides,
+) -> Option<CliSessionContext> {
+    if !env.is_remote_cli {
         return None;
     }
 
-    let session_id = std::env::var("SYSTEMPROMPT_SESSION_ID").ok()?;
-    let context_id = std::env::var("SYSTEMPROMPT_CONTEXT_ID").ok()?;
-    let user_id = std::env::var("SYSTEMPROMPT_USER_ID").ok()?;
-    let auth_token = std::env::var("SYSTEMPROMPT_AUTH_TOKEN").ok()?;
+    let session_id = env.session.session_id.clone()?;
+    let context_id = env.session.context_id.clone()?;
+    let user_id = env.session.user_id.clone()?;
+    let auth_token = env.session.auth_token.clone()?;
 
     let profile_name = ProfileName::new("remote");
     let email = Email::new("remote@cli.local");

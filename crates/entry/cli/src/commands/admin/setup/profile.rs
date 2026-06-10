@@ -20,7 +20,7 @@ use systemprompt_models::{
 
 use super::profile_sections as sections;
 use super::secrets::SecretsData;
-use crate::shared::profile::generate_display_name;
+use systemprompt_cloud::profile_authoring::generate_display_name;
 
 fn determine_environment(env_name: &str) -> Environment {
     match env_name.to_lowercase().as_str() {

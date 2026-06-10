@@ -27,7 +27,7 @@ pub struct ShowArgs {
 }
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let _session_ctx = get_or_create_session(&ctx.cli).await?;
+    let _session_ctx = get_or_create_session(ctx).await?;
     execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 

@@ -41,7 +41,7 @@ pub(super) struct ArtifactRow {
 }
 
 pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(&ctx.cli).await?;
+    let session_ctx = get_or_create_session(ctx).await?;
     let pool = ctx.db_pool().await?;
     execute_with_pool(args, &session_ctx.session.user_id, &pool, &ctx.cli).await
 }

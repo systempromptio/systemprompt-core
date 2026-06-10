@@ -62,9 +62,6 @@ impl Prompter for DialoguerPrompter {
     }
 }
 
-/// Deterministic [`Prompter`] returning queued answers; errors when the queue
-/// is exhausted. `confirm` parses `y`/`yes`/`true`; `select` parses a 0-based
-/// index.
 #[derive(Debug, Default)]
 pub struct ScriptedPrompter {
     answers: Mutex<VecDeque<String>>,

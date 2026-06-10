@@ -201,25 +201,6 @@ fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfi
     })
 }
 
-pub fn generate_display_name(name: &str) -> String {
-    match name.to_lowercase().as_str() {
-        "dev" | "development" => "Development".to_owned(),
-        "prod" | "production" => "Production".to_owned(),
-        "staging" | "stage" => "Staging".to_owned(),
-        "test" | "testing" => "Test".to_owned(),
-        "local" => "Local Development".to_owned(),
-        "cloud" => "Cloud".to_owned(),
-        _ => capitalize_first(name),
-    }
-}
-
-fn capitalize_first(name: &str) -> String {
-    let mut chars = name.chars();
-    chars.next().map_or_else(String::new, |first| {
-        first.to_uppercase().chain(chars).collect()
-    })
-}
-
 pub fn generate_oauth_at_rest_pepper() -> String {
     let mut rng = rng();
     (0..64)

@@ -13,7 +13,7 @@ use super::call_client::{
     ToolCallParams, convert_content, execute_tool_call, list_available_tools,
 };
 use super::types::{McpCallOutput, McpToolContent};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::interactive::resolve_required;
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::{CommandOutput, render_result};
@@ -38,9 +38,10 @@ pub struct CallArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-    let session_ctx = get_or_create_session(config).await?;
+    let session_ctx = get_or_create_session(ctx).await?;
 
     let server_arg = args.server.clone();
     let tool_arg = args.tool.clone();

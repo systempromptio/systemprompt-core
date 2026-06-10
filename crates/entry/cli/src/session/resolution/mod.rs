@@ -18,8 +18,8 @@ use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use super::context::CliSessionContext;
-use crate::CliConfig;
 use crate::cli_settings::{OutputFormat, VerbosityLevel};
+use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
 use helpers::{
     create_new_session, extract_profile_name, initialize_profile_bootstraps,
@@ -34,7 +34,7 @@ pub(super) struct ProfileContext<'a> {
 
 async fn get_session_for_profile(
     profile_input: &str,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<CliSessionContext> {
     let (profile_path, profile) = crate::shared::resolve_profile_with_data(profile_input)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -50,16 +50,16 @@ async fn get_session_for_profile(
         )?;
     }
 
-    get_session_for_loaded_profile(&profile, &profile_path, config).await
+    get_session_for_loaded_profile(&profile, &profile_path, ctx).await
 }
 
 async fn get_session_for_loaded_profile(
     profile: &Profile,
     profile_path: &Path,
-    config: &CliConfig,
+    ctx: &CommandContext,
 ) -> Result<CliSessionContext> {
-    if let Some(ctx) = try_session_from_env(profile) {
-        return Ok(ctx);
+    if let Some(session_ctx) = try_session_from_env(profile, &ctx.env) {
+        return Ok(session_ctx);
     }
 
     let profile_name = extract_profile_name(profile_path)?;
@@ -96,7 +96,7 @@ async fn get_session_for_loaded_profile(
         profile,
         &profile_ctx,
         &session_key,
-        config,
+        &ctx.cli,
         session_email_hint.as_deref(),
     )
     .await?;
@@ -115,7 +115,7 @@ async fn get_session_for_loaded_profile(
     })
 }
 
-async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSessionContext>> {
+async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliSessionContext>> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
     let store = SessionStore::load_or_create(&sessions_dir)?;
@@ -148,45 +148,46 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
 
     initialize_profile_bootstraps(&profile_path)?;
 
-    let ctx = get_session_for_loaded_profile(&profile, &profile_path, config).await?;
-    Ok(Some(ctx))
+    let session_ctx = get_session_for_loaded_profile(&profile, &profile_path, ctx).await?;
+    Ok(Some(session_ctx))
 }
 
-pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
-    let ctx = resolve_session(config).await?;
+pub async fn get_or_create_session(ctx: &CommandContext) -> Result<CliSessionContext> {
+    let session_ctx = resolve_session(ctx).await?;
 
+    let config = &ctx.cli;
     let banner_requested = config.verbosity >= VerbosityLevel::Verbose;
-    let banner_warranted = ctx.profile.target.is_cloud();
+    let banner_warranted = session_ctx.profile.target.is_cloud();
     if config.is_interactive()
         && config.output_format == OutputFormat::Table
         && config.verbosity != VerbosityLevel::Quiet
         && (banner_requested || banner_warranted)
     {
-        let tenant = ctx
+        let tenant = session_ctx
             .session
             .tenant_key
             .as_ref()
             .map_or("local", systemprompt_identifiers::TenantId::as_str);
         CliService::session_context_with_url(
-            ctx.session.profile_name.as_str(),
-            &ctx.session.session_id,
+            session_ctx.session.profile_name.as_str(),
+            &session_ctx.session.session_id,
             Some(tenant),
-            Some(&ctx.profile.server.api_external_url),
+            Some(&session_ctx.profile.server.api_external_url),
         );
     }
 
-    Ok(ctx)
+    Ok(session_ctx)
 }
 
-async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
-    if let Some(ref profile_name) = config.profile_override {
-        return get_session_for_profile(profile_name, config).await;
+async fn resolve_session(ctx: &CommandContext) -> Result<CliSessionContext> {
+    if let Some(ref profile_name) = ctx.cli.profile_override {
+        return get_session_for_profile(profile_name, ctx).await;
     }
 
-    let env_profile_set = std::env::var("SYSTEMPROMPT_PROFILE").is_ok();
-
-    if !env_profile_set && let Some(ctx) = try_session_from_active_key(config).await? {
-        return Ok(ctx);
+    if ctx.env.profile.is_none()
+        && let Some(session_ctx) = try_session_from_active_key(ctx).await?
+    {
+        return Ok(session_ctx);
     }
 
     let profile = ProfileBootstrap::get()
@@ -206,5 +207,5 @@ async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
     })?;
 
     let profile_path = Path::new(profile_path_str);
-    get_session_for_loaded_profile(&profile, profile_path, config).await
+    get_session_for_loaded_profile(&profile, profile_path, ctx).await
 }

@@ -19,7 +19,7 @@ pub struct DeleteArgs {
 }
 
 pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(&ctx.cli).await?;
+    let session_ctx = get_or_create_session(ctx).await?;
     let pool = ctx.db_pool().await?;
 
     let repo = ContextRepository::new(&pool)?;

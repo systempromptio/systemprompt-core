@@ -9,11 +9,20 @@
 - **Breaking:** The `McpServerRegistry` alias is removed from `systemprompt-mcp`. Migrate by using `RegistryService`.
 - Error enums in the published library crates now carry structured fields: tuple variants that wrapped a bare message string are struct variants with a named `message` field. Match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
 - JWT validation requires a first-party audience claim (`web`, `api`, `a2a`, or `mcp`). Tokens minted without an audience are rejected; re-issue long-lived tokens after upgrading.
+- **Breaking:** `systemprompt-cli` no longer exposes process-global configuration: `set_global_config`/`get_global_config` and the thread-local config are removed, and command handlers take a per-invocation `CommandContext` (resolved `CliConfig`, an `EnvOverrides` environment snapshot, a `Prompter`, and lazy runtime access). Migrate by constructing a `CommandContext` and passing it explicitly.
+- **Breaking:** `artifact_type_to_string` is removed from `systemprompt-agent`. Migrate by using the `Display` impl on `ArtifactType`.
 - The minimum supported Rust version is 1.88.
 
 ### Added
 
 - The profile's `database.pool` block configures the database connection pool (`max_connections`, `min_connections`, `acquire_timeout`, `idle_timeout`, `max_lifetime`). Values are validated at bootstrap, so a misconfigured pool fails the boot instead of degrading at runtime.
+- `systemprompt-cloud` gains the deploy building blocks formerly embedded in the CLI: `profile_authoring` (local/cloud profile builders), `deploy` (Dockerfile generation and validation), `secrets_env` (secrets-to-environment mapping and signing-key transport), `docker` (a `DockerCli` behind a stubbable `CommandRunner`), and `tenants::TenantProvisioningService` (checkout, provisioning wait, credential fetch, external-access setup).
+- `systemprompt-sync` gains `DeployOrchestrator`, which sequences pre-deploy sync, artifact and Dockerfile validation, image build/push, secret provisioning, and the deploy call, reporting steps through a caller-supplied `DeployProgress`.
+- `systemprompt-scheduler` gains `JobExecutionService` (job selection, parameter parsing, execution recording, typed `JobRunReport`) and pure `StartupPlan`/`RestartPlan` computations; `ServiceManagementService` adds `stop_api_by_port` and `cleanup_all_orphans`.
+- `systemprompt-config` gains `ProviderCatalogService` and `SecurityConfigService` for validated profile mutation; `systemprompt-database` gains `SquashBaselineService` for locating and writing squash baselines.
+- `systemprompt-agent` gains `AgentConfigAuthoringService` (agent YAML create/edit/delete with name and port validation); `systemprompt-oauth` gains `PluginTokenService` for minting plugin hook tokens from a pre-resolved subject.
+- `systemprompt-client` gains `RemoteCliExecutor` and an `OutputSink` trait for remote CLI execution over SSE.
+- `ScriptedPrompter` provides deterministic queued answers for the CLI's interactive prompts in tests.
 - `gateway.system_prompt_overrides` declares ordered rules that replace or strip a request's system prompt before it is forwarded upstream, matched first-match-wins on the resolved provider and requested model (with `foo*` / `*foo` / `*` patterns). A `replace` rule's prompt body may be inlined or loaded from a file with `!include <path>`, resolved relative to the profile directory and fail-closed on a missing file. Extensions can contribute programmatic overrides through the `register_system_prompt_override!` macro. The applied override is recorded on the request's audit row as `system_prompt_override` (e.g. `config:replace`, `extension:<name>:strip`).
 
 ### Changed
@@ -21,6 +30,8 @@
 - Context-webhook event loading and notification handling in the API return typed errors; failure modes map to specific HTTP statuses (400/404) instead of a blanket 500.
 - The gateway clamps a caller's requested output-token limit down to the resolved model's configured `max_output_tokens` across every wire format (Anthropic, Gemini, OpenAI Chat, OpenAI Responses), never raising it, so a request cannot exceed the model's real output ceiling and `max_output_tokens` doubles as an operator-set per-request cap. OpenAI reasoning models continue to receive the full model cap as their completion budget.
 - Functions across the workspace now respect a clippy-enforced 75-line ceiling: over-long functions were split into focused helpers and nested conditionals collapsed into let-chains. No behavioural or API change.
+- `ArtifactType::Message` is a first-class variant instead of a `Custom("message")` string; serialized output is unchanged.
+- The CLI reads environment variables once at startup into an `EnvOverrides` snapshot; command code no longer consults `std::env` directly.
 
 ### Fixed
 
@@ -29,6 +40,8 @@
 - OAuth replay detection logs the stored authorization-code hash instead of the raw code.
 - AI provider HTTP client-builder and tool-input serialization failures are logged before falling back.
 - Cloud-sync tar and gzip transfers run on blocking threads instead of stalling the async runtime.
+- Artifact-type resolution falls through the `"cli"` envelope tag to the data-embedded variant tag, so enveloped artifacts render with the correct UI renderer instead of being rejected as unsupported.
+- The scheduler's service stop and orphan-cleanup paths verify a stored PID still belongs to the expected child process before signalling it, instead of signalling recycled PIDs.
 
 ## [0.15.2] - 2026-06-08
 

@@ -6,7 +6,7 @@ use clap::Args;
 use super::tools_client::{list_tools_authenticated, list_tools_unauthenticated};
 use super::tools_schema::print_schema_view;
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::SessionToken;
@@ -30,10 +30,11 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let session_ctx = get_or_create_session(config).await?;
+    let session_ctx = get_or_create_session(ctx).await?;
     let session_token = session_ctx.session_token();
 
     let ctx = AppContext::new()
