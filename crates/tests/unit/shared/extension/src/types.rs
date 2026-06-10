@@ -1,5 +1,5 @@
 use systemprompt_extension::types::{
-    DependencyList, ExtensionMeta, ExtensionType, MissingDependency, NoDependencies,
+    DependencyList, ExtensionMeta, ExtensionType, NoDependencies,
 };
 
 #[derive(Debug, Default)]
@@ -81,34 +81,7 @@ fn extension_meta_priority_via_trait() {
 }
 
 #[test]
-fn empty_dependency_list_validate_succeeds() {
-    let registry = systemprompt_extension::TypedExtensionRegistry::new();
-    let result = <() as DependencyList>::validate(&registry);
-    assert!(result.is_ok());
-}
-
-#[test]
 fn empty_dependency_list_ids_empty() {
     let ids = <() as DependencyList>::dependency_ids();
     assert!(ids.is_empty());
-}
-
-#[test]
-fn missing_dependency_has_fields() {
-    let missing = MissingDependency {
-        extension_id: "ext-a",
-        extension_name: "Extension A",
-    };
-    assert_eq!(missing.extension_id, "ext-a");
-    assert_eq!(missing.extension_name, "Extension A");
-}
-
-#[test]
-fn missing_dependency_debug_format() {
-    let missing = MissingDependency {
-        extension_id: "dep-x",
-        extension_name: "Dep X",
-    };
-    let debug = format!("{missing:?}");
-    assert!(debug.contains("dep-x"));
 }

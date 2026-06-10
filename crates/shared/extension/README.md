@@ -55,7 +55,7 @@ Provides the compile-time framework for building and loading systemprompt.io ext
 | `traits` | The `Extension` trait and `register_extension!` macro. |
 | `typed` | Compile-time-checked sub-traits: `SchemaExtensionTyped`, `ApiExtensionTyped`, `ConfigExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`. |
 | `typed_registry` | `TypedExtensionRegistry` and `RESERVED_PATHS`. |
-| `types` | `Dependencies`, `DependencyList`, `ExtensionMeta`, `ExtensionType`, `MissingDependency`, `NoDependencies`. |
+| `types` | `Dependencies`, `DependencyList`, `ExtensionMeta`, `ExtensionType`, `NoDependencies`. |
 
 ## Usage
 

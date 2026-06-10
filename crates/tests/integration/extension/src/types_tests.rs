@@ -111,14 +111,3 @@ fn test_chained_dependencies() {
     let ids = <Deps as DependencyList>::dependency_ids();
     assert_eq!(ids, vec!["blog", "auth"]);
 }
-
-#[test]
-fn test_missing_dependency_debug() {
-    let missing = MissingDependency {
-        extension_id: "auth",
-        extension_name: "Authentication",
-    };
-    let debug_str = format!("{:?}", missing);
-    assert!(debug_str.contains("auth"));
-    assert!(debug_str.contains("Authentication"));
-}

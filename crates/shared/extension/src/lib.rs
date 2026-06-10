@@ -98,9 +98,7 @@ pub use typed::{
     ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
 };
 pub use typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
-pub use types::{
-    Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency, NoDependencies,
-};
+pub use types::{Dependencies, DependencyList, ExtensionMeta, ExtensionType, NoDependencies};
 
 pub mod prelude {
     pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
@@ -127,8 +125,7 @@ pub mod prelude {
     };
     pub use crate::typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
     pub use crate::types::{
-        Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency,
-        NoDependencies,
+        Dependencies, DependencyList, ExtensionMeta, ExtensionType, NoDependencies,
     };
 
     pub use systemprompt_provider_contracts::{

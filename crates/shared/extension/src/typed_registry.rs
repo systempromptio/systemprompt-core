@@ -1,18 +1,15 @@
-//! Typed registry that tracks registrations by both ID and concrete type.
+//! ID-keyed, priority-ordered registry of built extensions.
 
-use std::any::TypeId;
 use std::collections::HashMap;
 
 use crate::any::AnyExtension;
 use crate::error::LoaderError;
 pub use crate::registry::RESERVED_PATHS;
 use crate::typed::{ApiExtensionTypedDyn, SchemaExtensionTyped};
-use crate::types::ExtensionType;
 
 pub struct TypedExtensionRegistry {
     extensions: Vec<Box<dyn AnyExtension>>,
     by_id: HashMap<String, usize>,
-    by_type: HashMap<TypeId, usize>,
     api_paths: Vec<String>,
 }
 
@@ -28,7 +25,6 @@ impl TypedExtensionRegistry {
         Self {
             extensions: Vec::new(),
             by_id: HashMap::new(),
-            by_type: HashMap::new(),
             api_paths: Vec::new(),
         }
     }
@@ -74,11 +70,6 @@ impl TypedExtensionRegistry {
     }
 
     #[must_use]
-    pub fn has_type<E: ExtensionType>(&self) -> bool {
-        self.by_type.contains_key(&TypeId::of::<E>())
-    }
-
-    #[must_use]
     pub fn has(&self, id: &str) -> bool {
         self.by_id.contains_key(id)
     }
@@ -86,13 +77,6 @@ impl TypedExtensionRegistry {
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&dyn AnyExtension> {
         self.by_id.get(id).map(|&idx| self.extensions[idx].as_ref())
-    }
-
-    #[must_use]
-    pub fn get_typed<E: ExtensionType + 'static>(&self) -> Option<&E> {
-        self.by_type
-            .get(&TypeId::of::<E>())
-            .and_then(|&idx| self.extensions[idx].as_any().downcast_ref())
     }
 
     /// Schema-bearing extensions in registration order. The typed
