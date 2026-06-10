@@ -31,125 +31,42 @@ pub struct CreateArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let name = resolve_required(args.name, "name", config, prompt_name)?;
+struct ResolvedAgentInput {
+    name: String,
+    port: u16,
+    display_name: String,
+    description: String,
+    system_prompt: Option<String>,
+}
 
+pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
+    let mut agent_args = args.agent;
+
+    let name = resolve_required(args.name, "name", config, prompt_name)?;
     validate_agent_name(&name)?;
 
-    let port = resolve_required(args.agent.port, "port", config, prompt_port)?;
-
+    let port = resolve_required(agent_args.port, "port", config, prompt_port)?;
     validate_port(port)?;
 
-    let display_name = args.agent.display_name.unwrap_or_else(|| {
-        if config.is_interactive() {
-            prompt_display_name(&name).unwrap_or_else(|_| name.clone())
-        } else {
-            name.clone()
-        }
-    });
-
-    let description = args.agent.description.unwrap_or_else(|| {
-        if config.is_interactive() {
-            prompt_description().unwrap_or_else(|e| {
-                tracing::warn!(error = %e, "Failed to prompt for description");
-                String::new()
-            })
-        } else {
-            String::new()
-        }
-    });
-
-    let system_prompt = if let Some(file_path) = &args.agent.system_prompt_file {
-        let content = fs::read_to_string(file_path)
-            .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
-        Some(content)
-    } else if let Some(prompt) = args.agent.system_prompt.clone() {
-        Some(prompt)
-    } else {
-        let default_prompt = if description.is_empty() {
-            format!("You are {}.", display_name)
-        } else {
-            format!("You are {}. {}", display_name, description)
-        };
-        Some(default_prompt)
-    };
+    let display_name = resolve_display_name(agent_args.display_name.take(), &name, config);
+    let description = resolve_description(agent_args.description.take(), config);
+    let system_prompt = resolve_system_prompt(&mut agent_args, &display_name, &description)?;
 
     CliService::info(&format!(
         "Creating agent '{}' on port {} (display: {})...",
         name, port, display_name
     ));
 
-    let provider = args
-        .agent
-        .provider
-        .unwrap_or_else(|| "anthropic".to_owned());
-    let model = args
-        .agent
-        .model
-        .unwrap_or_else(|| default_model_for(&provider));
-
-    let agent_config = AgentConfig {
+    let input = ResolvedAgentInput {
         name: name.clone(),
         port,
-        endpoint: args.agent.endpoint.unwrap_or_else(|| {
-            ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentId::new(&name))
-        }),
-        enabled: args.enabled,
-        dev_only: args.agent.dev_only,
-        is_primary: args.agent.is_primary,
-        default: args.agent.default,
-        tags: Vec::new(),
-        card: AgentCardConfig {
-            protocol_version: systemprompt_agent::A2A_PROTOCOL_VERSION.to_owned(),
-            name: Some(name.clone()),
-            display_name,
-            description,
-            version: args.agent.version.unwrap_or_else(|| "1.0.0".to_owned()),
-            preferred_transport: "JSONRPC".to_owned(),
-            icon_url: args.agent.icon_url,
-            documentation_url: args.agent.documentation_url,
-            provider: None,
-            capabilities: CapabilitiesConfig {
-                streaming: args.agent.streaming.unwrap_or(true),
-                push_notifications: args.agent.push_notifications.unwrap_or(false),
-                state_transition_history: args.agent.state_transition_history.unwrap_or(true),
-            },
-            default_input_modes: vec!["text/plain".to_owned()],
-            default_output_modes: vec!["text/plain".to_owned()],
-            security_schemes: None,
-            security: None,
-            skills: vec![],
-            supports_authenticated_extended_card: false,
-        },
-        metadata: AgentMetadataConfig {
-            system_prompt,
-            mcp_servers: systemprompt_models::services::PluginComponentRef {
-                include: args.agent.mcp_servers,
-                ..Default::default()
-            },
-            skills: systemprompt_models::services::PluginComponentRef {
-                include: args.agent.skills,
-                ..Default::default()
-            },
-            provider: Some(provider),
-            model: Some(model),
-            ..Default::default()
-        },
-        oauth: OAuthConfig::default(),
+        display_name,
+        description,
+        system_prompt,
     };
+    let agent_config = build_agent_config(input, args.enabled, agent_args);
 
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let services_dir = Path::new(&profile.paths.services);
-
-    let agent_file = ConfigWriter::create_agent(&agent_config, services_dir)
-        .with_context(|| format!("Failed to create agent '{}'", name))?;
-
-    ConfigLoader::load().with_context(|| {
-        format!(
-            "Agent file created at {} but validation failed. Please check the configuration.",
-            agent_file.display()
-        )
-    })?;
+    let agent_file = write_agent_config(&agent_config)?;
 
     CliService::success(&format!(
         "Agent '{}' created at {}",
@@ -167,6 +84,122 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
     };
 
     Ok(CommandOutput::card_value("Agent Created", &output))
+}
+
+fn resolve_display_name(arg: Option<String>, name: &str, config: &CliConfig) -> String {
+    arg.unwrap_or_else(|| {
+        if config.is_interactive() {
+            prompt_display_name(name).unwrap_or_else(|_| name.to_owned())
+        } else {
+            name.to_owned()
+        }
+    })
+}
+
+fn resolve_description(arg: Option<String>, config: &CliConfig) -> String {
+    arg.unwrap_or_else(|| {
+        if config.is_interactive() {
+            prompt_description().unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "Failed to prompt for description");
+                String::new()
+            })
+        } else {
+            String::new()
+        }
+    })
+}
+
+fn resolve_system_prompt(
+    agent: &mut AgentArgs,
+    display_name: &str,
+    description: &str,
+) -> Result<Option<String>> {
+    if let Some(file_path) = &agent.system_prompt_file {
+        let content = fs::read_to_string(file_path)
+            .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
+        return Ok(Some(content));
+    }
+    if let Some(prompt) = agent.system_prompt.take() {
+        return Ok(Some(prompt));
+    }
+    let default_prompt = if description.is_empty() {
+        format!("You are {}.", display_name)
+    } else {
+        format!("You are {}. {}", display_name, description)
+    };
+    Ok(Some(default_prompt))
+}
+
+fn build_agent_config(input: ResolvedAgentInput, enabled: bool, agent: AgentArgs) -> AgentConfig {
+    let provider = agent.provider.unwrap_or_else(|| "anthropic".to_owned());
+    let model = agent.model.unwrap_or_else(|| default_model_for(&provider));
+
+    AgentConfig {
+        name: input.name.clone(),
+        port: input.port,
+        endpoint: agent.endpoint.unwrap_or_else(|| {
+            ApiPaths::agent_endpoint(&systemprompt_identifiers::AgentId::new(&input.name))
+        }),
+        enabled,
+        dev_only: agent.dev_only,
+        is_primary: agent.is_primary,
+        default: agent.default,
+        tags: Vec::new(),
+        card: AgentCardConfig {
+            protocol_version: systemprompt_agent::A2A_PROTOCOL_VERSION.to_owned(),
+            name: Some(input.name),
+            display_name: input.display_name,
+            description: input.description,
+            version: agent.version.unwrap_or_else(|| "1.0.0".to_owned()),
+            preferred_transport: "JSONRPC".to_owned(),
+            icon_url: agent.icon_url,
+            documentation_url: agent.documentation_url,
+            provider: None,
+            capabilities: CapabilitiesConfig {
+                streaming: agent.streaming.unwrap_or(true),
+                push_notifications: agent.push_notifications.unwrap_or(false),
+                state_transition_history: agent.state_transition_history.unwrap_or(true),
+            },
+            default_input_modes: vec!["text/plain".to_owned()],
+            default_output_modes: vec!["text/plain".to_owned()],
+            security_schemes: None,
+            security: None,
+            skills: vec![],
+            supports_authenticated_extended_card: false,
+        },
+        metadata: AgentMetadataConfig {
+            system_prompt: input.system_prompt,
+            mcp_servers: systemprompt_models::services::PluginComponentRef {
+                include: agent.mcp_servers,
+                ..Default::default()
+            },
+            skills: systemprompt_models::services::PluginComponentRef {
+                include: agent.skills,
+                ..Default::default()
+            },
+            provider: Some(provider),
+            model: Some(model),
+            ..Default::default()
+        },
+        oauth: OAuthConfig::default(),
+    }
+}
+
+fn write_agent_config(agent_config: &AgentConfig) -> Result<std::path::PathBuf> {
+    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let services_dir = Path::new(&profile.paths.services);
+
+    let agent_file = ConfigWriter::create_agent(agent_config, services_dir)
+        .with_context(|| format!("Failed to create agent '{}'", agent_config.name))?;
+
+    ConfigLoader::load().with_context(|| {
+        format!(
+            "Agent file created at {} but validation failed. Please check the configuration.",
+            agent_file.display()
+        )
+    })?;
+
+    Ok(agent_file)
 }
 
 fn validate_agent_name(name: &str) -> Result<()> {

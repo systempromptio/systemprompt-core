@@ -9,6 +9,7 @@ use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
+use systemprompt_models::Profile;
 use systemprompt_models::content_config::ContentConfigRaw;
 
 use super::super::types::SitemapGenerateOutput;
@@ -27,22 +28,55 @@ pub struct GenerateArgs {
 
 pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let content_config = load_content_config(profile)?;
+    let base_url = resolve_base_url(args, profile);
+    let output_path = resolve_output_path(args, profile)?;
+
+    CliService::info("Generating sitemap...");
+
+    let urls = collect_urls(&content_config, &base_url, args.include_dynamic);
+    let xml = build_sitemap_xml(&urls);
+
+    fs::write(&output_path, &xml)
+        .with_context(|| format!("Failed to write sitemap to {}", output_path.display()))?;
+
+    let message = format!(
+        "Sitemap generated with {} URLs at {}",
+        urls.len(),
+        output_path.display()
+    );
+    CliService::success(&message);
+
+    let output = SitemapGenerateOutput {
+        output_path: output_path.to_string_lossy().to_string(),
+        routes_count: urls.len(),
+        message,
+    };
+
+    Ok(CommandOutput::card_value("Sitemap Generated", &output))
+}
+
+fn load_content_config(profile: &Profile) -> Result<ContentConfigRaw> {
     let content_config_path = profile.paths.content_config();
 
     let content = fs::read_to_string(&content_config_path)
         .with_context(|| format!("Failed to read content config at {}", content_config_path))?;
 
-    let content_config: ContentConfigRaw = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
+    serde_yaml::from_str(&content)
+        .with_context(|| format!("Failed to parse content config at {}", content_config_path))
+}
 
-    let base_url = args.base_url.clone().unwrap_or_else(|| {
+fn resolve_base_url(args: &GenerateArgs, profile: &Profile) -> String {
+    args.base_url.clone().unwrap_or_else(|| {
         let metadata_path = profile.paths.web_metadata();
         fs::read_to_string(&metadata_path)
             .ok()
             .and_then(|content| extract_base_url(&content))
             .unwrap_or_else(|| "https://example.com".to_owned())
-    });
+    })
+}
 
+fn resolve_output_path(args: &GenerateArgs, profile: &Profile) -> Result<PathBuf> {
     let web_path = profile.paths.web_path_resolved();
     let output_path = args
         .output
@@ -54,8 +88,14 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
             .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
     }
 
-    CliService::info("Generating sitemap...");
+    Ok(output_path)
+}
 
+fn collect_urls(
+    content_config: &ContentConfigRaw,
+    base_url: &str,
+    include_dynamic: bool,
+) -> Vec<SitemapUrl> {
     let mut urls: Vec<SitemapUrl> = Vec::new();
     let today = Utc::now().format("%Y-%m-%d").to_string();
 
@@ -64,38 +104,39 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
             continue;
         }
 
-        if let Some(sitemap) = &source.sitemap {
-            if !sitemap.enabled {
-                continue;
-            }
+        let Some(sitemap) = &source.sitemap else {
+            continue;
+        };
+        if !sitemap.enabled {
+            continue;
+        }
 
-            if let Some(parent) = &sitemap.parent_route
-                && parent.enabled
-            {
-                urls.push(SitemapUrl {
-                    loc: format!("{}{}", base_url, parent.url),
-                    lastmod: today.clone(),
-                    changefreq: parent.changefreq.clone(),
-                    priority: parent.priority,
-                    alternates: Vec::new(),
-                });
-            }
+        if let Some(parent) = &sitemap.parent_route
+            && parent.enabled
+        {
+            urls.push(SitemapUrl {
+                loc: format!("{}{}", base_url, parent.url),
+                lastmod: today.clone(),
+                changefreq: parent.changefreq.clone(),
+                priority: parent.priority,
+                alternates: Vec::new(),
+            });
+        }
 
-            if !args.include_dynamic && sitemap.url_pattern.contains("{slug}") {
-                CliService::warning(&format!(
-                    "Skipping dynamic route '{}' for source '{}'. Use --include-dynamic to fetch \
-                     from database.",
-                    sitemap.url_pattern, name
-                ));
-            } else if !sitemap.url_pattern.contains("{slug}") {
-                urls.push(SitemapUrl {
-                    loc: format!("{}{}", base_url, sitemap.url_pattern),
-                    lastmod: today.clone(),
-                    changefreq: sitemap.changefreq.clone(),
-                    priority: sitemap.priority,
-                    alternates: Vec::new(),
-                });
-            }
+        if !include_dynamic && sitemap.url_pattern.contains("{slug}") {
+            CliService::warning(&format!(
+                "Skipping dynamic route '{}' for source '{}'. Use --include-dynamic to fetch \
+                 from database.",
+                sitemap.url_pattern, name
+            ));
+        } else if !sitemap.url_pattern.contains("{slug}") {
+            urls.push(SitemapUrl {
+                loc: format!("{}{}", base_url, sitemap.url_pattern),
+                lastmod: today.clone(),
+                changefreq: sitemap.changefreq.clone(),
+                priority: sitemap.priority,
+                alternates: Vec::new(),
+            });
         }
     }
 
@@ -105,28 +146,7 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let xml = build_sitemap_xml(&urls);
-
-    fs::write(&output_path, &xml)
-        .with_context(|| format!("Failed to write sitemap to {}", output_path.display()))?;
-
-    CliService::success(&format!(
-        "Sitemap generated with {} URLs at {}",
-        urls.len(),
-        output_path.display()
-    ));
-
-    let output = SitemapGenerateOutput {
-        output_path: output_path.to_string_lossy().to_string(),
-        routes_count: urls.len(),
-        message: format!(
-            "Sitemap generated with {} URLs at {}",
-            urls.len(),
-            output_path.display()
-        ),
-    };
-
-    Ok(CommandOutput::card_value("Sitemap Generated", &output))
+    urls
 }
 
 fn extract_base_url(metadata_content: &str) -> Option<String> {

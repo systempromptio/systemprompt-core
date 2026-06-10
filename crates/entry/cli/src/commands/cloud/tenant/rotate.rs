@@ -23,17 +23,7 @@ pub async fn rotate_credentials(
         TenantStore::default()
     });
 
-    let tenant_id = if let Some(id) = id {
-        id
-    } else {
-        if store.tenants.is_empty() {
-            bail!("No tenants configured.");
-        }
-        if skip_confirm {
-            bail!("Tenant ID required in non-interactive mode");
-        }
-        select_tenant(&store.tenants)?.id.clone()
-    };
+    let tenant_id = resolve_rotation_target(id, &store, skip_confirm)?;
 
     let tenant = store
         .tenants
@@ -45,27 +35,8 @@ pub async fn rotate_credentials(
         bail!("Credential rotation is only available for cloud tenants");
     }
 
-    if !skip_confirm {
-        let confirm = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!(
-                "Rotate database credentials for '{}'? This will generate a new password.",
-                tenant.name
-            ))
-            .default(false)
-            .interact()?;
-
-        if !confirm {
-            if !config.is_json_output() {
-                CliService::info("Cancelled");
-            }
-            let output = RotateCredentialsOutput {
-                tenant: tenant_id.clone(),
-                status: "cancelled".to_owned(),
-                internal_database_url: String::new(),
-                external_database_url: String::new(),
-            };
-            return Ok(CommandOutput::card_value("Rotate Credentials", &output));
-        }
+    if !skip_confirm && !confirm_rotation(&tenant.name)? {
+        return Ok(cancelled_output(&tenant_id, config));
     }
 
     let creds = get_credentials()?;
@@ -101,17 +72,61 @@ pub async fn rotate_credentials(
         tenant: tenant_id.clone(),
         status: response.status.clone(),
         internal_database_url: response.internal_database_url.clone(),
-        external_database_url: response.external_database_url.clone(),
+        external_database_url: response.external_database_url,
     };
 
     if !config.is_json_output() {
-        CliService::success("Database credentials rotated");
-        CliService::key_value("Status", &response.status);
-
-        CliService::section("New Database Connection");
-        CliService::key_value("Internal URL", &response.internal_database_url);
-        CliService::key_value("External URL", &response.external_database_url);
+        render_rotation_result(&output);
     }
 
     Ok(CommandOutput::card_value("Rotate Credentials", &output))
+}
+
+fn resolve_rotation_target(
+    id: Option<String>,
+    store: &TenantStore,
+    skip_confirm: bool,
+) -> Result<String> {
+    if let Some(id) = id {
+        return Ok(id);
+    }
+    if store.tenants.is_empty() {
+        bail!("No tenants configured.");
+    }
+    if skip_confirm {
+        bail!("Tenant ID required in non-interactive mode");
+    }
+    Ok(select_tenant(&store.tenants)?.id.clone())
+}
+
+fn confirm_rotation(tenant_name: &str) -> Result<bool> {
+    Ok(Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!(
+            "Rotate database credentials for '{}'? This will generate a new password.",
+            tenant_name
+        ))
+        .default(false)
+        .interact()?)
+}
+
+fn cancelled_output(tenant_id: &str, config: &CliConfig) -> CommandOutput {
+    if !config.is_json_output() {
+        CliService::info("Cancelled");
+    }
+    let output = RotateCredentialsOutput {
+        tenant: tenant_id.to_owned(),
+        status: "cancelled".to_owned(),
+        internal_database_url: String::new(),
+        external_database_url: String::new(),
+    };
+    CommandOutput::card_value("Rotate Credentials", &output)
+}
+
+fn render_rotation_result(output: &RotateCredentialsOutput) {
+    CliService::success("Database credentials rotated");
+    CliService::key_value("Status", &output.status);
+
+    CliService::section("New Database Connection");
+    CliService::key_value("Internal URL", &output.internal_database_url);
+    CliService::key_value("External URL", &output.external_database_url);
 }

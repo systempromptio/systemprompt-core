@@ -153,26 +153,7 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
         "SELECT 1 FROM pg_roles WHERE rolname = '{}'",
         SHARED_ADMIN_USER
     );
-    let check_output = Command::new("docker")
-        .args([
-            "exec",
-            SHARED_CONTAINER_NAME,
-            "psql",
-            "-U",
-            SHARED_ADMIN_USER,
-            "-d",
-            "postgres",
-            "-tAc",
-            &role_check_query,
-        ])
-        .output()
-        .with_context(|| {
-            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` checking admin role")
-        })?;
-
-    let role_exists = !String::from_utf8_lossy(&check_output.stdout)
-        .trim()
-        .is_empty();
+    let role_exists = !admin_psql_capture(&role_check_query, "checking admin role")?.is_empty();
 
     if role_exists {
         let alter_password_sql = format!(
@@ -180,27 +161,7 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
             SHARED_ADMIN_USER,
             admin_password.replace('\'', "''")
         );
-        let status = Command::new("docker")
-            .args([
-                "exec",
-                SHARED_CONTAINER_NAME,
-                "psql",
-                "-U",
-                SHARED_ADMIN_USER,
-                "-d",
-                "postgres",
-                "-c",
-                &alter_password_sql,
-            ])
-            .status()
-            .with_context(|| {
-                format!(
-                    "failed to run `docker exec {SHARED_CONTAINER_NAME} psql` updating admin role \
-                     password"
-                )
-            })?;
-
-        if !status.success() {
+        if !admin_psql_execute(&alter_password_sql, "updating admin role password")? {
             bail!("Failed to update password for role '{}'", SHARED_ADMIN_USER);
         }
 
@@ -212,6 +173,36 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
         SHARED_ADMIN_USER,
         admin_password.replace('\'', "''")
     );
+    if !admin_psql_execute(&create_role_sql, "creating admin role")? {
+        bail!("Failed to create role '{}'", SHARED_ADMIN_USER);
+    }
+
+    CliService::success(&format!("Created PostgreSQL role '{}'", SHARED_ADMIN_USER));
+    Ok(())
+}
+
+fn admin_psql_capture(sql: &str, action: &str) -> Result<String> {
+    let output = Command::new("docker")
+        .args([
+            "exec",
+            SHARED_CONTAINER_NAME,
+            "psql",
+            "-U",
+            SHARED_ADMIN_USER,
+            "-d",
+            "postgres",
+            "-tAc",
+            sql,
+        ])
+        .output()
+        .with_context(|| {
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` {action}")
+        })?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+fn admin_psql_execute(sql: &str, action: &str) -> Result<bool> {
     let status = Command::new("docker")
         .args([
             "exec",
@@ -222,17 +213,12 @@ pub(in crate::commands::cloud::tenant) fn ensure_admin_role(admin_password: &str
             "-d",
             "postgres",
             "-c",
-            &create_role_sql,
+            sql,
         ])
         .status()
         .with_context(|| {
-            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` creating admin role")
+            format!("failed to run `docker exec {SHARED_CONTAINER_NAME} psql` {action}")
         })?;
 
-    if !status.success() {
-        bail!("Failed to create role '{}'", SHARED_ADMIN_USER);
-    }
-
-    CliService::success(&format!("Created PostgreSQL role '{}'", SHARED_ADMIN_USER));
-    Ok(())
+    Ok(status.success())
 }

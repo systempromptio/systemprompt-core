@@ -4,6 +4,8 @@
 //! tenant from CLI args and refresh masked cloud database credentials before a
 //! profile is written.
 
+use std::path::Path;
+
 use anyhow::{Context, Result, bail};
 use dialoguer::Input;
 use dialoguer::theme::ColorfulTheme;
@@ -39,12 +41,35 @@ pub fn create_profile_for_tenant(
     control_plane_api_url: Option<&str>,
 ) -> Result<CreatedProfile> {
     let ctx = ProjectContext::discover();
+    let name = resolve_unique_profile_name(&ctx, profile_name)?;
+    let profile_dir = ctx.profile_dir(&name);
+
+    std::fs::create_dir_all(ctx.profiles_dir())
+        .with_context(|| format!("Failed to create {}", ctx.profiles_dir().display()))?;
+    ensure_profile_dirs(&ctx, &profile_dir)?;
+
+    write_profile_secrets(tenant, api_keys, &profile_dir)?;
+    update_ai_config_default_provider(api_keys.selected_provider())?;
+
+    let profile_path = ProfilePath::Config.resolve(&profile_dir);
+    let built_profile = build_tenant_profile(tenant, &name, control_plane_api_url)?;
+
+    save_profile(&built_profile, &profile_path)?;
+    CliService::success(&format!("Created: {}", profile_path.display()));
+
+    write_docker_assets(&ctx, &name)?;
+    report_profile_validation(&built_profile);
+
+    Ok(CreatedProfile { name })
+}
+
+fn resolve_unique_profile_name(ctx: &ProjectContext, profile_name: &str) -> Result<String> {
     let mut name = profile_name.to_owned();
 
     loop {
         let profile_dir = ctx.profile_dir(&name);
         if !profile_dir.exists() {
-            break;
+            return Ok(name);
         }
 
         CliService::warning(&format!(
@@ -57,13 +82,10 @@ pub fn create_profile_for_tenant(
             .with_prompt("Enter a different profile name")
             .interact_text()?;
     }
+}
 
-    let profile_dir = ctx.profile_dir(&name);
-
-    std::fs::create_dir_all(ctx.profiles_dir())
-        .with_context(|| format!("Failed to create {}", ctx.profiles_dir().display()))?;
-
-    std::fs::create_dir_all(&profile_dir)
+pub(super) fn ensure_profile_dirs(ctx: &ProjectContext, profile_dir: &Path) -> Result<()> {
+    std::fs::create_dir_all(profile_dir)
         .with_context(|| format!("Failed to create directory {}", profile_dir.display()))?;
 
     std::fs::create_dir_all(ctx.storage_dir()).with_context(|| {
@@ -73,7 +95,15 @@ pub fn create_profile_for_tenant(
         )
     })?;
 
-    let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
+    Ok(())
+}
+
+pub(super) fn write_profile_secrets(
+    tenant: &StoredTenant,
+    api_keys: &ApiKeys,
+    profile_dir: &Path,
+) -> Result<()> {
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
     let local_db_url = tenant
         .get_local_database_url()
         .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
@@ -88,20 +118,23 @@ pub fn create_profile_for_tenant(
         tenant.tenant_type == TenantType::Cloud,
     )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
+    Ok(())
+}
 
-    update_ai_config_default_provider(api_keys.selected_provider())?;
-
-    let profile_path = ProfilePath::Config.resolve(&profile_dir);
-
-    let built_profile = match tenant.tenant_type {
+fn build_tenant_profile(
+    tenant: &StoredTenant,
+    name: &str,
+    control_plane_api_url: Option<&str>,
+) -> Result<Profile> {
+    Ok(match tenant.tenant_type {
         TenantType::Local => {
             let services_path = get_services_path()?;
-            LocalProfileBuilder::new(&name, "./secrets.json", &services_path)
+            LocalProfileBuilder::new(name, "./secrets.json", &services_path)
                 .with_tenant_id(TenantId::new(&tenant.id))
                 .build()
         },
         TenantType::Cloud => {
-            let mut builder = CloudProfileBuilder::new(&name)
+            let mut builder = CloudProfileBuilder::new(name)
                 .with_tenant_id(TenantId::new(&tenant.id))
                 .with_external_db_access(tenant.external_db_access)
                 .with_secrets_path("./secrets.json");
@@ -118,33 +151,34 @@ pub fn create_profile_for_tenant(
             }
             builder.build()
         },
-    };
+    })
+}
 
-    save_profile(&built_profile, &profile_path)?;
-    CliService::success(&format!("Created: {}", profile_path.display()));
-
-    let docker_dir = ctx.profile_docker_dir(&name);
+pub(super) fn write_docker_assets(ctx: &ProjectContext, name: &str) -> Result<()> {
+    let docker_dir = ctx.profile_docker_dir(name);
     std::fs::create_dir_all(&docker_dir)
         .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
 
-    let dockerfile_path = ctx.profile_dockerfile(&name);
-    save_dockerfile(&dockerfile_path, &name, ctx.root())?;
+    let dockerfile_path = ctx.profile_dockerfile(name);
+    save_dockerfile(&dockerfile_path, name, ctx.root())?;
     CliService::success(&format!("Created: {}", dockerfile_path.display()));
 
-    let entrypoint_path = ctx.profile_entrypoint(&name);
+    let entrypoint_path = ctx.profile_entrypoint(name);
     save_entrypoint(&entrypoint_path)?;
     CliService::success(&format!("Created: {}", entrypoint_path.display()));
 
-    let dockerignore_path = ctx.profile_dockerignore(&name);
+    let dockerignore_path = ctx.profile_dockerignore(name);
     save_dockerignore(&dockerignore_path)?;
     CliService::success(&format!("Created: {}", dockerignore_path.display()));
 
-    match built_profile.validate() {
+    Ok(())
+}
+
+pub(super) fn report_profile_validation(profile: &Profile) {
+    match profile.validate() {
         Ok(()) => CliService::success("Profile validated"),
         Err(e) => CliService::warning(&format!("Validation warning: {}", e)),
     }
-
-    Ok(CreatedProfile { name })
 }
 
 pub(super) fn resolve_tenant_from_args(
@@ -204,7 +238,7 @@ async fn refresh_tenant_credentials(
 
 pub(super) async fn ensure_unmasked_credentials(
     tenant: StoredTenant,
-    tenants_path: &std::path::Path,
+    tenants_path: &Path,
 ) -> Result<StoredTenant> {
     if tenant.tenant_type != TenantType::Cloud {
         return Ok(tenant);

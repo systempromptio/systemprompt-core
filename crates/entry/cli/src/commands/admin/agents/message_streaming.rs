@@ -37,57 +37,9 @@ pub(super) async fn execute_streaming(
                 tracing::debug!("SSE connection opened");
             },
             Ok(Event::Message(message)) => {
-                match serde_json::from_str::<JsonRpcResponse<TaskStatusUpdateEvent>>(&message.data)
-                {
-                    Ok(response) => {
-                        if let Some(error) = response.error {
-                            let details = error
-                                .data
-                                .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
-                            anyhow::bail!(
-                                "Agent returned error ({}): {}{}",
-                                error.code,
-                                error.message,
-                                details
-                            );
-                        }
-
-                        if let Some(event) = response.result {
-                            if let Some(ref msg) = event.status.message {
-                                let text = extract_text_from_parts(&msg.parts);
-                                if !text.is_empty() {
-                                    if let Err(e) = std::io::Write::write_all(
-                                        &mut std::io::stdout(),
-                                        text.as_bytes(),
-                                    ) {
-                                        tracing::warn!(error = %e, "stdout write failed");
-                                    }
-                                    if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
-                                        tracing::warn!(error = %e, "stdout flush failed");
-                                    }
-                                    accumulated_text.push_str(&text);
-                                }
-                            }
-
-                            if event.is_final {
-                                CliService::output("");
-                                final_task = Some(Task {
-                                    id: event.task_id,
-                                    context_id: event.context_id,
-                                    status: event.status,
-                                    history: None,
-                                    artifacts: None,
-                                    metadata: None,
-                                    created_at: None,
-                                    last_modified: None,
-                                });
-                                break;
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        tracing::debug!(error = %e, data = %message.data, "Failed to parse SSE event");
-                    },
+                if let Some(task) = process_stream_message(&message.data, &mut accumulated_text)? {
+                    final_task = Some(task);
+                    break;
                 }
             },
             Err(reqwest_eventsource::Error::StreamEnded) => {
@@ -119,4 +71,63 @@ pub(super) async fn execute_streaming(
     };
 
     Ok(output)
+}
+
+fn process_stream_message(data: &str, accumulated_text: &mut String) -> Result<Option<Task>> {
+    let response = match serde_json::from_str::<JsonRpcResponse<TaskStatusUpdateEvent>>(data) {
+        Ok(response) => response,
+        Err(e) => {
+            tracing::debug!(error = %e, data = %data, "Failed to parse SSE event");
+            return Ok(None);
+        },
+    };
+
+    if let Some(error) = response.error {
+        let details = error
+            .data
+            .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
+        anyhow::bail!(
+            "Agent returned error ({}): {}{}",
+            error.code,
+            error.message,
+            details
+        );
+    }
+
+    let Some(event) = response.result else {
+        return Ok(None);
+    };
+
+    if let Some(ref msg) = event.status.message {
+        let text = extract_text_from_parts(&msg.parts);
+        if !text.is_empty() {
+            write_stdout_chunk(&text);
+            accumulated_text.push_str(&text);
+        }
+    }
+
+    if !event.is_final {
+        return Ok(None);
+    }
+
+    CliService::output("");
+    Ok(Some(Task {
+        id: event.task_id,
+        context_id: event.context_id,
+        status: event.status,
+        history: None,
+        artifacts: None,
+        metadata: None,
+        created_at: None,
+        last_modified: None,
+    }))
+}
+
+fn write_stdout_chunk(text: &str) {
+    if let Err(e) = std::io::Write::write_all(&mut std::io::stdout(), text.as_bytes()) {
+        tracing::warn!(error = %e, "stdout write failed");
+    }
+    if let Err(e) = std::io::Write::flush(&mut std::io::stdout()) {
+        tracing::warn!(error = %e, "stdout flush failed");
+    }
 }

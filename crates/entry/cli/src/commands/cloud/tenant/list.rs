@@ -57,61 +57,9 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandOutput> {
 
     if !config.is_json_output() {
         if config.is_interactive() {
-            let options: Vec<String> = store
-                .tenants
-                .iter()
-                .map(|t| {
-                    let type_str = match t.tenant_type {
-                        TenantType::Local => "local",
-                        TenantType::Cloud => "cloud",
-                    };
-                    let db_status = if t.has_database_url() {
-                        "✓ db"
-                    } else {
-                        "✗ db"
-                    };
-                    format!("{} ({}) [{}]", t.name, type_str, db_status)
-                })
-                .chain(std::iter::once("Back".to_owned()))
-                .collect();
-
-            loop {
-                CliService::section("Tenants");
-                CliService::info(
-                    "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
-                );
-                CliService::info("");
-
-                let selection = Select::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Select tenant")
-                    .items(&options)
-                    .default(0)
-                    .interact()?;
-
-                if selection == store.tenants.len() {
-                    break;
-                }
-
-                display_tenant_details(&store.tenants[selection]);
-            }
+            run_tenant_picker(&store)?;
         } else {
-            CliService::section("Tenants");
-            CliService::info(
-                "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
-            );
-            CliService::info("");
-            for tenant in &store.tenants {
-                let type_str = match tenant.tenant_type {
-                    TenantType::Local => "local",
-                    TenantType::Cloud => "cloud",
-                };
-                let db_status = if tenant.has_database_url() {
-                    "✓ db"
-                } else {
-                    "✗ db"
-                };
-                CliService::info(&format!("{} ({}) [{}]", tenant.name, type_str, db_status));
-            }
+            render_tenant_lines(&store);
         }
     }
 
@@ -120,6 +68,61 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandOutput> {
         &output.tenants,
     )
     .with_title("Tenants"))
+}
+
+fn tenant_label(tenant: &StoredTenant) -> String {
+    let type_str = match tenant.tenant_type {
+        TenantType::Local => "local",
+        TenantType::Cloud => "cloud",
+    };
+    let db_status = if tenant.has_database_url() {
+        "✓ db"
+    } else {
+        "✗ db"
+    };
+    format!("{} ({}) [{}]", tenant.name, type_str, db_status)
+}
+
+fn run_tenant_picker(store: &TenantStore) -> Result<()> {
+    let options: Vec<String> = store
+        .tenants
+        .iter()
+        .map(tenant_label)
+        .chain(std::iter::once("Back".to_owned()))
+        .collect();
+
+    loop {
+        CliService::section("Tenants");
+        CliService::info(
+            "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+        );
+        CliService::info("");
+
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Select tenant")
+            .items(&options)
+            .default(0)
+            .interact()?;
+
+        if selection == store.tenants.len() {
+            break;
+        }
+
+        display_tenant_details(&store.tenants[selection]);
+    }
+
+    Ok(())
+}
+
+fn render_tenant_lines(store: &TenantStore) {
+    CliService::section("Tenants");
+    CliService::info(
+        "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+    );
+    CliService::info("");
+    for tenant in &store.tenants {
+        CliService::info(&tenant_label(tenant));
+    }
 }
 
 fn display_tenant_details(tenant: &StoredTenant) {

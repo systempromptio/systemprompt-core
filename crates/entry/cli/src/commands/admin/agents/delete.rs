@@ -36,23 +36,7 @@ pub struct DeleteArgs {
 pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let agents_to_delete: Vec<String> = if args.all {
-        services_config.agents.keys().cloned().collect()
-    } else {
-        let name = resolve_required(args.name, "name", config, || {
-            prompt_agent_selection(&services_config)
-        })?;
-
-        if !services_config.agents.contains_key(&name) {
-            return Err(anyhow!("Agent '{}' not found", name));
-        }
-
-        vec![name]
-    };
-
-    if agents_to_delete.is_empty() {
-        return Err(anyhow!("No agents to delete"));
-    }
+    let agents_to_delete = resolve_targets(&args, &services_config, config)?;
 
     let confirm_message = if args.all {
         format!("Delete ALL {} agents?", agents_to_delete.len())
@@ -65,33 +49,16 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let services_dir = Path::new(&profile.paths.services);
 
-    let orchestrator = match AppContext::new().await {
-        Ok(ctx) => {
-            let jwt_provider = match JwtValidationProviderImpl::from_config() {
-                Ok(p) => Arc::new(p),
-                Err(e) => {
-                    tracing::debug!(error = %e, "Failed to create JWT provider");
-                    return Ok(CommandOutput::card_value(
-                        "Delete Failed",
-                        &AgentDeleteOutput {
-                            deleted: vec![],
-                            message: format!("Failed to initialize: {e}"),
-                        },
-                    ));
+    let orchestrator = match build_orchestrator().await {
+        Ok(orchestrator) => orchestrator,
+        Err(message) => {
+            return Ok(CommandOutput::card_value(
+                "Delete Failed",
+                &AgentDeleteOutput {
+                    deleted: vec![],
+                    message,
                 },
-            };
-            let agent_state = Arc::new(AgentState::new(
-                Arc::clone(ctx.db_pool()),
-                Arc::new(ctx.config().clone()),
-                jwt_provider,
             ));
-            AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
-                .await
-                .ok()
-        },
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");
-            None
         },
     };
 
@@ -99,39 +66,18 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
     let mut errors = Vec::new();
 
     for agent_name in &agents_to_delete {
-        CliService::info(&format!("Deleting agent '{}'...", agent_name));
-
         let agent_port = services_config.agents.get(agent_name).map(|c| c.port);
-
-        let process_stopped =
-            stop_agent_process(agent_name, agent_port, orchestrator.as_ref()).await;
-
-        if !process_stopped && !args.force {
-            let msg = format!(
-                "Failed to stop agent '{}' process. Use --force to delete anyway.",
-                agent_name
-            );
-            CliService::error(&msg);
-            errors.push(msg);
-            continue;
-        }
-
-        if !process_stopped && args.force {
-            CliService::warning(&format!(
-                "Force deleting agent '{}' (process may still be running)",
-                agent_name
-            ));
-        }
-
-        match ConfigWriter::delete_agent(agent_name, services_dir) {
-            Ok(()) => {
-                CliService::success(&format!("Agent '{}' deleted", agent_name));
-                deleted.push(agent_name.clone());
-            },
-            Err(e) => {
-                CliService::error(&format!("Failed to delete agent '{}': {}", agent_name, e));
-                errors.push(format!("{}: {}", agent_name, e));
-            },
+        let result = delete_single_agent(
+            agent_name,
+            agent_port,
+            orchestrator.as_ref(),
+            services_dir,
+            args.force,
+        )
+        .await;
+        match result {
+            Ok(()) => deleted.push(agent_name.clone()),
+            Err(msg) => errors.push(msg),
         }
     }
 
@@ -154,6 +100,101 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
     let output = AgentDeleteOutput { deleted, message };
 
     Ok(CommandOutput::card_value("Delete Agent", &output))
+}
+
+fn resolve_targets(
+    args: &DeleteArgs,
+    services_config: &systemprompt_models::ServicesConfig,
+    config: &CliConfig,
+) -> Result<Vec<String>> {
+    let agents: Vec<String> = if args.all {
+        services_config.agents.keys().cloned().collect()
+    } else {
+        let name = resolve_required(args.name.clone(), "name", config, || {
+            prompt_agent_selection(services_config)
+        })?;
+
+        if !services_config.agents.contains_key(&name) {
+            return Err(anyhow!("Agent '{}' not found", name));
+        }
+
+        vec![name]
+    };
+
+    if agents.is_empty() {
+        return Err(anyhow!("No agents to delete"));
+    }
+
+    Ok(agents)
+}
+
+async fn build_orchestrator() -> Result<Option<AgentOrchestrator>, String> {
+    let ctx = match AppContext::new().await {
+        Ok(ctx) => ctx,
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");
+            return Ok(None);
+        },
+    };
+
+    let jwt_provider = match JwtValidationProviderImpl::from_config() {
+        Ok(p) => Arc::new(p),
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to create JWT provider");
+            return Err(format!("Failed to initialize: {e}"));
+        },
+    };
+
+    let agent_state = Arc::new(AgentState::new(
+        Arc::clone(ctx.db_pool()),
+        Arc::new(ctx.config().clone()),
+        jwt_provider,
+    ));
+
+    Ok(
+        AgentOrchestrator::new(agent_state, Arc::clone(ctx.app_paths_arc()), None)
+            .await
+            .ok(),
+    )
+}
+
+async fn delete_single_agent(
+    agent_name: &str,
+    agent_port: Option<u16>,
+    orchestrator: Option<&AgentOrchestrator>,
+    services_dir: &Path,
+    force: bool,
+) -> Result<(), String> {
+    CliService::info(&format!("Deleting agent '{}'...", agent_name));
+
+    let process_stopped = stop_agent_process(agent_name, agent_port, orchestrator).await;
+
+    if !process_stopped && !force {
+        let msg = format!(
+            "Failed to stop agent '{}' process. Use --force to delete anyway.",
+            agent_name
+        );
+        CliService::error(&msg);
+        return Err(msg);
+    }
+
+    if !process_stopped && force {
+        CliService::warning(&format!(
+            "Force deleting agent '{}' (process may still be running)",
+            agent_name
+        ));
+    }
+
+    match ConfigWriter::delete_agent(agent_name, services_dir) {
+        Ok(()) => {
+            CliService::success(&format!("Agent '{}' deleted", agent_name));
+            Ok(())
+        },
+        Err(e) => {
+            CliService::error(&format!("Failed to delete agent '{}': {}", agent_name, e));
+            Err(format!("{}: {}", agent_name, e))
+        },
+    }
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

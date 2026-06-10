@@ -3,7 +3,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_content::ContentRepository;
+use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 use systemprompt_runtime::AppContext;
@@ -33,47 +33,7 @@ pub async fn execute_with_pool(
     let repo = ContentRepository::new(pool)?;
     let locale = LocaleCode::new("en");
 
-    let content = if args.identifier.starts_with("content_")
-        || args.identifier.contains('-') && args.identifier.len() > 30
-    {
-        let id = ContentId::new(args.identifier.clone());
-        repo.get_by_id(&id)
-            .await?
-            .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?
-    } else if let Some(source_id) = args.source.as_ref() {
-        let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &args.identifier, &locale)
-            .await?
-            .ok_or_else(|| {
-                anyhow!(
-                    "Content not found: slug '{}' in source '{}'",
-                    args.identifier,
-                    source_id
-                )
-            })?
-    } else {
-        let sources = repo.find_sources_by_slug(&args.identifier, &locale).await?;
-        match sources.as_slice() {
-            [] => return Err(anyhow!("No content with slug '{}' found", args.identifier)),
-            [only] => repo
-                .get_by_source_and_slug(only, &args.identifier, &locale)
-                .await?
-                .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?,
-            many => {
-                let list = many
-                    .iter()
-                    .map(SourceId::as_str)
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                return Err(anyhow!(
-                    "Slug '{}' exists in multiple sources: [{}]. Re-run with --source <SOURCE> to \
-                     disambiguate.",
-                    args.identifier,
-                    list
-                ));
-            },
-        }
-    };
+    let content = resolve_content(&repo, &args, &locale).await?;
 
     let keywords: Vec<String> = content
         .keywords
@@ -109,4 +69,56 @@ pub async fn execute_with_pool(
     };
 
     Ok(CommandOutput::card_value("Content Details", &output))
+}
+
+async fn resolve_content(
+    repo: &ContentRepository,
+    args: &ShowArgs,
+    locale: &LocaleCode,
+) -> Result<Content> {
+    if args.identifier.starts_with("content_")
+        || args.identifier.contains('-') && args.identifier.len() > 30
+    {
+        let id = ContentId::new(args.identifier.clone());
+        return repo
+            .get_by_id(&id)
+            .await?
+            .ok_or_else(|| anyhow!("Content not found: {}", args.identifier));
+    }
+
+    if let Some(source_id) = args.source.as_ref() {
+        let source = SourceId::new(source_id.clone());
+        return repo
+            .get_by_source_and_slug(&source, &args.identifier, locale)
+            .await?
+            .ok_or_else(|| {
+                anyhow!(
+                    "Content not found: slug '{}' in source '{}'",
+                    args.identifier,
+                    source_id
+                )
+            });
+    }
+
+    let sources = repo.find_sources_by_slug(&args.identifier, locale).await?;
+    match sources.as_slice() {
+        [] => Err(anyhow!("No content with slug '{}' found", args.identifier)),
+        [only] => repo
+            .get_by_source_and_slug(only, &args.identifier, locale)
+            .await?
+            .ok_or_else(|| anyhow!("Content not found: {}", args.identifier)),
+        many => {
+            let list = many
+                .iter()
+                .map(SourceId::as_str)
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(anyhow!(
+                "Slug '{}' exists in multiple sources: [{}]. Re-run with --source <SOURCE> to \
+                 disambiguate.",
+                args.identifier,
+                list
+            ))
+        },
+    }
 }

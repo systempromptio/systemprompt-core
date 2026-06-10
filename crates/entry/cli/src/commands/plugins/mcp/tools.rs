@@ -9,8 +9,10 @@ use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
 use crate::CliConfig;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::SessionToken;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_models::{McpServerConfig, ServicesConfig};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -49,28 +51,62 @@ pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<Comma
         .await
         .context("Failed to get running servers")?;
 
-    let servers_to_query: Vec<_> = args.server.as_ref().map_or_else(
-        || running_servers.iter().collect(),
-        |filter| {
-            running_servers
-                .iter()
-                .filter(|s| &s.name == filter)
-                .collect()
+    let servers_to_query = select_servers(&running_servers, args.server.as_ref())?;
+
+    let (mut all_tools, servers_queried) =
+        collect_tools(&servers_to_query, &services_config, session_token, &args).await;
+
+    all_tools.sort_by(|a, b| (&a.server, &a.name).cmp(&(&b.server, &b.name)));
+
+    if args.schema && !config.is_json_output() {
+        print_schema_view(&all_tools);
+    }
+
+    let output = McpToolsOutput {
+        tools: all_tools.clone(),
+        summary: McpToolsSummary {
+            total_tools: all_tools.len(),
+            servers_queried,
         },
+    };
+
+    Ok(CommandOutput::table_of(
+        vec!["name", "server", "description", "parameters_count"],
+        &output.tools,
+    )
+    .with_title("MCP Tools"))
+}
+
+fn select_servers<'a>(
+    running_servers: &'a [McpServerConfig],
+    filter: Option<&String>,
+) -> Result<Vec<&'a McpServerConfig>> {
+    let selected: Vec<_> = filter.map_or_else(
+        || running_servers.iter().collect(),
+        |name| running_servers.iter().filter(|s| &s.name == name).collect(),
     );
 
-    if servers_to_query.is_empty() {
-        let message = args.server.as_ref().map_or_else(
+    if selected.is_empty() {
+        let message = filter.map_or_else(
             || "No MCP servers are currently running".to_owned(),
             |name| format!("MCP server '{}' is not running", name),
         );
         return Err(anyhow!(message));
     }
 
+    Ok(selected)
+}
+
+async fn collect_tools(
+    servers: &[&McpServerConfig],
+    services_config: &ServicesConfig,
+    session_token: &SessionToken,
+    args: &ToolsArgs,
+) -> (Vec<McpToolEntry>, usize) {
     let mut all_tools = Vec::new();
     let mut servers_queried = 0;
 
-    for server in &servers_to_query {
+    for server in servers {
         let server_config = services_config.mcp_servers.get(&server.name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
@@ -108,23 +144,5 @@ pub(super) async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<Comma
         }
     }
 
-    all_tools.sort_by(|a, b| (&a.server, &a.name).cmp(&(&b.server, &b.name)));
-
-    if args.schema && !config.is_json_output() {
-        print_schema_view(&all_tools);
-    }
-
-    let output = McpToolsOutput {
-        tools: all_tools.clone(),
-        summary: McpToolsSummary {
-            total_tools: all_tools.len(),
-            servers_queried,
-        },
-    };
-
-    Ok(CommandOutput::table_of(
-        vec!["name", "server", "description", "parameters_count"],
-        &output.tools,
-    )
-    .with_title("MCP Tools"))
+    (all_tools, servers_queried)
 }

@@ -1,7 +1,11 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use clap::Args;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use systemprompt_analytics::AgentAnalyticsRepository;
+use systemprompt_analytics::models::cli::{
+    AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
+};
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::NoticeLine;
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -59,19 +63,7 @@ async fn execute_internal(
 
     let count = repo.agent_exists(&args.agent, start, end).await?;
     if count == 0 {
-        return Ok(CommandOutput::message(vec![
-            NoticeLine::new(
-                "warning",
-                format!(
-                    "No activity for agent '{}' in the specified time range",
-                    args.agent
-                ),
-            ),
-            NoticeLine::new(
-                "info",
-                "Tip: Use 'systemprompt analytics agents list' to see agents with recent activity",
-            ),
-        ]));
+        return Ok(no_activity_output(&args.agent));
     }
 
     let summary_row = repo.get_agent_summary(&args.agent, start, end).await?;
@@ -81,33 +73,66 @@ async fn execute_internal(
         .get_hourly_distribution(&args.agent, start, end)
         .await?;
 
-    let success_rate = if summary_row.total_tasks > 0 {
-        (summary_row.completed as f64 / summary_row.total_tasks as f64) * 100.0
+    let period = format_period(start, end);
+    let output = AgentShowOutput {
+        agent_name: args.agent.clone(),
+        period: period.clone(),
+        summary: build_summary(period, &summary_row),
+        status_breakdown: build_status_breakdown(status_breakdown_rows),
+        top_errors: build_top_errors(top_errors_rows),
+        hourly_distribution: build_hourly_distribution(hourly_rows),
+    };
+
+    render_output(args.export.as_deref(), &output)
+}
+
+fn no_activity_output(agent: &str) -> CommandOutput {
+    CommandOutput::message(vec![
+        NoticeLine::new(
+            "warning",
+            format!(
+                "No activity for agent '{}' in the specified time range",
+                agent
+            ),
+        ),
+        NoticeLine::new(
+            "info",
+            "Tip: Use 'systemprompt analytics agents list' to see agents with recent activity",
+        ),
+    ])
+}
+
+fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
+    format!(
+        "{} to {}",
+        start.format("%Y-%m-%d %H:%M"),
+        end.format("%Y-%m-%d %H:%M")
+    )
+}
+
+fn build_summary(period: String, row: &AgentSummaryRow) -> AgentStatsOutput {
+    let success_rate = if row.total_tasks > 0 {
+        (row.completed as f64 / row.total_tasks as f64) * 100.0
     } else {
         0.0
     };
 
-    let period = format!(
-        "{} to {}",
-        start.format("%Y-%m-%d %H:%M"),
-        end.format("%Y-%m-%d %H:%M")
-    );
-
-    let summary = AgentStatsOutput {
-        period: period.clone(),
+    AgentStatsOutput {
+        period,
         total_agents: 1,
-        total_tasks: summary_row.total_tasks,
-        completed_tasks: summary_row.completed,
-        failed_tasks: summary_row.failed,
+        total_tasks: row.total_tasks,
+        completed_tasks: row.completed,
+        failed_tasks: row.failed,
         success_rate,
-        avg_execution_time_ms: summary_row.avg_time as i64,
+        avg_execution_time_ms: row.avg_time as i64,
         total_ai_requests: 0,
         total_cost_microdollars: 0,
-    };
+    }
+}
 
-    let total: i64 = status_breakdown_rows.iter().map(|r| r.status_count).sum();
-    let status_breakdown: Vec<StatusBreakdownItem> = status_breakdown_rows
-        .into_iter()
+fn build_status_breakdown(rows: Vec<AgentStatusBreakdownRow>) -> Vec<StatusBreakdownItem> {
+    let total: i64 = rows.iter().map(|r| r.status_count).sum();
+    rows.into_iter()
         .map(|row| StatusBreakdownItem {
             status: row.status,
             count: row.status_count,
@@ -117,44 +142,36 @@ async fn execute_internal(
                 0.0
             },
         })
-        .collect();
+        .collect()
+}
 
-    let top_errors: Vec<ErrorBreakdownItem> = top_errors_rows
-        .into_iter()
+fn build_top_errors(rows: Vec<AgentErrorRow>) -> Vec<ErrorBreakdownItem> {
+    rows.into_iter()
         .map(|row| ErrorBreakdownItem {
             error_type: row.error_type.unwrap_or_else(|| "Unknown".to_owned()),
             count: row.error_count,
         })
-        .collect();
+        .collect()
+}
 
-    let hourly_distribution: Vec<HourlyDistributionItem> = hourly_rows
-        .into_iter()
+fn build_hourly_distribution(rows: Vec<AgentHourlyRow>) -> Vec<HourlyDistributionItem> {
+    rows.into_iter()
         .map(|row| HourlyDistributionItem {
             hour: row.task_hour,
             count: row.task_count,
         })
-        .collect();
+        .collect()
+}
 
-    let output = AgentShowOutput {
-        agent_name: args.agent.clone(),
-        period,
-        summary,
-        status_breakdown,
-        top_errors,
-        hourly_distribution,
-    };
+fn render_output(export: Option<&Path>, output: &AgentShowOutput) -> Result<CommandOutput> {
+    let title = format!("Agent: {}", output.agent_name);
 
-    if let Some(ref path) = args.export {
+    if let Some(path) = export {
         let resolved_path = resolve_export_path(path)?;
-        export_single_to_csv(&output, &resolved_path)?;
+        export_single_to_csv(output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(
-            CommandOutput::card_value(format!("Agent: {}", args.agent), &output).with_skip_render(),
-        );
+        return Ok(CommandOutput::card_value(title, output).with_skip_render());
     }
 
-    Ok(CommandOutput::card_value(
-        format!("Agent: {}", args.agent),
-        &output,
-    ))
+    Ok(CommandOutput::card_value(title, output))
 }

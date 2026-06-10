@@ -4,6 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_analytics::RequestAnalyticsRepository;
+use systemprompt_analytics::models::cli::RequestListRow;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -86,23 +87,7 @@ async fn execute_internal(
         .list_requests(start, end, args.limit, args.model.as_deref())
         .await?;
 
-    let requests: Vec<RequestListRowOutput> = rows
-        .into_iter()
-        .map(|row| RequestListRowOutput {
-            id: AiRequestId::new(row.id),
-            user_id: row.user_id,
-            provider: row.provider,
-            model: row.model,
-            status: row.status,
-            error_message: row.error_message,
-            input_tokens: row.input_tokens.unwrap_or(0),
-            output_tokens: row.output_tokens.unwrap_or(0),
-            cost_microdollars: row.cost_microdollars.unwrap_or(0),
-            latency_ms: row.latency_ms.unwrap_or(0),
-            cache_hit: row.cache_hit.unwrap_or(false),
-            created_at: row.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
-        })
-        .collect();
+    let requests: Vec<RequestListRowOutput> = rows.into_iter().map(build_row_output).collect();
 
     let output = RequestListOutput {
         total: requests.len() as i64,
@@ -113,43 +98,36 @@ async fn execute_internal(
         let resolved_path = resolve_export_path(path)?;
         export_to_csv(&output.requests, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandOutput::table_of(
-            vec![
-                "created_at",
-                "status",
-                "user_id",
-                "provider",
-                "model",
-                "input_tokens",
-                "output_tokens",
-                "latency_ms",
-                "error_message",
-            ],
-            &output.requests,
-        )
-        .with_skip_render());
+        return Ok(requests_table(&output.requests).with_skip_render());
     }
 
     if output.requests.is_empty() {
         CliService::warning("No requests found in the specified time range");
-        return Ok(CommandOutput::table_of(
-            vec![
-                "created_at",
-                "status",
-                "user_id",
-                "provider",
-                "model",
-                "input_tokens",
-                "output_tokens",
-                "latency_ms",
-                "error_message",
-            ],
-            &output.requests,
-        )
-        .with_skip_render());
+        return Ok(requests_table(&output.requests).with_skip_render());
     }
 
-    Ok(CommandOutput::table_of(
+    Ok(requests_table(&output.requests).with_title("AI Requests"))
+}
+
+fn build_row_output(row: RequestListRow) -> RequestListRowOutput {
+    RequestListRowOutput {
+        id: AiRequestId::new(row.id),
+        user_id: row.user_id,
+        provider: row.provider,
+        model: row.model,
+        status: row.status,
+        error_message: row.error_message,
+        input_tokens: row.input_tokens.unwrap_or(0),
+        output_tokens: row.output_tokens.unwrap_or(0),
+        cost_microdollars: row.cost_microdollars.unwrap_or(0),
+        latency_ms: row.latency_ms.unwrap_or(0),
+        cache_hit: row.cache_hit.unwrap_or(false),
+        created_at: row.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+    }
+}
+
+fn requests_table(requests: &[RequestListRowOutput]) -> CommandOutput {
+    CommandOutput::table_of(
         vec![
             "created_at",
             "status",
@@ -161,7 +139,6 @@ async fn execute_internal(
             "latency_ms",
             "error_message",
         ],
-        &output.requests,
+        requests,
     )
-    .with_title("AI Requests"))
 }

@@ -13,12 +13,12 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::SessionKey;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{Profile, Secrets};
 use systemprompt_security::{SessionGenerator, SessionParams};
-use systemprompt_users::UserRole;
+use systemprompt_users::{User, UserRole};
 
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
@@ -89,9 +89,7 @@ pub async fn login_for_profile(
     }
 
     let admin_name = &profile.system_admin.username;
-    if !args.token_only {
-        CliService::info(&format!("Fetching admin user: {admin_name}"));
-    }
+    progress(args, &format!("Fetching admin user: {admin_name}"));
     let admin_user = fetch_admin_user(
         &db_pool,
         admin_name,
@@ -100,47 +98,15 @@ pub async fn login_for_profile(
     )
     .await?;
 
-    if !args.token_only {
-        CliService::info("Creating session...");
-    }
+    progress(args, "Creating session...");
     let session_id = create_local_session_row(&db_pool, &admin_user.id).await?;
 
-    if !args.token_only {
-        CliService::info("Creating context...");
-    }
-    let profile_name = Path::new(profile_path)
-        .parent()
-        .and_then(|d| d.file_name())
-        .and_then(|n| n.to_str())
-        .unwrap_or("unknown");
-    let context_repo = ContextRepository::new(&db_pool)?;
-    let context_id = context_repo
-        .create_context(
-            &admin_user.id,
-            Some(&session_id),
-            &format!("CLI Session - {}", profile_name),
-        )
-        .await
-        .context("Failed to create CLI context")?;
+    progress(args, "Creating context...");
+    let context_id =
+        create_cli_context(&db_pool, &admin_user.id, &session_id, profile_path).await?;
 
-    if !args.token_only {
-        CliService::info("Generating token...");
-    }
-    let session_generator = SessionGenerator::new(&profile.security.issuer);
-    let duration = ChronoDuration::hours(args.duration_hours);
-    let session_token = session_generator
-        .generate(&SessionParams {
-            user_id: &admin_user.id,
-            session_id: &session_id,
-            email: &admin_user.email,
-            duration,
-            user_type: UserType::Admin,
-            permissions: vec![Permission::Admin],
-            roles: vec![UserRole::Admin.as_str().to_owned()],
-            attributes: std::collections::BTreeMap::new(),
-            rate_limit_tier: RateLimitTier::Admin,
-        })
-        .context("Failed to generate session token")?;
+    progress(args, "Generating token...");
+    let session_token = generate_session_token(profile, args, &admin_user, &session_id)?;
 
     save_session_to_store(SessionStoreParams {
         sessions_dir: &sessions_dir,
@@ -172,6 +138,57 @@ pub async fn login_for_profile(
         sessions_dir.display()
     ));
     Ok(CommandOutput::card_value("Admin Session", &output))
+}
+
+fn progress(args: &LoginArgs, message: &str) {
+    if !args.token_only {
+        CliService::info(message);
+    }
+}
+
+async fn create_cli_context(
+    db_pool: &DbPool,
+    user_id: &UserId,
+    session_id: &SessionId,
+    profile_path: &str,
+) -> Result<ContextId> {
+    let profile_name = Path::new(profile_path)
+        .parent()
+        .and_then(|d| d.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+
+    let context_repo = ContextRepository::new(db_pool)?;
+    context_repo
+        .create_context(
+            user_id,
+            Some(session_id),
+            &format!("CLI Session - {}", profile_name),
+        )
+        .await
+        .context("Failed to create CLI context")
+}
+
+fn generate_session_token(
+    profile: &Profile,
+    args: &LoginArgs,
+    admin_user: &User,
+    session_id: &SessionId,
+) -> Result<SessionToken> {
+    let session_generator = SessionGenerator::new(&profile.security.issuer);
+    session_generator
+        .generate(&SessionParams {
+            user_id: &admin_user.id,
+            session_id,
+            email: &admin_user.email,
+            duration: ChronoDuration::hours(args.duration_hours),
+            user_type: UserType::Admin,
+            permissions: vec![Permission::Admin],
+            roles: vec![UserRole::Admin.as_str().to_owned()],
+            attributes: std::collections::BTreeMap::new(),
+            rate_limit_tier: RateLimitTier::Admin,
+        })
+        .context("Failed to generate session token")
 }
 
 fn session_key_for_profile(profile: &Profile) -> SessionKey {

@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::{Extension, ExtensionRegistry};
 use systemprompt_loader::ExtensionLoader;
 
 use super::types::{
@@ -32,18 +32,63 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
             .ok_or_else(|| anyhow!("Extension '{}' not found", args.id))?;
     };
 
-    let jobs: Vec<JobInfo> = ext
-        .jobs()
+    let output = build_detail_output(ext.as_ref());
+
+    Ok(CommandOutput::card_value(
+        format!("Extension: {}", args.id),
+        &output,
+    ))
+}
+
+fn build_detail_output(ext: &dyn Extension) -> ExtensionDetailOutput {
+    ExtensionDetailOutput {
+        id: systemprompt_identifiers::PluginId::new(ext.id()),
+        name: ext.name().to_owned(),
+        version: ext.version().to_owned(),
+        priority: ext.priority(),
+        source: ExtensionSource::Compiled,
+        dependencies: ext.dependencies().iter().map(|s| (*s).to_owned()).collect(),
+        config_prefix: ext.config_prefix().map(String::from),
+        jobs: job_infos(ext),
+        templates: template_infos(ext),
+        schemas: schema_infos(ext),
+        routes: vec![],
+        tools: ext
+            .tool_providers()
+            .iter()
+            .map(|_provider| ToolInfo {
+                name: "tool_provider".to_owned(),
+            })
+            .collect(),
+        roles: role_infos(ext),
+        llm_providers: ext
+            .llm_providers()
+            .iter()
+            .map(|_provider| LlmProviderInfo {
+                name: "llm_provider".to_owned(),
+            })
+            .collect(),
+        storage_paths: ext
+            .required_storage_paths()
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect(),
+    }
+}
+
+fn job_infos(ext: &dyn Extension) -> Vec<JobInfo> {
+    ext.jobs()
         .iter()
         .map(|job| JobInfo {
             name: job.name().to_owned(),
             schedule: job.schedule().to_owned(),
             enabled: job.enabled(),
         })
-        .collect();
+        .collect()
+}
 
-    let templates: Vec<TemplateInfo> = ext
-        .template_providers()
+fn template_infos(ext: &dyn Extension) -> Vec<TemplateInfo> {
+    ext.template_providers()
         .iter()
         .flat_map(|provider| {
             provider
@@ -55,28 +100,22 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
                 })
                 .collect::<Vec<_>>()
         })
-        .collect();
+        .collect()
+}
 
-    let schemas: Vec<SchemaInfo> = ext
-        .schemas()
+fn schema_infos(ext: &dyn Extension) -> Vec<SchemaInfo> {
+    ext.schemas()
         .iter()
         .map(|schema| SchemaInfo {
             table: schema.table.clone(),
             source: "inline".to_owned(),
             required_columns: schema.required_columns.clone(),
         })
-        .collect();
+        .collect()
+}
 
-    let tools: Vec<ToolInfo> = ext
-        .tool_providers()
-        .iter()
-        .map(|_provider| ToolInfo {
-            name: "tool_provider".to_owned(),
-        })
-        .collect();
-
-    let roles: Vec<RoleInfo> = ext
-        .roles()
+fn role_infos(ext: &dyn Extension) -> Vec<RoleInfo> {
+    ext.roles()
         .iter()
         .map(|role| RoleInfo {
             name: role.name.clone(),
@@ -84,46 +123,7 @@ pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOut
             description: role.description.clone(),
             permissions: role.permissions.clone(),
         })
-        .collect();
-
-    let llm_providers: Vec<LlmProviderInfo> = ext
-        .llm_providers()
-        .iter()
-        .map(|_provider| LlmProviderInfo {
-            name: "llm_provider".to_owned(),
-        })
-        .collect();
-
-    let storage_paths: Vec<String> = ext
-        .required_storage_paths()
-        .iter()
-        .map(|s| (*s).to_owned())
-        .collect();
-
-    let dependencies: Vec<String> = ext.dependencies().iter().map(|s| (*s).to_owned()).collect();
-
-    let output = ExtensionDetailOutput {
-        id: systemprompt_identifiers::PluginId::new(ext.id()),
-        name: ext.name().to_owned(),
-        version: ext.version().to_owned(),
-        priority: ext.priority(),
-        source: ExtensionSource::Compiled,
-        dependencies,
-        config_prefix: ext.config_prefix().map(String::from),
-        jobs,
-        templates,
-        schemas,
-        routes: vec![],
-        tools,
-        roles,
-        llm_providers,
-        storage_paths,
-    };
-
-    Ok(CommandOutput::card_value(
-        format!("Extension: {}", args.id),
-        &output,
-    ))
+        .collect()
 }
 
 fn show_manifest(id: &str) -> Option<Result<CommandOutput>> {

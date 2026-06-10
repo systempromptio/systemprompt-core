@@ -6,6 +6,7 @@
 
 mod cancel;
 mod create;
+mod create_flow;
 pub(super) mod delete;
 mod docker;
 mod edit;
@@ -37,6 +38,7 @@ use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
+use create_flow::tenant_create;
 
 #[derive(Debug, Subcommand)]
 pub enum TenantCommands {
@@ -201,94 +203,4 @@ fn select_operation() -> Result<Option<TenantCommands>> {
     };
 
     Ok(cmd)
-}
-
-async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
-    if !config.is_interactive() {
-        return Err(anyhow::anyhow!(
-            "Tenant creation requires interactive mode.\nUse specific tenant type commands in \
-             non-interactive mode (not yet implemented)."
-        ));
-    }
-
-    CliService::section("Create Tenant");
-
-    let creds = get_credentials()?;
-
-    let build_result = check_build_ready();
-    let cloud_option = match &build_result {
-        Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_owned(),
-        Err(_) => "Cloud (unavailable - release build required)".to_owned(),
-    };
-
-    let options = vec![
-        "Local (creates PostgreSQL container automatically)".to_owned(),
-        cloud_option,
-    ];
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tenant type")
-        .items(&options)
-        .default(0)
-        .interact()?;
-
-    let tenant = match selection {
-        0 => {
-            let db_options = vec![
-                "Docker (creates PostgreSQL container automatically)",
-                "External PostgreSQL (use your own database)",
-            ];
-
-            let db_selection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("Database source")
-                .items(&db_options)
-                .default(0)
-                .interact()?;
-
-            match db_selection {
-                0 => create_local_tenant().await?,
-                _ => create_external_tenant().await?,
-            }
-        },
-        _ if build_result.is_err() => {
-            CliService::warning("Cloud tenant creation requires a release build.");
-            CliService::info("");
-            CliService::info("Run the following command to build:");
-            CliService::info("  cargo build --release --workspace");
-            CliService::info("");
-            if let Err(err) = &build_result {
-                CliService::info("Specific issue:");
-                CliService::error(err);
-            }
-            return Ok(());
-        },
-        _ => create_cloud_tenant(&creds, default_region).await?,
-    };
-
-    let cloud_paths = get_cloud_paths();
-    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
-        CliService::warning(&format!("Failed to load tenant store: {}", e));
-        TenantStore::default()
-    });
-
-    if let Some(existing) = store.tenants.iter_mut().find(|t| t.id == tenant.id) {
-        *existing = tenant.clone();
-    } else {
-        store.tenants.push(tenant.clone());
-    }
-    store.save_to_path(&tenants_path)?;
-
-    CliService::success("Tenant created");
-    CliService::key_value("ID", &tenant.id);
-    CliService::key_value("Name", &tenant.name);
-    CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
-
-    if let Some(ref url) = tenant.database_url
-        && !url.is_empty()
-    {
-        CliService::key_value("Database URL", url);
-    }
-
-    Ok(())
 }

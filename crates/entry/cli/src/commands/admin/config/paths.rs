@@ -10,6 +10,7 @@ use clap::Subcommand;
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
+use systemprompt_models::Profile;
 
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
 use crate::CliConfig;
@@ -70,80 +71,7 @@ pub(super) fn execute_show() -> Result<()> {
 pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
 
-    let mut validations: Vec<PathValidation> = Vec::new();
-
-    validations.push(PathValidation {
-        name: "system".to_owned(),
-        path: profile.paths.system.clone(),
-        exists: Path::new(&profile.paths.system).exists(),
-        required: true,
-    });
-
-    validations.push(PathValidation {
-        name: "services".to_owned(),
-        path: profile.paths.services.clone(),
-        exists: Path::new(&profile.paths.services).exists(),
-        required: true,
-    });
-
-    validations.push(PathValidation {
-        name: "bin".to_owned(),
-        path: profile.paths.bin.clone(),
-        exists: Path::new(&profile.paths.bin).exists(),
-        required: true,
-    });
-
-    if let Some(web_path) = &profile.paths.web_path {
-        validations.push(PathValidation {
-            name: "web_path".to_owned(),
-            path: web_path.clone(),
-            exists: Path::new(web_path).exists(),
-            required: false,
-        });
-    }
-
-    if let Some(storage) = &profile.paths.storage {
-        validations.push(PathValidation {
-            name: "storage".to_owned(),
-            path: storage.clone(),
-            exists: Path::new(storage).exists(),
-            required: false,
-        });
-    }
-
-    if let Some(geoip) = &profile.paths.geoip_database {
-        validations.push(PathValidation {
-            name: "geoip_database".to_owned(),
-            path: geoip.clone(),
-            exists: Path::new(geoip).exists(),
-            required: false,
-        });
-    }
-
-    let config_path = profile.paths.config();
-    validations.push(PathValidation {
-        name: "config".to_owned(),
-        path: config_path.clone(),
-        exists: Path::new(&config_path).exists(),
-        required: false,
-    });
-
-    let ai_config_path = profile.paths.ai_config();
-    validations.push(PathValidation {
-        name: "ai_config".to_owned(),
-        path: ai_config_path.clone(),
-        exists: Path::new(&ai_config_path).exists(),
-        required: false,
-    });
-
-    let content_config_path = profile.paths.content_config();
-    validations.push(PathValidation {
-        name: "content_config".to_owned(),
-        path: content_config_path.clone(),
-        exists: Path::new(&content_config_path).exists(),
-        required: false,
-    });
-
+    let validations = collect_path_validations(profile);
     let valid = validations.iter().filter(|v| v.required).all(|v| v.exists);
 
     let output = PathsValidateOutput {
@@ -165,4 +93,47 @@ pub(super) fn execute_validate(config: &CliConfig) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn collect_path_validations(profile: &Profile) -> Vec<PathValidation> {
+    let mut validations = vec![
+        path_validation("system", &profile.paths.system, true),
+        path_validation("services", &profile.paths.services, true),
+        path_validation("bin", &profile.paths.bin, true),
+    ];
+
+    if let Some(web_path) = &profile.paths.web_path {
+        validations.push(path_validation("web_path", web_path, false));
+    }
+
+    if let Some(storage) = &profile.paths.storage {
+        validations.push(path_validation("storage", storage, false));
+    }
+
+    if let Some(geoip) = &profile.paths.geoip_database {
+        validations.push(path_validation("geoip_database", geoip, false));
+    }
+
+    validations.push(path_validation("config", &profile.paths.config(), false));
+    validations.push(path_validation(
+        "ai_config",
+        &profile.paths.ai_config(),
+        false,
+    ));
+    validations.push(path_validation(
+        "content_config",
+        &profile.paths.content_config(),
+        false,
+    ));
+
+    validations
+}
+
+fn path_validation(name: &str, path: &str, required: bool) -> PathValidation {
+    PathValidation {
+        name: name.to_owned(),
+        path: path.to_owned(),
+        exists: Path::new(path).exists(),
+        required,
+    }
 }

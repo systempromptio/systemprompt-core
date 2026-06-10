@@ -38,6 +38,39 @@ fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
     }
 }
 
+fn security_config(issuer: &str, trusted_issuers: Vec<TrustedIssuer>) -> SecurityConfig {
+    SecurityConfig {
+        issuer: issuer.to_owned(),
+        access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
+        refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
+        audiences: JwtAudience::standard(),
+        allowed_resource_audiences: default_resource_audiences(),
+        allow_registration: true,
+        signing_key_path: std::path::PathBuf::from("signing_key.pem"),
+        trusted_issuers,
+    }
+}
+
+const fn local_runtime_config() -> RuntimeConfig {
+    RuntimeConfig {
+        environment: Environment::Development,
+        log_level: LogLevel::Verbose,
+        output_format: OutputFormat::Text,
+        no_color: false,
+        non_interactive: false,
+    }
+}
+
+const fn cloud_runtime_config() -> RuntimeConfig {
+    RuntimeConfig {
+        environment: Environment::Production,
+        log_level: LogLevel::Normal,
+        output_format: OutputFormat::Json,
+        no_color: true,
+        non_interactive: true,
+    }
+}
+
 pub(in crate::commands::cloud) struct LocalProfileBuilder {
     name: String,
     tenant_id: Option<TenantId>,
@@ -109,27 +142,12 @@ impl LocalProfileBuilder {
                 geoip_database: None,
                 web_path: None,
             },
-            security: SecurityConfig {
-                issuer: consts::LOCAL_ISSUER.to_owned(),
-                access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
-                refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
-                audiences: JwtAudience::standard(),
-                allowed_resource_audiences: default_resource_audiences(),
-                allow_registration: true,
-                signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-                trusted_issuers: Vec::new(),
-            },
+            security: security_config(consts::LOCAL_ISSUER, Vec::new()),
             rate_limits: RateLimitsConfig {
                 disabled: true,
                 ..Default::default()
             },
-            runtime: RuntimeConfig {
-                environment: Environment::Development,
-                log_level: LogLevel::Verbose,
-                output_format: OutputFormat::Text,
-                no_color: false,
-                non_interactive: false,
-            },
+            runtime: local_runtime_config(),
             cloud: Some(CloudConfig {
                 tenant_id: self.tenant_id,
                 validation: CloudValidationMode::Warn,
@@ -241,24 +259,9 @@ impl CloudProfileBuilder {
                 geoip_database: None,
                 web_path: Some(container::WEB.to_owned()),
             },
-            security: SecurityConfig {
-                issuer: consts::CLOUD_ISSUER.to_owned(),
-                access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
-                refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
-                audiences: JwtAudience::standard(),
-                allowed_resource_audiences: default_resource_audiences(),
-                allow_registration: true,
-                signing_key_path: std::path::PathBuf::from("signing_key.pem"),
-                trusted_issuers: self.trusted_issuers,
-            },
+            security: security_config(consts::CLOUD_ISSUER, self.trusted_issuers),
             rate_limits: RateLimitsConfig::default(),
-            runtime: RuntimeConfig {
-                environment: Environment::Production,
-                log_level: LogLevel::Normal,
-                output_format: OutputFormat::Json,
-                no_color: true,
-                non_interactive: true,
-            },
+            runtime: cloud_runtime_config(),
             cloud: Some(CloudConfig {
                 tenant_id: self.tenant_id,
                 validation: CloudValidationMode::Strict,

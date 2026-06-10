@@ -134,35 +134,8 @@ async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result
     let result = CommandOutput::card_value("Trace Details", &output);
 
     if events.is_empty() {
-        if ai_summary.request_count > 0 || mcp_summary.execution_count > 0 {
-            if !args.json {
-                CliService::section(&format!("Trace: {}", args.id));
-                CliService::info("No log events found, but trace has activity:");
-                if ai_summary.request_count > 0 {
-                    CliService::key_value("AI Requests", &ai_summary.request_count.to_string());
-                    CliService::key_value(
-                        "Total Tokens",
-                        &format!(
-                            "{} in / {} out",
-                            ai_summary.total_input_tokens, ai_summary.total_output_tokens
-                        ),
-                    );
-                    let cost_dollars =
-                        f64::from(ai_summary.total_cost_microdollars as i32) / 1_000_000.0;
-                    CliService::key_value("Cost", &format!("${:.6}", cost_dollars));
-                }
-                if mcp_summary.execution_count > 0 {
-                    CliService::key_value("MCP Calls", &mcp_summary.execution_count.to_string());
-                }
-                CliService::info("Use --verbose to see all log entries, or --ai/--mcp for details");
-            }
-            return Ok(result.with_skip_render());
-        }
         if !args.json {
-            CliService::warning(&format!("No events found for trace: {}", args.id));
-            CliService::info(
-                "Tip: The trace may take a moment to populate. Try again in a few seconds.",
-            );
+            report_empty_trace(&args.id, &ai_summary, &mcp_summary);
         }
         return Ok(result.with_skip_render());
     }
@@ -184,6 +157,39 @@ async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result
     print_formatted(&display_ctx);
 
     Ok(result.with_skip_render())
+}
+
+fn report_empty_trace(
+    trace_id: &str,
+    ai_summary: &systemprompt_logging::AiRequestSummary,
+    mcp_summary: &systemprompt_logging::McpExecutionSummary,
+) {
+    if ai_summary.request_count == 0 && mcp_summary.execution_count == 0 {
+        CliService::warning(&format!("No events found for trace: {}", trace_id));
+        CliService::info(
+            "Tip: The trace may take a moment to populate. Try again in a few seconds.",
+        );
+        return;
+    }
+
+    CliService::section(&format!("Trace: {}", trace_id));
+    CliService::info("No log events found, but trace has activity:");
+    if ai_summary.request_count > 0 {
+        CliService::key_value("AI Requests", &ai_summary.request_count.to_string());
+        CliService::key_value(
+            "Total Tokens",
+            &format!(
+                "{} in / {} out",
+                ai_summary.total_input_tokens, ai_summary.total_output_tokens
+            ),
+        );
+        let cost_dollars = f64::from(ai_summary.total_cost_microdollars as i32) / 1_000_000.0;
+        CliService::key_value("Cost", &format!("${:.6}", cost_dollars));
+    }
+    if mcp_summary.execution_count > 0 {
+        CliService::key_value("MCP Calls", &mcp_summary.execution_count.to_string());
+    }
+    CliService::info("Use --verbose to see all log entries, or --ai/--mcp for details");
 }
 
 fn print_formatted(ctx: &FormattedDisplayContext<'_>) {

@@ -31,20 +31,7 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
-    let yaml_content = fs::read_to_string(&templates_yaml_path).with_context(|| {
-        format!(
-            "Failed to read templates config at {}",
-            templates_yaml_path.display()
-        )
-    })?;
-
-    let mut templates_config: TemplatesConfig =
-        serde_yaml::from_str(&yaml_content).with_context(|| {
-            format!(
-                "Failed to parse templates config at {}",
-                templates_yaml_path.display()
-            )
-        })?;
+    let mut templates_config = load_templates_config(&templates_yaml_path)?;
 
     let name = resolve_required(args.name, "name", config, prompt_name)?;
 
@@ -52,36 +39,12 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
         return Err(anyhow!("Template '{}' already exists", name));
     }
 
-    let content_types: Vec<String> = if let Some(ct) = args.content_types {
-        ct.split(',').map(|s| s.trim().to_owned()).collect()
-    } else if config.is_interactive() {
-        prompt_content_types()?
-    } else {
-        return Err(anyhow!(
-            "--content-types is required in non-interactive mode"
-        ));
-    };
-
-    if content_types.is_empty() {
-        return Err(anyhow!("At least one content type is required"));
-    }
+    let content_types = resolve_content_types(args.content_types, config)?;
 
     let html_file_path = templates_dir.join(format!("{}.html", name));
 
     let html_written = if let Some(content_source) = &args.content {
-        let html_content = if content_source == "-" {
-            let mut buffer = String::new();
-            io::stdin()
-                .read_to_string(&mut buffer)
-                .context("Failed to read from stdin")?;
-            buffer
-        } else if Path::new(content_source).exists() {
-            fs::read_to_string(content_source)
-                .with_context(|| format!("Failed to read file: {}", content_source))?
-        } else {
-            content_source.clone()
-        };
-
+        let html_content = read_html_content(content_source)?;
         fs::write(&html_file_path, html_content)
             .with_context(|| format!("Failed to write HTML file: {}", html_file_path.display()))?;
         true
@@ -93,13 +56,7 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
         .templates
         .insert(name.clone(), TemplateEntry { content_types });
 
-    let yaml = serde_yaml::to_string(&templates_config).context("Failed to serialize config")?;
-    fs::write(&templates_yaml_path, yaml).with_context(|| {
-        format!(
-            "Failed to write templates config to {}",
-            templates_yaml_path.display()
-        )
-    })?;
+    save_templates_config(&templates_yaml_path, &templates_config)?;
 
     let message = if html_written {
         format!(
@@ -124,6 +81,65 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
     };
 
     Ok(CommandOutput::card_value("Template Created", &output))
+}
+
+fn load_templates_config(templates_yaml_path: &Path) -> Result<TemplatesConfig> {
+    let yaml_content = fs::read_to_string(templates_yaml_path).with_context(|| {
+        format!(
+            "Failed to read templates config at {}",
+            templates_yaml_path.display()
+        )
+    })?;
+
+    serde_yaml::from_str(&yaml_content).with_context(|| {
+        format!(
+            "Failed to parse templates config at {}",
+            templates_yaml_path.display()
+        )
+    })
+}
+
+fn save_templates_config(templates_yaml_path: &Path, config: &TemplatesConfig) -> Result<()> {
+    let yaml = serde_yaml::to_string(config).context("Failed to serialize config")?;
+    fs::write(templates_yaml_path, yaml).with_context(|| {
+        format!(
+            "Failed to write templates config to {}",
+            templates_yaml_path.display()
+        )
+    })
+}
+
+fn resolve_content_types(arg: Option<String>, config: &CliConfig) -> Result<Vec<String>> {
+    let content_types: Vec<String> = if let Some(ct) = arg {
+        ct.split(',').map(|s| s.trim().to_owned()).collect()
+    } else if config.is_interactive() {
+        prompt_content_types()?
+    } else {
+        return Err(anyhow!(
+            "--content-types is required in non-interactive mode"
+        ));
+    };
+
+    if content_types.is_empty() {
+        return Err(anyhow!("At least one content type is required"));
+    }
+
+    Ok(content_types)
+}
+
+fn read_html_content(content_source: &str) -> Result<String> {
+    if content_source == "-" {
+        let mut buffer = String::new();
+        io::stdin()
+            .read_to_string(&mut buffer)
+            .context("Failed to read from stdin")?;
+        Ok(buffer)
+    } else if Path::new(content_source).exists() {
+        fs::read_to_string(content_source)
+            .with_context(|| format!("Failed to read file: {}", content_source))
+    } else {
+        Ok(content_source.to_owned())
+    }
 }
 
 fn prompt_name() -> Result<String> {

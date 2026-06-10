@@ -81,61 +81,13 @@ pub(super) async fn execute(args: RegistryArgs, _config: &CliConfig) -> Result<C
         .unwrap_or_else(|| FALLBACK_GATEWAY_URL.to_owned());
     let registry_url = format!("{}/api/v1/agents/registry", base_url.trim_end_matches('/'));
 
-    let client = Client::new();
-    let response = client
-        .get(&registry_url)
-        .send()
-        .await
-        .with_context(|| format!("Failed to connect to gateway at {}", registry_url))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_else(|e| {
-            tracing::warn!(error = %e, "Failed to read error response body");
-            String::new()
-        });
-        anyhow::bail!("Registry request failed with status {}: {}", status, body);
-    }
-
-    let registry: RegistryResponse = response
-        .json()
-        .await
-        .context("Failed to parse registry response")?;
+    let registry = fetch_registry(&registry_url).await?;
 
     let agents: Vec<RegistryAgentInfo> = registry
         .data
         .into_iter()
-        .filter(|agent| {
-            if args.running {
-                is_agent_running(agent)
-            } else {
-                true
-            }
-        })
-        .map(|agent| {
-            let status = extract_status(&agent);
-            let skills: Vec<String> = agent.skills.iter().map(|s| s.name.clone()).collect();
-
-            let url = agent
-                .supported_interfaces
-                .first()
-                .map_or_else(String::new, |i| i.url.clone());
-
-            RegistryAgentInfo {
-                name: agent.name,
-                description: if args.verbose {
-                    agent.description
-                } else {
-                    truncate_with_ellipsis(&agent.description, 50)
-                },
-                url,
-                version: agent.version,
-                status,
-                streaming: agent.capabilities.streaming.unwrap_or(false),
-                skills_count: skills.len(),
-                skills: if args.verbose { skills } else { vec![] },
-            }
-        })
+        .filter(|agent| !args.running || is_agent_running(agent))
+        .map(|agent| to_agent_info(agent, args.verbose))
         .collect();
 
     let output = RegistryOutput {
@@ -156,6 +108,54 @@ pub(super) async fn execute(args: RegistryArgs, _config: &CliConfig) -> Result<C
         &output.agents,
     )
     .with_title("Agent Registry"))
+}
+
+async fn fetch_registry(registry_url: &str) -> Result<RegistryResponse> {
+    let client = Client::new();
+    let response = client
+        .get(registry_url)
+        .send()
+        .await
+        .with_context(|| format!("Failed to connect to gateway at {}", registry_url))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "Failed to read error response body");
+            String::new()
+        });
+        anyhow::bail!("Registry request failed with status {}: {}", status, body);
+    }
+
+    response
+        .json()
+        .await
+        .context("Failed to parse registry response")
+}
+
+fn to_agent_info(agent: AgentCardResponse, verbose: bool) -> RegistryAgentInfo {
+    let status = extract_status(&agent);
+    let skills: Vec<String> = agent.skills.iter().map(|s| s.name.clone()).collect();
+
+    let url = agent
+        .supported_interfaces
+        .first()
+        .map_or_else(String::new, |i| i.url.clone());
+
+    RegistryAgentInfo {
+        name: agent.name,
+        description: if verbose {
+            agent.description
+        } else {
+            truncate_with_ellipsis(&agent.description, 50)
+        },
+        url,
+        version: agent.version,
+        status,
+        streaming: agent.capabilities.streaming.unwrap_or(false),
+        skills_count: skills.len(),
+        skills: if verbose { skills } else { vec![] },
+    }
 }
 
 fn is_agent_running(agent: &AgentCardResponse) -> bool {

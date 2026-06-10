@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::CostAnalyticsRepository;
+use systemprompt_analytics::models::cli::CostBreakdownRow;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -77,8 +78,34 @@ async fn execute_internal(
 
     let total_cost: i64 = rows.iter().map(|r| r.cost).sum();
 
-    let items: Vec<CostBreakdownItem> = rows
-        .into_iter()
+    let output = CostBreakdownOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        breakdown_by: format!("{:?}", args.by).to_lowercase(),
+        items: build_items(rows, total_cost),
+        total_cost_microdollars: total_cost,
+    };
+
+    if let Some(ref path) = args.export {
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.items, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(breakdown_table(&output.items).with_skip_render());
+    }
+
+    if output.items.is_empty() {
+        CliService::warning("No data found in the specified time range");
+        return Ok(breakdown_table(&output.items).with_skip_render());
+    }
+
+    Ok(breakdown_table(&output.items).with_title("Cost Breakdown"))
+}
+
+fn build_items(rows: Vec<CostBreakdownRow>, total_cost: i64) -> Vec<CostBreakdownItem> {
+    rows.into_iter()
         .map(|row| {
             let percentage = if total_cost > 0 {
                 (row.cost as f64 / total_cost as f64) * 100.0
@@ -94,52 +121,11 @@ async fn execute_internal(
                 percentage,
             }
         })
-        .collect();
+        .collect()
+}
 
-    let output = CostBreakdownOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        breakdown_by: format!("{:?}", args.by).to_lowercase(),
-        items,
-        total_cost_microdollars: total_cost,
-    };
-
-    if let Some(ref path) = args.export {
-        let resolved_path = resolve_export_path(path)?;
-        export_to_csv(&output.items, &resolved_path)?;
-        CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(CommandOutput::table_of(
-            vec![
-                "name",
-                "cost_microdollars",
-                "request_count",
-                "tokens",
-                "percentage",
-            ],
-            &output.items,
-        )
-        .with_skip_render());
-    }
-
-    if output.items.is_empty() {
-        CliService::warning("No data found in the specified time range");
-        return Ok(CommandOutput::table_of(
-            vec![
-                "name",
-                "cost_microdollars",
-                "request_count",
-                "tokens",
-                "percentage",
-            ],
-            &output.items,
-        )
-        .with_skip_render());
-    }
-
-    Ok(CommandOutput::table_of(
+fn breakdown_table(items: &[CostBreakdownItem]) -> CommandOutput {
+    CommandOutput::table_of(
         vec![
             "name",
             "cost_microdollars",
@@ -147,7 +133,6 @@ async fn execute_internal(
             "tokens",
             "percentage",
         ],
-        &output.items,
+        items,
     )
-    .with_title("Cost Breakdown"))
 }

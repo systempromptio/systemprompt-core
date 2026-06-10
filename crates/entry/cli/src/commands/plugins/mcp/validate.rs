@@ -10,8 +10,9 @@ use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::client::validate_connection_with_auth;
+use systemprompt_mcp::services::client::{McpConnectionResult, validate_connection_with_auth};
 use systemprompt_mcp::services::database::DatabaseService;
+use systemprompt_models::Deployment;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -109,36 +110,31 @@ async fn validate_single_service(
     timeout_secs: u64,
 ) -> McpValidateOutput {
     let Some(server) = services_config.mcp_servers.get(service_name) else {
-        return McpValidateOutput {
-            server: service_name.to_owned(),
-            valid: false,
-            health_status: "not_found".to_owned(),
-            validation_type: "config_error".to_owned(),
-            tools_count: 0,
-            latency_ms: 0,
-            server_info: None,
-            issues: vec![format!(
-                "Server '{}' not found in configuration",
-                service_name
-            )],
-            message: format!("MCP server '{}' not found", service_name),
-        };
+        return failure_output(
+            service_name,
+            FailureDetail {
+                health_status: "not_found",
+                validation_type: "config_error",
+                latency_ms: 0,
+                issue: format!("Server '{}' not found in configuration", service_name),
+                message: format!("MCP server '{}' not found", service_name),
+            },
+        );
     };
 
     let service_info = match database.get_service_by_name(service_name).await {
         Ok(info) => info,
         Err(e) => {
-            return McpValidateOutput {
-                server: service_name.to_owned(),
-                valid: false,
-                health_status: "unknown".to_owned(),
-                validation_type: "database_error".to_owned(),
-                tools_count: 0,
-                latency_ms: 0,
-                server_info: None,
-                issues: vec![format!("Failed to check service status: {}", e)],
-                message: format!("Database error for '{}'", service_name),
-            };
+            return failure_output(
+                service_name,
+                FailureDetail {
+                    health_status: "unknown",
+                    validation_type: "database_error",
+                    latency_ms: 0,
+                    issue: format!("Failed to check service status: {}", e),
+                    message: format!("Database error for '{}'", service_name),
+                },
+            );
         },
     };
 
@@ -147,19 +143,26 @@ async fn validate_single_service(
         .is_some_and(|info| info.status == "running");
 
     if !is_running {
-        return McpValidateOutput {
-            server: service_name.to_owned(),
-            valid: false,
-            health_status: "stopped".to_owned(),
-            validation_type: "not_running".to_owned(),
-            tools_count: 0,
-            latency_ms: 0,
-            server_info: None,
-            issues: vec!["Service is not currently running".to_owned()],
-            message: format!("MCP server '{}' is not running", service_name),
-        };
+        return failure_output(
+            service_name,
+            FailureDetail {
+                health_status: "stopped",
+                validation_type: "not_running",
+                latency_ms: 0,
+                issue: "Service is not currently running".to_owned(),
+                message: format!("MCP server '{}' is not running", service_name),
+            },
+        );
     }
 
+    run_connection_validation(service_name, server, timeout_secs).await
+}
+
+async fn run_connection_validation(
+    service_name: &str,
+    server: &Deployment,
+    timeout_secs: u64,
+) -> McpValidateOutput {
     let validation_future = validate_connection_with_auth(
         service_name,
         "127.0.0.1",
@@ -171,37 +174,58 @@ async fn validate_single_service(
         match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {
             Ok(Ok(result)) => result,
             Ok(Err(e)) => {
-                return McpValidateOutput {
-                    server: service_name.to_owned(),
-                    valid: false,
-                    health_status: "unhealthy".to_owned(),
-                    validation_type: "connection_error".to_owned(),
-                    tools_count: 0,
-                    latency_ms: 0,
-                    server_info: None,
-                    issues: vec![format!("Connection error: {}", e)],
-                    message: format!("Failed to connect to '{}'", service_name),
-                };
+                return failure_output(
+                    service_name,
+                    FailureDetail {
+                        health_status: "unhealthy",
+                        validation_type: "connection_error",
+                        latency_ms: 0,
+                        issue: format!("Connection error: {}", e),
+                        message: format!("Failed to connect to '{}'", service_name),
+                    },
+                );
             },
             Err(e) => {
                 tracing::debug!(server = %service_name, error = %e, "MCP validation timed out");
-                return McpValidateOutput {
-                    server: service_name.to_owned(),
-                    valid: false,
-                    health_status: "unhealthy".to_owned(),
-                    validation_type: "timeout".to_owned(),
-                    tools_count: 0,
-                    latency_ms: timeout_secs as u32 * 1000,
-                    server_info: None,
-                    issues: vec![format!(
-                        "Connection timed out after {} seconds",
-                        timeout_secs
-                    )],
-                    message: format!("Timeout connecting to '{}'", service_name),
-                };
+                return failure_output(
+                    service_name,
+                    FailureDetail {
+                        health_status: "unhealthy",
+                        validation_type: "timeout",
+                        latency_ms: timeout_secs as u32 * 1000,
+                        issue: format!("Connection timed out after {} seconds", timeout_secs),
+                        message: format!("Timeout connecting to '{}'", service_name),
+                    },
+                );
             },
         };
 
+    success_output(service_name, validation_result)
+}
+
+struct FailureDetail {
+    health_status: &'static str,
+    validation_type: &'static str,
+    latency_ms: u32,
+    issue: String,
+    message: String,
+}
+
+fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateOutput {
+    McpValidateOutput {
+        server: service_name.to_owned(),
+        valid: false,
+        health_status: detail.health_status.to_owned(),
+        validation_type: detail.validation_type.to_owned(),
+        tools_count: 0,
+        latency_ms: detail.latency_ms,
+        server_info: None,
+        issues: vec![detail.issue],
+        message: detail.message,
+    }
+}
+
+fn success_output(service_name: &str, validation_result: McpConnectionResult) -> McpValidateOutput {
     let health_status = validation_result.health_status().to_owned();
     let message = validation_result.status_description();
 

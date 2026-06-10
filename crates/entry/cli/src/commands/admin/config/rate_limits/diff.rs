@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 
 use super::DiffArgs;
 use crate::CliConfig;
@@ -76,117 +76,111 @@ fn collect_differences(
         &current.disabled,
         &compare_with.disabled,
     );
-    add_diff_if_different(
-        &mut differences,
-        "oauth_public_per_second",
-        &current.oauth_public_per_second,
-        &compare_with.oauth_public_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "oauth_auth_per_second",
-        &current.oauth_auth_per_second,
-        &compare_with.oauth_auth_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "contexts_per_second",
-        &current.contexts_per_second,
-        &compare_with.contexts_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "tasks_per_second",
-        &current.tasks_per_second,
-        &compare_with.tasks_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "artifacts_per_second",
-        &current.artifacts_per_second,
-        &compare_with.artifacts_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "agent_registry_per_second",
-        &current.agent_registry_per_second,
-        &compare_with.agent_registry_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "agents_per_second",
-        &current.agents_per_second,
-        &compare_with.agents_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "mcp_registry_per_second",
-        &current.mcp_registry_per_second,
-        &compare_with.mcp_registry_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "mcp_per_second",
-        &current.mcp_per_second,
-        &compare_with.mcp_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "stream_per_second",
-        &current.stream_per_second,
-        &compare_with.stream_per_second,
-    );
-    add_diff_if_different(
-        &mut differences,
-        "content_per_second",
-        &current.content_per_second,
-        &compare_with.content_per_second,
-    );
+    collect_rate_differences(current, compare_with, &mut differences);
     add_diff_if_different(
         &mut differences,
         "burst_multiplier",
         &current.burst_multiplier,
         &compare_with.burst_multiplier,
     );
-
-    add_diff_if_different_f64(
+    collect_tier_differences(
+        &current.tier_multipliers,
+        &compare_with.tier_multipliers,
         &mut differences,
-        "tier_multipliers.admin",
-        current.tier_multipliers.admin,
-        compare_with.tier_multipliers.admin,
-    );
-    add_diff_if_different_f64(
-        &mut differences,
-        "tier_multipliers.user",
-        current.tier_multipliers.user,
-        compare_with.tier_multipliers.user,
-    );
-    add_diff_if_different_f64(
-        &mut differences,
-        "tier_multipliers.a2a",
-        current.tier_multipliers.a2a,
-        compare_with.tier_multipliers.a2a,
-    );
-    add_diff_if_different_f64(
-        &mut differences,
-        "tier_multipliers.mcp",
-        current.tier_multipliers.mcp,
-        compare_with.tier_multipliers.mcp,
-    );
-    add_diff_if_different_f64(
-        &mut differences,
-        "tier_multipliers.service",
-        current.tier_multipliers.service,
-        compare_with.tier_multipliers.service,
-    );
-    add_diff_if_different_f64(
-        &mut differences,
-        "tier_multipliers.anon",
-        current.tier_multipliers.anon,
-        compare_with.tier_multipliers.anon,
     );
 
     differences
+}
+
+fn collect_rate_differences(
+    current: &RateLimitsConfig,
+    compare_with: &RateLimitsConfig,
+    diffs: &mut Vec<DiffEntry>,
+) {
+    let rates = [
+        (
+            "oauth_public_per_second",
+            current.oauth_public_per_second,
+            compare_with.oauth_public_per_second,
+        ),
+        (
+            "oauth_auth_per_second",
+            current.oauth_auth_per_second,
+            compare_with.oauth_auth_per_second,
+        ),
+        (
+            "contexts_per_second",
+            current.contexts_per_second,
+            compare_with.contexts_per_second,
+        ),
+        (
+            "tasks_per_second",
+            current.tasks_per_second,
+            compare_with.tasks_per_second,
+        ),
+        (
+            "artifacts_per_second",
+            current.artifacts_per_second,
+            compare_with.artifacts_per_second,
+        ),
+        (
+            "agent_registry_per_second",
+            current.agent_registry_per_second,
+            compare_with.agent_registry_per_second,
+        ),
+        (
+            "agents_per_second",
+            current.agents_per_second,
+            compare_with.agents_per_second,
+        ),
+        (
+            "mcp_registry_per_second",
+            current.mcp_registry_per_second,
+            compare_with.mcp_registry_per_second,
+        ),
+        (
+            "mcp_per_second",
+            current.mcp_per_second,
+            compare_with.mcp_per_second,
+        ),
+        (
+            "stream_per_second",
+            current.stream_per_second,
+            compare_with.stream_per_second,
+        ),
+        (
+            "content_per_second",
+            current.content_per_second,
+            compare_with.content_per_second,
+        ),
+    ];
+
+    for (field, current_val, other_val) in rates {
+        add_diff_if_different(diffs, field, &current_val, &other_val);
+    }
+}
+
+fn collect_tier_differences(
+    current: &TierMultipliers,
+    compare_with: &TierMultipliers,
+    diffs: &mut Vec<DiffEntry>,
+) {
+    let tiers = [
+        ("tier_multipliers.admin", current.admin, compare_with.admin),
+        ("tier_multipliers.user", current.user, compare_with.user),
+        ("tier_multipliers.a2a", current.a2a, compare_with.a2a),
+        ("tier_multipliers.mcp", current.mcp, compare_with.mcp),
+        (
+            "tier_multipliers.service",
+            current.service,
+            compare_with.service,
+        ),
+        ("tier_multipliers.anon", current.anon, compare_with.anon),
+    ];
+
+    for (field, current_val, other_val) in tiers {
+        add_diff_if_different_f64(diffs, field, current_val, other_val);
+    }
 }
 
 fn add_diff_if_different<T: std::fmt::Display + PartialEq>(

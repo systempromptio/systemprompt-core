@@ -30,19 +30,7 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
         TenantStore::default()
     });
 
-    let tenant_id = if let Some(id) = args.id {
-        id
-    } else {
-        if !config.is_interactive() {
-            return Err(anyhow::anyhow!(
-                "--id is required in non-interactive mode for tenant delete"
-            ));
-        }
-        if store.tenants.is_empty() {
-            bail!("No tenants configured.");
-        }
-        select_tenant(&store.tenants)?.id.clone()
-    };
+    let tenant_id = resolve_delete_target(args.id, &store, config)?;
 
     let tenant = store
         .tenants
@@ -53,51 +41,16 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
 
     let is_cloud = tenant.tenant_type == TenantType::Cloud;
 
-    if !args.yes {
-        if !config.is_interactive() {
-            return Err(anyhow::anyhow!(
-                "--yes is required in non-interactive mode for tenant delete"
-            ));
+    if !args.yes && !confirm_delete(&tenant, is_cloud, config)? {
+        let output = SuccessOutput::new("Cancelled");
+        if !config.is_json_output() {
+            CliService::info("Cancelled");
         }
-
-        let prompt = if is_cloud {
-            format!(
-                "Delete cloud tenant '{}'? This will cancel your subscription and delete all data.",
-                tenant.name
-            )
-        } else {
-            format!("Delete tenant '{}'?", tenant.name)
-        };
-
-        let confirm = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(prompt)
-            .default(false)
-            .interact()?;
-
-        if !confirm {
-            let output = SuccessOutput::new("Cancelled");
-            if !config.is_json_output() {
-                CliService::info("Cancelled");
-            }
-            return Ok(CommandOutput::text_titled("Delete Tenant", output.message));
-        }
+        return Ok(CommandOutput::text_titled("Delete Tenant", output.message));
     }
 
     if is_cloud {
-        let creds = get_credentials()?;
-        let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
-
-        if config.is_json_output() {
-            client
-                .delete_tenant(&systemprompt_identifiers::TenantId::new(&tenant_id))
-                .await?;
-        } else {
-            let spinner = CliService::spinner("Deleting cloud tenant...");
-            client
-                .delete_tenant(&systemprompt_identifiers::TenantId::new(&tenant_id))
-                .await?;
-            spinner.finish_and_clear();
-        }
+        delete_cloud_tenant(&tenant_id, config).await?;
     } else if tenant.uses_shared_container() {
         cleanup_shared_container_tenant(&tenant, config)?;
     }
@@ -112,6 +65,66 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
     }
 
     Ok(CommandOutput::text_titled("Delete Tenant", output.message))
+}
+
+fn resolve_delete_target(
+    id: Option<String>,
+    store: &TenantStore,
+    config: &CliConfig,
+) -> Result<String> {
+    if let Some(id) = id {
+        return Ok(id);
+    }
+    if !config.is_interactive() {
+        return Err(anyhow::anyhow!(
+            "--id is required in non-interactive mode for tenant delete"
+        ));
+    }
+    if store.tenants.is_empty() {
+        bail!("No tenants configured.");
+    }
+    Ok(select_tenant(&store.tenants)?.id.clone())
+}
+
+fn confirm_delete(tenant: &StoredTenant, is_cloud: bool, config: &CliConfig) -> Result<bool> {
+    if !config.is_interactive() {
+        return Err(anyhow::anyhow!(
+            "--yes is required in non-interactive mode for tenant delete"
+        ));
+    }
+
+    let prompt = if is_cloud {
+        format!(
+            "Delete cloud tenant '{}'? This will cancel your subscription and delete all data.",
+            tenant.name
+        )
+    } else {
+        format!("Delete tenant '{}'?", tenant.name)
+    };
+
+    Ok(Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(prompt)
+        .default(false)
+        .interact()?)
+}
+
+async fn delete_cloud_tenant(tenant_id: &str, config: &CliConfig) -> Result<()> {
+    let creds = get_credentials()?;
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+
+    if config.is_json_output() {
+        client
+            .delete_tenant(&systemprompt_identifiers::TenantId::new(tenant_id))
+            .await?;
+    } else {
+        let spinner = CliService::spinner("Deleting cloud tenant...");
+        client
+            .delete_tenant(&systemprompt_identifiers::TenantId::new(tenant_id))
+            .await?;
+        spinner.finish_and_clear();
+    }
+
+    Ok(())
 }
 
 fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {

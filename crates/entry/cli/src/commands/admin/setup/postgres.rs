@@ -107,6 +107,34 @@ pub(super) async fn setup_interactive(
 async fn setup_existing_postgres(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
     CliService::info("Configuring existing PostgreSQL connection...");
 
+    let (host, port) = prompt_host_port(args)?;
+
+    let user: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database user")
+        .default(args.effective_db_user(env_name))
+        .interact_text()?;
+
+    let password = prompt_password(args)?;
+
+    let database: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Database name")
+        .default(args.effective_db_name(env_name))
+        .interact_text()?;
+
+    let config = PostgresConfig {
+        host,
+        port,
+        user,
+        password,
+        database,
+    };
+
+    verify_or_create_database(&config).await?;
+
+    Ok(config)
+}
+
+fn prompt_host_port(args: &SetupArgs) -> Result<(String, u16)> {
     let host: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("PostgreSQL host")
         .default(args.db_host.clone())
@@ -131,12 +159,10 @@ async fn setup_existing_postgres(args: &SetupArgs, env_name: &str) -> Result<Pos
         }
     }
 
-    let default_user = args.effective_db_user(env_name);
-    let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database user")
-        .default(default_user)
-        .interact_text()?;
+    Ok((host, port))
+}
 
+fn prompt_password(args: &SetupArgs) -> Result<String> {
     let password = if let Some(ref pw) = args.db_password {
         pw.clone()
     } else {
@@ -160,43 +186,32 @@ async fn setup_existing_postgres(args: &SetupArgs, env_name: &str) -> Result<Pos
         anyhow::bail!("Password is required");
     }
 
-    let default_db = args.effective_db_name(env_name);
-    let database: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database name")
-        .default(default_db)
-        .interact_text()?;
+    Ok(password)
+}
 
-    let config = PostgresConfig {
-        host,
-        port,
-        user,
-        password,
-        database,
-    };
-
-    let can_connect = test_connection(&config).await;
-
-    if can_connect {
+async fn verify_or_create_database(config: &PostgresConfig) -> Result<()> {
+    if test_connection(config).await {
         CliService::success("Successfully connected to database!");
-        enable_extensions(&config).await?;
-    } else {
-        CliService::warning("Cannot connect with provided credentials.");
-        CliService::info("The database or user may not exist yet.");
-
-        let create_db = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Create database and user now? (requires superuser)")
-            .default(true)
-            .interact()?;
-
-        if create_db {
-            create_database_interactive(&config).await?;
-            enable_extensions(&config).await?;
-        } else {
-            CliService::warning("Skipping database creation. You may need to create it manually.");
-        }
+        enable_extensions(config).await?;
+        return Ok(());
     }
 
-    Ok(config)
+    CliService::warning("Cannot connect with provided credentials.");
+    CliService::info("The database or user may not exist yet.");
+
+    let create_db = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Create database and user now? (requires superuser)")
+        .default(true)
+        .interact()?;
+
+    if create_db {
+        create_database_interactive(config).await?;
+        enable_extensions(config).await?;
+    } else {
+        CliService::warning("Skipping database creation. You may need to create it manually.");
+    }
+
+    Ok(())
 }
 
 async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {

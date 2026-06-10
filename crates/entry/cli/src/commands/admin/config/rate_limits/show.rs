@@ -1,6 +1,7 @@
 use anyhow::Result;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
+use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 
 use super::TierArgs;
 use super::helpers::{apply_multiplier, get_tier_multiplier};
@@ -122,115 +123,10 @@ pub(super) fn execute_docs(config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 
-    let admin_mult = limits.tier_multipliers.admin;
-    let user_mult = limits.tier_multipliers.user;
-    let anon_mult = limits.tier_multipliers.anon;
-
     let output = RateLimitsDocsOutput {
-        base_rates: vec![
-            BaseRateRow {
-                endpoint: "OAuth Public".to_owned(),
-                rate_per_second: limits.oauth_public_per_second,
-            },
-            BaseRateRow {
-                endpoint: "OAuth Auth".to_owned(),
-                rate_per_second: limits.oauth_auth_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Contexts".to_owned(),
-                rate_per_second: limits.contexts_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Tasks".to_owned(),
-                rate_per_second: limits.tasks_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Artifacts".to_owned(),
-                rate_per_second: limits.artifacts_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Agent Registry".to_owned(),
-                rate_per_second: limits.agent_registry_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Agents".to_owned(),
-                rate_per_second: limits.agents_per_second,
-            },
-            BaseRateRow {
-                endpoint: "MCP Registry".to_owned(),
-                rate_per_second: limits.mcp_registry_per_second,
-            },
-            BaseRateRow {
-                endpoint: "MCP".to_owned(),
-                rate_per_second: limits.mcp_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Stream (SSE)".to_owned(),
-                rate_per_second: limits.stream_per_second,
-            },
-            BaseRateRow {
-                endpoint: "Content".to_owned(),
-                rate_per_second: limits.content_per_second,
-            },
-        ],
-        tier_multipliers: vec![
-            TierMultiplierRow {
-                tier: "Admin".to_owned(),
-                multiplier: limits.tier_multipliers.admin,
-            },
-            TierMultiplierRow {
-                tier: "User".to_owned(),
-                multiplier: limits.tier_multipliers.user,
-            },
-            TierMultiplierRow {
-                tier: "A2A".to_owned(),
-                multiplier: limits.tier_multipliers.a2a,
-            },
-            TierMultiplierRow {
-                tier: "MCP".to_owned(),
-                multiplier: limits.tier_multipliers.mcp,
-            },
-            TierMultiplierRow {
-                tier: "Service".to_owned(),
-                multiplier: limits.tier_multipliers.service,
-            },
-            TierMultiplierRow {
-                tier: "Anonymous".to_owned(),
-                multiplier: limits.tier_multipliers.anon,
-            },
-        ],
-        effective_limits: vec![
-            EffectiveLimitRow {
-                endpoint: "Contexts".to_owned(),
-                admin: apply_multiplier(limits.contexts_per_second, admin_mult),
-                user: apply_multiplier(limits.contexts_per_second, user_mult),
-                anon: apply_multiplier(limits.contexts_per_second, anon_mult),
-            },
-            EffectiveLimitRow {
-                endpoint: "Tasks".to_owned(),
-                admin: apply_multiplier(limits.tasks_per_second, admin_mult),
-                user: apply_multiplier(limits.tasks_per_second, user_mult),
-                anon: apply_multiplier(limits.tasks_per_second, anon_mult),
-            },
-            EffectiveLimitRow {
-                endpoint: "Agents".to_owned(),
-                admin: apply_multiplier(limits.agents_per_second, admin_mult),
-                user: apply_multiplier(limits.agents_per_second, user_mult),
-                anon: apply_multiplier(limits.agents_per_second, anon_mult),
-            },
-            EffectiveLimitRow {
-                endpoint: "Stream (SSE)".to_owned(),
-                admin: apply_multiplier(limits.stream_per_second, admin_mult),
-                user: apply_multiplier(limits.stream_per_second, user_mult),
-                anon: apply_multiplier(limits.stream_per_second, anon_mult),
-            },
-            EffectiveLimitRow {
-                endpoint: "MCP".to_owned(),
-                admin: apply_multiplier(limits.mcp_per_second, admin_mult),
-                user: apply_multiplier(limits.mcp_per_second, user_mult),
-                anon: apply_multiplier(limits.mcp_per_second, anon_mult),
-            },
-        ],
+        base_rates: base_rate_rows(limits),
+        tier_multipliers: tier_multiplier_rows(&limits.tier_multipliers),
+        effective_limits: effective_limit_rows(limits),
         burst_multiplier: limits.burst_multiplier,
         disabled: limits.disabled,
     };
@@ -245,4 +141,62 @@ pub(super) fn execute_docs(config: &CliConfig) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn base_rate_rows(limits: &RateLimitsConfig) -> Vec<BaseRateRow> {
+    [
+        ("OAuth Public", limits.oauth_public_per_second),
+        ("OAuth Auth", limits.oauth_auth_per_second),
+        ("Contexts", limits.contexts_per_second),
+        ("Tasks", limits.tasks_per_second),
+        ("Artifacts", limits.artifacts_per_second),
+        ("Agent Registry", limits.agent_registry_per_second),
+        ("Agents", limits.agents_per_second),
+        ("MCP Registry", limits.mcp_registry_per_second),
+        ("MCP", limits.mcp_per_second),
+        ("Stream (SSE)", limits.stream_per_second),
+        ("Content", limits.content_per_second),
+    ]
+    .into_iter()
+    .map(|(endpoint, rate_per_second)| BaseRateRow {
+        endpoint: endpoint.to_owned(),
+        rate_per_second,
+    })
+    .collect()
+}
+
+fn tier_multiplier_rows(tiers: &TierMultipliers) -> Vec<TierMultiplierRow> {
+    [
+        ("Admin", tiers.admin),
+        ("User", tiers.user),
+        ("A2A", tiers.a2a),
+        ("MCP", tiers.mcp),
+        ("Service", tiers.service),
+        ("Anonymous", tiers.anon),
+    ]
+    .into_iter()
+    .map(|(tier, multiplier)| TierMultiplierRow {
+        tier: tier.to_owned(),
+        multiplier,
+    })
+    .collect()
+}
+
+fn effective_limit_rows(limits: &RateLimitsConfig) -> Vec<EffectiveLimitRow> {
+    let tiers = &limits.tier_multipliers;
+    [
+        ("Contexts", limits.contexts_per_second),
+        ("Tasks", limits.tasks_per_second),
+        ("Agents", limits.agents_per_second),
+        ("Stream (SSE)", limits.stream_per_second),
+        ("MCP", limits.mcp_per_second),
+    ]
+    .into_iter()
+    .map(|(endpoint, base)| EffectiveLimitRow {
+        endpoint: endpoint.to_owned(),
+        admin: apply_multiplier(base, tiers.admin),
+        user: apply_multiplier(base, tiers.user),
+        anon: apply_multiplier(base, tiers.anon),
+    })
+    .collect()
 }

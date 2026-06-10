@@ -85,84 +85,47 @@ pub async fn execute(command: AgentsCommands) -> Result<()> {
 }
 
 pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) -> Result<()> {
-    match command {
+    let result = match command {
         AgentsCommands::List(args) => {
-            let result = list::execute(args, config).context("Failed to list agents")?;
-            render_result(&result);
-            Ok(())
+            list::execute(args, config).context("Failed to list agents")?
         },
         AgentsCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show agent")?;
-            render_result(&result);
-            Ok(())
+            show::execute(args, config).context("Failed to show agent")?
         },
         AgentsCommands::Validate(args) => {
-            let result = validate::execute(&args, config).context("Failed to validate agents")?;
-            render_result(&result);
-            Ok(())
+            validate::execute(&args, config).context("Failed to validate agents")?
         },
         AgentsCommands::Create(args) => {
-            let result = create::execute(args, config).context("Failed to create agent")?;
-            render_result(&result);
-            Ok(())
+            create::execute(args, config).context("Failed to create agent")?
         },
         AgentsCommands::Edit(args) => {
-            let result = edit::execute(&args, config).context("Failed to edit agent")?;
-            render_result(&result);
-            Ok(())
+            edit::execute(&args, config).context("Failed to edit agent")?
         },
-        AgentsCommands::Delete(args) => {
-            let result = delete::execute(args, config)
-                .await
-                .context("Failed to delete agent")?;
-            render_result(&result);
-            Ok(())
-        },
-        AgentsCommands::Status(args) => {
-            let result = status::execute(args, config)
-                .await
-                .context("Failed to get agent status")?;
-            render_result(&result);
-            Ok(())
-        },
-        AgentsCommands::Logs(args) => {
-            let result = logs::execute(args, config)
-                .await
-                .context("Failed to get agent logs")?;
-            render_result(&result);
-            Ok(())
-        },
-        AgentsCommands::Registry(args) => {
-            let result = registry::execute(args, config)
-                .await
-                .context("Failed to get agent registry")?;
-            render_result(&result);
-            Ok(())
-        },
-        AgentsCommands::Message(args) => {
-            let result = message::execute(args, config)
-                .await
-                .context("Failed to send message to agent")?;
-            render_result(&result);
-            Ok(())
-        },
-        AgentsCommands::Task(args) => {
-            let result = task::execute(args, config)
-                .await
-                .context("Failed to get task details")?;
-            render_result(&result);
-            Ok(())
-        },
-        AgentsCommands::Tools(args) => {
-            let result = tools::execute(args, config)
-                .await
-                .context("Failed to list agent tools")?;
-            render_result(&result);
-            Ok(())
-        },
+        AgentsCommands::Delete(args) => delete::execute(args, config)
+            .await
+            .context("Failed to delete agent")?,
+        AgentsCommands::Status(args) => status::execute(args, config)
+            .await
+            .context("Failed to get agent status")?,
+        AgentsCommands::Logs(args) => logs::execute(args, config)
+            .await
+            .context("Failed to get agent logs")?,
+        AgentsCommands::Registry(args) => registry::execute(args, config)
+            .await
+            .context("Failed to get agent registry")?,
+        AgentsCommands::Message(args) => message::execute(args, config)
+            .await
+            .context("Failed to send message to agent")?,
+        AgentsCommands::Task(args) => task::execute(args, config)
+            .await
+            .context("Failed to get task details")?,
+        AgentsCommands::Tools(args) => tools::execute(args, config)
+            .await
+            .context("Failed to list agent tools")?,
         AgentsCommands::Run(args) => {
-            run::execute(args).await.context("Failed to run agent")?;
-            Ok(())
+            return run::execute(args).await.context("Failed to run agent");
         },
-    }
+    };
+    render_result(&result);
+    Ok(())
 }

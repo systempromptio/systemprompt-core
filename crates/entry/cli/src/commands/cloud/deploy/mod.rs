@@ -63,6 +63,65 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         return Ok(());
     }
 
+    let target = resolve_deploy_target(&profile)?;
+
+    let sync_result = pre_sync::execute(
+        &target.tenant_id,
+        pre_sync::PreSyncConfig {
+            no_sync: args.no_sync,
+            yes: args.yes,
+            dry_run: args.dry_run,
+        },
+        config,
+        &profile_path,
+    )
+    .await?;
+
+    if sync_result.dry_run {
+        CliService::info("Dry run complete. No deployment performed.");
+        return Ok(());
+    }
+
+    let (project, deploy_config) = prepare_build(&profile.name, &target.tenant_name)?;
+
+    let api_client = CloudApiClient::new(&target.creds.api_url, &target.creds.api_token)?;
+    let image = build_and_push_image(
+        &api_client,
+        &target.tenant_id,
+        &project,
+        &deploy_config,
+        args.skip_push,
+    )
+    .await?;
+
+    provision_secrets(
+        &api_client,
+        &target.tenant_id,
+        &profile,
+        profile_dir,
+        &target.creds,
+    )
+    .await?;
+
+    let spinner = CliService::spinner("Deploying...");
+    let response = api_client.deploy(&target.tenant_id, &image).await?;
+    spinner.finish_and_clear();
+    CliService::success("Deployed!");
+    CliService::key_value("Status", &response.status);
+    if let Some(url) = response.app_url {
+        CliService::key_value("URL", &url);
+    }
+
+    Ok(())
+}
+
+struct DeployTarget {
+    tenant_id: TenantId,
+    tenant_name: String,
+    creds: systemprompt_cloud::CloudCredentials,
+}
+
+fn resolve_deploy_target(profile: &systemprompt_models::Profile) -> Result<DeployTarget> {
     let cloud_config = profile
         .cloud
         .as_ref()
@@ -93,28 +152,17 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
             )
         })?;
 
-    let tenant_name = &tenant.name;
+    Ok(DeployTarget {
+        tenant_id,
+        tenant_name: tenant.name.clone(),
+        creds,
+    })
+}
 
-    let sync_result = pre_sync::execute(
-        &tenant_id,
-        pre_sync::PreSyncConfig {
-            no_sync: args.no_sync,
-            yes: args.yes,
-            dry_run: args.dry_run,
-        },
-        config,
-        &profile_path,
-    )
-    .await?;
-
-    if sync_result.dry_run {
-        CliService::info("Dry run complete. No deployment performed.");
-        return Ok(());
-    }
-
+fn prepare_build(profile_name: &str, tenant_name: &str) -> Result<(ProjectRoot, DeployConfig)> {
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
-    let deploy_config = DeployConfig::from_project(&project, &profile.name)?;
+    let deploy_config = DeployConfig::from_project(&project, profile_name)?;
 
     CliService::key_value("Tenant", tenant_name);
     CliService::key_value("Binary", &deploy_config.binary.display().to_string());
@@ -131,10 +179,18 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         &services_config,
     )?;
 
-    let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
+    Ok((project, deploy_config))
+}
 
+async fn build_and_push_image(
+    api_client: &CloudApiClient,
+    tenant_id: &TenantId,
+    project: &ProjectRoot,
+    deploy_config: &DeployConfig,
+    skip_push: bool,
+) -> Result<String> {
     let spinner = CliService::spinner("Fetching registry credentials...");
-    let registry_token = api_client.get_registry_token(&tenant_id).await?;
+    let registry_token = api_client.get_registry_token(tenant_id).await?;
     spinner.finish_and_clear();
 
     let image = format!(
@@ -148,7 +204,7 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 
-    if args.skip_push {
+    if skip_push {
         CliService::info("Push skipped (--skip-push)");
     } else {
         let spinner = CliService::spinner("Pushing to registry...");
@@ -162,18 +218,7 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         CliService::success("Image pushed");
     }
 
-    provision_secrets(&api_client, &tenant_id, &profile, profile_dir, &creds).await?;
-
-    let spinner = CliService::spinner("Deploying...");
-    let response = api_client.deploy(&tenant_id, &image).await?;
-    spinner.finish_and_clear();
-    CliService::success("Deployed!");
-    CliService::key_value("Status", &response.status);
-    if let Some(url) = response.app_url {
-        CliService::key_value("URL", &url);
-    }
-
-    Ok(())
+    Ok(image)
 }
 
 async fn provision_secrets(

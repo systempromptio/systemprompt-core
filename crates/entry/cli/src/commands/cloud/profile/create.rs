@@ -4,11 +4,14 @@
 //! profile, and Docker artifacts, then validates the result and runs
 //! local-tenant setup where applicable.
 
+use std::path::Path;
+
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{
-    CloudPath, ProfilePath, ProjectContext, TenantStore, TenantType, get_cloud_paths,
+    CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
+use systemprompt_models::Profile;
 
 use systemprompt_identifiers::TenantId;
 
@@ -17,11 +20,11 @@ use super::api_keys::{ApiKeys, collect_api_keys};
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
-use super::profile_steps::{ensure_unmasked_credentials, resolve_tenant_from_args};
-use super::templates::{
-    DatabaseUrls, get_services_path, save_dockerfile, save_dockerignore, save_entrypoint,
-    save_profile, save_secrets, update_ai_config_default_provider,
+use super::profile_steps::{
+    ensure_profile_dirs, ensure_unmasked_credentials, report_profile_validation,
+    resolve_tenant_from_args, write_docker_assets, write_profile_secrets,
 };
+use super::templates::{get_services_path, save_profile, update_ai_config_default_provider};
 use crate::cli_settings::CliConfig;
 
 pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
@@ -53,76 +56,77 @@ pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()>
         TenantStore::default()
     });
 
-    let (tenant, api_keys) = if config.is_interactive() && args.tenant.is_none() {
-        let tenant_type = select_tenant_type(&store)?;
-        let eligible_tenants = get_tenants_by_type(&store, tenant_type);
-        let tenant = select_tenant(&eligible_tenants)?;
+    let (tenant, api_keys) = select_tenant_and_keys(args, config, &store)?;
+    let tenant = ensure_unmasked_credentials(tenant, &tenants_path).await?;
 
-        if !tenant.has_database_url() {
-            bail!(
-                "Tenant '{}' does not have a database URL configured.\nFor local tenants, \
-                 recreate with 'systemprompt cloud tenant create'.",
-                tenant.name
-            );
-        }
+    ensure_profile_dirs(&ctx, &profile_dir)?;
+    write_profile_secrets(&tenant, &api_keys, &profile_dir)?;
+    update_ai_config_default_provider(api_keys.selected_provider())?;
+
+    let profile_path = ProfilePath::Config.resolve(&profile_dir);
+    let built_profile = build_tenant_profile(name, &tenant)?;
+
+    save_profile(&built_profile, &profile_path)?;
+    CliService::success(&format!("Created: {}", profile_path.display()));
+
+    write_docker_assets(&ctx, name)?;
+    report_profile_validation(&built_profile);
+
+    if tenant.tenant_type == TenantType::Local {
+        let db_url = tenant
+            .get_local_database_url()
+            .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
+        handle_local_tenant_setup(&cloud_user, db_url, &tenant.name, &profile_path).await?;
+    }
+
+    render_next_steps(&tenant, &profile_path);
+
+    Ok(())
+}
+
+fn select_tenant_and_keys(
+    args: &CreateArgs,
+    config: &CliConfig,
+    store: &TenantStore,
+) -> Result<(StoredTenant, ApiKeys)> {
+    if config.is_interactive() && args.tenant.is_none() {
+        let tenant_type = select_tenant_type(store)?;
+        let eligible_tenants = get_tenants_by_type(store, tenant_type);
+        let tenant = select_tenant(&eligible_tenants)?;
+        ensure_tenant_database(&tenant)?;
 
         CliService::section("API Keys");
         let api_keys = collect_api_keys()?;
-        (tenant, api_keys)
+        Ok((tenant, api_keys))
     } else {
-        let tenant = resolve_tenant_from_args(args, &store)?;
-
-        if !tenant.has_database_url() {
-            bail!(
-                "Tenant '{}' does not have a database URL configured.\nFor local tenants, \
-                 recreate with 'systemprompt cloud tenant create'.",
-                tenant.name
-            );
-        }
+        let tenant = resolve_tenant_from_args(args, store)?;
+        ensure_tenant_database(&tenant)?;
 
         let api_keys = ApiKeys::from_options(
             args.gemini_key.clone(),
             args.anthropic_key.clone(),
             args.openai_key.clone(),
         )?;
-        (tenant, api_keys)
-    };
+        Ok((tenant, api_keys))
+    }
+}
 
-    let tenant = ensure_unmasked_credentials(tenant, &tenants_path).await?;
+fn ensure_tenant_database(tenant: &StoredTenant) -> Result<()> {
+    if !tenant.has_database_url() {
+        bail!(
+            "Tenant '{}' does not have a database URL configured.\nFor local tenants, recreate \
+             with 'systemprompt cloud tenant create'.",
+            tenant.name
+        );
+    }
+    Ok(())
+}
 
-    std::fs::create_dir_all(&profile_dir)
-        .with_context(|| format!("Failed to create directory {}", profile_dir.display()))?;
-
-    std::fs::create_dir_all(ctx.storage_dir()).with_context(|| {
-        format!(
-            "Failed to create storage directory {}",
-            ctx.storage_dir().display()
-        )
-    })?;
-
-    let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
-    let external_url = tenant
-        .get_local_database_url()
-        .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-    let db_urls = DatabaseUrls {
-        external: external_url,
-        internal: tenant.internal_database_url.as_deref(),
-    };
-    save_secrets(
-        &db_urls,
-        &api_keys,
-        &secrets_path,
-        tenant.tenant_type == TenantType::Cloud,
-    )?;
-    CliService::success(&format!("Created: {}", secrets_path.display()));
-
-    update_ai_config_default_provider(api_keys.selected_provider())?;
-
+fn build_tenant_profile(name: &str, tenant: &StoredTenant) -> Result<Profile> {
     let services_path = get_services_path()?;
-    let profile_path = ProfilePath::Config.resolve(&profile_dir);
     let relative_secrets_path = "./secrets.json";
 
-    let built_profile = match tenant.tenant_type {
+    Ok(match tenant.tenant_type {
         TenantType::Local => LocalProfileBuilder::new(name, relative_secrets_path, &services_path)
             .with_tenant_id(TenantId::new(&tenant.id))
             .build(),
@@ -136,39 +140,10 @@ pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()>
             }
             builder.build()
         },
-    };
+    })
+}
 
-    save_profile(&built_profile, &profile_path)?;
-    CliService::success(&format!("Created: {}", profile_path.display()));
-
-    let docker_dir = ctx.profile_docker_dir(name);
-    std::fs::create_dir_all(&docker_dir)
-        .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
-
-    let dockerfile_path = ctx.profile_dockerfile(name);
-    save_dockerfile(&dockerfile_path, name, ctx.root())?;
-    CliService::success(&format!("Created: {}", dockerfile_path.display()));
-
-    let entrypoint_path = ctx.profile_entrypoint(name);
-    save_entrypoint(&entrypoint_path)?;
-    CliService::success(&format!("Created: {}", entrypoint_path.display()));
-
-    let dockerignore_path = ctx.profile_dockerignore(name);
-    save_dockerignore(&dockerignore_path)?;
-    CliService::success(&format!("Created: {}", dockerignore_path.display()));
-
-    match built_profile.validate() {
-        Ok(()) => CliService::success("Profile validated"),
-        Err(e) => CliService::warning(&format!("Validation warning: {}", e)),
-    }
-
-    if tenant.tenant_type == TenantType::Local {
-        let db_url = tenant
-            .get_local_database_url()
-            .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-        handle_local_tenant_setup(&cloud_user, db_url, &tenant.name, &profile_path).await?;
-    }
-
+fn render_next_steps(tenant: &StoredTenant, profile_path: &Path) {
     CliService::section("Next Steps");
     CliService::info(&format!(
         "  export SYSTEMPROMPT_PROFILE={}",
@@ -179,6 +154,4 @@ pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()>
         TenantType::Local => CliService::info("  just start"),
         TenantType::Cloud => CliService::info("  just deploy"),
     }
-
-    Ok(())
 }

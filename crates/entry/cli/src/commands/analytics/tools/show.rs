@@ -1,7 +1,11 @@
 use anyhow::{Result, anyhow};
+use chrono::{DateTime, Utc};
 use clap::Args;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use systemprompt_analytics::ToolAnalyticsRepository;
+use systemprompt_analytics::models::cli::{
+    ToolAgentUsageRow, ToolErrorRow, ToolStatusBreakdownRow, ToolSummaryRow,
+};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -63,33 +67,50 @@ async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Res
     let top_errors_rows = repo.get_top_errors(&args.tool, start, end).await?;
     let usage_by_agent_rows = repo.get_usage_by_agent(&args.tool, start, end).await?;
 
-    let period = format!(
+    let period = format_period(start, end);
+    let output = ToolShowOutput {
+        tool_name: args.tool.clone(),
+        period: period.clone(),
+        summary: build_summary(period, &summary_row),
+        status_breakdown: build_status_breakdown(status_breakdown_rows),
+        top_errors: build_top_errors(top_errors_rows),
+        usage_by_agent: build_usage_by_agent(usage_by_agent_rows),
+    };
+
+    render_output(args.export.as_deref(), &output)
+}
+
+fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
+    format!(
         "{} to {}",
         start.format("%Y-%m-%d %H:%M"),
         end.format("%Y-%m-%d %H:%M")
-    );
+    )
+}
 
-    let success_rate = if summary_row.total > 0 {
-        (summary_row.successful as f64 / summary_row.total as f64) * 100.0
+fn build_summary(period: String, row: &ToolSummaryRow) -> ToolStatsOutput {
+    let success_rate = if row.total > 0 {
+        (row.successful as f64 / row.total as f64) * 100.0
     } else {
         0.0
     };
 
-    let summary = ToolStatsOutput {
-        period: period.clone(),
+    ToolStatsOutput {
+        period,
         total_tools: 1,
-        total_executions: summary_row.total,
-        successful: summary_row.successful,
-        failed: summary_row.failed,
-        timeout: summary_row.timeout,
+        total_executions: row.total,
+        successful: row.successful,
+        failed: row.failed,
+        timeout: row.timeout,
         success_rate,
-        avg_execution_time_ms: summary_row.avg_time as i64,
-        p95_execution_time_ms: summary_row.p95_time as i64,
-    };
+        avg_execution_time_ms: row.avg_time as i64,
+        p95_execution_time_ms: row.p95_time as i64,
+    }
+}
 
-    let total: i64 = status_breakdown_rows.iter().map(|r| r.status_count).sum();
-    let status_breakdown: Vec<StatusBreakdownItem> = status_breakdown_rows
-        .into_iter()
+fn build_status_breakdown(rows: Vec<ToolStatusBreakdownRow>) -> Vec<StatusBreakdownItem> {
+    let total: i64 = rows.iter().map(|r| r.status_count).sum();
+    rows.into_iter()
         .map(|row| StatusBreakdownItem {
             status: row.status,
             count: row.status_count,
@@ -99,19 +120,21 @@ async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Res
                 0.0
             },
         })
-        .collect();
+        .collect()
+}
 
-    let top_errors: Vec<ErrorItem> = top_errors_rows
-        .into_iter()
+fn build_top_errors(rows: Vec<ToolErrorRow>) -> Vec<ErrorItem> {
+    rows.into_iter()
         .map(|row| ErrorItem {
             error_message: row.error_msg.unwrap_or_else(|| "Unknown".to_owned()),
             count: row.error_count,
         })
-        .collect();
+        .collect()
+}
 
-    let agent_total: i64 = usage_by_agent_rows.iter().map(|r| r.usage_count).sum();
-    let usage_by_agent: Vec<AgentUsageItem> = usage_by_agent_rows
-        .into_iter()
+fn build_usage_by_agent(rows: Vec<ToolAgentUsageRow>) -> Vec<AgentUsageItem> {
+    let agent_total: i64 = rows.iter().map(|r| r.usage_count).sum();
+    rows.into_iter()
         .map(|row| AgentUsageItem {
             agent_name: row.agent_name.unwrap_or_else(|| "Direct Call".to_owned()),
             count: row.usage_count,
@@ -121,28 +144,18 @@ async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Res
                 0.0
             },
         })
-        .collect();
+        .collect()
+}
 
-    let output = ToolShowOutput {
-        tool_name: args.tool.clone(),
-        period,
-        summary,
-        status_breakdown,
-        top_errors,
-        usage_by_agent,
-    };
+fn render_output(export: Option<&Path>, output: &ToolShowOutput) -> Result<CommandOutput> {
+    let title = format!("Tool: {}", output.tool_name);
 
-    if let Some(ref path) = args.export {
+    if let Some(path) = export {
         let resolved_path = resolve_export_path(path)?;
-        export_single_to_csv(&output, &resolved_path)?;
+        export_single_to_csv(output, &resolved_path)?;
         CliService::success(&format!("Exported to {}", resolved_path.display()));
-        return Ok(
-            CommandOutput::card_value(format!("Tool: {}", args.tool), &output).with_skip_render(),
-        );
+        return Ok(CommandOutput::card_value(title, output).with_skip_render());
     }
 
-    Ok(CommandOutput::card_value(
-        format!("Tool: {}", args.tool),
-        &output,
-    ))
+    Ok(CommandOutput::card_value(title, output))
 }

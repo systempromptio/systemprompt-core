@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_identifiers::TraceId;
-use systemprompt_logging::{CliService, TraceQueryService};
+use systemprompt_logging::{CliService, LogSearchItem, ToolExecutionItem, TraceQueryService};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;
@@ -90,45 +90,8 @@ async fn execute_with_pool_inner(
         vec![]
     };
 
-    let filtered_rows: Vec<_> = match &args.module {
-        Some(module) => rows
-            .into_iter()
-            .filter(|r| r.module.contains(module))
-            .collect(),
-        None => rows,
-    };
-
-    let logs: Vec<LogEntryRow> = filtered_rows
-        .into_iter()
-        .map(|r| LogEntryRow {
-            id: r.id,
-            trace_id: r.trace_id,
-            timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-            level: r.level.to_uppercase(),
-            module: r.module,
-            message: r.message,
-            metadata: r.metadata.as_ref().and_then(|m| {
-                serde_json::from_str(m)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, "Failed to parse log metadata");
-                        e
-                    })
-                    .ok()
-            }),
-        })
-        .collect();
-
-    let tools: Vec<ToolSearchResult> = tool_rows
-        .into_iter()
-        .map(|r| ToolSearchResult {
-            timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-            trace_id: r.trace_id,
-            tool_name: r.tool_name,
-            server: r.server_name.unwrap_or_else(|| "unknown".to_owned()),
-            status: r.status,
-            duration_ms: r.execution_time_ms.map(i64::from),
-        })
-        .collect();
+    let logs = map_log_rows(rows, args.module.as_deref());
+    let tools = map_tool_rows(tool_rows);
 
     let filters = LogFilters {
         level: args.level.clone(),
@@ -158,6 +121,41 @@ async fn execute_with_pool_inner(
 
     render_combined_results(&output.logs, &output.tools, &args.pattern, &output.filters);
     Ok(result.with_skip_render())
+}
+
+fn map_log_rows(rows: Vec<LogSearchItem>, module_filter: Option<&str>) -> Vec<LogEntryRow> {
+    rows.into_iter()
+        .filter(|r| module_filter.is_none_or(|module| r.module.contains(module)))
+        .map(|r| LogEntryRow {
+            id: r.id,
+            trace_id: r.trace_id,
+            timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
+            level: r.level.to_uppercase(),
+            module: r.module,
+            message: r.message,
+            metadata: r.metadata.as_ref().and_then(|m| {
+                serde_json::from_str(m)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Failed to parse log metadata");
+                        e
+                    })
+                    .ok()
+            }),
+        })
+        .collect()
+}
+
+fn map_tool_rows(rows: Vec<ToolExecutionItem>) -> Vec<ToolSearchResult> {
+    rows.into_iter()
+        .map(|r| ToolSearchResult {
+            timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+            trace_id: r.trace_id,
+            tool_name: r.tool_name,
+            server: r.server_name.unwrap_or_else(|| "unknown".to_owned()),
+            status: r.status,
+            duration_ms: r.execution_time_ms.map(i64::from),
+        })
+        .collect()
 }
 
 fn render_combined_results(

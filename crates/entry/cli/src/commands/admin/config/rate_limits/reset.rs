@@ -1,7 +1,7 @@
 use anyhow::Result;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 
 use super::ResetArgs;
 use super::helpers::{
@@ -18,68 +18,29 @@ use super::super::types::{ResetChange, ResetOutput};
 pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
-    let limits = &mut profile.rate_limits;
     let defaults = RateLimitsConfig::default();
 
-    let mut changes: Vec<ResetChange> = Vec::new();
-    let reset_type: String;
-
-    if let Some(endpoint) = &args.endpoint {
-        reset_type = format!("endpoint:{}", endpoint);
-        let old_value = get_endpoint_rate(limits, endpoint)?;
-        let new_value = get_endpoint_rate(&defaults, endpoint)?;
-        if old_value != new_value {
-            changes.push(ResetChange {
-                field: format!("{}_per_second", endpoint),
-                old_value: old_value.to_string(),
-                new_value: new_value.to_string(),
-            });
-            if !args.dry_run {
-                set_endpoint_rate(limits, endpoint, new_value)?;
-            }
-        }
+    let (reset_type, changes) = if let Some(endpoint) = &args.endpoint {
+        (
+            format!("endpoint:{}", endpoint),
+            reset_endpoint(&mut profile.rate_limits, &defaults, endpoint, args.dry_run)?,
+        )
     } else if let Some(tier) = &args.tier {
-        reset_type = format!("tier:{}", tier);
-        let old_value = get_tier_multiplier(&limits.tier_multipliers, tier)?;
-        let new_value = get_tier_multiplier(&defaults.tier_multipliers, tier)?;
-        if (old_value - new_value).abs() > f64::EPSILON {
-            changes.push(ResetChange {
-                field: format!("tier_multipliers.{}", tier),
-                old_value: format!("{:.1}", old_value),
-                new_value: format!("{:.1}", new_value),
-            });
-            if !args.dry_run {
-                set_tier_multiplier(&mut limits.tier_multipliers, tier, new_value)?;
-            }
-        }
+        (
+            format!("tier:{}", tier),
+            reset_tier(
+                &mut profile.rate_limits.tier_multipliers,
+                &defaults.tier_multipliers,
+                tier,
+                args.dry_run,
+            )?,
+        )
     } else {
-        reset_type = "all".to_owned();
-        collect_endpoint_changes(limits, &defaults, &mut changes);
-        collect_tier_changes(
-            &limits.tier_multipliers,
-            &defaults.tier_multipliers,
-            &mut changes,
-        );
-
-        if limits.burst_multiplier != defaults.burst_multiplier {
-            changes.push(ResetChange {
-                field: "burst_multiplier".to_owned(),
-                old_value: limits.burst_multiplier.to_string(),
-                new_value: defaults.burst_multiplier.to_string(),
-            });
-        }
-        if limits.disabled != defaults.disabled {
-            changes.push(ResetChange {
-                field: "disabled".to_owned(),
-                old_value: limits.disabled.to_string(),
-                new_value: defaults.disabled.to_string(),
-            });
-        }
-
-        if !args.dry_run {
-            profile.rate_limits = defaults;
-        }
-    }
+        (
+            "all".to_owned(),
+            reset_all(&mut profile.rate_limits, defaults, args.dry_run),
+        )
+    };
 
     let message = if args.dry_run {
         format!("Dry run: {} change(s) would be made", changes.len())
@@ -113,4 +74,84 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
     }
 
     Ok(())
+}
+
+fn reset_endpoint(
+    limits: &mut RateLimitsConfig,
+    defaults: &RateLimitsConfig,
+    endpoint: &str,
+    dry_run: bool,
+) -> Result<Vec<ResetChange>> {
+    let old_value = get_endpoint_rate(limits, endpoint)?;
+    let new_value = get_endpoint_rate(defaults, endpoint)?;
+
+    let mut changes = Vec::new();
+    if old_value != new_value {
+        changes.push(ResetChange {
+            field: format!("{}_per_second", endpoint),
+            old_value: old_value.to_string(),
+            new_value: new_value.to_string(),
+        });
+        if !dry_run {
+            set_endpoint_rate(limits, endpoint, new_value)?;
+        }
+    }
+    Ok(changes)
+}
+
+fn reset_tier(
+    tiers: &mut TierMultipliers,
+    defaults: &TierMultipliers,
+    tier: &str,
+    dry_run: bool,
+) -> Result<Vec<ResetChange>> {
+    let old_value = get_tier_multiplier(tiers, tier)?;
+    let new_value = get_tier_multiplier(defaults, tier)?;
+
+    let mut changes = Vec::new();
+    if (old_value - new_value).abs() > f64::EPSILON {
+        changes.push(ResetChange {
+            field: format!("tier_multipliers.{}", tier),
+            old_value: format!("{:.1}", old_value),
+            new_value: format!("{:.1}", new_value),
+        });
+        if !dry_run {
+            set_tier_multiplier(tiers, tier, new_value)?;
+        }
+    }
+    Ok(changes)
+}
+
+fn reset_all(
+    limits: &mut RateLimitsConfig,
+    defaults: RateLimitsConfig,
+    dry_run: bool,
+) -> Vec<ResetChange> {
+    let mut changes = Vec::new();
+    collect_endpoint_changes(limits, &defaults, &mut changes);
+    collect_tier_changes(
+        &limits.tier_multipliers,
+        &defaults.tier_multipliers,
+        &mut changes,
+    );
+
+    if limits.burst_multiplier != defaults.burst_multiplier {
+        changes.push(ResetChange {
+            field: "burst_multiplier".to_owned(),
+            old_value: limits.burst_multiplier.to_string(),
+            new_value: defaults.burst_multiplier.to_string(),
+        });
+    }
+    if limits.disabled != defaults.disabled {
+        changes.push(ResetChange {
+            field: "disabled".to_owned(),
+            old_value: limits.disabled.to_string(),
+            new_value: defaults.disabled.to_string(),
+        });
+    }
+
+    if !dry_run {
+        *limits = defaults;
+    }
+    changes
 }

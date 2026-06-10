@@ -1,13 +1,15 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Args;
 
-use super::types::McpStatusOutput;
+use super::types::{McpStatusEntry, McpStatusOutput, McpStatusSummary};
 use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
+use systemprompt_models::{McpServerConfig, ServicesConfig};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Args)]
@@ -39,60 +41,14 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
         .await
         .context("Failed to get running servers")?;
 
-    let mut servers = Vec::new();
-
-    for (name, deployment) in &services_config.mcp_servers {
-        if let Some(ref filter) = args.server
-            && name != filter
-        {
-            continue;
-        }
-
-        let running_info = running_servers.iter().find(|s| &s.name == name);
-        let is_running = running_info.is_some();
-
-        let binary_name = &deployment.binary;
-        let release_path = bin_path
-            .parent()
-            .map(|p| p.join("release").join(binary_name))
-            .filter(|p| p.exists());
-        let debug_path = bin_path
-            .parent()
-            .map(|p| p.join("debug").join(binary_name))
-            .filter(|p| p.exists());
-
-        let pid = manager
-            .get_service_info(name)
-            .await
-            .ok()
-            .flatten()
-            .and_then(|info| info.pid.map(|p| p as u32));
-
-        let status_entry = super::types::McpStatusEntry {
-            name: name.clone(),
-            port: deployment.port,
-            enabled: deployment.enabled,
-            running: is_running,
-            pid,
-            binary: binary_name.clone(),
-            release_binary: release_path.map(|p| {
-                if args.detailed {
-                    p.display().to_string()
-                } else {
-                    "exists".to_owned()
-                }
-            }),
-            debug_binary: debug_path.map(|p| {
-                if args.detailed {
-                    p.display().to_string()
-                } else {
-                    "exists".to_owned()
-                }
-            }),
-        };
-
-        servers.push(status_entry);
-    }
+    let mut servers = collect_status_entries(
+        &args,
+        &services_config,
+        &manager,
+        &running_servers,
+        &bin_path,
+    )
+    .await;
 
     servers.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -101,7 +57,7 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
 
     let output = McpStatusOutput {
         servers,
-        summary: super::types::McpStatusSummary {
+        summary: McpStatusSummary {
             total: services_config.mcp_servers.len(),
             enabled: enabled_count,
             running: running_count,
@@ -121,4 +77,63 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
         &output.servers,
     )
     .with_title("MCP Server Status"))
+}
+
+async fn collect_status_entries(
+    args: &StatusArgs,
+    services_config: &ServicesConfig,
+    manager: &McpOrchestrator,
+    running_servers: &[McpServerConfig],
+    bin_path: &Path,
+) -> Vec<McpStatusEntry> {
+    let mut servers = Vec::new();
+
+    for (name, deployment) in &services_config.mcp_servers {
+        if let Some(ref filter) = args.server
+            && name != filter
+        {
+            continue;
+        }
+
+        let is_running = running_servers.iter().any(|s| &s.name == name);
+
+        let pid = manager
+            .get_service_info(name)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|info| info.pid.map(|p| p as u32));
+
+        servers.push(McpStatusEntry {
+            name: name.clone(),
+            port: deployment.port,
+            enabled: deployment.enabled,
+            running: is_running,
+            pid,
+            binary: deployment.binary.clone(),
+            release_binary: binary_display(bin_path, "release", &deployment.binary, args.detailed),
+            debug_binary: binary_display(bin_path, "debug", &deployment.binary, args.detailed),
+        });
+    }
+
+    servers
+}
+
+fn binary_display(
+    bin_path: &Path,
+    profile: &str,
+    binary_name: &str,
+    detailed: bool,
+) -> Option<String> {
+    bin_path
+        .parent()
+        .map(|p| p.join(profile).join(binary_name))
+        .filter(|p| p.exists())
+        .map(|p| {
+            if detailed {
+                p.display().to_string()
+            } else {
+                "exists".to_owned()
+            }
+        })
 }

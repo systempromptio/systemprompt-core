@@ -1,4 +1,5 @@
 use clap::Args;
+use systemprompt_extension::Extension;
 use systemprompt_loader::ExtensionLoader;
 
 use super::discover_registry;
@@ -21,101 +22,12 @@ pub struct ListArgs {
 pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
     let mut extensions: Vec<ExtensionSummary> = Vec::new();
 
-    let include_compiled = matches!(args.r#type.as_str(), "all" | "compiled");
-    let include_manifest = matches!(args.r#type.as_str(), "all" | "manifest" | "cli" | "mcp");
-
-    if include_compiled {
-        let registry = discover_registry();
-
-        extensions.extend(
-            registry
-                .extensions()
-                .iter()
-                .filter(|ext| {
-                    if let Some(ref filter) = args.filter
-                        && !ext.id().to_lowercase().contains(&filter.to_lowercase())
-                        && !ext.name().to_lowercase().contains(&filter.to_lowercase())
-                    {
-                        return false;
-                    }
-
-                    if let Some(ref cap) = args.capability {
-                        match cap.as_str() {
-                            "jobs" => return ext.has_jobs(),
-                            "templates" => return ext.has_template_providers(),
-                            "schemas" => return ext.has_schemas(),
-                            "routes" => return false,
-                            "tools" => return ext.has_tool_providers(),
-                            "roles" => return ext.has_roles(),
-                            "llm" => return ext.has_llm_providers(),
-                            "storage" => return ext.has_storage_paths(),
-                            _ => {},
-                        }
-                    }
-
-                    true
-                })
-                .map(|ext| {
-                    let capabilities = CapabilitySummary {
-                        jobs: ext.jobs().len(),
-                        templates: ext.template_providers().len(),
-                        schemas: ext.schemas().len(),
-                        routes: 0,
-                        tools: ext.tool_providers().len(),
-                        roles: ext.roles().len(),
-                        llm_providers: ext.llm_providers().len(),
-                        storage_paths: ext.required_storage_paths().len(),
-                    };
-
-                    ExtensionSummary {
-                        id: systemprompt_identifiers::PluginId::new(ext.id()),
-                        name: ext.name().to_owned(),
-                        version: ext.version().to_owned(),
-                        priority: ext.priority(),
-                        source: ExtensionSource::Compiled,
-                        enabled: true,
-                        capabilities,
-                    }
-                }),
-        );
+    if matches!(args.r#type.as_str(), "all" | "compiled") {
+        extensions.extend(collect_compiled(args));
     }
 
-    if include_manifest {
-        let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
-        let discovered = ExtensionLoader::discover(&project_root);
-
-        for ext in discovered {
-            let type_matches = match args.r#type.as_str() {
-                "cli" => ext.is_cli(),
-                "mcp" => ext.is_mcp(),
-                _ => true,
-            };
-
-            if !type_matches {
-                continue;
-            }
-
-            if let Some(ref filter) = args.filter
-                && !ext
-                    .manifest
-                    .extension
-                    .name
-                    .to_lowercase()
-                    .contains(&filter.to_lowercase())
-            {
-                continue;
-            }
-
-            extensions.push(ExtensionSummary {
-                id: systemprompt_identifiers::PluginId::new(ext.manifest.extension.name.clone()),
-                name: ext.manifest.extension.name.clone(),
-                version: "manifest".to_owned(),
-                priority: 100,
-                source: ExtensionSource::Manifest,
-                enabled: ext.is_enabled(),
-                capabilities: CapabilitySummary::default(),
-            });
-        }
+    if matches!(args.r#type.as_str(), "all" | "manifest" | "cli" | "mcp") {
+        extensions.extend(collect_manifest(args));
     }
 
     extensions.sort_by_key(|e| e.priority);
@@ -136,4 +48,102 @@ pub(super) fn execute(args: &ListArgs, _config: &CliConfig) -> CommandOutput {
         &output.extensions,
     )
     .with_title("Extensions")
+}
+
+fn collect_compiled(args: &ListArgs) -> Vec<ExtensionSummary> {
+    let registry = discover_registry();
+    registry
+        .extensions()
+        .iter()
+        .filter(|ext| matches_compiled_filters(ext.as_ref(), args))
+        .map(|ext| compiled_summary(ext.as_ref()))
+        .collect()
+}
+
+fn matches_compiled_filters(ext: &dyn Extension, args: &ListArgs) -> bool {
+    if let Some(ref filter) = args.filter
+        && !ext.id().to_lowercase().contains(&filter.to_lowercase())
+        && !ext.name().to_lowercase().contains(&filter.to_lowercase())
+    {
+        return false;
+    }
+
+    if let Some(ref cap) = args.capability {
+        match cap.as_str() {
+            "jobs" => return ext.has_jobs(),
+            "templates" => return ext.has_template_providers(),
+            "schemas" => return ext.has_schemas(),
+            "routes" => return false,
+            "tools" => return ext.has_tool_providers(),
+            "roles" => return ext.has_roles(),
+            "llm" => return ext.has_llm_providers(),
+            "storage" => return ext.has_storage_paths(),
+            _ => {},
+        }
+    }
+
+    true
+}
+
+fn compiled_summary(ext: &dyn Extension) -> ExtensionSummary {
+    let capabilities = CapabilitySummary {
+        jobs: ext.jobs().len(),
+        templates: ext.template_providers().len(),
+        schemas: ext.schemas().len(),
+        routes: 0,
+        tools: ext.tool_providers().len(),
+        roles: ext.roles().len(),
+        llm_providers: ext.llm_providers().len(),
+        storage_paths: ext.required_storage_paths().len(),
+    };
+
+    ExtensionSummary {
+        id: systemprompt_identifiers::PluginId::new(ext.id()),
+        name: ext.name().to_owned(),
+        version: ext.version().to_owned(),
+        priority: ext.priority(),
+        source: ExtensionSource::Compiled,
+        enabled: true,
+        capabilities,
+    }
+}
+
+fn collect_manifest(args: &ListArgs) -> Vec<ExtensionSummary> {
+    let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
+    let mut summaries = Vec::new();
+
+    for ext in ExtensionLoader::discover(&project_root) {
+        let type_matches = match args.r#type.as_str() {
+            "cli" => ext.is_cli(),
+            "mcp" => ext.is_mcp(),
+            _ => true,
+        };
+
+        if !type_matches {
+            continue;
+        }
+
+        if let Some(ref filter) = args.filter
+            && !ext
+                .manifest
+                .extension
+                .name
+                .to_lowercase()
+                .contains(&filter.to_lowercase())
+        {
+            continue;
+        }
+
+        summaries.push(ExtensionSummary {
+            id: systemprompt_identifiers::PluginId::new(ext.manifest.extension.name.clone()),
+            name: ext.manifest.extension.name.clone(),
+            version: "manifest".to_owned(),
+            priority: 100,
+            source: ExtensionSource::Manifest,
+            enabled: ext.is_enabled(),
+            capabilities: CapabilitySummary::default(),
+        });
+    }
+
+    summaries
 }
