@@ -15,7 +15,9 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
+use systemprompt_mcp::services::ui_renderer::registry::{
+    create_default_registry, resolve_artifact_type,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 
@@ -145,7 +147,7 @@ pub async fn get_artifact_ui(
         .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
 
     let registry = create_default_registry();
-    let artifact_type = &artifact.metadata.artifact_type;
+    let artifact_type = resolve_artifact_type(&artifact);
 
     if !registry.supports(artifact_type) {
         tracing::warn!(artifact_type = %artifact_type, "No UI renderer for artifact type");

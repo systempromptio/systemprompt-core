@@ -1,10 +1,12 @@
 //! Transformation of MCP tool results into renderable A2A [`Artifact`]s.
 //!
 //! [`McpToA2aTransformer`] parses a tool's `structured_content` (or raw JSON),
-//! infers the [`ArtifactType`], builds parts and rendering metadata, and
-//! computes a stable fingerprint over the tool name and arguments. The
-//! `metadata_builder`, `parts_builder`, and `type_inference` submodules supply
-//! the metadata, part, and type-inference logic.
+//! infers the
+//! [`ArtifactType`](systemprompt_models::artifacts::types::ArtifactType),
+//! builds parts and rendering metadata, and computes a stable fingerprint over
+//! the tool name and arguments. The `metadata_builder`, `parts_builder`, and
+//! `type_inference` submodules supply the metadata, part, and type-inference
+//! logic.
 
 pub mod metadata_builder;
 pub mod parts_builder;
@@ -16,7 +18,6 @@ use rmcp::model::CallToolResult;
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{ArtifactId, McpExecutionId, SkillId};
-use systemprompt_models::artifacts::types::ArtifactType;
 
 pub use metadata_builder::{BuildMetadataParams, build_metadata};
 pub use parts_builder::build_parts;
@@ -68,23 +69,6 @@ pub fn parse_tool_response(
             source: e,
         }
     })
-}
-
-pub fn artifact_type_to_string(artifact_type: &ArtifactType) -> String {
-    match artifact_type {
-        ArtifactType::Text => "text".to_owned(),
-        ArtifactType::Table => "table".to_owned(),
-        ArtifactType::Chart => "chart".to_owned(),
-        ArtifactType::Form => "form".to_owned(),
-        ArtifactType::Dashboard => "dashboard".to_owned(),
-        ArtifactType::PresentationCard => "presentation_card".to_owned(),
-        ArtifactType::List => "list".to_owned(),
-        ArtifactType::CopyPasteText => "copy_paste_text".to_owned(),
-        ArtifactType::Image => "image".to_owned(),
-        ArtifactType::Video => "video".to_owned(),
-        ArtifactType::Audio => "audio".to_owned(),
-        ArtifactType::Custom(name) => name.clone(),
-    }
 }
 
 pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>) -> String {

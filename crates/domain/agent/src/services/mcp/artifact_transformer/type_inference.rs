@@ -1,5 +1,6 @@
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
+use systemprompt_models::artifacts::CliArtifact;
 use systemprompt_models::artifacts::types::ArtifactType;
 
 pub fn infer_type(
@@ -7,13 +8,12 @@ pub fn infer_type(
     schema: Option<&JsonValue>,
     tool_name: &str,
 ) -> Result<ArtifactType, ArtifactError> {
-    if let Some(schema) = schema
-        && let Some(artifact_type) = extract_artifact_type_from_schema(schema)
-    {
-        return Ok(parse_artifact_type(&artifact_type));
-    }
-
     if let Some(schema) = schema {
+        if let Some(artifact_type) = extract_artifact_type_from_schema(schema)
+            && artifact_type != CliArtifact::ENVELOPE_TYPE_STR
+        {
+            return Ok(parse_artifact_type(&artifact_type));
+        }
         if is_tabular_schema(schema) {
             return Ok(ArtifactType::Table);
         }
@@ -25,7 +25,9 @@ pub fn infer_type(
         }
     }
 
-    if let Some(artifact_type) = extract_artifact_type_from_data(artifact) {
+    if let Some(artifact_type) = extract_artifact_type_from_data(artifact)
+        && artifact_type != CliArtifact::ENVELOPE_TYPE_STR
+    {
         return Ok(parse_artifact_type(&artifact_type));
     }
 
@@ -52,12 +54,17 @@ fn parse_artifact_type(type_str: &str) -> ArtifactType {
         "image" => ArtifactType::Image,
         "video" => ArtifactType::Video,
         "audio" => ArtifactType::Audio,
+        "message" => ArtifactType::Message,
         custom => ArtifactType::Custom(custom.to_owned()),
     }
 }
 
 fn extract_artifact_type_from_data(data: &JsonValue) -> Option<String> {
     if let Some(t) = data.get("x-artifact-type").and_then(|v| v.as_str()) {
+        return Some(t.to_owned());
+    }
+
+    if let Some(t) = data.get("artifact_type").and_then(|v| v.as_str()) {
         return Some(t.to_owned());
     }
 

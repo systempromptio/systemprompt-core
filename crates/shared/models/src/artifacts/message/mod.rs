@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
 
 fn default_artifact_type() -> String {
-    "message".to_owned()
+    MessageArtifact::ARTIFACT_TYPE_STR.to_owned()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -39,7 +39,7 @@ impl MessageArtifact {
 
     pub fn new(messages: Vec<NoticeLine>) -> Self {
         Self {
-            artifact_type: "message".to_owned(),
+            artifact_type: Self::ARTIFACT_TYPE_STR.to_owned(),
             messages,
         }
     }
@@ -47,7 +47,7 @@ impl MessageArtifact {
 
 impl Artifact for MessageArtifact {
     fn artifact_type(&self) -> ArtifactType {
-        ArtifactType::Custom("message".to_owned())
+        ArtifactType::Message
     }
 
     fn to_schema(&self) -> JsonValue {

@@ -4,19 +4,19 @@
 //! - parse_tool_response — valid JSON, null input, empty object, missing fields
 //! - calculate_fingerprint — deterministic hashing, distinct inputs produce
 //!   distinct hashes
-//! - artifact_type_to_string — all known variants plus custom
 //! - infer_type — schema x-artifact-type, tabular/form/chart schema, data-level
-//!   type, fallback error
+//!   type, fall-through past the "cli" envelope tag, fallback error
 //! - build_metadata — all artifact types with rendering hints, optional fields
 //! - build_parts — JSON object input, content array with text/image/resource,
 //!   error on invalid
 
 use serde_json::json;
 use systemprompt_agent::services::mcp::artifact_transformer::{
-    BuildMetadataParams, artifact_type_to_string, build_metadata, build_parts,
-    calculate_fingerprint, infer_type, parse_tool_response,
+    BuildMetadataParams, build_metadata, build_parts, calculate_fingerprint, infer_type,
+    parse_tool_response,
 };
 use systemprompt_models::artifacts::types::ArtifactType;
+use systemprompt_models::artifacts::{CliArtifact, TextArtifact};
 
 #[test]
 fn parse_tool_response_valid_complete() {
@@ -195,78 +195,6 @@ fn calculate_fingerprint_complex_arguments() {
 }
 
 #[test]
-fn artifact_type_to_string_text() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Text), "text");
-}
-
-#[test]
-fn artifact_type_to_string_table() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Table), "table");
-}
-
-#[test]
-fn artifact_type_to_string_chart() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Chart), "chart");
-}
-
-#[test]
-fn artifact_type_to_string_form() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Form), "form");
-}
-
-#[test]
-fn artifact_type_to_string_dashboard() {
-    assert_eq!(
-        artifact_type_to_string(&ArtifactType::Dashboard),
-        "dashboard"
-    );
-}
-
-#[test]
-fn artifact_type_to_string_presentation_card() {
-    assert_eq!(
-        artifact_type_to_string(&ArtifactType::PresentationCard),
-        "presentation_card"
-    );
-}
-
-#[test]
-fn artifact_type_to_string_list() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::List), "list");
-}
-
-#[test]
-fn artifact_type_to_string_copy_paste_text() {
-    assert_eq!(
-        artifact_type_to_string(&ArtifactType::CopyPasteText),
-        "copy_paste_text"
-    );
-}
-
-#[test]
-fn artifact_type_to_string_image() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Image), "image");
-}
-
-#[test]
-fn artifact_type_to_string_video() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Video), "video");
-}
-
-#[test]
-fn artifact_type_to_string_audio() {
-    assert_eq!(artifact_type_to_string(&ArtifactType::Audio), "audio");
-}
-
-#[test]
-fn artifact_type_to_string_custom() {
-    assert_eq!(
-        artifact_type_to_string(&ArtifactType::Custom("sparkline".to_string())),
-        "sparkline"
-    );
-}
-
-#[test]
 fn infer_type_from_schema_x_artifact_type() {
     let schema = json!({"x-artifact-type": "chart"});
     let artifact = json!({"data": []});
@@ -400,6 +328,61 @@ fn infer_type_array_of_primitives_not_tabular() {
     let artifact = json!([1, 2, 3]);
     let result = infer_type(&artifact, None, "tool");
     assert!(result.is_err());
+}
+
+#[test]
+fn infer_type_envelope_schema_tag_falls_through_to_data_x_artifact_type() {
+    let schema = json!({"x-artifact-type": "cli"});
+    let artifact = json!({"artifact_type": "table", "x-artifact-type": "table", "data": []});
+    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    assert!(matches!(result, ArtifactType::Table));
+}
+
+#[test]
+fn infer_type_envelope_schema_tag_falls_through_to_embedded_variant_tag() {
+    let schema = json!({"x-artifact-type": "cli"});
+    let artifact = json!({"artifact_type": "list", "items": []});
+    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    assert!(matches!(result, ArtifactType::List));
+}
+
+#[test]
+fn infer_type_envelope_schema_tag_resolves_message_variant() {
+    let schema = json!({"x-artifact-type": "cli"});
+    let artifact = json!({"artifact_type": "message", "x-artifact-type": "message", "messages": []});
+    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    assert!(matches!(result, ArtifactType::Message));
+}
+
+#[test]
+fn infer_type_serialized_cli_envelope_resolves_variant() {
+    let cli = CliArtifact::text(TextArtifact::new("hi"));
+    let artifact = serde_json::to_value(&cli).expect("should serialize");
+    let schema = json!({"x-artifact-type": "cli"});
+    let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
+    assert!(matches!(result, ArtifactType::Text));
+}
+
+#[test]
+fn infer_type_envelope_schema_without_data_tag_errors() {
+    let schema = json!({"x-artifact-type": "cli"});
+    let artifact = json!({"unknown": "structure"});
+    let result = infer_type(&artifact, Some(&schema), "tool");
+    assert!(result.is_err());
+}
+
+#[test]
+fn infer_type_envelope_data_tag_is_never_final() {
+    let artifact = json!({"x-artifact-type": "cli"});
+    let result = infer_type(&artifact, None, "tool");
+    assert!(result.is_err());
+}
+
+#[test]
+fn infer_type_message_from_data() {
+    let artifact = json!({"x-artifact-type": "message", "messages": []});
+    let result = infer_type(&artifact, None, "tool").expect("should infer");
+    assert!(matches!(result, ArtifactType::Message));
 }
 
 #[test]

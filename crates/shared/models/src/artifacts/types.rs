@@ -8,6 +8,7 @@ use super::copy_paste_text::CopyPasteTextArtifact;
 use super::dashboard::DashboardArtifact;
 use super::image::ImageArtifact;
 use super::list::ListArtifact;
+use super::message::MessageArtifact;
 use super::table::TableArtifact;
 use super::text::TextArtifact;
 use super::video::VideoArtifact;
@@ -28,6 +29,7 @@ pub enum ArtifactType {
     Image,
     Video,
     Audio,
+    Message,
     #[serde(untagged)]
     Custom(String),
 }
@@ -46,6 +48,7 @@ impl std::fmt::Display for ArtifactType {
             Self::Image => write!(f, "{}", ImageArtifact::ARTIFACT_TYPE_STR),
             Self::Video => write!(f, "{}", VideoArtifact::ARTIFACT_TYPE_STR),
             Self::Audio => write!(f, "{}", AudioArtifact::ARTIFACT_TYPE_STR),
+            Self::Message => write!(f, "{}", MessageArtifact::ARTIFACT_TYPE_STR),
             Self::Custom(s) => write!(f, "{}", s),
         }
     }

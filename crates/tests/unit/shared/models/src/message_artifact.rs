@@ -1,6 +1,8 @@
 //! Unit tests for the message/notice artifact and its CliArtifact variant.
 
-use systemprompt_models::artifacts::{CliArtifact, MessageArtifact, NoticeLine};
+use systemprompt_models::artifacts::{
+    Artifact, ArtifactType, CliArtifact, MessageArtifact, NoticeLine,
+};
 
 #[test]
 fn message_artifact_serializes_with_type_tag() {
@@ -56,4 +58,20 @@ fn cli_artifact_message_deserializes_from_wire() {
 
     assert!(matches!(artifact, CliArtifact::Message { .. }));
     assert_eq!(artifact.artifact_type_str(), "message");
+}
+
+#[test]
+fn message_artifact_type_is_first_class_variant() {
+    let artifact = MessageArtifact::new(vec![NoticeLine::new("info", "hi")]);
+
+    assert_eq!(artifact.artifact_type(), ArtifactType::Message);
+}
+
+#[test]
+fn artifact_type_message_serde_matches_wire_tag() {
+    let json = serde_json::to_string(&ArtifactType::Message).unwrap();
+    assert_eq!(json, "\"message\"");
+
+    let back: ArtifactType = serde_json::from_str("\"message\"").unwrap();
+    assert_eq!(back, ArtifactType::Message);
 }

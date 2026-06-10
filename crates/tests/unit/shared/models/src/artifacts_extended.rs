@@ -565,12 +565,60 @@ fn artifact_type_display() {
     assert_eq!(ArtifactType::Text.to_string(), "text");
     assert_eq!(ArtifactType::Table.to_string(), "table");
     assert_eq!(ArtifactType::Chart.to_string(), "chart");
+    assert_eq!(ArtifactType::Form.to_string(), "form");
     assert_eq!(ArtifactType::Dashboard.to_string(), "dashboard");
+    assert_eq!(
+        ArtifactType::PresentationCard.to_string(),
+        "presentation_card"
+    );
     assert_eq!(ArtifactType::List.to_string(), "list");
+    assert_eq!(ArtifactType::CopyPasteText.to_string(), "copy_paste_text");
+    assert_eq!(ArtifactType::Image.to_string(), "image");
+    assert_eq!(ArtifactType::Video.to_string(), "video");
+    assert_eq!(ArtifactType::Audio.to_string(), "audio");
+    assert_eq!(ArtifactType::Message.to_string(), "message");
     assert_eq!(
         ArtifactType::Custom("custom".to_string()).to_string(),
         "custom"
     );
+}
+
+#[test]
+fn artifact_type_display_round_trips_through_serde() {
+    let variants = [
+        ArtifactType::Text,
+        ArtifactType::Table,
+        ArtifactType::Chart,
+        ArtifactType::Form,
+        ArtifactType::Dashboard,
+        ArtifactType::PresentationCard,
+        ArtifactType::List,
+        ArtifactType::CopyPasteText,
+        ArtifactType::Image,
+        ArtifactType::Video,
+        ArtifactType::Audio,
+        ArtifactType::Message,
+        ArtifactType::Custom("sparkline".to_string()),
+    ];
+    for variant in variants {
+        let display = variant.to_string();
+        let serialized = serde_json::to_string(&variant).unwrap();
+        assert_eq!(serialized, format!("\"{display}\""));
+        let back: ArtifactType = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(back, variant);
+    }
+}
+
+#[test]
+fn cli_envelope_sentinel_is_cli() {
+    assert_eq!(CliArtifact::ENVELOPE_TYPE_STR, "cli");
+}
+
+#[test]
+fn cli_envelope_serializes_variant_tag_not_sentinel() {
+    let cli = CliArtifact::table(systemprompt_models::TableArtifact::new(vec![]));
+    let json = serde_json::to_value(&cli).unwrap();
+    assert_eq!(json["artifact_type"], "table");
 }
 
 #[test]

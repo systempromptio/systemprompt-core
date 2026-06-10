@@ -5,7 +5,8 @@ use systemprompt_models::artifacts::{
 };
 
 #[test]
-fn cli_artifact_type_static_str_is_cli() {
+fn cli_artifact_type_static_str_is_envelope_sentinel() {
+    assert_eq!(CliArtifact::artifact_type(), CliArtifact::ENVELOPE_TYPE_STR);
     assert_eq!(CliArtifact::artifact_type(), "cli");
 }
 

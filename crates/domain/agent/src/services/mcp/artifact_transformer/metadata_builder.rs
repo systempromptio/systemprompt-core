@@ -11,8 +11,6 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_models::artifacts::types::ArtifactType;
 use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 
-use super::artifact_type_to_string;
-
 #[derive(Debug)]
 pub struct BuildMetadataParams<'a> {
     pub artifact_type: &'a ArtifactType,
@@ -46,12 +44,9 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
         .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;
     let task_id_typed = TaskId::new(task_id);
 
-    let mut metadata = ArtifactMetadata::new_validated(
-        artifact_type_to_string(artifact_type),
-        context_id_typed,
-        task_id_typed,
-    )
-    .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;
+    let mut metadata =
+        ArtifactMetadata::new_validated(artifact_type.to_string(), context_id_typed, task_id_typed)
+            .map_err(|e| ArtifactError::MetadataValidation(format!("{e}")))?;
 
     metadata = metadata.with_tool_name(tool_name.to_owned());
 

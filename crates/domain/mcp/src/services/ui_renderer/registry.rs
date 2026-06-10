@@ -2,7 +2,8 @@ use super::{UiRenderer, UiResource};
 use crate::error::{McpDomainError, McpDomainResult};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_models::a2a::Artifact;
+use systemprompt_models::a2a::{Artifact, Part};
+use systemprompt_models::artifacts::CliArtifact;
 
 pub struct UiRendererRegistry {
     renderers: HashMap<String, Arc<dyn UiRenderer>>,
@@ -44,7 +45,7 @@ impl UiRendererRegistry {
     }
 
     pub async fn render(&self, artifact: &Artifact) -> McpDomainResult<UiResource> {
-        let artifact_type = &artifact.metadata.artifact_type;
+        let artifact_type = resolve_artifact_type(artifact);
 
         let renderer = self.get(artifact_type).ok_or_else(|| {
             McpDomainError::Internal(format!(
@@ -54,6 +55,26 @@ impl UiRendererRegistry {
 
         renderer.render(artifact).await
     }
+}
+
+pub fn resolve_artifact_type(artifact: &Artifact) -> &str {
+    let declared = artifact.metadata.artifact_type.as_str();
+    if declared != CliArtifact::ENVELOPE_TYPE_STR {
+        return declared;
+    }
+
+    artifact
+        .parts
+        .iter()
+        .find_map(|part| match part {
+            Part::Data(data) => data
+                .data
+                .get("artifact_type")
+                .or_else(|| data.data.get("x-artifact-type"))
+                .and_then(serde_json::Value::as_str),
+            Part::Text(_) | Part::File(_) => None,
+        })
+        .unwrap_or(declared)
 }
 
 impl std::fmt::Debug for UiRendererRegistry {

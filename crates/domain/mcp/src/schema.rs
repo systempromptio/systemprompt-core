@@ -117,4 +117,4 @@ impl_mcp_output!(ChartArtifact, ChartArtifact::ARTIFACT_TYPE_STR);
 impl_mcp_output!(ImageArtifact, ImageArtifact::ARTIFACT_TYPE_STR);
 impl_mcp_output!(VideoArtifact, VideoArtifact::ARTIFACT_TYPE_STR);
 
-impl_mcp_output_delegated!(CliArtifact, "cli");
+impl_mcp_output_delegated!(CliArtifact, CliArtifact::ENVELOPE_TYPE_STR);

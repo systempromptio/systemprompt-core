@@ -1,9 +1,27 @@
 //! CLI artifact envelope.
 //!
 //! [`CliArtifact`] is the tagged union of every renderable artifact a CLI
-//! command can emit (table, list, text, dashboard, chart, media, card). The CLI
-//! builds it, the wire carries it, and the MCP server deserializes it verbatim
-//! — the `artifact_type` tag is intrinsic to the serde representation.
+//! command can emit (table, list, text, dashboard, chart, media, card,
+//! message). The CLI builds it, the wire carries it, and the MCP server
+//! deserializes it verbatim — the `artifact_type` tag is intrinsic to the
+//! serde representation.
+//!
+//! # Wire contract
+//!
+//! Two distinct tags travel with an enveloped artifact, and they are
+//! deliberately NOT unified:
+//!
+//! - The **envelope tag** [`CliArtifact::ENVELOPE_TYPE_STR`] (`"cli"`) is
+//!   advertised in tool output schemas (the top-level `x-artifact-type`). It
+//!   says "this output is a `CliArtifact` union", never which variant.
+//! - The **variant tag** is embedded in the serialized data itself: the
+//!   `artifact_type` serde tag (e.g. `"table"`), mirrored by the inner
+//!   artifact's `x-artifact-type` field.
+//!
+//! Schema consumers route on the envelope tag; renderers and type inference
+//! must fall through it to the data-embedded variant tag. Collapsing the two
+//! would either erase the union from the schema or mis-type every enveloped
+//! artifact, so both tags stay on the wire.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -66,6 +84,8 @@ pub enum CliArtifact {
 }
 
 impl CliArtifact {
+    pub const ENVELOPE_TYPE_STR: &'static str = "cli";
+
     #[must_use]
     pub const fn artifact_type_str(&self) -> &'static str {
         match self {
