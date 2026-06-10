@@ -69,7 +69,6 @@ impl Service for HealthPinger {
 |--------|----------|
 | `ai_providers` | `AiSessionProvider`, `AiFilePersistenceProvider`, image-generation metadata, and storage config. |
 | `analytics` | `AnalyticsProvider`, `FingerprintProvider`, session inputs, and `AnalyticsProviderError`. |
-| `artifact` | `ArtifactSupport` and built-in artifact JSON-Schema helpers. |
 | `auth` | `UserProvider`, `RoleProvider`, `AuthUser`, and `AuthProviderError`. |
 | `content` | Content provider traits, `ContentSummary`, and `ContentItem`. |
 | `context` | `AppContext`, `ConfigProvider`, `DatabaseHandle`, `ModuleRegistry`, `Module`, `ContextPropagation`, and the optional `ApiModule` (`web` feature). |

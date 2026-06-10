@@ -29,9 +29,6 @@ mod analytics;
 mod storage;
 
 #[cfg(test)]
-mod artifact;
-
-#[cfg(test)]
 mod jwt;
 
 #[cfg(test)]

@@ -40,7 +40,6 @@
 
 pub mod ai_providers;
 pub mod analytics;
-pub mod artifact;
 pub mod auth;
 pub mod content;
 pub mod context;
@@ -92,8 +91,6 @@ pub use log_service::LogService;
 pub use context_provider::{
     ContextProvider, ContextProviderError, ContextWithStats, DynContextProvider,
 };
-
-pub use artifact::{ArtifactSupport, schemas};
 
 pub use validation::{MetadataValidation, Validate, ValidationError, ValidationResult};
 
