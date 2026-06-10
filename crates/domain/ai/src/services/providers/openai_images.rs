@@ -36,7 +36,10 @@ impl OpenAiImageProvider {
         let client = Client::builder()
             .timeout(IMAGE_GEN_OPENAI_TIMEOUT)
             .build()
-            .unwrap_or_else(|_| Client::new());
+            .unwrap_or_else(|e| {
+                tracing::error!(error = %e, "Failed to build OpenAI image HTTP client, falling back to default client");
+                Client::new()
+            });
 
         Self {
             client,

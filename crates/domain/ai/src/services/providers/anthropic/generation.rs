@@ -117,7 +117,11 @@ pub(super) async fn generate_with_schema(
         .content
         .iter()
         .find_map(|block| match block {
-            CanonicalContent::ToolUse { input, .. } => serde_json::to_string(input).ok(),
+            CanonicalContent::ToolUse { input, .. } => serde_json::to_string(input)
+                .map_err(|e| {
+                    tracing::warn!(error = %e, "Failed to serialize tool-use input from Anthropic response");
+                })
+                .ok(),
             _ => None,
         })
         .unwrap_or_default();
