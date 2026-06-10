@@ -7,12 +7,46 @@ use crate::models::{ClientRelations, OAuthClient, OAuthClientRow, TokenAuthMetho
 use chrono::Utc;
 use systemprompt_identifiers::{ClientId, UserId};
 
+fn build_created_client(
+    params: CreateClientParams,
+    auth_method: String,
+    now: chrono::DateTime<Utc>,
+    default_grant_types: Vec<String>,
+    default_response_types: Vec<String>,
+) -> OAuthClient {
+    let row = OAuthClientRow {
+        client_id: ClientId::new(params.client_id.as_str()),
+        client_secret_hash: Some(params.client_secret_hash),
+        client_name: params.client_name,
+        name: None,
+        token_endpoint_auth_method: Some(auth_method),
+        application_type: params.application_type,
+        client_uri: params.client_uri,
+        logo_uri: params.logo_uri,
+        is_active: Some(true),
+        created_at: Some(now),
+        updated_at: Some(now),
+        last_used_at: None,
+        owner_user_id: UserId::new(params.owner_user_id.as_str()),
+    };
+
+    let relations = ClientRelations {
+        redirect_uris: params.redirect_uris,
+        grant_types: params.grant_types.unwrap_or(default_grant_types),
+        response_types: params.response_types.unwrap_or(default_response_types),
+        scopes: params.scopes,
+        contacts: params.contacts,
+    };
+
+    OAuthClient::from_row_with_relations(row, relations)
+}
+
 impl ClientRepository {
     pub async fn create(&self, params: CreateClientParams) -> Result<OAuthClient> {
         let auth_method = params
             .token_endpoint_auth_method
-            .as_deref()
-            .unwrap_or(TokenAuthMethod::default().as_str());
+            .clone()
+            .unwrap_or_else(|| TokenAuthMethod::default().as_str().to_owned());
         let now = Utc::now();
 
         let default_grant_types: Vec<String> = crate::models::GrantType::default_grant_types()
@@ -79,31 +113,13 @@ impl ClientRepository {
         .execute(&*self.write_pool)
         .await?;
 
-        let row = OAuthClientRow {
-            client_id: ClientId::new(params.client_id.as_str()),
-            client_secret_hash: Some(params.client_secret_hash),
-            client_name: params.client_name,
-            name: None,
-            token_endpoint_auth_method: Some(auth_method.to_owned()),
-            application_type: params.application_type,
-            client_uri: params.client_uri,
-            logo_uri: params.logo_uri,
-            is_active: Some(true),
-            created_at: Some(now),
-            updated_at: Some(now),
-            last_used_at: None,
-            owner_user_id: UserId::new(params.owner_user_id.as_str()),
-        };
-
-        let relations = ClientRelations {
-            redirect_uris: params.redirect_uris,
-            grant_types: params.grant_types.unwrap_or(default_grant_types),
-            response_types: params.response_types.unwrap_or(default_response_types),
-            scopes: params.scopes,
-            contacts: params.contacts,
-        };
-
-        Ok(OAuthClient::from_row_with_relations(row, relations))
+        Ok(build_created_client(
+            params,
+            auth_method,
+            now,
+            default_grant_types,
+            default_response_types,
+        ))
     }
 
     pub async fn update(&self, params: UpdateClientParams) -> Result<Option<OAuthClient>> {
