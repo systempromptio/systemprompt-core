@@ -1,11 +1,10 @@
-use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{LinkListOutput, LinkSummary};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_identifiers::{CampaignId, ContentId};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -16,13 +15,13 @@ pub struct ListArgs {
     pub content: Option<String>,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     if args.campaign.is_none() && args.content.is_none() {
         return Err(anyhow!("Either --campaign or --content must be specified"));
     }
 
-    let ctx = AppContext::new().await?;
-    let service = LinkAnalyticsService::new(ctx.db_pool())?;
+    let pool = ctx.db_pool().await?;
+    let service = LinkAnalyticsService::new(&pool)?;
 
     let links = if let Some(campaign) = &args.campaign {
         let campaign_id = CampaignId::new(campaign.clone());

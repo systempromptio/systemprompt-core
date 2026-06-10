@@ -1,12 +1,11 @@
 use super::types::VerifyOutput;
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct VerifyArgs {
@@ -26,9 +25,9 @@ pub struct VerifyArgs {
     pub url_pattern: Option<String>,
 }
 
-pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = ContentRepository::new(ctx.db_pool())?;
+pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let repo = ContentRepository::new(&pool)?;
 
     let content = if uuid::Uuid::parse_str(&args.identifier).is_ok() {
         let id = ContentId::new(args.identifier.clone());

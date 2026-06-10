@@ -8,7 +8,9 @@
 
 pub mod cli_settings;
 mod commands;
+pub mod context;
 pub mod descriptor;
+pub mod env_overrides;
 pub mod environment;
 pub mod interactive;
 pub mod paths;
@@ -19,4 +21,7 @@ pub mod shared;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
+pub use context::CommandContext;
+pub use env_overrides::{EnvOverrides, SessionEnv};
+pub use interactive::{DialoguerPrompter, Prompter, ScriptedPrompter};
 pub use runner::run;

@@ -7,7 +7,8 @@ use std::path::PathBuf;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_runtime::AppContext;
+
+use crate::context::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct StatusArgs {
@@ -24,9 +25,8 @@ pub struct StatusArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: StatusArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

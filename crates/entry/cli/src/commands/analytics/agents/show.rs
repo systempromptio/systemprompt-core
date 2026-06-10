@@ -8,7 +8,7 @@ use systemprompt_analytics::models::cli::{
 };
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::NoticeLine;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::{
     AgentShowOutput, AgentStatsOutput, ErrorBreakdownItem, HourlyDistributionItem,

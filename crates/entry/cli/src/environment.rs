@@ -1,3 +1,5 @@
+use crate::env_overrides::EnvOverrides;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ExecutionEnvironment {
     pub is_fly: bool,
@@ -5,10 +7,11 @@ pub struct ExecutionEnvironment {
 }
 
 impl ExecutionEnvironment {
-    pub fn detect() -> Self {
+    #[must_use]
+    pub const fn from_env(env: &EnvOverrides) -> Self {
         Self {
-            is_fly: std::env::var("FLY_APP_NAME").is_ok(),
-            is_remote_cli: std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_ok(),
+            is_fly: env.is_fly,
+            is_remote_cli: env.is_remote_cli,
         }
     }
 }

@@ -14,7 +14,7 @@ mod validate;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::cli_settings::get_global_config;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -32,28 +32,26 @@ pub enum PluginsCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub fn execute(command: PluginsCommands) -> Result<()> {
-    let config = get_global_config();
-
+pub fn execute(command: PluginsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         PluginsCommands::List(args) => {
-            let result = list::execute(args, &config).context("Failed to list plugins")?;
-            render_result(&result);
+            let result = list::execute(args, &ctx.cli).context("Failed to list plugins")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         PluginsCommands::Show(args) => {
-            let result = show::execute(&args, &config).context("Failed to show plugin")?;
-            render_result(&result);
+            let result = show::execute(&args, &ctx.cli).context("Failed to show plugin")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         PluginsCommands::Validate(args) => {
-            let result = validate::execute(args, &config).context("Failed to validate plugins")?;
-            render_result(&result);
+            let result = validate::execute(args, &ctx.cli).context("Failed to validate plugins")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         PluginsCommands::Generate(args) => {
-            let result = generate::execute(&args, &config).context("Failed to generate plugins")?;
-            render_result(&result);
+            let result = generate::execute(&args, &ctx.cli).context("Failed to generate plugins")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

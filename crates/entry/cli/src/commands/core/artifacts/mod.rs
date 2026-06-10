@@ -1,19 +1,17 @@
 //! `core artifacts` command group: inspect A2A task artifacts.
 //!
-//! Dispatches the [`ArtifactsCommands`] subcommands (list, show) against either
-//! a freshly bootstrapped [`AppContext`](systemprompt_runtime::AppContext) or a
-//! supplied [`DbPool`], rendering each command's `CommandOutput` to the
-//! configured output sink.
+//! Dispatches the [`ArtifactsCommands`] subcommands (list, show) against the
+//! invocation's [`CommandContext`], rendering each command's `CommandOutput`
+//! to the configured output sink.
 
 mod list;
 mod show;
 mod types;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_database::DbPool;
 
 pub use types::*;
 
@@ -26,34 +24,15 @@ pub enum ArtifactsCommands {
     Show(show::ShowArgs),
 }
 
-pub async fn execute(cmd: ArtifactsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: ArtifactsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         ArtifactsCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
+            let result = list::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ArtifactsCommands::Show(args) => {
-            let result = show::execute(args, config).await?;
-            render_result(&result);
-        },
-    }
-    Ok(())
-}
-
-pub async fn execute_with_db(
-    cmd: ArtifactsCommands,
-    db_pool: &DbPool,
-    user_id: &systemprompt_identifiers::UserId,
-    config: &CliConfig,
-) -> Result<()> {
-    match cmd {
-        ArtifactsCommands::List(args) => {
-            let result = list::execute_with_pool(args, user_id, db_pool, config).await?;
-            render_result(&result);
-        },
-        ArtifactsCommands::Show(args) => {
-            let result = show::execute_with_pool(args, db_pool, config).await?;
-            render_result(&result);
+            let result = show::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
     }
     Ok(())

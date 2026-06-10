@@ -13,7 +13,7 @@ mod show;
 mod types;
 mod use_context;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::Subcommand;
@@ -44,35 +44,35 @@ pub enum ContextsCommands {
     New(new::NewArgs),
 }
 
-pub async fn execute(cmd: ContextsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: ContextsCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         ContextsCommands::List(args) => {
-            let result = list::execute(args, config).await?;
-            render_result(&result);
+            let result = list::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ContextsCommands::Show(args) => {
-            let result = show::execute(args, config).await?;
-            render_result(&result);
+            let result = show::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ContextsCommands::Create(args) => {
-            let result = create::execute(args, config).await?;
-            render_result(&result);
+            let result = create::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ContextsCommands::Edit(args) => {
-            let result = edit::execute(args, config).await?;
-            render_result(&result);
+            let result = edit::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ContextsCommands::Delete(args) => {
-            let result = delete::execute(args, config).await?;
-            render_result(&result);
+            let result = delete::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ContextsCommands::Use(args) => {
-            let result = use_context::execute(args, config).await?;
-            render_result(&result);
+            let result = use_context::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
         ContextsCommands::New(args) => {
-            let result = new::execute(args, config).await?;
-            render_result(&result);
+            let result = new::execute(args, ctx).await?;
+            render_result(&result, &ctx.cli);
         },
     }
     Ok(())

@@ -6,7 +6,8 @@ use clap::Args;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
-use systemprompt_runtime::AppContext;
+
+use crate::context::CommandContext;
 
 fn parse_duration(s: &str) -> Result<i64> {
     let s = s.trim().to_lowercase();
@@ -41,9 +42,8 @@ pub struct PopularArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: PopularArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: PopularArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

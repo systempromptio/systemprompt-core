@@ -1,11 +1,11 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{JourneyNode, JourneyOutput};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct JourneyArgs {
@@ -16,9 +16,8 @@ pub struct JourneyArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: JourneyArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: JourneyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

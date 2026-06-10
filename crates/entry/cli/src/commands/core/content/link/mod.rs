@@ -10,7 +10,7 @@ pub mod list;
 pub mod performance;
 pub mod show;
 
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::{Context, Result};
 use clap::Subcommand;
@@ -33,37 +33,37 @@ pub enum LinkCommands {
     Delete(delete::DeleteArgs),
 }
 
-pub async fn execute(command: LinkCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(command: LinkCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         LinkCommands::Generate(args) => {
-            let result = generate::execute(args, config)
+            let result = generate::execute(args, ctx)
                 .await
                 .context("Failed to generate link")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         LinkCommands::Show(args) => {
-            let result = show::execute(args, config)
+            let result = show::execute(args, ctx)
                 .await
                 .context("Failed to show link")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         LinkCommands::List(args) => {
-            let result = list::execute(args, config)
+            let result = list::execute(args, ctx)
                 .await
                 .context("Failed to list links")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         LinkCommands::Performance(args) => {
-            let result = performance::execute(args, config)
+            let result = performance::execute(args, ctx)
                 .await
                 .context("Failed to get link performance")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         LinkCommands::Delete(args) => {
-            let result = delete::execute(args, config)
+            let result = delete::execute(args, ctx)
                 .await
                 .context("Failed to delete link")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
     }
     Ok(())

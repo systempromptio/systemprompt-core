@@ -2,9 +2,8 @@
 //!
 //! Dispatches the [`ContentCommands`] subcommands — list/show/search,
 //! edit/delete, ingest verification and status, plus the `link`, `analytics`,
-//! and `files` sub-groups. The reduced [`execute_with_db`] path serves the
-//! read-only commands that can run with only a [`DatabaseContext`]; the
-//! mutating commands require a full profile context.
+//! and `files` sub-groups. On a `--database-url` invocation only the read-only
+//! commands are served; the mutating commands require a full profile context.
 
 pub mod analytics;
 pub mod delete;
@@ -21,11 +20,10 @@ pub mod status;
 pub mod types;
 pub mod verify;
 
-use crate::cli_settings::{CliConfig, get_global_config};
+use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
 #[derive(Debug, Subcommand)]
 pub enum ContentCommands {
@@ -66,126 +64,84 @@ pub enum ContentCommands {
     Files(files::ContentFilesCommands),
 }
 
-pub async fn execute(command: ContentCommands) -> Result<()> {
-    let config = get_global_config();
-    execute_with_config(command, &config).await
-}
+pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped()
+        && matches!(
+            command,
+            ContentCommands::Edit(_)
+                | ContentCommands::Delete(_)
+                | ContentCommands::DeleteSource(_)
+                | ContentCommands::Verify(_)
+                | ContentCommands::Link(_)
+                | ContentCommands::Files(_)
+        )
+    {
+        bail!("This content command requires full profile context");
+    }
 
-pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -> Result<()> {
     match command {
         ContentCommands::List(args) => {
-            let result = list::execute(args, config)
+            let result = list::execute(args, ctx)
                 .await
                 .context("Failed to list content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Show(args) => {
-            let result = show::execute(args, config)
+            let result = show::execute(args, ctx)
                 .await
                 .context("Failed to show content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Search(args) => {
-            let result = search::execute(args, config)
+            let result = search::execute(args, ctx)
                 .await
                 .context("Failed to search content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Edit(args) => {
-            let result = edit::execute(args, config)
+            let result = edit::execute(args, &ctx.cli)
                 .await
                 .context("Failed to edit content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Delete(args) => {
-            let result = delete::execute(args, config)
+            let result = delete::execute(args, ctx)
                 .await
                 .context("Failed to delete content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::DeleteSource(args) => {
-            let result = delete_source::execute(args, config)
+            let result = delete_source::execute(args, &ctx.cli)
                 .await
                 .context("Failed to delete source content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Popular(args) => {
-            let result = popular::execute(args, config)
+            let result = popular::execute(args, ctx)
                 .await
                 .context("Failed to get popular content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Verify(args) => {
-            let result = verify::execute(args, config)
+            let result = verify::execute(args, ctx)
                 .await
                 .context("Failed to verify content")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Status(args) => {
-            let result = status::execute(args, config)
+            let result = status::execute(args, ctx)
                 .await
                 .context("Failed to get content status")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
         },
         ContentCommands::Link(cmd) => {
-            link::execute(cmd, config).await?;
+            link::execute(cmd, ctx).await?;
         },
         ContentCommands::Analytics(cmd) => {
-            analytics::execute(cmd, config).await?;
+            analytics::execute(cmd, ctx).await?;
         },
         ContentCommands::Files(cmd) => {
-            files::execute(cmd, config).await?;
-        },
-    }
-    Ok(())
-}
-
-pub async fn execute_with_db(
-    command: ContentCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match command {
-        ContentCommands::List(args) => {
-            let result = list::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to list content")?;
-            render_result(&result);
-        },
-        ContentCommands::Show(args) => {
-            let result = show::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to show content")?;
-            render_result(&result);
-        },
-        ContentCommands::Search(args) => {
-            let result = search::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to search content")?;
-            render_result(&result);
-        },
-        ContentCommands::Popular(args) => {
-            let result = popular::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to get popular content")?;
-            render_result(&result);
-        },
-        ContentCommands::Status(args) => {
-            let result = status::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to get content status")?;
-            render_result(&result);
-        },
-        ContentCommands::Analytics(cmd) => {
-            analytics::execute_with_pool(cmd, db_ctx.db_pool(), config).await?;
-        },
-        ContentCommands::Edit(_)
-        | ContentCommands::Delete(_)
-        | ContentCommands::DeleteSource(_)
-        | ContentCommands::Verify(_)
-        | ContentCommands::Link(_)
-        | ContentCommands::Files(_) => {
-            bail!("This content command requires full profile context")
+            files::execute(cmd, &ctx.cli).await?;
         },
     }
     Ok(())

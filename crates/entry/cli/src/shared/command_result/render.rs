@@ -9,14 +9,14 @@ use systemprompt_models::artifacts::{
 };
 
 use super::{CommandOutput, value_to_display};
-use crate::cli_settings::{OutputFormat, get_global_config};
+use crate::cli_settings::{CliConfig, OutputFormat};
 
-pub fn render_result(result: &CommandOutput) {
+pub fn render_result(result: &CommandOutput, config: &CliConfig) {
     if result.should_skip_render() {
         return;
     }
 
-    match get_global_config().output_format() {
+    match config.output_format() {
         OutputFormat::Json => CliService::json(result.artifact()),
         OutputFormat::Yaml => CliService::yaml(result.artifact()),
         OutputFormat::Table => render_terminal(result),

@@ -1,10 +1,9 @@
 //! `core files` command group: manage stored file uploads.
 //!
 //! Dispatches the [`FilesCommands`] subcommands — list/show/search/stats,
-//! upload/delete, validate/config, and the `ai` sub-group. The reduced
-//! [`execute_with_db`] path serves the read-only commands that need only a
-//! [`DatabaseContext`]; upload, delete, validate, config, and ai require a full
-//! profile context.
+//! upload/delete, validate/config, and the `ai` sub-group. On a
+//! `--database-url` invocation only the read-only commands are served; upload,
+//! delete, validate, config, and ai require a full profile context.
 
 pub mod types;
 
@@ -21,9 +20,8 @@ pub mod ai;
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -56,108 +54,73 @@ pub enum FilesCommands {
     Ai(ai::AiCommands),
 }
 
-pub async fn execute(cmd: FilesCommands, config: &CliConfig) -> Result<()> {
-    execute_with_config(cmd, config).await
-}
+pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped()
+        && matches!(
+            cmd,
+            FilesCommands::Upload(_)
+                | FilesCommands::Delete(_)
+                | FilesCommands::Validate(_)
+                | FilesCommands::Config(_)
+                | FilesCommands::Ai(_)
+        )
+    {
+        bail!("This files command requires full profile context");
+    }
 
-pub async fn execute_with_config(cmd: FilesCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         FilesCommands::List(args) => {
-            let result = list::execute(args, config)
+            let result = list::execute(args, ctx)
                 .await
                 .context("Failed to list files")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Show(args) => {
-            let result = show::execute(args, config)
+            let result = show::execute(args, ctx)
                 .await
                 .context("Failed to show file")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Upload(args) => {
-            let result = upload::execute(args, config)
+            let result = upload::execute(args, &ctx.cli)
                 .await
                 .context("Failed to upload file")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Delete(args) => {
-            let result = delete::execute(args, config)
+            let result = delete::execute(args, &ctx.cli)
                 .await
                 .context("Failed to delete file")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Validate(args) => {
-            let result = validate::execute(&args, config).context("Failed to validate file")?;
-            render_result(&result);
+            let result = validate::execute(&args, &ctx.cli).context("Failed to validate file")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Config(args) => {
-            let result = config::execute(args, config).context("Failed to get file config")?;
-            render_result(&result);
+            let result = config::execute(args, &ctx.cli).context("Failed to get file config")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Search(args) => {
-            let result = search::execute(args, config)
+            let result = search::execute(args, ctx)
                 .await
                 .context("Failed to search files")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         FilesCommands::Stats(args) => {
-            let result = stats::execute(args, config)
+            let result = stats::execute(args, ctx)
                 .await
                 .context("Failed to get file stats")?;
-            render_result(&result);
+            render_result(&result, &ctx.cli);
             Ok(())
         },
-        FilesCommands::Ai(cmd) => ai::execute(cmd, config).await,
-    }
-}
-
-pub async fn execute_with_db(
-    cmd: FilesCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    match cmd {
-        FilesCommands::List(args) => {
-            let result = list::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to list files")?;
-            render_result(&result);
-            Ok(())
-        },
-        FilesCommands::Show(args) => {
-            let result = show::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to show file")?;
-            render_result(&result);
-            Ok(())
-        },
-        FilesCommands::Search(args) => {
-            let result = search::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to search files")?;
-            render_result(&result);
-            Ok(())
-        },
-        FilesCommands::Stats(args) => {
-            let result = stats::execute_with_pool(args, db_ctx.db_pool(), config)
-                .await
-                .context("Failed to get file stats")?;
-            render_result(&result);
-            Ok(())
-        },
-        FilesCommands::Upload(_)
-        | FilesCommands::Delete(_)
-        | FilesCommands::Validate(_)
-        | FilesCommands::Config(_)
-        | FilesCommands::Ai(_) => {
-            bail!("This files command requires full profile context")
-        },
+        FilesCommands::Ai(cmd) => ai::execute(cmd, &ctx.cli).await,
     }
 }

@@ -3,11 +3,11 @@ use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 use tabled::{Table, Tabled};
 
 use super::types::{ContextListOutput, ContextSummary};
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
@@ -30,10 +30,10 @@ struct ContextRow {
     active: String,
 }
 
-pub(super) async fn execute(_args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(config).await?;
-    let ctx = AppContext::new().await?;
-    execute_with_pool(&session_ctx.session, ctx.db_pool(), config).await
+pub(super) async fn execute(_args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(&ctx.cli).await?;
+    let pool = ctx.db_pool().await?;
+    execute_with_pool(&session_ctx.session, &pool, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

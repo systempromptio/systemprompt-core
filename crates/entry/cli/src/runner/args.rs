@@ -10,6 +10,7 @@ use clap::{Parser, Subcommand};
 use crate::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 use crate::commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
+use crate::env_overrides::EnvOverrides;
 
 #[derive(Debug, clap::Args)]
 pub(super) struct VerbosityOpts {
@@ -190,8 +191,8 @@ impl DescribeCommand for Commands {
     }
 }
 
-pub(super) fn build_cli_config(cli: &Cli) -> CliConfig {
-    let mut cfg = CliConfig::new();
+pub(super) fn build_cli_config(cli: &Cli, env: &EnvOverrides) -> CliConfig {
+    let mut cfg = CliConfig::resolve(env);
 
     if cli.verbosity.debug {
         cfg = cfg.with_verbosity(VerbosityLevel::Debug);

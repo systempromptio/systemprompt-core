@@ -3,11 +3,11 @@ use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 
 use super::resolve::resolve_context;
 use super::types::ContextSummary;
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 
@@ -17,10 +17,10 @@ pub struct ShowArgs {
     pub context: String,
 }
 
-pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(config).await?;
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, &session_ctx.session, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(&ctx.cli).await?;
+    let pool = ctx.db_pool().await?;
+    execute_with_pool(args, &session_ctx.session, &pool, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

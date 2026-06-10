@@ -11,7 +11,7 @@ mod validate;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::cli_settings::get_global_config;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
@@ -23,18 +23,16 @@ pub enum HooksCommands {
     Validate(validate::ValidateArgs),
 }
 
-pub fn execute(command: HooksCommands) -> Result<()> {
-    let config = get_global_config();
-
+pub fn execute(command: HooksCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         HooksCommands::List(args) => {
-            let result = list::execute(args, &config).context("Failed to list hooks")?;
-            render_result(&result);
+            let result = list::execute(args, &ctx.cli).context("Failed to list hooks")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         HooksCommands::Validate(args) => {
-            let result = validate::execute(args, &config).context("Failed to validate hooks")?;
-            render_result(&result);
+            let result = validate::execute(args, &ctx.cli).context("Failed to validate hooks")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

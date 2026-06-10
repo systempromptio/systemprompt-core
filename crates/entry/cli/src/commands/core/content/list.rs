@@ -1,12 +1,12 @@
 use super::types::{ContentListOutput, ContentSummary};
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -23,9 +23,8 @@ pub struct ListArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

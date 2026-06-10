@@ -6,7 +6,8 @@ use clap::Args;
 use systemprompt_content::{SearchFilters, SearchRequest, SearchService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
-use systemprompt_runtime::AppContext;
+
+use crate::context::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -23,9 +24,8 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: SearchArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

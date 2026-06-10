@@ -4,10 +4,9 @@ use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 
 use super::types::ContextSwitchedOutput;
-use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::paths::ResolvedPaths;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
@@ -18,11 +17,11 @@ pub struct NewArgs {
     pub name: Option<String>,
 }
 
-pub(super) async fn execute(args: NewArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(config).await?;
-    let ctx = AppContext::new().await?;
+pub(super) async fn execute(args: NewArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(&ctx.cli).await?;
+    let pool = ctx.db_pool().await?;
 
-    let repo = ContextRepository::new(ctx.db_pool())?;
+    let repo = ContextRepository::new(&pool)?;
 
     let name = args
         .name
@@ -59,7 +58,7 @@ pub(super) async fn execute(args: NewArgs, config: &CliConfig) -> Result<Command
         message: format!("Created and switched to context '{}'", name),
     };
 
-    if !config.is_json_output() {
+    if !ctx.cli.is_json_output() {
         CliService::success(&output.message);
         CliService::key_value("ID", context_id.as_str());
         CliService::key_value("Name", &name);

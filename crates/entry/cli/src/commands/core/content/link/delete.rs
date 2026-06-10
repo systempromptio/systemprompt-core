@@ -1,5 +1,5 @@
-use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDeleteOutput;
+use crate::context::CommandContext;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
@@ -7,7 +7,6 @@ use clap::Args;
 use systemprompt_content::services::LinkGenerationService;
 use systemprompt_identifiers::LinkId;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -18,20 +17,20 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let link_id = LinkId::new(args.link_id.clone());
 
-    if config.is_interactive() && !args.yes {
+    if ctx.cli.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete link: {}",
             args.link_id
         ));
     }
 
-    require_confirmation("Are you sure you want to continue?", args.yes, config)?;
+    require_confirmation("Are you sure you want to continue?", args.yes, &ctx.cli)?;
 
-    let ctx = AppContext::new().await?;
-    let service = LinkGenerationService::new(ctx.db_pool())?;
+    let pool = ctx.db_pool().await?;
+    let service = LinkGenerationService::new(&pool)?;
 
     service
         .get_link_by_id(&link_id)

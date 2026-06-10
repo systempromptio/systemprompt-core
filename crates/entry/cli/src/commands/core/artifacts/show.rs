@@ -7,10 +7,10 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::ArtifactId;
 use systemprompt_logging::CliService;
 use systemprompt_models::a2a::Part;
-use systemprompt_runtime::AppContext;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 
@@ -26,10 +26,9 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub(super) async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let _session_ctx = get_or_create_session(config).await?;
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let _session_ctx = get_or_create_session(&ctx.cli).await?;
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

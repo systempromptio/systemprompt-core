@@ -18,6 +18,7 @@ use systemprompt_runtime::{
 };
 
 use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};
+use crate::env_overrides::EnvOverrides;
 use crate::paths::ResolvedPaths;
 use crate::shared::resolve_profile_path;
 
@@ -31,9 +32,10 @@ pub(super) struct ProfileContext {
 
 pub(super) fn resolve_and_display_profile(
     cli_config: &CliConfig,
+    env: &EnvOverrides,
     has_export: bool,
 ) -> Result<ProfileContext> {
-    let profile_path = resolve_profile(cli_config.profile_override.as_deref())?;
+    let profile_path = resolve_profile(cli_config.profile_override.as_deref(), env)?;
     init_profile(&profile_path)?;
 
     let profile = ProfileBootstrap::get()?;
@@ -55,7 +57,7 @@ pub(super) fn resolve_and_display_profile(
         CliService::profile_banner(&profile.name, profile.target.is_cloud(), tenant);
     }
 
-    let env = crate::environment::ExecutionEnvironment::detect();
+    let env = crate::environment::ExecutionEnvironment::from_env(env);
 
     Ok(ProfileContext {
         profile_name: profile.name.clone(),
@@ -66,7 +68,10 @@ pub(super) fn resolve_and_display_profile(
     })
 }
 
-pub(super) fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
+pub(super) fn resolve_profile(
+    cli_profile_override: Option<&str>,
+    env: &EnvOverrides,
+) -> Result<PathBuf> {
     if let Some(profile_input) = cli_profile_override
         && crate::shared::is_path_input(profile_input)
     {
@@ -76,7 +81,12 @@ pub(super) fn resolve_profile(cli_profile_override: Option<&str>) -> Result<Path
 
     let session_profile_path = get_active_session_profile_path();
 
-    resolve_profile_path(cli_profile_override, session_profile_path).context(
+    resolve_profile_path(
+        cli_profile_override,
+        env.profile.as_deref(),
+        session_profile_path,
+    )
+    .context(
         "Profile resolution failed. Use --profile <name> or 'systemprompt admin session switch \
          <profile>'",
     )

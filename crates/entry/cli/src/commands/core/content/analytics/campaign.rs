@@ -1,12 +1,12 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::CampaignAnalyticsOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::CampaignId;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct CampaignArgs {
@@ -14,9 +14,8 @@ pub struct CampaignArgs {
     pub campaign_id: String,
 }
 
-pub async fn execute(args: CampaignArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: CampaignArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

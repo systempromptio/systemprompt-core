@@ -1,12 +1,12 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{ClickRow, ClicksOutput};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LinkId;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ClicksArgs {
@@ -20,9 +20,8 @@ pub struct ClicksArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: ClicksArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: ClicksArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

@@ -1,10 +1,9 @@
-use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDetailOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::services::LinkGenerationService;
-use systemprompt_runtime::AppContext;
 
 const DEFAULT_BASE_URL: &str = "https://systemprompt.io";
 
@@ -14,9 +13,9 @@ pub struct ShowArgs {
     pub short_code: String,
 }
 
-pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let service = LinkGenerationService::new(ctx.db_pool())?;
+pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let service = LinkGenerationService::new(&pool)?;
 
     let link = service
         .get_link_by_short_code(&args.short_code)

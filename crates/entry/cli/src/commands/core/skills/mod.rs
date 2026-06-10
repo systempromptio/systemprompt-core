@@ -1,8 +1,8 @@
 //! `skills` CLI command group: list and show configured skills.
 //!
-//! [`SkillsCommands`] enumerates the subcommands; [`execute`] resolves the
-//! global config and dispatches via [`execute_with_config`]. Output payload
-//! types live in [`types`].
+//! [`SkillsCommands`] enumerates the subcommands; [`execute`] dispatches each
+//! against the invocation's [`CommandContext`]. Output payload types live in
+//! [`types`].
 
 pub mod types;
 
@@ -12,8 +12,7 @@ mod show;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::CliConfig;
-use crate::cli_settings::get_global_config;
+use crate::context::CommandContext;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -25,21 +24,16 @@ pub enum SkillsCommands {
     Show(show::ShowArgs),
 }
 
-pub fn execute(command: SkillsCommands) -> Result<()> {
-    let config = get_global_config();
-    execute_with_config(command, &config)
-}
-
-pub fn execute_with_config(command: SkillsCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: SkillsCommands, ctx: &CommandContext) -> Result<()> {
     match command {
         SkillsCommands::List(args) => {
-            let result = list::execute(args, config).context("Failed to list skills")?;
-            render_result(&result);
+            let result = list::execute(args, &ctx.cli).context("Failed to list skills")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
         SkillsCommands::Show(args) => {
-            let result = show::execute(&args, config).context("Failed to show skill")?;
-            render_result(&result);
+            let result = show::execute(&args, &ctx.cli).context("Failed to show skill")?;
+            render_result(&result, &ctx.cli);
             Ok(())
         },
     }

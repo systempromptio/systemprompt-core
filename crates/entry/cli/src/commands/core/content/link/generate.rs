@@ -1,12 +1,11 @@
-use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{GenerateLinkOutput, UtmParamsOutput};
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
 use systemprompt_content::models::{LinkType as DomainLinkType, UtmParams};
 use systemprompt_content::services::link::generation::{GenerateLinkParams, LinkGenerationService};
 use systemprompt_identifiers::{CampaignId, ContentId};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum LinkType {
@@ -60,13 +59,13 @@ pub struct GenerateArgs {
 
 const DEFAULT_BASE_URL: &str = "https://systemprompt.io";
 
-pub async fn execute(args: GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub async fn execute(args: GenerateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     if args.url.is_empty() {
         return Err(anyhow!("URL is required"));
     }
 
-    let ctx = AppContext::new().await?;
-    let service = LinkGenerationService::new(ctx.db_pool())?;
+    let pool = ctx.db_pool().await?;
+    let service = LinkGenerationService::new(&pool)?;
 
     let has_utm = args.utm_source.is_some()
         || args.utm_medium.is_some()

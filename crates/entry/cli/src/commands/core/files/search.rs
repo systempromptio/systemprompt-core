@@ -3,10 +3,10 @@ use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
-use systemprompt_runtime::AppContext;
 
 use super::types::{FileSearchOutput, FileSummary};
 use crate::CliConfig;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -18,9 +18,8 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-pub(super) async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub(super) async fn execute(args: SearchArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

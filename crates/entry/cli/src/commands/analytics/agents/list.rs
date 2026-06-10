@@ -3,7 +3,7 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_analytics::AgentAnalyticsRepository;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_runtime::DatabaseContext;
 
 use super::{AgentListOutput, AgentListRow};
 use crate::CliConfig;
@@ -61,12 +61,6 @@ pub struct ListArgs {
 
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
-}
-
-pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo).await
 }
 
 pub(super) async fn execute_with_pool(

@@ -1,15 +1,16 @@
 //! CLI-wide runtime settings: output format, verbosity, colour, and
 //! interactivity.
 //!
-//! [`CliConfig`] holds the resolved presentation options for a CLI invocation,
-//! seeded from defaults and overridden by environment variables. The
+//! [`CliConfig`] holds the resolved presentation options for a CLI invocation:
+//! defaults, overridden by the [`crate::env_overrides::EnvOverrides`] snapshot
+//! ([`CliConfig::resolve`]), overridden by command-line flags. The
 //! [`OutputFormat`], [`VerbosityLevel`], and [`ColorMode`] enums express the
-//! individual axes. A thread-local instance is published via
-//! [`set_global_config`] / [`get_global_config`] so command handlers can read
-//! the active settings without threading them through every call.
+//! individual axes. The resolved config travels explicitly on
+//! [`crate::context::CommandContext`]; there is no process-global instance.
 
-use std::env;
 use std::io::IsTerminal;
+
+use crate::env_overrides::EnvOverrides;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
@@ -66,9 +67,15 @@ impl Default for CliConfig {
 }
 
 impl CliConfig {
+    #[must_use]
     pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[must_use]
+    pub fn resolve(env: &EnvOverrides) -> Self {
         let mut config = Self::default();
-        config.apply_environment_variables();
+        config.apply_env(env);
         config
     }
 
@@ -97,8 +104,8 @@ impl CliConfig {
         self
     }
 
-    fn apply_environment_variables(&mut self) {
-        if let Ok(format) = env::var("SYSTEMPROMPT_OUTPUT_FORMAT") {
+    fn apply_env(&mut self, env: &EnvOverrides) {
+        if let Some(format) = &env.output_format {
             self.output_format = match format.to_lowercase().as_str() {
                 "json" => OutputFormat::Json,
                 "yaml" => OutputFormat::Yaml,
@@ -107,7 +114,7 @@ impl CliConfig {
             };
         }
 
-        if let Ok(level) = env::var("SYSTEMPROMPT_LOG_LEVEL") {
+        if let Some(level) = &env.log_level {
             self.verbosity = match level.to_lowercase().as_str() {
                 "quiet" => VerbosityLevel::Quiet,
                 "normal" => VerbosityLevel::Normal,
@@ -117,11 +124,11 @@ impl CliConfig {
             };
         }
 
-        if env::var("SYSTEMPROMPT_NO_COLOR").is_ok() || env::var("NO_COLOR").is_ok() {
+        if env.no_color {
             self.color_mode = ColorMode::Never;
         }
 
-        if env::var("SYSTEMPROMPT_NON_INTERACTIVE").is_ok() {
+        if env.non_interactive {
             self.interactive = false;
         }
     }
@@ -149,18 +156,4 @@ impl CliConfig {
     pub const fn output_format(&self) -> OutputFormat {
         self.output_format
     }
-}
-
-thread_local! {
-    static CLI_CONFIG: std::cell::RefCell<CliConfig> = std::cell::RefCell::new(CliConfig::new());
-}
-
-pub fn set_global_config(config: CliConfig) {
-    CLI_CONFIG.with(|c| {
-        *c.borrow_mut() = config;
-    });
-}
-
-pub fn get_global_config() -> CliConfig {
-    CLI_CONFIG.with(|c| c.borrow().clone())
 }

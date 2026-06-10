@@ -6,7 +6,8 @@ use clap::Args;
 use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
-use systemprompt_runtime::AppContext;
+
+use crate::context::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -20,9 +21,8 @@ pub struct ShowArgs {
     pub source: Option<String>,
 }
 
-pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+pub async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    execute_with_pool(args, &ctx.db_pool().await?, &ctx.cli).await
 }
 
 pub async fn execute_with_pool(

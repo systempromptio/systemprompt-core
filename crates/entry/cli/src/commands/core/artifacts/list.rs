@@ -4,11 +4,11 @@ use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::AppContext;
 use tabled::{Table, Tabled};
 
 use super::types::{ArtifactListOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
+use crate::context::CommandContext;
 use crate::session::get_or_create_session;
 use crate::shared::{CommandOutput, truncate_with_ellipsis};
 
@@ -40,10 +40,10 @@ pub(super) struct ArtifactRow {
     created_at: String,
 }
 
-pub(super) async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
-    let session_ctx = get_or_create_session(config).await?;
-    let ctx = AppContext::new().await?;
-    execute_with_pool(args, &session_ctx.session.user_id, ctx.db_pool(), config).await
+pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let session_ctx = get_or_create_session(&ctx.cli).await?;
+    let pool = ctx.db_pool().await?;
+    execute_with_pool(args, &session_ctx.session.user_id, &pool, &ctx.cli).await
 }
 
 pub(super) async fn execute_with_pool(

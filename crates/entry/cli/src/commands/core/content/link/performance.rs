@@ -1,11 +1,10 @@
-use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkPerformanceOutput;
+use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_identifiers::LinkId;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct PerformanceArgs {
@@ -13,9 +12,9 @@ pub struct PerformanceArgs {
     pub link_id: String,
 }
 
-pub async fn execute(args: PerformanceArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let ctx = AppContext::new().await?;
-    let service = LinkAnalyticsService::new(ctx.db_pool())?;
+pub async fn execute(args: PerformanceArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+    let pool = ctx.db_pool().await?;
+    let service = LinkAnalyticsService::new(&pool)?;
 
     let link_id = LinkId::new(args.link_id.clone());
     let performance = service

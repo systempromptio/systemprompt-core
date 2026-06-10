@@ -13,6 +13,11 @@ pub struct DatabaseContext {
 }
 
 impl DatabaseContext {
+    #[must_use]
+    pub const fn from_pool(pool: DbPool) -> Self {
+        Self { database: pool }
+    }
+
     pub async fn from_url(database_url: &str) -> RuntimeResult<Self> {
         let db = Database::new_postgres(database_url).await?;
         Ok(Self {

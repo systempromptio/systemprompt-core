@@ -1,9 +1,9 @@
 //! `core` command group: the platform's primary domain commands.
 //!
 //! Dispatches the [`CoreCommands`] subgroups — artifacts, content, files,
-//! contexts, skills, plugins, and hooks. The reduced [`execute_with_db`] path
-//! serves the content and files subgroups that can run with only a
-//! [`DatabaseContext`]; the rest require a full profile context.
+//! contexts, skills, plugins, and hooks. On a `--database-url` invocation only
+//! the content and files subgroups are served; the rest require a full
+//! profile context.
 
 pub mod artifacts;
 pub mod content;
@@ -15,9 +15,8 @@ pub mod skills;
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_runtime::DatabaseContext;
 
-use crate::CliConfig;
+use crate::context::CommandContext;
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
@@ -43,32 +42,20 @@ pub enum CoreCommands {
     Hooks(hooks::HooksCommands),
 }
 
-pub async fn execute(cmd: CoreCommands, config: &CliConfig) -> Result<()> {
-    match cmd {
-        CoreCommands::Artifacts(cmd) => artifacts::execute(cmd, config).await,
-        CoreCommands::Content(cmd) => content::execute(cmd).await,
-        CoreCommands::Files(cmd) => files::execute(cmd, config).await,
-        CoreCommands::Contexts(cmd) => contexts::execute(cmd, config).await,
-        CoreCommands::Skills(cmd) => skills::execute(cmd),
-        CoreCommands::Plugins(cmd) => plugins::execute(cmd),
-        CoreCommands::Hooks(cmd) => hooks::execute(cmd),
+pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
+    if ctx.is_database_scoped()
+        && !matches!(cmd, CoreCommands::Content(_) | CoreCommands::Files(_))
+    {
+        anyhow::bail!("This command requires full profile context");
     }
-}
 
-pub async fn execute_with_db(
-    cmd: CoreCommands,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
     match cmd {
-        CoreCommands::Content(cmd) => content::execute_with_db(cmd, db_ctx, config).await,
-        CoreCommands::Files(cmd) => files::execute_with_db(cmd, db_ctx, config).await,
-        CoreCommands::Artifacts(_)
-        | CoreCommands::Contexts(_)
-        | CoreCommands::Skills(_)
-        | CoreCommands::Plugins(_)
-        | CoreCommands::Hooks(_) => {
-            anyhow::bail!("This command requires full profile context")
-        },
+        CoreCommands::Artifacts(cmd) => artifacts::execute(cmd, ctx).await,
+        CoreCommands::Content(cmd) => content::execute(cmd, ctx).await,
+        CoreCommands::Files(cmd) => files::execute(cmd, ctx).await,
+        CoreCommands::Contexts(cmd) => contexts::execute(cmd, ctx).await,
+        CoreCommands::Skills(cmd) => skills::execute(cmd, ctx),
+        CoreCommands::Plugins(cmd) => plugins::execute(cmd, ctx),
+        CoreCommands::Hooks(cmd) => hooks::execute(cmd, ctx),
     }
 }

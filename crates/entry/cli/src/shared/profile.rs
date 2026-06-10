@@ -40,14 +40,15 @@ pub enum ProfileResolutionError {
 
 pub fn resolve_profile_path(
     cli_override: Option<&str>,
+    env_override: Option<&str>,
     from_session: Option<PathBuf>,
 ) -> Result<PathBuf, ProfileResolutionError> {
     if let Some(profile_input) = cli_override {
         return resolve_profile_input(profile_input);
     }
 
-    if let Ok(path_str) = std::env::var("SYSTEMPROMPT_PROFILE") {
-        return resolve_profile_input(&path_str);
+    if let Some(path_str) = env_override {
+        return resolve_profile_input(path_str);
     }
 
     if let Some(path) = from_session.filter(|p| p.exists()) {
