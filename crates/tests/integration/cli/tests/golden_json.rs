@@ -36,14 +36,16 @@ fn systemprompt_bin() -> std::path::PathBuf {
 }
 
 fn golden_json(args: &[&str]) -> Option<Value> {
-    let url = std::env::var("DATABASE_URL").ok().filter(|u| !u.is_empty())?;
+    let url = std::env::var("DATABASE_URL")
+        .ok()
+        .filter(|u| !u.is_empty())?;
     let mut cmd = Command::new(systemprompt_bin());
     cmd.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     cmd.env_remove("RUST_LOG");
     cmd.arg("--json").arg("--database-url").arg(url).args(args);
     let assert = cmd.assert().success();
-    let stdout = String::from_utf8(assert.get_output().stdout.clone())
-        .expect("stdout must be valid UTF-8");
+    let stdout =
+        String::from_utf8(assert.get_output().stdout.clone()).expect("stdout must be valid UTF-8");
     let value: Value = serde_json::from_str(&stdout)
         .unwrap_or_else(|e| panic!("whole stdout must be one JSON document: {e}\n---\n{stdout}"));
     Some(value)
@@ -145,12 +147,14 @@ fn yaml_output_is_well_formed_for_users_count() {
     cmd.env_remove("RUST_LOG");
     cmd.args(["--yaml", "--database-url", &url, "admin", "users", "count"]);
     let assert = cmd.assert().success();
-    let stdout = String::from_utf8(assert.get_output().stdout.clone())
-        .expect("stdout must be valid UTF-8");
+    let stdout =
+        String::from_utf8(assert.get_output().stdout.clone()).expect("stdout must be valid UTF-8");
     let value: serde_yaml::Value = serde_yaml::from_str(&stdout)
         .unwrap_or_else(|e| panic!("whole stdout must be one YAML document: {e}\n---\n{stdout}"));
     assert_eq!(
-        value.get("artifact_type").and_then(serde_yaml::Value::as_str),
+        value
+            .get("artifact_type")
+            .and_then(serde_yaml::Value::as_str),
         Some("presentation_card"),
         "unexpected artifact_type in YAML output"
     );

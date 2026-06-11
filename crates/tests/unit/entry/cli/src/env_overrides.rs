@@ -41,7 +41,10 @@ fn from_vars_maps_string_fields() {
     assert_eq!(env.log_level.as_deref(), Some("verbose"));
     assert_eq!(env.profile.as_deref(), Some("local"));
     assert_eq!(env.rust_log.as_deref(), Some("debug"));
-    assert_eq!(env.database_url.as_deref(), Some("postgres://localhost/test"));
+    assert_eq!(
+        env.database_url.as_deref(),
+        Some("postgres://localhost/test")
+    );
     assert_eq!(env.services_path.as_deref(), Some("/srv/services"));
 }
 

@@ -349,7 +349,8 @@ fn infer_type_envelope_schema_tag_falls_through_to_embedded_variant_tag() {
 #[test]
 fn infer_type_envelope_schema_tag_resolves_message_variant() {
     let schema = json!({"x-artifact-type": "cli"});
-    let artifact = json!({"artifact_type": "message", "x-artifact-type": "message", "messages": []});
+    let artifact =
+        json!({"artifact_type": "message", "x-artifact-type": "message", "messages": []});
     let result = infer_type(&artifact, Some(&schema), "tool").expect("should infer");
     assert!(matches!(result, ArtifactType::Message));
 }

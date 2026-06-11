@@ -1,6 +1,4 @@
-use systemprompt_extension::types::{
-    DependencyList, ExtensionMeta, ExtensionType, NoDependencies,
-};
+use systemprompt_extension::types::{DependencyList, ExtensionMeta, ExtensionType, NoDependencies};
 
 #[derive(Debug, Default)]
 struct TestExt;

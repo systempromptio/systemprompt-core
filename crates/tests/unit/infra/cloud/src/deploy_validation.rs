@@ -113,8 +113,11 @@ fn test_stale_extractor_reports_each_specific_binary() {
     let temp = TempDir::new().unwrap();
     let dockerfile = "FROM rust\nCOPY target/release/systemprompt-foo /bin/\nCOPY \
                       target/release/systemprompt-bar /bin/\n";
-    let stale =
-        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        temp.path(),
+        &ServicesConfig::default(),
+    );
     assert_eq!(stale.len(), 2);
     assert!(stale.iter().any(|s| s == "systemprompt-foo"));
     assert!(stale.iter().any(|s| s == "systemprompt-bar"));
@@ -124,8 +127,11 @@ fn test_stale_extractor_reports_each_specific_binary() {
 fn test_stale_extractor_ignores_non_systemprompt_copy_lines() {
     let temp = TempDir::new().unwrap();
     let dockerfile = "FROM rust\nCOPY target/release/other-tool /bin/\nCOPY src/ /app/src/\n";
-    let stale =
-        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        temp.path(),
+        &ServicesConfig::default(),
+    );
     assert!(stale.is_empty());
 }
 
@@ -133,8 +139,11 @@ fn test_stale_extractor_ignores_non_systemprompt_copy_lines() {
 fn test_no_release_copy_lines_extracts_nothing() {
     let temp = TempDir::new().unwrap();
     let dockerfile = "FROM rust\nWORKDIR /app\n";
-    let stale =
-        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        temp.path(),
+        &ServicesConfig::default(),
+    );
     assert!(stale.is_empty());
     let missing =
         validate_dockerfile_has_mcp_binaries(dockerfile, temp.path(), &ServicesConfig::default());
@@ -145,7 +154,10 @@ fn test_no_release_copy_lines_extracts_nothing() {
 fn test_bare_systemprompt_wildcard_is_filtered_from_extraction() {
     let temp = TempDir::new().unwrap();
     let dockerfile = "COPY target/release/systemprompt-* /bin/\n";
-    let stale =
-        validate_dockerfile_has_no_stale_binaries(dockerfile, temp.path(), &ServicesConfig::default());
+    let stale = validate_dockerfile_has_no_stale_binaries(
+        dockerfile,
+        temp.path(),
+        &ServicesConfig::default(),
+    );
     assert!(stale.is_empty());
 }

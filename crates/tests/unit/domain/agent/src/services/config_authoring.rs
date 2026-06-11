@@ -85,8 +85,8 @@ fn validate_agent_name_rejects_short_and_long_names() {
 
 #[test]
 fn validate_agent_name_rejects_invalid_characters() {
-    let err = AgentConfigAuthoringService::validate_agent_name("Agent-One")
-        .expect_err("invalid charset");
+    let err =
+        AgentConfigAuthoringService::validate_agent_name("Agent-One").expect_err("invalid charset");
     assert_eq!(
         err.to_string(),
         "Agent name must be lowercase alphanumeric with underscores only"
@@ -99,7 +99,10 @@ fn validate_port_rejects_zero_and_privileged() {
     assert_eq!(zero.to_string(), "Port cannot be 0");
 
     let privileged = AgentConfigAuthoringService::validate_port(80).expect_err("privileged port");
-    assert_eq!(privileged.to_string(), "Port must be >= 1024 (non-privileged)");
+    assert_eq!(
+        privileged.to_string(),
+        "Port must be >= 1024 (non-privileged)"
+    );
 
     AgentConfigAuthoringService::validate_port(1024).expect("non-privileged port");
 }
@@ -260,8 +263,7 @@ fn delete_removes_agent_file_and_include_entry() {
     service.delete("gone_agent").expect("delete agent");
 
     assert!(!path.exists());
-    let config_text =
-        fs::read_to_string(config_dir.join("config.yaml")).expect("read config.yaml");
+    let config_text = fs::read_to_string(config_dir.join("config.yaml")).expect("read config.yaml");
     assert!(!config_text.contains("gone_agent"));
 }
 
@@ -311,16 +313,18 @@ fn apply_runtime_fields_validates_port() {
     assert_eq!(agent.endpoint, "/new/endpoint");
     assert_eq!(
         changes,
-        vec!["port: 9000".to_owned(), "endpoint: /new/endpoint".to_owned()]
+        vec![
+            "port: 9000".to_owned(),
+            "endpoint: /new/endpoint".to_owned()
+        ]
     );
 
     let bad = AgentEditRequest {
         port: Some(0),
         ..Default::default()
     };
-    let err =
-        AgentConfigAuthoringService::apply_runtime_fields(&mut agent, &bad, &mut Vec::new())
-            .expect_err("port zero");
+    let err = AgentConfigAuthoringService::apply_runtime_fields(&mut agent, &bad, &mut Vec::new())
+        .expect_err("port zero");
     assert_eq!(err.to_string(), "Port cannot be 0");
 }
 
@@ -433,7 +437,10 @@ fn apply_mcp_server_changes_validates_and_skips() {
     )
     .expect("remove servers");
     assert!(agent.metadata.mcp_servers.include.is_empty());
-    assert_eq!(removal_changes, vec!["removed mcp_server: tools".to_owned()]);
+    assert_eq!(
+        removal_changes,
+        vec!["removed mcp_server: tools".to_owned()]
+    );
     assert_eq!(skipped, vec!["absent".to_owned()]);
 }
 
@@ -514,7 +521,10 @@ fn apply_set_value_changes_handles_supported_and_invalid_keys() {
         &mut Vec::new(),
     )
     .expect_err("unknown key");
-    assert!(err.to_string().starts_with("Unknown configuration key: 'bogus'."));
+    assert!(
+        err.to_string()
+            .starts_with("Unknown configuration key: 'bogus'.")
+    );
 
     let bad_bool = AgentEditRequest {
         set_values: vec!["dev_only=banana".to_owned()],

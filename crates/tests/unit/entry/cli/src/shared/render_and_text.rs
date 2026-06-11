@@ -83,7 +83,10 @@ fn render_result_chart_dashboard_copy_paste_text() {
         &CommandOutput::chart(ChartArtifact::new("c", ChartType::Bar)),
         &config,
     );
-    render_result(&CommandOutput::dashboard(DashboardArtifact::new("d")), &config);
+    render_result(
+        &CommandOutput::dashboard(DashboardArtifact::new("d")),
+        &config,
+    );
     render_result(&CommandOutput::copy_paste("c"), &config);
     render_result(&CommandOutput::text("t"), &config);
 }

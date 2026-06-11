@@ -187,7 +187,11 @@ async fn finalize_tenant_continues_when_external_access_fails() {
 
     assert!(!tenant.external_db_access);
     assert_eq!(tenant.database_url, None);
-    assert!(progress.labels().contains(&"ExternalAccessFailed".to_owned()));
+    assert!(
+        progress
+            .labels()
+            .contains(&"ExternalAccessFailed".to_owned())
+    );
 }
 
 #[tokio::test]

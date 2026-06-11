@@ -7,9 +7,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_models::profile::{
     AuthzMode, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
-use systemprompt_models::{
-    CloudValidationMode, Environment, LogLevel, OutputFormat, ProfileType,
-};
+use systemprompt_models::{CloudValidationMode, Environment, LogLevel, OutputFormat, ProfileType};
 
 #[test]
 fn test_generate_display_name_known_aliases() {

@@ -163,7 +163,9 @@ fn scripted_prompter_input_with_default_non_empty_answer_wins() {
 fn scripted_prompter_select_parses_index() {
     let prompter = ScriptedPrompter::new(["1"]);
     let items = vec!["a".to_string(), "b".to_string()];
-    let got = prompter.select("pick", &items).expect("call should succeed");
+    let got = prompter
+        .select("pick", &items)
+        .expect("call should succeed");
     assert_eq!(got, 1);
 }
 

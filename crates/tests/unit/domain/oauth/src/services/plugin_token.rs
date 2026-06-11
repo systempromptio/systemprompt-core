@@ -29,9 +29,8 @@ fn decode_claims(token: &str) -> JwtClaims {
 fn issue_mints_rs256_token_with_kid_header() {
     install_test_signing_key();
 
-    let issued =
-        PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-            .expect("issue plugin token");
+    let issued = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
+        .expect("issue plugin token");
 
     let header = decode_header(&issued.token).expect("decode header");
     assert_eq!(header.alg, Algorithm::RS256);
@@ -42,9 +41,8 @@ fn issue_mints_rs256_token_with_kid_header() {
 fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
     install_test_signing_key();
 
-    let issued =
-        PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-            .expect("issue plugin token");
+    let issued = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
+        .expect("issue plugin token");
     let claims = decode_claims(&issued.token);
 
     assert_eq!(claims.sub, "11111111-2222-3333-4444-555555555555");
@@ -58,7 +56,10 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
     );
     assert_eq!(
         claims.aud,
-        vec![JwtAudience::Hook, JwtAudience::Resource("plugin".to_owned())]
+        vec![
+            JwtAudience::Hook,
+            JwtAudience::Resource("plugin".to_owned())
+        ]
     );
     assert_eq!(claims.plugin_id.as_deref(), Some("cowork-bundle"));
     assert!(claims.roles.is_empty());
@@ -68,9 +69,8 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
 fn issue_sets_expiry_from_duration_days() {
     install_test_signing_key();
 
-    let issued =
-        PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
-            .expect("issue plugin token");
+    let issued = PluginTokenService::issue(subject(), ISSUER, "cowork-bundle".to_owned(), 30)
+        .expect("issue plugin token");
     let claims = decode_claims(&issued.token);
 
     // The service computes `exp` from a clock read taken just before `iat`,

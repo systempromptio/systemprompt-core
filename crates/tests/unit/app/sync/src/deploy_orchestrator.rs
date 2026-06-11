@@ -2,19 +2,16 @@
 //! ordering, skip-push, dry-run, pre-sync skip semantics, and the
 //! hostname guard.
 
-use std::fs;
-use std::io;
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{ExitStatus, Output};
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use serde_json::json;
-use systemprompt_cloud::{
-    CloudCredentials, CommandRunner, CommandSpec, DockerCli, ProjectContext,
-};
+use systemprompt_cloud::{CloudCredentials, CommandRunner, CommandSpec, DockerCli, ProjectContext};
 use systemprompt_identifiers::TenantId;
 use systemprompt_sync::deploy::{
     DeployEvent, DeployOptions, DeployOrchestrator, DeployOutcome, DeployProgress, DeployPrompt,
@@ -238,7 +235,10 @@ async fn full_deploy_emits_steps_in_order() {
             "Deployed",
         ]
     );
-    assert_eq!(*docker_calls.lock().unwrap(), vec!["build", "login", "push"]);
+    assert_eq!(
+        *docker_calls.lock().unwrap(),
+        vec!["build", "login", "push"]
+    );
 
     match report.outcome {
         DeployOutcome::Deployed {
@@ -341,7 +341,10 @@ async fn no_sync_flag_skips_pre_sync_and_still_deploys() {
     let report = orchestrator.deploy(&req, &progress).await.expect("deploy");
 
     let labels = progress.labels();
-    assert_eq!(labels.first().map(String::as_str), Some("PreSyncSkippedByFlag"));
+    assert_eq!(
+        labels.first().map(String::as_str),
+        Some("PreSyncSkippedByFlag")
+    );
     assert!(!labels.contains(&"Confirm".to_owned()));
     assert!(matches!(report.outcome, DeployOutcome::Deployed { .. }));
 }

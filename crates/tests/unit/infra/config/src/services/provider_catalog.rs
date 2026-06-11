@@ -72,9 +72,8 @@ fn remove_provider_deletes_entry() {
 fn remove_provider_unknown_name_errors() {
     let mut registry = ProviderRegistry::default();
 
-    let err =
-        ProviderCatalogService::remove_provider(&mut registry, &ProviderId::new("ghost"))
-            .unwrap_err();
+    let err = ProviderCatalogService::remove_provider(&mut registry, &ProviderId::new("ghost"))
+        .unwrap_err();
 
     assert!(matches!(err, ConfigError::ProviderNotFound { .. }));
     assert_eq!(err.to_string(), "No provider named ghost");

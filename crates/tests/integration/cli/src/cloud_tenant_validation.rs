@@ -2,7 +2,6 @@ use systemprompt_cli::cloud::tenant::check_build_ready;
 use tempfile::tempdir;
 
 
-
 #[test]
 fn check_build_ready_in_empty_dir_returns_string_error() {
     let _g = crate::env_lock::ENV

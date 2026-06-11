@@ -93,9 +93,14 @@ async fn execute_sends_context_header_and_body() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/admin/cli"))
-        .and(header("x-context-id", "6f7d9a40-1f2b-4c3d-8e5f-0a1b2c3d4e5f"))
+        .and(header(
+            "x-context-id",
+            "6f7d9a40-1f2b-4c3d-8e5f-0a1b2c3d4e5f",
+        ))
         .and(body_json(&expected_body))
-        .respond_with(sse_response(sse_body(&[r#"{"type":"exit_code","code":0}"#])))
+        .respond_with(sse_response(sse_body(&[
+            r#"{"type":"exit_code","code":0}"#,
+        ])))
         .expect(1)
         .mount(&server)
         .await;

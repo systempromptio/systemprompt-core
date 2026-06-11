@@ -149,7 +149,13 @@ mod restart_plan {
     fn target_keeps_id_and_display_name_distinct() {
         let plan = RestartPlan::compute(
             RestartScope::AllAgents,
-            &[snapshot(ServiceType::Agent, "agent-1", "Agent One", true, true)],
+            &[snapshot(
+                ServiceType::Agent,
+                "agent-1",
+                "Agent One",
+                true,
+                true,
+            )],
         );
 
         assert_eq!(plan.targets.len(), 1);

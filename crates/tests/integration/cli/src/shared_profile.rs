@@ -35,7 +35,6 @@ fn is_path_input_rejects_bare_names() {
 }
 
 
-
 #[test]
 fn generate_oauth_at_rest_pepper_is_64_alphanumeric() {
     let pepper = generate_oauth_at_rest_pepper();

@@ -44,7 +44,10 @@ fn test_load_secrets_json_missing_file() {
     let temp = TempDir::new().unwrap();
     let path = temp.path().join("secrets.json");
     let err = load_secrets_json(&path).unwrap_err();
-    assert_eq!(err.to_string(), format!("Failed to read {}", path.display()));
+    assert_eq!(
+        err.to_string(),
+        format!("Failed to read {}", path.display())
+    );
 }
 
 #[test]
@@ -116,7 +119,10 @@ fn test_system_managed_keys_are_dropped() {
     let result = map_secrets_to_env_vars(map_of(&[("fly_app_name", "x"), ("anthropic", "a")]));
 
     assert!(!result.contains_key("FLY_APP_NAME"));
-    assert_eq!(result.get("ANTHROPIC_API_KEY").map(String::as_str), Some("a"));
+    assert_eq!(
+        result.get("ANTHROPIC_API_KEY").map(String::as_str),
+        Some("a")
+    );
 }
 
 #[test]
