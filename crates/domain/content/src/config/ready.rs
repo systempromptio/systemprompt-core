@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{CategoryId, SourceId};
-use systemprompt_models::ContentRouting;
+use systemprompt_models::{ContentRouting, split_frontmatter};
 use walkdir::WalkDir;
 
 use crate::ContentError;
@@ -207,17 +207,14 @@ fn parse_content_file(
 }
 
 fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), ContentError> {
-    let parts: Vec<&str> = markdown.splitn(3, "---").collect();
+    let frontmatter = split_frontmatter(markdown).ok_or_else(|| {
+        ContentError::Parse("Invalid frontmatter format - missing '---' delimiters".to_owned())
+    })?;
 
-    if parts.len() < 3 {
-        return Err(ContentError::Parse(
-            "Invalid frontmatter format - missing '---' delimiters".to_owned(),
-        ));
-    }
+    let metadata: ContentMetadata =
+        serde_yaml::from_str(frontmatter.yaml).map_err(ContentError::Yaml)?;
 
-    let metadata: ContentMetadata = serde_yaml::from_str(parts[1]).map_err(ContentError::Yaml)?;
-
-    Ok((metadata, parts[2].trim().to_owned()))
+    Ok((metadata, frontmatter.body.trim().to_owned()))
 }
 
 fn parse_date(date_str: &str) -> Result<DateTime<Utc>, ContentError> {

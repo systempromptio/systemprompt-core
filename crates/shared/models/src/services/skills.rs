@@ -147,12 +147,3 @@ impl From<&DiskSkillConfig> for SkillDetail {
         }
     }
 }
-
-pub fn strip_frontmatter(content: &str) -> String {
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() >= 3 {
-        parts[2].trim().to_owned()
-    } else {
-        content.to_owned()
-    }
-}

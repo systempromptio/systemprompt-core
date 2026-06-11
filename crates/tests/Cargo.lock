@@ -8407,6 +8407,7 @@ dependencies = [
  "serde_yaml_ng",
  "sqlx",
  "systemprompt-database",
+ "systemprompt-models",
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-test-fixtures",

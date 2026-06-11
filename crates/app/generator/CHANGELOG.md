@@ -11,6 +11,10 @@
 
 - Over-long functions were split into focused helpers to satisfy the workspace's 75-line function ceiling. No behavioural or API change.
 
+### Fixed
+
+- `extract_frontmatter` is line-anchored: the opening and closing `---` must each be a full line, so `---` sequences inside the markdown body are no longer mistaken for delimiters.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

@@ -1,6 +1,7 @@
 //! Markdown rendering and YAML frontmatter extraction.
 
 use comrak::{Options, markdown_to_html};
+use systemprompt_models::split_frontmatter;
 
 fn strip_first_h1(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
@@ -35,19 +36,10 @@ pub fn render_markdown(content: &str) -> String {
 }
 
 pub fn extract_frontmatter(content: &str) -> Option<(serde_yaml::Value, String)> {
-    if !content.starts_with("---") {
-        return None;
-    }
+    let frontmatter = split_frontmatter(content)?;
+    let body = frontmatter.body.to_owned();
 
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() < 3 {
-        return None;
-    }
-
-    let frontmatter_str = parts[1].trim();
-    let body = parts[2].to_owned();
-
-    match serde_yaml::from_str(frontmatter_str) {
+    match serde_yaml::from_str(frontmatter.yaml.trim()) {
         Ok(yaml) => Some((yaml, body)),
         Err(e) => {
             tracing::warn!(error = %e, "Failed to parse markdown frontmatter");

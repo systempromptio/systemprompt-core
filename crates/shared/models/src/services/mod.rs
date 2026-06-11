@@ -3,6 +3,7 @@
 pub mod agent_config;
 pub mod ai;
 pub mod external_agent;
+pub mod frontmatter;
 pub mod hooks;
 mod includable;
 pub mod marketplace;
@@ -27,6 +28,7 @@ pub use ai::{
     ModelLimits, ModelPricing, ResilienceSettings, SamplingConfig,
 };
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
+pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookCategory, HookEvent, HookEventsConfig,
     HookMatcher, HookType,
@@ -44,7 +46,7 @@ pub use scheduler::*;
 pub use settings::*;
 pub use skills::{
     DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
-    SkillSummary, SkillsConfig, strip_frontmatter,
+    SkillSummary, SkillsConfig,
 };
 pub use system_admin::{SystemAdmin, SystemAdminConfig};
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};

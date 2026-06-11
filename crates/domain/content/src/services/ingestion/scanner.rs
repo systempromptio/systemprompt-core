@@ -2,6 +2,7 @@ use crate::error::ContentError;
 use crate::models::ContentMetadata;
 use crate::services::validation::validate_content_metadata;
 use std::path::{Path, PathBuf};
+use systemprompt_models::split_frontmatter;
 use walkdir::WalkDir;
 
 pub(super) struct ParsedFrontmatter {
@@ -75,17 +76,14 @@ fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
 }
 
 pub(super) fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
-    let parts: Vec<&str> = markdown.splitn(3, "---").collect();
+    let frontmatter = split_frontmatter(markdown)
+        .ok_or_else(|| ContentError::Parse("Invalid frontmatter format".to_owned()))?;
 
-    if parts.len() < 3 {
-        return Err(ContentError::Parse("Invalid frontmatter format".to_owned()));
-    }
-
-    let raw_yaml: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
+    let raw_yaml: serde_yaml::Value = serde_yaml::from_str(frontmatter.yaml)?;
     let metadata: ContentMetadata = serde_yaml::from_value(raw_yaml.clone())?;
     validate_content_metadata(&metadata)?;
 
-    let body = parts[2].trim().to_owned();
+    let body = frontmatter.body.trim().to_owned();
 
     Ok(ParsedFrontmatter {
         metadata,

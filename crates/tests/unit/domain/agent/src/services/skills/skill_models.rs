@@ -51,6 +51,12 @@ fn test_strip_frontmatter_empty_string() {
 }
 
 #[test]
+fn test_strip_frontmatter_keeps_frontmatter_less_skill_with_table() {
+    let content = "# CLI Reference\n\n| Command | Purpose |\n|--------|---------|\n| run | x |\n";
+    assert_eq!(strip_frontmatter(content), content);
+}
+
+#[test]
 fn test_disk_skill_config_deserialize_full() {
     let yaml = r#"
 id: my_skill

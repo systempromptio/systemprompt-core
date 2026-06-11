@@ -6,6 +6,10 @@
 
 - The minimum supported Rust version is 1.88.
 
+### Fixed
+
+- Frontmatter parsing is line-anchored: the opening and closing `---` must each be a full line, so `---` sequences inside the document body are no longer mistaken for delimiters.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

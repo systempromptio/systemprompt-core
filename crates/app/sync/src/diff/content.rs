@@ -10,6 +10,7 @@ use systemprompt_content::models::Content;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
+use systemprompt_models::split_frontmatter;
 use tracing::warn;
 use walkdir::WalkDir;
 
@@ -139,13 +140,11 @@ impl ContentDiffCalculator {
 fn parse_content_file(path: &Path, allowed_types: &[String]) -> SyncResult<Option<DiskContent>> {
     let content = std::fs::read_to_string(path)?;
 
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() < 3 {
-        return Err(SyncError::invalid_input("Invalid frontmatter format"));
-    }
+    let split = split_frontmatter(&content)
+        .ok_or_else(|| SyncError::invalid_input("Invalid frontmatter format"))?;
 
-    let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
-    let body = parts[2].trim().to_owned();
+    let frontmatter: serde_yaml::Value = serde_yaml::from_str(split.yaml)?;
+    let body = split.body.trim().to_owned();
 
     let kind = frontmatter
         .get("kind")

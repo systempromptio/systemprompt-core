@@ -10,6 +10,10 @@
 
 - Over-long functions were split into focused helpers to satisfy the workspace's 75-line function ceiling. No behavioural or API change.
 
+### Fixed
+
+- Content frontmatter parsing in the disk diff is line-anchored: the opening and closing `---` must each be a full line, so `---` sequences inside the document body are no longer mistaken for delimiters.
+
 ## [0.14.0] - 2026-06-01
 
 ### Changed

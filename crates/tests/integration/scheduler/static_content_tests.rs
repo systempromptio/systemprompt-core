@@ -184,19 +184,10 @@ mod markdown_tests {
     }
 
     fn extract_frontmatter(content: &str) -> Option<(serde_yaml::Value, String)> {
-        if !content.starts_with("---") {
-            return None;
-        }
+        let frontmatter = systemprompt_models::split_frontmatter(content)?;
+        let body = frontmatter.body.to_string();
 
-        let parts: Vec<&str> = content.splitn(3, "---").collect();
-        if parts.len() < 3 {
-            return None;
-        }
-
-        let frontmatter_str = parts[1].trim();
-        let body = parts[2].to_string();
-
-        serde_yaml::from_str(frontmatter_str)
+        serde_yaml::from_str(frontmatter.yaml.trim())
             .ok()
             .map(|yaml| (yaml, body))
     }

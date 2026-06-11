@@ -4,7 +4,7 @@ use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
 use systemprompt_models::services::{
     DiskSkillConfig, ExternalAgentConfig, ExternalAgentKind, JobConfig, RuntimeStatus,
     SchedulerConfig, ServiceType, Settings, SkillDetail, SkillSummary, SystemAdmin,
-    strip_frontmatter,
+    split_frontmatter, strip_frontmatter,
 };
 
 #[test]
@@ -258,4 +258,54 @@ fn strip_frontmatter_returns_input_when_no_frontmatter() {
 #[test]
 fn strip_frontmatter_handles_empty_body() {
     assert_eq!(strip_frontmatter(""), "");
+}
+
+#[test]
+fn strip_frontmatter_keeps_table_separators_without_frontmatter() {
+    let body = "# Title\n\n| Col A | Col B |\n|-------|-------|\n| a | b |\n";
+    assert_eq!(strip_frontmatter(body), body);
+}
+
+#[test]
+fn strip_frontmatter_keeps_horizontal_rules_without_frontmatter() {
+    let body = "Intro\n\n---\n\nMiddle\n\n---\n\nEnd\n";
+    assert_eq!(strip_frontmatter(body), body);
+}
+
+#[test]
+fn strip_frontmatter_preserves_body_dashes_after_frontmatter() {
+    let body = "---\ntitle: T\n---\nIntro\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n---\n\nEnd";
+    assert_eq!(
+        strip_frontmatter(body),
+        "Intro\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n---\n\nEnd"
+    );
+}
+
+#[test]
+fn split_frontmatter_requires_opening_delimiter_line() {
+    assert!(split_frontmatter("title: T\n---\nBody").is_none());
+    assert!(split_frontmatter("\n---\ntitle: T\n---\nBody").is_none());
+    assert!(split_frontmatter("----\ntitle: T\n---\nBody").is_none());
+    assert!(split_frontmatter("a---b---c").is_none());
+    assert!(split_frontmatter("").is_none());
+}
+
+#[test]
+fn split_frontmatter_requires_closing_delimiter_line() {
+    assert!(split_frontmatter("---\ntitle: T\nno closing").is_none());
+    assert!(split_frontmatter("---\ntitle: T\n|---|---|\nstill open").is_none());
+}
+
+#[test]
+fn split_frontmatter_returns_yaml_and_body() {
+    let split = split_frontmatter("---\ntitle: T\n---\nBody line\n").unwrap();
+    assert_eq!(split.yaml, "title: T\n");
+    assert_eq!(split.body, "Body line\n");
+}
+
+#[test]
+fn split_frontmatter_handles_crlf_and_bom() {
+    let split = split_frontmatter("\u{feff}---\r\ntitle: T\r\n---\r\nBody\r\n").unwrap();
+    assert_eq!(split.yaml, "title: T\r\n");
+    assert_eq!(split.body, "Body\r\n");
 }

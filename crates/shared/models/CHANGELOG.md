@@ -7,6 +7,14 @@
 - Error enum tuple variants that wrapped a bare message string are now struct variants with a named `message` field; match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
 - The minimum supported Rust version is 1.88.
 
+### Added
+
+- `services::frontmatter::split_frontmatter` and `Frontmatter`: line-anchored YAML frontmatter splitting, the canonical parser for every frontmatter consumer in the workspace.
+
+### Fixed
+
+- `strip_frontmatter` no longer treats `---` sequences inside the body — markdown table separator rows, horizontal rules, or mid-line dashes — as frontmatter delimiters; content that does not open with a `---` line is returned unchanged. Previously a frontmatter-less document containing a table separator row lost everything up to that row.
+
 ## [0.14.1] - 2026-06-01
 
 ### Removed
