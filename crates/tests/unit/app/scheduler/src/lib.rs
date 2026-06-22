@@ -14,6 +14,8 @@
 #[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
+mod bootstrap_dispatch_db;
+#[cfg(test)]
 mod error_variants;
 #[cfg(test)]
 mod extended_jobs;
@@ -43,6 +45,8 @@ mod reconciler_db;
 mod repository_db;
 #[cfg(test)]
 mod service_config_manifest;
+#[cfg(test)]
+mod service_management_behaviour_db;
 #[cfg(test)]
 mod service_management_db;
 #[cfg(test)]

@@ -31,19 +31,19 @@ oauth-clients-db = { max-threads = 1 }
 users-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/state_verifier_seeded_db::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_behaviour_db|reconciler_db)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/state_verifier_seeded_db::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_behaviour_db|reconciler_db)::/)'
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/jobs_seeded_db::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/jobs_seeded_db::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
