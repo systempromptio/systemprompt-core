@@ -35,8 +35,9 @@ mod files_validator_tests;
 #[cfg(test)]
 mod module_type_serde;
 #[cfg(test)]
-#[cfg(test)]
 mod registry;
+#[cfg(test)]
+mod registry_populated;
 #[cfg(test)]
 mod span_tests;
 #[cfg(test)]

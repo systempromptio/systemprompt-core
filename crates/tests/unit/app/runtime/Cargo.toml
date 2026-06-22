@@ -19,6 +19,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-security = { workspace = true }
 axum = { workspace = true }
+inventory = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
