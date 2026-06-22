@@ -18,6 +18,9 @@
 mod services;
 
 #[cfg(test)]
+mod config_loader;
+
+#[cfg(test)]
 mod manifest;
 
 #[cfg(test)]
