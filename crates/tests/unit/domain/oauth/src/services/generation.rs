@@ -1,10 +1,16 @@
 //! Tests for token generation services
 
+use base64::Engine;
+use jsonwebtoken::decode_header;
+use systemprompt_identifiers::ClientId;
 use systemprompt_models::auth::{JwtAudience, Permission};
+use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
+use systemprompt_oauth::services::validation::id_jag::{ID_JAG_TYP, IdJagClaims};
 use systemprompt_oauth::services::{
     JwtConfig, generate_access_token_jti, generate_client_secret, generate_secure_token,
     hash_client_secret, verify_client_secret,
 };
+use systemprompt_test_fixtures::install_test_signing_key;
 
 #[test]
 fn test_generate_secure_token_with_prefix() {
@@ -259,4 +265,61 @@ fn test_jwt_config_deserialize() {
     assert_eq!(config.permissions, vec![Permission::Admin]);
     assert_eq!(config.audience, vec![JwtAudience::Api]);
     assert_eq!(config.expires_in_hours, Some(72));
+}
+
+// Base64url-decode the JWT payload directly. These tests cover the minting
+// logic (typ header + claim shape), not the signing authority, so no signature
+// verification is needed.
+fn id_jag_claims(token: &str) -> IdJagClaims {
+    let payload = token.split('.').nth(1).expect("token has a payload segment");
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .expect("payload is base64url");
+    serde_json::from_slice(&bytes).expect("payload deserializes to IdJagClaims")
+}
+
+#[test]
+fn mints_id_jag_with_correct_typ_and_claims() {
+    install_test_signing_key();
+    let token = mint_id_jag(&IdJagGrant {
+        sub: "user-42",
+        email: Some("user@example.com"),
+        aud: "https://core.example",
+        client_id: "client-a",
+        scope: Some("user mcp"),
+        ttl_secs: 300,
+        issuer: "https://core.example",
+    })
+    .expect("mint");
+
+    assert_eq!(
+        decode_header(&token).expect("header").typ.as_deref(),
+        Some(ID_JAG_TYP)
+    );
+    let claims = id_jag_claims(&token);
+    assert_eq!(claims.sub, "user-42");
+    assert_eq!(claims.aud, "https://core.example");
+    assert_eq!(claims.bound_client().map(ClientId::as_str), Some("client-a"));
+    assert_eq!(claims.email.as_deref(), Some("user@example.com"));
+    assert_eq!(claims.scope.as_deref(), Some("user mcp"));
+    assert_eq!(claims.exp - claims.iat, 300);
+}
+
+#[test]
+fn defaults_optional_claims_to_none() {
+    install_test_signing_key();
+    let token = mint_id_jag(&IdJagGrant {
+        sub: "user-1",
+        email: None,
+        aud: "https://rs.example",
+        client_id: "client-b",
+        scope: None,
+        ttl_secs: 120,
+        issuer: "https://core.example",
+    })
+    .expect("mint");
+    let claims = id_jag_claims(&token);
+    assert!(claims.email.is_none());
+    assert!(claims.scope.is_none());
+    assert_eq!(claims.iss, "https://core.example");
 }

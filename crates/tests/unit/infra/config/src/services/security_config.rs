@@ -15,6 +15,7 @@ fn security() -> SecurityConfig {
         allow_registration: true,
         signing_key_path: PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),
+        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 
@@ -23,6 +24,9 @@ fn issuer(url: &str, jwks: &str) -> TrustedIssuer {
         issuer: url.to_owned(),
         jwks_uri: jwks.to_owned(),
         audience: "my-audience".to_owned(),
+        typ_allowlist: Vec::new(),
+        allowed_client_ids: Vec::new(),
+        can_issue_id_jag: false,
     }
 }
 

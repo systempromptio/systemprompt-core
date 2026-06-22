@@ -28,13 +28,19 @@ use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt_wit
 use super::super::{TokenError, TokenResponse};
 
 mod claims;
+mod id_jag_subject;
+mod issue;
+mod oidc;
 mod subject;
 
 pub use claims::{build_act_chain, intersect_scopes};
 pub use subject::peek_issuer;
 
 use claims::resolve_audience;
+use id_jag_subject::validate_id_jag_subject;
+use issue::issue_id_jag;
 use subject::validate_subject_token;
+use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 
 pub(super) const ACCESS_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:access_token";
 pub(super) const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
@@ -61,8 +67,15 @@ pub async fn handle_token_exchange(
 ) -> Result<TokenResponse> {
     let global = Config::get()?;
 
-    let subject =
-        validate_subject_token(request.subject_token, request.subject_token_type, global).await?;
+    if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {
+        return issue_id_jag(client_id, &request, global).await;
+    }
+
+    let subject = if request.subject_token_type == ID_JAG_TOKEN_TYPE {
+        validate_id_jag_subject(request.subject_token, client_id, repo, global).await?
+    } else {
+        validate_subject_token(request.subject_token, request.subject_token_type, global).await?
+    };
 
     let resource = validate_resource(request.resource, global)?;
 

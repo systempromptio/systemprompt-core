@@ -21,6 +21,8 @@ use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile::{ContentNegotiationConfig, SecurityHeadersConfig};
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
+use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_test_fixtures::{
     OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, install_test_signing_key,
@@ -66,6 +68,7 @@ fn ensure_config() {
             jwt_audiences: vec![],
             allowed_resource_audiences: vec!["hook".to_owned()],
             trusted_issuers: vec![],
+            id_jag_ttl_secs: 300,
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitConfig::default(),
@@ -379,5 +382,180 @@ async fn exchange_unknown_client_does_not_500() -> anyhow::Result<()> {
         status.is_client_error(),
         "unknown client must be 4xx, got {status} {v}"
     );
+    Ok(())
+}
+
+const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
+
+/// Seed a client whose owner has a UUID-form id. The delegation path
+/// (`load_delegation_grant`) parses the owner id as a UUID, so the full
+/// exchange only completes for a UUID owner; the shared [`seeded_client`] uses a
+/// prefixed id that only the error-path tests reach.
+async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
+    let b = ensure_test_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let user = UserId::new(Uuid::new_v4().to_string());
+    let p = pool.pool_arc().expect("read pool");
+    sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
+        .bind(user.as_str())
+        .bind(format!("{}@tx.invalid", user.as_str()))
+        .execute(p.as_ref())
+        .await?;
+    seed_oauth_client(&pool, &user).await
+}
+
+/// Mint a self-issued ID-JAG (issuer = this deployment) bound to `client_id`,
+/// signed by the process-wide test authority. `aud` controls the audience
+/// binding the consume path enforces against `jwt_issuer`.
+fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
+    install_test_signing_key();
+    let issuer = Config::get().expect("config").jwt_issuer.clone();
+    mint_id_jag(&IdJagGrant {
+        sub: "id-jag-subject",
+        email: Some("subj@tx.invalid"),
+        aud,
+        client_id,
+        scope: Some("user"),
+        ttl_secs: 300,
+        issuer: &issuer,
+    })
+    .expect("mint id-jag")
+}
+
+#[tokio::test]
+async fn id_jag_consume_returns_access_token() -> anyhow::Result<()> {
+    let client = seeded_client_uuid_owner().await?;
+    let app = token_app().await?;
+    let issuer = Config::get()?.jwt_issuer.clone();
+    let id_jag = mint_id_jag_for(client.client_id.as_str(), &issuer);
+    let body = urlencode(&[
+        ("grant_type", TOKEN_EXCHANGE_GRANT),
+        ("subject_token", &id_jag),
+        ("subject_token_type", ID_JAG_TOKEN_TYPE),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_success(), "expected 200, got {status} {v}");
+    assert!(v["access_token"].as_str().is_some(), "{v}");
+    assert_eq!(v["token_type"].as_str(), Some("Bearer"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn id_jag_replay_is_rejected() -> anyhow::Result<()> {
+    let client = seeded_client_uuid_owner().await?;
+    // token_app() installs the process-wide Config; build it before reading the
+    // issuer the assertion's aud must match. One app, cloned per request, keeps
+    // the connection-pool footprint minimal.
+    let app = token_app().await?;
+    let issuer = Config::get()?.jwt_issuer.clone();
+    let id_jag = mint_id_jag_for(client.client_id.as_str(), &issuer);
+    let form = || {
+        urlencode(&[
+            ("grant_type", TOKEN_EXCHANGE_GRANT),
+            ("subject_token", &id_jag),
+            ("subject_token_type", ID_JAG_TOKEN_TYPE),
+            ("client_id", client.client_id.as_str()),
+            ("client_secret", &client.client_secret),
+        ])
+    };
+
+    let first = app.clone().oneshot(form_post("/token", form())).await?;
+    assert!(first.status().is_success(), "first use must succeed");
+
+    let second = app.oneshot(form_post("/token", form())).await?;
+    let status = second.status();
+    let v = read_json(second).await?;
+    assert!(status.is_client_error(), "replay must be 4xx, got {status} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_grant"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn id_jag_wrong_audience_is_rejected() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = token_app().await?;
+    let id_jag = mint_id_jag_for(client.client_id.as_str(), "https://wrong.example/");
+    let body = urlencode(&[
+        ("grant_type", TOKEN_EXCHANGE_GRANT),
+        ("subject_token", &id_jag),
+        ("subject_token_type", ID_JAG_TOKEN_TYPE),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "{status} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_grant"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn id_jag_client_mismatch_is_rejected() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = token_app().await?;
+    let issuer = Config::get()?.jwt_issuer.clone();
+    // Bind the assertion to a different client than the one authenticating.
+    let id_jag = mint_id_jag_for("some-other-client", &issuer);
+    let body = urlencode(&[
+        ("grant_type", TOKEN_EXCHANGE_GRANT),
+        ("subject_token", &id_jag),
+        ("subject_token_type", ID_JAG_TOKEN_TYPE),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "{status} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_grant"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn id_jag_subject_with_wrong_typ_is_rejected() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = token_app().await?;
+    // A normal self-issued JWT carries typ "JWT", not "oauth-id-jag+jwt".
+    let not_an_id_jag = mint_self_issued_subject(vec![Permission::User]);
+    let body = urlencode(&[
+        ("grant_type", TOKEN_EXCHANGE_GRANT),
+        ("subject_token", &not_an_id_jag),
+        ("subject_token_type", ID_JAG_TOKEN_TYPE),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "{status} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_grant"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn id_jag_issue_from_untrusted_issuer_is_rejected() -> anyhow::Result<()> {
+    let client = seeded_client().await?;
+    let app = token_app().await?;
+    // The test config has no trusted_issuers, so a self-issued id_token cannot
+    // seed an ID-JAG — the issuer branch must reject it before any JWKS fetch.
+    let id_token = mint_self_issued_subject(vec![Permission::User]);
+    let body = urlencode(&[
+        ("grant_type", TOKEN_EXCHANGE_GRANT),
+        ("subject_token", &id_token),
+        ("subject_token_type", ID_TOKEN_TYPE),
+        ("requested_token_type", ID_JAG_TOKEN_TYPE),
+        ("client_id", client.client_id.as_str()),
+        ("client_secret", &client.client_secret),
+    ]);
+    let resp = app.oneshot(form_post("/token", body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "{status} {v}");
+    assert_eq!(v["error"].as_str(), Some("invalid_request"), "{v}");
     Ok(())
 }

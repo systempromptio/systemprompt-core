@@ -151,6 +151,9 @@ fn test_cloud_profile_custom_fields() {
         issuer: "https://api.systemprompt.io".to_owned(),
         jwks_uri: "https://api.systemprompt.io/.well-known/jwks.json".to_owned(),
         audience: "tenant_1".to_owned(),
+        typ_allowlist: Vec::new(),
+        allowed_client_ids: Vec::new(),
+        can_issue_id_jag: false,
     };
     let profile = CloudProfileBuilder::new("prod")
         .with_tenant_id(TenantId::new("tenant_1"))

@@ -66,6 +66,7 @@ impl OAuthServerConfig {
             supported_grant_types: vec![
                 "authorization_code".to_owned(),
                 "refresh_token".to_owned(),
+                "urn:ietf:params:oauth:grant-type:token-exchange".to_owned(),
             ],
             supported_code_challenge_methods: vec!["S256".to_owned()],
             token_endpoint_auth_method: "client_secret_post".to_owned(),

@@ -147,6 +147,9 @@ fn build_tenant_profile(
                     issuer: trimmed.clone(),
                     jwks_uri: format!("{}/.well-known/jwks.json", trimmed),
                     audience: tenant.id.clone(),
+                    typ_allowlist: Vec::new(),
+                    allowed_client_ids: Vec::new(),
+                    can_issue_id_jag: false,
                 });
             }
             builder.build()

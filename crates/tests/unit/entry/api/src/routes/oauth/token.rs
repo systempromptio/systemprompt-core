@@ -333,6 +333,12 @@ fn test_well_known_response_serialize() {
         id_token_signing_alg_values_supported: vec!["HS256".to_string()],
         claims_supported: vec!["sub".to_string(), "email".to_string()],
         authorization_response_iss_parameter_supported: true,
+        subject_token_types_supported: vec![
+            "urn:ietf:params:oauth:token-type:access_token".to_string(),
+        ],
+        issued_token_types_supported: vec![
+            "urn:ietf:params:oauth:token-type:id-jag".to_string(),
+        ],
     };
 
     let json = serde_json::to_value(&response).unwrap();

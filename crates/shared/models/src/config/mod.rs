@@ -71,6 +71,7 @@ pub struct Config {
     pub jwt_audiences: Vec<JwtAudience>,
     pub allowed_resource_audiences: Vec<String>,
     pub trusted_issuers: Vec<TrustedIssuer>,
+    pub id_jag_ttl_secs: i64,
     pub signing_key_path: PathBuf,
     pub use_https: bool,
     pub rate_limits: RateLimitConfig,

@@ -29,6 +29,8 @@ pub struct WellKnownResponse {
     pub id_token_signing_alg_values_supported: Vec<String>,
     pub claims_supported: Vec<String>,
     pub authorization_response_iss_parameter_supported: bool,
+    pub subject_token_types_supported: Vec<String>,
+    pub issued_token_types_supported: Vec<String>,
 }
 
 pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
@@ -68,6 +70,16 @@ pub async fn handle_well_known(base: RequestBaseUrl) -> impl IntoResponse {
             "jti".to_owned(),
         ],
         authorization_response_iss_parameter_supported: true,
+        subject_token_types_supported: vec![
+            "urn:ietf:params:oauth:token-type:access_token".to_owned(),
+            "urn:ietf:params:oauth:token-type:id_token".to_owned(),
+            "urn:ietf:params:oauth:token-type:jwt".to_owned(),
+            "urn:ietf:params:oauth:token-type:id-jag".to_owned(),
+        ],
+        issued_token_types_supported: vec![
+            "urn:ietf:params:oauth:token-type:access_token".to_owned(),
+            "urn:ietf:params:oauth:token-type:id-jag".to_owned(),
+        ],
     };
 
     (StatusCode::OK, Json(response)).into_response()

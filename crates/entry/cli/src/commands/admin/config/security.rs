@@ -149,6 +149,9 @@ fn execute_trusted_issuer(command: &TrustedIssuerCommands, config: &CliConfig) -
                     issuer: args.issuer.clone(),
                     jwks_uri: args.jwks_uri.clone(),
                     audience: args.audience.clone(),
+                    typ_allowlist: Vec::new(),
+                    allowed_client_ids: Vec::new(),
+                    can_issue_id_jag: false,
                 },
             )
         },

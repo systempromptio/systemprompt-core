@@ -4,6 +4,7 @@
 mod at_rest;
 mod auth_code;
 mod cleanup;
+mod id_jag_replay;
 mod jti_revocation;
 mod refresh_token;
 mod scopes;

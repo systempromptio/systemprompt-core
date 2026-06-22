@@ -57,6 +57,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         jwt_audiences: systemprompt_models::auth::JwtAudience::standard(),
         allowed_resource_audiences: vec![],
         trusted_issuers: vec![],
+        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitConfig {

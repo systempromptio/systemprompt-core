@@ -50,6 +50,7 @@ fn security_config() -> SecurityConfig {
         allow_registration: true,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
+        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 

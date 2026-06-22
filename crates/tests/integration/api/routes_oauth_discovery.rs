@@ -52,6 +52,7 @@ fn test_config() -> Config {
         jwt_audiences: vec![],
         allowed_resource_audiences: vec![],
         trusted_issuers: vec![],
+        id_jag_ttl_secs: 300,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitConfig::default(),
@@ -117,6 +118,37 @@ async fn protected_resource_returns_metadata() -> anyhow::Result<()> {
         .oneshot(empty_get("/.well-known/oauth-protected-resource"))
         .await?;
     assert!(resp.status().is_success(), "{}", resp.status());
+    Ok(())
+}
+
+#[tokio::test]
+async fn well_known_advertises_token_exchange_and_id_jag() -> anyhow::Result<()> {
+    let app = discovery_app().await?;
+    let resp = app
+        .oneshot(empty_get("/.well-known/openid-configuration"))
+        .await?;
+    let (status, body) = body_to_string(resp).await?;
+    assert!(status.is_success(), "{status}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+
+    let grants = json["grant_types_supported"]
+        .as_array()
+        .expect("grant_types_supported is an array");
+    assert!(
+        grants
+            .iter()
+            .any(|g| g == "urn:ietf:params:oauth:grant-type:token-exchange"),
+        "token-exchange grant must be advertised: {json}"
+    );
+    for field in ["subject_token_types_supported", "issued_token_types_supported"] {
+        let types = json[field].as_array().expect("token-type array");
+        assert!(
+            types
+                .iter()
+                .any(|t| t == "urn:ietf:params:oauth:token-type:id-jag"),
+            "{field} must advertise id-jag: {json}"
+        );
+    }
     Ok(())
 }
 

@@ -41,6 +41,7 @@ fn fixture_config() -> Config {
         jwt_audiences: Vec::new(),
         allowed_resource_audiences: Vec::new(),
         trusted_issuers: Vec::new(),
+        id_jag_ttl_secs: 300,
         signing_key_path: std::path::PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitConfig::default(),

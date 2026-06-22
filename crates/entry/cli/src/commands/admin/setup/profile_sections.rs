@@ -85,6 +85,7 @@ pub(super) fn security(env_name: &str) -> SecurityConfig {
         allow_registration: true,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),
+        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 

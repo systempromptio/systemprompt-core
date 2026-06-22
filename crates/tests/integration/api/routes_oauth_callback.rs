@@ -57,6 +57,7 @@ fn ensure_config() {
             jwt_audiences: vec![],
             allowed_resource_audiences: vec!["hook".to_owned()],
             trusted_issuers: vec![],
+            id_jag_ttl_secs: 300,
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitConfig::default(),

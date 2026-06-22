@@ -155,6 +155,7 @@ fn build_config(profile: &Profile, paths: BuildConfigPaths) -> ConfigResult<Conf
         jwt_audiences: profile.security.audiences.clone(),
         allowed_resource_audiences: profile.security.allowed_resource_audiences.clone(),
         trusted_issuers: profile.security.trusted_issuers.clone(),
+        id_jag_ttl_secs: profile.security.id_jag_ttl_secs,
         signing_key_path: resolve_signing_key_path(
             &profile.security.signing_key_path,
             &paths.system,

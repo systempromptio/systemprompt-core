@@ -25,6 +25,15 @@ pub(super) struct SubjectIdentity {
     pub(super) prior_act: Option<ActClaim>,
 }
 
+impl SubjectIdentity {
+    pub(super) const fn new(scope: Vec<Permission>) -> Self {
+        Self {
+            scope,
+            prior_act: None,
+        }
+    }
+}
+
 pub(super) async fn validate_subject_token(
     token: &str,
     token_type: &str,
@@ -107,9 +116,6 @@ pub(super) async fn validate_subject_token(
     })
 }
 
-// The result is only used to route the token to the correct
-// signature-verification path; the actual `iss` and signature are
-// re-validated downstream.
 pub fn peek_issuer(token: &str) -> Result<String> {
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -187,7 +193,7 @@ fn validate_self_issued(token: &str, global: &Config) -> Result<SubjectIdentity>
     })
 }
 
-fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
+pub(super) fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {
     trusted
         .iter()
         .filter_map(|t| url::Url::parse(&t.jwks_uri).ok())

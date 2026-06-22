@@ -36,6 +36,14 @@ fn default_signing_key_path() -> PathBuf {
     PathBuf::from("signing_key.pem")
 }
 
+/// Default ID-JAG lifetime in seconds; short by design (draft §6) to bound
+/// replay.
+pub const DEFAULT_ID_JAG_TTL_SECS: i64 = 300;
+
+const fn default_id_jag_ttl_secs() -> i64 {
+    DEFAULT_ID_JAG_TTL_SECS
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -62,12 +70,33 @@ pub struct SecurityConfig {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trusted_issuers: Vec<TrustedIssuer>,
+
+    #[serde(default = "default_id_jag_ttl_secs")]
+    pub id_jag_ttl_secs: i64,
 }
 
+/// A federated identity provider trusted for the RFC 8693 token-exchange and
+/// EMA (Enterprise-Managed Authorization) paths.
+///
+/// `audience` holds the value the `IdP` places in `id_token.aud`; for a
+/// Salesforce Connected App that is its `client_id`, **not** a URL.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TrustedIssuer {
     pub issuer: String,
     pub jwks_uri: String,
     pub audience: String,
+
+    /// Accepted JOSE `typ` header values; empty accepts any.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub typ_allowlist: Vec<String>,
+
+    /// `client_id`/`azp` values accepted on the EMA consume path; empty accepts
+    /// any.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub allowed_client_ids: Vec<String>,
+
+    /// Whether this issuer's `id_token` may seed the EMA ID-JAG issuance path.
+    #[serde(default)]
+    pub can_issue_id_jag: bool,
 }

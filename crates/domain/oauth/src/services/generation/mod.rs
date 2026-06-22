@@ -13,8 +13,10 @@ use systemprompt_models::auth::{
 };
 use systemprompt_security::keys::authority;
 
+pub mod id_jag;
 mod secret;
 
+pub use id_jag::{IdJagGrant, mint_id_jag};
 pub use secret::{
     generate_access_token_jti, generate_client_secret, generate_secure_token, hash_client_secret,
     verify_client_secret,
@@ -129,6 +131,22 @@ fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
         .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(kid.to_owned());
+    let key = authority::encoding_key()
+        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let token = encode(&header, claims, key)?;
+    Ok(token)
+}
+
+/// Like [`encode_with_authority`] but stamps the mandatory `oauth-id-jag+jwt`
+/// JOSE `typ` so the consume path can distinguish the assertion by its header.
+fn encode_id_jag_with_authority(
+    claims: &crate::services::validation::id_jag::IdJagClaims,
+) -> Result<String> {
+    let kid = authority::active_kid()
+        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(kid.to_owned());
+    header.typ = Some(crate::services::validation::id_jag::ID_JAG_TYP.to_owned());
     let key = authority::encoding_key()
         .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
     let token = encode(&header, claims, key)?;

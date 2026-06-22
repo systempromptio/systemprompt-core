@@ -1,12 +1,11 @@
-//! MCP reverse-proxy routes and discovery metadata.
-//!
-//! Builds the router that forwards requests to managed MCP backends, serves the
-//! RFC 9728 protected-resource and authorization-server metadata per service,
-//! and exposes tool-execution lookups.
+//! MCP reverse-proxy routes: forwards requests to managed MCP backends and
+//! exposes tool-execution lookups. Per-service discovery metadata lives in the
+//! `discovery` submodule.
+
+mod discovery;
 
 use crate::services::proxy::ProxyEngine;
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{any, get};
 use axum::{Json, Router};
@@ -14,9 +13,8 @@ use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_mcp::repository::ToolUsageRepository;
+use systemprompt_models::ApiError;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::{ApiError, Config};
-use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
 use systemprompt_runtime::{AppContext, ServiceCategory};
 use systemprompt_traits::McpRegistryProvider;
 
@@ -92,100 +90,6 @@ pub async fn handle_get_execution(
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct McpProtectedResourceMetadata {
-    pub resource: String,
-    pub authorization_servers: Vec<String>,
-    pub scopes_supported: Vec<String>,
-    pub bearer_methods_supported: Vec<String>,
-    pub resource_documentation: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct McpAuthorizationServerMetadata {
-    pub issuer: String,
-    pub authorization_endpoint: String,
-    pub token_endpoint: String,
-    pub registration_endpoint: Option<String>,
-    pub scopes_supported: Vec<String>,
-    pub response_types_supported: Vec<String>,
-    pub grant_types_supported: Vec<String>,
-    pub code_challenge_methods_supported: Vec<String>,
-    pub token_endpoint_auth_methods_supported: Vec<String>,
-    pub authorization_response_iss_parameter_supported: bool,
-}
-
-pub async fn handle_mcp_protected_resource(
-    State(state): State<McpState>,
-    Path(service_name): Path<String>,
-) -> impl IntoResponse {
-    let base_url = match Config::get() {
-        Ok(c) => c.api_external_url.clone(),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to get config");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Configuration unavailable"})),
-            )
-                .into_response();
-        },
-    };
-
-    let scopes = get_mcp_server_scopes(state.ctx.mcp_registry(), &service_name)
-        .await
-        .unwrap_or_else(|| vec!["user".to_owned()]);
-
-    let resource_url = format!("{}/api/v1/mcp/{}/mcp", base_url, service_name);
-
-    let metadata = McpProtectedResourceMetadata {
-        resource: resource_url,
-        authorization_servers: vec![base_url.clone()],
-        scopes_supported: scopes,
-        bearer_methods_supported: vec!["header".to_owned()],
-        resource_documentation: Some(base_url.clone()),
-    };
-
-    (StatusCode::OK, Json(metadata)).into_response()
-}
-
-pub async fn handle_mcp_authorization_server(
-    Path(_service_name): Path<String>,
-) -> impl IntoResponse {
-    let base_url = match Config::get() {
-        Ok(c) => c.api_external_url.clone(),
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to get config");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "Configuration unavailable"})),
-            )
-                .into_response();
-        },
-    };
-
-    let metadata = McpAuthorizationServerMetadata {
-        issuer: base_url.clone(),
-        authorization_endpoint: format!("{}/api/v1/core/oauth/authorize", base_url),
-        token_endpoint: format!("{}/api/v1/core/oauth/token", base_url),
-        registration_endpoint: Some(format!("{}/api/v1/core/oauth/register", base_url)),
-        scopes_supported: vec!["user".to_owned(), "admin".to_owned()],
-        response_types_supported: vec![ResponseType::Code.to_string()],
-        grant_types_supported: vec![
-            GrantType::AuthorizationCode.to_string(),
-            GrantType::RefreshToken.to_string(),
-        ],
-        code_challenge_methods_supported: vec![PkceMethod::S256.to_string()],
-        token_endpoint_auth_methods_supported: vec![
-            TokenAuthMethod::None.to_string(),
-            TokenAuthMethod::ClientSecretPost.to_string(),
-            TokenAuthMethod::ClientSecretBasic.to_string(),
-        ],
-        authorization_response_iss_parameter_supported: true,
-    };
-
-    (StatusCode::OK, Json(metadata)).into_response()
-}
-
 pub(in crate::routes) async fn get_mcp_server_scopes(
     registry: &dyn McpRegistryProvider,
     service_name: &str,
@@ -242,11 +146,11 @@ pub fn router(ctx: &AppContext) -> Router {
         .route("/executions/{id}", get(handle_get_execution))
         .route(
             "/{service_name}/mcp/.well-known/oauth-protected-resource",
-            get(handle_mcp_protected_resource),
+            get(discovery::handle_mcp_protected_resource),
         )
         .route(
             "/{service_name}/mcp/.well-known/oauth-authorization-server",
-            get(handle_mcp_authorization_server),
+            get(discovery::handle_mcp_authorization_server),
         )
         .route(
             "/{service_name}/{*path}",

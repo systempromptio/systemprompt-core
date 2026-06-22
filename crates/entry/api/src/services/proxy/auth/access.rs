@@ -16,10 +16,17 @@ use systemprompt_database::ServiceConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider};
 
 use super::challenge::{AuthValidator, ChallengeRequest, challenge_or_error};
+
+struct OAuthRequirement {
+    required: bool,
+    scopes: Vec<String>,
+    audience: String,
+}
 
 pub(crate) struct AccessValidator;
 
@@ -31,13 +38,22 @@ impl AccessValidator {
         ctx: &AppContext,
         req_context: Option<&RequestContext>,
     ) -> Result<Option<AuthenticatedUser>, ProxyError> {
-        let (oauth_required, required_scopes) =
-            lookup_oauth_requirement(service, service_name, ctx).await?;
-        if !oauth_required {
+        let requirement = lookup_oauth_requirement(service, service_name, ctx).await?;
+        if !requirement.required {
             return Ok(None);
         }
         let resource_path = resource_path_for(service, service_name);
         let has_authorization = headers.get(AUTHORIZATION).is_some();
+        let challenge = |status_code: StatusCode| {
+            challenge_or_error(&ChallengeRequest {
+                service_name,
+                resource_path: &resource_path,
+                headers,
+                ctx,
+                status_code,
+                has_authorization,
+            })
+        };
         let authenticated_user =
             match AuthValidator::validate_service_access(headers, service_name, req_context) {
                 Ok(user) => user,
@@ -47,17 +63,15 @@ impl AccessValidator {
                     {
                         return outcome;
                     }
-                    return Err(challenge_or_error(&ChallengeRequest {
-                        service_name,
-                        resource_path: &resource_path,
-                        headers,
-                        ctx,
-                        status_code,
-                        has_authorization,
-                    }));
+                    return Err(challenge(status_code));
                 },
             };
-        ensure_required_scopes(service_name, &required_scopes, &authenticated_user)?;
+        if let Err(status_code) =
+            enforce_required_audience(headers, service_name, &requirement.audience)
+        {
+            return Err(challenge(status_code));
+        }
+        ensure_required_scopes(service_name, &requirement.scopes, &authenticated_user)?;
         Ok(Some(authenticated_user))
     }
 }
@@ -66,7 +80,7 @@ async fn lookup_oauth_requirement(
     service: &ServiceConfig,
     service_name: &str,
     ctx: &AppContext,
-) -> Result<(bool, Vec<String>), ProxyError> {
+) -> Result<OAuthRequirement, ProxyError> {
     if service.module_name == "agent" {
         let registry =
             AgentRegistryProviderService::new().map_err(|e| ProxyError::ServiceNotRunning {
@@ -80,7 +94,11 @@ async fn lookup_oauth_requirement(
                 .map_err(|e| ProxyError::ServiceNotFound {
                     service: format!("Agent '{}' not found in registry: {}", service_name, e),
                 })?;
-        Ok((info.oauth.required, info.oauth.scopes))
+        Ok(OAuthRequirement {
+            required: info.oauth.required,
+            scopes: info.oauth.scopes,
+            audience: info.oauth.audience,
+        })
     } else if service.module_name == "mcp" {
         let registry = ctx.mcp_registry();
         registry
@@ -94,10 +112,38 @@ async fn lookup_oauth_requirement(
             .map_err(|e| ProxyError::ServiceNotFound {
                 service: format!("MCP server '{}' not found in registry: {}", service_name, e),
             })?;
-        Ok((info.oauth.required, info.oauth.scopes))
+        Ok(OAuthRequirement {
+            required: info.oauth.required,
+            scopes: info.oauth.scopes,
+            audience: info.oauth.audience,
+        })
     } else {
-        Ok((true, vec![]))
+        Ok(OAuthRequirement {
+            required: true,
+            scopes: vec![],
+            audience: String::new(),
+        })
     }
+}
+
+fn enforce_required_audience(
+    headers: &HeaderMap,
+    service_name: &str,
+    audience: &str,
+) -> Result<(), StatusCode> {
+    if audience.is_empty() {
+        return Ok(());
+    }
+    AuthService::authorize_required_audience(headers, audience)
+        .map(|_user| ())
+        .inspect_err(|status| {
+            tracing::warn!(
+                service = %service_name,
+                audience = %audience,
+                status = %status,
+                "Token lacks the service's required audience"
+            );
+        })
 }
 
 fn resource_path_for(service: &ServiceConfig, service_name: &str) -> String {
