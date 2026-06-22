@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.16.0] - 2026-06-10
+## [0.16.0] - 2026-06-22
 
-The facade re-exports the 0.16.0 surface of every member crate; see the per-crate changelogs for the breaking removals in `systemprompt-traits`, `systemprompt-extension`, and `systemprompt-mcp`.
+The facade re-exports the 0.16.0 surface of every member crate; see the per-crate changelogs for the breaking removals in `systemprompt-traits`, `systemprompt-extension`, and `systemprompt-mcp`, the structured error fields across the library crates, and the `CommandContext` rework in `systemprompt-cli`. Notable highlights surfaced through the facade:
+
+- `systemprompt::mcp::ExternalAuth` declares per-user bearer resolution for an `external` MCP server: core resolves a third-party token from a relative accessor endpoint with the user's systemprompt JWT and injects it on the outbound request, withholding the systemprompt credential. External servers are reached at their configured `remote_endpoint`.
+- `systemprompt::models::split_frontmatter` is the shared line-anchored YAML frontmatter splitter consumed by content ingestion, disk sync, and static generation.
+- JWT validation requires a first-party audience claim (`web`, `api`, `a2a`, or `mcp`); tokens minted without an audience are rejected.
 
 ### Breaking
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.0] - 2026-06-10
+## [0.16.0] - 2026-06-22
 
 ### Breaking
 
@@ -22,8 +22,10 @@
 - `systemprompt-config` gains `ProviderCatalogService` and `SecurityConfigService` for validated profile mutation; `systemprompt-database` gains `SquashBaselineService` for locating and writing squash baselines.
 - `systemprompt-agent` gains `AgentConfigAuthoringService` (agent YAML create/edit/delete with name and port validation); `systemprompt-oauth` gains `PluginTokenService` for minting plugin hook tokens from a pre-resolved subject.
 - `systemprompt-client` gains `RemoteCliExecutor` and an `OutputSink` trait for remote CLI execution over SSE.
+- `systemprompt_models::split_frontmatter` is the shared, line-anchored YAML frontmatter splitter used by the content, sync, and generator parsers.
 - `ScriptedPrompter` provides deterministic queued answers for the CLI's interactive prompts in tests.
 - `gateway.system_prompt_overrides` declares ordered rules that replace or strip a request's system prompt before it is forwarded upstream, matched first-match-wins on the resolved provider and requested model (with `foo*` / `*foo` / `*` patterns). A `replace` rule's prompt body may be inlined or loaded from a file with `!include <path>`, resolved relative to the profile directory and fail-closed on a missing file. Extensions can contribute programmatic overrides through the `register_system_prompt_override!` macro. The applied override is recorded on the request's audit row as `system_prompt_override` (e.g. `config:replace`, `extension:<name>:strip`).
+- An `external` MCP server may declare an `external_auth` block (`token_endpoint`, `header`, `scheme`) and static `headers`. At tool-call time core resolves a per-user third-party bearer by `GET`ing the relative `token_endpoint` accessor — served by an extension that banks the calling user's provider token — with the user's systemprompt JWT, then injects the returned bearer (and any static headers) onto the outbound request while withholding the systemprompt credential, so nothing internal reaches the third party. `external_auth.token_endpoint` must be a relative path; `external_auth` and `headers` are rejected on internal servers.
 
 ### Changed
 
@@ -42,6 +44,8 @@
 - Cloud-sync tar and gzip transfers run on blocking threads instead of stalling the async runtime.
 - Artifact-type resolution falls through the `"cli"` envelope tag to the data-embedded variant tag, so enveloped artifacts render with the correct UI renderer instead of being rejected as unsupported.
 - The scheduler's service stop and orphan-cleanup paths verify a stored PID still belongs to the expected child process before signalling it, instead of signalling recycled PIDs.
+- External MCP servers are now reached at their configured `remote_endpoint` for tool listing and tool calls; the internal-gateway URL is used only for internal servers.
+- YAML frontmatter parsing is line-anchored across content ingestion, disk sync, and static generation: the opening and closing `---` must each occupy a full line, so `---` sequences in the body (markdown table separators, horizontal rules) are no longer mistaken for delimiters. A frontmatter-less body containing a table-separator row is no longer truncated.
 
 ## [0.15.2] - 2026-06-08
 
