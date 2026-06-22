@@ -251,4 +251,128 @@ mod filesystem_loader_tests {
         let result = loader.load(&source).await.unwrap();
         assert_eq!(result, "Found!");
     }
+
+    #[tokio::test]
+    async fn load_absolute_file_within_base_succeeds() {
+        let dir = TempDir::new().unwrap();
+        let file_path = dir.path().join("abs.html");
+        fs::write(&file_path, "Absolute!").await.unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let canonical = fs::canonicalize(&file_path).await.unwrap();
+        let source = TemplateSource::File(canonical);
+        let result = loader.load(&source).await.unwrap();
+        assert_eq!(result, "Absolute!");
+    }
+
+    #[tokio::test]
+    async fn load_absolute_file_outside_all_bases_fails() {
+        let base = TempDir::new().unwrap();
+        let other = TempDir::new().unwrap();
+        let file_path = other.path().join("outside.html");
+        fs::write(&file_path, "Outside!").await.unwrap();
+
+        let loader = FileSystemLoader::with_path(base.path());
+        let canonical = fs::canonicalize(&file_path).await.unwrap();
+        let source = TemplateSource::File(canonical);
+        let result = loader.load(&source).await;
+        result.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn load_absolute_file_skips_nonexistent_and_mismatched_bases() {
+        let real_base = TempDir::new().unwrap();
+        let other = TempDir::new().unwrap();
+        let file_path = real_base.path().join("target.html");
+        fs::write(&file_path, "Target!").await.unwrap();
+
+        let missing = real_base.path().join("does-not-exist");
+
+        let loader = FileSystemLoader::with_path(missing)
+            .add_path(other.path())
+            .add_path(real_base.path());
+
+        let canonical = fs::canonicalize(&file_path).await.unwrap();
+        let source = TemplateSource::File(canonical);
+        let result = loader.load(&source).await.unwrap();
+        assert_eq!(result, "Target!");
+    }
+
+    #[tokio::test]
+    async fn load_directory_absolute_within_base_succeeds() {
+        let dir = TempDir::new().unwrap();
+        let templates_dir = dir.path().join("templates");
+        fs::create_dir(&templates_dir).await.unwrap();
+        fs::write(templates_dir.join("page.html"), "<h1>Page</h1>")
+            .await
+            .unwrap();
+
+        let loader = FileSystemLoader::with_path(dir.path());
+        let canonical = fs::canonicalize(&templates_dir).await.unwrap();
+        let result = loader.load_directory(canonical.as_path()).await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn load_directory_absolute_outside_base_fails() {
+        let base = TempDir::new().unwrap();
+        let other = TempDir::new().unwrap();
+
+        let loader = FileSystemLoader::with_path(base.path());
+        let canonical = fs::canonicalize(other.path()).await.unwrap();
+        let result = loader.load_directory(canonical.as_path()).await;
+        result.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn load_directory_nonexistent_relative_fails() {
+        let dir = TempDir::new().unwrap();
+        let loader = FileSystemLoader::with_path(dir.path());
+        let result = loader
+            .load_directory(PathBuf::from("missing").as_path())
+            .await;
+        result.unwrap_err();
+    }
+}
+
+mod default_method_tests {
+    use super::*;
+    use std::path::Path;
+
+    struct MinimalLoader;
+
+    #[async_trait::async_trait]
+    impl TemplateLoader for MinimalLoader {
+        async fn load(
+            &self,
+            source: &TemplateSource,
+        ) -> Result<String, systemprompt_template_provider::TemplateLoaderError> {
+            match source {
+                TemplateSource::Embedded(content) => Ok((*content).to_owned()),
+                _ => Err(systemprompt_template_provider::TemplateLoaderError::EmbeddedOnly),
+            }
+        }
+
+        fn can_load(&self, source: &TemplateSource) -> bool {
+            matches!(source, TemplateSource::Embedded(_))
+        }
+    }
+
+    #[tokio::test]
+    async fn default_load_directory_is_unsupported() {
+        let loader = MinimalLoader;
+        let result = loader.load_directory(Path::new("anything")).await;
+        result.unwrap_err();
+    }
+
+    #[tokio::test]
+    async fn minimal_loader_load_and_can_load() {
+        let loader = MinimalLoader;
+        assert_eq!(
+            loader.load(&TemplateSource::Embedded("x")).await.unwrap(),
+            "x"
+        );
+        assert!(loader.can_load(&TemplateSource::Embedded("x")));
+        assert!(!loader.can_load(&TemplateSource::File(PathBuf::from("a.html"))));
+    }
 }
