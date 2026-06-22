@@ -10,6 +10,7 @@ mod bridge_session;
 mod cleanup;
 mod client_cleanup;
 mod client_crud;
+mod client_relations;
 mod exchange_code;
 mod jti_revocation;
 mod oauth_facade;
