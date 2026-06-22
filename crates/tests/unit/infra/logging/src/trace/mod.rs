@@ -2,3 +2,4 @@
 
 mod models;
 mod queries;
+mod seeded_queries;
