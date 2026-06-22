@@ -91,6 +91,7 @@ impl TemplateProvider for MockProvider {
 pub struct MockLoader {
     load_count: AtomicUsize,
     fail_on_load: bool,
+    embedded_only: bool,
 }
 
 impl Default for MockLoader {
@@ -104,6 +105,7 @@ impl MockLoader {
         Self {
             load_count: AtomicUsize::new(0),
             fail_on_load: false,
+            embedded_only: false,
         }
     }
 
@@ -112,6 +114,16 @@ impl MockLoader {
         Self {
             load_count: AtomicUsize::new(0),
             fail_on_load: true,
+            embedded_only: false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn selective() -> Self {
+        Self {
+            load_count: AtomicUsize::new(0),
+            fail_on_load: false,
+            embedded_only: true,
         }
     }
 
@@ -144,7 +156,10 @@ impl TemplateLoader for MockLoader {
         }
     }
 
-    fn can_load(&self, _source: &TemplateSource) -> bool {
+    fn can_load(&self, source: &TemplateSource) -> bool {
+        if self.embedded_only {
+            return matches!(source, TemplateSource::Embedded(_));
+        }
         true
     }
 }

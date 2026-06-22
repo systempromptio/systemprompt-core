@@ -148,6 +148,23 @@ mod render_tests {
     }
 
     #[tokio::test]
+    async fn json_helper_without_param_fails_to_render() {
+        let mut registry = TemplateRegistry::new();
+
+        let template = TemplateDefinition::embedded("noarg", "{{{json}}}");
+        registry.register_provider(provider(MockProvider::with_templates("p", vec![template])));
+        registry.register_loader(loader(MockLoader::new()));
+        registry.initialize().await.expect("should initialize");
+
+        let data = serde_json::json!({"unused": 1});
+        let result = registry.render("noarg", &data);
+        assert!(
+            result.is_err(),
+            "json helper invoked without a parameter must error"
+        );
+    }
+
+    #[tokio::test]
     async fn render_with_conditional() {
         let mut registry = TemplateRegistry::new();
 

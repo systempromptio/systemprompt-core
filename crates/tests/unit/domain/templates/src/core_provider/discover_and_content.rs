@@ -120,6 +120,56 @@ mod discover_method_tests {
     }
 }
 
+mod non_template_file_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn non_html_files_are_ignored() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+        fs::write(temp_dir.path().join("page.html"), "<html></html>")
+            .await
+            .expect("failed to write html");
+        fs::write(temp_dir.path().join("notes.txt"), "plain text")
+            .await
+            .expect("failed to write txt");
+        fs::write(temp_dir.path().join("data.json"), "{}")
+            .await
+            .expect("failed to write json");
+        fs::write(temp_dir.path().join("extensionless"), "no ext")
+            .await
+            .expect("failed to write extensionless");
+
+        let provider = CoreTemplateProvider::discover_from(temp_dir.path())
+            .await
+            .expect("failed to discover");
+
+        let templates = provider.templates();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].name, "page");
+    }
+
+    #[tokio::test]
+    async fn nested_directory_is_not_treated_as_template() {
+        let temp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+        fs::create_dir(temp_dir.path().join("subdir.html"))
+            .await
+            .expect("failed to create dir");
+        fs::write(temp_dir.path().join("real.html"), "<html></html>")
+            .await
+            .expect("failed to write");
+
+        let provider = CoreTemplateProvider::discover_from(temp_dir.path())
+            .await
+            .expect("failed to discover");
+
+        let templates = provider.templates();
+        let names: Vec<&str> = templates.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"real"));
+    }
+}
+
 mod template_source_tests {
     use super::*;
 
