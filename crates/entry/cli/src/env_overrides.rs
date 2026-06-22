@@ -70,7 +70,16 @@ impl EnvOverrides {
             session: SessionEnv {
                 user_id: lookup("SYSTEMPROMPT_USER_ID").map(UserId::new),
                 session_id: lookup("SYSTEMPROMPT_SESSION_ID").map(SessionId::new),
-                context_id: lookup("SYSTEMPROMPT_CONTEXT_ID").map(ContextId::new),
+                context_id: lookup("SYSTEMPROMPT_CONTEXT_ID").and_then(|value| {
+                    ContextId::try_new(value)
+                        .inspect_err(|error| {
+                            tracing::warn!(
+                                error = %error,
+                                "ignoring malformed SYSTEMPROMPT_CONTEXT_ID; expected a UUID"
+                            );
+                        })
+                        .ok()
+                }),
                 auth_token: lookup("SYSTEMPROMPT_AUTH_TOKEN"),
             },
         }

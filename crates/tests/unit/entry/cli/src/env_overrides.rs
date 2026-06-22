@@ -84,7 +84,7 @@ fn from_vars_maps_session_fields() {
     let env = EnvOverrides::from_vars([
         ("SYSTEMPROMPT_USER_ID", "user-1"),
         ("SYSTEMPROMPT_SESSION_ID", "session-1"),
-        ("SYSTEMPROMPT_CONTEXT_ID", "context-1"),
+        ("SYSTEMPROMPT_CONTEXT_ID", "550e8400-e29b-41d4-a716-446655440000"),
         ("SYSTEMPROMPT_AUTH_TOKEN", "token-1"),
     ]);
     assert_eq!(env.session.user_id.as_ref().map(|v| v.as_str()), Some("user-1"));
@@ -94,9 +94,15 @@ fn from_vars_maps_session_fields() {
     );
     assert_eq!(
         env.session.context_id.as_ref().map(|v| v.as_str()),
-        Some("context-1")
+        Some("550e8400-e29b-41d4-a716-446655440000")
     );
     assert_eq!(env.session.auth_token.as_deref(), Some("token-1"));
+}
+
+#[test]
+fn from_vars_ignores_malformed_context_id() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_CONTEXT_ID", "not-a-uuid")]);
+    assert_eq!(env.session.context_id, None);
 }
 
 #[test]
