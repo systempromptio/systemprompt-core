@@ -111,6 +111,12 @@ scripts/*
 # ...except the committed shard runner, the single source of truth shared by CI
 # (.github/workflows/ci.yml) and the local `just test-shard` recipes.
 !scripts/test-shard.sh
+# ...and the source-gate linters run by CI (.github/workflows/quality.yml) via
+# the `just lint-*` recipes.
+!scripts/lint-schema.sh
+!scripts/lint-extensions.sh
+!scripts/check-sqlx.sh
+!scripts/check-http-errors.sh
 
 # Local-only review notes
 review/

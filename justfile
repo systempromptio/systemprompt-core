@@ -123,11 +123,11 @@ release BUMP="patch":
 
 # Reject imperative SQL in declarative schema files
 lint-schema:
-    ./ci/lint-schema.sh crates
+    ./scripts/lint-schema.sh crates
 
 # Reject inline SQL and hand-built migrations in extension.rs files
 lint-extensions:
-    ./ci/lint-extensions.sh crates
+    ./scripts/lint-extensions.sh crates
 
 # Check without building
 check: lint-schema lint-extensions
@@ -158,13 +158,13 @@ lint:
 
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
-    ./ci/check-sqlx.sh
+    ./scripts/check-sqlx.sh
 
 # Reject inline `map_err(|e| ApiError::ctor(...))` at HTTP call sites.
 # HTTP status mapping belongs in an entry-local error type's From impls;
 # call sites propagate with bare `?` so the variant decides the status.
 lint-http-errors:
-    ./ci/check-http-errors.sh
+    ./scripts/check-http-errors.sh
 
 # Reject UserId::admin() outside the sanctioned bootstrap call sites.
 # The sentinel is reserved for the actor model, the bootstrap CLI, the
@@ -214,7 +214,7 @@ file-size:
 # Run custom style validators
 validate:
     ./tests/validator/validate.sh
-    ./ci/check-sqlx.sh
+    ./scripts/check-sqlx.sh
 
 # Run all style checks (format + lint + validate)
 style-check:
@@ -232,10 +232,10 @@ style-check:
     ./tests/validator/validate.sh
     echo ""
     echo "4️⃣  Checking sqlx::query allowlist..."
-    ./ci/check-sqlx.sh
+    ./scripts/check-sqlx.sh
     echo ""
     echo "5️⃣  Checking HTTP error propagation..."
-    ./ci/check-http-errors.sh
+    ./scripts/check-http-errors.sh
     echo ""
     echo "6️⃣  Checking the test workspace (fmt + clippy + compile)..."
     (cd crates/tests && cargo +nightly fmt --all -- --check)
