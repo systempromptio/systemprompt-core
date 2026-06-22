@@ -10,8 +10,15 @@ use super::super::protocol::canonical_response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage, ContentBlockKind,
 };
 
-#[derive(Default)]
-pub(super) struct TapState {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug, Default)]
+pub struct TapState {
     response_id: String,
     served_model: String,
     usage: CanonicalUsage,
@@ -22,7 +29,7 @@ pub(super) struct TapState {
     pub(super) finalized: bool,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum BlockAccumulator {
     Text(String),
     Thinking {
@@ -37,17 +44,32 @@ enum BlockAccumulator {
     },
 }
 
-pub(super) struct Summary {
-    pub(super) usage: CapturedUsage,
-    pub(super) tool_calls: Vec<CapturedToolUse>,
-    pub(super) response: CanonicalResponse,
-    pub(super) final_bytes: Bytes,
-    pub(super) served_model: Option<String>,
-    pub(super) error: Option<String>,
-    pub(super) saw_stop: bool,
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct Summary {
+    pub usage: CapturedUsage,
+    pub tool_calls: Vec<CapturedToolUse>,
+    pub response: CanonicalResponse,
+    pub final_bytes: Bytes,
+    pub served_model: Option<String>,
+    pub error: Option<String>,
+    pub saw_stop: bool,
 }
 
-pub(super) fn extract_summary(state: &mut TapState) -> Summary {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn extract_summary(state: &mut TapState) -> Summary {
     let response = build_response(state);
     let usage = CapturedUsage {
         input_tokens: state.usage.input_tokens,
@@ -91,7 +113,14 @@ pub(super) fn extract_summary(state: &mut TapState) -> Summary {
     }
 }
 
-pub(super) fn snapshot(state: &TapState) -> CanonicalResponse {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn snapshot(state: &TapState) -> CanonicalResponse {
     build_response(state)
 }
 
@@ -156,7 +185,14 @@ fn start_block(state: &mut TapState, index: u32, block: &ContentBlockKind) {
     state.blocks[idx] = slot;
 }
 
-pub(super) fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
     match event {
         CanonicalEvent::MessageStart { id, model, usage } => {
             state.response_id.clone_from(id);

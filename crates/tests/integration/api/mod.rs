@@ -117,6 +117,10 @@ mod middleware_edges;
 mod gateway_extract_units;
 
 #[cfg(test)]
+#[path = "stream_tap_accumulator.rs"]
+mod stream_tap_accumulator;
+
+#[cfg(test)]
 #[path = "protocol_matrix.rs"]
 mod protocol_matrix;
 

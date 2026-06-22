@@ -3,6 +3,11 @@
 
 mod accumulator;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
+}
+
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
