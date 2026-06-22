@@ -5,6 +5,7 @@
 // HTTP bodies and persist audit rows to the migrated test DB.
 
 mod ai_service;
+mod image_service;
 
 use std::sync::Arc;
 
