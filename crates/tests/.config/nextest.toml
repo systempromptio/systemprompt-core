@@ -19,10 +19,16 @@
 # already-banned IPs, so a concurrent run's job bans another test's seeded IP first
 # and that test then observes zero newly-banned rows. Serialise the suite into one
 # slot so each test's job sees only its own seeded data.
+# The users-domain DB tests share the `users` table and its `email`/`name`
+# UNIQUE indexes. The federated-identity tests run concurrent
+# `find_or_create_federated` INSERTs whose synthetic local emails collide on
+# that index, and the user-service create/update tests churn rows another test
+# is counting. Serialise the DB-backed suite so each test owns its row mutations.
 [test-groups]
 scheduler-services-db = { max-threads = 1 }
 scheduler-jobs-db = { max-threads = 1 }
 oauth-clients-db = { max-threads = 1 }
+users-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(/state_verifier_seeded_db::/)'
@@ -47,6 +53,14 @@ test-group = 'oauth-clients-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-oauth-tests) and test(/repository::/)'
 test-group = 'oauth-clients-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
+test-group = 'users-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
+test-group = 'users-db'
 
 [profile.default]
 # A test still running after 60s is flagged slow; after 3 such periods (180s)

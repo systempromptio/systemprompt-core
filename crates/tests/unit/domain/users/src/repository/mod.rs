@@ -8,4 +8,6 @@
 //! - MergeResult struct
 
 mod banned_ip;
+mod device_cert;
+mod federated_identity;
 mod user;
