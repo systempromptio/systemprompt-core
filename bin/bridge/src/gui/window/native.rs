@@ -14,8 +14,6 @@ use crate::gui::events::UiEvent;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowAttributesExtMacOS;
 
-const WINDOW_ICON_PNG: &[u8] = include_bytes!("../../../assets/window-icon-1024.png");
-
 const DEFAULT_WIDTH: u32 = 1100;
 const DEFAULT_HEIGHT: u32 = 760;
 const MIN_WIDTH: u32 = 800;
@@ -210,7 +208,9 @@ fn allow_navigation(target: &str, legacy_origin: Option<&str>) -> bool {
 }
 
 fn decode_icon() -> Option<Icon> {
-    let img = image::load_from_memory(WINDOW_ICON_PNG).ok()?.to_rgba8();
+    let img = image::load_from_memory(crate::brand::brand().assets.window_icon_png)
+        .ok()?
+        .to_rgba8();
     let (w, h) = img.dimensions();
     Icon::from_rgba(img.into_raw(), w, h).ok()
 }

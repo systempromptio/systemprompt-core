@@ -184,7 +184,7 @@ fn decode_icon() -> GuiResult<Icon> {
 }
 
 fn decode_alert_icon() -> GuiResult<Icon> {
-    let mut img = image::load_from_memory(TRAY_ICON_PNG)?.to_rgba8();
+    let mut img = image::load_from_memory(tray_icon_png())?.to_rgba8();
     let (w, h) = img.dimensions();
     let dot_radius = (w.min(h) / 4).max(3);
     let cx = w.saturating_sub(dot_radius);
