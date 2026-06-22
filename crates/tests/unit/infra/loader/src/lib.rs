@@ -7,7 +7,11 @@ mod config_loader_discovery;
 #[cfg(test)]
 mod config_loader_errors;
 #[cfg(test)]
+mod config_loader_merge;
+#[cfg(test)]
 mod config_writer;
+#[cfg(test)]
+mod config_writer_edges;
 #[cfg(test)]
 mod error_display;
 #[cfg(test)]
