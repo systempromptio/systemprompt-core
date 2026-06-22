@@ -15,8 +15,9 @@ systemprompt-test-fixtures = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
-serde_yaml = { workspace = true }
 chrono = { workspace = true }

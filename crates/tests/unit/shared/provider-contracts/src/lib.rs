@@ -13,11 +13,23 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod component;
+#[cfg(test)]
 mod contracts_misc;
+#[cfg(test)]
+mod extender;
 #[cfg(test)]
 mod job;
 #[cfg(test)]
 mod llm;
+#[cfg(test)]
+mod page;
+#[cfg(test)]
+mod page_prerenderer;
+#[cfg(test)]
+mod sitemap;
+#[cfg(test)]
+mod support;
 #[cfg(test)]
 mod tool;
 #[cfg(test)]
