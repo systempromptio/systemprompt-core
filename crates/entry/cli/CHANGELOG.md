@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Changed
+
+- Generated profiles populate the new EMA fields (`id_jag_ttl_secs`, `TrustedIssuer` allowlists) with their defaults.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

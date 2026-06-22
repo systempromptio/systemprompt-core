@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Added
+
+- `SecurityConfig.id_jag_ttl_secs` and `Config.id_jag_ttl_secs` set the lifetime of minted ID-JAG assertions; defaults to `DEFAULT_ID_JAG_TTL_SECS` (300s).
+- `TrustedIssuer` gains `typ_allowlist`, `allowed_client_ids`, and `can_issue_id_jag` for the Enterprise-Managed Authorization (EMA) flow. All default to empty/false, so existing profile YAML is unaffected.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

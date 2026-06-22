@@ -73,7 +73,15 @@ impl Job for DatabaseCleanupJob {
             .delete_expired_oauth_jti_revocations()
             .await
             .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
-        total_deleted += oauth_codes + oauth_tokens + oauth_state_bindings + oauth_jti_revocations;
+        let id_jag_replays = cleanup_repo
+            .delete_expired_id_jag_replays()
+            .await
+            .map_err(|e| ProviderError::from(SchedulerError::from(e)))?;
+        total_deleted += oauth_codes
+            + oauth_tokens
+            + oauth_state_bindings
+            + oauth_jti_revocations
+            + id_jag_replays;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -86,6 +94,7 @@ impl Job for DatabaseCleanupJob {
             oauth_tokens = oauth_tokens,
             oauth_state_bindings = oauth_state_bindings,
             oauth_jti_revocations = oauth_jti_revocations,
+            id_jag_replays = id_jag_replays,
             duration_ms = duration_ms,
             "Job completed"
         );

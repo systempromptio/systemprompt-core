@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Added
+
+- The token endpoint issues and consumes ID-JAG assertions via RFC 8693 token exchange (Enterprise-Managed Authorization), with single-use replay rejection.
+- OAuth and MCP discovery metadata advertise `subject_token_types_supported` and `issued_token_types_supported`, and MCP protected-resource metadata advertises the EMA extension for resource-bound servers.
+
+### Fixed
+
+- A managed service's configured `audience` is now enforced against the caller's token; previously it was declared but not checked.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

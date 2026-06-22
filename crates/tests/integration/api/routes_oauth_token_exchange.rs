@@ -389,8 +389,8 @@ const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 
 /// Seed a client whose owner has a UUID-form id. The delegation path
 /// (`load_delegation_grant`) parses the owner id as a UUID, so the full
-/// exchange only completes for a UUID owner; the shared [`seeded_client`] uses a
-/// prefixed id that only the error-path tests reach.
+/// exchange only completes for a UUID owner; the shared [`seeded_client`] uses
+/// a prefixed id that only the error-path tests reach.
 async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
     let b = ensure_test_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
@@ -469,7 +469,10 @@ async fn id_jag_replay_is_rejected() -> anyhow::Result<()> {
     let second = app.oneshot(form_post("/token", form())).await?;
     let status = second.status();
     let v = read_json(second).await?;
-    assert!(status.is_client_error(), "replay must be 4xx, got {status} {v}");
+    assert!(
+        status.is_client_error(),
+        "replay must be 4xx, got {status} {v}"
+    );
     assert_eq!(v["error"].as_str(), Some("invalid_grant"), "{v}");
     Ok(())
 }

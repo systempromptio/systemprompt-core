@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Changed
+
+- The database-cleanup job also prunes expired ID-JAG replay rows.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

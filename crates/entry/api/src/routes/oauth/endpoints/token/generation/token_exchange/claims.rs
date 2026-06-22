@@ -9,11 +9,7 @@ use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
 use super::super::super::TokenError;
 
-// Requested permissions are filtered to those that exist in the subject
-// token, the client's scope grant, and the client owner's role set. An
-// empty client scope is treated as "no restriction beyond owner".
-// Returned in descending hierarchy order. Errors with invalid_scope when
-// the intersection is empty.
+// An empty client scope is treated as "no restriction beyond owner".
 pub fn intersect_scopes(
     requested: &[Permission],
     subject_scope: &[Permission],

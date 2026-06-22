@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Added
+
+- Re-exports the ID-JAG / Enterprise-Managed Authorization surface added in `systemprompt-oauth` and `systemprompt-models` 0.16.1.
+
 ## [0.16.0] - 2026-06-22
 
 The facade re-exports the 0.16.0 surface of every member crate; see the per-crate changelogs for the breaking removals in `systemprompt-traits`, `systemprompt-extension`, and `systemprompt-mcp`, the structured error fields across the library crates, and the `CommandContext` rework in `systemprompt-cli`. Notable highlights surfaced through the facade:

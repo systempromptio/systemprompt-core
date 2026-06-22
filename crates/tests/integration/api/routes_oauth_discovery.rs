@@ -140,7 +140,10 @@ async fn well_known_advertises_token_exchange_and_id_jag() -> anyhow::Result<()>
             .any(|g| g == "urn:ietf:params:oauth:grant-type:token-exchange"),
         "token-exchange grant must be advertised: {json}"
     );
-    for field in ["subject_token_types_supported", "issued_token_types_supported"] {
+    for field in [
+        "subject_token_types_supported",
+        "issued_token_types_supported",
+    ] {
         let types = json[field].as_array().expect("token-type array");
         assert!(
             types

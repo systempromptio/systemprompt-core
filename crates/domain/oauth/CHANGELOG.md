@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Added
+
+- ID-JAG (Identity Assertion JWT Authorization Grant) support for the Enterprise-Managed Authorization flow: `mint_id_jag` / `IdJagGrant` for the issuer role and `IdJagClaims`, `ClaimPolicy`, `validate_claims`, `validate_typ`, and `IdJagError` for the resource-server consume path.
+- `OAuthRepository::consume_id_jag_jti` records an assertion's `jti` for single-use replay rejection.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

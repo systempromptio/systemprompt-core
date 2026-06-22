@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Changed
+
+- Authored tenant profiles populate the new `SecurityConfig.id_jag_ttl_secs` field with its default.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

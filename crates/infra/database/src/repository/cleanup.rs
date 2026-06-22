@@ -92,4 +92,11 @@ impl CleanupRepository {
             .await?;
         Ok(result.rows_affected())
     }
+
+    pub async fn delete_expired_id_jag_replays(&self) -> DatabaseResult<u64> {
+        let result = sqlx::query!("DELETE FROM id_jag_replay WHERE expires_at < NOW()")
+            .execute(&self.write_pool)
+            .await?;
+        Ok(result.rows_affected())
+    }
 }
