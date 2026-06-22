@@ -8,9 +8,17 @@
 - Error enum tuple variants that wrapped a bare message string are now struct variants with a named `message` field; match arms and constructors change from `Error::Foo(msg)` to `Error::Foo { message: msg }`.
 - The minimum supported Rust version is 1.88.
 
+### Added
+
+- External MCP servers resolve a per-user third-party bearer from an extension-served accessor (`external_auth.token_endpoint`) and inject it on the configured header, replacing the systemprompt credential so nothing internal reaches the third party. Static `headers` configured on the server are also forwarded.
+
 ### Changed
 
 - Over-long functions were split into focused helpers to satisfy the workspace's 75-line function ceiling. No behavioural or API change.
+
+### Fixed
+
+- External MCP servers are now reached at their configured remote endpoint for tool calls instead of the internally-derived gateway URL.
 
 ## [0.14.0] - 2026-06-01
 

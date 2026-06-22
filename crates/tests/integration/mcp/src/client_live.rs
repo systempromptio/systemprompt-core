@@ -48,6 +48,8 @@ fn external_config(name: &str, remote_endpoint: &str) -> McpServerConfig {
         module_name: "mcp".to_owned(),
         protocol: "mcp".to_owned(),
         remote_endpoint: remote_endpoint.to_owned(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 

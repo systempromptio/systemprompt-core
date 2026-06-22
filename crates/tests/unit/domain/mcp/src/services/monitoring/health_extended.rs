@@ -39,6 +39,8 @@ fn config(name: &str) -> McpServerConfig {
         module_name: "mcp".to_owned(),
         protocol: "mcp".to_owned(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 

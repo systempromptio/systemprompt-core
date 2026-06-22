@@ -52,6 +52,8 @@ fn make_config(
         module_name: "mcp".to_owned(),
         protocol: "mcp".to_owned(),
         remote_endpoint: endpoint.to_owned(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 

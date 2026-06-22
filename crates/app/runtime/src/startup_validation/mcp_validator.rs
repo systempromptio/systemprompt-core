@@ -1,5 +1,6 @@
 use std::path::Path;
 use systemprompt_loader::ExtensionRegistry as McpExtensionRegistry;
+use systemprompt_models::mcp::McpServerType;
 use systemprompt_models::{Config, ServicesConfig};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
@@ -22,6 +23,11 @@ pub(super) fn validate_mcp_manifests(
             continue;
         }
         if deployment.dev_only && config.is_cloud {
+            continue;
+        }
+        // External servers carry an empty `binary` and are reached at their
+        // endpoint; only Internal servers resolve to an extension manifest.
+        if !matches!(deployment.server_type, McpServerType::Internal) {
             continue;
         }
 

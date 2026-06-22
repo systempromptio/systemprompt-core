@@ -31,6 +31,9 @@ domain_error! {
         #[error("Authentication required for {0}")]
         AuthRequired(String),
 
+        #[error("External MCP auth unavailable for {server}: {message}")]
+        ExternalAuthUnavailable { server: String, message: String },
+
         #[error("Manifest error: {0}")]
         Manifest(String),
 

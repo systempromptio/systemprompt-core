@@ -116,20 +116,94 @@ pub struct Deployment {
     pub model_config: Option<ToolModelConfig>,
     #[serde(default)]
     pub env_vars: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_auth: Option<ExternalAuth>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub headers: HashMap<String, String>,
+}
+
+/// Per-user bearer resolution for an `external` MCP server.
+///
+/// The MCP gateway exposes no token vault of its own; instead an extension
+/// banks the calling user's third-party token and serves it from
+/// `token_endpoint`. At tool-call time core `GET`s that accessor with the
+/// user's systemprompt JWT and injects the returned bearer onto `header` (as
+/// `{scheme} {token}`), replacing the systemprompt credential so nothing
+/// internal reaches the third party.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExternalAuth {
+    pub token_endpoint: String,
+    #[serde(default = "default_auth_header")]
+    pub header: String,
+    #[serde(default = "default_auth_scheme")]
+    pub scheme: String,
+}
+
+fn default_auth_header() -> String {
+    "Authorization".to_owned()
+}
+
+fn default_auth_scheme() -> String {
+    "Bearer".to_owned()
+}
+
+impl ExternalAuth {
+    /// The value to send on [`Self::header`] for `bearer`: `"{scheme}
+    /// {token}"`, or the raw token when `scheme` is empty (providers that
+    /// expect a bare credential, e.g. an `X-Api-Key`).
+    pub fn header_value(&self, bearer: &str) -> String {
+        if self.scheme.trim().is_empty() {
+            bearer.to_owned()
+        } else {
+            format!("{} {bearer}", self.scheme)
+        }
+    }
 }
 
 impl Deployment {
     pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
-        if matches!(self.server_type, McpServerType::Internal)
-            && let Some(ep) = self.endpoint.as_deref()
-            && (ep.starts_with("http://") || ep.starts_with("https://"))
-        {
-            return Err(ConfigValidationError::invalid_field(format!(
-                "MCP server '{name}': endpoint must be a relative path (e.g. \
+        if matches!(self.server_type, McpServerType::Internal) {
+            if let Some(ep) = self.endpoint.as_deref()
+                && (ep.starts_with("http://") || ep.starts_with("https://"))
+            {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': endpoint must be a relative path (e.g. \
                          /api/v1/mcp/{name}/mcp) or omitted; the host is derived from \
                          server.api_external_url. Remove the scheme+host prefix."
-            )));
+                )));
+            }
+            if self.external_auth.is_some() || !self.headers.is_empty() {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': external_auth and headers are only valid on \
+                         external servers; internal servers are reached through the gateway \
+                         with the systemprompt credential."
+                )));
+            }
         }
+
+        if let Some(ext) = self.external_auth.as_ref() {
+            if ext.token_endpoint.starts_with("http://")
+                || ext.token_endpoint.starts_with("https://")
+            {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': external_auth.token_endpoint must be a relative \
+                         path (e.g. /api/public/<provider>/token); the host is derived from \
+                         server.api_external_url. Remove the scheme+host prefix."
+                )));
+            }
+            if !ext.token_endpoint.starts_with('/') {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': external_auth.token_endpoint must be an absolute \
+                         path beginning with '/'."
+                )));
+            }
+            if ext.header.trim().is_empty() {
+                return Err(ConfigValidationError::invalid_field(format!(
+                    "MCP server '{name}': external_auth.header must not be empty."
+                )));
+            }
+        }
+
         Ok(())
     }
 }

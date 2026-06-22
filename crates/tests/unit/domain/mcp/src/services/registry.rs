@@ -34,6 +34,8 @@ fn make_internal_server(name: &str, port: u16) -> McpServerConfig {
         module_name: "mcp".to_string(),
         protocol: "mcp".to_string(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 
@@ -65,6 +67,8 @@ fn make_external_server(name: &str, endpoint: &str) -> McpServerConfig {
         module_name: "mcp".to_string(),
         protocol: "mcp".to_string(),
         remote_endpoint: endpoint.to_string(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 

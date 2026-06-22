@@ -79,6 +79,8 @@ impl RegistryService {
                 module_name: "mcp".to_owned(),
                 protocol: "mcp".to_owned(),
                 remote_endpoint: deployment.endpoint.clone().unwrap_or_default(),
+                external_auth: deployment.external_auth.clone(),
+                headers: deployment.headers.clone(),
             };
             enabled.push(config);
         }

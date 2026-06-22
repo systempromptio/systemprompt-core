@@ -44,6 +44,10 @@ pub struct McpServerConfig {
     pub protocol: String,
     #[serde(default)]
     pub remote_endpoint: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_auth: Option<super::deployment::ExternalAuth>,
+    #[serde(default)]
+    pub headers: HashMap<String, String>,
 }
 
 fn serialize_path<S>(path: &Path, serializer: S) -> Result<S::Ok, S::Error>
@@ -64,6 +68,14 @@ where
 impl McpServerConfig {
     pub fn endpoint(&self, api_server_url: &str) -> String {
         format!("{}/api/v1/mcp/{}/mcp", api_server_url, self.name)
+    }
+
+    pub fn call_url(&self, api_server_url: &str) -> String {
+        if self.is_external() {
+            self.remote_endpoint.clone()
+        } else {
+            self.endpoint(api_server_url)
+        }
     }
 
     pub const fn is_internal(&self) -> bool {

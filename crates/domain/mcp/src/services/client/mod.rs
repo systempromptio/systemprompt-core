@@ -17,6 +17,7 @@ use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_TIMEOUT};
 use tokio::time::timeout;
 
+mod external_auth;
 mod http_client_with_context;
 mod types;
 mod validation;
@@ -70,25 +71,7 @@ impl McpClient {
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
         let service_id = server_config.name.as_str();
-        let url = server_config.endpoint(&Config::get()?.api_server_url);
-        let url = rewrite_url_for_internal_use(&url);
-        let requires_auth = server_config.oauth.required;
-
-        let client = HttpClientWithContext::new(context.clone());
-        let transport = if requires_auth {
-            let user_token = context.auth_token();
-            if user_token.as_str().is_empty() {
-                return Err(crate::error::McpDomainError::AuthRequired(
-                    "User JWT required for authenticated MCP calls".to_owned(),
-                ));
-            }
-            let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-                .auth_header(format!("Bearer {}", user_token.as_str()));
-            StreamableHttpClientTransport::with_client(client, config)
-        } else {
-            let config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
-            StreamableHttpClientTransport::with_client(client, config)
-        };
+        let transport = build_transport(server_config, context).await?;
 
         let client_info = ClientInfo::new(
             ClientCapabilities::default(),
@@ -148,35 +131,54 @@ impl McpClient {
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<systemprompt_models::CallToolResult> {
         let service_name = server_config.name.as_str();
-        let url = server_config.endpoint(&Config::get()?.api_server_url);
-        let url = rewrite_url_for_internal_use(&url);
-
-        let transport = build_transport(&url, server_config.oauth.required, context)?;
+        let transport = build_transport(server_config, context).await?;
         execute_tool_call(transport, service_name, &name, arguments).await
     }
 }
 
-fn build_transport(
-    url: &str,
-    requires_auth: bool,
+async fn build_transport(
+    server_config: &systemprompt_models::mcp::McpServerConfig,
     context: &systemprompt_models::RequestContext,
 ) -> McpDomainResult<StreamableHttpClientTransport<HttpClientWithContext>> {
-    let client = HttpClientWithContext::new(context.clone());
-
-    if requires_auth {
-        let user_token = context.auth_token();
-        if user_token.as_str().is_empty() {
-            return Err(crate::error::McpDomainError::AuthRequired(
-                "User JWT required for authenticated MCP calls".to_owned(),
-            ));
-        }
-        let config = StreamableHttpClientTransportConfig::with_uri(url)
-            .auth_header(format!("Bearer {}", user_token.as_str()));
-        Ok(StreamableHttpClientTransport::with_client(client, config))
+    let raw_url = server_config.call_url(&Config::get()?.api_server_url);
+    let url = if server_config.is_external() {
+        raw_url
     } else {
-        let config = StreamableHttpClientTransportConfig::with_uri(url);
-        Ok(StreamableHttpClientTransport::with_client(client, config))
-    }
+        rewrite_url_for_internal_use(&raw_url)
+    };
+
+    let mut transport_config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
+
+    let client = if let Some(ext) = server_config.external_auth.as_ref() {
+        let bearer =
+            external_auth::resolve_external_bearer(ext, context, &server_config.name).await?;
+        let outbound = external_auth::outbound_headers(
+            ext,
+            &bearer,
+            &server_config.headers,
+            &server_config.name,
+        )?;
+        HttpClientWithContext::external(context.clone(), outbound)
+    } else {
+        if server_config.oauth.required {
+            let user_token = context.auth_token();
+            if user_token.as_str().is_empty() {
+                return Err(crate::error::McpDomainError::AuthRequired(
+                    "User JWT required for authenticated MCP calls".to_owned(),
+                ));
+            }
+            transport_config =
+                transport_config.auth_header(format!("Bearer {}", user_token.as_str()));
+        }
+        let outbound =
+            external_auth::static_outbound_headers(&server_config.headers, &server_config.name)?;
+        HttpClientWithContext::forwarding(context.clone(), outbound)
+    };
+
+    Ok(StreamableHttpClientTransport::with_client(
+        client,
+        transport_config,
+    ))
 }
 
 pub(crate) async fn execute_tool_call(

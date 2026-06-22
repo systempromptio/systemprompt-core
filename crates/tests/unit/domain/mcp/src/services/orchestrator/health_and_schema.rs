@@ -346,5 +346,7 @@ fn test_mcp_config(name: &str) -> systemprompt_models::mcp::McpServerConfig {
         module_name: "test".to_string(),
         protocol: "sse".to_string(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }

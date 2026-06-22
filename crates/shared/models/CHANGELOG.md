@@ -10,6 +10,7 @@
 ### Added
 
 - `services::frontmatter::split_frontmatter` and `Frontmatter`: line-anchored YAML frontmatter splitting, the canonical parser for every frontmatter consumer in the workspace.
+- `mcp::ExternalAuth` plus `Deployment.external_auth`/`headers` and `McpServerConfig.external_auth`/`headers`: an external MCP server declares a relative `token_endpoint` accessor from which core resolves a per-user third-party bearer to inject in place of the systemprompt credential. `McpServerConfig::call_url` returns the configured remote endpoint for external servers and the gateway-derived URL otherwise. `external_auth`/`headers` are rejected on `internal` servers at config-load time.
 
 ### Fixed
 

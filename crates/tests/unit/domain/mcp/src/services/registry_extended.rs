@@ -34,6 +34,8 @@ fn make_internal(name: &str, port: u16) -> McpServerConfig {
         module_name: "mcp".to_owned(),
         protocol: "mcp".to_owned(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 
@@ -65,6 +67,8 @@ fn make_external(name: &str, endpoint: &str) -> McpServerConfig {
         module_name: "mcp".to_owned(),
         protocol: "mcp".to_owned(),
         remote_endpoint: endpoint.to_owned(),
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 

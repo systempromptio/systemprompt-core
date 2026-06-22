@@ -131,6 +131,8 @@ fn get_production_mcp_binary_names_excludes_dev_only() {
             tools: std::collections::HashMap::new(),
             model_config: None,
             env_vars: vec![],
+            external_auth: None,
+            headers: Default::default(),
         },
     );
 

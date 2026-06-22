@@ -19,7 +19,9 @@ pub use capabilities::{
     McpResourceUiMeta, ToolVisibility, default_visibility, model_only_visibility,
     visibility_to_json,
 };
-pub use deployment::{Deployment, DeploymentConfig, McpServerType, OAuthRequirement, Settings};
+pub use deployment::{
+    Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
+};
 pub use registry::RegistryConfig;
 pub use registry_trait::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,

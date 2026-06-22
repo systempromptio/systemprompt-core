@@ -67,6 +67,8 @@ fn make_deployment(_name: &str, enabled: bool, endpoint: Option<&str>) -> Deploy
         tools: HashMap::new(),
         model_config: None,
         env_vars: vec![],
+        external_auth: None,
+        headers: Default::default(),
     }
 }
 

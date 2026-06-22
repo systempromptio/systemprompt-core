@@ -233,6 +233,8 @@ async fn test_get_all_service_status_unreachable() {
         module_name: "mcp".to_owned(),
         protocol: "mcp".to_owned(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: Default::default(),
     };
     let map = get_all_service_status(&[config]).await.unwrap();
     assert_eq!(map.len(), 1);

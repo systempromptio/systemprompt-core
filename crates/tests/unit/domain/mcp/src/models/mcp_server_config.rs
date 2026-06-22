@@ -35,6 +35,8 @@ fn create_test_config() -> McpServerConfig {
         module_name: "mcp".to_string(),
         protocol: "mcp".to_string(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: HashMap::new(),
     }
 }
 
@@ -45,6 +47,27 @@ fn test_mcp_server_config_endpoint() {
     assert_eq!(
         endpoint,
         "http://localhost:3000/api/v1/mcp/test-service/mcp"
+    );
+}
+
+#[test]
+fn call_url_internal_uses_gateway_endpoint() {
+    let config = create_test_config();
+    assert_eq!(
+        config.call_url("http://localhost:3000"),
+        "http://localhost:3000/api/v1/mcp/test-service/mcp"
+    );
+}
+
+#[test]
+fn call_url_external_uses_remote_endpoint() {
+    let mut config = create_test_config();
+    config.server_type = systemprompt_models::mcp::McpServerType::External;
+    config.remote_endpoint = "https://api.salesforce.com/platform/mcp/v1".to_string();
+
+    assert_eq!(
+        config.call_url("http://localhost:3000"),
+        "https://api.salesforce.com/platform/mcp/v1"
     );
 }
 

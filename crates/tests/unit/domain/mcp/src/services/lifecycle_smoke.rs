@@ -65,6 +65,8 @@ async fn make_orchestrator() -> Option<(LifecycleOrchestrator, McpServerConfig)>
         module_name: "mcp".to_string(),
         protocol: "mcp".to_string(),
         remote_endpoint: String::new(),
+        external_auth: None,
+        headers: Default::default(),
     };
 
     Some((lifecycle, config))

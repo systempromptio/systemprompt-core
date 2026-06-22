@@ -30,10 +30,40 @@ use systemprompt_traits::ContextPropagation;
 pub struct HttpClientWithContext {
     client: reqwest::Client,
     context: RequestContext,
+    forward_context: bool,
+    outbound_headers: HashMap<HeaderName, HeaderValue>,
 }
 
 impl HttpClientWithContext {
     pub fn new(context: RequestContext) -> Self {
+        Self::build(context, true, HashMap::new())
+    }
+
+    /// Client for a third-party external MCP server: the systemprompt JWT and
+    /// `x-systemprompt-*` context headers are withheld so nothing internal
+    /// reaches the third party; only `outbound_headers` (the resolved per-user
+    /// bearer plus any static configured headers) are sent.
+    pub fn external(
+        context: RequestContext,
+        outbound_headers: HashMap<HeaderName, HeaderValue>,
+    ) -> Self {
+        Self::build(context, false, outbound_headers)
+    }
+
+    /// Client that forwards the systemprompt context and credential (internal /
+    /// managed servers) while also sending any static configured headers.
+    pub fn forwarding(
+        context: RequestContext,
+        outbound_headers: HashMap<HeaderName, HeaderValue>,
+    ) -> Self {
+        Self::build(context, true, outbound_headers)
+    }
+
+    fn build(
+        context: RequestContext,
+        forward_context: bool,
+        outbound_headers: HashMap<HeaderName, HeaderValue>,
+    ) -> Self {
         let client = reqwest::Client::builder()
             .connect_timeout(HTTP_STREAM_CONNECT_TIMEOUT)
             .tcp_keepalive(Some(HTTP_KEEPALIVE))
@@ -41,20 +71,30 @@ impl HttpClientWithContext {
             .build()
             .unwrap_or_else(|_| reqwest::Client::default());
 
-        Self { client, context }
+        Self {
+            client,
+            context,
+            forward_context,
+            outbound_headers,
+        }
     }
 
     fn add_context_headers(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        let headers = self.context.to_headers();
         let mut builder = builder;
 
-        for (key, value) in &headers {
-            builder = builder.header(key, value);
+        if self.forward_context {
+            for (key, value) in &self.context.to_headers() {
+                builder = builder.header(key, value);
+            }
+
+            if !self.context.auth_token().as_str().is_empty() {
+                let auth_header = format!("Bearer {}", self.context.auth_token().as_str());
+                builder = builder.header("Authorization", &auth_header);
+            }
         }
 
-        if !self.context.auth_token().as_str().is_empty() {
-            let auth_header = format!("Bearer {}", self.context.auth_token().as_str());
-            builder = builder.header("Authorization", &auth_header);
+        for (key, value) in &self.outbound_headers {
+            builder = builder.header(key, value);
         }
 
         builder
