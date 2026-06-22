@@ -35,6 +35,12 @@ mod artifacts;
 mod artifacts_extended;
 
 #[cfg(test)]
+mod artifacts_media;
+
+#[cfg(test)]
+mod ai_tool_call;
+
+#[cfg(test)]
 mod message_artifact;
 
 #[cfg(test)]
