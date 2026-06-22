@@ -87,9 +87,15 @@ fn from_vars_maps_session_fields() {
         ("SYSTEMPROMPT_CONTEXT_ID", "context-1"),
         ("SYSTEMPROMPT_AUTH_TOKEN", "token-1"),
     ]);
-    assert_eq!(env.session.user_id.as_deref(), Some("user-1"));
-    assert_eq!(env.session.session_id.as_deref(), Some("session-1"));
-    assert_eq!(env.session.context_id.as_deref(), Some("context-1"));
+    assert_eq!(env.session.user_id.as_ref().map(|v| v.as_str()), Some("user-1"));
+    assert_eq!(
+        env.session.session_id.as_ref().map(|v| v.as_str()),
+        Some("session-1")
+    );
+    assert_eq!(
+        env.session.context_id.as_ref().map(|v| v.as_str()),
+        Some("context-1")
+    );
     assert_eq!(env.session.auth_token.as_deref(), Some("token-1"));
 }
 
