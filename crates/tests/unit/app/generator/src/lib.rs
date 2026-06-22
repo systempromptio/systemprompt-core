@@ -45,6 +45,8 @@ mod sitemap;
 #[cfg(test)]
 mod sitemap_alternates_tests;
 #[cfg(test)]
+mod sitemap_generator_db;
+#[cfg(test)]
 mod sitemap_provider_tests;
 #[cfg(test)]
 mod sitemap_tests;
