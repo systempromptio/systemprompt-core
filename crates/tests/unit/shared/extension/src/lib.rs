@@ -3,9 +3,13 @@ mod any;
 #[cfg(test)]
 mod asset;
 #[cfg(test)]
+mod build;
+#[cfg(test)]
 mod builder;
 #[cfg(test)]
 mod capabilities;
+#[cfg(test)]
+mod discovery;
 #[cfg(test)]
 mod error;
 #[cfg(test)]
@@ -20,6 +24,10 @@ mod metadata;
 mod migration;
 #[cfg(test)]
 mod registry;
+#[cfg(test)]
+mod registry_queries;
+#[cfg(test)]
+mod registry_validation;
 #[cfg(test)]
 mod router;
 #[cfg(test)]
