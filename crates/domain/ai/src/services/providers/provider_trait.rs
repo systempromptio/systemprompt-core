@@ -5,10 +5,9 @@
 //! grounding, and streaming. The borrowed parameter structs
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
 //! [`StructuredGenerationParams`], [`SearchGenerationParams`],
-//! [`ToolResultsParams`]) keep large call signatures readable, and
-//! Per-model cost rates come from the registry's
-//! [`systemprompt_models::services::ai::ModelPricing`] (per-million tokens),
-//! re-exported here as the single pricing type for usage accounting.
+//! [`ToolResultsParams`]) keep large call signatures readable.
+//! [`systemprompt_models::services::ai::ModelPricing`] is re-exported here as
+//! the single pricing type for usage accounting.
 
 use crate::error::Result;
 use crate::models::ai::{

@@ -12,8 +12,6 @@ pub(super) fn hex_lower(bytes: &[u8]) -> String {
 }
 
 pub(super) const fn severity_to_level(severity_number: i32) -> LogLevel {
-    // OTel severity_number: 1-4=TRACE, 5-8=DEBUG, 9-12=INFO, 13-16=WARN,
-    // 17-24=ERROR
     match severity_number {
         ..=4 => LogLevel::Trace,
         5..=8 => LogLevel::Debug,
