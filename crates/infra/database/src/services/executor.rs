@@ -133,7 +133,7 @@ impl<'a> Splitter<'a> {
         }
     }
 
-    fn step_line_comment(&mut self) -> SplitState {
+    const fn step_line_comment(&mut self) -> SplitState {
         let next = if self.bytes[self.i] == b'\n' {
             SplitState::Normal
         } else {
