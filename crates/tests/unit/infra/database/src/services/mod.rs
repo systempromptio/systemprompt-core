@@ -1,6 +1,9 @@
 mod connection;
 mod conversion;
 mod database;
+mod db_helper;
 mod display;
 mod executor;
+mod introspection;
 mod schema_linter;
+mod transaction;
