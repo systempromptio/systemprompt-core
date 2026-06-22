@@ -193,6 +193,121 @@ fn load_skills_sorted_alphabetically() {
 }
 
 #[test]
+fn load_skills_reads_content_file_strips_frontmatter_and_hashes() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("my-skill");
+    fs::create_dir_all(&skill_dir).expect("create skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: my_skill\nname: My Skill\ndescription: a desc\nenabled: true\ntags:\n  - alpha\n  - beta\n",
+    )
+    .expect("write config");
+    fs::write(
+        skill_dir.join("index.md"),
+        "---\ntitle: ignored\n---\nReal body here.\n",
+    )
+    .expect("write content");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(skills.len(), 1);
+    let s = &skills[0];
+    assert_eq!(s.instructions, "Real body here.", "frontmatter stripped");
+    assert_eq!(s.description, "a desc");
+    assert_eq!(s.tags, vec!["alpha".to_owned(), "beta".to_owned()]);
+    assert!(
+        s.file_path.ends_with("index.md"),
+        "file_path points at the content file",
+    );
+
+    use sha2::{Digest, Sha256};
+    let expected: String = Sha256::digest(s.instructions.as_bytes())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    assert_eq!(
+        s.sha256.as_str(),
+        expected,
+        "sha256 hashes the stripped instructions",
+    );
+}
+
+#[test]
+fn load_skills_empty_name_derives_display_from_dir() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("my_named_skill");
+    fs::create_dir_all(&skill_dir).expect("create skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: my_named_skill\nname: \"\"\ndescription: d\nenabled: true\n",
+    )
+    .expect("write config");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(skills.len(), 1);
+    assert_eq!(
+        skills[0].name.as_str(),
+        "my named skill",
+        "an empty name falls back to the dir name with underscores spaced",
+    );
+}
+
+#[test]
+fn load_skills_missing_content_file_yields_empty_instructions() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("bare-skill");
+    fs::create_dir_all(&skill_dir).expect("create skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: bare_skill\nname: Bare\ndescription: d\nenabled: true\n",
+    )
+    .expect("write config");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(skills.len(), 1);
+    assert_eq!(
+        skills[0].instructions, "",
+        "absent content file yields empty instructions",
+    );
+}
+
+#[test]
+fn load_skills_invalid_config_is_skipped_not_fatal() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let good = dir.path().join("skills").join("good");
+    let bad = dir.path().join("skills").join("bad");
+    fs::create_dir_all(&good).expect("create good");
+    fs::create_dir_all(&bad).expect("create bad");
+    fs::write(
+        good.join("config.yaml"),
+        "id: good\nname: Good\ndescription: d\nenabled: true\n",
+    )
+    .expect("write good config");
+    fs::write(bad.join("config.yaml"), "this: [is, not, valid").expect("write bad config");
+
+    let skills = load_skills(dir.path()).expect("an unparseable skill is skipped, not fatal");
+    assert_eq!(skills.len(), 1);
+    assert_eq!(skills[0].id.as_str(), "good");
+}
+
+#[test]
+fn load_skills_custom_content_file_honoured() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("custom");
+    fs::create_dir_all(&skill_dir).expect("create skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: custom\nname: Custom\ndescription: d\nenabled: true\nfile: PROMPT.md\n",
+    )
+    .expect("write config");
+    fs::write(skill_dir.join("PROMPT.md"), "custom body\n").expect("write custom content");
+
+    let skills = load_skills(dir.path()).expect("load skills");
+    assert_eq!(skills.len(), 1);
+    assert_eq!(skills[0].instructions, "custom body\n");
+    assert!(skills[0].file_path.ends_with("PROMPT.md"));
+}
+
+#[test]
 fn load_hooks_no_hooks_dir_returns_empty() {
     let dir = tempfile::tempdir().expect("temp dir");
     let result = load_hooks(dir.path()).expect("no error when hooks dir absent");

@@ -1,15 +1,15 @@
 use std::path::Path;
 
-use systemprompt_identifiers::{AgentId, AgentName, PluginId};
+use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
 use systemprompt_marketplace::bundle::{BundleContent, build_plugin_bundle, bundle_has_content};
 use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
-use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
-use systemprompt_models::bridge::manifest::{AgentEntry, SkillEntry};
+use systemprompt_models::bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer, SkillEntry};
 use systemprompt_models::bridge::plugin_bundle::{
     PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
 };
 use systemprompt_models::services::{
-    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig, ServicesConfig,
+    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig, PluginScript, ServicesConfig,
 };
 
 use crate::helpers::{config_with, include, marketplace};
@@ -27,6 +27,23 @@ fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
         tags: vec![],
         sha256: zero_digest(),
         instructions: instructions.to_owned(),
+    }
+}
+
+fn skill_entry_at(id: &str, description: &str, instructions: &str, file_path: &str) -> SkillEntry {
+    let mut e = skill_entry(id, description, instructions);
+    e.file_path = file_path.to_owned();
+    e
+}
+
+fn mcp_server(name: &str, url: &str) -> ManagedMcpServer {
+    ManagedMcpServer {
+        name: ManagedMcpServerName::try_new(name).expect("mcp name"),
+        url: ValidatedUrl::try_new(url).expect("mcp url"),
+        transport: Some("http".to_owned()),
+        headers: None,
+        oauth: None,
+        tool_policy: None,
     }
 }
 
@@ -350,4 +367,263 @@ fn manifest_entries_hash_the_served_bytes() {
             assert_eq!(file.size, served.bytes.len() as u64);
         }
     }
+}
+
+#[test]
+fn skill_md_carries_frontmatter_and_escapes_quotes() {
+    let skills = vec![skill_entry(
+        "quote_skill",
+        "a \"quoted\" desc",
+        "  trim me  ",
+    )];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config(
+        "p",
+        explicit(&["quote_skill"]),
+        PluginComponentRef::default(),
+    );
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let md = String::from_utf8(bundle["skills/quote-skill/SKILL.md"].bytes.clone())
+        .expect("utf8 SKILL.md");
+    assert_eq!(
+        md, "---\nname: quote-skill\ndescription: \"a \\\"quoted\\\" desc\"\n---\n\ntrim me\n",
+        "SKILL.md must carry escaped description and trimmed instructions",
+    );
+}
+
+#[test]
+fn agent_referenced_skills_are_pulled_into_bundle() {
+    let skills = vec![
+        skill_entry("base_skill", "b", "body"),
+        skill_entry("agent_skill", "a", "agent body"),
+    ];
+    let mut agent = agent_entry("dev", "dev agent", None);
+    agent.skills = explicit(&["agent_skill"]);
+    let agents = vec![agent];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &agents,
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config("p", explicit(&["base_skill"]), explicit(&["dev"]));
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    assert!(
+        bundle.contains_key("skills/base-skill/SKILL.md"),
+        "explicitly-included skill present",
+    );
+    assert!(
+        bundle.contains_key("skills/agent-skill/SKILL.md"),
+        "skill referenced via a selected agent is pulled in",
+    );
+}
+
+#[test]
+fn invalid_explicit_skill_id_is_ignored() {
+    let skills = vec![skill_entry("good_skill", "g", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config(
+        "p",
+        explicit(&["good_skill", ""]),
+        PluginComponentRef::default(),
+    );
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    assert!(bundle.contains_key("skills/good-skill/SKILL.md"));
+    assert!(
+        bundle_has_content(&bundle),
+        "an invalid id is skipped without aborting the bundle",
+    );
+}
+
+#[test]
+fn aux_files_are_collected_and_executable_bit_set() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("aux-skill");
+    let scripts_dir = skill_dir.join("scripts");
+    let nested = scripts_dir.join("nested");
+    std::fs::create_dir_all(&nested).expect("create dirs");
+    std::fs::write(scripts_dir.join("run.sh"), b"#!/bin/sh\necho hi\n").expect("write sh");
+    std::fs::write(scripts_dir.join("notes.txt"), b"plain text").expect("write txt");
+    std::fs::write(scripts_dir.join("logo.png"), b"\x89PNG binary").expect("write png");
+    std::fs::write(scripts_dir.join(".hidden"), b"skip me").expect("write hidden");
+    std::fs::write(nested.join("deep.py"), b"print('hi')\n").expect("write py");
+    let pycache = scripts_dir.join("__pycache__");
+    std::fs::create_dir_all(&pycache).expect("create pycache");
+    std::fs::write(pycache.join("x.txt"), b"ignored").expect("write pycache");
+
+    let skill_md_path = skill_dir.join("SKILL.md");
+    std::fs::write(&skill_md_path, b"body").expect("write skill md");
+
+    let skills = vec![skill_entry_at(
+        "aux_skill",
+        "aux",
+        "body",
+        &skill_md_path.to_string_lossy(),
+    )];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let config = plugin_config("p", explicit(&["aux_skill"]), PluginComponentRef::default());
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+
+    let sh = bundle
+        .get("skills/aux-skill/scripts/run.sh")
+        .expect("shell script collected");
+    assert!(sh.executable, "sh files are executable");
+    assert_eq!(sh.bytes, b"#!/bin/sh\necho hi\n");
+
+    let txt = bundle
+        .get("skills/aux-skill/scripts/notes.txt")
+        .expect("text file collected");
+    assert!(!txt.executable, "txt files are not executable");
+
+    let py = bundle
+        .get("skills/aux-skill/scripts/nested/deep.py")
+        .expect("nested python collected with relative path");
+    assert!(py.executable, "py files are executable");
+
+    assert!(
+        !bundle.contains_key("skills/aux-skill/scripts/logo.png"),
+        "binary extensions are excluded",
+    );
+    assert!(
+        !bundle.contains_key("skills/aux-skill/scripts/.hidden"),
+        "dotfiles are excluded",
+    );
+    assert!(
+        !bundle.keys().any(|k| k.contains("__pycache__")),
+        "__pycache__ is skipped",
+    );
+}
+
+#[test]
+fn mcp_file_assembles_referenced_servers_only() {
+    let servers = vec![
+        mcp_server("alpha", "https://api.example.com/mcp/alpha"),
+        mcp_server("beta", "https://api.example.com/mcp/beta"),
+    ];
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &servers,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
+    config.mcp_servers = PluginComponentRef {
+        source: ComponentSource::Explicit,
+        include: vec!["alpha".to_owned(), "missing".to_owned()],
+        ..Default::default()
+    };
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let mcp = bundle.get(".mcp.json").expect(".mcp.json emitted");
+    let value: serde_json::Value = serde_json::from_slice(&mcp.bytes).expect("parse .mcp.json");
+    let servers_obj = value
+        .get("mcpServers")
+        .and_then(serde_json::Value::as_object)
+        .expect("mcpServers object");
+    assert_eq!(
+        servers_obj.len(),
+        1,
+        "only referenced-and-present servers are emitted",
+    );
+    let alpha = servers_obj.get("alpha").expect("alpha present");
+    assert_eq!(alpha["type"], "http");
+    assert_eq!(alpha["url"], "https://api.example.com/mcp/alpha");
+    assert!(
+        servers_obj.get("beta").is_none(),
+        "an un-referenced server is not emitted",
+    );
+}
+
+#[test]
+fn mcp_file_absent_when_no_servers_resolve() {
+    let servers = vec![mcp_server("alpha", "https://api.example.com/mcp/alpha")];
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &servers,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
+    config.mcp_servers = PluginComponentRef {
+        source: ComponentSource::Explicit,
+        include: vec!["missing".to_owned()],
+        ..Default::default()
+    };
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    assert!(
+        !bundle.contains_key(".mcp.json"),
+        "no .mcp.json when every referenced server is missing",
+    );
+}
+
+#[test]
+fn script_files_are_collected_and_generated_tracking_skipped() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let plugin_dir = dir.path().join("scripted-plugin");
+    std::fs::create_dir_all(&plugin_dir).expect("create plugin dir");
+    std::fs::write(plugin_dir.join("setup.sh"), b"#!/bin/sh\necho setup\n").expect("write script");
+
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        plugins_root: dir.path(),
+    };
+    let mut config = plugin_config(
+        "scripted-plugin",
+        explicit(&["s"]),
+        PluginComponentRef::default(),
+    );
+    config.scripts = vec![
+        PluginScript {
+            name: "setup".to_owned(),
+            source: "setup.sh".to_owned(),
+        },
+        PluginScript {
+            name: "tracker".to_owned(),
+            source: "generated:tracking".to_owned(),
+        },
+        PluginScript {
+            name: "absent".to_owned(),
+            source: "does-not-exist.sh".to_owned(),
+        },
+    ];
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let setup = bundle
+        .get("scripts/setup")
+        .expect("on-disk script collected");
+    assert!(setup.executable, "plugin scripts are executable");
+    assert_eq!(setup.bytes, b"#!/bin/sh\necho setup\n");
+    assert!(
+        !bundle.contains_key("scripts/tracker"),
+        "generated:tracking scripts are synthesised by the consumer, not bundled",
+    );
+    assert!(
+        !bundle.contains_key("scripts/absent"),
+        "a missing source file is silently skipped",
+    );
 }
