@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0] - 2026-06-22
+
+### Added
+
+- White-label builds are now supported through a compile-time brand seam. A downstream binary crate can supply its own application name, on-disk directories, environment-variable prefix, default gateway URL, keyring service, window/tray chrome, and GUI assets (including a theme stylesheet layered last in the page `<head>`) by installing a `Brand` at process start via `run_with_brand`. The default `systemprompt` binary is unchanged.
+
+### Changed
+
+- The application name, configuration and state paths, environment-variable prefix (`SP_BRIDGE_*`), default gateway URL, keyring service, device-link consent path, and all user-facing command hints are resolved from the active brand rather than hardcoded, so a rebranded build presents its own identity consistently across the CLI, GUI, logs, and generated profiles.
+- Log line prefixes and diagnostic bundle names are derived from the active brand's binary name.
+
 ## [0.13.0] - 2026-06-09
 
 ### Added
