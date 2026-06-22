@@ -17,6 +17,8 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-extension = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-database = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

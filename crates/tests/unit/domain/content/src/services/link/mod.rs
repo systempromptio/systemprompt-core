@@ -7,7 +7,9 @@
 //! - determine_destination_type (internal behavior)
 
 mod analytics;
+mod analytics_db;
 mod enums;
+mod generation_db;
 mod params;
 mod trackable_url;
 mod utm;

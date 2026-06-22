@@ -23,6 +23,9 @@ mod error_extra;
 mod services;
 
 #[cfg(test)]
+mod jobs;
+
+#[cfg(test)]
 mod config;
 
 #[cfg(test)]
