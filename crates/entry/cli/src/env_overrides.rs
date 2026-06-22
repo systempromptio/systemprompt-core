@@ -8,6 +8,8 @@
 
 use std::collections::HashMap;
 
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
+
 #[derive(Debug, Clone, Default)]
 pub struct EnvOverrides {
     pub output_format: Option<String>,
@@ -26,9 +28,9 @@ pub struct EnvOverrides {
 
 #[derive(Debug, Clone, Default)]
 pub struct SessionEnv {
-    pub user_id: Option<String>,
-    pub session_id: Option<String>,
-    pub context_id: Option<String>,
+    pub user_id: Option<UserId>,
+    pub session_id: Option<SessionId>,
+    pub context_id: Option<ContextId>,
     pub auth_token: Option<String>,
 }
 
@@ -66,9 +68,9 @@ impl EnvOverrides {
             database_url: lookup("DATABASE_URL"),
             services_path: lookup("SYSTEMPROMPT_SERVICES_PATH"),
             session: SessionEnv {
-                user_id: lookup("SYSTEMPROMPT_USER_ID"),
-                session_id: lookup("SYSTEMPROMPT_SESSION_ID"),
-                context_id: lookup("SYSTEMPROMPT_CONTEXT_ID"),
+                user_id: lookup("SYSTEMPROMPT_USER_ID").map(UserId::new),
+                session_id: lookup("SYSTEMPROMPT_SESSION_ID").map(SessionId::new),
+                context_id: lookup("SYSTEMPROMPT_CONTEXT_ID").map(ContextId::new),
                 auth_token: lookup("SYSTEMPROMPT_AUTH_TOKEN"),
             },
         }

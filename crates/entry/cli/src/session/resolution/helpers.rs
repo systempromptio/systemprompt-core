@@ -8,7 +8,7 @@ use systemprompt_cloud::{
 };
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
+use systemprompt_identifiers::{Email, ProfileName, SessionToken};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 use systemprompt_models::auth::UserType;
@@ -36,9 +36,9 @@ pub(super) fn try_session_from_env(
     let session = CliSession::builder(
         profile_name,
         SessionToken::new(auth_token),
-        SessionId::new(session_id),
-        ContextId::new(context_id),
-        SessionIdentity::new(UserId::new(user_id), email, UserType::Admin),
+        session_id,
+        context_id,
+        SessionIdentity::new(user_id, email, UserType::Admin),
     )
     .build();
 

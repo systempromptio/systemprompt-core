@@ -10,6 +10,7 @@ use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use super::docker::{
@@ -35,8 +36,8 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
     let tenant = store
         .tenants
         .iter()
-        .find(|t| t.id == tenant_id)
-        .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id))?
+        .find(|t| t.id == tenant_id.as_str())
+        .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id.as_str()))?
         .clone();
 
     let is_cloud = tenant.tenant_type == TenantType::Cloud;
@@ -55,13 +56,13 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
         cleanup_shared_container_tenant(&tenant, config)?;
     }
 
-    store.tenants.retain(|t| t.id != tenant_id);
+    store.tenants.retain(|t| t.id != tenant_id.as_str());
     store.save_to_path(&tenants_path)?;
 
-    let output = SuccessOutput::new(format!("Deleted tenant: {}", tenant_id));
+    let output = SuccessOutput::new(format!("Deleted tenant: {}", tenant_id.as_str()));
 
     if !config.is_json_output() {
-        CliService::success(&format!("Deleted tenant: {}", tenant_id));
+        CliService::success(&format!("Deleted tenant: {}", tenant_id.as_str()));
     }
 
     Ok(CommandOutput::text_titled("Delete Tenant", output.message))
@@ -71,9 +72,9 @@ fn resolve_delete_target(
     id: Option<String>,
     store: &TenantStore,
     config: &CliConfig,
-) -> Result<String> {
+) -> Result<TenantId> {
     if let Some(id) = id {
-        return Ok(id);
+        return Ok(TenantId::new(id));
     }
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
@@ -83,7 +84,7 @@ fn resolve_delete_target(
     if store.tenants.is_empty() {
         bail!("No tenants configured.");
     }
-    Ok(select_tenant(&store.tenants)?.id.clone())
+    Ok(TenantId::new(select_tenant(&store.tenants)?.id.clone()))
 }
 
 fn confirm_delete(tenant: &StoredTenant, is_cloud: bool, config: &CliConfig) -> Result<bool> {
@@ -108,19 +109,15 @@ fn confirm_delete(tenant: &StoredTenant, is_cloud: bool, config: &CliConfig) -> 
         .interact()?)
 }
 
-async fn delete_cloud_tenant(tenant_id: &str, config: &CliConfig) -> Result<()> {
+async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result<()> {
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     if config.is_json_output() {
-        client
-            .delete_tenant(&systemprompt_identifiers::TenantId::new(tenant_id))
-            .await?;
+        client.delete_tenant(tenant_id).await?;
     } else {
         let spinner = CliService::spinner("Deleting cloud tenant...");
-        client
-            .delete_tenant(&systemprompt_identifiers::TenantId::new(tenant_id))
-            .await?;
+        client.delete_tenant(tenant_id).await?;
         spinner.finish_and_clear();
     }
 

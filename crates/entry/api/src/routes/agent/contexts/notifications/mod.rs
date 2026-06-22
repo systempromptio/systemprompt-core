@@ -40,6 +40,7 @@ pub async fn handle_context_notification(
     let db = app_context.db_pool();
 
     let ctx_repo = ContextRepository::new(db)?;
+    let context_id = ContextId::new(context_id);
 
     tracing::debug!(context_id = %context_id, method = %notification.method, "Received notification for context");
 
@@ -65,8 +66,13 @@ pub async fn handle_context_notification(
         .unwrap_or("unknown")
         .to_owned();
 
-    let notification_id =
-        persist_notification(Arc::clone(db), &context_id, &agent_id, &notification).await?;
+    let notification_id = persist_notification(
+        Arc::clone(db),
+        context_id.as_str(),
+        &agent_id,
+        &notification,
+    )
+    .await?;
     tracing::debug!(notification_id = %notification_id, context_id = %context_id, "Persisted notification");
 
     process_notification(app_context.clone(), &notification).await?;
@@ -85,12 +91,9 @@ pub async fn handle_context_notification(
 
 async fn resolve_context_user(
     ctx_repo: &ContextRepository,
-    context_id: &str,
+    context_id: &ContextId,
 ) -> Result<UserId, Response> {
-    match ctx_repo
-        .find_user_id_for_context(&ContextId::new(context_id))
-        .await
-    {
+    match ctx_repo.find_user_id_for_context(context_id).await {
         Ok(Some(uid)) => Ok(uid),
         Ok(None) => {
             tracing::error!(context_id = %context_id, "Context not found");
@@ -98,7 +101,7 @@ async fn resolve_context_user(
                 StatusCode::NOT_FOUND,
                 Json(json!({
                     "error": "Context not found",
-                    "context_id": context_id
+                    "context_id": context_id.as_str()
                 })),
             )
                 .into_response())
@@ -109,7 +112,7 @@ async fn resolve_context_user(
                 StatusCode::NOT_FOUND,
                 Json(json!({
                     "error": "Context not found",
-                    "context_id": context_id
+                    "context_id": context_id.as_str()
                 })),
             )
                 .into_response())
@@ -119,12 +122,12 @@ async fn resolve_context_user(
 
 async fn broadcast_and_mark(
     db: &DbPool,
-    context_id: &str,
+    context_id: &ContextId,
     user_id: &UserId,
     notification: &A2aNotification,
     notification_id: i32,
 ) {
-    let broadcast_count = broadcast_notification(context_id, user_id, notification).await;
+    let broadcast_count = broadcast_notification(context_id.as_str(), user_id, notification).await;
     tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
     if let Err(e) = mark_notification_broadcasted(Arc::clone(db), notification_id).await {
