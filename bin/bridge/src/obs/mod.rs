@@ -17,27 +17,25 @@ pub mod output {
 
 pub use tracing_init::{init, install_panic_hook, log_dir, log_file_path};
 
+mod format;
+
 pub mod tracing_init {
-    use std::fmt;
-    use std::io::{self, Write};
     use std::path::PathBuf;
     use std::sync::{Once, OnceLock};
 
-    use tracing::{Event, Subscriber};
     use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
     use tracing_appender::rolling::{RollingFileAppender, Rotation};
     use tracing_subscriber::EnvFilter;
-    use tracing_subscriber::field::Visit;
-    use tracing_subscriber::fmt::format::Writer;
-    use tracing_subscriber::fmt::{FormatEvent, FormatFields, MakeWriter};
-    use tracing_subscriber::registry::LookupSpan;
+
+    use super::format::{BridgeFormat, TeeWriter};
 
     static INIT: Once = Once::new();
     static GUARD: OnceLock<WorkerGuard> = OnceLock::new();
-    static FILE_WRITER: OnceLock<NonBlocking> = OnceLock::new();
+    pub(super) static FILE_WRITER: OnceLock<NonBlocking> = OnceLock::new();
 
     fn json_format_requested() -> bool {
-        std::env::var("SP_BRIDGE_LOG_FORMAT").is_ok_and(|v| v.eq_ignore_ascii_case("json"))
+        std::env::var(crate::brand::brand().env("LOG_FORMAT"))
+            .is_ok_and(|v| v.eq_ignore_ascii_case("json"))
     }
 
     pub fn init() {
@@ -78,7 +76,8 @@ pub mod tracing_init {
             )]
             {
                 eprintln!(
-                    "[systemprompt-bridge] cannot create log dir {}: {e}",
+                    "[{}] cannot create log dir {}: {e}",
+                    crate::brand::brand().binary_name,
                     dir.display()
                 );
             }
@@ -99,7 +98,10 @@ pub mod tracing_init {
                               channel"
                 )]
                 {
-                    eprintln!("[systemprompt-bridge] rolling appender init failed: {e}");
+                    eprintln!(
+                        "[{}] rolling appender init failed: {e}",
+                        crate::brand::brand().binary_name
+                    );
                 }
                 return;
             },
@@ -121,13 +123,20 @@ pub mod tracing_init {
 
     #[cfg(target_os = "windows")]
     fn platform_log_dir() -> Option<PathBuf> {
-        std::env::var_os("LOCALAPPDATA")
-            .map(|p| PathBuf::from(p).join("Claude").join("systemprompt-bridge"))
+        std::env::var_os("LOCALAPPDATA").map(|p| {
+            PathBuf::from(p)
+                .join("Claude")
+                .join(crate::brand::brand().working_dir_name)
+        })
     }
 
     #[cfg(target_os = "macos")]
     fn platform_log_dir() -> Option<PathBuf> {
-        dirs::home_dir().map(|h| h.join("Library").join("Logs").join("systemprompt-bridge"))
+        dirs::home_dir().map(|h| {
+            h.join("Library")
+                .join("Logs")
+                .join(crate::brand::brand().working_dir_name)
+        })
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -135,7 +144,7 @@ pub mod tracing_init {
         std::env::var_os("XDG_STATE_HOME")
             .map(PathBuf::from)
             .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
-            .map(|base| base.join("systemprompt-bridge"))
+            .map(|base| base.join(crate::brand::brand().working_dir_name))
     }
 
     // Install before `init` so panics during subscriber setup are captured.
@@ -182,124 +191,5 @@ pub mod tracing_init {
                 eprintln!("{dump}");
             }
         }));
-    }
-
-    struct TeeWriter;
-
-    impl<'a> MakeWriter<'a> for TeeWriter {
-        type Writer = TeeWriterImpl;
-        fn make_writer(&'a self) -> Self::Writer {
-            TeeWriterImpl {
-                file: FILE_WRITER.get().cloned(),
-            }
-        }
-    }
-
-    struct TeeWriterImpl {
-        file: Option<NonBlocking>,
-    }
-
-    impl Write for TeeWriterImpl {
-        // Falls back to stderr so bootstrap errors before the file writer stay visible.
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            if let Some(file) = self.file.as_mut() {
-                _ = file.write_all(buf);
-            } else {
-                _ = io::stderr().write_all(buf);
-            }
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            if let Some(file) = self.file.as_mut() {
-                _ = file.flush();
-            } else {
-                _ = io::stderr().flush();
-            }
-            Ok(())
-        }
-    }
-
-    struct BridgeFormat;
-
-    #[derive(Default)]
-    struct EventVisitor {
-        message: String,
-        fields: String,
-    }
-
-    impl EventVisitor {
-        fn write_field(&mut self, name: &str, value: fmt::Arguments<'_>) {
-            use std::fmt::Write as _;
-            if name == "message" {
-                _ = write!(self.message, "{value}");
-            } else {
-                if !self.fields.is_empty() {
-                    self.fields.push(' ');
-                }
-                _ = write!(self.fields, "{name}={value}");
-            }
-        }
-    }
-
-    impl Visit for EventVisitor {
-        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
-            self.write_field(field.name(), format_args!("{value}"));
-        }
-
-        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn fmt::Debug) {
-            self.write_field(field.name(), format_args!("{value:?}"));
-        }
-
-        fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
-            self.write_field(field.name(), format_args!("{value}"));
-        }
-
-        fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
-            self.write_field(field.name(), format_args!("{value}"));
-        }
-
-        fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
-            self.write_field(field.name(), format_args!("{value}"));
-        }
-
-        fn record_f64(&mut self, field: &tracing::field::Field, value: f64) {
-            self.write_field(field.name(), format_args!("{value}"));
-        }
-    }
-
-    impl<S, N> FormatEvent<S, N> for BridgeFormat
-    where
-        S: Subscriber + for<'a> LookupSpan<'a>,
-        N: for<'a> FormatFields<'a> + 'static,
-    {
-        fn format_event(
-            &self,
-            _ctx: &tracing_subscriber::fmt::FmtContext<'_, S, N>,
-            mut writer: Writer<'_>,
-            event: &Event<'_>,
-        ) -> fmt::Result {
-            let mut visitor = EventVisitor::default();
-            event.record(&mut visitor);
-            let level = event.metadata().level();
-            let unquoted = strip_debug_quotes(&visitor.message);
-            if visitor.fields.is_empty() {
-                writeln!(writer, "[systemprompt-bridge] {level} {unquoted}")
-            } else {
-                writeln!(
-                    writer,
-                    "[systemprompt-bridge] {level} {unquoted} {}",
-                    visitor.fields
-                )
-            }
-        }
-    }
-
-    fn strip_debug_quotes(s: &str) -> &str {
-        if s.len() >= 2 && s.starts_with('"') && s.ends_with('"') {
-            &s[1..s.len() - 1]
-        } else {
-            s
-        }
     }
 }
