@@ -31,7 +31,6 @@ tokio = { workspace = true, features = ["fs", "process"] }
 anyhow = { workspace = true }
 clap = { workspace = true }
 thiserror = { workspace = true }
-async-trait = { workspace = true }
 
 # systemprompt.io crates
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
@@ -61,7 +60,6 @@ systemprompt-client = { workspace = true }
 
 # Additional dependencies used by CLI modules
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 sqlx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -82,9 +80,6 @@ base64 = { workspace = true }
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 sha2 = { workspace = true }
 walkdir = { workspace = true }
-axum = { workspace = true }
-open = { workspace = true }
-urlencoding = { workspace = true }
 url = { workspace = true }
 rand = { workspace = true }
 indicatif = { workspace = true }

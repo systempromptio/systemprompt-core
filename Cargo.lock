@@ -4737,8 +4737,6 @@ name = "systemprompt-cli"
 version = "0.16.0"
 dependencies = [
  "anyhow",
- "async-trait",
- "axum",
  "base64 0.22.1",
  "chrono",
  "clap",
@@ -4751,7 +4749,6 @@ dependencies = [
  "indicatif",
  "inventory",
  "jsonwebtoken",
- "open",
  "rand 0.10.1",
  "regex",
  "reqwest 0.12.28",
@@ -4792,9 +4789,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "url",
- "urlencoding",
  "uuid",
  "walkdir",
 ]
