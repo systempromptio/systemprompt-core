@@ -74,7 +74,10 @@ pub fn hook_items(bytes: &[u8], path: &Path) -> Vec<MarketplaceItem> {
             summary_parts.push(format!("tracking {} events", tracked_events.len()));
         }
 
-        let mut readme = String::from("System hooks installed by the systemprompt bridge.\n");
+        let mut readme = format!(
+            "System hooks installed by {}.\n",
+            crate::brand::brand().app_name
+        );
         if !governed_events.is_empty() {
             let events: Vec<String> = governed_events.iter().cloned().collect();
             readme.push_str(&format!(

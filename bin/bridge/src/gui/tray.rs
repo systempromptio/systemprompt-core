@@ -33,10 +33,14 @@ pub enum TrayStatus {
     Alert,
 }
 
-#[cfg(target_os = "macos")]
-const TRAY_ICON_PNG: &[u8] = include_bytes!("../../assets/tray-icon.png");
-#[cfg(not(target_os = "macos"))]
-const TRAY_ICON_PNG: &[u8] = include_bytes!("../../assets/window-icon-1024.png");
+fn tray_icon_png() -> &'static [u8] {
+    let assets = crate::brand::brand().assets;
+    if cfg!(target_os = "macos") {
+        assets.tray_icon_png
+    } else {
+        assets.window_icon_png
+    }
+}
 
 pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let menu = Menu::new();
@@ -79,7 +83,7 @@ pub fn build(initial: &AppStateSnapshot) -> GuiResult<TrayHandles> {
     let tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
         .with_menu_on_left_click(false)
-        .with_tooltip("systemprompt-bridge")
+        .with_tooltip(crate::brand::brand().tray_tooltip)
         .with_icon(icon_normal.clone())
         .with_icon_as_template(cfg!(target_os = "macos"))
         .build()?;
@@ -174,7 +178,7 @@ fn format_last_sync(snap: &AppStateSnapshot) -> String {
 }
 
 fn decode_icon() -> GuiResult<Icon> {
-    let img = image::load_from_memory(TRAY_ICON_PNG)?.to_rgba8();
+    let img = image::load_from_memory(tray_icon_png())?.to_rgba8();
     let (w, h) = img.dimensions();
     Icon::from_rgba(img.into_raw(), w, h).map_err(GuiError::from)
 }

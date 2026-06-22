@@ -78,14 +78,16 @@ pub(crate) fn on_sync_finished(
                     ErrorScope::Marketplace,
                     ErrorCode::Conflict,
                 )
-            } else if matches!(sync_err, Some(sync::SyncError::NoCredential)) {
+            } else if matches!(sync_err, Some(sync::SyncError::NoCredential { .. })) {
                 (
                     "failed",
                     i18n::t("sync-no-credentials"),
                     ErrorScope::Marketplace,
                     ErrorCode::Unauthorized,
                 )
-            } else if let Some(sync::SyncError::GatewayUnauthorized { endpoint, status }) = sync_err
+            } else if let Some(sync::SyncError::GatewayUnauthorized {
+                endpoint, status, ..
+            }) = sync_err
             {
                 let status_s = status.to_string();
                 (

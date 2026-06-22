@@ -68,7 +68,10 @@ fn build_bundle() -> io::Result<PathBuf> {
         .or_else(dirs::home_dir)
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no home dir"))?;
     let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
-    let zip_path = dest_dir.join(format!("systemprompt-bridge-diagnostics-{ts}.zip"));
+    let zip_path = dest_dir.join(format!(
+        "{}-diagnostics-{ts}.zip",
+        crate::brand::brand().binary_name
+    ));
 
     let file = fs::File::create(&zip_path)?;
     let mut zip = ZipWriter::new(file);

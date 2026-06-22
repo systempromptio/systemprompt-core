@@ -38,8 +38,6 @@ const CSS_FILES: &[(&str, &str)] = &[
     ("main", include_str!("../../web/css/main.css")),
 ];
 
-const ICON_SVG: &str = include_str!("../../assets/icon.svg");
-const LOGO_SVG: &str = include_str!("../../assets/logo.svg");
 const FONT_INTER_REGULAR: &[u8] = include_bytes!("../../assets/fonts/Inter-Regular.woff2");
 const FONT_INTER_BOLD: &[u8] = include_bytes!("../../assets/fonts/Inter-Bold.woff2");
 const FONT_OPENSANS_REGULAR: &[u8] = include_bytes!("../../assets/fonts/OpenSans-Regular.woff2");
@@ -226,13 +224,26 @@ impl Asset {
 }
 
 pub fn render_index() -> String {
-    HTML.replace("__VERSION__", VERSION)
+    let brand = crate::brand::brand();
+    let html = HTML
+        .replace("__VERSION__", VERSION)
         .replace("__GIT_SHA__", git_sha_short())
         .replace("__BUILD_DATE__", BUILD_DATE)
-        .replace("__ICON_SVG__", ICON_SVG)
-        .replace("__LOGO_SVG__", LOGO_SVG)
+        .replace("__ICON_SVG__", brand.assets.icon_svg)
+        .replace("__LOGO_SVG__", brand.assets.logo_svg)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
-        .replace("__PLATFORM__", PLATFORM_SLUG)
+        .replace("__PLATFORM__", PLATFORM_SLUG);
+    // Append the brand theme override last so its `:root { --sp-* }` wins the
+    // cascade over the bundled token sheet.
+    if brand.assets.theme_css.is_empty() {
+        html
+    } else {
+        let style = format!(
+            "<style id=\"brand-theme\">{}</style>",
+            brand.assets.theme_css
+        );
+        html.replacen("</head>", &format!("{style}</head>"), 1)
+    }
 }
 
 pub fn lookup_path(path: &str) -> Option<Asset> {

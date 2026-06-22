@@ -19,9 +19,10 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &str, reply_to: ReplyId) {
         },
         |host| {
             app.append_log(format!(
-                "uninstall requested for {} (not yet implemented; remove systemprompt-bridge keys \
+                "uninstall requested for {} (not yet implemented; remove {} keys \
                  manually)",
-                host.display_name()
+                host.display_name(),
+                crate::brand::brand().binary_name
             ));
             Ok(json!({ "queued": true }))
         },

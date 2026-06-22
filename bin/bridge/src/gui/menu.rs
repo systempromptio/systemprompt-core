@@ -25,7 +25,7 @@ pub fn install<S: std::hash::BuildHasher>(
 
     #[cfg(target_os = "macos")]
     {
-        let app_menu = Submenu::new("systemprompt-bridge", true);
+        let app_menu = Submenu::new(crate::brand::brand().app_menu_name, true);
         let about = PredefinedMenuItem::about(None, Some(about_metadata()));
         app_menu.append(&about)?;
         app_menu.append(&PredefinedMenuItem::separator())?;
@@ -114,7 +114,7 @@ pub fn attach_to_window(
 #[cfg(target_os = "macos")]
 fn about_metadata() -> muda::AboutMetadata {
     muda::AboutMetadata {
-        name: Some("systemprompt-bridge".into()),
+        name: Some(crate::brand::brand().app_name.into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),
         ..Default::default()
     }
