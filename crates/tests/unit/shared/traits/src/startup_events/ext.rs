@@ -352,6 +352,123 @@ mod optional_startup_event_ext_tests {
     }
 }
 
+mod startup_event_ext_remaining_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn agent_cleanup_sends_event() {
+        let (tx, mut rx) = startup_channel();
+        tx.agent_cleanup("agent", "stopped");
+        match rx.next().await.unwrap() {
+            StartupEvent::AgentCleanup { name, reason } => {
+                assert_eq!(name, "agent");
+                assert_eq!(reason, "stopped");
+            },
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn mcp_service_cleanup_sends_event() {
+        let (tx, mut rx) = startup_channel();
+        tx.mcp_service_cleanup("svc", "stale");
+        match rx.next().await.unwrap() {
+            StartupEvent::McpServiceCleanup { name, reason } => {
+                assert_eq!(name, "svc");
+                assert_eq!(reason, "stale");
+            },
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn mcp_reconciliation_complete_sends_event() {
+        let (tx, mut rx) = startup_channel();
+        tx.mcp_reconciliation_complete(3, 5);
+        match rx.next().await.unwrap() {
+            StartupEvent::McpReconciliationComplete { running, required } => {
+                assert_eq!(running, 3);
+                assert_eq!(required, 5);
+            },
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn scheduler_initializing_sends_event() {
+        let (tx, mut rx) = startup_channel();
+        tx.scheduler_initializing();
+        assert!(matches!(
+            rx.next().await.unwrap(),
+            StartupEvent::SchedulerInitializing
+        ));
+    }
+
+    #[tokio::test]
+    async fn scheduler_ready_sends_event() {
+        let (tx, mut rx) = startup_channel();
+        tx.scheduler_ready(9);
+        match rx.next().await.unwrap() {
+            StartupEvent::SchedulerReady { job_count } => assert_eq!(job_count, 9),
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn bootstrap_job_started_sends_event() {
+        let (tx, mut rx) = startup_channel();
+        tx.bootstrap_job_started("seed");
+        match rx.next().await.unwrap() {
+            StartupEvent::BootstrapJobStarted { name } => assert_eq!(name, "seed"),
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn bootstrap_job_completed_carries_message() {
+        let (tx, mut rx) = startup_channel();
+        tx.bootstrap_job_completed("seed", false, Some("failed".to_string()));
+        match rx.next().await.unwrap() {
+            StartupEvent::BootstrapJobCompleted {
+                name,
+                success,
+                message,
+            } => {
+                assert_eq!(name, "seed");
+                assert!(!success);
+                assert_eq!(message.as_deref(), Some("failed"));
+            },
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn warning_with_context_sets_context() {
+        let (tx, mut rx) = startup_channel();
+        tx.warning_with_context("careful", "since v2");
+        match rx.next().await.unwrap() {
+            StartupEvent::Warning { message, context } => {
+                assert_eq!(message, "careful");
+                assert_eq!(context.as_deref(), Some("since v2"));
+            },
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn error_sets_fatal_flag() {
+        let (tx, mut rx) = startup_channel();
+        tx.error("kaboom", true);
+        match rx.next().await.unwrap() {
+            StartupEvent::Error { message, fatal } => {
+                assert_eq!(message, "kaboom");
+                assert!(fatal);
+            },
+            e => panic!("unexpected {e:?}"),
+        }
+    }
+}
+
 mod startup_channel_tests {
     use super::*;
 

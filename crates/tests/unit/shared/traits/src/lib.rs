@@ -48,3 +48,6 @@ mod registry_errors;
 
 #[cfg(test)]
 mod content_filter;
+
+#[cfg(test)]
+mod ai_providers;

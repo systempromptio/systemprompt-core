@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+async-trait = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
 anyhow = { workspace = true }

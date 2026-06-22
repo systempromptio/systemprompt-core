@@ -350,3 +350,81 @@ fn ai_provider_internal_display() {
     let e = AiProviderError::Internal("unexpected".to_owned());
     assert!(format!("{e}").contains("unexpected"));
 }
+
+mod registry_provider_default_methods {
+    use async_trait::async_trait;
+    use systemprompt_traits::registry::{
+        AgentInfo, AgentRegistryProvider, McpRegistryProvider, McpServerInfo, RegistryError,
+        ServiceOAuthConfig,
+    };
+
+    struct StubRegistry {
+        known: &'static str,
+    }
+
+    fn agent(name: &str) -> AgentInfo {
+        AgentInfo {
+            name: name.to_string(),
+            port: 6000,
+            enabled: true,
+            oauth: ServiceOAuthConfig::default(),
+        }
+    }
+
+    fn server(name: &str) -> McpServerInfo {
+        McpServerInfo {
+            name: name.to_string(),
+            port: 5000,
+            enabled: true,
+            oauth: ServiceOAuthConfig::default(),
+        }
+    }
+
+    #[async_trait]
+    impl AgentRegistryProvider for StubRegistry {
+        async fn get_agent(&self, name: &str) -> Result<AgentInfo, RegistryError> {
+            if name == self.known {
+                Ok(agent(name))
+            } else {
+                Err(RegistryError::NotFound(name.to_string()))
+            }
+        }
+
+        async fn list_enabled_agents(&self) -> Result<Vec<AgentInfo>, RegistryError> {
+            Ok(vec![agent(self.known)])
+        }
+
+        async fn get_default_agent(&self) -> Result<AgentInfo, RegistryError> {
+            Ok(agent(self.known))
+        }
+    }
+
+    #[async_trait]
+    impl McpRegistryProvider for StubRegistry {
+        async fn get_server(&self, name: &str) -> Result<McpServerInfo, RegistryError> {
+            if name == self.known {
+                Ok(server(name))
+            } else {
+                Err(RegistryError::NotFound(name.to_string()))
+            }
+        }
+
+        async fn list_enabled_servers(&self) -> Result<Vec<McpServerInfo>, RegistryError> {
+            Ok(vec![server(self.known)])
+        }
+    }
+
+    #[tokio::test]
+    async fn agent_exists_default_reflects_get_agent() {
+        let reg = StubRegistry { known: "alpha" };
+        assert!(AgentRegistryProvider::agent_exists(&reg, "alpha").await);
+        assert!(!AgentRegistryProvider::agent_exists(&reg, "missing").await);
+    }
+
+    #[tokio::test]
+    async fn server_exists_default_reflects_get_server() {
+        let reg = StubRegistry { known: "alpha" };
+        assert!(McpRegistryProvider::server_exists(&reg, "alpha").await);
+        assert!(!McpRegistryProvider::server_exists(&reg, "missing").await);
+    }
+}

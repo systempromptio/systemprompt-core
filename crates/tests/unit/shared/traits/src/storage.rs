@@ -61,3 +61,60 @@ fn file_storage_error_from_serde_json_error() {
     let s = format!("{e}");
     assert!(s.contains("serialization error"));
 }
+
+mod file_storage_default_method {
+    use async_trait::async_trait;
+    use std::path::Path;
+    use systemprompt_traits::storage::{
+        FileStorage, FileStorageResult, StoredFileId, StoredFileMetadata,
+    };
+
+    struct MinimalStorage;
+
+    #[async_trait]
+    impl FileStorage for MinimalStorage {
+        async fn store(&self, _path: &Path, _content: &[u8]) -> FileStorageResult<StoredFileId> {
+            Ok(StoredFileId::new("stored"))
+        }
+
+        async fn retrieve(&self, _id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
+            Ok(Vec::new())
+        }
+
+        async fn delete(&self, _id: &StoredFileId) -> FileStorageResult<()> {
+            Ok(())
+        }
+
+        async fn metadata(&self, _id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
+            Ok(StoredFileMetadata {
+                id: StoredFileId::new("x"),
+                path: "p".to_string(),
+                mime_type: "text/plain".to_string(),
+                size_bytes: None,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            })
+        }
+
+        async fn exists(&self, _id: &StoredFileId) -> FileStorageResult<bool> {
+            Ok(true)
+        }
+    }
+
+    #[tokio::test]
+    async fn public_url_default_is_none() {
+        let storage = MinimalStorage;
+        assert!(storage.public_url(&StoredFileId::new("any")).is_none());
+    }
+
+    #[tokio::test]
+    async fn provided_methods_dispatch_through_dyn() {
+        let storage: Box<dyn FileStorage> = Box::new(MinimalStorage);
+        assert_eq!(
+            storage.store(Path::new("p"), b"data").await.unwrap(),
+            StoredFileId::new("stored")
+        );
+        assert!(storage.exists(&StoredFileId::new("a")).await.unwrap());
+        assert!(storage.public_url(&StoredFileId::new("a")).is_none());
+    }
+}
