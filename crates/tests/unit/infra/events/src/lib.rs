@@ -16,4 +16,7 @@ mod outbox_channel;
 mod routing;
 
 #[cfg(test)]
+mod services;
+
+#[cfg(test)]
 mod sse;
