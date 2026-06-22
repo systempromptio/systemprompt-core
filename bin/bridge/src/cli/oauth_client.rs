@@ -17,7 +17,10 @@ pub fn cmd_oauth_client(args: &[String]) -> ExitCode {
         Some("rotate") => cmd_rotate(),
         Some(other) => {
             diag(&format!("unknown oauth-client subcommand: {other}"));
-            output::eprint_str("usage: systemprompt-bridge oauth-client [status | rotate]\n");
+            output::eprint_str(&format!(
+                "usage: {} oauth-client [status | rotate]\n",
+                crate::brand::brand().binary_name
+            ));
             ExitCode::from(64)
         },
     }

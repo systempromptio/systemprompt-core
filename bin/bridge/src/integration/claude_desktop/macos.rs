@@ -68,7 +68,7 @@ pub(super) fn list_claude_processes() -> Vec<String> {
 }
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join("systemprompt-bridge");
+    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     std::fs::create_dir_all(&dir)?;
     let (payload_uuid, profile_uuid) = make_uuids();
     let path = dir.join(format!("claude-bridge-{}.mobileconfig", unique_stem()));

@@ -2,9 +2,6 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const PAT_FILENAME: &str = "systemprompt-bridge.pat";
-const CONFIG_FILENAME: &str = "systemprompt-bridge.toml";
-const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 const PAT_PREFIX: &str = "sp-live-";
 
 #[derive(Debug, thiserror::Error)]
@@ -28,9 +25,10 @@ pub fn resolve_paths() -> Result<PathLayout, SetupError> {
     let base = dirs::config_dir().ok_or_else(|| {
         SetupError::Path("no OS config directory available on this platform".to_owned())
     })?;
-    let config_dir = base.join("systemprompt");
-    let config_file = config_dir.join(CONFIG_FILENAME);
-    let pat_file = config_dir.join(PAT_FILENAME);
+    let brand = crate::brand::brand();
+    let config_dir = base.join(brand.config_dir);
+    let config_file = config_dir.join(brand.config_file);
+    let pat_file = config_dir.join(brand.pat_file);
     Ok(PathLayout {
         config_dir,
         config_file,
@@ -203,12 +201,13 @@ fn write_config_file(
     let gateway = gateway_url_override
         .map(str::to_owned)
         .or(existing_gateway)
-        .unwrap_or_else(|| DEFAULT_GATEWAY_URL.to_owned());
+        .unwrap_or_else(|| crate::brand::brand().default_gateway_url.to_owned());
 
     let pat_path_str = pat_file.to_string_lossy().replace('\\', "\\\\");
     let contents = format!(
-        "# Written by `systemprompt-bridge login`. Edit gateway_url if you move the \
-         server.\ngateway_url = \"{gateway}\"\n\n[pat]\nfile = \"{pat_path_str}\"\n"
+        "# Written by `{bin} login`. Edit gateway_url if you move the \
+         server.\ngateway_url = \"{gateway}\"\n\n[pat]\nfile = \"{pat_path_str}\"\n",
+        bin = crate::brand::brand().binary_name,
     );
     atomic_write(path, contents.as_bytes(), false)
 }
@@ -222,7 +221,7 @@ fn atomic_write(target: &Path, bytes: &[u8], secret: bool) -> Result<(), SetupEr
         target
             .file_name()
             .and_then(|s| s.to_str())
-            .unwrap_or("systemprompt-bridge")
+            .unwrap_or_else(|| crate::brand::brand().binary_name)
     ));
     {
         let mut f = create_restricted(&tmp, secret)?;

@@ -9,7 +9,10 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
     let token = match args.get(2) {
         Some(t) if !t.is_empty() => t.clone(),
         _ => {
-            diag("usage: systemprompt-bridge login <sp-live-...> [--gateway <url>]");
+            diag(&format!(
+                "usage: {} login <sp-live-...> [--gateway <url>]",
+                crate::brand::brand().binary_name
+            ));
             return ExitCode::from(64);
         },
     };
@@ -17,10 +20,11 @@ pub fn cmd_login(args: &[String]) -> ExitCode {
 
     match setup::login(&token, gateway.as_deref()) {
         Ok(paths) => {
-            output::print_line("Stored PAT for systemprompt-bridge helper.");
+            let bin = crate::brand::brand().binary_name;
+            output::print_line(&format!("Stored PAT for {bin} helper."));
             output::print_line(&format!("  config: {}", paths.config_file.display()));
             output::print_line(&format!("  secret: {} (0600)", paths.pat_file.display()));
-            output::print_line("Next: run `systemprompt-bridge` to fetch a JWT.");
+            output::print_line(&format!("Next: run `{bin}` to fetch a JWT."));
             ExitCode::SUCCESS
         },
         Err(e) => {

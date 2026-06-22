@@ -72,9 +72,10 @@ impl TokenCache {
             .await
             .map_err(|_elapsed| ForwardError::AuthTimeout)?
             .ok_or_else(|| {
-                ForwardError::Auth(
-                    "no JWT available — sign in via systemprompt-bridge GUI".to_owned(),
-                )
+                ForwardError::Auth(format!(
+                    "no JWT available — sign in via {} GUI",
+                    crate::brand::brand().app_name
+                ))
             })?;
 
         tracing::info!("token cache refresh");

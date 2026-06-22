@@ -25,7 +25,7 @@ fn unique_stem() -> String {
 }
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-    let dir = std::env::temp_dir().join("systemprompt-bridge");
+    let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     std::fs::create_dir_all(&dir)?;
     let (payload_uuid, profile_uuid) = config::make_uuids();
 
@@ -96,7 +96,8 @@ pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
 
 fn writable(path: &Path) -> bool {
     let probe = path.join(format!(
-        ".systemprompt-bridge-write-test-{}",
+        ".{}-write-test-{}",
+        crate::brand::brand().binary_name,
         std::process::id()
     ));
     match std::fs::File::create(&probe) {

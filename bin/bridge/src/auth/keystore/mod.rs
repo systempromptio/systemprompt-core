@@ -9,7 +9,7 @@ pub enum KeystoreError {
     #[error("invalid fingerprint: {0}")]
     Fingerprint(#[from] IdValidationError),
     #[error("device certificate not configured: {0}")]
-    NotConfigured(&'static str),
+    NotConfigured(String),
     #[error("device certificate not found: {0}")]
     NotFound(String),
     #[error("keystore: {0}")]

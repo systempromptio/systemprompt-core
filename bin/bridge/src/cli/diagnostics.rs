@@ -16,7 +16,12 @@ pub fn short_sha() -> &'static str {
 
 pub fn render() -> String {
     let mut out = String::new();
-    _ = writeln!(out, "systemprompt-bridge {}", env!("CARGO_PKG_VERSION"));
+    _ = writeln!(
+        out,
+        "{} {}",
+        crate::brand::brand().binary_name,
+        env!("CARGO_PKG_VERSION")
+    );
     _ = writeln!(out, "commit:    {GIT_SHA}");
     _ = writeln!(out, "branch:    {GIT_BRANCH}");
     _ = writeln!(out, "committed: {GIT_COMMIT_DATE}");

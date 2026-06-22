@@ -136,7 +136,9 @@ pub fn lock_path() -> Result<PathBuf, String> {
     let base = dirs::data_local_dir()
         .or_else(dirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
-    Ok(base.join("systemprompt").join("bridge.lock"))
+    Ok(base
+        .join(crate::brand::brand().config_dir)
+        .join("bridge.lock"))
 }
 
 #[cfg(windows)]
@@ -148,7 +150,9 @@ pub(crate) fn lock_path() -> Result<PathBuf, String> {
     let base = dirs::data_local_dir()
         .or_else(dirs::home_dir)
         .unwrap_or_else(std::env::temp_dir);
-    Ok(base.join("systemprompt").join("bridge.lock"))
+    Ok(base
+        .join(crate::brand::brand().config_dir)
+        .join("bridge.lock"))
 }
 
 fn sidecar_path() -> Option<PathBuf> {

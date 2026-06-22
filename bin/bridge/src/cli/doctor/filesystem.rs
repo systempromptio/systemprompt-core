@@ -54,8 +54,9 @@ pub fn check_org_plugins_writable() -> Check {
         return Check::warn(
             "org-plugins writable",
             format!(
-                "{} not present — run `systemprompt-bridge install --apply`",
-                loc.path.display()
+                "{} not present — run `{} install --apply`",
+                loc.path.display(),
+                crate::brand::brand().binary_name
             ),
         );
     }
@@ -71,9 +72,10 @@ pub fn check_org_plugins_writable() -> Check {
         Err(e) => Check::fail(
             "org-plugins writable",
             format!(
-                "{} is NOT writable by the current user ({e}) — re-run `systemprompt-bridge \
+                "{} is NOT writable by the current user ({e}) — re-run `{} \
                  install --apply` to restore the user-Modify ACL grant (will prompt for UAC)",
-                loc.path.display()
+                loc.path.display(),
+                crate::brand::brand().binary_name
             ),
         ),
     }

@@ -9,7 +9,11 @@ use crate::config::paths::{self, Scope};
 #[must_use]
 pub fn render_install_summary(s: &InstallSummary) -> String {
     let mut out = String::new();
-    out.push_str("Installed systemprompt-bridge integration\n");
+    _ = writeln!(
+        out,
+        "Installed {} integration",
+        crate::brand::brand().binary_name
+    );
     let scope_label = match s.location.scope {
         Scope::System => "system-wide",
         Scope::User => "per-user",
@@ -45,9 +49,10 @@ pub fn render_install_summary(s: &InstallSummary) -> String {
         synthetic.join(".mcp.json").display()
     );
     _ = writeln!(out, "  binary:      {}", s.binary.display());
-    out.push_str(
-        "  Run `systemprompt-bridge sync` to populate user identity, skills, agents, and MCP \
-         servers.\n",
+    _ = writeln!(
+        out,
+        "  Run `{} sync` to populate user identity, skills, agents, and MCP servers.",
+        crate::brand::brand().binary_name
     );
 
     render_mdm(&mut out, &s.mdm);
@@ -115,9 +120,10 @@ pub fn render_uninstall_summary(s: &UninstallSummary) -> String {
             _ = writeln!(out, "Purged credentials: {}", p.display());
         },
         CredentialsOutcome::Kept => {
-            out.push_str(
-                "Credentials left intact. Use `systemprompt-bridge uninstall --purge` to also \
-                 clear them.\n",
+            _ = writeln!(
+                out,
+                "Credentials left intact. Use `{} uninstall --purge` to also clear them.",
+                crate::brand::brand().binary_name
             );
         },
         CredentialsOutcome::PurgeFailed(_) => {},

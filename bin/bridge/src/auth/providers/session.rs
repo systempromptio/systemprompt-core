@@ -81,8 +81,9 @@ impl AuthProvider for SessionProvider {
 fn build_auth_url(base: &str, callback: &str) -> String {
     let encoded = encode_component(callback);
     format!(
-        "{}/bridge/device-link?redirect={encoded}",
-        base.trim_end_matches('/')
+        "{}{}?redirect={encoded}",
+        base.trim_end_matches('/'),
+        crate::brand::brand().device_link_path
     )
 }
 

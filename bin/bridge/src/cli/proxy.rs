@@ -14,8 +14,8 @@ use crate::obs::output::diag;
 /// then refreshes the JWT in the background. Point any Anthropic-API client
 /// (Claude Code, Claude Desktop) at the printed base URL + token.
 ///
-/// Requires a configured credential — run `systemprompt-bridge login
-/// <sp-live-...>` first, or export `SP_BRIDGE_PAT` / `SP_BRIDGE_GATEWAY_URL`.
+/// Requires a configured credential from the auth provider chain (stored PAT,
+/// inline PAT env var, or device certificate).
 pub(super) fn cmd_proxy() -> ExitCode {
     if crate::proxy::start_default().is_none() {
         diag("proxy: failed to start (port in use, or no config dir) — see logs above");
@@ -34,7 +34,7 @@ pub(super) fn cmd_proxy() -> ExitCode {
     };
 
     output::print_str(&format!(
-        "systemprompt-bridge proxy listening on {origin}\n\
+        "{bin} proxy listening on {origin}\n\
          \n\
          Point an Anthropic-API client (Claude Code, Claude Desktop) at it:\n\
          \n  \
@@ -43,7 +43,8 @@ pub(super) fn cmd_proxy() -> ExitCode {
          \n\
          The proxy swaps that loopback token for a short-lived gateway JWT,\n\
          injects the canonical identity headers, and refreshes in the\n\
-         background. Press Ctrl-C to stop.\n"
+         background. Press Ctrl-C to stop.\n",
+        bin = crate::brand::brand().binary_name,
     ));
 
     let (tx, rx) = channel::<()>();
@@ -52,7 +53,10 @@ pub(super) fn cmd_proxy() -> ExitCode {
     }) {
         Ok(()) => {
             _ = rx.recv();
-            output::print_str("\nsystemprompt-bridge proxy stopped.\n");
+            output::print_str(&format!(
+                "\n{} proxy stopped.\n",
+                crate::brand::brand().binary_name
+            ));
             ExitCode::SUCCESS
         },
         Err(e) => {

@@ -15,9 +15,7 @@ use tokio::sync::OnceCell;
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-const CACHE_DIR_NAME: &str = "systemprompt-bridge";
 const CREDS_FILE: &str = "oauth_client.json";
-const KEYRING_SERVICE: &str = "systemprompt-bridge.oauth-client";
 
 #[derive(Debug, thiserror::Error)]
 pub enum PluginOAuthError {
@@ -73,11 +71,14 @@ struct LegacyCreds {
 
 pub fn creds_path() -> Option<PathBuf> {
     let base = dirs::cache_dir()?;
-    Some(base.join(CACHE_DIR_NAME).join(CREDS_FILE))
+    Some(
+        base.join(crate::brand::brand().working_dir_name)
+            .join(CREDS_FILE),
+    )
 }
 
 fn keyring_entry(client_id: &ClientId) -> Result<keyring::Entry, PluginOAuthError> {
-    keyring::Entry::new(KEYRING_SERVICE, client_id.as_str())
+    keyring::Entry::new(crate::brand::brand().keyring_service, client_id.as_str())
         .map_err(|e| PluginOAuthError::Keyring(e.to_string()))
 }
 

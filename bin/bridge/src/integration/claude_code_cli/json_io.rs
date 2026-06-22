@@ -1,5 +1,5 @@
 //! Foreign-key-preserving JSON reads and atomic writes for the Claude CLI's
-//! registry files. Every write goes through [`write_json`] so a malformed or
+//! registry files. Every write goes through `write_json` so a malformed or
 //! foreign file is never silently clobbered.
 
 use std::fs;

@@ -27,7 +27,7 @@ pub struct ValidationReport {
 impl ValidationReport {
     #[must_use]
     pub fn rendered(&self) -> String {
-        let mut s = String::from("systemprompt-bridge validate\n");
+        let mut s = format!("{} validate\n", crate::brand::brand().binary_name);
         for line in &self.lines {
             let prefix = match line.level {
                 CheckLevel::Ok => "  [ok]   ",
@@ -64,7 +64,8 @@ fn check_binary(report: &mut Report) {
     report.info(
         "binary",
         &format!(
-            "systemprompt-bridge v{} ({}-{})",
+            "{} v{} ({}-{})",
+            crate::brand::brand().binary_name,
             env!("CARGO_PKG_VERSION"),
             std::env::consts::OS,
             std::env::consts::ARCH

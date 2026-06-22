@@ -16,9 +16,10 @@ pub fn check_config_file() -> Check {
         return Check::warn(
             "config file",
             format!(
-                "{} not present — defaults will be used; run `systemprompt-bridge login` to \
+                "{} not present — defaults will be used; run `{} login` to \
                  create it",
-                path.display()
+                path.display(),
+                crate::brand::brand().binary_name
             ),
         );
     }
@@ -43,7 +44,10 @@ pub fn check_credential_source(cfg: &config::Config) -> Check {
     } else {
         Check::fail(
             "credential source",
-            "no auth provider configured — run `systemprompt-bridge login <sp-live-...>`",
+            format!(
+                "no auth provider configured — run `{} login <sp-live-...>`",
+                crate::brand::brand().binary_name
+            ),
         )
     }
 }
@@ -71,7 +75,10 @@ pub(super) async fn check_mint_jwt(
         Err(ChainError::NoneSucceeded) => {
             checks.push(Check::fail(
                 "mint JWT",
-                "no provider in the chain succeeded — run `systemprompt-bridge login`",
+                format!(
+                    "no provider in the chain succeeded — run `{} login`",
+                    crate::brand::brand().binary_name
+                ),
             ));
             None
         },
@@ -119,7 +126,8 @@ pub(super) async fn check_whoami(
                 "authenticated whoami",
                 format!(
                     "{endpoint} returned 401 — the PAT is invalid or revoked; mint a new one and \
-                     re-run `systemprompt-bridge login`"
+                     re-run `{} login`",
+                    crate::brand::brand().binary_name
                 ),
             ));
         },

@@ -49,7 +49,10 @@ fn emit_claude_via_chain() -> ExitCode {
         Err(ChainError::NoneSucceeded) => {
             eprintln!(
                 "{}",
-                error_json("no credential available; run `systemprompt-bridge login`")
+                error_json(&format!(
+                    "no credential available; run `{} login`",
+                    crate::brand::brand().binary_name
+                ))
             );
             return ExitCode::from(5);
         },

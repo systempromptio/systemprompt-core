@@ -14,6 +14,7 @@
 
 pub mod activity;
 pub mod auth;
+pub mod brand;
 pub mod cli;
 pub mod config;
 pub mod fsutil;
@@ -45,7 +46,12 @@ pub(crate) mod winproc;
 
 use std::process::ExitCode;
 
-const HELP: &str = "systemprompt-bridge <command>
+#[must_use]
+pub(crate) fn help() -> String {
+    let b = brand::brand();
+    let bin = b.binary_name;
+    format!(
+        "{bin} <command>
 
 Commands (credential helper):
   run                        (default) Emit JWT envelope to stdout
@@ -55,10 +61,10 @@ Commands (credential helper):
                              gateway JWT, injects identity headers, and refreshes
                              in the background. Point ANTHROPIC_BASE_URL /
                              ANTHROPIC_AUTH_TOKEN at the printed values.
-  login <sp-live-...>        Store a PAT securely and wire up systemprompt-bridge.toml
+  login <sp-live-...>        Store a PAT securely and wire up {config_file}
     [--gateway <url>]
   logout                     Remove the stored PAT and its config section
-  clean                      Wipe all local systemprompt-bridge state (config + PAT + token cache).
+  clean                      Wipe all local {bin} state (config + PAT + token cache).
                              Returns the GUI to a fresh splash. Does not touch
                              org-plugins or managed profiles — see `uninstall --purge`.
   status                     Show config paths and what is currently set up
@@ -100,18 +106,31 @@ Commands (plugin + MCP sync):
   help                       Show this help
 
 Env overrides:
-  SP_BRIDGE_CONFIG           Path to systemprompt-bridge.toml
-  SP_BRIDGE_PAT              Inline PAT (overrides file-based [pat])
-  SP_BRIDGE_GATEWAY_URL      Override gateway_url
-";
-
-#[must_use]
-pub(crate) const fn help() -> &'static str {
-    HELP
+  {config_env}           Path to {config_file}
+  {pat_env}              Inline PAT (overrides file-based [pat])
+  {gateway_env}      Override gateway_url
+",
+        config_file = b.config_file,
+        config_env = b.env("CONFIG"),
+        pat_env = b.env("PAT"),
+        gateway_env = b.env("GATEWAY_URL"),
+    )
 }
 
+/// Entry point for the default systemprompt-branded binary.
 #[must_use]
 pub fn run() -> ExitCode {
+    run_with_brand(&brand::Brand::SYSTEMPROMPT)
+}
+
+/// Entry point for white-label binaries: install the supplied brand, then run.
+///
+/// The brand is installed *before* any logging, panic-hook, or path resolution
+/// so that on-disk directories and chrome reflect the brand from the first
+/// line of output. Must be called once at process start, before [`run`].
+#[must_use]
+pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
+    brand::set_brand(brand);
     #[cfg(target_os = "windows")]
     winproc::attach_parent_console_if_present();
     obs::install_panic_hook();
@@ -125,7 +144,7 @@ fn purge_legacy_agents_state() {
     let Some(base) = dirs::config_dir() else {
         return;
     };
-    let path = base.join("systemprompt").join("agents.json");
+    let path = base.join(brand::brand().config_dir).join("agents.json");
     match std::fs::remove_file(&path) {
         Ok(()) => tracing::info!(path = %path.display(), "purged legacy agents state file"),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},

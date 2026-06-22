@@ -17,7 +17,7 @@ pub(super) struct WindowsKeystore {
 impl WindowsKeystore {
     pub(super) fn new() -> Self {
         Self {
-            match_fingerprint: env::var("SP_BRIDGE_DEVICE_CERT_SHA256").ok(),
+            match_fingerprint: env::var(crate::brand::brand().env("DEVICE_CERT_SHA256")).ok(),
         }
     }
 }

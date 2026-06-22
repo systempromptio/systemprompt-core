@@ -4,7 +4,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const CACHE_DIR_NAME: &str = "systemprompt-bridge";
 const CACHE_FILE: &str = "cache.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,7 +15,10 @@ struct CacheEntry {
 #[must_use]
 fn cache_path() -> Option<PathBuf> {
     let base = dirs::cache_dir()?;
-    Some(base.join(CACHE_DIR_NAME).join(CACHE_FILE))
+    Some(
+        base.join(crate::brand::brand().working_dir_name)
+            .join(CACHE_FILE),
+    )
 }
 
 #[must_use]

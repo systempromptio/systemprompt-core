@@ -2,14 +2,17 @@ use std::process::ExitCode;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
-    #[error("no valid credential available; run `systemprompt-bridge login` first")]
-    NoCredential,
+    #[error("no valid credential available; run `{bin} login` first")]
+    NoCredential { bin: &'static str },
     #[error(
         "gateway rejected credentials ({endpoint}, HTTP {status}). The cached token is invalid or \
-         revoked. Run `systemprompt-bridge login <sp-live-...>` with a fresh PAT, then \
-         `systemprompt-bridge whoami` to confirm."
+         revoked. Run `{bin} login <sp-live-...>` with a fresh PAT, then `{bin} whoami` to confirm."
     )]
-    GatewayUnauthorized { endpoint: &'static str, status: u16 },
+    GatewayUnauthorized {
+        bin: &'static str,
+        endpoint: &'static str,
+        status: u16,
+    },
     #[error("{0}")]
     Network(String),
     #[error("manifest signature verification failed: {0}")]
@@ -17,10 +20,10 @@ pub enum SyncError {
     #[error("org-plugins directory not resolvable")]
     PathUnresolvable,
     #[error(
-        "org-plugins directory does not exist at {path} — run `sudo systemprompt-bridge install \
-         --apply` to provision it (Claude Desktop only reads from this system path on macOS)"
+        "org-plugins directory does not exist at {path} — run `sudo {bin} install --apply` to \
+         provision it (Claude Desktop only reads from this system path on macOS)"
     )]
-    PathMissing { path: String },
+    PathMissing { bin: &'static str, path: String },
     #[error("sync apply failed: {0}")]
     ApplyFailed(crate::sync::apply::ApplyError),
     #[error("manifest replay rejected: incoming {incoming} is not newer than last applied {last}")]
@@ -41,7 +44,7 @@ impl SyncError {
     #[must_use]
     pub fn exit_code(&self) -> ExitCode {
         match self {
-            Self::NoCredential => ExitCode::from(5),
+            Self::NoCredential { .. } => ExitCode::from(5),
             Self::GatewayUnauthorized { .. } => ExitCode::from(10),
             Self::Network(_) => ExitCode::from(3),
             Self::SignatureFailed(_) => ExitCode::from(4),

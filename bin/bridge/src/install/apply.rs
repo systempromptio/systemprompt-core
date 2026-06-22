@@ -62,7 +62,7 @@ fn bootstrap_install(
                  script). Underlying error: {e}",
                 location.path.display(),
                 std::env::current_exe().map_or_else(
-                    |_| "systemprompt-bridge".into(),
+                    |_| crate::brand::brand().binary_name.to_owned(),
                     |p| p.display().to_string()
                 ),
             )

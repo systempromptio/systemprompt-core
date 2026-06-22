@@ -10,6 +10,7 @@ fn map_gateway_error(err: GatewayError, endpoint: &'static str) -> SyncError {
     match err {
         GatewayError::HttpStatus { status, .. } if matches!(status.as_u16(), 401 | 403) => {
             SyncError::GatewayUnauthorized {
+                bin: crate::brand::brand().binary_name,
                 endpoint,
                 status: status.as_u16(),
             }
@@ -30,7 +31,9 @@ pub(super) async fn fetch_authenticated_manifest() -> Result<ManifestFetch, Sync
 
     let bearer = match crate::auth::cache::read_valid() {
         Some(out) => out.token,
-        None => fetch_fresh_token().await.ok_or(SyncError::NoCredential)?,
+        None => fetch_fresh_token().await.ok_or(SyncError::NoCredential {
+            bin: crate::brand::brand().binary_name,
+        })?,
     };
 
     let client = GatewayClient::new(gateway);
@@ -117,14 +120,14 @@ async fn fetch_fresh_token() -> Option<Secret> {
     }
     if !had_failure {
         let tried = not_configured.join(", ");
+        let bin = crate::brand::brand().binary_name;
         tracing::warn!(
             providers = %tried,
-            "no auth provider is configured; run `systemprompt-bridge login <sp-live-...>` \
-             to register a PAT before syncing",
+            bin = %bin,
+            "no auth provider is configured; run login to register a PAT before syncing",
         );
         crate::obs::output::diag(&format!(
-            "no auth provider configured (tried: {tried}); run `systemprompt-bridge login \
-             <sp-live-...>`"
+            "no auth provider configured (tried: {tried}); run `{bin} login <sp-live-...>`"
         ));
     }
     None

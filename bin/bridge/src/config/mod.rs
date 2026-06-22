@@ -20,11 +20,9 @@ pub use self::profile::{
     ClaudeConfig, gateway_url_or_default, persist_pinned_pubkey, pinned_pubkey, policy_pubkey,
 };
 
-const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
-
 static DEFAULT_GATEWAY: LazyLock<ValidatedUrl> = LazyLock::new(|| {
-    ValidatedUrl::try_new(DEFAULT_GATEWAY_URL).unwrap_or_else(|_| {
-        crate::obs::output::diag("config: DEFAULT_GATEWAY_URL constant failed validation");
+    ValidatedUrl::try_new(crate::brand::brand().default_gateway_url).unwrap_or_else(|_| {
+        crate::obs::output::diag("config: brand default_gateway_url failed validation");
         std::process::abort()
     })
 });
@@ -80,7 +78,7 @@ impl Config {
             .and_then(|s| toml::from_str(&s).ok())
             .unwrap_or_default();
 
-        if let Ok(url) = env::var("SP_BRIDGE_GATEWAY_URL")
+        if let Ok(url) = env::var(crate::brand::brand().env("GATEWAY_URL"))
             && let Ok(parsed) = ValidatedUrl::try_new(url.trim())
         {
             cfg.gateway_url = Some(parsed);
@@ -133,11 +131,12 @@ pub fn load() -> Config {
 
 #[must_use]
 pub fn config_path() -> Option<PathBuf> {
-    if let Ok(explicit) = env::var("SP_BRIDGE_CONFIG") {
+    if let Ok(explicit) = env::var(crate::brand::brand().env("CONFIG")) {
         return Some(PathBuf::from(explicit));
     }
     let base = dirs::config_dir()?;
-    Some(base.join("systemprompt").join("systemprompt-bridge.toml"))
+    let brand = crate::brand::brand();
+    Some(base.join(brand.config_dir).join(brand.config_file))
 }
 
 pub fn ensure_gateway_url(url: &str) -> std::io::Result<()> {

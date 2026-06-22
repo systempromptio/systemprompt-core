@@ -21,8 +21,9 @@ pub fn check_cowork_enable() -> Check {
         return Check::warn(
             "cowork enable",
             format!(
-                "{} not yet written — run `systemprompt-bridge sync`",
-                settings.display()
+                "{} not yet written — run `{} sync`",
+                settings.display(),
+                crate::brand::brand().binary_name
             ),
         );
     };
@@ -68,8 +69,9 @@ pub fn check_plugin_installation_preference() -> Check {
         return Check::warn(
             "plugin auto-install",
             format!(
-                "{} not present — run `systemprompt-bridge sync`",
-                plugin_json.display()
+                "{} not present — run `{} sync`",
+                plugin_json.display(),
+                crate::brand::brand().binary_name
             ),
         );
     };

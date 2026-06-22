@@ -48,7 +48,8 @@ pub fn run() -> ExitCode {
         Some("gui") => gui::cmd_gui(),
         Some("--version" | "-V" | "version") => {
             output::print_str(&format!(
-                "systemprompt-bridge {} ({}, {})\n",
+                "{} {} ({}, {})\n",
+                crate::brand::brand().binary_name,
                 env!("CARGO_PKG_VERSION"),
                 diagnostics::short_sha(),
                 diagnostics::GIT_COMMIT_DATE,
@@ -56,12 +57,12 @@ pub fn run() -> ExitCode {
             ExitCode::SUCCESS
         },
         Some("help" | "--help" | "-h") => {
-            output::print_str(crate::help());
+            output::print_str(&crate::help());
             ExitCode::SUCCESS
         },
         Some(other) => {
             diag(&format!("unknown command: {other}"));
-            output::eprint_str(crate::help());
+            output::eprint_str(&crate::help());
             ExitCode::from(64)
         },
     }

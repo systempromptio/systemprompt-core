@@ -15,7 +15,7 @@ pub struct PatProvider {
 
 impl PatProvider {
     pub fn new(config: &Config) -> Self {
-        let pat_source = env::var("SP_BRIDGE_PAT")
+        let pat_source = env::var(crate::brand::brand().env("PAT"))
             .ok()
             .or_else(|| {
                 config

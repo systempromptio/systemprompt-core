@@ -176,7 +176,8 @@ pub const COWORK_PLUGINS_SUBDIR: &str = "cowork_plugins";
 #[cfg(target_os = "windows")]
 #[must_use]
 pub fn bridge_working_dir() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA").map(|p| PathBuf::from(p).join("systemprompt-bridge"))
+    std::env::var_os("LOCALAPPDATA")
+        .map(|p| PathBuf::from(p).join(crate::brand::brand().working_dir_name))
 }
 
 #[cfg(target_os = "macos")]
@@ -185,7 +186,7 @@ pub fn bridge_working_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| {
         h.join("Library")
             .join("Application Support")
-            .join("systemprompt-bridge")
+            .join(crate::brand::brand().working_dir_name)
     })
 }
 
@@ -195,7 +196,7 @@ pub fn bridge_working_dir() -> Option<PathBuf> {
     std::env::var_os("XDG_STATE_HOME")
         .map(PathBuf::from)
         .or_else(|| dirs::home_dir().map(|h| h.join(".local").join("state")))
-        .map(|base| base.join("systemprompt-bridge"))
+        .map(|base| base.join(crate::brand::brand().working_dir_name))
 }
 
 #[must_use]

@@ -9,7 +9,7 @@ pub struct MacOsKeystore {
 impl MacOsKeystore {
     pub fn new() -> Self {
         Self {
-            label: env::var("SP_BRIDGE_DEVICE_CERT_LABEL").ok(),
+            label: env::var(crate::brand::brand().env("DEVICE_CERT_LABEL")).ok(),
         }
     }
 }
@@ -17,10 +17,10 @@ impl MacOsKeystore {
 impl DeviceCertSource for MacOsKeystore {
     fn load(&self) -> Result<DeviceCert, KeystoreError> {
         let Some(label) = self.label.as_deref() else {
-            return Err(KeystoreError::NotConfigured(
-                "SP_BRIDGE_DEVICE_CERT_LABEL unset; set to the Keychain label of the device \
-                 certificate",
-            ));
+            return Err(KeystoreError::NotConfigured(format!(
+                "{} unset; set to the Keychain label of the device certificate",
+                crate::brand::brand().env("DEVICE_CERT_LABEL"),
+            )));
         };
 
         let mut opts = ItemSearchOptions::new();

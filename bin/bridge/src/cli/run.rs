@@ -26,7 +26,10 @@ pub(super) fn cmd_run() -> ExitCode {
         },
         Err(ChainError::NoneSucceeded) => {
             diag("no credential source succeeded");
-            diag("run `systemprompt-bridge login <sp-live-...>` to configure a PAT");
+            diag(&format!(
+                "run `{} login <sp-live-...>` to configure a PAT",
+                crate::brand::brand().binary_name
+            ));
             return ExitCode::from(5);
         },
     };

@@ -101,7 +101,8 @@ pub fn apply(gateway: &str, pubkey: Option<&str>) -> Result<Vec<String>, String>
     validate_gateway(gateway)?;
 
     let plist = build_prefs_plist(gateway, pubkey);
-    let tmp_path = std::env::temp_dir().join("systemprompt-bridge.prefs.plist");
+    let tmp_path =
+        std::env::temp_dir().join(format!("{}.prefs.plist", crate::brand::brand().binary_name));
     fs::write(&tmp_path, plist.as_bytes())
         .map_err(|e| format!("write {}: {e}", tmp_path.display()))?;
 
@@ -136,10 +137,11 @@ mkdir -p "/Library/Managed Preferences" "/Library/Managed Preferences/{user}"
     _ = fs::remove_file(&tmp_path);
     if !status.success() {
         return Err(format!(
-            "sudo direct-write exited with {}. Re-run `systemprompt-bridge install --apply` and \
+            "sudo direct-write exited with {}. Re-run `{} install --apply` and \
              approve the sudo prompt, or try `--apply-mobileconfig` for the MDM/System-Settings \
              path.",
-            status.code().unwrap_or(-1)
+            status.code().unwrap_or(-1),
+            crate::brand::brand().binary_name
         ));
     }
 
@@ -192,7 +194,10 @@ pub fn apply_mobileconfig(gateway: &str, pubkey: Option<&str>) -> Result<Vec<Str
     validate_gateway(gateway)?;
 
     let mobileconfig = build_mobileconfig(gateway, pubkey);
-    let out_path = std::env::temp_dir().join("systemprompt-bridge.mobileconfig");
+    let out_path = std::env::temp_dir().join(format!(
+        "{}.mobileconfig",
+        crate::brand::brand().binary_name
+    ));
     fs::write(&out_path, mobileconfig.as_bytes())
         .map_err(|e| format!("write {}: {e}", out_path.display()))?;
 

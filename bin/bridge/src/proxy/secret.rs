@@ -15,7 +15,10 @@ static SECRET: OnceLock<LoopbackSecret> = OnceLock::new();
 #[must_use]
 pub fn secret_path() -> Option<PathBuf> {
     let base = dirs::config_dir()?;
-    Some(base.join("systemprompt").join(LOOPBACK_FILENAME))
+    Some(
+        base.join(crate::brand::brand().config_dir)
+            .join(LOOPBACK_FILENAME),
+    )
 }
 
 pub fn load(path: &std::path::Path) -> std::io::Result<Option<LoopbackSecret>> {

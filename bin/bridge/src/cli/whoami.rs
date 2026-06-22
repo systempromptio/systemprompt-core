@@ -21,7 +21,10 @@ pub fn cmd_whoami() -> ExitCode {
                 return ExitCode::from(10);
             },
             Err(ChainError::NoneSucceeded) => {
-                diag("no credential available; run `systemprompt-bridge login` first");
+                diag(&format!(
+                    "no credential available; run `{} login` first",
+                    crate::brand::brand().binary_name
+                ));
                 return ExitCode::from(5);
             },
         };

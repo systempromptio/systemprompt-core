@@ -121,6 +121,7 @@ pub async fn run_once(
     let location = paths::org_plugins_effective().ok_or(SyncError::PathUnresolvable)?;
     if !location.path.is_dir() {
         return Err(SyncError::PathMissing {
+            bin: crate::brand::brand().binary_name,
             path: location.path.display().to_string(),
         });
     }

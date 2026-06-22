@@ -40,7 +40,9 @@ fn negotiated_locale() -> Option<String> {
 }
 
 fn load_external(locale: &str) -> Option<HashMap<String, String>> {
-    let cfg_dir = dirs::config_dir()?.join("systemprompt").join("i18n");
+    let cfg_dir = dirs::config_dir()?
+        .join(crate::brand::brand().config_dir)
+        .join("i18n");
     let candidate = cfg_dir.join(locale).join("bridge.ftl");
     let raw = std::fs::read_to_string(candidate).ok()?;
     Some(parse(&raw))
