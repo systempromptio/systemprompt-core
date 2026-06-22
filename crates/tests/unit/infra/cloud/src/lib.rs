@@ -37,6 +37,8 @@ mod profile_authoring;
 #[cfg(test)]
 mod project_paths;
 #[cfg(test)]
+mod provisioning_wait;
+#[cfg(test)]
 mod secrets_env;
 #[cfg(test)]
 mod session_key;
@@ -45,8 +47,12 @@ mod session_store;
 #[cfg(test)]
 mod stored_tenant_extra;
 #[cfg(test)]
+mod streams_sse;
+#[cfg(test)]
 mod tenant_api_tests;
 #[cfg(test)]
 mod tenant_provisioning;
+#[cfg(test)]
+mod tenant_token_retry;
 #[cfg(test)]
 mod tenants;
