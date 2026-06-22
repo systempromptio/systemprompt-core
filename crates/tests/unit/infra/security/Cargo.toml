@@ -12,7 +12,8 @@ workspace = true
 
 [dependencies]
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-security = { workspace = true }
+systemprompt-security = { workspace = true, features = ["test-jwks-insecure-scheme"] }
+systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
@@ -26,6 +27,10 @@ serde_json = { workspace = true }
 serde_jcs = "0.1"
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 base64 = { workspace = true }
+uuid = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+wiremock = { workspace = true }
+sqlx = { workspace = true }

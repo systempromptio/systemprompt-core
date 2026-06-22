@@ -7,11 +7,17 @@ mod acl_glob;
 #[cfg(test)]
 mod at_rest;
 #[cfg(test)]
+mod auth_validation;
+#[cfg(test)]
+mod authz_repository;
+#[cfg(test)]
 mod error_display;
 #[cfg(test)]
 mod extraction;
 #[cfg(test)]
 mod hook_token_typed_ids;
+#[cfg(test)]
+mod jwks_fetch;
 #[cfg(test)]
 mod jwt_extract;
 #[cfg(test)]
