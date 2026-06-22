@@ -3,5 +3,6 @@
 //! for show/stats/summary/audit) and to a message artifact on the
 //! empty/not-found path.
 
+mod duration_parse;
 mod logs_builders;
 mod request_builders;

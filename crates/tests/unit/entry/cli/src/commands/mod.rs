@@ -1,5 +1,6 @@
 //! Tests touching public surfaces under the `commands` re-exports.
 
+mod analytics;
 mod cloud_doctor;
 mod cloud_profile_templates;
 mod config_secret;
