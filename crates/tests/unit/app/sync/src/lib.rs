@@ -30,9 +30,13 @@ mod database_export;
 #[cfg(test)]
 mod database_sync_failure;
 #[cfg(test)]
+mod deploy_artifacts;
+#[cfg(test)]
 mod deploy_orchestrator;
 #[cfg(test)]
 mod diff;
+#[cfg(test)]
+mod diff_content;
 #[cfg(test)]
 mod edge_cases;
 #[cfg(test)]
@@ -48,7 +52,11 @@ mod files;
 #[cfg(test)]
 mod generation;
 #[cfg(test)]
+mod jobs_content_sync;
+#[cfg(test)]
 mod jobs_smoke;
+#[cfg(test)]
+mod local_content_sync;
 #[cfg(test)]
 mod models;
 #[cfg(test)]
