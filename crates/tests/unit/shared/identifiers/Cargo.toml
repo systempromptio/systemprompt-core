@@ -15,5 +15,6 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
 
 [dev-dependencies]
+chrono = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }

@@ -204,3 +204,34 @@ fn rejects_empty_port_after_colon() {
     let err = ValidatedUrl::try_new("https://example.com:/path").unwrap_err();
     assert!(err.to_string().contains("port"));
 }
+
+#[test]
+fn rejects_ipv6_missing_closing_bracket() {
+    let err = ValidatedUrl::try_new("https://[::1/path").unwrap_err();
+    assert!(err.to_string().contains("closing bracket"));
+}
+
+#[test]
+fn rejects_empty_port_after_ipv6() {
+    let err = ValidatedUrl::try_new("https://[::1]:/path").unwrap_err();
+    assert!(err.to_string().contains("port"));
+}
+
+#[test]
+fn valid_ipv6_url_with_port() {
+    let url = ValidatedUrl::try_new("https://[::1]:8080/path").unwrap();
+    assert_eq!(url.as_str(), "https://[::1]:8080/path");
+}
+
+#[test]
+fn as_ref_str_returns_inner() {
+    let url = ValidatedUrl::new("https://example.com/api");
+    assert_eq!(AsRef::<str>::as_ref(&url), "https://example.com/api");
+}
+
+#[test]
+fn to_db_value_via_reference() {
+    let url = ValidatedUrl::new("https://example.com");
+    let db_val = (&url).to_db_value();
+    assert!(matches!(db_val, DbValue::String(s) if s == "https://example.com"));
+}

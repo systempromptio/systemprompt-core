@@ -88,3 +88,9 @@ fn to_db_value_is_string() {
 fn new_succeeds_on_valid() {
     assert_eq!(LocaleCode::new("es").as_str(), "es");
 }
+
+#[test]
+fn to_db_value_via_reference() {
+    let code = LocaleCode::try_new("ko").unwrap();
+    assert!(matches!((&code).to_db_value(), DbValue::String(s) if s == "ko"));
+}

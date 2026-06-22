@@ -4,7 +4,19 @@
 //! the project's testing policy of keeping tests in separate crates.
 
 #[cfg(test)]
+mod actor_tests;
+
+#[cfg(test)]
 mod agent_tests;
+
+#[cfg(test)]
+mod from_value_tests;
+
+#[cfg(test)]
+mod macros_helpers_tests;
+
+#[cfg(test)]
+mod to_value_tests;
 
 #[cfg(test)]
 mod ai_tests;
