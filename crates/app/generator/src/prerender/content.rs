@@ -4,6 +4,7 @@
 //! (in [`crate::prerender::list`]).
 
 use futures::stream::{self, StreamExt};
+use systemprompt_content::models::Content;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
 
@@ -11,7 +12,7 @@ use crate::error::{GeneratorResult as Result, PublishError};
 use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
 use crate::prerender::list::{RenderListParams, render_list_route};
-use crate::prerender::render::{RenderSingleItemParams, render_single_item};
+use crate::prerender::render::{RenderSingleItemParams, remove_rendered_page, render_single_item};
 
 struct SourceRenderJob<'a> {
     ctx: &'a PrerenderContext,
@@ -98,8 +99,18 @@ async fn process_source(
         return Ok(0);
     }
 
+    let locale_prefix = ctx.web_config.i18n.locale_prefix(locale);
+    let (public_contents, private_contents): (Vec<_>, Vec<_>) =
+        contents.into_iter().partition(|c| c.public);
+
+    purge_private_pages(ctx, sitemap_config, &locale_prefix, &private_contents).await;
+
+    if public_contents.is_empty() {
+        return Ok(0);
+    }
+
     let items = contents_to_json(
-        &contents,
+        &public_contents,
         source_name,
         &ctx.content_data_providers,
         &ctx.db_pool,
@@ -109,7 +120,6 @@ async fn process_source(
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
-    let locale_prefix = ctx.web_config.i18n.locale_prefix(locale);
     let job = SourceRenderJob {
         ctx,
         source_name,
@@ -123,6 +133,29 @@ async fn process_source(
     let rendered = render_all_items(&job).await?;
     let parent = render_parent_if_enabled(&job).await?;
     Ok(rendered + parent)
+}
+
+async fn purge_private_pages(
+    ctx: &PrerenderContext,
+    sitemap_config: &SitemapConfig,
+    locale_prefix: &str,
+    private_contents: &[Content],
+) {
+    for content in private_contents {
+        if content.slug.is_empty() {
+            continue;
+        }
+        if let Err(e) = remove_rendered_page(
+            &ctx.dist_dir,
+            locale_prefix,
+            &sitemap_config.url_pattern,
+            &content.slug,
+        )
+        .await
+        {
+            tracing::warn!(slug = %content.slug, error = %e, "Failed to remove dist output for non-public slug");
+        }
+    }
 }
 
 async fn render_all_items(job: &SourceRenderJob<'_>) -> Result<u32> {

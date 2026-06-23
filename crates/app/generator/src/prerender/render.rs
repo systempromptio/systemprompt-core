@@ -194,6 +194,23 @@ async fn write_rendered_page(
     Ok(())
 }
 
+pub(super) async fn remove_rendered_page(
+    dist_dir: &Path,
+    locale_prefix: &str,
+    url_pattern: &str,
+    slug: &str,
+) -> GeneratorResult<()> {
+    let output_dir = determine_output_dir(dist_dir, locale_prefix, url_pattern, slug);
+    match fs::remove_dir_all(&output_dir).await {
+        Ok(()) => {
+            tracing::debug!(path = %output_dir.display(), "Removed dist output for non-public slug");
+            Ok(())
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e.into()),
+    }
+}
+
 fn determine_output_dir(
     dist_dir: &Path,
     locale_prefix: &str,

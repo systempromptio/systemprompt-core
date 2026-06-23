@@ -24,11 +24,19 @@
 # `find_or_create_federated` INSERTs whose synthetic local emails collide on
 # that index, and the user-service create/update tests churn rows another test
 # is counting. Serialise the DB-backed suite so each test owns its row mutations.
+#
+# The generator DB tests (`sitemap_generator_db`, `pipeline_full`,
+# `prerender_public_db`) each overwrite the one shared on-disk `web/config.yaml`
+# + `content/config.yaml` before running a generator entry point that reads them
+# back. A per-module mutex cannot stop a sibling module rewriting the config
+# mid-run, so a concurrent test reads another test's source config and asserts on
+# the wrong output. Serialise the whole config-writing suite into one slot.
 [test-groups]
 scheduler-services-db = { max-threads = 1 }
 scheduler-jobs-db = { max-threads = 1 }
 oauth-clients-db = { max-threads = 1 }
 users-db = { max-threads = 1 }
+generator-config-db = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_behaviour_db|reconciler_db)::/)'
@@ -61,6 +69,14 @@ test-group = 'users-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-users-tests) and test(/(repository::federated_identity|repository::device_cert|services::device_cert_service|services::user_service)::/)'
 test-group = 'users-db'
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
+test-group = 'generator-config-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-generator-tests) and test(/(sitemap_generator_db|pipeline_full|prerender_public_db)::/)'
+test-group = 'generator-config-db'
 
 [profile.default]
 # A test still running after 60s is flagged slow; after 3 such periods (180s)
