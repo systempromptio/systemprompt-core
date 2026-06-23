@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Fixed
+
+- The content prerenderer honors `public = false`: non-public rows are no longer rendered to `web/dist/`, and a row that transitions public to private has its previously-rendered HTML removed. Previously a private page stayed directly reachable at its URL even though it was excluded from the sitemap and navigation.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

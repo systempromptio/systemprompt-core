@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Added
+
+- ID-JAG (Identity Assertion JWT Authorization Grant) support for the Enterprise-Managed Authorization (EMA) flow: the token endpoint issues and consumes ID-JAG assertions via RFC 8693 token exchange, with single-use replay rejection. OAuth and MCP discovery metadata advertise `subject_token_types_supported` and `issued_token_types_supported`, and MCP protected-resource metadata advertises the EMA extension for resource-bound servers. `TrustedIssuer` gains `typ_allowlist`, `allowed_client_ids`, and `can_issue_id_jag`, and `SecurityConfig.id_jag_ttl_secs` (default 300s) sets the minted assertion lifetime. All new profile fields default to empty/disabled, so existing profile YAML is unaffected.
+
+### Changed
+
+- The database-cleanup job prunes expired ID-JAG replay rows.
+
+### Fixed
+
+- A managed service's configured `audience` is now enforced against the caller's token; previously it was declared but not checked.
+- The content prerenderer honors `public = false`: non-public rows are no longer rendered to `web/dist/`, and a row that transitions public to private has its previously-rendered HTML removed. Previously a private page stayed directly reachable at its URL even though it was excluded from the sitemap and navigation.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking
