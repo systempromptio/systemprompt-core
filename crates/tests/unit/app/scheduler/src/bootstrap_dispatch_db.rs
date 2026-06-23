@@ -78,13 +78,22 @@ mod bootstrap_dispatch_db {
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx)
             .expect("SchedulerService::new");
 
+        // The bootstrap dispatch path only *updates* an existing scheduled_jobs
+        // row — `record_run` returns early when the row is absent — mirroring a
+        // job already registered by scheduling setup. Seed the row so this test
+        // owns it rather than depending on a concurrent test having upserted the
+        // same shared, inventory-registered job name.
+        let repo = SchedulerRepository::new(&pool).expect("repo");
+        repo.upsert_job(job_name, "0 0 * * * *", true)
+            .await
+            .expect("seed scheduled_jobs row");
+
         svc.run_bootstrap_jobs(None)
             .await
             .expect("run_bootstrap_jobs must succeed for a known bootstrap job");
 
         // Dispatch records the run in the scheduled_jobs row. After a clean run
         // the row must exist with a Success status.
-        let repo = SchedulerRepository::new(&pool).expect("repo");
         let row = repo
             .find_job(job_name)
             .await

@@ -17,8 +17,11 @@
 # The seeded job tests run jobs (`MaliciousIpBlacklistJob`, `BehavioralAnalysisJob`)
 # that scan whole tables (`user_sessions`, `fingerprint_reputation`) and skip
 # already-banned IPs, so a concurrent run's job bans another test's seeded IP first
-# and that test then observes zero newly-banned rows. Serialise the suite into one
-# slot so each test's job sees only its own seeded data.
+# and that test then observes zero newly-banned rows. The bootstrap-dispatch and
+# job-execution tests additionally share the one inventory-registered
+# `cleanup_inactive_sessions` scheduled_jobs row, so a concurrent run flips its
+# status mid-assertion. Serialise the suite into one slot so each test's job sees
+# only its own seeded data.
 # The users-domain DB tests share the `users` table and its `email`/`name`
 # UNIQUE indexes. The federated-identity tests run concurrent
 # `find_or_create_federated` INSERTs whose synthetic local emails collide on
@@ -47,11 +50,11 @@ filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
