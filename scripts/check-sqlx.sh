@@ -10,8 +10,12 @@ allowlist=(
     '^crates/infra/database/src/admin/'
     '^crates/infra/database/src/services/postgres/'
     '^crates/infra/database/src/repository/entity\.rs:'
+    # Test crates keep no `.sqlx` offline cache (they run live against a
+    # freshly-migrated DB), so the compile-time macros are unavailable in test
+    # seed/cleanup helpers. The gate's job is verifying production SQL; both test
+    # trees are exempt.
     '^crates/tests/integration/'
-    '^crates/tests/unit/domain/analytics/src/repository/costs\.rs:'
+    '^crates/tests/unit/'
     '^crates/entry/cli/src/commands/admin/setup/'
     '^crates/entry/cli/src/commands/infrastructure/jobs/cleanup_logs\.rs:'
 )
