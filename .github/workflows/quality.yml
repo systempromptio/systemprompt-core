@@ -46,11 +46,15 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y ripgrep
       - uses: extractions/setup-just@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete
       - run: just lint-schema
       - run: just lint-extensions
       - run: just lint-sqlx
       - run: just lint-http-errors
       - run: just lint-no-untyped-admin
+      - run: just machete
 
   msrv:
     name: MSRV check (Rust 1.88)
