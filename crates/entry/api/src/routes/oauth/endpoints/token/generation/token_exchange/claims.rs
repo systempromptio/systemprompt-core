@@ -9,7 +9,6 @@ use systemprompt_models::auth::{ActClaim, JwtAudience, Permission};
 
 use super::super::super::TokenError;
 
-// An empty client scope is treated as "no restriction beyond owner".
 pub fn intersect_scopes(
     requested: &[Permission],
     subject_scope: &[Permission],
