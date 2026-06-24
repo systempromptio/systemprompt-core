@@ -39,12 +39,12 @@ async fn main() -> Result<()> {
 }
 
 fn mask_password(url: &str) -> String {
-    if let Some(at_idx) = url.rfind('@') {
-        if let Some(scheme_end) = url.find("://") {
-            let head = &url[..scheme_end + 3];
-            let tail = &url[at_idx..];
-            return format!("{head}***{tail}");
-        }
+    if let Some(at_idx) = url.rfind('@')
+        && let Some(scheme_end) = url.find("://")
+    {
+        let head = &url[..scheme_end + 3];
+        let tail = &url[at_idx..];
+        return format!("{head}***{tail}");
     }
     url.to_string()
 }

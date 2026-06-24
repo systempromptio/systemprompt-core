@@ -10,10 +10,10 @@ fn simulate_determine_scopes(request: &DynamicRegistrationRequest) -> Vec<String
             .split_whitespace()
             .map(ToString::to_string)
             .collect();
-        if !requested_scopes.is_empty() {
-            if let Ok(valid) = OAuthRepository::validate_scopes(&requested_scopes) {
-                return valid;
-            }
+        if !requested_scopes.is_empty()
+            && let Ok(valid) = OAuthRepository::validate_scopes(&requested_scopes)
+        {
+            return valid;
         }
     }
     let default_roles = OAuthRepository::get_default_roles();

@@ -381,13 +381,13 @@ impl DatabaseTransaction for RecordingTx {
         self.statement_index += 1;
         self.log
             .push(format!("tx_execute:{}", self.statement_index));
-        if let Some(fail_at) = self.fail_on_statement {
-            if fail_at == self.statement_index {
-                return Err(systemprompt_database::RepositoryError::internal(format!(
-                    "boom on stmt {}",
-                    self.statement_index
-                )));
-            }
+        if let Some(fail_at) = self.fail_on_statement
+            && fail_at == self.statement_index
+        {
+            return Err(systemprompt_database::RepositoryError::internal(format!(
+                "boom on stmt {}",
+                self.statement_index
+            )));
         }
         Ok(0)
     }

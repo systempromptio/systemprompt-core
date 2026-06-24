@@ -164,10 +164,9 @@ async fn service_started_event_resets_failure_counter() {
     while tokio::time::Instant::now() < deadline {
         if let Ok(Ok(McpEvent::ServiceRestartRequested { service_name, .. })) =
             timeout(Duration::from_millis(50), rx.recv()).await
+            && service_name == "delta"
         {
-            if service_name == "delta" {
-                panic!("counter not reset after ServiceStarted");
-            }
+            panic!("counter not reset after ServiceStarted");
         }
     }
 }

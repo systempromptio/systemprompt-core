@@ -13,10 +13,6 @@ pub fn unique_session_id() -> SessionId {
     SessionId::new(format!("sess-{}", Uuid::new_v4()))
 }
 
-pub fn unique_fingerprint() -> String {
-    format!("fp-{}", Uuid::new_v4())
-}
-
 /// Minimal session seed: no user, web source, expiry one hour out.
 pub fn base_params<'a>(
     session_id: &'a SessionId,

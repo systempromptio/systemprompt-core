@@ -41,10 +41,10 @@ fn systemprompt_bin() -> std::path::PathBuf {
 }
 
 fn database_url() -> Option<String> {
-    if let Ok(url) = std::env::var("DATABASE_URL") {
-        if !url.is_empty() {
-            return Some(url);
-        }
+    if let Ok(url) = std::env::var("DATABASE_URL")
+        && !url.is_empty()
+    {
+        return Some(url);
     }
     None
 }

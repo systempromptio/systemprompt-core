@@ -89,7 +89,7 @@ impl AiFilePersistenceProvider for InMemoryFileProvider {
             .filter(|f| f.user_id.as_ref() == Some(user_id))
             .cloned()
             .collect();
-        matching.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        matching.sort_by_key(|a| a.created_at);
         Ok(matching
             .into_iter()
             .skip(offset.max(0) as usize)
