@@ -29,7 +29,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
 systemprompt-models = { workspace = true, features = ["web"] }
@@ -43,7 +42,6 @@ thiserror = { workspace = true }
 
 # Utilities
 uuid = { workspace = true }
-urlencoding = { workspace = true }
 
 # Validation
 validator = { workspace = true }
@@ -65,7 +63,6 @@ http = { workspace = true }
 # LRU cache for JTI revocation lookups
 lru = { workspace = true }
 
-axum = { workspace = true }
 
 # HTTP client for CLI-to-REST calls
 reqwest = { workspace = true }
@@ -74,7 +71,6 @@ reqwest = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-logging = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 
@@ -83,3 +79,7 @@ systemprompt-traits = { workspace = true }
 [dev-dependencies]
 tokio-test = { workspace = true }
 tempfile = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]

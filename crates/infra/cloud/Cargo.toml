@@ -23,7 +23,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Core
 thiserror = { workspace = true }
-async-trait = { workspace = true }
 
 # HTTP
 reqwest = { workspace = true }
@@ -53,13 +52,11 @@ async-stream = { workspace = true }
 clap = { workspace = true }
 
 # Utilities
-uuid = { workspace = true }
 
 # Internal dependencies
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
-systemprompt-client = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }

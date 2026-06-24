@@ -28,7 +28,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
-uuid = { workspace = true }
 
 # Database
 sqlx = { workspace = true }
@@ -45,12 +44,10 @@ tempfile = { workspace = true }
 walkdir = { workspace = true }
 
 # Domain crates for local sync
-systemprompt-agent = { workspace = true }
 systemprompt-cloud = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-database = { workspace = true }
-systemprompt-logging = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
@@ -65,10 +62,13 @@ inventory = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true }
 
 [lints]
 workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!) / thiserror: derived through the domain_error! macro (#[derive(::thiserror::Error)])
+ignored = ["inventory", "thiserror"]

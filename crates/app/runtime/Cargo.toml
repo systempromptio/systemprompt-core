@@ -34,7 +34,6 @@ systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
-systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-loader = { workspace = true }

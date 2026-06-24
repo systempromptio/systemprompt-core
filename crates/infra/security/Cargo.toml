@@ -28,7 +28,6 @@ systemprompt-extension = { workspace = true }
 
 [dependencies]
 # Core runtime
-tokio = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
@@ -69,7 +68,6 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
 
 [package.metadata.docs.rs]

@@ -29,11 +29,9 @@ systemprompt-cloud = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 
 # Async
-tokio = { workspace = true }
 
 # Database
 sqlx = { workspace = true, features = ["postgres", "uuid"] }
@@ -59,23 +57,20 @@ systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 
 # Static content generation
-comrak = { workspace = true }
-handlebars = { workspace = true }
-quick-xml = { version = "0.31", features = ["serialize"] }
-indicatif = { workspace = true }
 
 # HTTP
-reqwest = { workspace = true }
 
 # UUID to hex conversion
 hex = { workspace = true }
 
 # URL handling
-urlencoding = { workspace = true }
-url = { workspace = true }
 
 # Random number generation
 rand = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]

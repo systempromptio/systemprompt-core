@@ -23,11 +23,9 @@ async-trait = { workspace = true }
 async-stream = { workspace = true }
 
 # CLI
-clap = { workspace = true }
 
 # HTTP/Web framework
 axum = { workspace = true }
-tower = { workspace = true }
 tower-http = { workspace = true, features = ["normalize-path"] }
 tower_governor = { workspace = true }
 governor = { workspace = true }
@@ -37,7 +35,6 @@ bytes = { workspace = true }
 futures-util = { workspace = true }
 
 # MCP transport
-rmcp = { workspace = true }
 
 # Database
 sqlx = { workspace = true }
@@ -50,13 +47,9 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
-regex = { workspace = true }
-indexmap = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 ipnet = { workspace = true }
-subtle = { workspace = true }
-ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 base64 = { workspace = true }
 rand = { workspace = true }
 

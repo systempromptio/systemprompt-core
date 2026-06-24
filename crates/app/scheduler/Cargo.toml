@@ -27,7 +27,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 chrono = { workspace = true }
 tokio-cron-scheduler = { workspace = true }
 
@@ -35,11 +34,8 @@ tokio-cron-scheduler = { workspace = true }
 sqlx = { workspace = true }
 
 # UUID for job IDs
-uuid = { workspace = true }
 
 # URL parsing
-url = { workspace = true }
-urlencoding = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
 systemprompt-analytics = { workspace = true }

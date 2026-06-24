@@ -25,12 +25,9 @@ systemprompt-identifiers = { workspace = true }
 
 # Infrastructure layer
 systemprompt-database = { workspace = true }
-systemprompt-logging = { workspace = true }
-systemprompt-cloud = { workspace = true }
 
 # Domain layer (read-only access for content types)
 systemprompt-content = { workspace = true }
-systemprompt-files = { workspace = true }
 systemprompt-templates = { workspace = true }
 
 # Template provider traits
@@ -40,7 +37,6 @@ systemprompt-template-provider = { workspace = true }
 systemprompt-extension = { workspace = true }
 
 # App layer (sync)
-systemprompt-sync = { workspace = true }
 
 # Async runtime
 tokio = { workspace = true, features = ["fs"] }
@@ -58,7 +54,6 @@ serde_yaml = { workspace = true }
 tracing = { workspace = true }
 
 # Template engine
-handlebars = { workspace = true }
 
 # Markdown processing
 comrak = { workspace = true }
@@ -70,30 +65,22 @@ quick-xml = { version = "0.31", features = ["serialize"] }
 indicatif = { workspace = true }
 
 # File utilities
-walkdir = { workspace = true }
 
 # Image processing (WebP conversion)
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
 
 # HTTP client
-reqwest = { workspace = true }
 
 # Chrono for dates
 chrono = { workspace = true }
 
 # UUID
-uuid = { workspace = true }
 
 # URL handling
-url = { workspace = true }
-urlencoding = { workspace = true }
 
 # Random
-rand = { workspace = true }
 
 # Hashing
-sha2 = { workspace = true }
-hex = { workspace = true }
 
 # Job registration
 inventory = { workspace = true }
@@ -108,3 +95,7 @@ all-features = true
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[package.metadata.cargo-machete]
+# image: used only under the image-processing feature / inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["image", "inventory"]

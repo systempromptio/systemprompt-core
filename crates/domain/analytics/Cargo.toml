@@ -61,3 +61,7 @@ systemprompt-traits = { workspace = true }
 
 inventory = { workspace = true }
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!) / thiserror: derived through the domain_error! macro (#[derive(::thiserror::Error)])
+ignored = ["inventory", "thiserror"]

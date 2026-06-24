@@ -22,7 +22,6 @@ reqwest = { workspace = true }
 reqwest-eventsource = { workspace = true }
 
 # Async runtime
-tokio = { workspace = true }
 futures = { workspace = true }
 
 # Serialization

@@ -52,3 +52,7 @@ pg_query = { workspace = true }
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]

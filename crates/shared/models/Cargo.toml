@@ -44,7 +44,6 @@ http = { workspace = true }
 url = { workspace = true }
 
 # Validation
-validator = { workspace = true }
 
 # JSON Schema generation
 schemars = { workspace = true }
@@ -53,8 +52,6 @@ schemars = { workspace = true }
 regex = { workspace = true }
 
 # Crypto (manifest signing seed: random generation + base64 persistence)
-rand = { workspace = true }
-base64 = { workspace = true }
 
 # Async streaming
 futures = { workspace = true }

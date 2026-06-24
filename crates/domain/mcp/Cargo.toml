@@ -27,12 +27,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Core dependencies
 tokio = { workspace = true, features = ["signal"] }
-tokio-util = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true }
-serde_yaml = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
 async-trait = { workspace = true }
@@ -43,22 +41,18 @@ sqlx = { workspace = true }
 
 # MCP Protocol
 rmcp = { workspace = true }
-rmcp-macros = { workspace = true }
 
 # HTTP for MCP servers
 axum = { workspace = true }
 reqwest = { workspace = true }
 tower-http = { workspace = true }
-tower = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
 sse-stream = { workspace = true }
 
 # CLI
-clap = { workspace = true }
 
 # JWT validation
-jsonwebtoken = { workspace = true }
 
 # systemprompt.io integration
 systemprompt-provider-contracts = { workspace = true }
@@ -75,8 +69,11 @@ systemprompt-marketplace = { workspace = true }
 
 # Process management
 uuid = { workspace = true }
-rand = { workspace = true }
 url = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 nix = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!) / thiserror: derived through the domain_error! macro (#[derive(::thiserror::Error)])
+ignored = ["inventory", "thiserror"]

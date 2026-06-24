@@ -47,3 +47,7 @@ systemprompt-models = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]

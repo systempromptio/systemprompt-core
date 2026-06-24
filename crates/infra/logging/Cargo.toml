@@ -55,10 +55,8 @@ thiserror = { workspace = true }
 inventory = { workspace = true }
 
 # Validation
-validator = { workspace = true }
 
 # Web interface dependencies
-axum = { workspace = true }
 
 [features]
 default = []
@@ -66,3 +64,7 @@ cli = ["dep:console", "dep:dialoguer", "dep:indicatif"]
 
 [package.metadata.docs.rs]
 all-features = true
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]

@@ -28,7 +28,6 @@ systemprompt-cloud = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
-systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
@@ -48,3 +47,7 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
 serde_yaml = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension!/submit_* macros (::inventory::submit!)
+ignored = ["inventory"]
