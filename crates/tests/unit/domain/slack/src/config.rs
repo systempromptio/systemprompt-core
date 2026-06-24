@@ -43,7 +43,10 @@ default_agent: "a"
 fn routing_overrides_default_then_falls_back() {
     let app = parse(FULL);
     assert_eq!(app.agent_for("/ask").map(|a| a.as_str()), Some("qa-agent"));
-    assert_eq!(app.agent_for("C0ABC").map(|a| a.as_str()), Some("triage-agent"));
+    assert_eq!(
+        app.agent_for("C0ABC").map(|a| a.as_str()),
+        Some("triage-agent")
+    );
     assert_eq!(
         app.agent_for("C0UNKNOWN").map(|a| a.as_str()),
         Some("support-agent")

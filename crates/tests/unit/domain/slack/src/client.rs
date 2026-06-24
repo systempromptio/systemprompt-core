@@ -1,6 +1,6 @@
 //! Wiremock coverage for the outbound Slack Web API client.
 //!
-//! `SlackClient::with_base_url` (the `test-support` seam) points
+//! `SlackClient::with_base_url` (the `test` seam) points
 //! `chat.postMessage` at a loopback mock so the outbound request, bearer auth,
 //! and the `{"ok": false}` logical-failure branch are all observable. The SSRF
 //! guard runs before any request, so a blocked host fails closed without a
@@ -12,7 +12,8 @@ use systemprompt_slack::client::SlackClient;
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-const BLOCKS: fn() -> Value = || json!([{ "type": "section", "text": { "type": "mrkdwn", "text": "hi" } }]);
+const BLOCKS: fn() -> Value =
+    || json!([{ "type": "section", "text": { "type": "mrkdwn", "text": "hi" } }]);
 
 #[tokio::test]
 async fn post_message_sends_bearer_and_channel_to_the_endpoint() {
@@ -89,7 +90,11 @@ async fn respond_posts_in_channel_response_type() {
 
     let client = SlackClient::new(reqwest::Client::new(), String::new());
     client
-        .respond(&format!("{}/hook/in_channel", server.uri()), BLOCKS(), false)
+        .respond(
+            &format!("{}/hook/in_channel", server.uri()),
+            BLOCKS(),
+            false,
+        )
         .await
         .expect("in_channel respond succeeds");
 }

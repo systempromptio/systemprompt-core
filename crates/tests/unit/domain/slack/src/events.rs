@@ -25,7 +25,7 @@ fn event_callback_deserializes() {
             assert_eq!(event.kind, "app_mention");
             assert_eq!(event.text.as_deref(), Some("hi"));
             assert_eq!(event.channel.as_ref().map(|c| c.as_str()), Some("C1"));
-        }
+        },
         EventsApiEnvelope::UrlVerification { .. } => panic!("wrong variant"),
     }
 }

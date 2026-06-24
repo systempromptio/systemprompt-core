@@ -271,7 +271,10 @@ fn test_jwt_config_deserialize() {
 // logic (typ header + claim shape), not the signing authority, so no signature
 // verification is needed.
 fn id_jag_claims(token: &str) -> IdJagClaims {
-    let payload = token.split('.').nth(1).expect("token has a payload segment");
+    let payload = token
+        .split('.')
+        .nth(1)
+        .expect("token has a payload segment");
     let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .decode(payload)
         .expect("payload is base64url");
@@ -299,7 +302,10 @@ fn mints_id_jag_with_correct_typ_and_claims() {
     let claims = id_jag_claims(&token);
     assert_eq!(claims.sub, "user-42");
     assert_eq!(claims.aud, "https://core.example");
-    assert_eq!(claims.bound_client().map(ClientId::as_str), Some("client-a"));
+    assert_eq!(
+        claims.bound_client().map(ClientId::as_str),
+        Some("client-a")
+    );
     assert_eq!(claims.email.as_deref(), Some("user@example.com"));
     assert_eq!(claims.scope.as_deref(), Some("user mcp"));
     assert_eq!(claims.exp - claims.iat, 300);

@@ -34,7 +34,7 @@ impl TeamsClient {
     /// Build a client whose outbound token endpoint is overridden, so a test
     /// can mint tokens against a loopback mock server. The Bot Connector reply
     /// target is the activity's `serviceUrl`, supplied per call.
-    #[cfg(feature = "test-support")]
+    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_endpoints(
         http: reqwest::Client,

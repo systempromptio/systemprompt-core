@@ -128,7 +128,10 @@ async fn slack_happy_path_projects_entity_and_rules() {
     .fetch_one(f.pg.as_ref())
     .await
     .expect("entity row exists");
-    assert!(!default_included, "workspace entity is not default-included");
+    assert!(
+        !default_included,
+        "workspace entity is not default-included"
+    );
 
     assert_eq!(
         role_values(&f.pg, "slack_workspace", &id).await,
@@ -143,7 +146,10 @@ async fn slack_happy_path_projects_entity_and_rules() {
     .fetch_all(f.pg.as_ref())
     .await
     .expect("query access");
-    assert!(accesses.iter().all(|a| a == "allow"), "role grants are allow");
+    assert!(
+        accesses.iter().all(|a| a == "allow"),
+        "role grants are allow"
+    );
 
     cleanup(&f.pg, "slack_workspace", &id).await;
 }
@@ -162,10 +168,7 @@ async fn teams_happy_path_projects_entity_and_rules() {
         .await
         .expect("ingest");
     assert_eq!(report.inserted, 1);
-    assert_eq!(
-        role_values(&f.pg, "teams_tenant", &id).await,
-        vec!["user"]
-    );
+    assert_eq!(role_values(&f.pg, "teams_tenant", &id).await, vec!["user"]);
 
     cleanup(&f.pg, "teams_tenant", &id).await;
 }
@@ -178,7 +181,10 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
     let service = AccessControlIngestionService::new(&f.db).expect("service");
 
     let mut apps = HashMap::new();
-    apps.insert("disabled".to_owned(), slack_app(&disabled, &["admin"], false));
+    apps.insert(
+        "disabled".to_owned(),
+        slack_app(&disabled, &["admin"], false),
+    );
     apps.insert("empty".to_owned(), slack_app(&empty, &[], true));
 
     let report = service
@@ -187,8 +193,16 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
         .expect("ingest");
     assert_eq!(report.inserted, 0, "neither app contributes rules");
 
-    assert!(role_values(&f.pg, "slack_workspace", &disabled).await.is_empty());
-    assert!(role_values(&f.pg, "slack_workspace", &empty).await.is_empty());
+    assert!(
+        role_values(&f.pg, "slack_workspace", &disabled)
+            .await
+            .is_empty()
+    );
+    assert!(
+        role_values(&f.pg, "slack_workspace", &empty)
+            .await
+            .is_empty()
+    );
 
     cleanup(&f.pg, "slack_workspace", &disabled).await;
     cleanup(&f.pg, "slack_workspace", &empty).await;
@@ -258,7 +272,10 @@ async fn re_ingest_without_override_is_idempotent() {
         )
         .await
         .expect("second ingest without override");
-    assert_eq!(again.skipped, 1, "no override leaves the existing rule untouched");
+    assert_eq!(
+        again.skipped, 1,
+        "no override leaves the existing rule untouched"
+    );
     assert_eq!(again.inserted, 0);
 
     assert_eq!(

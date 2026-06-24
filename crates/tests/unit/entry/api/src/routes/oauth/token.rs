@@ -336,9 +336,7 @@ fn test_well_known_response_serialize() {
         subject_token_types_supported: vec![
             "urn:ietf:params:oauth:token-type:access_token".to_string(),
         ],
-        issued_token_types_supported: vec![
-            "urn:ietf:params:oauth:token-type:id-jag".to_string(),
-        ],
+        issued_token_types_supported: vec!["urn:ietf:params:oauth:token-type:id-jag".to_string()],
     };
 
     let json = serde_json::to_value(&response).unwrap();

@@ -30,6 +30,12 @@ pub(super) fn merge_into(
     merge_no_dup(&mut target.external_agents, include.external_agents, |k| {
         ConfigLoadError::DuplicateExternalAgent(k.as_str().to_owned())
     })?;
+    merge_no_dup(&mut target.slack_apps, include.slack_apps, |k| {
+        ConfigLoadError::DuplicateSlackApp(k)
+    })?;
+    merge_no_dup(&mut target.teams_apps, include.teams_apps, |k| {
+        ConfigLoadError::DuplicateTeamsApp(k)
+    })?;
 
     if include.scheduler.is_some() && target.scheduler.is_none() {
         target.scheduler = include.scheduler;

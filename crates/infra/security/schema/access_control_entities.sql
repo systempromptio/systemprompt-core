@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS access_control_entities (
     entity_type TEXT NOT NULL
         CONSTRAINT access_control_entities_entity_type_check
-        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook')),
+        CHECK (entity_type IN ('plugin','agent','mcp_server','marketplace','gateway_route','skill','hook','slack_workspace','teams_tenant')),
     entity_id TEXT NOT NULL,
     default_included BOOLEAN NOT NULL DEFAULT false,
     -- Provenance label: "profile:<name>" (publish-pipeline bootstrap),

@@ -33,7 +33,7 @@ impl SlackClient {
 
     /// Build a client whose `chat.postMessage` endpoint is overridden, so a
     /// test can intercept the outbound call with a loopback mock server.
-    #[cfg(feature = "test-support")]
+    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_base_url(
         http: reqwest::Client,

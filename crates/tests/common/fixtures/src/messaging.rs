@@ -8,14 +8,15 @@
 //! the exact A2A JSON-RPC bodies `dispatch_messaging` parses.
 
 use anyhow::Result;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
 use wiremock::MockServer;
 
 use crate::bootstrap::TEST_MESSAGING_AGENT;
 
-/// Register the dispatchable agent backend at `mock`'s loopback port. Idempotent
-/// — `create_service` upserts on the service name, so a re-run repoints the row.
+/// Register the dispatchable agent backend at `mock`'s loopback port.
+/// Idempotent — `create_service` upserts on the service name, so a re-run
+/// repoints the row.
 pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> {
     let repo = ServiceRepository::new(pool).map_err(|e| anyhow::anyhow!("service repo: {e}"))?;
     repo.create_service(CreateServiceInput {

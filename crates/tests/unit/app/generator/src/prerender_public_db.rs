@@ -162,7 +162,8 @@ const TEST_SOURCE_ID: &str = "prerenderpubtest";
 fn install_config(boot: &TestBootstrap) {
     fs::create_dir_all(boot.services_path.join("web")).ok();
     fs::create_dir_all(boot.services_path.join("content")).ok();
-    fs::write(boot.services_path.join("web/config.yaml"), WEB_CONFIG_YAML).expect("write web config");
+    fs::write(boot.services_path.join("web/config.yaml"), WEB_CONFIG_YAML)
+        .expect("write web config");
     fs::write(
         boot.services_path.join("content/config.yaml"),
         CONTENT_CONFIG_WITH_SOURCE_YAML,

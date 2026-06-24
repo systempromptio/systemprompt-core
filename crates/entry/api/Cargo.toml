@@ -116,11 +116,11 @@ default = []
 # Re-exports private protocol-matrix entry points (canonical request/response
 # encoders/decoders) and the messaging/Slack form helpers so the
 # integration-tests crate can drive them as pure units. It also enables the
-# Slack/Teams `test-support` endpoint overrides and the env-driven Teams
+# Slack/Teams `test` endpoint overrides and the env-driven Teams
 # endpoint redirection so a full router happy-path can intercept outbound and
 # inbound HTTP with a loopback mock server. Production builds leave the feature
 # off; the modules stay private and all endpoints stay hardcoded.
-test-api = ["systemprompt-slack/test-support", "systemprompt-teams/test-support"]
+test-api = ["systemprompt-slack/test", "systemprompt-teams/test"]
 
 [lints]
 workspace = true

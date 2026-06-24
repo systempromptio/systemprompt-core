@@ -175,3 +175,15 @@ mod routes_sync_files;
 #[cfg(test)]
 #[path = "routes_agent_artifacts.rs"]
 mod routes_agent_artifacts;
+
+#[cfg(test)]
+#[path = "messaging_dispatch.rs"]
+mod messaging_dispatch;
+
+#[cfg(test)]
+#[path = "routes_slack.rs"]
+mod routes_slack;
+
+#[cfg(test)]
+#[path = "routes_teams.rs"]
+mod routes_teams;

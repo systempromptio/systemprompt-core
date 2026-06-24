@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-slack = { workspace = true, features = ["test-support"] }
+systemprompt-slack = { workspace = true, features = ["test"] }
 systemprompt-models = { workspace = true }
 
 [dev-dependencies]

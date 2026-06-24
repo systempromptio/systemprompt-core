@@ -21,7 +21,7 @@ use systemprompt_models::{AppPaths, Config, RouteClassifier};
 use systemprompt_runtime::{
     AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
 };
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
+use systemprompt_security::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
@@ -103,6 +103,34 @@ pub fn fixture_app_context_with(
     paths: PathsConfig,
     marketplace_filter: Arc<dyn MarketplaceFilter>,
 ) -> Result<Arc<AppContext>> {
+    let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
+    fixture_app_context_full(pool, database_url, paths, marketplace_filter, hook)
+}
+
+/// Build a fixture context with an explicit authorization hook — used by tests
+/// that need to drive the `Deny` branch (pass a
+/// [`DenyAllHook`](systemprompt_security::authz::DenyAllHook)).
+pub fn fixture_app_context_with_hook(
+    pool: &DbPool,
+    database_url: &str,
+    authz_hook: SharedAuthzHook,
+) -> Result<Arc<AppContext>> {
+    fixture_app_context_full(
+        pool,
+        database_url,
+        tmp_paths(),
+        Arc::new(AllowAllFilter),
+        authz_hook,
+    )
+}
+
+fn fixture_app_context_full(
+    pool: &DbPool,
+    database_url: &str,
+    paths: PathsConfig,
+    marketplace_filter: Arc<dyn MarketplaceFilter>,
+    authz_hook: SharedAuthzHook,
+) -> Result<Arc<AppContext>> {
     let app_paths = Arc::new(AppPaths::from_profile(&paths)?);
 
     let ctx = AppContext::from_parts(
@@ -126,7 +154,7 @@ pub fn fixture_app_context_with(
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
-            authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
+            authz_hook,
             event_bridge: Arc::new(OnceLock::new()),
             geoip_reader: None,
         },

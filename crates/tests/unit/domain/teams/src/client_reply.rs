@@ -1,6 +1,6 @@
 //! Wiremock coverage for the outbound Bot Connector reply.
 //!
-//! `TeamsClient::with_endpoints` (the `test-support` seam) redirects token
+//! `TeamsClient::with_endpoints` (the `test` seam) redirects token
 //! acquisition to a loopback mock; the reply target is the activity's
 //! `serviceUrl`, here the same mock. One server serves both `/token` and the
 //! Bot Connector activities endpoint so the full reply path is observable.

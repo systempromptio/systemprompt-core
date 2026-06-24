@@ -63,6 +63,12 @@ pub enum ConfigLoadError {
     #[error("duplicate external agent definition: {0}")]
     DuplicateExternalAgent(String),
 
+    #[error("duplicate Slack app definition: {0}")]
+    DuplicateSlackApp(String),
+
+    #[error("duplicate Teams app definition: {0}")]
+    DuplicateTeamsApp(String),
+
     #[error("services config validation failed: {0}")]
     Validation(String),
 

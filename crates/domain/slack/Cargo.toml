@@ -21,7 +21,7 @@ workspace = true
 # Exposes endpoint-overriding constructors (`SlackClient::with_base_url`) so
 # tests can intercept outbound Web API calls with a loopback mock server.
 # Off in normal builds — production always uses the hardcoded Slack endpoints.
-test-support = []
+test = []
 
 [package.metadata.docs.rs]
 all-features = true

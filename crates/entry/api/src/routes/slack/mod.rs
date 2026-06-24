@@ -242,7 +242,9 @@ fn parse_form(body: &[u8]) -> HashMap<String, String> {
         .collect()
 }
 
-fn slash_command_from_form(form: &HashMap<String, String>) -> Option<SlashCommand> {
+fn slash_command_from_form<S: std::hash::BuildHasher>(
+    form: &HashMap<String, String, S>,
+) -> Option<SlashCommand> {
     let json = serde_json::json!({
         "command": form.get("command")?,
         "text": form.get("text").cloned().unwrap_or_default(),
@@ -269,7 +271,9 @@ pub mod test_api {
     }
 
     #[must_use]
-    pub fn slash_command_from_form(form: &HashMap<String, String>) -> Option<SlashCommand> {
+    pub fn slash_command_from_form<S: std::hash::BuildHasher>(
+        form: &HashMap<String, String, S>,
+    ) -> Option<SlashCommand> {
         super::slash_command_from_form(form)
     }
 }

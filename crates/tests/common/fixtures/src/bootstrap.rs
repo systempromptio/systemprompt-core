@@ -26,7 +26,8 @@ pub const TEST_TEAMS_TENANT_ID: &str = "tenant-test";
 /// must carry, and the `client_id` for outbound token acquisition.
 pub const TEST_TEAMS_APP_ID: &str = "app-test-1";
 /// The agent both messaging apps route to. A `services` backend row plus the
-/// matching `config.yaml` entry (`oauth.required = false`) make it dispatchable.
+/// matching `config.yaml` entry (`oauth.required = false`) make it
+/// dispatchable.
 pub const TEST_MESSAGING_AGENT: &str = "test_messaging_agent";
 
 /// The Slack signing secret resolved from the named ref `slack_signing_secret`.
@@ -171,17 +172,18 @@ fn write_yaml_stub(path: &std::path::Path) {
     std::fs::write(path, "{}\n").expect("write yaml stub");
 }
 
-/// The seeded services config: one dispatchable agent (`oauth.required = false`)
-/// plus one Slack app and one Teams app routing to it. `ConfigLoader::load()`
-/// reads exactly this file, so the messaging routes resolve their app, agent,
-/// and named secrets from a single deterministic source.
+/// The seeded services config: one dispatchable agent (`oauth.required =
+/// false`) plus one Slack app and one Teams app routing to it.
+/// `ConfigLoader::load()` reads exactly this file, so the messaging routes
+/// resolve their app, agent, and named secrets from a single deterministic
+/// source.
 fn messaging_config_yaml() -> String {
     format!(
         r#"agents:
   {agent}:
     name: {agent}
-    port: 59250
-    endpoint: http://127.0.0.1:59250
+    port: 9250
+    endpoint: http://127.0.0.1:9250
     enabled: true
     card:
       protocolVersion: "0.3.0"

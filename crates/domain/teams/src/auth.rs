@@ -83,7 +83,7 @@ impl ActivityTokenVerifier {
 
     /// Build a verifier whose `OpenID` metadata endpoint is overridden, so a
     /// test can serve the config + JWKS from a loopback mock server.
-    #[cfg(feature = "test-support")]
+    #[cfg(feature = "test")]
     #[must_use]
     pub fn with_openid_url(
         http: reqwest::Client,

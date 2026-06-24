@@ -1,7 +1,7 @@
 //! Wiremock coverage for the network-bound JWKS path of
 //! `ActivityTokenVerifier`.
 //!
-//! `with_openid_url` (the `test-support` seam) redirects `OpenID` metadata
+//! `with_openid_url` (the `test` seam) redirects `OpenID` metadata
 //! discovery to a loopback mock that serves the config document and a JWKS
 //! built from the committed test keypair. Tokens are minted in-process with the
 //! matching private key, so the signature, claim, and key-lookup checks run

@@ -19,7 +19,9 @@ fn wrong_secret_fails() {
 #[test]
 fn tampered_body_fails() {
     let sig = sign(SECRET, TS, BODY);
-    assert!(verify_slack_signature(SECRET, TS, &sig, b"token=xyz&tampered", 1_531_420_618).is_err());
+    assert!(
+        verify_slack_signature(SECRET, TS, &sig, b"token=xyz&tampered", 1_531_420_618).is_err()
+    );
 }
 
 #[test]

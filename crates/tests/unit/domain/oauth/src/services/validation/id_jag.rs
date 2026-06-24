@@ -38,7 +38,10 @@ fn typ_must_be_id_jag() {
             found: Some("JWT".to_owned())
         })
     );
-    assert!(matches!(validate_typ(None), Err(IdJagError::WrongTyp { .. })));
+    assert!(matches!(
+        validate_typ(None),
+        Err(IdJagError::WrongTyp { .. })
+    ));
 }
 
 #[test]

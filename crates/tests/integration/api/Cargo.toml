@@ -28,8 +28,11 @@ systemprompt-extension = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-slack = { workspace = true }
 
 axum = { workspace = true }
+jsonwebtoken = { workspace = true }
+rsa = { workspace = true }
 sqlx = { workspace = true }
 tower = { workspace = true }
 http = { workspace = true }

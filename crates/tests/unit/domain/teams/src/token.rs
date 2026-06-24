@@ -2,7 +2,7 @@
 //!
 //! The pure skew/expiry arithmetic that decides when a cached token is reused,
 //! plus the network `fetch` path driven against a loopback token endpoint via
-//! the `test-support` seam (see the [`fetch`] submodule).
+//! the `test` seam (see the [`fetch`] submodule).
 
 use systemprompt_teams::token::CachedToken;
 
@@ -29,7 +29,7 @@ fn token_inside_skew_window_is_already_expired() {
 
 mod fetch {
     //! The network `fetch` path against a loopback token endpoint, exercised
-    //! through `TokenProvider::with_token_url` (the `test-support` seam).
+    //! through `TokenProvider::with_token_url` (the `test` seam).
 
     use systemprompt_teams::token::TokenProvider;
     use wiremock::matchers::{body_string_contains, method, path};

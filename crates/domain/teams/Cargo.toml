@@ -22,7 +22,7 @@ workspace = true
 # `ActivityTokenVerifier::with_openid_url`, `TeamsClient::with_endpoints`) so
 # tests can intercept outbound/inbound HTTP with a loopback mock server. Off in
 # normal builds — production always uses the hardcoded Bot Framework endpoints.
-test-support = []
+test = []
 
 [package.metadata.docs.rs]
 all-features = true

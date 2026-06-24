@@ -113,9 +113,18 @@ fn derived_from_messaging_is_deterministic() {
 #[test]
 fn derived_from_messaging_diverges_on_platform_org_and_channel() {
     let base = ContextId::derived_from_messaging("slack", "org", "chan");
-    assert_ne!(base, ContextId::derived_from_messaging("teams", "org", "chan"));
-    assert_ne!(base, ContextId::derived_from_messaging("slack", "org2", "chan"));
-    assert_ne!(base, ContextId::derived_from_messaging("slack", "org", "chan2"));
+    assert_ne!(
+        base,
+        ContextId::derived_from_messaging("teams", "org", "chan")
+    );
+    assert_ne!(
+        base,
+        ContextId::derived_from_messaging("slack", "org2", "chan")
+    );
+    assert_ne!(
+        base,
+        ContextId::derived_from_messaging("slack", "org", "chan2")
+    );
 }
 
 #[test]

@@ -84,10 +84,16 @@ fn from_vars_maps_session_fields() {
     let env = EnvOverrides::from_vars([
         ("SYSTEMPROMPT_USER_ID", "user-1"),
         ("SYSTEMPROMPT_SESSION_ID", "session-1"),
-        ("SYSTEMPROMPT_CONTEXT_ID", "550e8400-e29b-41d4-a716-446655440000"),
+        (
+            "SYSTEMPROMPT_CONTEXT_ID",
+            "550e8400-e29b-41d4-a716-446655440000",
+        ),
         ("SYSTEMPROMPT_AUTH_TOKEN", "token-1"),
     ]);
-    assert_eq!(env.session.user_id.as_ref().map(|v| v.as_str()), Some("user-1"));
+    assert_eq!(
+        env.session.user_id.as_ref().map(|v| v.as_str()),
+        Some("user-1")
+    );
     assert_eq!(
         env.session.session_id.as_ref().map(|v| v.as_str()),
         Some("session-1")

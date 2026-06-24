@@ -24,7 +24,9 @@ fn path_only_round_trips() {
 
 #[test]
 fn nested_redirect_is_fully_encoded() {
-    let uri: Uri = "/bridge-auth/device-link?redirect=x&evil=1".parse().unwrap();
+    let uri: Uri = "/bridge-auth/device-link?redirect=x&evil=1"
+        .parse()
+        .unwrap();
     let out = login_redirect("/admin/login", &uri);
     // The whole original target is one encoded value — its `&` is escaped, so it
     // cannot inject a sibling query param into the login URL.
