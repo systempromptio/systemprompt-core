@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Added
+
+- Slack messaging surface (`systemprompt-slack`): verifies Slack Events API, slash-command, and Block Kit interaction requests, maps Slack workspace users to governed systemprompt identities, and dispatches to A2A agents through the same RBAC and audit pipeline as every other inbound surface. Configured through `slack_apps` service blocks (signing-secret and bot-token secret references, target agent, permitted roles).
+- Microsoft Teams messaging surface (`systemprompt-teams`): verifies Bot Framework activities, maps Teams users to systemprompt identities, and replies with Adaptive Cards through the same governed dispatch path. Configured through `teams_apps` service blocks.
+- Typed Slack and Teams identifiers and a messaging identity-ingestion path in the authorization engine, so chat users are resolved to entities and authorized like any other actor.
+- Durable bridge authentication: a long-lived personal access token minted from the one-time bridge exchange code via the new `/v1/auth/bridge/session-pat` gateway route, plus device-PAT issuance. The bridge client and setup GUI consume the durable token.
+
+### Changed
+
+- `rmcp` upgraded to 1.8. The MCP streamable-HTTP client now runs on the workspace `reqwest` (0.12) through rmcp's transport trait rather than rmcp's bundled reqwest-backed transport, removing a duplicate `reqwest` 0.13 (and its parallel hyper/oauth2 stack) from the dependency tree.
+- `xxhash-rust`, `quick-xml`, and `image` are centralized in the workspace dependency table.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added

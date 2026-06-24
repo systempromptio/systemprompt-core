@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Added
+
+- Typed Slack (`SlackChannelId`, `SlackUserId`, `SlackWorkspaceId`) and Teams identifiers.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

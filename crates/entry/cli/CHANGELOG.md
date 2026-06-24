@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Changed
+
+- MCP client commands (`plugins mcp`, `admin agents`) connect through the shared reqwest-0.12 streamable-HTTP client rather than rmcp's bundled reqwest-backed transport (rmcp 1.8), removing a duplicate `reqwest` 0.13 from the dependency tree.
+
 ## [0.16.1] - 2026-06-22
 
 ### Changed

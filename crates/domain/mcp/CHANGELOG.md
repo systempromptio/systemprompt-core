@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Changed
+
+- The streamable-HTTP MCP client runs on the workspace `reqwest` (0.12) through rmcp 1.8's transport trait, supplying its own context-propagating HTTP client instead of rmcp's bundled reqwest-backed transport. This removes a duplicate `reqwest` 0.13 from the dependency tree.
+
 ## [0.16.1] - 2026-06-22
 
 ### Fixed

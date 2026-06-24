@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Added
+
+- Slack, Teams, and messaging gateway routes that verify inbound chat requests and dispatch them to A2A agents under the standard authorization pipeline.
+- `/v1/auth/bridge/session-pat` route minting a durable personal access token from the one-time bridge exchange code, plus device-PAT issuance.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added

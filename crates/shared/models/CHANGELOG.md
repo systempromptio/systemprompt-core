@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Added
+
+- `SlackAppConfig` and `TeamsAppConfig` service-configuration blocks for the Slack and Teams messaging surfaces.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added

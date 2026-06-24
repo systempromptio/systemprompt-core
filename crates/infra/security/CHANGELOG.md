@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Added
+
+- Messaging identity ingestion: Slack and Teams users are resolved to authorization entities so chat actors are governed like any other caller.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

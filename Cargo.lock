@@ -2584,25 +2584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "oauth2"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51e219e79014df21a225b1860a479e2dcd7cbd9130f4defd4bd0e191ea31d67d"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "getrandom 0.2.17",
- "http",
- "rand 0.8.6",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "sha2 0.10.9",
- "thiserror 1.0.69",
- "url",
-]
-
-[[package]]
 name = "oid-registry"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3540,43 +3521,9 @@ dependencies = [
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-streams 0.4.2",
+ "wasm-streams",
  "web-sys",
  "webpki-roots 1.0.7",
-]
-
-[[package]]
-name = "reqwest"
-version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62e0021ea2c22aed41653bc7e1419abb2c97e038ff2c33d0e1309e49a97deec0"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "futures-core",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "js-sys",
- "log",
- "percent-encoding",
- "pin-project-lite",
- "serde",
- "serde_json",
- "sync_wrapper",
- "tokio",
- "tokio-util",
- "tower",
- "tower-http",
- "tower-service",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-streams 0.5.0",
- "web-sys",
 ]
 
 [[package]]
@@ -3591,7 +3538,7 @@ dependencies = [
  "mime",
  "nom",
  "pin-project-lite",
- "reqwest 0.12.28",
+ "reqwest",
  "thiserror 1.0.69",
 ]
 
@@ -3650,9 +3597,9 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0810a9f717d9828f475fe1f629f4c305c8464b7f496c3a854b58d29e65f4058e"
+checksum = "1d1f571c72940a19d9532fe52dbea8bc9912bf1d766c2970bb824056b86f3f59"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -3662,11 +3609,9 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "oauth2",
  "pastey 0.2.3",
  "pin-project-lite",
  "rand 0.10.1",
- "reqwest 0.13.3",
  "rmcp-macros",
  "schemars",
  "serde",
@@ -3678,15 +3623,14 @@ dependencies = [
  "tokio-util",
  "tower-service",
  "tracing",
- "url",
  "uuid",
 ]
 
 [[package]]
 name = "rmcp-macros"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aefac48c364756e97f04c0401ba3231e8607882c7c1d92da0437dc16307904d"
+checksum = "1aad0035b69380782d78ea95b508327e6deaa2235909053e596eea8f27b5e1d5"
 dependencies = [
  "darling 0.23.0",
  "proc-macro2",
@@ -4504,7 +4448,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "axum",
  "inventory",
@@ -4534,7 +4478,9 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
+ "systemprompt-slack",
  "systemprompt-sync",
+ "systemprompt-teams",
  "systemprompt-template-provider",
  "systemprompt-traits",
  "systemprompt-users",
@@ -4546,7 +4492,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4557,7 +4503,7 @@ dependencies = [
  "hmac 0.13.0",
  "inventory",
  "nix",
- "reqwest 0.12.28",
+ "reqwest",
  "rmcp",
  "serde",
  "serde_json",
@@ -4585,7 +4531,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4593,7 +4539,7 @@ dependencies = [
  "futures",
  "inventory",
  "regex",
- "reqwest 0.12.28",
+ "reqwest",
  "rmcp",
  "serde",
  "serde_json",
@@ -4614,7 +4560,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4640,7 +4586,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4664,7 +4610,7 @@ dependencies = [
  "opentelemetry-proto",
  "prost",
  "rand 0.10.1",
- "reqwest 0.12.28",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -4689,6 +4635,8 @@ dependencies = [
  "systemprompt-runtime",
  "systemprompt-scheduler",
  "systemprompt-security",
+ "systemprompt-slack",
+ "systemprompt-teams",
  "systemprompt-traits",
  "systemprompt-users",
  "tar",
@@ -4707,7 +4655,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cli"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4724,7 +4672,7 @@ dependencies = [
  "jsonwebtoken",
  "rand 0.10.1",
  "regex",
- "reqwest 0.12.28",
+ "reqwest",
  "reqwest-eventsource",
  "rmcp",
  "schemars",
@@ -4769,11 +4717,11 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "chrono",
  "futures",
- "reqwest 0.12.28",
+ "reqwest",
  "reqwest-eventsource",
  "serde",
  "serde_json",
@@ -4785,7 +4733,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-stream",
  "axum",
@@ -4794,7 +4742,7 @@ dependencies = [
  "clap",
  "futures",
  "open",
- "reqwest 0.12.28",
+ "reqwest",
  "reqwest-eventsource",
  "serde",
  "serde_json",
@@ -4814,7 +4762,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "base64 0.22.1",
  "rand 0.10.1",
@@ -4833,7 +4781,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4861,7 +4809,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4886,7 +4834,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "axum",
  "chrono",
@@ -4904,11 +4852,11 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "axum",
  "inventory",
- "reqwest 0.12.28",
+ "reqwest",
  "serde",
  "serde_json",
  "systemprompt-provider-contracts",
@@ -4920,7 +4868,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -4949,7 +4897,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4979,7 +4927,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -4992,7 +4940,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "serde",
  "serde_yaml_ng",
@@ -5005,7 +4953,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5032,7 +4980,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-marketplace"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -5051,7 +4999,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5060,7 +5008,7 @@ dependencies = [
  "http",
  "inventory",
  "nix",
- "reqwest 0.12.28",
+ "reqwest",
  "rmcp",
  "schemars",
  "serde",
@@ -5088,7 +5036,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5118,7 +5066,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "base64 0.22.1",
  "bcrypt",
@@ -5128,7 +5076,7 @@ dependencies = [
  "jsonwebtoken",
  "lru",
  "rand 0.10.1",
- "reqwest 0.12.28",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -5153,7 +5101,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5168,7 +5116,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "axum",
  "indicatif",
@@ -5198,7 +5146,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-scheduler"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5229,7 +5177,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5243,7 +5191,7 @@ dependencies = [
  "lru",
  "metrics",
  "pkcs8",
- "reqwest 0.12.28",
+ "reqwest",
  "rsa",
  "serde",
  "serde_jcs",
@@ -5263,15 +5211,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-slack"
+version = "0.17.0"
+dependencies = [
+ "hex",
+ "hmac 0.13.0",
+ "inventory",
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "systemprompt-sync"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
  "flate2",
  "hex",
  "inventory",
- "reqwest 0.12.28",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -5297,8 +5263,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-teams"
+version = "0.17.0"
+dependencies = [
+ "inventory",
+ "jsonwebtoken",
+ "reqwest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "systemprompt-template-provider"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
@@ -5308,7 +5290,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "handlebars",
  "serde",
@@ -5322,7 +5304,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -5343,7 +5325,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.16.1"
+version = "0.17.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6123,19 +6105,6 @@ name = "wasm-streams"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
-dependencies = [
- "futures-util",
- "js-sys",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "wasm-streams"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d1ec4f6517c9e11ae630e200b2b65d193279042e28edd4a2cda233e46670bbb"
 dependencies = [
  "futures-util",
  "js-sys",
