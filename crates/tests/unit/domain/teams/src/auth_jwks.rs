@@ -85,6 +85,16 @@ fn verifier(server: &MockServer) -> ActivityTokenVerifier {
     )
 }
 
+async fn jwks_hits(server: &MockServer) -> usize {
+    server
+        .received_requests()
+        .await
+        .expect("requests recorded")
+        .into_iter()
+        .filter(|r| r.url.path() == "/jwks")
+        .count()
+}
+
 #[tokio::test]
 async fn verifies_a_token_against_the_fetched_jwks() {
     let server = MockServer::start().await;
@@ -113,12 +123,101 @@ async fn unknown_kid_triggers_a_fetch_and_then_fails_closed() {
         "expected TokenValidation, got {err:?}"
     );
 
-    let jwks_hits = server
-        .received_requests()
+    assert_eq!(
+        jwks_hits(&server).await,
+        1,
+        "the cache miss drove exactly one JWKS fetch"
+    );
+}
+
+#[tokio::test]
+async fn the_production_constructor_rejects_a_malformed_token_without_fetching() {
+    // `ActivityTokenVerifier::new` wires the hardcoded Bot Connector `OpenID`
+    // endpoint. A token whose header cannot even be decoded fails in
+    // `decode_header` before any key fetch, so this covers the production
+    // constructor without a live metadata call.
+    let verifier = ActivityTokenVerifier::new(reqwest::Client::new(), AUDIENCE);
+    let err = verifier
+        .verify("not-a-jwt", SERVICE_URL, 0)
         .await
-        .expect("requests recorded")
-        .into_iter()
-        .filter(|r| r.url.path() == "/jwks")
-        .count();
-    assert_eq!(jwks_hits, 1, "the cache miss drove exactly one JWKS fetch");
+        .expect_err("a malformed token is rejected before the JWKS is fetched");
+    assert!(
+        matches!(err, TeamsError::TokenValidation(_)),
+        "expected TokenValidation, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_jwk_with_unparseable_key_material_is_rejected() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/openid"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jwks_uri": format!("{}/jwks", server.uri()),
+        })))
+        .mount(&server)
+        .await;
+    // The kid matches, so key lookup succeeds, but the modulus is not valid
+    // base64url — building the decoding key fails.
+    Mock::given(method("GET"))
+        .and(path("/jwks"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "keys": [{ "kty": "RSA", "use": "sig", "alg": "RS256", "kid": KID, "n": "!!!", "e": "AQAB" }],
+        })))
+        .mount(&server)
+        .await;
+
+    let err = verifier(&server)
+        .verify(&mint(KID), SERVICE_URL, 0)
+        .await
+        .expect_err("a JWK whose modulus cannot decode yields no usable key");
+    assert!(
+        matches!(err, TeamsError::TokenValidation(_)),
+        "expected TokenValidation, got {err:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_second_verify_is_served_from_the_key_cache() {
+    let server = MockServer::start().await;
+    mount_openid(&server, KID).await;
+    let verifier = verifier(&server);
+
+    verifier
+        .verify(&mint(KID), SERVICE_URL, 0)
+        .await
+        .expect("first verify fetches the key set");
+    verifier
+        .verify(&mint(KID), SERVICE_URL, 10)
+        .await
+        .expect("second verify within the TTL hits the in-process cache");
+
+    assert_eq!(
+        jwks_hits(&server).await,
+        1,
+        "a cached key set is reused without a second JWKS fetch"
+    );
+}
+
+#[tokio::test]
+async fn an_expired_key_cache_is_refetched() {
+    let server = MockServer::start().await;
+    mount_openid(&server, KID).await;
+    let verifier = verifier(&server);
+
+    verifier
+        .verify(&mint(KID), SERVICE_URL, 0)
+        .await
+        .expect("first verify populates the cache at t=0");
+    // The JWKS cache TTL is 24h; advancing `now_unix` past it forces a refresh.
+    verifier
+        .verify(&mint(KID), SERVICE_URL, 24 * 60 * 60 + 1)
+        .await
+        .expect("a verify past the TTL refetches the key set");
+
+    assert_eq!(
+        jwks_hits(&server).await,
+        2,
+        "an expired key cache triggers a fresh JWKS fetch"
+    );
 }

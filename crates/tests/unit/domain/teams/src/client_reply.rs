@@ -76,6 +76,24 @@ async fn non_2xx_reply_is_an_outbound_error() {
 }
 
 #[tokio::test]
+async fn production_constructor_wires_the_default_endpoints() {
+    // `TeamsClient::new` builds a `TokenProvider` against the hardcoded Bot
+    // Framework login authority. Driving a blocked `serviceUrl` exercises that
+    // production path through `reply`'s SSRF guard, which fails closed before any
+    // token acquisition — so no live Bot Connector call is made.
+    let client = TeamsClient::new(reqwest::Client::new(), "app-1", "secret");
+    let attachments = systemprompt_teams::cards::render_card("hello");
+    let err = client
+        .reply("http://169.254.169.254", &conversation(), attachments, 0)
+        .await
+        .expect_err("the SSRF guard blocks the link-local metadata host");
+    assert!(
+        matches!(err, TeamsError::OutboundUrl(_)),
+        "expected OutboundUrl, got {err:?}"
+    );
+}
+
+#[tokio::test]
 async fn reply_rejects_a_blocked_service_url_before_any_request() {
     let server = MockServer::start().await;
     mount_token(&server).await;

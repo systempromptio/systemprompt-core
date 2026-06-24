@@ -54,6 +54,19 @@ pub fn ensure_test_bootstrap() -> &'static TestBootstrap {
     BOOTSTRAP.get_or_init(init_bootstrap)
 }
 
+/// Bootstrap with the messaging apps + dispatchable agent written into
+/// `config.yaml`. Sets the opt-in env gate **before** the one-shot init, so it
+/// must be the first bootstrap call in the process (true under nextest, which
+/// runs each test in its own process).
+pub fn ensure_messaging_bootstrap() -> &'static TestBootstrap {
+    // SAFETY: set before the `BOOTSTRAP` OnceLock initialises; process-local
+    // under nextest's per-test process model.
+    unsafe {
+        env::set_var("SYSTEMPROMPT_TEST_MESSAGING", "1");
+    }
+    ensure_test_bootstrap()
+}
+
 fn init_bootstrap() -> TestBootstrap {
     let database_url = env::var("TEST_DATABASE_URL")
         .or_else(|_| env::var("DATABASE_URL"))
@@ -90,11 +103,20 @@ fn init_bootstrap() -> TestBootstrap {
         std::fs::create_dir_all(dir).expect("mkdir bootstrap path");
     }
 
-    std::fs::write(
-        services_path.join("config/config.yaml"),
-        messaging_config_yaml(),
-    )
-    .expect("write services config.yaml");
+    // The messaging apps + agent are written only when a messaging test opts in
+    // via `ensure_messaging_bootstrap`. Every other test gets the empty stub, so
+    // the populated agent registry never leaks into suites that assert on an
+    // empty config (each nextest test is its own process, so the env gate is
+    // local to messaging-test processes).
+    if env::var("SYSTEMPROMPT_TEST_MESSAGING").is_ok() {
+        std::fs::write(
+            services_path.join("config/config.yaml"),
+            messaging_config_yaml(),
+        )
+        .expect("write services config.yaml");
+    } else {
+        write_yaml_stub(&services_path.join("config/config.yaml"));
+    }
     write_yaml_stub(&services_path.join("content/config.yaml"));
     write_yaml_stub(&services_path.join("web/config.yaml"));
     write_yaml_stub(&services_path.join("web/metadata.yaml"));

@@ -27,4 +27,6 @@ mod client_reply;
 #[cfg(test)]
 mod config;
 #[cfg(test)]
+mod extension;
+#[cfg(test)]
 mod token;

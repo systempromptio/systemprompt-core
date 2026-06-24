@@ -10,17 +10,30 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use std::sync::Arc;
 use systemprompt_slack::signature::sign;
+
+use systemprompt_database::DbPool;
+use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, agent_reply_response_json,
-    ensure_test_bootstrap, fixture_app_context, fixture_db_pool, install_test_signing_key,
+    ensure_messaging_bootstrap, fixture_app_context, fixture_db_pool, install_test_signing_key,
     seed_agent_backend,
 };
 use tower::ServiceExt;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::common::{body_to_string, setup_ctx};
+use super::common::body_to_string;
+
+/// A fixture context whose `config.yaml` carries the messaging Slack app, so
+/// `resolve_app` and the signing-secret lookup resolve.
+async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
+    let b = ensure_messaging_bootstrap();
+    let pool = fixture_db_pool(&b.database_url).await?;
+    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    Ok((pool, ctx))
+}
 
 fn now_ts() -> String {
     std::time::SystemTime::now()
@@ -49,7 +62,7 @@ fn router(ctx: &std::sync::Arc<systemprompt_runtime::AppContext>) -> axum::Route
 
 #[tokio::test]
 async fn malformed_event_body_is_bad_request() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = messaging_ctx().await?;
     let req = Request::builder()
         .method("POST")
         .uri("/events")
@@ -63,7 +76,7 @@ async fn malformed_event_body_is_bad_request() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn unknown_workspace_is_acked() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = messaging_ctx().await?;
     let body = "command=%2Fask&text=hi&user_id=U1&channel_id=C1&team_id=T_UNKNOWN&response_url=https%3A%2F%2Fexample.invalid%2Fr";
     // Unknown workspace short-circuits to a 200 ack before signature checks.
     let req = signed_post("/commands", body, "irrelevant");
@@ -74,7 +87,7 @@ async fn unknown_workspace_is_acked() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn tampered_signature_is_unauthorized() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = messaging_ctx().await?;
     let body = format!(
         "command=%2Fask&text=hi&user_id=U1&channel_id=C1&team_id={TEST_SLACK_WORKSPACE_ID}&response_url=https%3A%2F%2Fexample.invalid%2Fr"
     );
@@ -86,7 +99,7 @@ async fn tampered_signature_is_unauthorized() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
-    let (_pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = messaging_ctx().await?;
     let body = r#"{"type":"url_verification","challenge":"chal-123"}"#;
     let req = signed_post("/events", body, TEST_SLACK_SIGNING_SECRET);
     let resp = router(&ctx).oneshot(req).await?;
@@ -98,7 +111,7 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
+    let b = ensure_messaging_bootstrap();
     install_test_signing_key();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
@@ -144,10 +157,10 @@ fn urlencode(s: &str) -> String {
 
 async fn wait_for_request(server: &MockServer) -> Vec<u8> {
     for _ in 0..100 {
-        if let Some(reqs) = server.received_requests().await {
-            if let Some(first) = reqs.first() {
-                return first.body.clone();
-            }
+        if let Some(reqs) = server.received_requests().await
+            && let Some(first) = reqs.first()
+        {
+            return first.body.clone();
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }

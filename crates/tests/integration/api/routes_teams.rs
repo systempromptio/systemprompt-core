@@ -17,7 +17,7 @@ use rsa::pkcs1::EncodeRsaPrivateKey;
 use rsa::traits::PublicKeyParts;
 use systemprompt_security::keys::RsaSigningKey;
 use systemprompt_test_fixtures::{
-    TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, agent_reply_response_json, ensure_test_bootstrap,
+    TEST_TEAMS_APP_ID, TEST_TEAMS_TENANT_ID, agent_reply_response_json, ensure_messaging_bootstrap,
     fixture_app_context, fixture_db_pool, install_test_signing_key, seed_agent_backend,
 };
 use tower::ServiceExt;
@@ -58,7 +58,7 @@ fn post_messages(body: &str, bearer: Option<&str>) -> Request<Body> {
 
 #[tokio::test]
 async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
+    let b = ensure_messaging_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
     let resp = router(&ctx)
@@ -70,7 +70,7 @@ async fn malformed_activity_body_is_bad_request() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
+    let b = ensure_messaging_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
     let body = activity_json("tenant-unknown", "https://smba.example");
@@ -81,7 +81,7 @@ async fn unknown_tenant_is_acked() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
+    let b = ensure_messaging_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
     let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
@@ -92,7 +92,7 @@ async fn missing_bearer_is_unauthorized() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn malformed_bearer_is_unauthorized() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
+    let b = ensure_messaging_bootstrap();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
     let body = activity_json(TEST_TEAMS_TENANT_ID, "https://smba.example");
@@ -131,7 +131,7 @@ fn jwk(signing: &RsaSigningKey) -> serde_json::Value {
 
 #[tokio::test]
 async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
+    let b = ensure_messaging_bootstrap();
     install_test_signing_key();
     let pool = fixture_db_pool(&b.database_url).await?;
     let ctx = fixture_app_context(&pool, &b.database_url)?;
@@ -215,10 +215,10 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
 async fn wait_for_activity(server: &MockServer) -> Vec<u8> {
     let suffix = format!("/v3/conversations/{CONVERSATION_ID}/activities");
     for _ in 0..100 {
-        if let Some(reqs) = server.received_requests().await {
-            if let Some(hit) = reqs.iter().find(|r| r.url.path() == suffix) {
-                return hit.body.clone();
-            }
+        if let Some(reqs) = server.received_requests().await
+            && let Some(hit) = reqs.iter().find(|r| r.url.path() == suffix)
+        {
+            return hit.body.clone();
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
