@@ -8,10 +8,15 @@
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
-use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
+use rmcp::transport::streamable_http_client::{
+    StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
+};
 use std::time::Duration;
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 
+use super::HttpClientWithContext;
 use super::types::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 
 pub async fn validate_connection(
@@ -117,7 +122,15 @@ async fn connect_and_validate(
     url: &str,
     service_name: &str,
 ) -> McpDomainResult<(McpProtocolInfo, ValidationResult)> {
-    let transport = StreamableHttpClientTransport::from_uri(url);
+    let context = RequestContext::new(
+        SessionId::new(format!("mcp-validate-{service_name}")),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::system(),
+    );
+    let config = StreamableHttpClientTransportConfig::with_uri(url);
+    let transport =
+        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context), config);
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),

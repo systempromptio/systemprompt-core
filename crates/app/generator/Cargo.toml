@@ -59,7 +59,7 @@ tracing = { workspace = true }
 comrak = { workspace = true }
 
 # XML generation (sitemap)
-quick-xml = { version = "0.31", features = ["serialize"] }
+quick-xml = { workspace = true }
 
 # Progress indication
 indicatif = { workspace = true }
@@ -67,7 +67,7 @@ indicatif = { workspace = true }
 # File utilities
 
 # Image processing (WebP conversion)
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
+image = { workspace = true, optional = true }
 
 # HTTP client
 

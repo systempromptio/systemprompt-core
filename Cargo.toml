@@ -196,6 +196,10 @@ governor = "0.10"
 # Metrics / observability
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
+# OTLP export wire types (entry/api). Pinned to the opentelemetry 0.27 / tonic
+# 0.12 stack in use; bump these together when the wider otel stack moves.
+prost = "0.13"
+opentelemetry-proto = { version = "0.27", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
 
 # CLI (for system crate)
 clap = { version = "4.6", features = ["derive", "env"] }
@@ -231,6 +235,7 @@ tokio-util = "0.7"
 bytes = "1.0"
 hex = "0.4"
 ipnet = "2.10"
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
 schemars = { version = "1.2", features = ["derive"] }
 url = "2.5"
 urlencoding = "2.1"
@@ -241,11 +246,23 @@ wiremock = "0.6"
 # Markdown and templating
 comrak = { version = "0.52", default-features = false }
 handlebars = "6"
+# Static-site generation (app/generator)
+quick-xml = { version = "0.31", features = ["serialize"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 # MCP additional dependencies
 sse-stream = "0.2.1"
-rmcp = { version = "1.6", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "macros", "auth"] }
-rmcp-macros = "1.6"
+# Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
+# which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
+# NO HTTP stack. In rmcp >=1.7 a *second* reqwest (0.13, alongside the workspace's
+# 0.12) is dragged in only by the `auth` and `transport-streamable-http-client-reqwest`
+# features. We do NOT enable either: the crates that call MCP over HTTP (domain/mcp,
+# entry/cli) take only the `transport-streamable-http-client` *trait* and implement
+# it with their own reqwest-0.12 `HttpClientWithContext`, so the whole tree resolves
+# to a single reqwest. Every other dependent (notably the desktop bridge) only uses
+# `rmcp::model` via systemprompt-models.
+rmcp = { version = "1.8" }
+rmcp-macros = "1.8"
 
 # Security
 rand = "0.10"

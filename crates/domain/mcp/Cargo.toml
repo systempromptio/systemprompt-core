@@ -40,7 +40,12 @@ thiserror = { workspace = true }
 sqlx = { workspace = true }
 
 # MCP Protocol
-rmcp = { workspace = true }
+# MCP server/client transports live here. We opt into the streamable-HTTP client
+# *trait* (`transport-streamable-http-client`) and implement it with our own
+# reqwest-0.12 `HttpClientWithContext`, so the `-reqwest` impl feature (which
+# pulls a second reqwest 0.13) is deliberately NOT enabled. The workspace default
+# is lean (see root Cargo.toml); these are additive on top of rmcp's defaults.
+rmcp = { workspace = true, features = ["client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 
 # HTTP for MCP servers
 axum = { workspace = true }

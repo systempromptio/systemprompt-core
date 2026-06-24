@@ -5,9 +5,20 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use std::time::Duration;
-use systemprompt_identifiers::SessionToken;
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId};
+use systemprompt_mcp::services::client::HttpClientWithContext;
+use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 use tracing::debug;
+
+fn probe_context(server_name: &str) -> RequestContext {
+    RequestContext::new(
+        SessionId::new(format!("cli-{server_name}")),
+        TraceId::generate(),
+        ContextId::generate(),
+        AgentName::system(),
+    )
+}
 
 pub(super) struct ToolInfo {
     pub name: String,
@@ -23,7 +34,11 @@ pub(super) async fn list_tools_unauthenticated(
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
     let url = format!("http://127.0.0.1:{}/mcp", port);
-    let transport = StreamableHttpClientTransport::from_uri(url.as_str());
+    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str());
+    let transport = StreamableHttpClientTransport::with_client(
+        HttpClientWithContext::new(probe_context(server_name)),
+        config,
+    );
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),
@@ -63,7 +78,9 @@ pub(super) async fn list_tools_authenticated(
 
     let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
         .auth_header(format!("Bearer {}", token.as_str()));
-    let transport = StreamableHttpClientTransport::from_config(config);
+    let context = probe_context(server_name).with_auth_token(token.as_str());
+    let transport =
+        StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context), config);
 
     let client_info = ClientInfo::new(
         ClientCapabilities::default(),
