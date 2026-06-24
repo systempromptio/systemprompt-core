@@ -13,8 +13,6 @@ workspace = true
 [dependencies]
 systemprompt-client = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-models = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }
 serde_json = { workspace = true }
-serde = { workspace = true }

@@ -16,7 +16,6 @@ tokio = { workspace = true }
 bytes = { workspace = true }
 futures-util = { workspace = true }
 http-body-util = "0.1"
-http-body = "1"
 hyper = "1"
 
 [dev-dependencies]

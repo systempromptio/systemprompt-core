@@ -13,11 +13,13 @@ workspace = true
 [dependencies]
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
-systemprompt-provider-contracts = { workspace = true }
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 sqlx = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
 uuid = { workspace = true }
+
+[package.metadata.cargo-machete]
+# Used by test modules included via #[path="../*.rs"] outside src/, which cargo-machete's scan doesn't follow.
+ignored = ["anyhow", "sqlx", "systemprompt-database", "systemprompt-extension"]

@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-identifiers = { workspace = true }
-systemprompt-traits = { workspace = true }
 
 [dev-dependencies]
 chrono = { workspace = true }

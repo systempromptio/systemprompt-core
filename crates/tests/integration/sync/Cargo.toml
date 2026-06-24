@@ -15,16 +15,10 @@ systemprompt-sync = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-models = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-reqwest = { workspace = true }
-tracing = { workspace = true }
 sqlx = { workspace = true }
-chrono = { workspace = true }
 tempfile = { workspace = true }
-url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]

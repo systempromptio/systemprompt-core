@@ -18,7 +18,6 @@ systemprompt-oauth = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-agent = { workspace = true }
 axum = { workspace = true }
 http = { workspace = true }
 serde_json = { workspace = true }
@@ -39,3 +38,6 @@ base64 = { workspace = true }
 wiremock = { workspace = true }
 futures-util = { workspace = true }
 tower = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["inventory"]

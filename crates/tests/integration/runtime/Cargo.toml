@@ -18,8 +18,6 @@ systemprompt-traits = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-extension = { workspace = true }
-systemprompt-identifiers = { workspace = true }
-systemprompt-database = { workspace = true }
 systemprompt-files = { workspace = true }
 tempfile = { workspace = true }
 

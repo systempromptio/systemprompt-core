@@ -16,7 +16,6 @@ systemprompt-identifiers = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
-anyhow = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
 axum = { workspace = true }

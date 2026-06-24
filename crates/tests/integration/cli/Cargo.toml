@@ -15,19 +15,14 @@ path = "src/lib.rs"
 
 [dependencies]
 systemprompt-cli = { workspace = true }
-systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
-systemprompt-identifiers = { workspace = true }
-systemprompt-logging = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-anyhow = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 tokio = { workspace = true }
-futures = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 assert_cmd = "2"

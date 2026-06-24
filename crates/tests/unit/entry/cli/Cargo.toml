@@ -12,7 +12,6 @@ workspace = true
 
 [dependencies]
 systemprompt-cli = { workspace = true }
-systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -25,3 +24,6 @@ chrono = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["thiserror"]

@@ -23,3 +23,7 @@ tokio = { workspace = true }
 tempfile = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
+
+[package.metadata.cargo-machete]
+# Used by test modules included via #[path="../*.rs"] outside src/, which cargo-machete's scan doesn't follow.
+ignored = ["async-trait", "chrono", "systemprompt-generator", "systemprompt-identifiers", "systemprompt-models", "systemprompt-provider-contracts"]
