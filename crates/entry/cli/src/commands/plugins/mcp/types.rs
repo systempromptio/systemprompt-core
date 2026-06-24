@@ -67,11 +67,15 @@ pub struct McpStatusOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpStatusEntry {
     pub name: String,
+    pub server_type: String,
     pub port: u16,
     pub enabled: bool,
     pub running: bool,
+    pub health: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
     pub binary: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub release_binary: Option<String>,

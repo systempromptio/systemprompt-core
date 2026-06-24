@@ -80,20 +80,32 @@ impl Job for AccessControlSyncJob {
         })?;
         let svc = AccessControlIngestionService::new(db_pool)
             .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let options = IngestOptions {
+            override_existing,
+            delete_orphans,
+        };
         let mkt = svc
-            .ingest_marketplace_access(
-                &services.marketplaces,
-                IngestOptions {
-                    override_existing,
-                    delete_orphans,
-                },
-            )
+            .ingest_marketplace_access(&services.marketplaces, options)
+            .await
+            .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
+        let slack = svc
+            .ingest_slack_apps(&services.slack_apps, options)
+            .await
+            .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
+        let teams = svc
+            .ingest_teams_apps(&services.teams_apps, options)
             .await
             .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
 
-        let items_synced = acl.items_synced + mkt.inserted + mkt.updated;
-        let items_skipped = acl.items_skipped + mkt.skipped;
-        let items_deleted = acl.items_deleted + mkt.deleted;
+        let items_synced = acl.items_synced
+            + mkt.inserted
+            + mkt.updated
+            + slack.inserted
+            + slack.updated
+            + teams.inserted
+            + teams.updated;
+        let items_skipped = acl.items_skipped + mkt.skipped + slack.skipped + teams.skipped;
+        let items_deleted = acl.items_deleted + mkt.deleted + slack.deleted + teams.deleted;
 
         let duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
         tracing::info!(

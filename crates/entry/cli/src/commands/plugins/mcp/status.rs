@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -9,7 +10,9 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
-use systemprompt_models::{McpServerConfig, ServicesConfig};
+use systemprompt_mcp::{HealthStatus, McpServiceStatus};
+use systemprompt_models::ServicesConfig;
+use systemprompt_models::mcp::McpServerType;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Args)]
@@ -36,19 +39,14 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
         ctx.mcp_registry().clone(),
     )
     .context("Failed to initialize MCP manager")?;
-    let running_servers = manager
-        .get_running_servers()
+    let statuses = manager
+        .service_statuses()
         .await
-        .context("Failed to get running servers")?;
+        .context("Failed to get MCP service statuses")?;
+    let status_by_name: HashMap<&str, &McpServiceStatus> =
+        statuses.iter().map(|s| (s.name.as_str(), s)).collect();
 
-    let mut servers = collect_status_entries(
-        &args,
-        &services_config,
-        &manager,
-        &running_servers,
-        &bin_path,
-    )
-    .await;
+    let mut servers = collect_status_entries(&args, &services_config, &status_by_name, &bin_path);
 
     servers.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -67,10 +65,13 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
     Ok(CommandOutput::table_of(
         vec![
             "name",
+            "server_type",
             "port",
             "enabled",
             "running",
+            "health",
             "pid",
+            "endpoint",
             "release_binary",
             "debug_binary",
         ],
@@ -79,11 +80,10 @@ pub(super) async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<Com
     .with_title("MCP Server Status"))
 }
 
-async fn collect_status_entries(
+fn collect_status_entries(
     args: &StatusArgs,
     services_config: &ServicesConfig,
-    manager: &McpOrchestrator,
-    running_servers: &[McpServerConfig],
+    status_by_name: &HashMap<&str, &McpServiceStatus>,
     bin_path: &Path,
 ) -> Vec<McpStatusEntry> {
     let mut servers = Vec::new();
@@ -95,25 +95,47 @@ async fn collect_status_entries(
             continue;
         }
 
-        let is_running = running_servers.iter().any(|s| &s.name == name);
+        let status = status_by_name.get(name.as_str());
+        let health = status.map_or_else(|| "unknown".to_owned(), |s| s.health.as_str().to_owned());
+        let running = status
+            .is_some_and(|s| matches!(s.health, HealthStatus::Healthy | HealthStatus::Degraded));
+        let pid = status.and_then(|s| s.pid);
 
-        let pid = manager
-            .get_service_info(name)
-            .await
-            .ok()
-            .flatten()
-            .and_then(|info| info.pid.map(|p| p as u32));
+        let entry = match deployment.server_type {
+            McpServerType::External => McpStatusEntry {
+                name: name.clone(),
+                server_type: McpServerType::External.as_str().to_owned(),
+                port: 0,
+                enabled: deployment.enabled,
+                running,
+                health,
+                pid: None,
+                endpoint: status.and_then(|s| s.endpoint.clone()),
+                binary: String::new(),
+                release_binary: None,
+                debug_binary: None,
+            },
+            McpServerType::Internal => McpStatusEntry {
+                name: name.clone(),
+                server_type: McpServerType::Internal.as_str().to_owned(),
+                port: deployment.port,
+                enabled: deployment.enabled,
+                running,
+                health,
+                pid,
+                endpoint: None,
+                binary: deployment.binary.clone(),
+                release_binary: binary_display(
+                    bin_path,
+                    "release",
+                    &deployment.binary,
+                    args.detailed,
+                ),
+                debug_binary: binary_display(bin_path, "debug", &deployment.binary, args.detailed),
+            },
+        };
 
-        servers.push(McpStatusEntry {
-            name: name.clone(),
-            port: deployment.port,
-            enabled: deployment.enabled,
-            running: is_running,
-            pid,
-            binary: deployment.binary.clone(),
-            release_binary: binary_display(bin_path, "release", &deployment.binary, args.detailed),
-            debug_binary: binary_display(bin_path, "debug", &deployment.binary, args.detailed),
-        });
+        servers.push(entry);
     }
 
     servers

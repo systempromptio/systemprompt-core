@@ -29,6 +29,7 @@ pub use reconciliation::ReconcileParams;
 use super::database::DatabaseService;
 use super::lifecycle::LifecycleOrchestrator;
 use super::monitoring::MonitoringService;
+use super::monitoring::status::McpServiceStatus;
 use super::network::NetworkService;
 use super::process::ProcessService;
 use super::registry::RegistryService;
@@ -117,6 +118,42 @@ impl McpOrchestrator {
         let status_data = self.monitoring.get_status_for_all(&servers).await?;
         MonitoringService::display_status(&servers, &status_data);
         Ok(())
+    }
+
+    pub async fn service_statuses(&self) -> McpDomainResult<Vec<McpServiceStatus>> {
+        use super::monitoring::health::perform_health_check;
+
+        let servers = self.registry.get_enabled_servers()?;
+        let mut statuses = Vec::with_capacity(servers.len());
+
+        for server in &servers {
+            let health = perform_health_check(server).await?;
+
+            let (port, endpoint, pid) = if server.is_external() {
+                (0, Some(server.remote_endpoint.clone()), None)
+            } else {
+                let pid = self
+                    .database
+                    .get_service_by_name(&server.name)
+                    .await?
+                    .and_then(|info| info.pid.map(|p| p as u32));
+                (server.port, None, pid)
+            };
+
+            statuses.push(McpServiceStatus {
+                name: server.name.clone(),
+                server_type: server.server_type,
+                port,
+                endpoint,
+                health: health.status,
+                pid,
+                tools_count: health.details.tools_available,
+                latency_ms: Some(health.latency_ms),
+                auth_required: server.oauth.required,
+            });
+        }
+
+        Ok(statuses)
     }
 
     pub async fn show_status(&self) -> McpDomainResult<()> {

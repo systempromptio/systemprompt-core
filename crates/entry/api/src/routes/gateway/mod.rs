@@ -143,6 +143,7 @@ fn inference_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) 
 fn bridge_auth_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
     let ctx_pat = ctx.clone();
     let ctx_session = ctx.clone();
+    let ctx_session_pat = ctx.clone();
     let ctx_mtls = ctx.clone();
     let ctx_oauth_client = ctx.clone();
     let jwt_oauth_client = Arc::clone(jwt_extractor);
@@ -160,6 +161,13 @@ fn bridge_auth_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>
             post(move |headers, body| {
                 let context = ctx_session.clone();
                 async move { auth::session(context, headers, body).await }
+            }),
+        )
+        .route(
+            "/auth/bridge/session-pat",
+            post(move |body| {
+                let context = ctx_session_pat.clone();
+                async move { auth::session_pat(context, body).await }
             }),
         )
         .route(

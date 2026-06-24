@@ -23,5 +23,6 @@ mod security_headers;
 mod security_trace_served_by;
 mod session_tracking;
 mod should_redirect;
+mod site_auth;
 mod tiered_rate_limit;
 mod trailing_slash;

@@ -5,7 +5,9 @@ use std::time::Instant;
 
 use systemprompt_identifiers::{ClientId, PluginId, SessionId, headers as sp_headers};
 
-use crate::auth::types::{AuthResponse, MtlsRequest, SessionExchangeRequest};
+use crate::auth::types::{
+    AuthResponse, DevicePatResponse, MtlsRequest, SessionExchangeRequest, SessionPatRequest,
+};
 use crate::gateway::errors::GatewayError;
 use crate::gateway::types::{BridgeOAuthClientResponse, HookTokenResponse};
 use crate::gateway::{GatewayClient, record_span};
@@ -27,6 +29,36 @@ impl GatewayClient {
     ) -> Result<AuthResponse, GatewayError> {
         self.post_json("/v1/auth/bridge/session", req, "session", session_id)
             .await
+    }
+
+    pub async fn session_pat_exchange(
+        &self,
+        req: &SessionPatRequest,
+        session_id: &SessionId,
+    ) -> Result<String, GatewayError> {
+        let url = self.url("/v1/auth/bridge/session-pat");
+        let payload = serde_json::to_vec(req)?;
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .post(&url)
+            .header("content-type", "application/json")
+            .header(sp_headers::SESSION_ID, session_id.as_str())
+            .body(payload)
+            .send()
+            .await
+            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
+        record_span(&resp, started);
+        if !resp.status().is_success() {
+            return Err(GatewayError::HttpStatus {
+                status: resp.status(),
+                endpoint: "session-pat",
+            });
+        }
+        resp.json::<DevicePatResponse>()
+            .await
+            .map_err(|e| GatewayError::AuthDecode(Box::new(e)))
+            .map(|b| b.pat)
     }
 
     #[tracing::instrument(

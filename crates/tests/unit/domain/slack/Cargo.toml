@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-slack-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-slack crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-slack = { workspace = true }
+systemprompt-models = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }

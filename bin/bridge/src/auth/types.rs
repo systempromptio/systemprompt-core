@@ -17,6 +17,18 @@ pub struct SessionExchangeRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionPatRequest {
+    pub code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DevicePatResponse {
+    pub pat: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthResponse {
     pub token: BearerToken,
     pub ttl: u64,

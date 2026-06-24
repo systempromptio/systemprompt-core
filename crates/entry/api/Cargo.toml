@@ -86,6 +86,8 @@ systemprompt-analytics = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-marketplace = { workspace = true }
+systemprompt-slack = { workspace = true }
+systemprompt-teams = { workspace = true }
 
 # API registry
 inventory = { workspace = true }
@@ -106,15 +108,19 @@ flate2 = { workspace = true }
 tar = { workspace = true }
 
 # OTel ingest (OTLP/HTTP Protobuf)
-prost = "0.13"
-opentelemetry-proto = { version = "0.27", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
+prost = { workspace = true }
+opentelemetry-proto = { workspace = true }
 
 [features]
 default = []
 # Re-exports private protocol-matrix entry points (canonical request/response
-# encoders/decoders) so the integration-tests crate can drive them as pure
-# units. Production builds leave the feature off; the modules stay private.
-test-api = []
+# encoders/decoders) and the messaging/Slack form helpers so the
+# integration-tests crate can drive them as pure units. It also enables the
+# Slack/Teams `test-support` endpoint overrides and the env-driven Teams
+# endpoint redirection so a full router happy-path can intercept outbound and
+# inbound HTTP with a loopback mock server. Production builds leave the feature
+# off; the modules stay private and all endpoints stay hardcoded.
+test-api = ["systemprompt-slack/test-support", "systemprompt-teams/test-support"]
 
 [lints]
 workspace = true

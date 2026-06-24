@@ -59,6 +59,7 @@ export function renderGatewayForm(state) {
   const signInHint = snap.sign_in_hint || "Opens your browser to sign in on the gateway; this device is linked automatically.";
   const signInBusy = state.signingIn;
   const signInText = signInBusy ? (t("setup-signing-in") || "Waiting for browser…") : signInLabel;
+  const keepChecked = state.keepSignedIn === false ? "" : "checked";
   return `
     <div class="sp-setup__field">
       <label for="setup-gateway" data-l10n-id="setup-gateway-label">Gateway URL</label>
@@ -72,6 +73,10 @@ export function renderGatewayForm(state) {
       <button class="sp-btn-primary" type="button" ${signInBusy || state.pending ? "disabled" : ""} data-action="sign-in">
         <span class="sp-btn__label">${escapeHtml(signInText)}</span>
       </button>
+      <label class="sp-setup__keep">
+        <input id="setup-keep" type="checkbox" ${keepChecked} ${signInBusy ? "disabled" : ""} data-input="keep" />
+        <span>Keep me signed in on this device</span>
+      </label>
       <p class="sp-setup__hint">${escapeHtml(signInHint)}</p>
     </div>
     <details class="sp-setup__advanced">

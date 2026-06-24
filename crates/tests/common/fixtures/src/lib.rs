@@ -5,12 +5,18 @@ pub mod bootstrap;
 pub mod credential;
 pub mod db;
 pub mod jwt;
+pub mod messaging;
 pub mod oauth;
 pub mod secrets;
 pub mod user;
 
 pub use app_context::{fixture_app_context, fixture_config};
-pub use bootstrap::{ensure_test_bootstrap, TestBootstrap};
+pub use bootstrap::{
+    ensure_test_bootstrap, TestBootstrap, TEST_MESSAGING_AGENT, TEST_SLACK_BOT_TOKEN,
+    TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, TEST_TEAMS_APP_ID, TEST_TEAMS_APP_PASSWORD,
+    TEST_TEAMS_TENANT_ID,
+};
+pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use credential::{
     seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_session, AuthedFixture,
 };

@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use systemprompt_identifiers::{
-    AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId,
+    AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId, SlackChannelId,
+    SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
 };
 use systemprompt_security::authz::{Access, EntityKind, EntityRef, RuleType};
 
@@ -14,6 +15,10 @@ fn entity_kind_as_str_all_variants() {
     assert_eq!(EntityKind::Marketplace.as_str(), "marketplace");
     assert_eq!(EntityKind::Skill.as_str(), "skill");
     assert_eq!(EntityKind::Hook.as_str(), "hook");
+    assert_eq!(EntityKind::SlackWorkspace.as_str(), "slack_workspace");
+    assert_eq!(EntityKind::SlackChannel.as_str(), "slack_channel");
+    assert_eq!(EntityKind::TeamsTenant.as_str(), "teams_tenant");
+    assert_eq!(EntityKind::TeamsConversation.as_str(), "teams_conversation");
 }
 
 #[test]
@@ -34,6 +39,22 @@ fn entity_kind_from_str_valid() {
     );
     assert_eq!(EntityKind::from_str("skill").unwrap(), EntityKind::Skill);
     assert_eq!(EntityKind::from_str("hook").unwrap(), EntityKind::Hook);
+    assert_eq!(
+        EntityKind::from_str("slack_workspace").unwrap(),
+        EntityKind::SlackWorkspace
+    );
+    assert_eq!(
+        EntityKind::from_str("slack_channel").unwrap(),
+        EntityKind::SlackChannel
+    );
+    assert_eq!(
+        EntityKind::from_str("teams_tenant").unwrap(),
+        EntityKind::TeamsTenant
+    );
+    assert_eq!(
+        EntityKind::from_str("teams_conversation").unwrap(),
+        EntityKind::TeamsConversation
+    );
 }
 
 #[test]
@@ -83,6 +104,26 @@ fn entity_ref_kind_and_id_str_all_variants() {
             "s1",
         ),
         (EntityRef::Hook(HookId::new("h1")), EntityKind::Hook, "h1"),
+        (
+            EntityRef::SlackWorkspace(SlackWorkspaceId::new("T123")),
+            EntityKind::SlackWorkspace,
+            "T123",
+        ),
+        (
+            EntityRef::SlackChannel(SlackChannelId::new("C456")),
+            EntityKind::SlackChannel,
+            "C456",
+        ),
+        (
+            EntityRef::TeamsTenant(TeamsTenantId::new("tenant-1")),
+            EntityKind::TeamsTenant,
+            "tenant-1",
+        ),
+        (
+            EntityRef::TeamsConversation(TeamsConversationId::new("conv-1")),
+            EntityKind::TeamsConversation,
+            "conv-1",
+        ),
     ];
     for (entity, expected_kind, expected_id) in cases {
         assert_eq!(entity.kind(), *expected_kind, "wrong kind for {entity:?}");
@@ -109,6 +150,10 @@ fn entity_ref_serde_roundtrip() {
         EntityRef::Marketplace(MarketplaceId::new("m1")),
         EntityRef::Skill(SkillId::new("s1")),
         EntityRef::Hook(HookId::new("h1")),
+        EntityRef::SlackWorkspace(SlackWorkspaceId::new("T123")),
+        EntityRef::SlackChannel(SlackChannelId::new("C456")),
+        EntityRef::TeamsTenant(TeamsTenantId::new("tenant-1")),
+        EntityRef::TeamsConversation(TeamsConversationId::new("conv-1")),
     ];
     for entity in refs {
         let s = serde_json::to_string(&entity).unwrap();

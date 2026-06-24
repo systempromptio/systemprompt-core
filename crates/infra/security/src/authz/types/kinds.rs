@@ -77,6 +77,10 @@ pub enum EntityKind {
     Marketplace,
     Skill,
     Hook,
+    SlackWorkspace,
+    SlackChannel,
+    TeamsTenant,
+    TeamsConversation,
 }
 
 impl EntityKind {
@@ -89,6 +93,10 @@ impl EntityKind {
             Self::Marketplace => "marketplace",
             Self::Skill => "skill",
             Self::Hook => "hook",
+            Self::SlackWorkspace => "slack_workspace",
+            Self::SlackChannel => "slack_channel",
+            Self::TeamsTenant => "teams_tenant",
+            Self::TeamsConversation => "teams_conversation",
         }
     }
 }
@@ -105,6 +113,10 @@ impl FromStr for EntityKind {
             "marketplace" => Ok(Self::Marketplace),
             "skill" => Ok(Self::Skill),
             "hook" => Ok(Self::Hook),
+            "slack_workspace" => Ok(Self::SlackWorkspace),
+            "slack_channel" => Ok(Self::SlackChannel),
+            "teams_tenant" => Ok(Self::TeamsTenant),
+            "teams_conversation" => Ok(Self::TeamsConversation),
             other => Err(AuthzError::Validation(format!(
                 "unknown entity_type: {other}"
             ))),

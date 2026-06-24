@@ -1,4 +1,35 @@
-use systemprompt_models::text::truncate_with_ellipsis;
+use systemprompt_models::text::{chunk_text, truncate_with_ellipsis};
+
+mod chunk_text_tests {
+    use super::*;
+
+    #[test]
+    fn empty_input_yields_single_empty_chunk() {
+        assert_eq!(chunk_text("", 100), vec![String::new()]);
+    }
+
+    #[test]
+    fn short_text_is_one_chunk() {
+        assert_eq!(chunk_text("hello\nworld", 100), vec!["hello\nworld"]);
+    }
+
+    #[test]
+    fn splits_on_line_boundaries_under_limit() {
+        let text = "aaaa\nbbbb\ncccc";
+        let chunks = chunk_text(text, 6);
+        assert!(chunks.len() > 1);
+        for chunk in &chunks {
+            assert!(!chunk.contains("\naaaa\nbbbb"));
+        }
+        assert_eq!(chunks.join("\n"), text);
+    }
+
+    #[test]
+    fn single_oversized_line_is_emitted_whole() {
+        let line = "x".repeat(50);
+        assert_eq!(chunk_text(&line, 10), vec![line]);
+    }
+}
 
 mod truncate_with_ellipsis_tests {
     use super::*;

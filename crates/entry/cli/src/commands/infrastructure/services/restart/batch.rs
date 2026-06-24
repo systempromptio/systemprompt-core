@@ -1,10 +1,12 @@
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
 use anyhow::Result;
+use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
+use systemprompt_mcp::HealthStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{
     RestartPlan, RestartScope, RestartTarget, ServiceSnapshot, ServiceType,
@@ -252,24 +254,30 @@ async fn agent_snapshots(orchestrator: &AgentOrchestrator) -> Result<Vec<Service
 
 async fn mcp_snapshots(ctx: &Arc<AppContext>, probe_health: bool) -> Result<Vec<ServiceSnapshot>> {
     ctx.mcp_registry().validate()?;
-    let servers = ctx.mcp_registry().get_enabled_servers()?;
+    let servers = ctx.mcp_registry().get_managed_servers()?;
+
+    let health_by_name: HashMap<String, HealthStatus> = if probe_health {
+        let manager = systemprompt_mcp::services::McpOrchestrator::new(
+            Arc::clone(ctx.db_pool()),
+            Arc::clone(ctx.app_paths_arc()),
+            ctx.mcp_registry().clone(),
+        )?;
+        manager
+            .service_statuses()
+            .await?
+            .into_iter()
+            .map(|status| (status.name, status.health))
+            .collect()
+    } else {
+        HashMap::new()
+    };
 
     let mut snapshots = Vec::with_capacity(servers.len());
     for server in servers {
-        if !server.enabled {
-            continue;
-        }
-
         let healthy = if probe_health {
-            let database = systemprompt_mcp::services::DatabaseService::new(
-                Arc::clone(ctx.db_pool()),
-                Arc::clone(ctx.app_paths_arc()),
-                ctx.mcp_registry().clone(),
-            );
-            database
-                .get_service_by_name(&server.name)
-                .await?
-                .is_some_and(|info| info.status == "running")
+            health_by_name
+                .get(&server.name)
+                .is_some_and(|h| matches!(h, HealthStatus::Healthy | HealthStatus::Degraded))
         } else {
             true
         };

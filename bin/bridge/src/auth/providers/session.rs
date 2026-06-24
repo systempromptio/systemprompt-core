@@ -40,32 +40,8 @@ impl AuthProvider for SessionProvider {
             return Err(AuthError::NotConfigured);
         }
 
-        let server = LoopbackServer::bind()
-            .await
-            .map_err(|e| AuthError::Failed {
-                provider: "session",
-                source: AuthFailedSource::Loopback(e),
-            })?;
-        let callback = server.callback_url();
-        let auth_url = build_auth_url(self.base_url.as_str(), callback.as_str());
-
-        diag(&format!("opening browser to {auth_url}"));
-        if let Err(e) = launch_browser(&auth_url) {
-            diag(&format!("could not launch browser automatically: {e}"));
-            diag(&format!("open manually: {auth_url}"));
-        }
-
-        let captured = server
-            .accept_callback(Duration::from_secs(LOOPBACK_TIMEOUT_SECS))
-            .await
-            .map_err(|e| AuthError::Failed {
-                provider: "session",
-                source: AuthFailedSource::Loopback(e),
-            })?;
-
-        let req = SessionExchangeRequest {
-            code: captured.code,
-        };
+        let code = capture_device_link_code(&self.base_url).await?;
+        let req = SessionExchangeRequest { code };
         let client = GatewayClient::new(self.base_url.clone());
         let resp = client
             .session_exchange(&req, session_id)
@@ -76,6 +52,32 @@ impl AuthProvider for SessionProvider {
             })?;
         Ok(resp.into())
     }
+}
+
+pub async fn capture_device_link_code(base_url: &ValidatedUrl) -> Result<String, AuthError> {
+    let server = LoopbackServer::bind()
+        .await
+        .map_err(|e| AuthError::Failed {
+            provider: "session",
+            source: AuthFailedSource::Loopback(e),
+        })?;
+    let callback = server.callback_url();
+    let auth_url = build_auth_url(base_url.as_str(), callback.as_str());
+
+    diag(&format!("opening browser to {auth_url}"));
+    if let Err(e) = launch_browser(&auth_url) {
+        diag(&format!("could not launch browser automatically: {e}"));
+        diag(&format!("open manually: {auth_url}"));
+    }
+
+    let captured = server
+        .accept_callback(Duration::from_secs(LOOPBACK_TIMEOUT_SECS))
+        .await
+        .map_err(|e| AuthError::Failed {
+            provider: "session",
+            source: AuthFailedSource::Loopback(e),
+        })?;
+    Ok(captured.code)
 }
 
 fn build_auth_url(base: &str, callback: &str) -> String {

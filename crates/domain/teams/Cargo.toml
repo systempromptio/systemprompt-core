@@ -1,0 +1,49 @@
+[package]
+name = "systemprompt-teams"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Microsoft Teams integration for systemprompt.io. Validates Azure Bot Service activity tokens, maps Teams users to governed systemprompt identities, and dispatches to A2A agents under the same RBAC and audit pipeline as every other inbound surface."
+readme = "README.md"
+include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
+
+[lints]
+workspace = true
+
+[features]
+# Exposes endpoint-overriding constructors (`TokenProvider::with_token_url`,
+# `ActivityTokenVerifier::with_openid_url`, `TeamsClient::with_endpoints`) so
+# tests can intercept outbound/inbound HTTP with a loopback mock server. Off in
+# normal builds — production always uses the hardcoded Bot Framework endpoints.
+test-support = []
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+inventory = { workspace = true }
+thiserror = { workspace = true }
+
+# Inbound JWT validation + outbound HTTP
+jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+
+# systemprompt.io integration
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-extension = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: compile-time registration via register_extension! (::inventory::submit!) / thiserror: derived through the domain_error! macro (#[derive(::thiserror::Error)])
+ignored = ["inventory", "thiserror"]

@@ -9,6 +9,7 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use crate::shared::project::ProjectRoot;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::mcp::{Deployment, McpServerType};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
@@ -37,34 +38,7 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
                 true
             }
         })
-        .map(|(name, server)| {
-            let binary_name = if server.binary.is_empty() {
-                name.clone()
-            } else {
-                server.binary.clone()
-            };
-            let (binary_debug, debug_created_at) =
-                get_binary_info(project_root.as_ref(), &binary_name, false);
-            let (binary_release, release_created_at) =
-                get_binary_info(project_root.as_ref(), &binary_name, true);
-
-            McpServerSummary {
-                name: name.clone(),
-                display_name: name.clone(),
-                port: server.port,
-                enabled: server.enabled,
-                status: Some(determine_status(
-                    server.enabled,
-                    binary_debug.as_deref(),
-                    binary_release.as_deref(),
-                )),
-                binary_debug,
-                binary_release,
-                debug_created_at,
-                release_created_at,
-                created_at: None,
-            }
-        })
+        .map(|(name, server)| summarize_server(name, server, project_root.as_ref()))
         .collect();
 
     servers.sort_by(|a, b| a.name.cmp(&b.name));
@@ -74,15 +48,71 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
     Ok(CommandOutput::table_of(
         vec![
             "name",
+            "server_type",
             "port",
             "enabled",
             "status",
+            "endpoint",
             "binary_debug",
             "binary_release",
         ],
         &output.servers,
     )
     .with_title("MCP Servers"))
+}
+
+fn summarize_server(
+    name: &str,
+    server: &Deployment,
+    project_root: Option<&ProjectRoot>,
+) -> McpServerSummary {
+    if server.server_type == McpServerType::External {
+        return McpServerSummary {
+            name: name.to_owned(),
+            display_name: name.to_owned(),
+            server_type: McpServerType::External.as_str().to_owned(),
+            port: 0,
+            enabled: server.enabled,
+            status: Some(if server.enabled {
+                "remote".to_owned()
+            } else {
+                "disabled".to_owned()
+            }),
+            endpoint: server.endpoint.clone(),
+            binary_debug: None,
+            binary_release: None,
+            debug_created_at: None,
+            release_created_at: None,
+            created_at: None,
+        };
+    }
+
+    let binary_name = if server.binary.is_empty() {
+        name.to_owned()
+    } else {
+        server.binary.clone()
+    };
+    let (binary_debug, debug_created_at) = get_binary_info(project_root, &binary_name, false);
+    let (binary_release, release_created_at) = get_binary_info(project_root, &binary_name, true);
+
+    McpServerSummary {
+        name: name.to_owned(),
+        display_name: name.to_owned(),
+        server_type: McpServerType::Internal.as_str().to_owned(),
+        port: server.port,
+        enabled: server.enabled,
+        status: Some(determine_status(
+            server.enabled,
+            binary_debug.as_deref(),
+            binary_release.as_deref(),
+        )),
+        endpoint: None,
+        binary_debug,
+        binary_release,
+        debug_created_at,
+        release_created_at,
+        created_at: None,
+    }
 }
 
 fn get_binary_info(

@@ -178,7 +178,6 @@ fn write_pat_file(path: &Path, token: &str) -> Result<(), SetupError> {
     atomic_write(path, token.trim().as_bytes(), true)
 }
 
-/// Read an existing `gateway_url = "..."` line from a config file, if present.
 fn read_existing_gateway(path: &Path) -> Option<String> {
     let contents = fs::read_to_string(path).ok()?;
     for line in contents.lines() {
@@ -204,6 +203,7 @@ fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
 }
 
 /// Write a config that enables the browser-based session/device-link provider.
+///
 /// No `[pat]` section is written — the session flow stores no long-lived
 /// secret; the proxy mints short-lived JWTs from the cached device-link
 /// credential.

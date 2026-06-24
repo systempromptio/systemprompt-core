@@ -51,17 +51,18 @@ pub(crate) fn on_login_requested(
     });
 }
 
-/// One-click browser-based sign-in. Persists session-mode config, then runs the
-/// device-link/loopback flow (opens the gateway consent page in the browser and
-/// captures the returned credential) — no PAT paste. On success the credential
-/// is cached for the proxy; the finished event reuses [`on_login_finished`].
-#[tracing::instrument(level = "info", skip(app), fields(has_gateway = gateway.is_some()))]
-pub(crate) fn on_session_login_requested(app: &GuiApp, gateway: Option<String>, reply_to: ReplyId) {
+#[tracing::instrument(level = "info", skip(app), fields(has_gateway = gateway.is_some(), keep_signed_in))]
+pub(crate) fn on_session_login_requested(
+    app: &GuiApp,
+    gateway: Option<String>,
+    keep_signed_in: bool,
+    reply_to: ReplyId,
+) {
     app.append_log(i18n::t("login-saving"));
     let proxy = app.proxy.clone();
     let cancel = app.state.install_cancel(CancelScope::Login);
     app.runtime.spawn(async move {
-        let result = run_session_login(gateway, &cancel)
+        let result = run_session_login(gateway, keep_signed_in, &cancel)
             .await
             .map_err(GuiError::from)
             .map_err(Arc::new);
@@ -71,35 +72,73 @@ pub(crate) fn on_session_login_requested(app: &GuiApp, gateway: Option<String>, 
 
 async fn run_session_login(
     gateway: Option<String>,
+    keep_signed_in: bool,
     cancel: &tokio_util::sync::CancellationToken,
 ) -> Result<(), setup::SetupError> {
-    use crate::auth::providers::AuthProvider;
-    use crate::auth::providers::session::SessionProvider;
+    use crate::auth::providers::session::capture_device_link_code;
+    use crate::auth::types::{HelperOutput, SessionExchangeRequest, SessionPatRequest};
+    use crate::gateway::GatewayClient;
     use systemprompt_identifiers::SessionId;
 
-    // 1. Persist gateway + enable the session provider, on a blocking thread.
-    tokio::task::spawn_blocking(move || setup::session_setup(gateway.as_deref()))
-        .await
-        .map_err(|e| setup::SetupError::Io(format!("session setup join: {e}")))??;
-
-    // 2. Run the browser/loopback device-link flow against the gateway.
+    if let Some(g) = gateway.clone()
+        && !g.trim().is_empty()
+    {
+        tokio::task::spawn_blocking(move || setup::set_gateway_url(&g))
+            .await
+            .map_err(|e| setup::SetupError::Io(format!("set-gateway join: {e}")))??;
+    }
     let cfg = crate::config::load();
+    let base = crate::config::gateway_url_or_default(&cfg);
     let session_id = SessionId::generate();
-    let provider = SessionProvider::new(&cfg);
-    let out = tokio::select! {
+
+    let code = tokio::select! {
         () = cancel.cancelled() => {
             return Err(setup::SetupError::Io("sign-in cancelled".into()));
         }
-        result = provider.authenticate(&session_id) => {
+        result = capture_device_link_code(&base) => {
             result.map_err(|e| setup::SetupError::Io(e.to_string()))?
         }
     };
 
-    // 3. Cache the freshly minted credential so the proxy can use it immediately.
-    if let Err(e) = crate::auth::cache::write(&out) {
-        crate::obs::output::diag(&format!("session cache write failed (continuing): {e}"));
+    let client = GatewayClient::new(base);
+    if keep_signed_in {
+        let req = SessionPatRequest {
+            code,
+            device_name: Some(default_device_name()),
+        };
+        let pat = client
+            .session_pat_exchange(&req, &session_id)
+            .await
+            .map_err(|e| setup::SetupError::Io(e.to_string()))?;
+        let gw = gateway.clone();
+        tokio::task::spawn_blocking(move || setup::login(&pat, gw.as_deref()))
+            .await
+            .map_err(|e| setup::SetupError::Io(format!("login join: {e}")))??;
+    } else {
+        let req = SessionExchangeRequest { code };
+        let out: HelperOutput = client
+            .session_exchange(&req, &session_id)
+            .await
+            .map_err(|e| setup::SetupError::Io(e.to_string()))?
+            .into();
+        let gw = gateway.clone();
+        tokio::task::spawn_blocking(move || setup::session_setup(gw.as_deref()))
+            .await
+            .map_err(|e| setup::SetupError::Io(format!("session setup join: {e}")))??;
+        if let Err(e) = crate::auth::cache::write(&out) {
+            crate::obs::output::diag(&format!("session cache write failed (continuing): {e}"));
+        }
     }
     Ok(())
+}
+
+fn default_device_name() -> String {
+    let host = std::env::var("COMPUTERNAME")
+        .ok()
+        .or_else(|| std::env::var("HOSTNAME").ok())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "device".to_owned());
+    format!("{} — {host}", crate::brand::brand().app_name)
 }
 
 pub(crate) fn on_login_finished(

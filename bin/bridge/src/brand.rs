@@ -67,7 +67,7 @@ pub struct Brand {
     /// button drives the browser-based device-link/session flow against the
     /// gateway, so this names *how* the gateway authenticates the user (e.g.
     /// "Sign in with Salesforce" for a Salesforce-federated gateway). Keep it a
-    /// full button label, not just the IdP name.
+    /// full button label, not just the identity-provider name.
     pub sign_in_label: &'static str,
     /// One-line explanation shown under the sign-in button describing the model
     /// (you sign in on the gateway; this device is linked automatically).

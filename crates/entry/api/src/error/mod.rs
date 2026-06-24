@@ -30,6 +30,10 @@ impl ApiHttpError {
         Self(ApiError::bad_request(message))
     }
 
+    pub fn unauthorized(message: impl Into<String>) -> Self {
+        Self(ApiError::unauthorized(message))
+    }
+
     pub fn forbidden(message: impl Into<String>) -> Self {
         Self(ApiError::forbidden(message))
     }

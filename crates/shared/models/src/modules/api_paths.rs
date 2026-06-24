@@ -18,6 +18,8 @@ impl ApiPaths {
     pub const SYNC_BASE: &'static str = "/api/v1/sync";
     pub const ANALYTICS_BASE: &'static str = "/api/v1/analytics";
     pub const META_BASE: &'static str = "/api/v1/meta";
+    pub const SLACK_BASE: &'static str = "/api/v1/slack";
+    pub const TEAMS_BASE: &'static str = "/api/v1/teams";
 
     pub const CORE_CONTEXTS: &'static str = "/api/v1/core/contexts";
     pub const CORE_TASKS: &'static str = "/api/v1/core/tasks";

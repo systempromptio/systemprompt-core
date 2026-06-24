@@ -138,8 +138,12 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
             gateway,
             reply_to,
         } => handlers::auth::on_login_requested(app, &token, gateway, reply_to),
-        UiEvent::SessionLoginRequested { gateway, reply_to } => {
-            handlers::auth::on_session_login_requested(app, gateway, reply_to);
+        UiEvent::SessionLoginRequested {
+            gateway,
+            keep_signed_in,
+            reply_to,
+        } => {
+            handlers::auth::on_session_login_requested(app, gateway, keep_signed_in, reply_to);
         },
         UiEvent::LogoutRequested { reply_to } => handlers::auth::on_logout_requested(app, reply_to),
         UiEvent::SetGatewayRequested { url, reply_to } => {

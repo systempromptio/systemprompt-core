@@ -11,4 +11,4 @@ mod engine;
 mod errors;
 mod resolver;
 
-pub use engine::ProxyEngine;
+pub use engine::{ProxyEngine, ProxyKind, ProxyTarget};

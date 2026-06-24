@@ -242,6 +242,22 @@ pub mod scheduler {
     pub use systemprompt_scheduler::*;
 }
 
+/// Slack integration from `systemprompt-slack` — inbound Events API, slash
+/// commands, and Block Kit interactivity dispatched to governed agents.
+#[cfg(feature = "slack")]
+#[cfg_attr(docsrs, doc(cfg(feature = "slack")))]
+pub mod slack {
+    pub use systemprompt_slack::*;
+}
+
+/// Microsoft Teams integration from `systemprompt-teams` — inbound Bot
+/// Framework activities, token validation, Adaptive Card rendering.
+#[cfg(feature = "teams")]
+#[cfg_attr(docsrs, doc(cfg(feature = "teams")))]
+pub mod teams {
+    pub use systemprompt_teams::*;
+}
+
 /// Static-site generator from `systemprompt-generator` — Tera-based renderer
 /// driving the `web` CLI domain.
 #[cfg(feature = "full")]

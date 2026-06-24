@@ -3,6 +3,7 @@ use crate::services::monitoring::health::{HealthStatus, perform_health_check};
 use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};
 use std::collections::HashMap;
 use std::hash::BuildHasher;
+use systemprompt_models::mcp::McpServerType;
 
 #[derive(Debug, Clone)]
 pub struct ServiceStatus {
@@ -10,6 +11,19 @@ pub struct ServiceStatus {
     pub pid: Option<u32>,
     pub health: String,
     pub uptime_seconds: Option<i64>,
+    pub tools_count: usize,
+    pub latency_ms: Option<u32>,
+    pub auth_required: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct McpServiceStatus {
+    pub name: String,
+    pub server_type: McpServerType,
+    pub port: u16,
+    pub endpoint: Option<String>,
+    pub health: HealthStatus,
+    pub pid: Option<u32>,
     pub tools_count: usize,
     pub latency_ms: Option<u32>,
     pub auth_required: bool,

@@ -16,6 +16,13 @@ fn validate_uuid_v4(s: &str) -> Result<(), IdValidationError> {
 const GATEWAY_CONVERSATION_NAMESPACE: uuid::Uuid =
     uuid::Uuid::from_u128(0x993f_3f2c_f4d9_463b_853a_d3f0_3e19_0898);
 
+// Why: UUID v5 namespace for deriving a stable `ContextId` from a messaging
+// surface's (platform, org, channel) triple. Hardcoded so derivations match
+// across processes and rebuilds; rotating it would orphan every prior Slack /
+// Teams conversation's audit history.
+const MESSAGING_NAMESPACE: uuid::Uuid =
+    uuid::Uuid::from_u128(0x6b1d_2a7e_9c84_4f31_b5e0_71a2_4d8c_3f06);
+
 impl ContextId {
     pub fn generate() -> Self {
         // Safe: UUID v4 from `uuid` crate is always a valid UUID string.
@@ -35,5 +42,20 @@ impl ContextId {
         Self::new(
             uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, gw.as_str().as_bytes()).to_string(),
         )
+    }
+
+    /// Mint a deterministic `ContextId` for a chat-platform conversation.
+    ///
+    /// The same `(platform, org, channel)` triple — e.g.
+    /// `("slack", workspace_id, channel_id)` or
+    /// `("teams", tenant_id, conversation_id)` — always produces the same
+    /// `ContextId`, so the messaging dispatch boundary satisfies the "every
+    /// conversation has a UUID `ContextId`" invariant without a channel→context
+    /// mapping table.
+    #[must_use]
+    pub fn derived_from_messaging(platform: &str, org: &str, channel: &str) -> Self {
+        let key = format!("{platform}:{org}:{channel}");
+        // Safe: UUID v5 always produces a valid UUID string.
+        Self::new(uuid::Uuid::new_v5(&MESSAGING_NAMESPACE, key.as_bytes()).to_string())
     }
 }

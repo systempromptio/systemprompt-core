@@ -57,6 +57,8 @@ members = [
     "unit/domain/users",
     "unit/domain/templates",
     "unit/domain/marketplace",
+    "unit/domain/slack",
+    "unit/domain/teams",
     # Unit tests - app layer
     "unit/app/generator",
     "unit/app/runtime",
@@ -163,9 +165,9 @@ tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 
 # CLI
-clap = { version = "4.4", features = ["derive", "env"] }
-console = "0.15"
-dialoguer = "0.11"
+clap = { version = "4.6", features = ["derive", "env"] }
+console = "0.16"
+dialoguer = "0.12"
 
 # Utilities
 inventory = "0.3"
@@ -178,11 +180,11 @@ futures = "0.3"
 futures-util = "0.3"
 tokio-stream = "0.1"
 bytes = "1.0"
-schemars = { version = "1.0", features = ["derive"] }
+schemars = { version = "1.2", features = ["derive"] }
 url = "2.5"
 
 # MCP
-rmcp = { version = "1.6", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "macros", "auth"] }
+rmcp = { version = "1.8", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 
 # Security
 rand = "0.9"
@@ -227,6 +229,8 @@ systemprompt-ai = { path = "../domain/ai" }
 systemprompt-agent = { path = "../domain/agent" }
 systemprompt-templates = { path = "../domain/templates" }
 systemprompt-marketplace = { path = "../domain/marketplace" }
+systemprompt-slack = { path = "../domain/slack" }
+systemprompt-teams = { path = "../domain/teams" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-generator = { path = "../app/generator" }

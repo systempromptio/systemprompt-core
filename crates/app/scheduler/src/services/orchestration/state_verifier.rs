@@ -26,6 +26,9 @@ pub struct ServiceConfig {
 }
 
 impl ServiceConfig {
+    /// External MCP servers are excluded: they are not subprocesses, so they
+    /// must never enter process-state verification or be started by the
+    /// reconciler.
     #[must_use]
     pub fn list_from_manifest(services: &systemprompt_models::ServicesConfig) -> Vec<Self> {
         let agents = services.agents.iter().map(|(name, agent)| Self {
@@ -34,12 +37,16 @@ impl ServiceConfig {
             port: agent.port,
             enabled: agent.enabled,
         });
-        let mcp_servers = services.mcp_servers.iter().map(|(name, mcp)| Self {
-            name: name.clone(),
-            service_type: ServiceType::Mcp,
-            port: mcp.port,
-            enabled: mcp.enabled,
-        });
+        let mcp_servers = services
+            .mcp_servers
+            .iter()
+            .filter(|(_, mcp)| mcp.server_type != systemprompt_models::mcp::McpServerType::External)
+            .map(|(name, mcp)| Self {
+                name: name.clone(),
+                service_type: ServiceType::Mcp,
+                port: mcp.port,
+                enabled: mcp.enabled,
+            });
         agents.chain(mcp_servers).collect()
     }
 }

@@ -97,6 +97,28 @@ fn derived_from_gateway_conversation_diverges_on_input() {
 }
 
 #[test]
+fn derived_from_messaging_is_a_valid_uuid() {
+    let ctx = ContextId::derived_from_messaging("slack", "T123", "C456");
+    assert_eq!(ctx.as_str().len(), 36);
+    uuid::Uuid::parse_str(ctx.as_str()).expect("derivation must yield a parseable UUID");
+}
+
+#[test]
+fn derived_from_messaging_is_deterministic() {
+    let a = ContextId::derived_from_messaging("teams", "tenant-1", "conv-1");
+    let b = ContextId::derived_from_messaging("teams", "tenant-1", "conv-1");
+    assert_eq!(a, b);
+}
+
+#[test]
+fn derived_from_messaging_diverges_on_platform_org_and_channel() {
+    let base = ContextId::derived_from_messaging("slack", "org", "chan");
+    assert_ne!(base, ContextId::derived_from_messaging("teams", "org", "chan"));
+    assert_ne!(base, ContextId::derived_from_messaging("slack", "org2", "chan"));
+    assert_ne!(base, ContextId::derived_from_messaging("slack", "org", "chan2"));
+}
+
+#[test]
 fn to_db_value_owned_and_ref() {
     let uuid = "550e8400-e29b-41d4-a716-446655440000";
     let id = ContextId::try_new(uuid).unwrap();

@@ -15,6 +15,7 @@ export class SpSetupGateway extends SpElement {
     this.error = "";
     this.pending = false;
     this.signingIn = false;
+    this.keepSignedIn = true;
     this._lastSavedGateway = "";
     this._debounce = null;
     this._pendingSince = 0;
@@ -24,6 +25,7 @@ export class SpSetupGateway extends SpElement {
     this.registerAction("edit-pat", () => this._editPat());
     this.registerAction("input:gateway", (t) => this._onGatewayInput(t));
     this.registerAction("input:pat", (t) => { this.pat = t.value; });
+    this.registerAction("input:keep", (t) => { this.keepSignedIn = !!t.checked; });
     this.addEventListener("focusin", (e) => {
       if (e.target.id === "setup-pat" && this.patSaved) {
         this.pat = ""; this.patSaved = false; this._syncInputs();
@@ -108,15 +110,16 @@ export class SpSetupGateway extends SpElement {
     return gw;
   }
 
-  // One-click browser sign-in (device-link/session flow). Opens the gateway in
-  // the browser; the IPC resolves once the bridge captures the credential.
   async _signIn() {
     const gw = this._validGateway();
     if (!gw) { return; }
+    // Read the checkbox live so the choice is honored even if no change event fired.
+    const keepEl = this.querySelector("#setup-keep");
+    this.keepSignedIn = keepEl ? keepEl.checked : this.keepSignedIn;
     this._lastSavedGateway = gw;
     this.signingIn = true; this.error = ""; this.invalidate();
     try {
-      await bridge.signIn(gw);
+      await bridge.signIn(gw, this.keepSignedIn);
     } catch (err) {
       this.error = `Sign-in failed: ${(err && err.message) || err}`;
     } finally {

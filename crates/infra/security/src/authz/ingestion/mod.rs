@@ -14,6 +14,7 @@
 
 pub mod glob;
 mod marketplace;
+mod messaging;
 mod upsert;
 
 use std::collections::HashMap;

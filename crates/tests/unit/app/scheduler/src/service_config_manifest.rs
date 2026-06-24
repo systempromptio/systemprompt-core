@@ -109,3 +109,62 @@ fn multiple_mcp_servers_are_all_projected() {
     ports.sort_unstable();
     assert_eq!(ports, vec![3001, 3002]);
 }
+
+#[test]
+fn external_mcp_server_is_excluded() {
+    let json = r#"{
+        "mcp_servers": {
+            "remote_one": {
+                "binary": "",
+                "server_type": "external",
+                "endpoint": "https://example.com/mcp",
+                "port": 0,
+                "enabled": true,
+                "display_in_web": false,
+                "oauth": { "required": false, "scopes": [], "audience": "Mcp", "client_id": null }
+            }
+        }
+    }"#;
+
+    let manifest: ServicesConfig =
+        serde_json::from_str(json).expect("external mcp manifest should deserialize");
+
+    let list = ServiceConfig::list_from_manifest(&manifest);
+    assert!(
+        list.is_empty(),
+        "external MCP servers are not subprocess-managed and must be excluded"
+    );
+}
+
+#[test]
+fn external_mcp_excluded_while_internal_retained() {
+    let json = r#"{
+        "mcp_servers": {
+            "local": {
+                "binary": "local-server",
+                "server_type": "internal",
+                "port": 3010,
+                "enabled": true,
+                "display_in_web": false,
+                "oauth": { "required": false, "scopes": [], "audience": "Mcp", "client_id": null }
+            },
+            "remote": {
+                "binary": "",
+                "server_type": "external",
+                "endpoint": "https://example.com/mcp",
+                "port": 0,
+                "enabled": true,
+                "display_in_web": false,
+                "oauth": { "required": false, "scopes": [], "audience": "Mcp", "client_id": null }
+            }
+        }
+    }"#;
+
+    let manifest: ServicesConfig =
+        serde_json::from_str(json).expect("mixed mcp manifest should deserialize");
+
+    let list = ServiceConfig::list_from_manifest(&manifest);
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].name, "local");
+    assert_eq!(list[0].service_type, ServiceType::Mcp);
+}

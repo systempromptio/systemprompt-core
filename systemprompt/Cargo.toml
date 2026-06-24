@@ -68,6 +68,14 @@ cli = ["dep:systemprompt-cli"]
 # Runtime builder for embedding systemprompt as a library
 runtime = ["cli", "dep:systemprompt-extension"]
 
+# Slack integration (inbound Events API / slash commands / interactivity).
+# Fully opt-in: excluded from `default` and `full`.
+slack = ["dep:systemprompt-slack"]
+
+# Microsoft Teams integration (inbound Bot Framework activities).
+# Fully opt-in: excluded from `default` and `full`.
+teams = ["dep:systemprompt-teams"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -132,6 +140,8 @@ systemprompt-users = { workspace = true, optional = true }
 systemprompt-content = { workspace = true, optional = true }
 systemprompt-analytics = { workspace = true, optional = true }
 systemprompt-marketplace = { workspace = true, optional = true }
+systemprompt-slack = { workspace = true, optional = true }
+systemprompt-teams = { workspace = true, optional = true }
 systemprompt-scheduler = { workspace = true, optional = true }
 systemprompt-files = { workspace = true, optional = true }
 

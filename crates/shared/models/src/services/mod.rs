@@ -13,7 +13,9 @@ pub mod runtime;
 pub mod scheduler;
 pub mod settings;
 pub mod skills;
+pub mod slack;
 pub mod system_admin;
+pub mod teams;
 mod validation;
 
 pub use includable::IncludableString;
@@ -48,8 +50,10 @@ pub use skills::{
     DEFAULT_SKILL_CONTENT_FILE, DiskSkillConfig, SKILL_CONFIG_FILENAME, SkillConfig, SkillDetail,
     SkillSummary, SkillsConfig,
 };
+pub use slack::{SlackAppConfig, SlackAuthzConfig};
 pub use system_admin::{SystemAdmin, SystemAdminConfig};
 pub use systemprompt_provider_contracts::{BrandingConfig, WebConfig};
+pub use teams::{TeamsAppConfig, TeamsAuthzConfig};
 
 use crate::errors::ConfigValidationError;
 use crate::mcp::Deployment;
@@ -88,6 +92,10 @@ pub struct ServicesConfig {
     pub skills: SkillsConfig,
     #[serde(default)]
     pub external_agents: HashMap<ExternalAgentId, ExternalAgentConfig>,
+    #[serde(default)]
+    pub slack_apps: HashMap<String, SlackAppConfig>,
+    #[serde(default)]
+    pub teams_apps: HashMap<String, TeamsAppConfig>,
 }
 
 impl ServicesConfig {
@@ -114,6 +122,14 @@ impl ServicesConfig {
         }
 
         self.validate_default_marketplace_selector()?;
+
+        for (name, app) in &self.slack_apps {
+            app.validate(name)?;
+        }
+
+        for (name, app) in &self.teams_apps {
+            app.validate(name)?;
+        }
 
         Ok(())
     }

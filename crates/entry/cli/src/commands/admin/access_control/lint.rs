@@ -16,6 +16,10 @@ const ALL_KINDS: &[EntityKind] = &[
     EntityKind::Marketplace,
     EntityKind::Skill,
     EntityKind::Hook,
+    EntityKind::SlackWorkspace,
+    EntityKind::SlackChannel,
+    EntityKind::TeamsTenant,
+    EntityKind::TeamsConversation,
 ];
 
 /// Iterate every `EntityKind` and report:

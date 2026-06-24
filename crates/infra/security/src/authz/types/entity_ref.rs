@@ -2,7 +2,8 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{
-    AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId,
+    AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId, SlackChannelId,
+    SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
 };
 
 use super::kinds::EntityKind;
@@ -19,6 +20,10 @@ pub enum EntityRef {
     Marketplace(MarketplaceId),
     Skill(SkillId),
     Hook(HookId),
+    SlackWorkspace(SlackWorkspaceId),
+    SlackChannel(SlackChannelId),
+    TeamsTenant(TeamsTenantId),
+    TeamsConversation(TeamsConversationId),
 }
 
 impl EntityRef {
@@ -32,6 +37,10 @@ impl EntityRef {
             Self::Marketplace(_) => EntityKind::Marketplace,
             Self::Skill(_) => EntityKind::Skill,
             Self::Hook(_) => EntityKind::Hook,
+            Self::SlackWorkspace(_) => EntityKind::SlackWorkspace,
+            Self::SlackChannel(_) => EntityKind::SlackChannel,
+            Self::TeamsTenant(_) => EntityKind::TeamsTenant,
+            Self::TeamsConversation(_) => EntityKind::TeamsConversation,
         }
     }
 
@@ -45,6 +54,10 @@ impl EntityRef {
             Self::Marketplace(id) => id.as_str(),
             Self::Skill(id) => id.as_str(),
             Self::Hook(id) => id.as_str(),
+            Self::SlackWorkspace(id) => id.as_str(),
+            Self::SlackChannel(id) => id.as_str(),
+            Self::TeamsTenant(id) => id.as_str(),
+            Self::TeamsConversation(id) => id.as_str(),
         }
     }
 }

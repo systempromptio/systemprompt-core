@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-teams-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-teams crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-teams = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+jsonwebtoken = { workspace = true }

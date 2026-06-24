@@ -30,6 +30,7 @@ struct LoginArgs {
 #[serde(default)]
 struct SessionLoginArgs {
     gateway: Option<String>,
+    keep_signed_in: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -194,6 +195,7 @@ fn auth_dispatch(
                     app,
                     UiEvent::SessionLoginRequested {
                         gateway: a.gateway,
+                        keep_signed_in: a.keep_signed_in,
                         reply_to: reply_id,
                     },
                 );

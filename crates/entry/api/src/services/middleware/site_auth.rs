@@ -71,10 +71,17 @@ pub async fn site_auth_gate(request: Request, next: Next, config: SiteAuthConfig
         return next.run(request).await;
     }
 
-    let redirect = format!(
-        "{}?redirect={}",
-        config.login_path,
-        urlencoding::encode(path)
-    );
+    let redirect = login_redirect(config.login_path, request.uri());
     Redirect::to(&redirect).into_response()
+}
+
+/// The bridge device-link carries its loopback callback in `?redirect=...`, so
+/// dropping the query strands the post-login bounce on a page whose extractor
+/// then 400s.
+#[must_use]
+pub fn login_redirect(login_path: &str, uri: &http::Uri) -> String {
+    let target = uri
+        .path_and_query()
+        .map_or_else(|| uri.path(), http::uri::PathAndQuery::as_str);
+    format!("{login_path}?redirect={}", urlencoding::encode(target))
 }

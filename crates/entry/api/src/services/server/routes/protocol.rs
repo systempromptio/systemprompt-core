@@ -110,6 +110,30 @@ pub(super) fn mount_agent(
     router
 }
 
+/// Mount the chat-platform inbound surfaces (Slack, Teams). Both authenticate
+/// per-request at the handler (Slack signature / Teams activity token), so no
+/// JWT middleware is applied — only a rate limit mirroring the agent surface
+/// they ultimately dispatch into.
+pub(super) fn mount_messaging(mut router: Router, ctx: &AppContext) -> Router {
+    let rate_config = &ctx.config().rate_limits;
+
+    router = router.nest(
+        ApiPaths::SLACK_BASE,
+        crate::routes::slack::slack_router()
+            .with_state(ctx.clone())
+            .with_rate_limit(rate_config, rate_config.agents_per_second),
+    );
+
+    router = router.nest(
+        ApiPaths::TEAMS_BASE,
+        crate::routes::teams::teams_router()
+            .with_state(ctx.clone())
+            .with_rate_limit(rate_config, rate_config.agents_per_second),
+    );
+
+    router
+}
+
 pub(super) fn mount_mcp_and_stream(
     mut router: Router,
     ctx: &AppContext,

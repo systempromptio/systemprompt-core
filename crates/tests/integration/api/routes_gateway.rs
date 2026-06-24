@@ -97,6 +97,32 @@ async fn session_unknown_code_returns_error() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn session_pat_empty_code_returns_400() -> anyhow::Result<()> {
+    let app = router().await?;
+    let resp = app
+        .oneshot(json_post(
+            "/auth/bridge/session-pat",
+            serde_json::json!({ "code": "" }),
+        ))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 400);
+    Ok(())
+}
+
+#[tokio::test]
+async fn session_pat_unknown_code_returns_unauthorized() -> anyhow::Result<()> {
+    let app = router().await?;
+    let resp = app
+        .oneshot(json_post(
+            "/auth/bridge/session-pat",
+            serde_json::json!({ "code": "not-a-real-code-xyz", "device_name": "test device" }),
+        ))
+        .await?;
+    assert_eq!(resp.status().as_u16(), 401);
+    Ok(())
+}
+
+#[tokio::test]
 async fn mtls_empty_fingerprint_returns_400() -> anyhow::Result<()> {
     let app = router().await?;
     let resp = app

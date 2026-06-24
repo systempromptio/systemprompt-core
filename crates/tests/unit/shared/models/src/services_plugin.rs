@@ -207,9 +207,11 @@ fn mcp_server_summary_serde_round_trip() {
     let s = McpServerSummary {
         name: "fs".to_owned(),
         display_name: "Filesystem".to_owned(),
+        server_type: "internal".to_owned(),
         enabled: true,
         port: 5050,
         status: Some("running".to_owned()),
+        endpoint: None,
         binary_debug: None,
         binary_release: Some("/bin/fs".to_owned()),
         debug_created_at: None,

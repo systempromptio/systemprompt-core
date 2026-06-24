@@ -17,6 +17,25 @@ use tempfile::TempDir;
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
 const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
+/// The Slack workspace id seeded into the fixture `config.yaml`. Tests sign
+/// requests carrying this `team_id` so [`crate::messaging`] resolves the app.
+pub const TEST_SLACK_WORKSPACE_ID: &str = "T_TEST_WS";
+/// The Teams Entra tenant id seeded into the fixture `config.yaml`.
+pub const TEST_TEAMS_TENANT_ID: &str = "tenant-test";
+/// The Microsoft App (bot) id — the audience inbound Teams activity tokens
+/// must carry, and the `client_id` for outbound token acquisition.
+pub const TEST_TEAMS_APP_ID: &str = "app-test-1";
+/// The agent both messaging apps route to. A `services` backend row plus the
+/// matching `config.yaml` entry (`oauth.required = false`) make it dispatchable.
+pub const TEST_MESSAGING_AGENT: &str = "test_messaging_agent";
+
+/// The Slack signing secret resolved from the named ref `slack_signing_secret`.
+pub const TEST_SLACK_SIGNING_SECRET: &str = "test-slack-signing-secret-value";
+/// The Slack bot token resolved from the named ref `slack_bot_token`.
+pub const TEST_SLACK_BOT_TOKEN: &str = "xoxb-test-bot-token";
+/// The Teams app password resolved from the named ref `teams_app_password`.
+pub const TEST_TEAMS_APP_PASSWORD: &str = "test-teams-app-password";
+
 pub struct TestBootstrap {
     pub _tmp: TempDir,
     pub profile_path: PathBuf,
@@ -70,7 +89,11 @@ fn init_bootstrap() -> TestBootstrap {
         std::fs::create_dir_all(dir).expect("mkdir bootstrap path");
     }
 
-    write_yaml_stub(&services_path.join("config/config.yaml"));
+    std::fs::write(
+        services_path.join("config/config.yaml"),
+        messaging_config_yaml(),
+    )
+    .expect("write services config.yaml");
     write_yaml_stub(&services_path.join("content/config.yaml"));
     write_yaml_stub(&services_path.join("web/config.yaml"));
     write_yaml_stub(&services_path.join("web/metadata.yaml"));
@@ -129,11 +152,71 @@ fn install_subprocess_env(database_url: &str) {
         if env::var("MANIFEST_SIGNING_SECRET_SEED").is_err() {
             env::set_var("MANIFEST_SIGNING_SECRET_SEED", TEST_MANIFEST_SIGNING_SEED);
         }
+        // Named secrets the messaging apps reference. The fixture runs in
+        // subprocess mode, so the secrets singleton loads from the environment;
+        // `SYSTEMPROMPT_CUSTOM_SECRETS` lists the extra keys to pull through.
+        if env::var("SYSTEMPROMPT_CUSTOM_SECRETS").is_err() {
+            env::set_var(
+                "SYSTEMPROMPT_CUSTOM_SECRETS",
+                "slack_signing_secret,slack_bot_token,teams_app_password",
+            );
+            env::set_var("slack_signing_secret", TEST_SLACK_SIGNING_SECRET);
+            env::set_var("slack_bot_token", TEST_SLACK_BOT_TOKEN);
+            env::set_var("teams_app_password", TEST_TEAMS_APP_PASSWORD);
+        }
     }
 }
 
 fn write_yaml_stub(path: &std::path::Path) {
     std::fs::write(path, "{}\n").expect("write yaml stub");
+}
+
+/// The seeded services config: one dispatchable agent (`oauth.required = false`)
+/// plus one Slack app and one Teams app routing to it. `ConfigLoader::load()`
+/// reads exactly this file, so the messaging routes resolve their app, agent,
+/// and named secrets from a single deterministic source.
+fn messaging_config_yaml() -> String {
+    format!(
+        r#"agents:
+  {agent}:
+    name: {agent}
+    port: 59250
+    endpoint: http://127.0.0.1:59250
+    enabled: true
+    card:
+      protocolVersion: "0.3.0"
+      displayName: Test Messaging Agent
+      description: Agent backend for messaging dispatch tests.
+      version: "1.0.0"
+    metadata: {{}}
+    oauth:
+      required: false
+slack_apps:
+  test_slack:
+    workspace_id: {slack_ws}
+    signing_secret_ref: slack_signing_secret
+    bot_token_ref: slack_bot_token
+    enabled: true
+    default_agent: {agent}
+    authz:
+      allowed_roles:
+        - user
+teams_apps:
+  test_teams:
+    tenant_id: {teams_tenant}
+    app_id: {teams_app}
+    app_password_ref: teams_app_password
+    enabled: true
+    default_agent: {agent}
+    authz:
+      allowed_roles:
+        - user
+"#,
+        agent = TEST_MESSAGING_AGENT,
+        slack_ws = TEST_SLACK_WORKSPACE_ID,
+        teams_tenant = TEST_TEAMS_TENANT_ID,
+        teams_app = TEST_TEAMS_APP_ID,
+    )
 }
 
 fn render_profile_yaml(

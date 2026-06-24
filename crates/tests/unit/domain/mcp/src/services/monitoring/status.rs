@@ -1,6 +1,8 @@
 //! Unit tests for ServiceStatus model
 
 use systemprompt_mcp::services::monitoring::status::ServiceStatus;
+use systemprompt_mcp::{HealthStatus, McpServiceStatus};
+use systemprompt_models::mcp::McpServerType;
 
 fn create_test_status() -> ServiceStatus {
     ServiceStatus {
@@ -239,6 +241,48 @@ async fn test_get_all_service_status_unreachable() {
     let map = get_all_service_status(&[config]).await.unwrap();
     assert_eq!(map.len(), 1);
     assert!(map.contains_key("unreach"));
+}
+
+#[test]
+fn mcp_service_status_managed_row_carries_pid_and_port() {
+    let status = McpServiceStatus {
+        name: "local".to_owned(),
+        server_type: McpServerType::Internal,
+        port: 3010,
+        endpoint: None,
+        health: HealthStatus::Healthy,
+        pid: Some(4242),
+        tools_count: 7,
+        latency_ms: Some(12),
+        auth_required: false,
+    };
+
+    assert_eq!(status.server_type, McpServerType::Internal);
+    assert_eq!(status.port, 3010);
+    assert_eq!(status.pid, Some(4242));
+    assert!(status.endpoint.is_none());
+    assert_eq!(status.health, HealthStatus::Healthy);
+}
+
+#[test]
+fn mcp_service_status_external_row_carries_endpoint_not_pid() {
+    let status = McpServiceStatus {
+        name: "remote".to_owned(),
+        server_type: McpServerType::External,
+        port: 0,
+        endpoint: Some("https://example.com/mcp".to_owned()),
+        health: HealthStatus::Unhealthy,
+        pid: None,
+        tools_count: 0,
+        latency_ms: None,
+        auth_required: true,
+    };
+
+    assert_eq!(status.server_type, McpServerType::External);
+    assert_eq!(status.port, 0);
+    assert!(status.pid.is_none());
+    assert_eq!(status.endpoint.as_deref(), Some("https://example.com/mcp"));
+    assert_eq!(status.health, HealthStatus::Unhealthy);
 }
 
 #[test]

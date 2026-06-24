@@ -58,6 +58,7 @@ pub(super) fn configure_routes(
         mcp_middleware,
     )?;
     router = protocol::mount_content_and_misc(router, ctx, &public_middleware, &user_middleware)?;
+    router = protocol::mount_messaging(router, ctx);
 
     router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
 
