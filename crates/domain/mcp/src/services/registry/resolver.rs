@@ -103,6 +103,22 @@ impl RegistryService {
         self.get_enabled_servers_as_config()
     }
 
+    pub fn managed_servers(&self) -> McpDomainResult<Vec<crate::McpServerConfig>> {
+        Ok(self
+            .get_enabled_servers_as_config()?
+            .into_iter()
+            .filter(crate::McpServerConfig::is_internal)
+            .collect())
+    }
+
+    pub fn external_servers(&self) -> McpDomainResult<Vec<crate::McpServerConfig>> {
+        Ok(self
+            .get_enabled_servers_as_config()?
+            .into_iter()
+            .filter(crate::McpServerConfig::is_external)
+            .collect())
+    }
+
     pub fn reload(&self) -> McpDomainResult<()> {
         self.validate()
     }

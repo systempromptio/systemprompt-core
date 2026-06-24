@@ -19,7 +19,7 @@ pub(super) async fn run_daemon(
         tracing::info!("Starting MCP daemon mode");
 
         database.cleanup_stale_services().await?;
-        let servers = registry.get_enabled_servers()?;
+        let servers = registry.managed_servers()?;
         database.sync_state(&servers).await?;
         let server_count = servers.len();
 

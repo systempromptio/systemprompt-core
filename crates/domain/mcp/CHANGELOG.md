@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-06-22
+
+### Fixed
+
+- External MCP servers are no longer started as local subprocesses. Enabling an external server alongside internal ones previously aborted startup when the orchestrator tried to spawn the external server as a process (resolving an empty binary path); external servers now have no lifecycle footprint and are reached only at their configured remote endpoint.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

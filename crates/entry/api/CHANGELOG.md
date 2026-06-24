@@ -10,6 +10,7 @@
 ### Fixed
 
 - A managed service's configured `audience` is now enforced against the caller's token; previously it was declared but not checked.
+- API startup no longer aborts when an external MCP server is enabled: reconciliation counts only the servers core spawns toward the running-process total, so an external (remote) server no longer registers as a missing required service.
 
 ## [0.16.0] - 2026-06-22
 

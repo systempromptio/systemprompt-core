@@ -22,6 +22,13 @@ pub async fn start_server(
 ) -> McpDomainResult<()> {
     tracing::debug!(server = %config.name, port = config.port, "starting MCP server");
 
+    if config.is_external() {
+        return Err(crate::error::McpDomainError::Internal(format!(
+            "{}: external MCP server has no local process and must not be spawned",
+            config.name
+        )));
+    }
+
     if let Some(tx) = events {
         tx.mcp_starting(&config.name, config.port);
     }

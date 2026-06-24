@@ -125,7 +125,7 @@ impl McpOrchestrator {
 
     pub async fn sync_database_state(&self) -> McpDomainResult<()> {
         tracing::info!("Synchronizing service database state");
-        let servers = self.registry.get_enabled_servers()?;
+        let servers = self.registry.managed_servers()?;
         self.database.sync_state(&servers).await
     }
 

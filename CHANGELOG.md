@@ -14,6 +14,7 @@
 
 - A managed service's configured `audience` is now enforced against the caller's token; previously it was declared but not checked.
 - The content prerenderer honors `public = false`: non-public rows are no longer rendered to `web/dist/`, and a row that transitions public to private has its previously-rendered HTML removed. Previously a private page stayed directly reachable at its URL even though it was excluded from the sitemap and navigation.
+- External MCP servers are no longer started as local subprocesses. Enabling an external (remote) server alongside internal ones previously aborted startup when the orchestrator tried to spawn it as a process; external servers now have no lifecycle footprint and are reached only at their configured remote endpoint.
 
 ## [0.16.0] - 2026-06-22
 

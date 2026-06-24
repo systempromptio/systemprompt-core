@@ -109,3 +109,24 @@ async fn start_server_with_nonexistent_binary_returns_err() {
     let r = life.start_server(&config).await;
     assert!(r.is_err());
 }
+
+#[tokio::test]
+async fn start_server_rejects_external_without_spawning() {
+    let Some((life, mut config)) = make_orchestrator().await else {
+        return;
+    };
+    config.server_type = McpServerType::External;
+    config.binary = String::new();
+    config.port = 0;
+    config.remote_endpoint = "https://api.salesforce.com/platform/mcp/v1".to_string();
+
+    let err = life
+        .start_server(&config)
+        .await
+        .expect_err("external server must not be spawned");
+
+    assert!(
+        err.to_string().contains("external"),
+        "guard error should name the external invariant, got: {err}"
+    );
+}

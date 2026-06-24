@@ -2,9 +2,11 @@
 //!
 //! [`reconcile`] is the single entry point the orchestrator runs at boot: it
 //! prunes stale, crashed, and disabled services, validates schemas, kills any
-//! surviving processes from a prior run, then starts every enabled server from
-//! a clean slate. Helpers here own the cleanup-and-notify steps that feed
-//! [`StartupEventSender`] progress events.
+//! surviving processes from a prior run, then starts every managed (subprocess)
+//! server from a clean slate. External servers are remote endpoints with no
+//! local process and are excluded from reconciliation entirely. Helpers here
+//! own the cleanup-and-notify steps that feed [`StartupEventSender`] progress
+//! events.
 
 use crate::error::McpDomainResult;
 use std::collections::HashSet;
@@ -50,7 +52,7 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
         database.cleanup_stale_services().await?;
         database.delete_crashed_services().await?;
 
-        let enabled_servers = registry.get_enabled_servers()?;
+        let enabled_servers = registry.managed_servers()?;
 
         let deleted = database.delete_disabled_services(&enabled_servers).await?;
         if deleted > 0 {

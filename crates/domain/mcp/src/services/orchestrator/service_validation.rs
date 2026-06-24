@@ -1,6 +1,6 @@
 use crate::error::McpDomainResult;
 
-use crate::services::client::validate_connection_with_auth;
+use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};
 use crate::services::database::DatabaseService;
 use crate::services::registry::RegistryService;
 
@@ -22,6 +22,13 @@ pub(super) async fn validate_service(
         oauth_required = server.oauth.required,
         "Validating MCP service"
     );
+
+    if server.is_external() {
+        let validation_result =
+            validate_connection_by_url(&server.name, &server.remote_endpoint).await?;
+        log_validation_result(service_name, &validation_result);
+        return Ok(());
+    }
 
     let service_info = database.get_service_by_name(service_name).await?;
 
@@ -47,6 +54,15 @@ pub(super) async fn validate_service(
     )
     .await?;
 
+    log_validation_result(service_name, &validation_result);
+
+    Ok(())
+}
+
+fn log_validation_result(
+    service_name: &str,
+    validation_result: &crate::services::client::McpConnectionResult,
+) {
     if validation_result.success {
         tracing::info!(
             service = %service_name,
@@ -69,6 +85,4 @@ pub(super) async fn validate_service(
             "Failed to connect to MCP service"
         );
     }
-
-    Ok(())
 }

@@ -1,7 +1,6 @@
 //! Lifecycle operations for [`McpOrchestrator`]: start/stop/restart/build
 //! flows.
 
-use crate::McpServerConfig;
 use crate::error::{McpDomainError, McpDomainResult};
 use systemprompt_traits::StartupEventSender;
 
@@ -19,12 +18,7 @@ impl McpOrchestrator {
         service_name: Option<String>,
         events: Option<&StartupEventSender>,
     ) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, true)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
+        let servers = self.get_target_servers(service_name, true).await?;
         let mut failed = Vec::new();
 
         for server in servers {
@@ -83,12 +77,7 @@ impl McpOrchestrator {
     }
 
     pub async fn stop_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, false)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
+        let servers = self.get_target_servers(service_name, false).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Stopping MCP service");
@@ -112,12 +101,7 @@ impl McpOrchestrator {
     }
 
     pub async fn restart_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, false)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
+        let servers = self.get_target_servers(service_name, false).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
@@ -134,12 +118,7 @@ impl McpOrchestrator {
     }
 
     pub async fn restart_services_sync(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, false)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
+        let servers = self.get_target_servers(service_name, false).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
@@ -153,12 +132,7 @@ impl McpOrchestrator {
         &self,
         service_name: Option<String>,
     ) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, true)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
+        let servers = self.get_target_servers(service_name, true).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
@@ -172,12 +146,7 @@ impl McpOrchestrator {
     }
 
     pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers: Vec<_> = self
-            .get_target_servers(service_name, true)
-            .await?
-            .into_iter()
-            .filter(McpServerConfig::is_internal)
-            .collect();
+        let servers = self.get_target_servers(service_name, true).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
