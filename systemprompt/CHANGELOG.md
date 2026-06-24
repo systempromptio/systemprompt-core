@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Added
+
+- `systemprompt::slack` (feature `slack`) re-exports `systemprompt-slack`: the Slack messaging surface verifies Slack Events API, slash-command, and Block Kit interaction requests and dispatches to A2A agents through the governed RBAC and audit pipeline.
+- `systemprompt::teams` (feature `teams`) re-exports `systemprompt-teams`: the Microsoft Teams messaging surface verifies Bot Framework activities and replies with Adaptive Cards through the same governed dispatch path.
+
+### Changed
+
+- The facade re-exports the 0.17.0 surface of every member crate; see the per-crate changelogs for the `rmcp` 1.8 upgrade and `reqwest` 0.13 deduplication in `systemprompt-mcp`, the typed Slack/Teams identifiers in `systemprompt-identifiers`, the messaging identity-ingestion path in `systemprompt-security`, and the durable bridge session-PAT route in `systemprompt-api`.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added
