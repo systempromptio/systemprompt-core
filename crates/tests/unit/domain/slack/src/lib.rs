@@ -5,13 +5,16 @@
 //! - Test:   `crates/tests/unit/domain/slack/src/<module>.rs`
 //!
 //! Coverage: signature verification (Slack's `v0` HMAC scheme), declarative
-//! app config + manifest projection, Block Kit rendering, and inbound payload
-//! normalization. All pure-logic — no database or network.
+//! app config + manifest projection, Block Kit rendering, inbound payload
+//! normalization, and the outbound Web API client driven against a loopback
+//! wiremock (the only network-bound suite).
 
 #![allow(clippy::all)]
 
 #[cfg(test)]
 mod blockkit;
+#[cfg(test)]
+mod client;
 #[cfg(test)]
 mod config;
 #[cfg(test)]

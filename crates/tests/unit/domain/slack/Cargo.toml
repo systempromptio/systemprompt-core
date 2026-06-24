@@ -11,9 +11,12 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-slack = { workspace = true }
+systemprompt-slack = { workspace = true, features = ["test-support"] }
 systemprompt-models = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }

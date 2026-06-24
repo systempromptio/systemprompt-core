@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-api = { workspace = true }
+systemprompt-api = { workspace = true, features = ["test-api"] }
 systemprompt-ai = { workspace = true }
 inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }

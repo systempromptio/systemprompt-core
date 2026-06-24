@@ -13,6 +13,8 @@
 //! looked up by workspace id, and the signing secret / bot token are read from
 //! the profile secret store. No `AppContext` wiring, no registry struct, no DB.
 
+mod verify;
+
 use std::collections::HashMap;
 
 use axum::Router;
@@ -21,18 +23,16 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use systemprompt_config::SecretsBootstrap;
-use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::SlackAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::EntityRef;
 use systemprompt_slack::client::SlackClient;
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
-use systemprompt_slack::signature::verify_slack_signature;
 
 use crate::routes::messaging::{
     DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, http_client,
 };
+
+use verify::{bot_token, resolve_app, verify_any_app, verify_app};
 
 const ISSUER: &str = "https://slack.com";
 
@@ -234,66 +234,6 @@ fn non_empty(text: String) -> String {
     } else {
         text
     }
-}
-
-fn resolve_app(workspace_id: &str) -> Option<SlackAppConfig> {
-    let config = ConfigLoader::load().ok()?;
-    config
-        .slack_apps
-        .into_values()
-        .find(|app| app.enabled && app.workspace_id.as_str() == workspace_id)
-}
-
-fn signing_secret(app: &SlackAppConfig) -> Option<String> {
-    SecretsBootstrap::get()
-        .ok()?
-        .get(app.signing_secret_ref.as_str())
-        .cloned()
-}
-
-fn bot_token(app: &SlackAppConfig) -> Option<String> {
-    SecretsBootstrap::get()
-        .ok()?
-        .get(app.bot_token_ref.as_str())
-        .cloned()
-}
-
-fn verify_app(app: &SlackAppConfig, headers: &HeaderMap, body: &[u8]) -> bool {
-    let Some(secret) = signing_secret(app) else {
-        return false;
-    };
-    verify_signature(headers, body, secret.as_bytes())
-}
-
-/// Verify against any configured app's signing secret — used for the
-/// `url_verification` handshake, which carries no workspace id to disambiguate.
-fn verify_any_app(headers: &HeaderMap, body: &[u8]) -> bool {
-    let Ok(config) = ConfigLoader::load() else {
-        return false;
-    };
-    config
-        .slack_apps
-        .values()
-        .filter(|app| app.enabled)
-        .filter_map(signing_secret)
-        .any(|secret| verify_signature(headers, body, secret.as_bytes()))
-}
-
-fn verify_signature(headers: &HeaderMap, body: &[u8], secret: &[u8]) -> bool {
-    let timestamp = header_str(headers, "x-slack-request-timestamp");
-    let signature = header_str(headers, "x-slack-signature");
-    let (Some(timestamp), Some(signature)) = (timestamp, signature) else {
-        return false;
-    };
-    verify_slack_signature(secret, timestamp, signature, body, now_unix()).is_ok()
-}
-
-fn header_str<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
-    headers.get(name).and_then(|v| v.to_str().ok())
-}
-
-fn now_unix() -> i64 {
-    chrono::Utc::now().timestamp()
 }
 
 fn parse_form(body: &[u8]) -> HashMap<String, String> {

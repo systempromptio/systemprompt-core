@@ -179,7 +179,11 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
 fn activity_verifier(app_id: &str) -> ActivityTokenVerifier {
     #[cfg(feature = "test-api")]
     if let Ok(openid_url) = std::env::var("SYSTEMPROMPT_TEST_TEAMS_OPENID_URL") {
-        return ActivityTokenVerifier::with_openid_url(http_client(), app_id.to_owned(), openid_url);
+        return ActivityTokenVerifier::with_openid_url(
+            http_client(),
+            app_id.to_owned(),
+            openid_url,
+        );
     }
     ActivityTokenVerifier::new(http_client(), app_id.to_owned())
 }

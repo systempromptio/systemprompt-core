@@ -17,9 +17,13 @@ mod activities;
 #[cfg(test)]
 mod auth;
 #[cfg(test)]
+mod auth_jwks;
+#[cfg(test)]
 mod cards;
 #[cfg(test)]
 mod client;
+#[cfg(test)]
+mod client_reply;
 #[cfg(test)]
 mod config;
 #[cfg(test)]

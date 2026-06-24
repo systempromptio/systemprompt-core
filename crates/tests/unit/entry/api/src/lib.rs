@@ -13,6 +13,8 @@
 //! - HealthChecker builder pattern
 
 #[cfg(test)]
+mod messaging_helpers;
+#[cfg(test)]
 mod middleware;
 #[cfg(test)]
 mod models;

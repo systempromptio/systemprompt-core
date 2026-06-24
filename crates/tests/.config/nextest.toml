@@ -34,12 +34,27 @@
 # back. A per-module mutex cannot stop a sibling module rewriting the config
 # mid-run, so a concurrent test reads another test's source config and asserts on
 # the wrong output. Serialise the whole config-writing suite into one slot.
+#
+# The messaging dispatch and full-router tests share one dispatchable agent
+# backend: a fixed-name `services` row (`test_messaging_agent`) repointed at each
+# test's own wiremock port. A concurrent run would overwrite another test's
+# backend port mid-dispatch, sending its reply to the wrong mock. Serialise the
+# whole messaging suite into one slot so each test owns the backend row.
 [test-groups]
+messaging-dispatch-db = { max-threads = 1 }
 scheduler-services-db = { max-threads = 1 }
 scheduler-jobs-db = { max-threads = 1 }
 oauth-clients-db = { max-threads = 1 }
 users-db = { max-threads = 1 }
 generator-config-db = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
+test-group = 'messaging-dispatch-db'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
+test-group = 'messaging-dispatch-db'
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded_db|service_management_behaviour_db|reconciler_db)::/)'

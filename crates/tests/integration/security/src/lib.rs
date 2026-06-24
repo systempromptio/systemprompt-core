@@ -34,4 +34,7 @@ mod authz_extension_path_tests;
 mod marketplace_ingestion_tests;
 
 #[cfg(test)]
+mod slack_teams_ingestion_tests;
+
+#[cfg(test)]
 mod gateway_reconcile_tests;

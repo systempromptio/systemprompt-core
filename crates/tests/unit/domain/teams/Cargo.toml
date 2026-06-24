@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-teams = { workspace = true }
+systemprompt-teams = { workspace = true, features = ["test-support"] }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
@@ -20,3 +20,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
+rsa = { workspace = true }
+base64 = { workspace = true }
