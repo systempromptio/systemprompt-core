@@ -45,6 +45,6 @@ fn managed_and_external_servers_are_callable() {
     let r = RegistryService::new(fixture_user_id());
     // Depending on global `Config` state these may load or error; both
     // accessors must at least be reachable and return the same result shape.
-    let _ = r.managed_servers();
-    let _ = r.external_servers();
+    let _ = r.get_managed_servers();
+    let _ = r.get_external_servers();
 }

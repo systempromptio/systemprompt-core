@@ -214,7 +214,7 @@ impl ToolProvider for McpToolProvider {
             .api_server_url
             .clone();
 
-        if let Ok(servers) = self.registry.managed_servers() {
+        if let Ok(servers) = self.registry.get_managed_servers() {
             for server in servers {
                 let is_healthy =
                     check_server_health(&server.name, server.port, &config_api_server_url).await;

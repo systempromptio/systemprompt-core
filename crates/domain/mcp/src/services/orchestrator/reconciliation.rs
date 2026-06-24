@@ -52,7 +52,7 @@ pub(super) async fn reconcile(params: ReconcileParams<'_>) -> McpDomainResult<us
         database.cleanup_stale_services().await?;
         database.delete_crashed_services().await?;
 
-        let enabled_servers = registry.managed_servers()?;
+        let enabled_servers = registry.get_managed_servers()?;
 
         let deleted = database.delete_disabled_services(&enabled_servers).await?;
         if deleted > 0 {

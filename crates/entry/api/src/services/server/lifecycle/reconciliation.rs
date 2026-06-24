@@ -37,7 +37,7 @@ pub(in crate::services::server) async fn reconcile_system_services(
         },
     }
 
-    let required_servers = ctx.mcp_registry().managed_servers()?;
+    let required_servers = ctx.mcp_registry().get_managed_servers()?;
     let required_count = required_servers.len();
 
     match mcp_orchestrator.reconcile().await {
