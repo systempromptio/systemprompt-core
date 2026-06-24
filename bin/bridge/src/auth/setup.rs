@@ -178,30 +178,55 @@ fn write_pat_file(path: &Path, token: &str) -> Result<(), SetupError> {
     atomic_write(path, token.trim().as_bytes(), true)
 }
 
+/// Read an existing `gateway_url = "..."` line from a config file, if present.
+fn read_existing_gateway(path: &Path) -> Option<String> {
+    let contents = fs::read_to_string(path).ok()?;
+    for line in contents.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("gateway_url") {
+            let rest = rest.trim().trim_start_matches('=').trim();
+            let rest = rest.trim_matches('"').trim_matches('\'');
+            if !rest.is_empty() {
+                return Some(rest.to_owned());
+            }
+        }
+    }
+    None
+}
+
+/// Resolve the gateway to write: explicit override, else the existing config
+/// value, else the brand default.
+fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
+    gateway_url_override
+        .map(str::to_owned)
+        .or_else(|| read_existing_gateway(path))
+        .unwrap_or_else(|| crate::brand::brand().default_gateway_url.to_owned())
+}
+
+/// Write a config that enables the browser-based session/device-link provider.
+/// No `[pat]` section is written — the session flow stores no long-lived
+/// secret; the proxy mints short-lived JWTs from the cached device-link
+/// credential.
+pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
+    let paths = resolve_paths()?;
+    ensure_dir(&paths.config_dir)?;
+    let gateway = resolve_gateway(&paths.config_file, gateway_url);
+    let contents = format!(
+        "# Written by `{bin}` sign-in. Edit gateway_url if you move the \
+         server.\ngateway_url = \"{gateway}\"\n\n[session]\nenabled = true\n",
+        bin = crate::brand::brand().binary_name,
+    );
+    atomic_write(&paths.config_file, contents.as_bytes(), false)?;
+    tracing::info!(config_file = %paths.config_file.display(), "session setup: config written");
+    Ok(paths)
+}
+
 fn write_config_file(
     path: &Path,
     pat_file: &Path,
     gateway_url_override: Option<&str>,
 ) -> Result<(), SetupError> {
-    let existing_gateway = fs::read_to_string(path)
-        .ok()
-        .and_then(|s| -> Option<String> {
-            for line in s.lines() {
-                let t = line.trim();
-                if let Some(rest) = t.strip_prefix("gateway_url") {
-                    let rest = rest.trim().trim_start_matches('=').trim();
-                    let rest = rest.trim_matches('"').trim_matches('\'');
-                    if !rest.is_empty() {
-                        return Some(rest.to_owned());
-                    }
-                }
-            }
-            None
-        });
-    let gateway = gateway_url_override
-        .map(str::to_owned)
-        .or(existing_gateway)
-        .unwrap_or_else(|| crate::brand::brand().default_gateway_url.to_owned());
+    let gateway = resolve_gateway(path, gateway_url_override);
 
     let pat_path_str = pat_file.to_string_lossy().replace('\\', "\\\\");
     let contents = format!(

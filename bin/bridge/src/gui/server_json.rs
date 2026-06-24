@@ -62,6 +62,10 @@ struct StatePayload<'a> {
     mcp_auth: &'a [McpServerAuth],
     mcp_auth_probe_in_flight: bool,
 
+    // Brand chrome the splash needs to render the one-click sign-in button.
+    sign_in_label: &'static str,
+    sign_in_hint: &'static str,
+
     #[serde(flatten)]
     hosts: crate::gui::hosts::serde::HostsPayload<'a>,
 }
@@ -91,6 +95,9 @@ impl<'a> From<&'a AppStateSnapshot> for StatePayload<'a> {
             proxy_stats: ProxyStatsPayload::current(),
             mcp_auth: &snap.mcp_auth,
             mcp_auth_probe_in_flight: snap.mcp_auth_probe_in_flight,
+
+            sign_in_label: crate::brand::brand().sign_in_label,
+            sign_in_hint: crate::brand::brand().sign_in_hint,
 
             hosts: crate::gui::hosts::serde::payload(snap),
         }

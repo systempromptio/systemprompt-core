@@ -20,6 +20,7 @@ const fn request_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::OpenLogDirectory { .. } => "OpenLogDirectory",
         UiEvent::ExportDiagnosticBundle { .. } => "ExportDiagnosticBundle",
         UiEvent::LoginRequested { .. } => "LoginRequested",
+        UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
         UiEvent::LogoutRequested { .. } => "LogoutRequested",
         UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
         UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
@@ -35,6 +36,7 @@ const fn finish_kind(event: &UiEvent) -> Option<&'static str> {
         UiEvent::SyncFinished { .. } => "SyncFinished",
         UiEvent::ValidateFinished { .. } => "ValidateFinished",
         UiEvent::LoginFinished { .. } => "LoginFinished",
+        UiEvent::SessionLoginFinished { .. } => "SessionLoginFinished",
         UiEvent::LogoutFinished { .. } => "LogoutFinished",
         UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
         UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
@@ -136,6 +138,9 @@ fn dispatch_request(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent>
             gateway,
             reply_to,
         } => handlers::auth::on_login_requested(app, &token, gateway, reply_to),
+        UiEvent::SessionLoginRequested { gateway, reply_to } => {
+            handlers::auth::on_session_login_requested(app, gateway, reply_to);
+        },
         UiEvent::LogoutRequested { reply_to } => handlers::auth::on_logout_requested(app, reply_to),
         UiEvent::SetGatewayRequested { url, reply_to } => {
             handlers::auth::on_set_gateway_requested(app, &url, reply_to);
@@ -163,6 +168,10 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
             handlers::validate::on_validate_finished(app, report, reply_to);
         },
         UiEvent::LoginFinished { result, reply_to } => {
+            handlers::auth::on_login_finished(app, result, reply_to);
+        },
+        UiEvent::SessionLoginFinished { result, reply_to } => {
+            // Same post-auth path as a PAT login: reload, probe identity, sync.
             handlers::auth::on_login_finished(app, result, reply_to);
         },
         UiEvent::LogoutFinished { result, reply_to } => {

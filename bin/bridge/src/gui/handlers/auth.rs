@@ -51,6 +51,57 @@ pub(crate) fn on_login_requested(
     });
 }
 
+/// One-click browser-based sign-in. Persists session-mode config, then runs the
+/// device-link/loopback flow (opens the gateway consent page in the browser and
+/// captures the returned credential) — no PAT paste. On success the credential
+/// is cached for the proxy; the finished event reuses [`on_login_finished`].
+#[tracing::instrument(level = "info", skip(app), fields(has_gateway = gateway.is_some()))]
+pub(crate) fn on_session_login_requested(app: &GuiApp, gateway: Option<String>, reply_to: ReplyId) {
+    app.append_log(i18n::t("login-saving"));
+    let proxy = app.proxy.clone();
+    let cancel = app.state.install_cancel(CancelScope::Login);
+    app.runtime.spawn(async move {
+        let result = run_session_login(gateway, &cancel)
+            .await
+            .map_err(GuiError::from)
+            .map_err(Arc::new);
+        _ = proxy.send_event(UiEvent::SessionLoginFinished { result, reply_to });
+    });
+}
+
+async fn run_session_login(
+    gateway: Option<String>,
+    cancel: &tokio_util::sync::CancellationToken,
+) -> Result<(), setup::SetupError> {
+    use crate::auth::providers::AuthProvider;
+    use crate::auth::providers::session::SessionProvider;
+    use systemprompt_identifiers::SessionId;
+
+    // 1. Persist gateway + enable the session provider, on a blocking thread.
+    tokio::task::spawn_blocking(move || setup::session_setup(gateway.as_deref()))
+        .await
+        .map_err(|e| setup::SetupError::Io(format!("session setup join: {e}")))??;
+
+    // 2. Run the browser/loopback device-link flow against the gateway.
+    let cfg = crate::config::load();
+    let session_id = SessionId::generate();
+    let provider = SessionProvider::new(&cfg);
+    let out = tokio::select! {
+        () = cancel.cancelled() => {
+            return Err(setup::SetupError::Io("sign-in cancelled".into()));
+        }
+        result = provider.authenticate(&session_id) => {
+            result.map_err(|e| setup::SetupError::Io(e.to_string()))?
+        }
+    };
+
+    // 3. Cache the freshly minted credential so the proxy can use it immediately.
+    if let Err(e) = crate::auth::cache::write(&out) {
+        crate::obs::output::diag(&format!("session cache write failed (continuing): {e}"));
+    }
+    Ok(())
+}
+
 pub(crate) fn on_login_finished(
     app: &mut GuiApp,
     result: Result<(), Arc<GuiError>>,

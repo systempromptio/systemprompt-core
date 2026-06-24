@@ -34,6 +34,13 @@ pub enum UiEvent {
         gateway: Option<String>,
         reply_to: ReplyId,
     },
+    /// One-click browser-based sign-in (device-link / session flow). Opens the
+    /// gateway consent page, captures the credential via loopback, no PAT
+    /// paste.
+    SessionLoginRequested {
+        gateway: Option<String>,
+        reply_to: ReplyId,
+    },
     LogoutRequested {
         reply_to: ReplyId,
     },
@@ -59,6 +66,10 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     LoginFinished {
+        result: Result<(), Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    SessionLoginFinished {
         result: Result<(), Arc<GuiError>>,
         reply_to: ReplyId,
     },

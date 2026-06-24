@@ -63,6 +63,15 @@ pub struct Brand {
     pub tray_tooltip: &'static str,
     pub window_title: &'static str,
     pub app_menu_name: &'static str,
+    /// Label for the primary one-click sign-in button on the setup splash. The
+    /// button drives the browser-based device-link/session flow against the
+    /// gateway, so this names *how* the gateway authenticates the user (e.g.
+    /// "Sign in with Salesforce" for a Salesforce-federated gateway). Keep it a
+    /// full button label, not just the IdP name.
+    pub sign_in_label: &'static str,
+    /// One-line explanation shown under the sign-in button describing the model
+    /// (you sign in on the gateway; this device is linked automatically).
+    pub sign_in_hint: &'static str,
     pub assets: BrandAssets,
 }
 
@@ -92,6 +101,8 @@ impl Brand {
         tray_tooltip: "systemprompt-bridge",
         window_title: "systemprompt bridge",
         app_menu_name: "systemprompt-bridge",
+        sign_in_label: "Sign in to your gateway",
+        sign_in_hint: "Opens your browser to sign in on the gateway; this device is linked automatically.",
         assets: BrandAssets {
             icon_svg: include_str!("../assets/icon.svg"),
             logo_svg: include_str!("../assets/logo.svg"),

@@ -26,6 +26,12 @@ struct LoginArgs {
     gateway: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct SessionLoginArgs {
+    gateway: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct HostIdArgs {
     #[serde(rename = "hostId")]
@@ -174,6 +180,19 @@ fn auth_dispatch(
                     app,
                     UiEvent::LoginRequested {
                         token: a.token,
+                        gateway: a.gateway,
+                        reply_to: reply_id,
+                    },
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "session.login" => match parse::<SessionLoginArgs>(args) {
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::SessionLoginRequested {
                         gateway: a.gateway,
                         reply_to: reply_id,
                     },

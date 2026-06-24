@@ -14,10 +14,12 @@ export class SpSetupGateway extends SpElement {
     this.patSaved = false;
     this.error = "";
     this.pending = false;
+    this.signingIn = false;
     this._lastSavedGateway = "";
     this._debounce = null;
     this._pendingSince = 0;
     this._pendingTimer = null;
+    this.registerAction("sign-in", () => this._signIn());
     this.registerAction("connect", () => this._connect());
     this.registerAction("edit-pat", () => this._editPat());
     this.registerAction("input:gateway", (t) => this._onGatewayInput(t));
@@ -95,6 +97,31 @@ export class SpSetupGateway extends SpElement {
       const input = this.querySelector("#setup-pat");
       if (input) { input.focus(); }
     }, 0);
+  }
+
+  _validGateway() {
+    const gw = (this.gateway || "").trim();
+    if (!gw) { this.error = "Enter the gateway URL."; this.invalidate(); return null; }
+    if (!/^https?:\/\//i.test(gw)) {
+      this.error = "Gateway URL must start with http:// or https://"; this.invalidate(); return null;
+    }
+    return gw;
+  }
+
+  // One-click browser sign-in (device-link/session flow). Opens the gateway in
+  // the browser; the IPC resolves once the bridge captures the credential.
+  async _signIn() {
+    const gw = this._validGateway();
+    if (!gw) { return; }
+    this._lastSavedGateway = gw;
+    this.signingIn = true; this.error = ""; this.invalidate();
+    try {
+      await bridge.signIn(gw);
+    } catch (err) {
+      this.error = `Sign-in failed: ${(err && err.message) || err}`;
+    } finally {
+      this.signingIn = false; this.invalidate();
+    }
   }
 
   async _connect() {

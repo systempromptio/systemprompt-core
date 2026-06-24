@@ -54,6 +54,11 @@ export function renderGatewayForm(state) {
   const editBtn = state.patSaved ? `<button class="sp-btn-ghost" type="button" data-action="edit-pat">Edit</button>` : "";
   const errBlock = state.error ? `<span class="sp-setup__error">${escapeHtml(state.error)}</span>` : "";
   const btnLabel = state.pending ? (t("setup-connecting") || "Connecting…") : "Connect";
+  const snap = state.snapshot || {};
+  const signInLabel = snap.sign_in_label || "Sign in to your gateway";
+  const signInHint = snap.sign_in_hint || "Opens your browser to sign in on the gateway; this device is linked automatically.";
+  const signInBusy = state.signingIn;
+  const signInText = signInBusy ? (t("setup-signing-in") || "Waiting for browser…") : signInLabel;
   return `
     <div class="sp-setup__field">
       <label for="setup-gateway" data-l10n-id="setup-gateway-label">Gateway URL</label>
@@ -63,20 +68,29 @@ export function renderGatewayForm(state) {
         <span class="${probe.muted ? "sp-u-muted" : ""}">${escapeHtml(probe.text)}</span>
       </div>
     </div>
-    <div class="sp-setup__field">
-      <label for="setup-pat" data-l10n-id="setup-pat-label">Personal access token</label>
-      <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" data-input="pat" />
-      <p class="sp-setup__hint">
-        <span data-l10n-id="setup-pat-hint">Don't have one yet?</span>
-        <a class="sp-setup__pat-link ${linkDisabled ? "is-disabled" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" aria-disabled="${linkDisabled}">Open the gateway admin login →</a>
-        ${editBtn}
-      </p>
-    </div>
     <div class="sp-setup__actions">
-      <button class="sp-btn-primary" type="button" ${state.pending ? "disabled" : ""} data-action="connect">
-        <span class="sp-btn__label">${escapeHtml(btnLabel)}</span>
+      <button class="sp-btn-primary" type="button" ${signInBusy || state.pending ? "disabled" : ""} data-action="sign-in">
+        <span class="sp-btn__label">${escapeHtml(signInText)}</span>
       </button>
-      ${errBlock}
+      <p class="sp-setup__hint">${escapeHtml(signInHint)}</p>
     </div>
+    <details class="sp-setup__advanced">
+      <summary>Use a personal access token instead</summary>
+      <div class="sp-setup__field">
+        <label for="setup-pat" data-l10n-id="setup-pat-label">Personal access token</label>
+        <input id="setup-pat" type="password" placeholder="sp-live-…" autocomplete="off" spellcheck="false" data-input="pat" />
+        <p class="sp-setup__hint">
+          <span data-l10n-id="setup-pat-hint">Don't have one yet?</span>
+          <a class="sp-setup__pat-link ${linkDisabled ? "is-disabled" : ""}" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer" aria-disabled="${linkDisabled}">Open the gateway login →</a>
+          ${editBtn}
+        </p>
+      </div>
+      <div class="sp-setup__actions">
+        <button class="sp-btn-ghost" type="button" ${state.pending ? "disabled" : ""} data-action="connect">
+          <span class="sp-btn__label">${escapeHtml(btnLabel)}</span>
+        </button>
+      </div>
+    </details>
+    ${errBlock}
   `;
 }

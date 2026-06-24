@@ -56,6 +56,7 @@ export const bridge = {
   gatewaySet:           (url)               => invoke("gateway.set", { url }),
   gatewayProbe:         ()                  => invoke("gateway.probe"),
   login:                (token, gateway)    => invoke("login", { token, gateway }),
+  signIn:               (gateway)           => invoke("session.login", { gateway }),
   logout:               ()                  => invoke("logout"),
   sync:                 ()                  => invoke("sync"),
   validate:             ()                  => invoke("validate"),
