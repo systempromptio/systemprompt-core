@@ -91,7 +91,10 @@ async fn selector_passes_through_unmatched_requests() {
     let refined = RouteSelectorEngine::global()
         .refine(&matched, &req("claude-opus-4-8"))
         .await;
-    assert!(refined.is_none(), "a selector that returns None re-routes nothing");
+    assert!(
+        refined.is_none(),
+        "a selector that returns None re-routes nothing"
+    );
 }
 
 #[tokio::test]
