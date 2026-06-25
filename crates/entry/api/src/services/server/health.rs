@@ -209,17 +209,28 @@ pub async fn handle_health(
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
 
+    use super::scheduler_health;
+
     let db_healthy = ctx
         .db_pool()
         .fetch_optional(&HEALTH_CHECK_QUERY, &[])
         .await
         .is_ok();
 
-    let (status, http_status) = if db_healthy {
+    let degraded_jobs = scheduler_health::degraded();
+
+    let (status, http_status) = if !db_healthy {
+        ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
+    } else if degraded_jobs.is_empty() {
         ("healthy", StatusCode::OK)
     } else {
-        ("unhealthy", StatusCode::SERVICE_UNAVAILABLE)
+        ("degraded", StatusCode::OK)
     };
 
-    (http_status, Json(json!({ "status": status })))
+    let mut body = json!({ "status": status });
+    if !degraded_jobs.is_empty() {
+        body["scheduler"] = json!({ "degraded_jobs": degraded_jobs });
+    }
+
+    (http_status, Json(body))
 }

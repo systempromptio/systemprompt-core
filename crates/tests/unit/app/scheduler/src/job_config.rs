@@ -1,69 +1,69 @@
 use systemprompt_identifiers::UserId;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig};
-use systemprompt_test_fixtures::fixture_system_admin;
 
 mod job_config_tests {
     use super::*;
 
     #[test]
-    fn new_sets_name_and_owner() {
-        let owner = UserId::new("user-123");
-        let cfg = JobConfig::new("my_job", owner.clone());
+    fn new_defaults_owner_to_none() {
+        let cfg = JobConfig::new("my_job");
         assert_eq!(cfg.name, "my_job");
-        assert_eq!(cfg.owner, owner);
+        assert!(cfg.owner.is_none());
+    }
+
+    #[test]
+    fn with_owner_sets_explicit_owner() {
+        let owner = UserId::new("user-123");
+        let cfg = JobConfig::new("my_job").with_owner(owner.clone());
+        assert_eq!(cfg.owner, Some(owner));
     }
 
     #[test]
     fn new_is_enabled_by_default() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("job", owner);
+        let cfg = JobConfig::new("job");
         assert!(cfg.enabled);
     }
 
     #[test]
     fn new_has_no_schedule_by_default() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("job", owner);
+        let cfg = JobConfig::new("job");
         assert!(cfg.schedule.is_none());
     }
 
     #[test]
     fn new_has_no_extension_by_default() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("job", owner);
+        let cfg = JobConfig::new("job");
         assert!(cfg.extension.is_none());
     }
 
     #[test]
     fn with_schedule_sets_schedule() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("job", owner).with_schedule("0 0 * * * *");
+        let cfg = JobConfig::new("job").with_schedule("0 0 * * * *");
         assert_eq!(cfg.schedule, Some("0 0 * * * *".to_string()));
     }
 
     #[test]
     fn with_extension_sets_extension() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("job", owner).with_extension("core");
+        let cfg = JobConfig::new("job").with_extension("core");
         assert_eq!(cfg.extension, Some("core".to_string()));
     }
 
     #[test]
     fn disabled_sets_enabled_false() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("job", owner).disabled();
+        let cfg = JobConfig::new("job").disabled();
         assert!(!cfg.enabled);
     }
 
     #[test]
     fn builder_chain_works() {
         let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("complex_job", owner.clone())
+        let cfg = JobConfig::new("complex_job")
+            .with_owner(owner.clone())
             .with_extension("scheduler")
             .with_schedule("0 */5 * * * *")
             .disabled();
         assert_eq!(cfg.name, "complex_job");
-        assert_eq!(cfg.owner, owner);
+        assert_eq!(cfg.owner, Some(owner));
         assert_eq!(cfg.extension, Some("scheduler".to_string()));
         assert_eq!(cfg.schedule, Some("0 */5 * * * *".to_string()));
         assert!(!cfg.enabled);
@@ -71,8 +71,7 @@ mod job_config_tests {
 
     #[test]
     fn is_clone() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("clone_job", owner).with_schedule("0 0 * * * *");
+        let cfg = JobConfig::new("clone_job").with_schedule("0 0 * * * *");
         let cloned = cfg.clone();
         assert_eq!(cloned.name, "clone_job");
         assert_eq!(cloned.schedule, Some("0 0 * * * *".to_string()));
@@ -80,33 +79,29 @@ mod job_config_tests {
 
     #[test]
     fn is_debug() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("debug_job", owner);
+        let cfg = JobConfig::new("debug_job");
         let debug = format!("{:?}", cfg);
         assert!(debug.contains("debug_job"));
     }
 
     #[test]
     fn serializes_to_json() {
-        let owner = UserId::new("user-1");
-        let cfg = JobConfig::new("serde_job", owner);
+        let cfg = JobConfig::new("serde_job");
         let json = serde_json::to_string(&cfg).expect("JobConfig should serialize");
         assert!(json.contains("serde_job"));
     }
 
     #[test]
     fn name_accepts_long_string() {
-        let owner = UserId::new("user-1");
         let long_name = "a".repeat(200);
-        let cfg = JobConfig::new(long_name.clone(), owner);
+        let cfg = JobConfig::new(long_name.clone());
         assert_eq!(cfg.name.len(), 200);
     }
 
     #[test]
     fn with_schedule_accepts_string_type() {
-        let owner = UserId::new("user-1");
         let schedule = String::from("0 0 1 * * *");
-        let cfg = JobConfig::new("job", owner).with_schedule(schedule.clone());
+        let cfg = JobConfig::new("job").with_schedule(schedule.clone());
         assert_eq!(cfg.schedule, Some(schedule));
     }
 }
@@ -116,22 +111,19 @@ mod scheduler_config_tests {
 
     #[test]
     fn with_system_admin_is_enabled() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         assert!(cfg.enabled);
     }
 
     #[test]
     fn with_system_admin_has_distributed_lock() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         assert!(cfg.distributed_lock);
     }
 
     #[test]
     fn with_system_admin_has_four_jobs() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         assert_eq!(
             cfg.jobs.len(),
             4,
@@ -141,9 +133,20 @@ mod scheduler_config_tests {
     }
 
     #[test]
+    fn with_system_admin_core_jobs_default_to_system_admin_owner() {
+        let cfg = SchedulerConfig::with_system_admin();
+        for job in &cfg.jobs {
+            assert!(
+                job.owner.is_none(),
+                "core job '{}' should carry no explicit owner",
+                job.name
+            );
+        }
+    }
+
+    #[test]
     fn with_system_admin_all_jobs_enabled() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         for job in &cfg.jobs {
             assert!(
                 job.enabled,
@@ -155,8 +158,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn with_system_admin_all_jobs_have_extension_core() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         for job in &cfg.jobs {
             assert_eq!(
                 job.extension.as_deref(),
@@ -169,8 +171,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn with_system_admin_all_jobs_have_schedules() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         for job in &cfg.jobs {
             assert!(
                 job.schedule.is_some(),
@@ -182,8 +183,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn with_system_admin_job_names_are_known() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         let expected = [
             "cleanup_anonymous_users",
             "cleanup_empty_contexts",
@@ -203,8 +203,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn with_system_admin_bootstrap_jobs_are_subset_of_configured() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         let configured: std::collections::HashSet<&str> =
             cfg.jobs.iter().map(|j| j.name.as_str()).collect();
         for bootstrap in &cfg.bootstrap_jobs {
@@ -218,8 +217,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn is_clone() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         let cloned = cfg.clone();
         assert_eq!(cloned.jobs.len(), cfg.jobs.len());
         assert_eq!(cloned.enabled, cfg.enabled);
@@ -227,23 +225,20 @@ mod scheduler_config_tests {
 
     #[test]
     fn is_debug() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         let debug = format!("{:?}", cfg);
         assert!(debug.contains("SchedulerConfig"));
     }
 
     #[test]
     fn bootstrap_jobs_default_has_two_entries() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         assert_eq!(cfg.bootstrap_jobs.len(), 2);
     }
 
     #[test]
     fn bootstrap_jobs_contains_database_cleanup() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         assert!(
             cfg.bootstrap_jobs.contains(&"database_cleanup".to_string()),
             "bootstrap_jobs should include database_cleanup"
@@ -252,8 +247,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn bootstrap_jobs_contains_cleanup_inactive_sessions() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         assert!(
             cfg.bootstrap_jobs
                 .contains(&"cleanup_inactive_sessions".to_string()),
@@ -263,8 +257,7 @@ mod scheduler_config_tests {
 
     #[test]
     fn all_job_schedules_are_6_part_cron() {
-        let admin = fixture_system_admin("platform-admin");
-        let cfg = SchedulerConfig::with_system_admin(&admin);
+        let cfg = SchedulerConfig::with_system_admin();
         for job in &cfg.jobs {
             let schedule = job.schedule.as_deref().unwrap_or("");
             assert_eq!(

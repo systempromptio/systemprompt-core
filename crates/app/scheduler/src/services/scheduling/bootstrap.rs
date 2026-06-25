@@ -11,6 +11,7 @@ use crate::models::JobStatus;
 
 struct BootstrapCtx<'a> {
     owners: &'a HashMap<String, UserId>,
+    skipped: &'a HashSet<&'a str>,
     system_admin_id: &'a UserId,
     running_jobs: &'a RunningJobs,
     events: Option<&'a StartupEventSender>,
@@ -29,13 +30,15 @@ impl SchedulerService {
         &self,
         events: Option<&StartupEventSender>,
     ) -> SchedulerResult<usize> {
-        let resolved_owners = Self::resolve_owners(&self.db_pool, &self.config.jobs).await?;
+        let resolved = self.resolve_owners(false).await?;
         let registered_jobs = Self::discover_jobs();
         self.validate_configured_jobs(&registered_jobs)?;
         let system_admin_id = self.app_context.system_admin().id().clone();
+        let skipped: HashSet<&str> = resolved.skipped_names().collect();
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
         let ctx = BootstrapCtx {
-            owners: &resolved_owners,
+            owners: resolved.owner_map(),
+            skipped: &skipped,
             system_admin_id: &system_admin_id,
             running_jobs: &running_jobs,
             events,
@@ -49,6 +52,10 @@ impl SchedulerService {
     }
 
     async fn dispatch_bootstrap_job(&self, job_name: &str, ctx: &BootstrapCtx<'_>) {
+        if ctx.skipped.contains(job_name) {
+            tracing::warn!(job_name = %job_name, "bootstrap job owner unresolved, skipping");
+            return;
+        }
         let owner_id = ctx
             .owners
             .get(job_name)

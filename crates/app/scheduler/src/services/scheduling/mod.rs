@@ -5,19 +5,18 @@
 mod bootstrap;
 mod dispatch;
 mod lock;
+mod owners;
 
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::models::{JobConfig, SchedulerConfig};
+use crate::models::{JobConfig, SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, UserId};
 use systemprompt_logging::SystemSpan;
-use systemprompt_models::auth::UserStatus;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobContext};
-use systemprompt_users::UserRepository;
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{Instrument, debug, info, warn};
@@ -45,6 +44,26 @@ impl SchedulerHandle {
             .shutdown()
             .await
             .map_err(SchedulerError::from)
+    }
+}
+
+/// Outcome of [`SchedulerService::start`].
+///
+/// `handle` is `None` when the scheduler is disabled; `degraded` lists jobs
+/// dropped because their explicit owner did not resolve, for the caller to
+/// surface as a health signal.
+#[derive(Debug)]
+pub struct SchedulerStartup {
+    pub handle: Option<SchedulerHandle>,
+    pub degraded: Vec<SkippedJob>,
+}
+
+impl SchedulerStartup {
+    const fn disabled() -> Self {
+        Self {
+            handle: None,
+            degraded: Vec::new(),
+        }
     }
 }
 
@@ -78,15 +97,16 @@ impl SchedulerService {
         })
     }
 
-    /// `None` when the scheduler is disabled in config; otherwise the live
-    /// [`SchedulerHandle`] the caller drains on shutdown.
-    pub async fn start(self) -> SchedulerResult<Option<SchedulerHandle>> {
+    /// A job whose explicit `owner` does not resolve to an active user is
+    /// skipped rather than aborting the scheduler; the skipped set rides back
+    /// in [`SchedulerStartup::degraded`] for the health signal.
+    pub async fn start(self) -> SchedulerResult<SchedulerStartup> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
-            return Ok(None);
+            return Ok(SchedulerStartup::disabled());
         }
 
-        let resolved_owners = Self::resolve_owners(&self.db_pool, &self.config.jobs).await?;
+        let resolved = self.resolve_owners(true).await?;
 
         let registered_jobs = Self::discover_jobs();
         self.validate_configured_jobs(&registered_jobs)?;
@@ -104,39 +124,16 @@ impl SchedulerService {
             scheduler: &scheduler,
             registered_jobs: &registered_jobs,
             running_jobs: &running_jobs,
-            owners: &resolved_owners,
+            owners: resolved.owner_map(),
         };
         self.register_jobs(&ctx).await?;
         scheduler.start().await?;
 
         info!("Scheduler started");
-        Ok(Some(SchedulerHandle { scheduler }))
-    }
-
-    async fn resolve_owners(
-        db_pool: &DbPool,
-        jobs: &[JobConfig],
-    ) -> SchedulerResult<HashMap<String, UserId>> {
-        let users = UserRepository::new(db_pool)?;
-        let mut resolved = HashMap::with_capacity(jobs.len());
-        for job in jobs.iter().filter(|j| j.enabled) {
-            let owner = users
-                .find_by_name(job.owner.as_str())
-                .await?
-                .ok_or_else(|| SchedulerError::UnresolvedJobOwner {
-                    job_name: job.name.clone(),
-                    owner: job.owner.as_str().to_owned(),
-                })?;
-            if owner.status.as_deref() != Some(UserStatus::Active.as_str()) {
-                return Err(SchedulerError::UnresolvedJobOwner {
-                    job_name: job.name.clone(),
-                    owner: job.owner.as_str().to_owned(),
-                });
-            }
-            debug!(job_name = %job.name, owner = %owner.id, "resolved job owner");
-            resolved.insert(job.name.clone(), owner.id);
-        }
-        Ok(resolved)
+        Ok(SchedulerStartup {
+            handle: Some(SchedulerHandle { scheduler }),
+            degraded: resolved.into_degraded(),
+        })
     }
 
     fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
@@ -199,10 +196,8 @@ impl SchedulerService {
         };
 
         let Some(owner_id) = ctx.owners.get(&job_config.name).cloned() else {
-            return Err(SchedulerError::UnresolvedJobOwner {
-                job_name: job_config.name.clone(),
-                owner: job_config.owner.as_str().to_owned(),
-            });
+            warn!(job = %job_config.name, "no resolved owner for job, skipping");
+            return Ok(());
         };
         let actor = Actor::job(owner_id, job_config.name.clone());
 

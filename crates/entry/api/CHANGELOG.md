@@ -6,6 +6,7 @@
 
 - Slack, Teams, and messaging gateway routes that verify inbound chat requests and dispatch them to A2A agents under the standard authorization pipeline.
 - `/v1/auth/bridge/session-pat` route minting a durable personal access token from the one-time bridge exchange code, plus device-PAT issuance.
+- `GET /health` reports `"status": "degraded"` (HTTP 200) with a `scheduler.degraded_jobs` list when the scheduler skipped jobs at startup because their configured owner did not resolve.
 
 ### Changed
 

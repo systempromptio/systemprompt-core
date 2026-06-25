@@ -15,6 +15,7 @@ pub mod metrics;
 pub mod readiness;
 mod routes;
 pub mod runner;
+pub mod scheduler_health;
 mod shutdown;
 
 pub use builder::*;

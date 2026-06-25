@@ -46,36 +46,6 @@ mod additional_variants {
     }
 
     #[test]
-    fn unresolved_job_owner_message() {
-        let err = SchedulerError::UnresolvedJobOwner {
-            job_name: "database_cleanup".to_string(),
-            owner: "platform-admin".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(
-            msg.contains("database_cleanup"),
-            "error message should contain job name"
-        );
-        assert!(
-            msg.contains("platform-admin"),
-            "error message should contain owner name"
-        );
-    }
-
-    #[test]
-    fn unresolved_job_owner_mentions_active_user() {
-        let err = SchedulerError::UnresolvedJobOwner {
-            job_name: "my_job".to_string(),
-            owner: "nobody".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(
-            msg.contains("active"),
-            "error should mention active user requirement"
-        );
-    }
-
-    #[test]
     fn unknown_job_lists_offending_names() {
         let err = SchedulerError::UnknownJob {
             names: "governance_bootstrap, typo_job".to_string(),
@@ -113,10 +83,6 @@ mod additional_variants {
             SchedulerError::panic("boom"),
             SchedulerError::DistributedLock("lock err".to_string()),
             SchedulerError::Internal("internal".to_string()),
-            SchedulerError::UnresolvedJobOwner {
-                job_name: "j".to_string(),
-                owner: "o".to_string(),
-            },
             SchedulerError::AlreadyRunning,
             SchedulerError::NotInitialized,
         ];

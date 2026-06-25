@@ -52,13 +52,13 @@ pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
-pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig};
+pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
 pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService, JobRunReport,
     JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome, ProcessCleanup,
     ProcessInfo, ReconciliationResult, RestartPlan, RestartScope, RestartTarget, RuntimeStatus,
-    SchedulerHandle, SchedulerService, ServiceAction, ServiceConfig, ServiceManagementService,
-    ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
-    StartupRequest, VerifiedServiceState, parse_job_parameters,
+    SchedulerHandle, SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig,
+    ServiceManagementService, ServiceReconciler, ServiceSnapshot, ServiceStateVerifier,
+    ServiceType, StartupPlan, StartupRequest, VerifiedServiceState, parse_job_parameters,
 };

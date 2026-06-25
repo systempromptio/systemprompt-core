@@ -136,27 +136,28 @@ extra: nope
 #[test]
 fn job_config_new_and_builders() {
     let owner = UserId::new("user-1");
-    let j = JobConfig::new("hello", owner.clone());
+    let j = JobConfig::new("hello");
     assert_eq!(j.name, "hello");
-    assert_eq!(j.owner, owner);
+    assert!(j.owner.is_none());
     assert!(j.enabled);
     assert!(j.extension.is_none());
     assert!(j.schedule.is_none());
 
-    let j = JobConfig::new("x", owner.clone())
+    let j = JobConfig::new("x")
+        .with_owner(owner.clone())
         .with_extension("core")
         .with_schedule("0 0 * * * *");
+    assert_eq!(j.owner, Some(owner));
     assert_eq!(j.extension.as_deref(), Some("core"));
     assert_eq!(j.schedule.as_deref(), Some("0 0 * * * *"));
 
-    let j = JobConfig::new("y", owner).disabled();
+    let j = JobConfig::new("y").disabled();
     assert!(!j.enabled);
 }
 
 #[test]
 fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
-    let admin = SystemAdmin::new(UserId::new("admin"), "admin".to_owned());
-    let s = SchedulerConfig::with_system_admin(&admin);
+    let s = SchedulerConfig::with_system_admin();
     assert!(s.enabled);
     assert!(s.distributed_lock);
     assert_eq!(s.jobs.len(), 4);
@@ -166,6 +167,7 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
     assert!(names.contains(&"cleanup_inactive_sessions"));
     assert!(names.contains(&"database_cleanup"));
     for j in &s.jobs {
+        assert!(j.owner.is_none());
         assert_eq!(j.extension.as_deref(), Some("core"));
         assert!(j.schedule.is_some());
     }

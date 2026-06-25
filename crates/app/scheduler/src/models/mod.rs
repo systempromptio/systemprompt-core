@@ -13,6 +13,17 @@ use systemprompt_identifiers::ScheduledJobId;
 
 pub use systemprompt_models::services::{JobConfig, SchedulerConfig};
 
+/// A job dropped from the schedule due to an unresolved explicit owner.
+///
+/// Surfaced in the scheduler health signal and persisted to the `logs` table
+/// so a misconfigured owner is observable rather than silently dropped.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkippedJob {
+    pub job_name: String,
+    pub owner: String,
+    pub reason: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JobStatus {

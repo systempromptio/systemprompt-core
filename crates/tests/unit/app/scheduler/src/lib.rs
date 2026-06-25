@@ -50,6 +50,8 @@ mod service_management_behaviour_db;
 #[cfg(test)]
 mod service_management_db;
 #[cfg(test)]
+mod start_owner_resolution_db;
+#[cfg(test)]
 mod state_transitions;
 #[cfg(test)]
 mod state_verifier_seeded_db;

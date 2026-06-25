@@ -1,15 +1,14 @@
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::UserId;
 
-use super::SystemAdmin;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct JobConfig {
     #[serde(default)]
     pub extension: Option<String>,
     pub name: String,
-    pub owner: UserId,
+    #[serde(default)]
+    pub owner: Option<UserId>,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
@@ -21,15 +20,24 @@ const fn default_true() -> bool {
 }
 
 impl JobConfig {
+    /// A job with no explicit `owner` runs as the profile `system_admin`,
+    /// resolved per-environment at scheduler start. Set one with
+    /// [`Self::with_owner`] only for a job that must run as a specific user.
     #[must_use]
-    pub fn new(name: impl Into<String>, owner: UserId) -> Self {
+    pub fn new(name: impl Into<String>) -> Self {
         Self {
             extension: None,
             name: name.into(),
-            owner,
+            owner: None,
             enabled: true,
             schedule: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_owner(mut self, owner: UserId) -> Self {
+        self.owner = Some(owner);
+        self
     }
 
     #[must_use]
@@ -71,26 +79,26 @@ fn default_bootstrap_jobs() -> Vec<String> {
 }
 
 impl SchedulerConfig {
-    // The four cleanup jobs (cleanup_anonymous_users, cleanup_empty_contexts,
-    // cleanup_inactive_sessions, database_cleanup) have no human originator;
-    // attributing them to the system admin row keeps the scheduler's
-    // resolve_owners pass green against a real user.
+    /// The built-in core job set. The four cleanup jobs
+    /// (`cleanup_anonymous_users`, `cleanup_empty_contexts`,
+    /// `cleanup_inactive_sessions`, `database_cleanup`) have no human
+    /// originator, so they carry no explicit `owner` and run as the profile
+    /// `system_admin` resolved per-environment at scheduler start.
     #[must_use]
-    pub fn with_system_admin(admin: &SystemAdmin) -> Self {
-        let owner = admin.id().clone();
+    pub fn with_system_admin() -> Self {
         Self {
             enabled: true,
             jobs: vec![
-                JobConfig::new("cleanup_anonymous_users", owner.clone())
+                JobConfig::new("cleanup_anonymous_users")
                     .with_extension("core")
                     .with_schedule("0 0 3 * * *"),
-                JobConfig::new("cleanup_empty_contexts", owner.clone())
+                JobConfig::new("cleanup_empty_contexts")
                     .with_extension("core")
                     .with_schedule("0 0 * * * *"),
-                JobConfig::new("cleanup_inactive_sessions", owner.clone())
+                JobConfig::new("cleanup_inactive_sessions")
                     .with_extension("core")
                     .with_schedule("0 0 * * * *"),
-                JobConfig::new("database_cleanup", owner)
+                JobConfig::new("database_cleanup")
                     .with_extension("core")
                     .with_schedule("0 0 4 * * *"),
             ],

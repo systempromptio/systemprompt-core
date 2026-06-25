@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Breaking
+
+- `SchedulerService::start` now returns `SchedulerStartup { handle, degraded }` instead of `Option<SchedulerHandle>`. Migrate by reading `.handle` from the returned value.
+
+### Changed
+
+- A scheduled job whose explicit owner does not resolve to an active user is now skipped and recorded as an `ERROR` in the `logs` table, instead of aborting the entire scheduler. A job with no explicit owner runs as the profile `system_admin`.
+
+### Added
+
+- `SchedulerStartup.degraded` and the exported `SkippedJob` type report jobs dropped at startup because their explicit owner did not resolve.
+
+### Removed
+
+- `SchedulerError::UnresolvedJobOwner`. An unresolved owner now degrades that job rather than returning an error.
+
 ## [0.16.1] - 2026-06-22
 
 ### Changed

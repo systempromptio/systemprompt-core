@@ -1,10 +1,9 @@
 use systemprompt_scheduler::SchedulerConfig;
-use systemprompt_test_fixtures::fixture_system_admin;
 use systemprompt_traits::Job;
 
 #[test]
 fn default_bootstrap_jobs_match_built_in_inventory_names() {
-    let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
+    let cfg = SchedulerConfig::with_system_admin();
     assert_eq!(
         cfg.bootstrap_jobs,
         vec![
@@ -18,7 +17,7 @@ fn default_bootstrap_jobs_match_built_in_inventory_names() {
 
 #[test]
 fn every_default_bootstrap_job_is_inventory_registered() {
-    let cfg = SchedulerConfig::with_system_admin(&fixture_system_admin("platform-admin"));
+    let cfg = SchedulerConfig::with_system_admin();
     let registered: std::collections::HashSet<&'static str> = inventory::iter::<&'static dyn Job>
         .into_iter()
         .map(|j| j.name())

@@ -26,9 +26,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerService};
-use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 const TEST_JOB_NAME: &str = "test_distributed_lock_probe";
@@ -61,7 +59,7 @@ systemprompt_traits::submit_job!(&DistributedLockProbeJob);
 fn probe_config(distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
-        jobs: vec![JobConfig::new(TEST_JOB_NAME, fixture_user_id()).with_schedule("* * * * * *")],
+        jobs: vec![JobConfig::new(TEST_JOB_NAME).with_schedule("* * * * * *")],
         bootstrap_jobs: vec![],
         distributed_lock,
     }

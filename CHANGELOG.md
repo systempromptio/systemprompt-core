@@ -2,6 +2,10 @@
 
 ## [0.17.0] - 2026-06-24
 
+### Breaking
+
+- **Breaking:** a scheduled job's owner is now optional — `JobConfig.owner` is `Option<UserId>` and a job with no explicit owner runs as the profile `system_admin`. Migrate by constructing jobs with `JobConfig::new(name)` and adding `.with_owner(id)` only where a specific owner is required, and call `SchedulerConfig::with_system_admin()` (no argument).
+
 ### Added
 
 - Slack messaging surface (`systemprompt-slack`): verifies Slack Events API, slash-command, and Block Kit interaction requests, maps Slack workspace users to governed systemprompt identities, and dispatches to A2A agents through the same RBAC and audit pipeline as every other inbound surface. Configured through `slack_apps` service blocks (signing-secret and bot-token secret references, target agent, permitted roles).
@@ -9,11 +13,13 @@
 - Typed Slack and Teams identifiers and a messaging identity-ingestion path in the authorization engine, so chat users are resolved to entities and authorized like any other actor.
 - Durable bridge authentication: a long-lived personal access token minted from the one-time bridge exchange code via the new `/v1/auth/bridge/session-pat` gateway route, plus device-PAT issuance. The bridge client and setup GUI consume the durable token.
 - Request-shape gateway routing: a route may carry an optional `when` block (`requires_tools`, `min_tools`, `thinking`, `min_reasoning_effort`, `stream`, `min_input_tokens`, `response_format`) that narrows it beyond the model glob, and extensions can register a `RouteSelector` to re-route programmatically. The chosen route's rationale (matched predicates and/or selector) is recorded in the new `ai_requests.route_match` audit column. Routes without a `when` block are unaffected.
+- `GET /health` reports `"status": "degraded"` (HTTP 200) with a `scheduler.degraded_jobs` list when the scheduler skipped jobs at startup because their configured owner did not resolve.
 
 ### Changed
 
 - `rmcp` upgraded to 1.8. The MCP streamable-HTTP client now runs on the workspace `reqwest` (0.12) through rmcp's transport trait rather than rmcp's bundled reqwest-backed transport, removing a duplicate `reqwest` 0.13 (and its parallel hyper/oauth2 stack) from the dependency tree.
 - The gateway records cache-token usage (`cache_read_tokens`, `cache_creation_tokens`) from both buffered and streaming provider responses onto the request's `ai_requests` row, so cache hits are now reflected in usage accounting and billing.
+- A scheduled job whose configured owner does not resolve to an active user is now skipped and recorded as an `ERROR` in the `logs` table, instead of aborting the entire scheduler at startup.
 - `xxhash-rust`, `quick-xml`, and `image` are centralized in the workspace dependency table.
 
 ### Fixed

@@ -2,6 +2,11 @@
 
 ## [0.17.0] - 2026-06-24
 
+### Breaking
+
+- `JobConfig.owner` is now `Option<UserId>` and `JobConfig::new` no longer takes an owner; a job with no owner runs as the profile `system_admin`. Migrate by calling `JobConfig::new(name)` and adding `.with_owner(id)` only where a specific owner is required.
+- `SchedulerConfig::with_system_admin` no longer takes a `&SystemAdmin` argument. Migrate by calling `SchedulerConfig::with_system_admin()`.
+
 ### Added
 
 - `SlackAppConfig` and `TeamsAppConfig` service-configuration blocks for the Slack and Teams messaging surfaces.

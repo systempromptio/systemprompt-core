@@ -65,11 +65,11 @@ filter = 'package(systemprompt-scheduler-tests) and test(/(state_verifier_seeded
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|job_execution_db|start_owner_resolution_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
