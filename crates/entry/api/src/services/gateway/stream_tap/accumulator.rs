@@ -74,6 +74,8 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
     let usage = CapturedUsage {
         input_tokens: state.usage.input_tokens,
         output_tokens: state.usage.output_tokens,
+        cache_read_tokens: state.usage.cache_read_tokens,
+        cache_creation_tokens: state.usage.cache_creation_tokens,
     };
     let tool_calls = response
         .content
@@ -240,6 +242,12 @@ pub fn accumulate_event(state: &mut TapState, event: &CanonicalEvent) {
             }
             if u.output_tokens > 0 {
                 state.usage.output_tokens = u.output_tokens;
+            }
+            if u.cache_read_tokens > 0 {
+                state.usage.cache_read_tokens = u.cache_read_tokens;
+            }
+            if u.cache_creation_tokens > 0 {
+                state.usage.cache_creation_tokens = u.cache_creation_tokens;
             }
         },
         CanonicalEvent::MessageStop { stop_reason, .. } => {

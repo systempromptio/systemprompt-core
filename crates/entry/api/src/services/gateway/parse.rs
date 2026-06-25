@@ -10,6 +10,8 @@ pub fn extract_from_canonical(
     let usage = CapturedUsage {
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
+        cache_read_tokens: response.usage.cache_read_tokens,
+        cache_creation_tokens: response.usage.cache_creation_tokens,
     };
     let mut tool_calls = Vec::new();
     for part in &response.content {

@@ -4,6 +4,8 @@ use systemprompt_identifiers::AiToolCallId;
 pub struct CapturedUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
+    pub cache_read_tokens: u32,
+    pub cache_creation_tokens: u32,
 }
 
 #[derive(Debug, Clone)]

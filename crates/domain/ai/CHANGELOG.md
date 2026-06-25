@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Changed
+
+- `update_completion` records cache accounting on the `ai_requests` row: `UpdateCompletionParams` gains `cache_hit`, `cache_read_tokens`, and `cache_creation_tokens`, which are persisted alongside the existing input/output/total token counts when a request completes.
+
+### Fixed
+
+- Regenerated the SQLx offline query cache to match the expanded `update_completion` statement.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

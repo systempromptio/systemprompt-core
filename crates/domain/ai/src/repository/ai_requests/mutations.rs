@@ -15,6 +15,9 @@ pub struct UpdateCompletionParams {
     pub output_tokens: i32,
     pub cost_microdollars: i64,
     pub latency_ms: i32,
+    pub cache_hit: bool,
+    pub cache_read_tokens: i32,
+    pub cache_creation_tokens: i32,
 }
 
 impl AiRequestRepository {
@@ -28,9 +31,11 @@ impl AiRequestRepository {
             r#"
             UPDATE ai_requests
             SET tokens_used = $1, input_tokens = $2, output_tokens = $3,
-                cost_microdollars = $4, latency_ms = $5, status = $6,
+                cost_microdollars = $4, latency_ms = $5,
+                cache_hit = $6, cache_read_tokens = $7, cache_creation_tokens = $8,
+                status = $9,
                 completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $7
+            WHERE id = $10
             RETURNING id as "id!: AiRequestId",
                       request_id as "request_id!: AiRequestId",
                       user_id as "user_id!: UserId",
@@ -50,6 +55,9 @@ impl AiRequestRepository {
             params.output_tokens,
             params.cost_microdollars,
             params.latency_ms,
+            params.cache_hit,
+            params.cache_read_tokens,
+            params.cache_creation_tokens,
             RequestStatus::Completed.as_str(),
             params.id.as_str()
         )

@@ -58,6 +58,9 @@ impl GatewayAudit {
                 output_tokens: usage.output_tokens as i32,
                 cost_microdollars: cost,
                 latency_ms,
+                cache_hit: usage.cache_read_tokens > 0,
+                cache_read_tokens: usage.cache_read_tokens as i32,
+                cache_creation_tokens: usage.cache_creation_tokens as i32,
             })
             .await?;
 
@@ -72,6 +75,7 @@ impl GatewayAudit {
             wire_protocol = %self.ctx.wire_protocol,
             input_tokens = usage.input_tokens,
             output_tokens = usage.output_tokens,
+            cache_read_tokens = usage.cache_read_tokens,
             cost_microdollars = cost,
             latency_ms,
             tool_calls = tool_calls.len(),

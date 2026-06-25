@@ -12,6 +12,7 @@
 ### Changed
 
 - `rmcp` upgraded to 1.8. The MCP streamable-HTTP client now runs on the workspace `reqwest` (0.12) through rmcp's transport trait rather than rmcp's bundled reqwest-backed transport, removing a duplicate `reqwest` 0.13 (and its parallel hyper/oauth2 stack) from the dependency tree.
+- The gateway records cache-token usage (`cache_read_tokens`, `cache_creation_tokens`) from both buffered and streaming provider responses onto the request's `ai_requests` row, so cache hits are now reflected in usage accounting and billing.
 - `xxhash-rust`, `quick-xml`, and `image` are centralized in the workspace dependency table.
 
 ## [0.16.1] - 2026-06-22

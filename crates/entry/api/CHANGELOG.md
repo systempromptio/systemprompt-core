@@ -7,6 +7,10 @@
 - Slack, Teams, and messaging gateway routes that verify inbound chat requests and dispatch them to A2A agents under the standard authorization pipeline.
 - `/v1/auth/bridge/session-pat` route minting a durable personal access token from the one-time bridge exchange code, plus device-PAT issuance.
 
+### Changed
+
+- The gateway captures cache-token usage (`cache_read_tokens`, `cache_creation_tokens`) from buffered and streaming provider responses and records it on the request's audit row, so cache hits and their token counts are now persisted alongside input/output totals.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added
