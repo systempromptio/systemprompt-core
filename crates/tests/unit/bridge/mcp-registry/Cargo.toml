@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-bridge MCP registry key normalization"
+description = "Unit tests for systemprompt-bridge MCP registry key normalization and disk rehydration"
 publish = false
 
 [lints]
@@ -12,3 +12,5 @@ workspace = true
 
 [dependencies]
 systemprompt-bridge = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }

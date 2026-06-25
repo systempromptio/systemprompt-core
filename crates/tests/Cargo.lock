@@ -6858,7 +6858,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -7076,6 +7076,8 @@ name = "systemprompt-bridge-mcp-registry-tests"
 version = "0.0.11"
 dependencies = [
  "systemprompt-bridge",
+ "temp-env",
+ "tempfile",
 ]
 
 [[package]]

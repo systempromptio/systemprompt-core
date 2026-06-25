@@ -82,6 +82,9 @@ async fn update_completion_sets_tokens_and_status() {
             output_tokens: 100,
             cost_microdollars: 9_000,
             latency_ms: 750,
+            cache_hit: true,
+            cache_read_tokens: 128,
+            cache_creation_tokens: 0,
         })
         .await
         .expect("update");
@@ -92,6 +95,8 @@ async fn update_completion_sets_tokens_and_status() {
     assert_eq!(updated.output_tokens, Some(100));
     assert_eq!(updated.cost_microdollars, 9_000);
     assert_eq!(updated.latency_ms, Some(750));
+    assert!(updated.cache_hit);
+    assert_eq!(updated.cache_read_tokens, Some(128));
     assert!(updated.completed_at.is_some());
 }
 

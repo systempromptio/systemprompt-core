@@ -14,11 +14,14 @@ fn captured_usage_is_copy_and_clone() {
     let u = CapturedUsage {
         input_tokens: 10,
         output_tokens: 20,
+        cache_read_tokens: 5,
+        cache_creation_tokens: 0,
     };
     let copy = u;
     let cloned = u;
     assert_eq!(copy.input_tokens, 10);
     assert_eq!(cloned.output_tokens, 20);
+    assert_eq!(copy.cache_read_tokens, 5);
     assert_eq!(u.input_tokens, 10);
 }
 
@@ -40,6 +43,8 @@ fn captured_usage_debug_renders_fields() {
     let u = CapturedUsage {
         input_tokens: 1,
         output_tokens: 2,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
     };
     let s = format!("{u:?}");
     assert!(s.contains("CapturedUsage"));
