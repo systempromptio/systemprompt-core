@@ -72,6 +72,9 @@ pub async fn run_checks() -> (Vec<Check>, bool) {
     let client = auth::check_gateway_reachable(&cfg, &mut checks).await;
     auth::check_whoami(&client, bearer.as_ref(), &mut checks).await;
     checks.push(auth::check_loopback_secret());
+    if let Some(check) = auth::check_host_profile_secrets() {
+        checks.push(check);
+    }
     checks.push(auth::check_pinned_pubkey());
     checks.push(cowork::check_cowork_enable());
     checks.push(cowork::check_plugin_installation_preference());

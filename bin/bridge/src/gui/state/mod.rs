@@ -74,10 +74,6 @@ pub struct GatewayProbeOutcome {
 }
 
 #[derive(Debug, Clone, Default)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "flat UI snapshot mirrored field-for-field to the frontend"
-)]
 pub struct AppStateSnapshot {
     pub gateway_url: String,
     pub config_file: String,

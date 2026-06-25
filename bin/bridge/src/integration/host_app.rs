@@ -18,8 +18,14 @@ pub struct ProfileGenInputs {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProfileState {
     Absent,
-    Partial { missing_required: Vec<String> },
+    Partial {
+        missing_required: Vec<String>,
+    },
     Installed,
+    /// All required keys present, but the baked loopback secret no longer
+    /// matches the one the local proxy verifies against — every request 403s
+    /// until the profile is re-applied.
+    Stale,
 }
 
 impl ProfileState {
@@ -28,8 +34,24 @@ impl ProfileState {
         matches!(self, Self::Installed)
     }
 
+    /// `secret_fresh` carries the result of comparing the profile's baked
+    /// secret against the live proxy secret: `Some(false)` downgrades an
+    /// otherwise complete profile to [`Self::Stale`]. `None` (host has no
+    /// baked secret, or the proxy secret is unknown) never downgrades —
+    /// staleness is asserted only on a definite mismatch.
     #[must_use]
-    pub fn from_keys(required: &[&str], present: &BTreeMap<String, String>) -> Self {
+    pub fn classify(
+        required: &[&str],
+        present: &BTreeMap<String, String>,
+        secret_fresh: Option<bool>,
+    ) -> Self {
+        match (Self::from_keys(required, present), secret_fresh) {
+            (Self::Installed, Some(false)) => Self::Stale,
+            (state, _) => state,
+        }
+    }
+
+    fn from_keys(required: &[&str], present: &BTreeMap<String, String>) -> Self {
         if present.is_empty() {
             return Self::Absent;
         }
@@ -178,9 +200,10 @@ pub fn host_model_view(
     view
 }
 
-/// A synced per-host override wins over the host's built-in default; an empty
-/// result means "all models". Override tags are parsed to [`ApiSurface`]; an
-/// unrecognised tag is dropped rather than failing the whole host.
+/// A synced per-host override wins over the host's built-in default.
+///
+/// An empty result means "all models"; an unrecognised override tag is dropped
+/// rather than failing the whole host.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub fn effective_surfaces(

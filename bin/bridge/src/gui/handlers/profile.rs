@@ -12,7 +12,7 @@ use crate::gui::state::AppStateSnapshot;
 use crate::gui::{GuiApp, emit};
 
 #[must_use]
-pub fn is_logged_out_error(err: &GuiError) -> bool {
+pub const fn is_logged_out_error(err: &GuiError) -> bool {
     matches!(err, GuiError::NotAuthenticated)
 }
 

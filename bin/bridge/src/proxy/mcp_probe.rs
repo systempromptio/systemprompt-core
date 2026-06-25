@@ -121,9 +121,6 @@ async fn probe_one(client: &reqwest::Client, slug: &str) -> McpServerAuth {
     probe_endpoint(client, slug, &url, &bearer).await
 }
 
-/// Runs the `initialize` → `tools/list` round-trip against a resolved endpoint.
-///
-/// Maps the HTTP/JSON outcome onto an [`McpServerAuth`] verdict. The target
 /// `url` and `bearer` are injected so callers can drive the probe against any
 /// endpoint without touching global proxy state.
 pub async fn probe_endpoint(

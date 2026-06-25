@@ -9,12 +9,13 @@ function summarise(list) {
   }
   const installed = enabled.filter((h) => h.snapshot?.profile_state?.kind === "installed").length;
   const partial   = enabled.filter((h) => h.snapshot?.profile_state?.kind === "partial").length;
+  const stale     = enabled.filter((h) => h.snapshot?.profile_state?.kind === "stale").length;
   const absent    = enabled.filter((h) => (h.snapshot?.profile_state?.kind || "absent") === "absent").length;
   const running   = enabled.filter((h) => h.snapshot?.host_running).length;
-  const state = installed === enabled.length ? "ok" : installed > 0 ? "warn" : "err";
+  const state = installed === enabled.length ? "ok" : installed > 0 || stale > 0 ? "warn" : "err";
   const dot   = state === "ok" ? "sp-dot--ok" : state === "warn" ? "sp-dot--warn" : "sp-dot--err";
   const label = state === "ok" ? "all configured" : state === "warn" ? "partial coverage" : "not configured";
-  return { state, dot, configured: installed, total: enabled.length, running, partial, absent, label };
+  return { state, dot, configured: installed, total: enabled.length, running, partial, stale, absent, label };
 }
 
 function sectionLabel(state) {
@@ -51,12 +52,13 @@ export class SpAgentsSummary extends SpElement {
     const s = summarise(list);
     const footParts = [`${s.configured} configured`, `${s.running} running`];
     if (s.partial) { footParts.push(`${s.partial} partial`); }
+    if (s.stale)   { footParts.push(`${s.stale} secret out of date`); }
     if (s.absent)  { footParts.push(`${s.absent} absent`); }
 
     const perHost = enabled.map((h) => {
       const kind = h.snapshot?.profile_state?.kind || "absent";
       const running = h.snapshot?.host_running ? "running" : "idle";
-      const dotCls = kind === "installed" ? "sp-dot--ok" : kind === "partial" ? "sp-dot--warn" : "sp-dot--err";
+      const dotCls = kind === "installed" ? "sp-dot--ok" : kind === "partial" || kind === "stale" ? "sp-dot--warn" : "sp-dot--err";
       const name = h.id || h.name || "(unnamed)";
       return `<li>
         <span class="sp-dot ${dotCls}" aria-hidden="true"></span>

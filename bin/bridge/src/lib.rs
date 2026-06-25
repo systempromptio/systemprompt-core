@@ -117,17 +117,14 @@ Env overrides:
     )
 }
 
-/// Entry point for the default systemprompt-branded binary.
 #[must_use]
 pub fn run() -> ExitCode {
     run_with_brand(&brand::Brand::SYSTEMPROMPT)
 }
 
-/// Entry point for white-label binaries: install the supplied brand, then run.
-///
 /// The brand is installed *before* any logging, panic-hook, or path resolution
-/// so that on-disk directories and chrome reflect the brand from the first
-/// line of output. Must be called once at process start, before [`run`].
+/// so on-disk directories and chrome reflect it from the first line of output.
+/// Call once at process start, before [`run`].
 #[must_use]
 pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     brand::set_brand(brand);

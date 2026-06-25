@@ -4,18 +4,6 @@ use std::sync::mpsc::channel;
 use crate::cli::output;
 use crate::obs::output::diag;
 
-/// Start the local inference proxy headlessly and block until interrupted.
-///
-/// This is the Linux / headless equivalent of what the desktop GUI does on
-/// macOS and Windows: it brings up the loopback proxy on
-/// `127.0.0.1:{DEFAULT_PROXY_PORT}`, which swaps the printed loopback secret
-/// for a short-lived gateway JWT and injects the canonical identity headers
-/// (`x-session-id`, `x-user-id`, `x-trace-id`, …) on every forwarded request,
-/// then refreshes the JWT in the background. Point any Anthropic-API client
-/// (Claude Code, Claude Desktop) at the printed base URL + token.
-///
-/// Requires a configured credential from the auth provider chain (stored PAT,
-/// inline PAT env var, or device certificate).
 pub(super) fn cmd_proxy() -> ExitCode {
     if crate::proxy::start_default().is_none() {
         diag("proxy: failed to start (port in use, or no config dir) — see logs above");

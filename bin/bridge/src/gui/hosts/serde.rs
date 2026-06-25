@@ -12,10 +12,6 @@ pub(crate) struct HostsPayload<'a> {
 }
 
 #[derive(Serialize)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "flat host serde payload mirrored to the frontend"
-)]
 pub(crate) struct HostEntryPayload<'a> {
     pub id: &'a str,
     pub display_name: &'a str,

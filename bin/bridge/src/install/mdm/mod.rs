@@ -216,8 +216,9 @@ Windows Registry Editor Version 5.00
 ; Optional: identify this deployment to your org for telemetry/support.
 ; Omit to use Anthropic's shared placeholder UUID. Standard hyphenated form only.
 ; "deploymentOrganizationUuid"="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-; inferenceGatewayBaseUrl and inferenceGatewayApiKey are written to HKCU by the
-; running Bridge GUI when it binds the loopback proxy. Do not pin them here.
+; inferenceGatewayBaseUrl and inferenceGatewayApiKey are written into this policy
+; key by the Bridge when you apply the Claude Desktop host profile, and re-applied
+; whenever the local loopback secret rotates. Do not pin them here.
 "#
             .to_owned()
         },

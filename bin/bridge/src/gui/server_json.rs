@@ -37,10 +37,6 @@ pub fn proxy_stats_value() -> Value {
 }
 
 #[derive(Serialize)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "flat snapshot payload mirrored to the frontend"
-)]
 struct StatePayload<'a> {
     gateway_url: &'a str,
     config_file: &'a str,

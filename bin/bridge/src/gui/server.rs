@@ -49,7 +49,7 @@ impl Server {
         self.port
     }
 
-    pub fn log(&self) -> &'static ActivityLog {
+    pub fn log() -> &'static ActivityLog {
         activity_log()
     }
 }

@@ -18,7 +18,9 @@ function classifyHosts(snap) {
   const proxyState = (snap.local_proxy && snap.local_proxy.state || "Unknown").toString();
   const anyAbsent = hosts.some((h) => (h.snapshot && h.snapshot.profile_state && h.snapshot.profile_state.kind || "absent") === "absent");
   const anyPartial = hosts.some((h) => h.snapshot && h.snapshot.profile_state && h.snapshot.profile_state.kind === "partial");
+  const anyStale = hosts.some((h) => h.snapshot && h.snapshot.profile_state && h.snapshot.profile_state.kind === "stale");
   const allInstalled = hosts.every((h) => h.snapshot && h.snapshot.profile_state && h.snapshot.profile_state.kind === "installed");
+  if (anyStale) { return { text: "secret out of date", cls: "sp-badge--warn" }; }
   if (anyAbsent) { return { text: "profile not installed", cls: "sp-badge--warn" }; }
   if (anyPartial) { return { text: "profile partial", cls: "sp-badge--warn" }; }
   if (allInstalled && proxyState === "Unconfigured") {

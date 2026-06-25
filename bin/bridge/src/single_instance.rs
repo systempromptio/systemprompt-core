@@ -76,6 +76,8 @@ mod unix {
             },
         };
         let fd = file.as_raw_fd();
+        // SAFETY: `fd` is a valid open descriptor owned by `file`, which outlives this
+        // call.
         let rc = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
         if rc != 0 {
             let err = std::io::Error::last_os_error();
@@ -106,6 +108,7 @@ mod windows {
     impl Drop for MutexHandle {
         fn drop(&mut self) {
             if !self.0.is_null() {
+                // SAFETY: `self.0` is a non-null mutex handle this guard exclusively owns.
                 unsafe { CloseHandle(self.0) };
             }
         }
@@ -115,13 +118,19 @@ mod windows {
         let name: Vec<u16> = "Local\\SystempromptBridgeSingleton\0"
             .encode_utf16()
             .collect();
+        // SAFETY: `name` is a live NUL-terminated UTF-16 buffer; a null security
+        // descriptor is valid and requests default access.
         let handle = unsafe { CreateMutexW(std::ptr::null(), 1, name.as_ptr()) };
         if handle.is_null() {
+            // SAFETY: `GetLastError` reads thread-local error state with no preconditions.
             let err = unsafe { GetLastError() };
             return SingletonResult::Error(format!("CreateMutexW failed: {err}"));
         }
+        // SAFETY: `GetLastError` reads thread-local error state with no preconditions.
         let last_error = unsafe { GetLastError() };
         if last_error == ERROR_ALREADY_EXISTS {
+            // SAFETY: `handle` is the non-null mutex handle just returned by
+            // `CreateMutexW`.
             unsafe { CloseHandle(handle) };
             return SingletonResult::AlreadyRunning;
         }

@@ -80,8 +80,9 @@ pub fn proxy_init() -> std::io::Result<LoopbackSecret> {
         let s = mint(&path)?;
         tracing::info!(
             path = %path.display(),
-            fp = %crate::proxy::dispatch::sha256_8(s.as_str()),
-            "minted fresh loopback secret; restart Claude Desktop to pick it up",
+            fp = %fingerprint(s.as_str()),
+            remediation = %reapply_hint(),
+            "minted fresh loopback secret",
         );
         s
     };
@@ -109,6 +110,29 @@ pub fn for_profile() -> std::io::Result<LoopbackSecret> {
 #[must_use]
 pub fn verify(presented: &str, expected: &ProxySecret) -> bool {
     constant_time_eq(presented.as_bytes(), expected.as_str().as_bytes())
+}
+
+/// `<empty>` for the empty string, so an unauthenticated caller is
+/// distinguishable from a genuine secret mismatch.
+#[must_use]
+pub fn fingerprint(s: &str) -> String {
+    use sha2::{Digest as _, Sha256};
+    if s.is_empty() {
+        return "<empty>".to_owned();
+    }
+    let d = Sha256::digest(s.as_bytes());
+    format!("{:08x}", u32::from_be_bytes([d[0], d[1], d[2], d[3]]))
+}
+
+/// Restarting the client cannot help — only rewriting the profile with the live
+/// secret does.
+#[must_use]
+pub fn reapply_hint() -> String {
+    let bin = crate::brand::brand().binary_name;
+    format!(
+        "re-apply the host profile from the bridge (Re-apply in the app, or `{bin} install \
+         --apply`), then restart the client"
+    )
 }
 
 fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {

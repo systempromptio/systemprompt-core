@@ -63,6 +63,7 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
 pub fn logout() -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
+    remove_managed_mcp_fragment()?;
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
@@ -92,6 +93,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
     remove_if_exists(&paths.pat_file)?;
     let config_removed = paths.config_file.exists();
     remove_if_exists(&paths.config_file)?;
+    remove_managed_mcp_fragment()?;
     if let Err(e) = crate::auth::cache::clear() {
         return Err(SetupError::Io(format!("clear token cache: {e}")));
     }
@@ -193,8 +195,6 @@ fn read_existing_gateway(path: &Path) -> Option<String> {
     None
 }
 
-/// Resolve the gateway to write: explicit override, else the existing config
-/// value, else the brand default.
 fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
     gateway_url_override
         .map(str::to_owned)
@@ -202,11 +202,8 @@ fn resolve_gateway(path: &Path, gateway_url_override: Option<&str>) -> String {
         .unwrap_or_else(|| crate::brand::brand().default_gateway_url.to_owned())
 }
 
-/// Write a config that enables the browser-based session/device-link provider.
-///
-/// No `[pat]` section is written — the session flow stores no long-lived
-/// secret; the proxy mints short-lived JWTs from the cached device-link
-/// credential.
+/// Writes no `[pat]` section — the session flow stores no long-lived secret;
+/// the proxy mints short-lived JWTs from the cached device-link credential.
 pub fn session_setup(gateway_url: Option<&str>) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     ensure_dir(&paths.config_dir)?;
@@ -294,6 +291,13 @@ fn remove_if_exists(path: &Path) -> Result<(), SetupError> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(SetupError::Io(format!("remove {}: {e}", path.display()))),
     }
+}
+
+fn remove_managed_mcp_fragment() -> Result<(), SetupError> {
+    let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
+        return Ok(());
+    };
+    remove_if_exists(&meta_dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT))
 }
 
 fn strip_pat_section(input: &str) -> String {

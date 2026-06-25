@@ -3,6 +3,7 @@ use std::path::PathBuf;
 pub const VERSION_SENTINEL: &str = "version.json";
 pub const LAST_SYNC_SENTINEL: &str = "last-sync.json";
 pub const USER_FRAGMENT: &str = "user.json";
+pub const MCP_SERVERS_FRAGMENT: &str = "mcp-servers.json";
 
 pub const SYNTHETIC_PLUGIN_NAME: &str = "systemprompt-managed";
 

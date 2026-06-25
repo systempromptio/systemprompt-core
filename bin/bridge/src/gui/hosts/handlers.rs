@@ -119,6 +119,7 @@ const fn profile_state_kind(s: &ProfileState) -> &'static str {
         ProfileState::Installed => "installed",
         ProfileState::Partial { .. } => "partial",
         ProfileState::Absent => "absent",
+        ProfileState::Stale => "stale",
     }
 }
 
@@ -130,6 +131,7 @@ fn describe_snapshot(snap: &HostAppSnapshot) -> String {
             format!("profile partial (missing: {})", missing_required.join(", "))
         },
         ProfileState::Absent => "profile not installed".to_owned(),
+        ProfileState::Stale => "profile secret out of date (re-apply required)".to_owned(),
     };
     let process = if snap.host_running {
         "process running"
@@ -188,7 +190,7 @@ pub(crate) fn on_profile_generate_requested(app: &GuiApp, host_id: &str, reply_t
     };
     app.append_log(format!("Generating profile for {}…", host.display_name()));
     let host_id_owned = host_id.to_owned();
-    let overrides = app.state.snapshot().host_model_protocols.clone();
+    let overrides = app.state.snapshot().host_model_protocols;
     let proxy = app.proxy.clone();
     app.runtime.spawn(async move {
         let result = generate_profile_for(host, &overrides)
@@ -397,7 +399,7 @@ async fn push_model_filter(host_id: &str, protocols: Option<&[String]>) -> GuiRe
 }
 
 pub(crate) fn on_model_filter_set_finished(
-    app: &mut GuiApp,
+    app: &GuiApp,
     host_id: &str,
     result: Result<(), Arc<GuiError>>,
     reply_to: ReplyId,

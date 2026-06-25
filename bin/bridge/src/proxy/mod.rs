@@ -81,6 +81,7 @@ pub fn start_default() -> Option<&'static ProxyHandle> {
     if let Some(h) = HANDLE.get() {
         return Some(h);
     }
+    crate::mcp_registry::rehydrate_from_disk();
     let rt = match runtime() {
         Ok(rt) => rt,
         Err(e) => {

@@ -10,12 +10,12 @@ use systemprompt_identifiers::ValidatedUrl;
 use crate::gateway::manifest::ManagedMcpServer;
 
 #[derive(Clone, Debug)]
-pub(crate) struct McpUpstream {
+pub struct McpUpstream {
     pub url: ValidatedUrl,
     pub headers: BTreeMap<String, String>,
 }
 
-pub(crate) type McpRegistry = HashMap<String, McpUpstream>;
+pub type McpRegistry = HashMap<String, McpUpstream>;
 
 static REGISTRY: OnceLock<ArcSwap<McpRegistry>> = OnceLock::new();
 
@@ -43,8 +43,31 @@ pub(crate) fn publish(servers: &[ManagedMcpServer]) {
 }
 
 #[must_use]
-pub(crate) fn snapshot() -> Arc<McpRegistry> {
+pub fn snapshot() -> Arc<McpRegistry> {
     slot().load_full()
+}
+
+/// Lets the proxy serve `/mcp/<name>` at boot without waiting for a
+/// credentialed sync.
+pub fn rehydrate_from_disk() {
+    let Some(meta_dir) = crate::config::paths::bridge_metadata_dir() else {
+        return;
+    };
+    let path = meta_dir.join(crate::config::paths::MCP_SERVERS_FRAGMENT);
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
+        Err(e) => {
+            tracing::debug!(target: "bridge::proxy", error = %e, path = %path.display(), "mcp registry: read fragment failed");
+            return;
+        },
+    };
+    match serde_json::from_slice::<Vec<ManagedMcpServer>>(&bytes) {
+        Ok(servers) => publish(&servers),
+        Err(e) => {
+            tracing::debug!(target: "bridge::proxy", error = %e, path = %path.display(), "mcp registry: parse fragment failed");
+        },
+    }
 }
 
 // Must be deterministic: synthetic-plugin writer and proxy router share this

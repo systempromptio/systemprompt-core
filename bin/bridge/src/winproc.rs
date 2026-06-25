@@ -46,6 +46,8 @@ struct OwnedHandle(HANDLE);
 impl Drop for OwnedHandle {
     fn drop(&mut self) {
         if !self.0.is_null() {
+            // SAFETY: `self.0` is a non-null handle this `OwnedHandle` exclusively owns and
+            // closes exactly once.
             unsafe { CloseHandle(self.0) };
         }
     }
@@ -53,6 +55,9 @@ impl Drop for OwnedHandle {
 
 unsafe fn open_current_process_token() -> Option<OwnedHandle> {
     let mut token: HANDLE = std::ptr::null_mut();
+    // SAFETY: `GetCurrentProcess` is the always-valid current-process
+    // pseudo-handle; `token` points to a live local that receives the opened
+    // handle on success.
     let ok = unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token) };
     if ok == 0 {
         return None;
@@ -63,6 +68,8 @@ unsafe fn open_current_process_token() -> Option<OwnedHandle> {
 unsafe fn token_is_elevated(token: &OwnedHandle) -> bool {
     let mut elevation = MaybeUninit::<TOKEN_ELEVATION>::zeroed();
     let mut ret_len: u32 = 0;
+    // SAFETY: `token.0` is a live `TOKEN_QUERY` handle; the output buffer is a
+    // zeroed `TOKEN_ELEVATION` and the byte length passed matches its size.
     let ok = unsafe {
         GetTokenInformation(
             token.0,
@@ -72,20 +79,29 @@ unsafe fn token_is_elevated(token: &OwnedHandle) -> bool {
             &raw mut ret_len,
         )
     };
+    // SAFETY: reached only when `GetTokenInformation` succeeded, so `elevation` is
+    // initialized.
     ok != 0 && unsafe { elevation.assume_init() }.TokenIsElevated != 0
 }
 
 pub(crate) fn is_elevated() -> bool {
+    // SAFETY: `open_current_process_token` has no preconditions beyond running on
+    // Windows.
     unsafe { open_current_process_token() }
         .as_ref()
+        // SAFETY: `t` is a live process-token handle yielded by `open_current_process_token`.
         .is_some_and(|t| unsafe { token_is_elevated(t) })
 }
 
 pub(crate) fn attach_parent_console_if_present() {
+    // SAFETY: `AttachConsole` is sound to call with `ATTACH_PARENT_PROCESS`; a
+    // missing parent console is reported as failure, not undefined behaviour.
     unsafe { AttachConsole(ATTACH_PARENT_PROCESS) };
 }
 
 pub(crate) fn detach_console() {
+    // SAFETY: `FreeConsole` takes no arguments and is sound to call
+    // unconditionally.
     unsafe { FreeConsole() };
 }
 
@@ -149,6 +165,9 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
     let file = to_wide(&exe.to_string_lossy());
     let params_w = to_wide(&params);
 
+    // SAFETY: `SHELLEXECUTEINFOW` is a plain-old-data struct for which all-zero is
+    // a valid starting state; every consulted field is set before the call
+    // below.
     let mut info: SHELLEXECUTEINFOW = unsafe { std::mem::zeroed() };
     info.cbSize = u32::try_from(size_of::<SHELLEXECUTEINFOW>()).unwrap_or(0);
     info.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -157,8 +176,12 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
     info.lpParameters = params_w.as_ptr();
     info.nShow = SW_HIDE;
 
+    // SAFETY: `info` is fully initialized with a correct `cbSize` and pointers
+    // (`verb`, `file`, `params_w`) that outlive this call.
     let launched = unsafe { ShellExecuteExW(&raw mut info) };
     if launched == 0 {
+        // SAFETY: `GetLastError` reads thread-local error state and has no
+        // preconditions.
         let code = unsafe { GetLastError() };
         if code == ERROR_CANCELLED {
             return ElevationOutcome::Declined;
@@ -171,11 +194,15 @@ pub(crate) fn run_elevated(exe: &Path, args: &[&str]) -> ElevationOutcome {
         return ElevationOutcome::Failed("elevated process handle was null".into());
     }
     let handle = OwnedHandle(info.hProcess);
+    // SAFETY: `handle.0` is the non-null process handle just returned by
+    // `ShellExecuteExW`.
     let wait = unsafe { WaitForSingleObject(handle.0, INFINITE) };
     if wait != WAIT_OBJECT_0 {
         return ElevationOutcome::Failed(format!("WaitForSingleObject returned {wait}"));
     }
     let mut exit_code: u32 = 0;
+    // SAFETY: `handle.0` is the live process handle; `exit_code` points to a live
+    // local.
     let got = unsafe { GetExitCodeProcess(handle.0, &raw mut exit_code) };
     if got == 0 {
         return ElevationOutcome::Failed("GetExitCodeProcess failed".into());

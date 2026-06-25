@@ -159,7 +159,7 @@ fn serve_custom_asset(request: &http::Request<Vec<u8>>) -> Response<Cow<'static,
     }
     let mut path = uri.path().to_owned();
     if path.is_empty() || path == "/" {
-        path = "/index.html".to_owned();
+        "/index.html".clone_into(&mut path);
     }
     assets::lookup_path(&path).map_or_else(not_found, asset_response)
 }

@@ -57,6 +57,7 @@ export class SpHostCard extends SpElement {
     const missing = profileState.missing_required || [];
     const installed = profileState.kind === "installed";
     const partial = profileState.kind === "partial";
+    const stale = profileState.kind === "stale";
     const proxyState = ((snap.local_proxy && snap.local_proxy.state) || "Unknown").toString();
     const probing = !!host.probe_in_flight;
     const appInstalled = !!(hs && hs.app_installed);
@@ -64,15 +65,18 @@ export class SpHostCard extends SpElement {
     const compatibleModels = Array.isArray(host.compatible_models) ? host.compatible_models : [];
     const unconfigured = Array.isArray(host.unconfigured_providers) ? host.unconfigured_providers : [];
     const modelsBlocked = modelsChecked && !host.compatible_models_available;
-    const badge = hs
-      ? chooseBadge(appInstalled, installed, partial, proxyState, modelsBlocked)
-      : { text: "probing…", cls: "sp-badge--muted" };
+    const badge = !hs
+      ? { text: "probing…", cls: "sp-badge--muted" }
+      : stale
+        ? { text: t("host-badge-stale") || "secret out of date", cls: "sp-badge--warn" }
+        : chooseBadge(appInstalled, installed, partial, proxyState, modelsBlocked);
     const spinnerMarkup = probing && hs ? `<span class="sp-spinner" aria-hidden="true"></span>` : "";
 
     let profileDot = "sp-dot--err";
     let profileText = t("host-profile-not-installed") || "not installed";
     if (installed) { profileDot = "sp-dot--ok"; profileText = t("host-profile-installed") || "installed"; }
     else if (partial) { profileDot = "sp-dot--warn"; profileText = t("host-profile-partial", { missing: missing.join(", ") }) || `partial (${missing.join(", ")})`; }
+    else if (stale) { profileDot = "sp-dot--warn"; profileText = t("host-profile-stale") || "secret out of date — re-apply profile"; }
 
     const profileSource = (hs && hs.profile_source) || "—";
     const appDot = appInstalled ? "sp-dot--ok" : "sp-dot--err";
@@ -103,6 +107,11 @@ export class SpHostCard extends SpElement {
           : (t("host-models-none") || "No compatible model is available for this host"))
       : "";
     const modelBlock = modelWarnText ? `<div class="sp-claude__warn">${escapeHtml(modelWarnText)}</div>` : "";
+
+    const staleWarnText = stale
+      ? (t("host-stale-warn") || "This profile's loopback secret is out of date. Re-apply it (Generate, then Install), then restart the client — restarting the client alone will not fix it.")
+      : "";
+    const staleBlock = staleWarnText ? `<div class="sp-claude__warn">${escapeHtml(staleWarnText)}</div>` : "";
 
     const lastGen = host.last_generated_profile || null;
 
@@ -230,6 +239,7 @@ export class SpHostCard extends SpElement {
           <summary>Resolved profile keys</summary>
           <pre class="sp-log">${escapeHtml(prefsText)}</pre>
         </details>
+        ${staleBlock}
         ${modelBlock}
         ${jwtBlock}
       </article>

@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use super::shared::{
-    DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, redact_if_sensitive, unique_stem,
+    API_KEY_KEY, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids, redact_if_sensitive,
+    unique_stem,
 };
 use crate::install::xml::escape;
 use crate::integration::host_app::GeneratedProfile;
@@ -28,8 +29,12 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
         .unwrap_or(serde_json::Value::Null);
 
     for key in KEYS_OF_INTEREST {
-        if let Some(val) = read_key_value(&plist_json, domain, key) {
-            out.keys.insert((*key).to_owned(), val);
+        if let Some(raw) = read_key_raw(&plist_json, domain, key) {
+            if *key == API_KEY_KEY {
+                out.api_key_fp = Some(crate::proxy::secret::fingerprint(raw.trim()));
+            }
+            out.keys
+                .insert((*key).to_owned(), redact_if_sensitive(key, raw));
         }
     }
 
@@ -119,9 +124,9 @@ fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
     serde_json::from_slice(&output.stdout).ok()
 }
 
-fn read_key_value(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Option<String> {
+fn read_key_raw(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Option<String> {
     if let Some(val) = plist_json.get(key) {
-        return Some(format_plist_value(key, val));
+        return Some(format_plist_value(val));
     }
 
     let raw = crate::config::store::managed_policy_store()
@@ -132,11 +137,11 @@ fn read_key_value(plist_json: &serde_json::Value, _domain: &str, key: &str) -> O
     if trimmed.is_empty() {
         return None;
     }
-    Some(redact_if_sensitive(key, trimmed.to_owned()))
+    Some(trimmed.to_owned())
 }
 
-fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
-    let rendered = match value {
+fn format_plist_value(value: &serde_json::Value) -> String {
+    match value {
         serde_json::Value::String(s) => s.clone(),
         serde_json::Value::Array(items) => items
             .iter()
@@ -144,8 +149,7 @@ fn format_plist_value(key: &str, value: &serde_json::Value) -> String {
             .collect::<Vec<_>>()
             .join(", "),
         other => other.to_string(),
-    };
-    redact_if_sensitive(key, rendered)
+    }
 }
 
 fn render_profile(inputs: &ProfileGenInputs, payload_uuid: &str, profile_uuid: &str) -> String {

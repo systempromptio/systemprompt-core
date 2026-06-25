@@ -24,8 +24,6 @@
 
 use std::sync::OnceLock;
 
-/// Brand-specific assets embedded into the binary. A downstream crate supplies
-/// these via `include_str!` / `include_bytes!` against its own asset directory.
 #[derive(Debug, Clone, Copy)]
 pub struct BrandAssets {
     pub icon_svg: &'static str,
@@ -38,8 +36,6 @@ pub struct BrandAssets {
     pub theme_css: &'static str,
 }
 
-/// A complete brand definition. `'static` so it can live in a `const` and be
-/// referenced for the lifetime of the process.
 #[derive(Debug, Clone, Copy)]
 pub struct Brand {
     pub app_name: &'static str,
@@ -63,28 +59,19 @@ pub struct Brand {
     pub tray_tooltip: &'static str,
     pub window_title: &'static str,
     pub app_menu_name: &'static str,
-    /// Label for the primary one-click sign-in button on the setup splash. The
-    /// button drives the browser-based device-link/session flow against the
-    /// gateway, so this names *how* the gateway authenticates the user (e.g.
-    /// "Sign in with Salesforce" for a Salesforce-federated gateway). Keep it a
-    /// full button label, not just the identity-provider name.
+    /// A full button label, not just the identity-provider name (e.g. "Sign in
+    /// with Salesforce" for a Salesforce-federated gateway).
     pub sign_in_label: &'static str,
-    /// One-line explanation shown under the sign-in button describing the model
-    /// (you sign in on the gateway; this device is linked automatically).
     pub sign_in_hint: &'static str,
     pub assets: BrandAssets,
 }
 
 impl Brand {
-    /// Build a full environment-variable name from this brand's prefix, e.g.
-    /// `brand.env("GATEWAY_URL")` → `"SP_BRIDGE_GATEWAY_URL"`.
     #[must_use]
     pub fn env(&self, suffix: &str) -> String {
         format!("{}_{suffix}", self.env_prefix)
     }
 
-    /// The built-in systemprompt brand. The default binary uses this; it is
-    /// also the fallback returned by [`brand()`] before a brand is installed.
     pub const SYSTEMPROMPT: Self = Self {
         app_name: "Systemprompt Bridge",
         binary_name: "systemprompt-bridge",
@@ -115,13 +102,11 @@ impl Brand {
 
 static BRAND: OnceLock<&'static Brand> = OnceLock::new();
 
-/// Install the process-wide brand. Idempotent best-effort: the first writer
-/// wins and later calls are ignored (returns whether this call set it).
+/// First writer wins; returns whether this call installed the brand.
 pub fn set_brand(brand: &'static Brand) -> bool {
     BRAND.set(brand).is_ok()
 }
 
-/// The active brand, or [`Brand::SYSTEMPROMPT`] if none was installed.
 #[must_use]
 pub fn brand() -> &'static Brand {
     BRAND.get().copied().unwrap_or(&Brand::SYSTEMPROMPT)

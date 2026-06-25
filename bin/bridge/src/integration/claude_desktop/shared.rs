@@ -10,10 +10,13 @@ use crate::integration::host_app::HostConfigSchema;
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(super) const API_KEY_KEY: &str = "inferenceGatewayApiKey";
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
-    "inferenceGatewayApiKey",
+    API_KEY_KEY,
     "inferenceGatewayAuthScheme",
     "inferenceCustomHeaders",
     "inferenceModels",
@@ -23,7 +26,7 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
 pub(super) const REQUIRED_KEYS: &[&str] = &[
     "inferenceProvider",
     "inferenceGatewayBaseUrl",
-    "inferenceGatewayApiKey",
+    API_KEY_KEY,
     "inferenceModels",
 ];
 
@@ -40,6 +43,16 @@ const DEFAULT_MODELS: &[&str] = &["claude-opus-4-7", "claude-sonnet-4-6", "claud
 pub(super) struct DomainRead {
     pub source_path: Option<String>,
     pub keys: BTreeMap<String, String>,
+    pub api_key_fp: Option<String>,
+}
+
+/// `None` when there is no baked key or the proxy has not started — the caller
+/// must treat that as "cannot assert staleness", never as stale.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(super) fn secret_freshness(installed_api_key_fp: Option<&str>) -> Option<bool> {
+    let installed = installed_api_key_fp?;
+    let live = crate::proxy::secret::for_profile().ok()?;
+    Some(installed == crate::proxy::secret::fingerprint(live.as_str()))
 }
 
 pub use crate::integration::host_app::ProfileGenInputs;
@@ -72,7 +85,7 @@ pub(super) fn unique_stem() -> String {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) fn redact_if_sensitive(key: &str, raw: String) -> String {
-    if key == "inferenceGatewayApiKey" {
+    if key == API_KEY_KEY {
         return format!(
             "<present, {} chars>",
             raw.chars().filter(|c| !c.is_whitespace()).count()

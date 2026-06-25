@@ -44,7 +44,8 @@ impl HostApp for ClaudeDesktopHost {
 
     fn probe(&self) -> HostAppSnapshot {
         let read = os::read_domain(shared::DESKTOP_DOMAIN);
-        let profile_state = ProfileState::from_keys(shared::REQUIRED_KEYS, &read.keys);
+        let secret_fresh = shared::secret_freshness(read.api_key_fp.as_deref());
+        let profile_state = ProfileState::classify(shared::REQUIRED_KEYS, &read.keys, secret_fresh);
         let processes = os::list_claude_processes();
         HostAppSnapshot {
             host_id: self.id(),

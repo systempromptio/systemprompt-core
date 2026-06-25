@@ -7,7 +7,7 @@ use crate::proxy::forward::ProxyBody;
 use crate::proxy::secret;
 use crate::proxy::server::ProxyContext;
 
-use super::{sha256_8, simple_response};
+use super::simple_response;
 
 pub(super) struct RequestLog<'a> {
     pub req_id: &'a str,
@@ -65,27 +65,41 @@ pub(super) fn verify_loopback_secret(
     if !presented.is_empty() && secret::verify(&presented, ctx.secret.as_ref()) {
         return None;
     }
-    let presented_fp = sha256_8(&presented);
-    let expected_fp = sha256_8(ctx.secret.as_ref().as_str());
+    let presented_fp = secret::fingerprint(&presented);
+    let expected_fp = secret::fingerprint(ctx.secret.as_ref().as_str());
     let secret_path = secret::secret_path()
         .map_or_else(|| "<no config dir>".to_owned(), |p| p.display().to_string());
-    tracing::warn!(
-        target: "systemprompt_bridge::proxy",
-        req_id = %req_id,
-        peer = %peer,
-        method = %method,
-        path = %path,
-        ua = %user_agent,
-        presented_len = presented.len(),
-        presented_fp = %presented_fp,
-        expected_fp = %expected_fp,
-        secret_path = %secret_path,
-        "reject: bad loopback secret — restart Claude Desktop to pick up the current secret"
-    );
-    crate::activity::activity_log().append(format!(
-        "proxy: {method} {path} → 403 (bad secret; presented_fp={presented_fp} \
-         expected_fp={expected_fp}; secret_path={secret_path}; restart Claude Desktop) [{req_id}]"
-    ));
+    if presented.is_empty() {
+        tracing::debug!(
+            target: "systemprompt_bridge::proxy",
+            req_id = %req_id,
+            peer = %peer,
+            method = %method,
+            path = %path,
+            ua = %user_agent,
+            "reject: missing loopback bearer (unauthenticated caller)"
+        );
+    } else {
+        let remediation = secret::reapply_hint();
+        tracing::warn!(
+            target: "systemprompt_bridge::proxy",
+            req_id = %req_id,
+            peer = %peer,
+            method = %method,
+            path = %path,
+            ua = %user_agent,
+            presented_len = presented.len(),
+            presented_fp = %presented_fp,
+            expected_fp = %expected_fp,
+            secret_path = %secret_path,
+            remediation = %remediation,
+            "reject: stale loopback secret"
+        );
+        crate::activity::activity_log().append(format!(
+            "proxy: {method} {path} → 403 (stale secret; presented_fp={presented_fp} \
+             expected_fp={expected_fp}; secret_path={secret_path}; {remediation}) [{req_id}]"
+        ));
+    }
     Some(simple_response(
         StatusCode::FORBIDDEN,
         "forbidden: bad loopback secret\n",

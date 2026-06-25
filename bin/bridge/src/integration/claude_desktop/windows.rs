@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use super::shared::{
-    DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids,
+    API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, make_uuids,
     redact_if_sensitive, unique_stem,
 };
 use crate::config::store::managed_policy_store;
@@ -25,6 +25,9 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
     }
     out.source_path = read.source;
     for (name, value) in read.values {
+        if name == API_KEY_KEY {
+            out.api_key_fp = Some(crate::proxy::secret::fingerprint(value.trim()));
+        }
         out.keys
             .insert(name.clone(), redact_if_sensitive(&name, value));
     }

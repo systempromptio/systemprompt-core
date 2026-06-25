@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use serde_json::json;
@@ -116,9 +116,7 @@ fn add_file(
     opts: SimpleFileOptions,
 ) -> io::Result<()> {
     zip.start_file(name, opts)?;
-    let mut f = fs::File::open(path)?;
-    let mut buf = Vec::with_capacity(8 * 1024);
-    f.read_to_end(&mut buf)?;
+    let buf = fs::read(path)?;
     zip.write_all(&buf)?;
     Ok(())
 }

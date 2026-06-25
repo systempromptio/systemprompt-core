@@ -49,12 +49,16 @@ impl ConfigStore for MacOsManagedPrefsStore {
 
 fn synchronize_domain() {
     let domain = CFString::new(POLICY_DOMAIN);
+    // SAFETY: `domain` is a live `CFString` whose ref is valid for the call's
+    // duration.
     unsafe { CFPreferencesAppSynchronize(domain.as_concrete_TypeRef()) };
 }
 
 fn copy_app_string(key: &str) -> Option<String> {
     let key_cf = CFString::new(key);
     let domain_cf = CFString::new(POLICY_DOMAIN);
+    // SAFETY: `key_cf` and `domain_cf` are live `CFString`s; the returned ref
+    // follows the Copy rule and is released or wrapped below.
     let raw: CFPropertyListRef = unsafe {
         CFPreferencesCopyAppValue(
             key_cf.as_concrete_TypeRef(),
@@ -64,16 +68,23 @@ fn copy_app_string(key: &str) -> Option<String> {
     if raw.is_null() {
         return None;
     }
+    // SAFETY: `raw` is non-null and a valid CoreFoundation type ref.
     let type_id = unsafe { CFGetTypeID(raw as CFTypeRef) };
+    // SAFETY: `CFStringGetTypeID` is a pure accessor with no preconditions.
     if type_id != unsafe { CFStringGetTypeID() } {
+        // SAFETY: `raw` is a non-null Copy-rule ref this branch owns and must release.
         unsafe { release_unknown(raw) };
         return None;
     }
+    // SAFETY: `raw` is confirmed to be a `CFStringRef` obtained under the Copy
+    // rule, so ownership transfers to the wrapper.
     let cf_string: CFString = unsafe { TCFType::wrap_under_create_rule(raw as CFStringRef) };
     Some(cf_string.to_string())
 }
 
 unsafe fn release_unknown(raw: CFPropertyListRef) {
     use core_foundation_sys::base::CFRelease;
+    // SAFETY: `raw` is a non-null Copy-rule ref the caller owns and releases
+    // exactly once.
     unsafe { CFRelease(raw as CFTypeRef) };
 }

@@ -43,12 +43,9 @@ pub(super) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyE
     Ok(read_optional_object(path)?.unwrap_or_default())
 }
 
-/// A mutable handle to `root[key]` coerced to a JSON object.
-///
-/// An absent or non-object value is replaced with an empty object first. The
-/// `None` arm is unreachable — the slot is normalised to an object immediately
-/// above — and callers treat it as "leave the file untouched" rather than
-/// panicking.
+/// An absent or non-object value at `key` is normalised to an empty object, so
+/// the `None` arm is unreachable; callers treat `None` as "leave the file
+/// untouched" rather than panicking.
 pub fn object_entry<'a>(
     root: &'a mut Map<String, Value>,
     key: &'static str,

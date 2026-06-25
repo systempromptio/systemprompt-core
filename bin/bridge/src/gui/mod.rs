@@ -146,9 +146,9 @@ impl GuiApp {
 
     pub(crate) fn ensure_server(&mut self) -> Option<&Server> {
         if self.server.is_none() {
-            match Server::start(self.state.clone(), self.tx.clone()) {
+            match Server::start(Arc::clone(&self.state), self.tx.clone()) {
                 Ok(s) => {
-                    s.log().append(format!("settings ui served at {}", s.url()));
+                    Server::log().append(format!("settings ui served at {}", s.url()));
                     self.server = Some(s);
                 },
                 Err(e) => {

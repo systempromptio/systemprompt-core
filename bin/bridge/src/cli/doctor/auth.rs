@@ -150,13 +150,47 @@ pub fn check_loopback_secret() -> Check {
         Ok(None) => Check::warn(
             "loopback secret",
             format!(
-                "{} not present — proxy will mint it on first start; restart Claude Desktop \
-                 afterwards",
-                path.display()
+                "{} not present — proxy will mint it on first start; {}",
+                path.display(),
+                proxy_secret::reapply_hint()
             ),
         ),
         Err(e) => Check::fail("loopback secret", format!("{}: {e}", path.display())),
     }
+}
+
+/// A baked-vs-live loopback secret mismatch is the silent `403 bad loopback
+/// secret` failure mode this surfaces.
+#[must_use]
+pub fn check_host_profile_secrets() -> Option<Check> {
+    use crate::integration::ProfileState;
+
+    let mut stale: Vec<&'static str> = Vec::new();
+    let mut any_installed = false;
+    for host in crate::integration::host_apps() {
+        match host.probe().profile_state {
+            ProfileState::Stale => stale.push(host.display_name()),
+            ProfileState::Installed => any_installed = true,
+            ProfileState::Partial { .. } | ProfileState::Absent => {},
+        }
+    }
+    if !stale.is_empty() {
+        return Some(Check::fail(
+            "host profile secret",
+            format!(
+                "{} carries an out-of-date loopback secret (installed fingerprint ≠ live \
+                 secret); {}",
+                stale.join(", "),
+                proxy_secret::reapply_hint()
+            ),
+        ));
+    }
+    any_installed.then(|| {
+        Check::ok(
+            "host profile secret",
+            "installed host profiles match the live loopback secret",
+        )
+    })
 }
 
 pub fn check_pinned_pubkey() -> Check {

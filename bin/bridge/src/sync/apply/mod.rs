@@ -47,6 +47,7 @@ pub(crate) async fn apply_manifest(
     let mcp_servers = rewrite_loopback_urls(&manifest.managed_mcp_servers);
     let manifest_for_write = manifest_with_servers(manifest, mcp_servers.clone());
     write_user(&meta_dir, manifest.user.as_ref())?;
+    write_mcp_servers(&meta_dir, &mcp_servers)?;
 
     crate::mcp_registry::publish(&mcp_servers);
 
@@ -210,6 +211,18 @@ fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<(), ApplyError
         })?,
         None => b"null".to_vec(),
     };
+    fs::write(&path, bytes).map_err(|e| ApplyError::Io {
+        context: format!("write {}", path.display()),
+        source: e,
+    })
+}
+
+fn write_mcp_servers(meta_dir: &Path, servers: &[ManagedMcpServer]) -> Result<(), ApplyError> {
+    let path = meta_dir.join(paths::MCP_SERVERS_FRAGMENT);
+    let bytes = serde_json::to_vec_pretty(servers).map_err(|e| ApplyError::Serialize {
+        what: "managed MCP servers".into(),
+        source: e,
+    })?;
     fs::write(&path, bytes).map_err(|e| ApplyError::Io {
         context: format!("write {}", path.display()),
         source: e,

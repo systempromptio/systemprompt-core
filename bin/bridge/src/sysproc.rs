@@ -39,13 +39,19 @@ mod windows {
     };
 
     pub(super) fn list() -> Vec<ProcInfo> {
+        // SAFETY: `CreateToolhelp32Snapshot` has no preconditions and reports failure
+        // as an invalid handle, checked immediately below.
         let snap = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) };
         if snap == INVALID_HANDLE_VALUE || snap.is_null() {
             return Vec::new();
         }
         let mut out = Vec::new();
+        // SAFETY: `PROCESSENTRY32W` is plain-old-data for which all-zero is valid
+        // before `dwSize` is set.
         let mut entry = unsafe { std::mem::zeroed::<PROCESSENTRY32W>() };
         entry.dwSize = u32::try_from(size_of::<PROCESSENTRY32W>()).unwrap_or(0);
+        // SAFETY: `snap` is a live snapshot handle and `entry` is initialized with
+        // `dwSize`.
         if unsafe { Process32FirstW(snap, &raw mut entry) } != 0 {
             loop {
                 let exe_field = &entry.szExeFile;
@@ -55,11 +61,13 @@ mod windows {
                     .unwrap_or(exe_field.len());
                 let name = String::from_utf16_lossy(&exe_field[..len]);
                 out.push(ProcInfo { name, path: None });
+                // SAFETY: `snap` remains valid and `entry` stays initialized across iterations.
                 if unsafe { Process32NextW(snap, &raw mut entry) } == 0 {
                     break;
                 }
             }
         }
+        // SAFETY: `snap` is the live snapshot handle owned by this function.
         unsafe { CloseHandle(snap) };
         out
     }
@@ -90,6 +98,8 @@ mod macos {
     }
 
     pub(super) fn list() -> Vec<ProcInfo> {
+        // SAFETY: a null buffer with zero length is the documented way to query the
+        // required size; the call only reads `type`/`typeinfo` scalars.
         let needed = unsafe { proc_listpids(PROC_ALL_PIDS, 0, std::ptr::null_mut(), 0) };
         if needed <= 0 {
             return Vec::new();
@@ -97,6 +107,8 @@ mod macos {
         let count = (needed as usize) / std::mem::size_of::<libc::pid_t>();
         let mut pids = vec![0_i32; count + 32];
         let bytes = i32::try_from(pids.len() * std::mem::size_of::<libc::pid_t>()).unwrap_or(0);
+        // SAFETY: `pids` is a live buffer of `bytes` length that the call fills with
+        // pids.
         let written = unsafe {
             proc_listpids(
                 PROC_ALL_PIDS,
@@ -115,6 +127,8 @@ mod macos {
             if pid <= 0 {
                 continue;
             }
+            // SAFETY: `buf` is a live buffer of `PATH_MAX_BYTES` length for the path
+            // output.
             let len = unsafe {
                 proc_pidpath(
                     pid,

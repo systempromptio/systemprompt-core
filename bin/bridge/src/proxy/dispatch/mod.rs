@@ -249,15 +249,6 @@ fn mint_req_id() -> String {
     )
 }
 
-pub(crate) fn sha256_8(s: &str) -> String {
-    use sha2::{Digest, Sha256};
-    if s.is_empty() {
-        return "<empty>".to_owned();
-    }
-    let d = Sha256::digest(s.as_bytes());
-    format!("{:08x}", u32::from_be_bytes([d[0], d[1], d[2], d[3]]))
-}
-
 fn host_is_loopback(host: &str) -> bool {
     let host_only = host.split(':').next().unwrap_or("");
     matches!(host_only, "127.0.0.1" | "localhost" | "::1" | "[::1]")

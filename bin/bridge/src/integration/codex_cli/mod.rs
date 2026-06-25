@@ -30,7 +30,7 @@ impl HostApp for CodexCliHost {
 
     fn probe(&self) -> HostAppSnapshot {
         let read = probe::read_config();
-        let profile_state = ProfileState::from_keys(config::REQUIRED_KEYS, &read.keys);
+        let profile_state = ProfileState::classify(config::REQUIRED_KEYS, &read.keys, None);
         let processes = probe::list_codex_processes();
         HostAppSnapshot {
             host_id: self.id(),

@@ -78,6 +78,7 @@ struct OwnedKey(HKEY);
 impl Drop for OwnedKey {
     fn drop(&mut self) {
         if !self.0.is_null() {
+            // SAFETY: `self.0` is a non-null registry key this `OwnedKey` exclusively owns.
             unsafe { RegCloseKey(self.0) };
         }
     }
@@ -89,6 +90,8 @@ fn open_policy_key(hive: HKEY) -> Result<Option<OwnedKey>, ConfigStoreError> {
         .chain(std::iter::once(0))
         .collect();
     let mut handle: HKEY = std::ptr::null_mut();
+    // SAFETY: `hive` is a predefined HKEY, `subkey` is a NUL-terminated UTF-16
+    // buffer, and `handle` is a live out-param receiving the opened key.
     let status = unsafe {
         RegOpenKeyExW(
             hive,
@@ -113,6 +116,8 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
     let name_w: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let mut value_type: REG_VALUE_TYPE = 0;
     let mut byte_len: u32 = 0;
+    // SAFETY: `key` is a live open key, `name_w` is NUL-terminated, and the null
+    // data pointer requests only the size into the live `byte_len` out-param.
     let probe = unsafe {
         RegQueryValueExW(
             key,
@@ -140,6 +145,8 @@ fn read_string_value(key: HKEY, name: &str) -> Result<Option<String>, ConfigStor
     let wide_len = (byte_len as usize).div_ceil(2);
     let mut buffer: Vec<u16> = vec![0u16; wide_len];
     let mut final_len = byte_len;
+    // SAFETY: `key` is live, `name_w` is NUL-terminated, and `buffer` holds
+    // `byte_len` bytes matching `final_len`.
     let status = unsafe {
         RegQueryValueExW(
             key,
@@ -197,6 +204,9 @@ fn create_policy_key(hive: HKEY, hive_label: &str) -> Result<OwnedKey, ConfigSto
         .chain(std::iter::once(0))
         .collect();
     let mut handle: HKEY = std::ptr::null_mut();
+    // SAFETY: `hive` is a predefined HKEY, `subkey` is NUL-terminated, the null
+    // security and class pointers request defaults, and `handle` is a live
+    // out-param.
     let status = unsafe {
         RegCreateKeyExW(
             hive,
@@ -238,9 +248,13 @@ fn set_string_value(
 ) -> Result<(), ConfigStoreError> {
     let name_w: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let data_w: Vec<u16> = value.encode_utf16().chain(std::iter::once(0)).collect();
-    let byte_len = u32::try_from(size_of_val(data_w.as_slice())).map_err(|_| {
-        ConfigStoreError::Backend(format!("value for {name} exceeds the registry size limit"))
+    let byte_len = u32::try_from(size_of_val(data_w.as_slice())).map_err(|e| {
+        ConfigStoreError::Backend(format!(
+            "value for {name} exceeds the registry size limit: {e}"
+        ))
     })?;
+    // SAFETY: `key` is a live open key, `name_w` is NUL-terminated, and `data_w`
+    // holds `byte_len` bytes of REG_SZ payload.
     let status = unsafe {
         RegSetValueExW(
             key,

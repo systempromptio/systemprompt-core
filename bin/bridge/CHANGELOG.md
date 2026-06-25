@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0] - 2026-06-25
+
+### Added
+
+- One-click browser sign-in on the setup splash: the bridge opens the gateway's device-link consent page and completes authentication without a manual code paste.
+- Durable bridge sessions: the one-time exchange code is swapped for a long-lived personal access token, so the bridge survives restarts without re-running device link.
+- `doctor` reports hosts whose installed loopback secret is out of date (installed fingerprint no longer matches the live proxy secret) and prints the re-apply remediation.
+- The MCP registry rehydrates from its on-disk snapshot at startup, so the proxy can serve `/mcp/<name>` immediately after launch instead of waiting for the first credentialed sync.
+
+### Changed
+
+- Sensitive values read from host configurations (gateway API keys, loopback secrets) are redacted to a short fingerprint before they reach diagnostics, logs, or the GUI; raw secrets are never surfaced.
+- Loopback-secret rejection is split by cause: an unauthenticated caller (no bearer) logs at `debug`, while a stale-secret mismatch logs at `warn` with a remediation hint and an activity-log line. The forbidden response no longer implies the caller is malicious.
+
 ## [0.14.0] - 2026-06-22
 
 ### Added
