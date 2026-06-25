@@ -4,9 +4,38 @@ use std::collections::HashMap;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_models::profile::{
     ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
-    OverrideRuleAction, ProviderEntry, ProviderModel, ProviderRegistry, SystemPromptRule,
-    WireProtocol, default_resource_audiences, slugify_pattern, synthesize_route_id,
+    OverrideRuleAction, ProviderEntry, ProviderModel, ProviderRegistry, ResponseFormatKind,
+    RouteMatch, SystemPromptRule, WireProtocol, default_resource_audiences, slugify_pattern,
+    synthesize_route_id,
 };
+use systemprompt_models::wire::canonical::{
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
+    ResponseFormat, Role, ThinkingConfig,
+};
+
+fn req(model: &str) -> CanonicalRequest {
+    CanonicalRequest {
+        model: model.to_owned(),
+        system: None,
+        messages: Vec::new(),
+        max_tokens: 0,
+        temperature: None,
+        top_p: None,
+        top_k: None,
+        stop_sequences: Vec::new(),
+        tools: Vec::new(),
+        tool_choice: None,
+        stream: false,
+        thinking: None,
+        metadata: None,
+        response_format: None,
+        reasoning_effort: None,
+        search: None,
+        code_execution: false,
+        presence_penalty: None,
+        frequency_penalty: None,
+    }
+}
 
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
@@ -16,6 +45,7 @@ fn route(pattern: &str) -> GatewayRoute {
         upstream_model: None,
         extra_headers: HashMap::new(),
         pricing: None,
+        when: None,
     }
 }
 
@@ -47,6 +77,7 @@ fn route_finds_matching_model() {
             upstream_model: Some("moonshot-v1-32k".to_owned()),
             extra_headers: HashMap::new(),
             pricing: None,
+            when: None,
         }],
         ..GatewayConfig::default()
     };
@@ -274,6 +305,7 @@ fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
         upstream_model: None,
         extra_headers: HashMap::new(),
         pricing: None,
+        when: None,
     };
     r.ensure_id();
     r
@@ -284,7 +316,7 @@ fn resolve_route_prefers_explicit_match_over_default() {
     let config = two_provider_config(Some("gemini"));
     let registry = two_provider_registry();
     let resolved = config
-        .resolve_route(&registry, "claude-opus-4-7")
+        .resolve_route(&registry, &req("claude-opus-4-7"))
         .expect("explicit route must match");
     assert_eq!(resolved.provider.as_str(), "anthropic");
 }
@@ -294,7 +326,7 @@ fn resolve_route_falls_back_to_default_provider() {
     let config = two_provider_config(Some("gemini"));
     let registry = two_provider_registry();
     let resolved = config
-        .resolve_route(&registry, "some-unknown-model")
+        .resolve_route(&registry, &req("some-unknown-model"))
         .expect("default provider must absorb unmatched model");
     assert_eq!(resolved.provider.as_str(), "gemini");
     // The synthetic default route forwards the requested model verbatim;
@@ -312,7 +344,7 @@ fn resolve_route_is_none_without_default_or_match() {
     let registry = two_provider_registry();
     assert!(
         config
-            .resolve_route(&registry, "some-unknown-model")
+            .resolve_route(&registry, &req("some-unknown-model"))
             .is_none()
     );
 }
@@ -403,7 +435,7 @@ fn dispatchable_route_ids_cover_every_candidate_route() {
     }
 
     let resolved = config
-        .resolve_route(&registry, "some-unknown-model")
+        .resolve_route(&registry, &req("some-unknown-model"))
         .expect("default provider must absorb unmatched model");
     assert!(ids.contains(&route_id(resolved)));
 }
@@ -477,7 +509,7 @@ fn gpt_star_route_exposes_and_rewrites_codex_alias() {
         "a gpt-* route must expose Codex's gpt-5.4-mini alias"
     );
     let resolved = config
-        .resolve_route(&registry, "gpt-5.4-mini")
+        .resolve_route(&registry, &req("gpt-5.4-mini"))
         .expect("gpt-* route must resolve gpt-5.4-mini");
     assert_eq!(resolved.provider.as_str(), "openai");
     assert_eq!(
@@ -570,4 +602,212 @@ fn validate_rejects_override_unknown_provider() {
         config.validate(&two_provider_registry()),
         Err(GatewayProfileError::OverrideProviderNotInRegistry { provider }) if provider == "ghost"
     ));
+}
+
+fn route_when(pattern: &str, provider: &str, when: RouteMatch) -> GatewayRoute {
+    let mut r = route_to(pattern, provider);
+    r.when = Some(when);
+    r
+}
+
+fn thinking_request(model: &str) -> CanonicalRequest {
+    let mut r = req(model);
+    r.thinking = Some(ThinkingConfig {
+        enabled: true,
+        budget_tokens: None,
+    });
+    r
+}
+
+#[test]
+fn route_without_when_resolves_on_model_only() {
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![route_to("claude-*", "anthropic")],
+        ..GatewayConfig::default()
+    };
+    let registry = two_provider_registry();
+    let plain = config
+        .resolve_route(&registry, &req("claude-sonnet-4-20250514"))
+        .expect("model-only route must match plain request");
+    let thinking = config
+        .resolve_route(&registry, &thinking_request("claude-sonnet-4-20250514"))
+        .expect("model-only route must match thinking request");
+    assert_eq!(plain.provider.as_str(), "anthropic");
+    assert_eq!(
+        thinking.provider.as_str(),
+        "anthropic",
+        "a when-less route must ignore request shape (behaviour unchanged)"
+    );
+}
+
+#[test]
+fn when_thinking_splits_traffic_with_catch_all_fallback() {
+    let config = GatewayConfig {
+        enabled: true,
+        routes: vec![
+            route_when(
+                "claude-*",
+                "anthropic",
+                RouteMatch {
+                    thinking: Some(true),
+                    ..RouteMatch::default()
+                },
+            ),
+            route_to("claude-*", "gemini"),
+        ],
+        ..GatewayConfig::default()
+    };
+    let registry = two_provider_registry();
+    let thinking = config
+        .resolve_route(&registry, &thinking_request("claude-sonnet-4-20250514"))
+        .expect("thinking request must match the first route");
+    let plain = config
+        .resolve_route(&registry, &req("claude-sonnet-4-20250514"))
+        .expect("non-thinking request must fall through to the catch-all");
+    assert_eq!(thinking.provider.as_str(), "anthropic");
+    assert_eq!(plain.provider.as_str(), "gemini");
+}
+
+#[test]
+fn route_match_predicates_evaluate_against_request() {
+    let mut effort = req("m");
+    effort.reasoning_effort = Some(ReasoningEffort::Medium);
+    let floor_high = RouteMatch {
+        min_reasoning_effort: Some(ReasoningEffort::High),
+        ..RouteMatch::default()
+    };
+    let floor_low = RouteMatch {
+        min_reasoning_effort: Some(ReasoningEffort::Low),
+        ..RouteMatch::default()
+    };
+    assert!(!floor_high.matches_request(&effort));
+    assert!(floor_low.matches_request(&effort));
+
+    let mut streamed = req("m");
+    streamed.stream = true;
+    assert!(
+        RouteMatch {
+            stream: Some(true),
+            ..RouteMatch::default()
+        }
+        .matches_request(&streamed)
+    );
+    assert!(
+        !RouteMatch {
+            stream: Some(false),
+            ..RouteMatch::default()
+        }
+        .matches_request(&streamed)
+    );
+
+    let mut tooled = req("m");
+    tooled.tools = vec![CanonicalTool {
+        name: "t".to_owned(),
+        description: None,
+        input_schema: serde_json::Value::Null,
+    }];
+    assert!(
+        RouteMatch {
+            requires_tools: Some(true),
+            min_tools: Some(1),
+            ..RouteMatch::default()
+        }
+        .matches_request(&tooled)
+    );
+    assert!(
+        !RouteMatch {
+            min_tools: Some(2),
+            ..RouteMatch::default()
+        }
+        .matches_request(&tooled)
+    );
+}
+
+#[test]
+fn route_match_min_input_tokens_uses_text_estimate() {
+    let mut r = req("m");
+    r.system = Some("a".repeat(40));
+    r.messages = vec![CanonicalMessage {
+        role: Role::User,
+        content: vec![CanonicalContent::Text("b".repeat(40))],
+    }];
+    // ~80 chars / 4 + 1 ≈ 21 estimated tokens.
+    assert!(
+        RouteMatch {
+            min_input_tokens: Some(20),
+            ..RouteMatch::default()
+        }
+        .matches_request(&r)
+    );
+    assert!(
+        !RouteMatch {
+            min_input_tokens: Some(100),
+            ..RouteMatch::default()
+        }
+        .matches_request(&r)
+    );
+}
+
+#[test]
+fn route_match_response_format_discriminates() {
+    let mut json = req("m");
+    json.response_format = Some(ResponseFormat::JsonObject);
+    assert!(
+        RouteMatch {
+            response_format: Some(ResponseFormatKind::JsonObject),
+            ..RouteMatch::default()
+        }
+        .matches_request(&json)
+    );
+    assert!(
+        RouteMatch {
+            response_format: Some(ResponseFormatKind::Text),
+            ..RouteMatch::default()
+        }
+        .matches_request(&req("m")),
+        "an absent wire response_format reads as Text"
+    );
+}
+
+#[test]
+fn when_block_rejects_unknown_fields() {
+    let yaml = "model_pattern: claude-*\nprovider: anthropic\nwhen:\n  bogus: true\n";
+    assert!(serde_yaml::from_str::<GatewayRoute>(yaml).is_err());
+}
+
+#[test]
+fn route_match_validate_rejects_nonsense() {
+    assert!(matches!(
+        RouteMatch {
+            min_tools: Some(0),
+            ..RouteMatch::default()
+        }
+        .validate(),
+        Err(GatewayProfileError::RouteMatchZeroMinTools)
+    ));
+    assert!(matches!(
+        RouteMatch {
+            requires_tools: Some(false),
+            min_tools: Some(3),
+            ..RouteMatch::default()
+        }
+        .validate(),
+        Err(GatewayProfileError::RouteMatchContradictoryTools)
+    ));
+    assert!(RouteMatch::default().validate().is_ok());
+}
+
+#[test]
+fn reasoning_effort_orders_and_round_trips_snake_case() {
+    assert!(ReasoningEffort::Low < ReasoningEffort::Medium);
+    assert!(ReasoningEffort::Medium < ReasoningEffort::High);
+    assert_eq!(
+        serde_json::to_string(&ReasoningEffort::High).expect("serialize"),
+        "\"high\""
+    );
+    assert_eq!(
+        serde_json::from_str::<ReasoningEffort>("\"low\"").expect("deserialize"),
+        ReasoningEffort::Low
+    );
 }

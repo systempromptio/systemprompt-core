@@ -14,6 +14,7 @@ fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> Gatewa
         upstream_model: None,
         extra_headers: Default::default(),
         pricing,
+        when: None,
     }
 }
 

@@ -28,7 +28,8 @@ pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
 pub use gateway::{
     GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult, GatewayRoute,
-    GatewayState, OverrideRuleAction, SystemPromptRule, slugify_pattern, synthesize_route_id,
+    GatewayState, OverrideRuleAction, ResponseFormatKind, RouteMatch, SystemPromptRule,
+    slugify_pattern, synthesize_route_id,
 };
 pub use governance::{
     AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,

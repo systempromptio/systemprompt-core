@@ -65,6 +65,7 @@ pub fn build_routes(secrets: &SecretsData) -> Vec<GatewayRoute> {
                 upstream_model: d.default_upstream.map(str::to_owned),
                 extra_headers: HashMap::new(),
                 pricing: None,
+                when: None,
             };
             route.ensure_id();
             route

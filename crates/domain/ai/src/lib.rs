@@ -61,9 +61,10 @@ pub use services::gateway::{
     GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicScanner,
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
     NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
-    OverrideError, OverrideResolution, OverrideSource, QuotaWindow, SafetyConfig, SafetyScanner,
-    SafetyScannerRegistration, Severity, SystemPromptOverride, SystemPromptOverrideRegistration,
-    load_from_yaml as load_gateway_policies_from_yaml,
+    OverrideError, OverrideResolution, OverrideSource, QuotaWindow, RouteSelector,
+    RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration, SafetyConfig,
+    SafetyScanner, SafetyScannerRegistration, Severity, SystemPromptOverride,
+    SystemPromptOverrideRegistration, load_from_yaml as load_gateway_policies_from_yaml,
 };
 pub use services::storage::{ImageStorage, StorageConfig};
 pub use services::tools::NoopToolProvider;

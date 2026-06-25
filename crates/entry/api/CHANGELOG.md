@@ -10,6 +10,7 @@
 ### Changed
 
 - The gateway captures cache-token usage (`cache_read_tokens`, `cache_creation_tokens`) from buffered and streaming provider responses and records it on the request's audit row, so cache hits and their token counts are now persisted alongside input/output totals.
+- Gateway route resolution evaluates a route's `when` request-shape predicates and any registered `RouteSelector`, and records how the route was chosen — the matched predicates and/or the selector that fired — in the new `ai_requests.route_match` audit column.
 
 ## [0.16.1] - 2026-06-22
 

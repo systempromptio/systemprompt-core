@@ -97,6 +97,16 @@ impl GatewayAudit {
         }
     }
 
+    pub async fn set_route_match(&self, descriptor: &str) {
+        if let Err(e) = self
+            .requests
+            .update_route_match(&self.ctx.ai_request_id, descriptor)
+            .await
+        {
+            tracing::warn!(error = %e, "update_route_match failed");
+        }
+    }
+
     pub async fn fail(&self, error: &str) -> Result<()> {
         if let Err(e) = self
             .requests

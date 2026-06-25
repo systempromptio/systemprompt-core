@@ -141,6 +141,7 @@ fn add_route(profile: &mut Profile, args: &RouteAddArgs) -> Result<String> {
         upstream_model: args.upstream_model.clone(),
         extra_headers: HashMap::new(),
         pricing: None,
+        when: None,
     };
     route.ensure_id();
     let spec = spec_mut(profile)?;

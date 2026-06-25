@@ -89,7 +89,7 @@ impl GatewayService {
         }
 
         let ai_request_id = ctx.ai_request_id.clone();
-        let upstream = resolve_upstream(config, registry, &request, &ai_request_id)?;
+        let upstream = resolve_upstream(config, registry, &request, &ai_request_id).await?;
 
         tracing::info!(
             ai_request_id = %ai_request_id,
@@ -112,6 +112,10 @@ impl GatewayService {
 
         if let Err(e) = audit.open(&request, &raw_body).await {
             tracing::error!(error = %e, "audit open failed — proceeding without audit row");
+        }
+
+        if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
+            audit.set_route_match(descriptor).await;
         }
 
         enforce_quota(db, &ctx.user_id, &policy.quota_windows, &audit).await?;

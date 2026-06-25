@@ -25,7 +25,12 @@ serde_yaml = { workspace = true }
 tempfile = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }
+inventory = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 wiremock = { workspace = true }
 futures = { workspace = true }
+
+[package.metadata.cargo-machete]
+# inventory: used via the register_route_selector! macro (::inventory::submit!)
+ignored = ["inventory"]

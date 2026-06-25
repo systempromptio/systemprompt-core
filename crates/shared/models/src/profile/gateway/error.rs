@@ -23,6 +23,12 @@ pub enum GatewayProfileError {
 
     #[error("system_prompt override provider '{provider}' is not declared in profile.providers")]
     OverrideProviderNotInRegistry { provider: String },
+
+    #[error("route `when.min_tools` must be at least 1 (0 matches every request)")]
+    RouteMatchZeroMinTools,
+
+    #[error("route `when` sets `requires_tools: false` but also a positive `min_tools`")]
+    RouteMatchContradictoryTools,
 }
 
 pub type GatewayResult<T> = Result<T, GatewayProfileError>;

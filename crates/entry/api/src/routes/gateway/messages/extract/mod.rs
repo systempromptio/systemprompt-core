@@ -88,7 +88,7 @@ pub(super) async fn extract_request_context(
         derive_conversation(header_gateway_conversation, &gateway_request, partial)?;
 
     let route = gateway_config
-        .resolve_route(&rc.profile.providers, &gateway_request.model)
+        .resolve_route(&rc.profile.providers, &gateway_request)
         .ok_or_else(|| {
             (
                 StatusCode::NOT_FOUND,

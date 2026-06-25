@@ -5,6 +5,7 @@
 ### Added
 
 - `SlackAppConfig` and `TeamsAppConfig` service-configuration blocks for the Slack and Teams messaging surfaces.
+- Gateway routes accept an optional `when` block (`RouteMatch`) of request-shape predicates — `requires_tools`, `min_tools`, `thinking`, `min_reasoning_effort`, `stream`, `min_input_tokens`, `response_format` — that narrow a route beyond its model glob. A route without a `when` block matches purely on model name, exactly as before. Contradictory predicate sets (a zero `min_tools`, or `requires_tools: false` with a positive `min_tools`) are rejected during profile validation.
 
 ## [0.16.1] - 2026-06-22
 

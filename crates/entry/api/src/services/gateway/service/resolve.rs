@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use systemprompt_ai::RouteSelectorEngine;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::profile::{GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry};
 
@@ -18,9 +19,13 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) provider: &'a ProviderEntry,
     pub(super) api_key: &'static str,
     pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
+    /// Audit descriptor of how this route was selected: the matched `when`
+    /// predicates and/or the re-routing selector. `None` for a plain
+    /// model-only match (the behaviour unchanged from before `when`).
+    pub(super) route_match_descriptor: Option<String>,
 }
 
-pub(super) fn resolve_upstream<'a>(
+pub(super) async fn resolve_upstream<'a>(
     config: &'a GatewayConfig,
     registry: &'a ProviderRegistry,
     request: &CanonicalRequest,
@@ -41,14 +46,35 @@ pub(super) fn resolve_upstream<'a>(
         ));
     }
 
-    let route = config
-        .resolve_route(registry, &request.model)
-        .ok_or_else(|| {
-            DispatchError::PreAudit(anyhow!(
-                "No gateway route matches model '{}'",
-                request.model
-            ))
-        })?;
+    let matched = config.resolve_route(registry, request).ok_or_else(|| {
+        DispatchError::PreAudit(anyhow!(
+            "No gateway route matches model '{}'",
+            request.model
+        ))
+    })?;
+
+    let declarative = matched.when.as_ref().and_then(|w| {
+        let predicates = w.matched_predicates();
+        (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
+    });
+
+    let engine = RouteSelectorEngine::global();
+    let (route, selector) = if engine.has_selectors() {
+        match engine.refine(matched.as_ref(), request).await {
+            Some((refined, name)) => (Cow::Owned(refined), Some(format!("selector:{name}"))),
+            None => (matched, None),
+        }
+    } else {
+        (matched, None)
+    };
+
+    let route_match_descriptor = (declarative.is_some() || selector.is_some()).then(|| {
+        [declarative, selector]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(";")
+    });
 
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::PreAudit(anyhow!(
@@ -84,5 +110,6 @@ pub(super) fn resolve_upstream<'a>(
         provider,
         api_key,
         adapter,
+        route_match_descriptor,
     })
 }

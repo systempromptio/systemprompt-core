@@ -2,13 +2,18 @@
 
 ## [0.17.0] - 2026-06-24
 
+### Added
+
+- `RouteSelector` gateway extension point: the `RouteSelector` trait, `RouteSelectorEngine`, and the `register_route_selector!` / `RouteSelectorRegistration` inventory type let an extension re-route a gateway request programmatically after model-glob and `when`-predicate matching, the same way safety scanners are registered.
+
 ### Changed
 
 - `update_completion` records cache accounting on the `ai_requests` row: `UpdateCompletionParams` gains `cache_hit`, `cache_read_tokens`, and `cache_creation_tokens`, which are persisted alongside the existing input/output/total token counts when a request completes.
+- `ai_requests` gains a `route_match` column (migration `008_route_match`) recording how a request's gateway route was selected — the matched `when` predicates and/or the selector that fired — and `NULL` for a plain model-only match.
 
 ### Fixed
 
-- Regenerated the SQLx offline query cache to match the expanded `update_completion` statement.
+- Regenerated the SQLx offline query cache to match the expanded `update_completion` statement and the `route_match` column.
 
 ## [0.16.0] - 2026-06-22
 

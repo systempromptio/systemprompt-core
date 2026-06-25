@@ -15,6 +15,7 @@ use super::super::providers::ProviderRegistry;
 use super::error::{GatewayProfileError, GatewayResult};
 use super::override_rule::SystemPromptRule;
 use super::route::GatewayRoute;
+use crate::wire::canonical::CanonicalRequest;
 
 pub(crate) const DEFAULT_ROUTE_PATTERN: &str = "*";
 
@@ -137,14 +138,17 @@ impl GatewayConfig {
             .chain(self.synthesize_default_route(registry).map(Cow::Owned))
     }
 
+    /// Selects the first candidate route whose model glob **and** request-shape
+    /// predicates match. A route without a `when` block matches on model name
+    /// alone, so omitting predicates preserves the prior model-only behaviour.
     #[must_use]
     pub fn resolve_route<'a>(
         &'a self,
         registry: &ProviderRegistry,
-        model: &str,
+        request: &CanonicalRequest,
     ) -> Option<Cow<'a, GatewayRoute>> {
         self.candidate_routes(registry)
-            .find(|route| route.matches(model))
+            .find(|route| route.matches_request(request))
     }
 
     #[must_use]
@@ -173,6 +177,7 @@ impl GatewayConfig {
             upstream_model: None,
             extra_headers: HashMap::new(),
             pricing: None,
+            when: None,
         };
         route.ensure_id();
         Some(route)
@@ -221,6 +226,9 @@ impl GatewayConfig {
                     route: route.model_pattern.clone(),
                     provider: route.provider.as_str().to_owned(),
                 });
+            }
+            if let Some(when) = route.when.as_ref() {
+                when.validate()?;
             }
         }
         for rule in &self.system_prompt_overrides {

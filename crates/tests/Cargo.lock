@@ -6638,6 +6638,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "futures",
+ "inventory",
  "rmcp",
  "serde_json",
  "serde_yaml_ng",

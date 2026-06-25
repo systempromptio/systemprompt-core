@@ -29,6 +29,7 @@ fn route(provider: &str) -> GatewayRoute {
         upstream_model: Some("upstream-1".into()),
         extra_headers: HashMap::new(),
         pricing: None,
+        when: None,
     }
 }
 

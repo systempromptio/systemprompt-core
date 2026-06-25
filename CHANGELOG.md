@@ -8,6 +8,7 @@
 - Microsoft Teams messaging surface (`systemprompt-teams`): verifies Bot Framework activities, maps Teams users to systemprompt identities, and replies with Adaptive Cards through the same governed dispatch path. Configured through `teams_apps` service blocks.
 - Typed Slack and Teams identifiers and a messaging identity-ingestion path in the authorization engine, so chat users are resolved to entities and authorized like any other actor.
 - Durable bridge authentication: a long-lived personal access token minted from the one-time bridge exchange code via the new `/v1/auth/bridge/session-pat` gateway route, plus device-PAT issuance. The bridge client and setup GUI consume the durable token.
+- Request-shape gateway routing: a route may carry an optional `when` block (`requires_tools`, `min_tools`, `thinking`, `min_reasoning_effort`, `stream`, `min_input_tokens`, `response_format`) that narrows it beyond the model glob, and extensions can register a `RouteSelector` to re-route programmatically. The chosen route's rationale (matched predicates and/or selector) is recorded in the new `ai_requests.route_match` audit column. Routes without a `when` block are unaffected.
 
 ### Changed
 
