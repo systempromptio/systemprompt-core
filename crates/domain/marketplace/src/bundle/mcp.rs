@@ -26,13 +26,16 @@ fn classify<'a>(
     enabled: &'a [ManagedMcpServer],
     disabled: &BTreeSet<String>,
 ) -> McpReference<'a> {
-    if let Some(server) = enabled.iter().find(|s| s.name.as_str() == name) {
-        McpReference::Enabled(server)
-    } else if disabled.contains(name) {
-        McpReference::Disabled
-    } else {
-        McpReference::Unknown
-    }
+    enabled.iter().find(|s| s.name.as_str() == name).map_or_else(
+        || {
+            if disabled.contains(name) {
+                McpReference::Disabled
+            } else {
+                McpReference::Unknown
+            }
+        },
+        McpReference::Enabled,
+    )
 }
 
 #[derive(Serialize)]
