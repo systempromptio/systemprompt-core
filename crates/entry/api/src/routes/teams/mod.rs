@@ -20,7 +20,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_identifiers::TeamsConversationId;
+use systemprompt_identifiers::{TeamsConversationId, TeamsTenantId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
@@ -57,7 +57,7 @@ async fn handle_messages(
         return StatusCode::OK.into_response();
     };
 
-    let Some(app) = resolve_app(normalized.tenant_id.as_str()) else {
+    let Some(app) = resolve_app(&normalized.tenant_id) else {
         return StatusCode::OK.into_response();
     };
 
@@ -150,12 +150,12 @@ fn non_empty(text: String) -> String {
     }
 }
 
-fn resolve_app(tenant_id: &str) -> Option<TeamsAppConfig> {
+fn resolve_app(tenant_id: &TeamsTenantId) -> Option<TeamsAppConfig> {
     let config = ConfigLoader::load().ok()?;
     config
         .teams_apps
         .into_values()
-        .find(|app| app.enabled && app.tenant_id.as_str() == tenant_id)
+        .find(|app| app.enabled && app.tenant_id == *tenant_id)
 }
 
 fn app_password(app: &TeamsAppConfig) -> Option<String> {
