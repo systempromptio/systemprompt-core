@@ -22,7 +22,7 @@
 //! tokens, download packaging) live with the *consumer*, never here. The
 //! assembler only emits the host-facing contract.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
@@ -51,6 +51,7 @@ pub struct BundleContent<'a> {
     pub skills: &'a [SkillEntry],
     pub agents: &'a [AgentEntry],
     pub mcp_servers: &'a [ManagedMcpServer],
+    pub disabled_mcp_servers: &'a BTreeSet<String>,
     pub plugins_root: &'a Path,
 }
 
@@ -67,7 +68,12 @@ pub fn build_plugin_bundle(
     let agent_ids = agents::resolve_agents(config, content.agents);
     skills::append_skill_files(config, content, &agent_ids, &mut bundle);
     agents::append_agent_files(content.agents, &agent_ids, &mut bundle);
-    mcp::append_mcp_file(config, content.mcp_servers, &mut bundle)?;
+    mcp::append_mcp_file(
+        config,
+        content.mcp_servers,
+        content.disabled_mcp_servers,
+        &mut bundle,
+    )?;
     append_script_files(config, content.plugins_root, &mut bundle)?;
 
     let version = content_version(&config.version, &bundle);

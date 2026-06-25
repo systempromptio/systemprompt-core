@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
@@ -13,6 +14,8 @@ use systemprompt_models::services::{
 };
 
 use crate::helpers::{config_with, include, marketplace};
+
+static NO_DISABLED: BTreeSet<String> = BTreeSet::new();
 
 fn zero_digest() -> Sha256Digest {
     Sha256Digest::try_new("0".repeat(64)).expect("zero digest is valid hex")
@@ -109,6 +112,7 @@ fn build_plugin_bundle_generates_manifest_and_layout() {
         skills: &skills,
         agents: &agents,
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let config = plugin_config(
@@ -145,6 +149,7 @@ fn build_plugin_bundle_instance_source_includes_all_minus_exclude() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config(
@@ -166,6 +171,7 @@ fn build_plugin_bundle_is_deterministic() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -184,6 +190,7 @@ fn load_plugins_builds_entry_from_spec_without_prebuilt_dir() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -214,6 +221,7 @@ fn load_plugins_skips_spec_with_no_resolvable_content() {
         skills: &[],
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -248,6 +256,7 @@ fn plugin_bundles_skips_content_less_plugin() {
         skills: &[],
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -277,6 +286,7 @@ fn plugin_bundles_scopes_to_active_marketplace() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let mut mp = marketplace("only-a");
@@ -325,6 +335,7 @@ fn manifest_entries_hash_the_served_bytes() {
         skills: &skills,
         agents: &agents,
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent/plugins"),
     };
     let mut services = ServicesConfig::default();
@@ -380,6 +391,7 @@ fn skill_md_carries_frontmatter_and_escapes_quotes() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -410,6 +422,7 @@ fn agent_referenced_skills_are_pulled_into_bundle() {
         skills: &skills,
         agents: &agents,
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["base_skill"]), explicit(&["dev"]));
@@ -432,6 +445,7 @@ fn invalid_explicit_skill_id_is_ignored() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config(
@@ -477,6 +491,7 @@ fn aux_files_are_collected_and_executable_bit_set() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let config = plugin_config("p", explicit(&["aux_skill"]), PluginComponentRef::default());
@@ -524,6 +539,7 @@ fn mcp_file_assembles_referenced_servers_only() {
         skills: &skills,
         agents: &[],
         mcp_servers: &servers,
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -562,6 +578,7 @@ fn mcp_file_absent_when_no_servers_resolve() {
         skills: &skills,
         agents: &[],
         mcp_servers: &servers,
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: Path::new("/nonexistent"),
     };
     let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
@@ -579,6 +596,69 @@ fn mcp_file_absent_when_no_servers_resolve() {
 }
 
 #[test]
+fn mcp_file_omits_defined_but_disabled_server_without_error() {
+    let servers = vec![mcp_server("alpha", "https://api.example.com/mcp/alpha")];
+    let disabled: BTreeSet<String> = ["salesforce".to_owned()].into_iter().collect();
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &servers,
+        disabled_mcp_servers: &disabled,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
+    config.mcp_servers = PluginComponentRef {
+        source: ComponentSource::Explicit,
+        include: vec!["alpha".to_owned(), "salesforce".to_owned()],
+        ..Default::default()
+    };
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    let mcp = bundle
+        .get(".mcp.json")
+        .expect(".mcp.json emitted for the enabled server");
+    let value: serde_json::Value = serde_json::from_slice(&mcp.bytes).expect("parse .mcp.json");
+    let servers_obj = value
+        .get("mcpServers")
+        .and_then(serde_json::Value::as_object)
+        .expect("mcpServers object");
+    assert!(
+        servers_obj.contains_key("alpha"),
+        "enabled server is bundled"
+    );
+    assert!(
+        !servers_obj.contains_key("salesforce"),
+        "a defined-but-disabled server is quietly omitted, not bundled",
+    );
+}
+
+#[test]
+fn mcp_file_absent_when_only_referenced_server_is_disabled() {
+    let disabled: BTreeSet<String> = ["salesforce".to_owned()].into_iter().collect();
+    let skills = vec![skill_entry("s", "d", "body")];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &[],
+        mcp_servers: &[],
+        disabled_mcp_servers: &disabled,
+        plugins_root: Path::new("/nonexistent"),
+    };
+    let mut config = plugin_config("p", explicit(&["s"]), PluginComponentRef::default());
+    config.mcp_servers = PluginComponentRef {
+        source: ComponentSource::Explicit,
+        include: vec!["salesforce".to_owned()],
+        ..Default::default()
+    };
+
+    let bundle = build_plugin_bundle(&config, &content).expect("build");
+    assert!(
+        !bundle.contains_key(".mcp.json"),
+        "a sole disabled reference yields no .mcp.json, but does not error",
+    );
+}
+
+#[test]
 fn script_files_are_collected_and_generated_tracking_skipped() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugin_dir = dir.path().join("scripted-plugin");
@@ -590,6 +670,7 @@ fn script_files_are_collected_and_generated_tracking_skipped() {
         skills: &skills,
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
         plugins_root: dir.path(),
     };
     let mut config = plugin_config(

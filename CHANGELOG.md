@@ -16,6 +16,10 @@
 - The gateway records cache-token usage (`cache_read_tokens`, `cache_creation_tokens`) from both buffered and streaming provider responses onto the request's `ai_requests` row, so cache hits are now reflected in usage accounting and billing.
 - `xxhash-rust`, `quick-xml`, and `image` are centralized in the workspace dependency table.
 
+### Fixed
+
+- A plugin that references a managed MCP server which is defined but disabled no longer logs a spurious "unknown server" warning during bundle assembly; the disabled server is quietly omitted and reappears when re-enabled.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added

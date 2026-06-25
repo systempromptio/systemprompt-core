@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 
 use systemprompt_marketplace::catalog::{
-    load_agents, load_hooks, load_managed_mcp_servers, load_plugins, load_skills,
+    disabled_mcp_server_names, load_agents, load_hooks, load_managed_mcp_servers, load_plugins,
+    load_skills,
 };
 use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
@@ -407,10 +408,12 @@ fn load_plugins_empty_config_returns_empty() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugins_root = dir.path().join("plugins");
     let config = ServicesConfig::default();
+    let no_disabled = std::collections::BTreeSet::new();
     let content = BundleContent {
         skills: &[],
         agents: &[],
         mcp_servers: &[],
+        disabled_mcp_servers: &no_disabled,
         plugins_root: &plugins_root,
     };
     let plugins = load_plugins(&config, &content).expect("load plugins");
@@ -428,5 +431,26 @@ fn catalog_content_loads_once_and_exposes_borrowed_view() {
     assert!(content.skills.is_empty());
     assert!(content.agents.is_empty());
     assert!(content.mcp_servers.is_empty());
+    assert!(content.disabled_mcp_servers.is_empty());
     assert!(content.plugins_root.ends_with("plugins"));
+}
+
+#[test]
+fn disabled_mcp_server_names_returns_only_disabled() {
+    let mut config = ServicesConfig::default();
+    config
+        .mcp_servers
+        .insert("on-mcp".to_owned(), make_deployment("on-mcp", true, None));
+    config.mcp_servers.insert(
+        "off-mcp".to_owned(),
+        make_deployment("off-mcp", false, None),
+    );
+
+    let disabled = disabled_mcp_server_names(&config);
+    assert!(disabled.contains("off-mcp"), "disabled server is reported");
+    assert!(
+        !disabled.contains("on-mcp"),
+        "an enabled server is not reported as disabled",
+    );
+    assert_eq!(disabled.len(), 1, "only disabled servers are reported");
 }

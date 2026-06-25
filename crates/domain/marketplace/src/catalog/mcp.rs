@@ -1,6 +1,8 @@
 //! Projects configured managed MCP servers into the signed `ManagedMcpServer`
 //! records the manifest carries.
 
+use std::collections::BTreeSet;
+
 use systemprompt_identifiers::ValidatedUrl;
 use systemprompt_models::bridge::ids::ManagedMcpServerName;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
@@ -42,4 +44,19 @@ pub fn load_managed_mcp_servers(
         });
     }
     Ok(out)
+}
+
+/// Names defined in `services.mcp_servers` with `enabled: false`.
+///
+/// Validation accepts a plugin reference to a defined-but-disabled server by
+/// design, so such a server is absent from the enabled catalogue without being
+/// a misconfiguration. The bundle builder consults this set to tell that quiet,
+/// temporary omission apart from a genuinely unknown reference.
+pub fn disabled_mcp_server_names(services: &ServicesConfig) -> BTreeSet<String> {
+    services
+        .mcp_servers
+        .iter()
+        .filter(|(_, d)| !d.enabled)
+        .map(|(name, _)| name.clone())
+        .collect()
 }

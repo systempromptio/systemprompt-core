@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-06-24
+
+### Fixed
+
+- A plugin that references a managed MCP server which is defined but `enabled: false` no longer logs a spurious "unknown server" warning during bundle assembly. The disabled server is quietly omitted from the plugin's `.mcp.json` (at `debug`) and reappears when re-enabled; a reference to a server not defined at all still warns.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

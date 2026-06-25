@@ -6,13 +6,16 @@
 //! byte-serving path build their [`BundleContent`] from one of these, so the
 //! two paths cannot resolve the catalogue two different ways and drift.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer, SkillEntry};
 use systemprompt_models::services::ServicesConfig;
 
 use crate::bundle::BundleContent;
-use crate::catalog::{load_agents, load_managed_mcp_servers, load_skills};
+use crate::catalog::{
+    disabled_mcp_server_names, load_agents, load_managed_mcp_servers, load_skills,
+};
 use crate::error::MarketplaceError;
 
 #[derive(Debug)]
@@ -20,6 +23,7 @@ pub struct CatalogContent {
     skills: Vec<SkillEntry>,
     agents: Vec<AgentEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
+    disabled_mcp_servers: BTreeSet<String>,
     plugins_root: PathBuf,
 }
 
@@ -33,6 +37,7 @@ impl CatalogContent {
             skills: load_skills(services_root)?,
             agents: load_agents(services, api_external_url),
             managed_mcp_servers: load_managed_mcp_servers(services, api_external_url)?,
+            disabled_mcp_servers: disabled_mcp_server_names(services),
             plugins_root: services_root.join("plugins"),
         })
     }
@@ -43,6 +48,7 @@ impl CatalogContent {
             skills: &self.skills,
             agents: &self.agents,
             mcp_servers: &self.managed_mcp_servers,
+            disabled_mcp_servers: &self.disabled_mcp_servers,
             plugins_root: &self.plugins_root,
         }
     }
