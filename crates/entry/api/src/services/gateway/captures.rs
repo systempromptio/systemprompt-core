@@ -1,6 +1,11 @@
 use systemprompt_identifiers::AiToolCallId;
 
 #[derive(Debug, Clone, Copy, Default)]
+#[expect(
+    clippy::struct_field_names,
+    reason = "every field is a token count; the `_tokens` suffix is the domain vocabulary shared \
+              with the provider usage wire formats"
+)]
 pub struct CapturedUsage {
     pub input_tokens: u32,
     pub output_tokens: u32,
