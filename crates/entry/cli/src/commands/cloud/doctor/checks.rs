@@ -22,6 +22,31 @@ pub fn check_profile_valid(profile: &Profile) -> CheckResult {
     }
 }
 
+pub fn check_extension_configs(profile: &Profile) -> CheckResult {
+    let services_path = Path::new(&profile.paths.services);
+    match systemprompt_runtime::validate_extension_configs(services_path) {
+        Err(err) => CheckResult::fail(
+            "extension-config",
+            format!("could not discover extensions: {err}"),
+        ),
+        Ok(outcomes) => {
+            let failures: Vec<String> = outcomes
+                .iter()
+                .filter_map(|o| {
+                    o.error
+                        .as_ref()
+                        .map(|msg| format!("[ext:{}] {msg}", o.extension_id))
+                })
+                .collect();
+            if failures.is_empty() {
+                CheckResult::pass("extension-config", "all extension configs valid")
+            } else {
+                CheckResult::fail("extension-config", failures.join("\n"))
+            }
+        },
+    }
+}
+
 pub(in crate::commands::cloud) fn resolve_signing_key_path(
     profile: &Profile,
     profile_dir: &Path,

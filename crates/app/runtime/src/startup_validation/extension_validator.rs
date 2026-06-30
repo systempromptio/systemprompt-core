@@ -102,6 +102,81 @@ fn validate_extension_assets(
     }
 }
 
+/// A single extension's resolved config-validation result.
+///
+/// Produced by [`validate_extension_configs`] so callers outside the serve
+/// boot path (e.g. the `cloud doctor` preflight) can run the exact same
+/// `validate_config` pass without a `Config` or a [`StartupValidationReport`].
+#[derive(Debug)]
+pub struct ExtensionConfigOutcome {
+    pub extension_id: String,
+    pub config_key: String,
+    pub error: Option<String>,
+}
+
+enum ExtConfigError {
+    Load(String),
+    Validate(String),
+}
+
+impl ExtConfigError {
+    fn message(&self) -> &str {
+        match self {
+            Self::Load(m) | Self::Validate(m) => m,
+        }
+    }
+}
+
+fn evaluate_extension_config(
+    ext: &dyn systemprompt_extension::Extension,
+    services_path: &Path,
+) -> Result<(), ExtConfigError> {
+    let Some(prefix) = ext.config_prefix() else {
+        return Ok(());
+    };
+
+    let config_path = services_path
+        .join("config")
+        .join(format!("{}.yaml", prefix));
+
+    let config_json = if config_path.exists() {
+        load_extension_config(&config_path).map_err(ExtConfigError::Load)?
+    } else {
+        serde_json::json!({})
+    };
+
+    ext.validate_config(&config_json)
+        .map_err(|e| ExtConfigError::Validate(e.to_string()))
+}
+
+/// Run every config-bearing extension's `validate_config` against the resolved
+/// service config under `services_path` and collect the results.
+///
+/// This is the same per-extension load-and-validate the serve boot path runs;
+/// both paths funnel through `evaluate_extension_config` so they cannot drift.
+/// `Err` indicates the extension registry could not be discovered at all.
+pub fn validate_extension_configs(
+    services_path: &Path,
+) -> Result<Vec<ExtensionConfigOutcome>, String> {
+    let extensions = ExtensionRegistry::discover().map_err(|e| e.to_string())?;
+
+    Ok(extensions
+        .config_extensions()
+        .iter()
+        .filter_map(|ext| {
+            let prefix = ext.config_prefix()?;
+            let error = evaluate_extension_config(ext.as_ref(), services_path)
+                .err()
+                .map(|e| e.message().to_owned());
+            Some(ExtensionConfigOutcome {
+                extension_id: ext.id().to_owned(),
+                config_key: format!("{}.config", prefix),
+                error,
+            })
+        })
+        .collect())
+}
+
 fn validate_single_extension(
     config: &Config,
     ext: &dyn systemprompt_extension::Extension,
@@ -113,51 +188,28 @@ fn validate_single_extension(
         return;
     };
 
-    let config_path = Path::new(&config.services_path)
-        .join("config")
-        .join(format!("{}.yaml", prefix));
-
-    let config_json = if config_path.exists() {
-        match load_extension_config(&config_path) {
-            Ok(json) => json,
-            Err(e) => {
-                let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
-                ext_report.add_error(ValidationError::new(
-                    format!("{}.config", prefix),
-                    format!("Failed to load config: {}", e),
-                ));
-                report.add_extension(ext_report);
-                CliService::output(&format!(
-                    "  {} [ext:{}] {}",
-                    BrandColors::stopped("✗"),
-                    ext_id,
-                    e
-                ));
-                return;
-            },
-        }
-    } else {
-        serde_json::json!({})
-    };
-
-    match ext.validate_config(&config_json) {
+    match evaluate_extension_config(ext, Path::new(&config.services_path)) {
         Ok(()) => {
             if verbose {
                 render_phase_success(&format!("[ext:{}]", ext_id), Some("valid"));
             }
         },
         Err(e) => {
+            let report_message = match &e {
+                ExtConfigError::Load(m) => format!("Failed to load config: {}", m),
+                ExtConfigError::Validate(m) => m.clone(),
+            };
             let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
             ext_report.add_error(ValidationError::new(
                 format!("{}.config", prefix),
-                e.to_string(),
+                report_message,
             ));
             report.add_extension(ext_report);
             CliService::output(&format!(
                 "  {} [ext:{}] {}",
                 BrandColors::stopped("✗"),
                 ext_id,
-                e
+                e.message()
             ));
         },
     }

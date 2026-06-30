@@ -31,7 +31,7 @@ pub struct ValidateArgs {
     pub schema: bool,
 }
 
-pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
     if args.schema {
         return print_profile_schema();
     }
@@ -101,14 +101,17 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput
         "Validation Failed"
     };
 
-    Ok(CommandOutput::table_of(
-        vec!["path", "section", "exists", "valid", "error"],
-        &output.files,
-    )
-    .with_title(title))
+    Ok((
+        CommandOutput::table_of(
+            vec!["path", "section", "exists", "valid", "error"],
+            &output.files,
+        )
+        .with_title(title),
+        all_valid,
+    ))
 }
 
-fn print_profile_schema() -> Result<CommandOutput> {
+fn print_profile_schema() -> Result<(CommandOutput, bool)> {
     let schema = schemars::schema_for!(Profile);
     let json = serde_json::to_string_pretty(&schema)
         .map_err(|e| anyhow!("failed to serialize Profile JSON schema: {e}"))?;
@@ -118,14 +121,17 @@ fn print_profile_schema() -> Result<CommandOutput> {
         files: Vec::new(),
         all_valid: true,
     };
-    Ok(CommandOutput::table_of(
-        vec!["path", "section", "exists", "valid", "error"],
-        &output.files,
-    )
-    .with_skip_render())
+    Ok((
+        CommandOutput::table_of(
+            vec!["path", "section", "exists", "valid", "error"],
+            &output.files,
+        )
+        .with_skip_render(),
+        true,
+    ))
 }
 
-fn validate_profile_file(path: &std::path::Path) -> Result<CommandOutput> {
+fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| anyhow!("failed to read profile {}: {e}", path.display()))?;
 
@@ -142,11 +148,14 @@ fn validate_profile_file(path: &std::path::Path) -> Result<CommandOutput> {
                 all_valid: true,
             };
             let title = format!("Profile '{}' is valid", profile.name);
-            Ok(CommandOutput::table_of(
-                vec!["path", "section", "exists", "valid", "error"],
-                &output.files,
-            )
-            .with_title(title))
+            Ok((
+                CommandOutput::table_of(
+                    vec!["path", "section", "exists", "valid", "error"],
+                    &output.files,
+                )
+                .with_title(title),
+                true,
+            ))
         },
         Err(e) => Err(anyhow!(
             "invalid profile {}: {e}\nThe error above names the offending field or value — fix it \

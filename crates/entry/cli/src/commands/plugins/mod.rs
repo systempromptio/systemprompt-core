@@ -16,7 +16,7 @@ mod validate;
 
 pub mod mcp;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -78,7 +78,11 @@ pub async fn execute(cmd: PluginsCommands, ctx: &CommandContext) -> Result<()> {
         },
         PluginsCommands::Run(args) => run::execute(args, ctx).await,
         PluginsCommands::Validate(args) => {
-            render_result(&validate::execute(&args, &ctx.cli), &ctx.cli);
+            let (output, valid) = validate::execute(&args, &ctx.cli);
+            render_result(&output, &ctx.cli);
+            if !valid {
+                bail!("Extension validation failed");
+            }
             Ok(())
         },
         PluginsCommands::Config(args) => {

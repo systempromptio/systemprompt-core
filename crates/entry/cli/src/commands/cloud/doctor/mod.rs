@@ -11,7 +11,8 @@ mod checks;
 
 pub(in crate::commands::cloud) use checks::resolve_signing_key_path;
 pub use checks::{
-    check_profile_valid, check_provider_secrets, check_required_secrets, check_signing_key,
+    check_extension_configs, check_profile_valid, check_provider_secrets, check_required_secrets,
+    check_signing_key,
 };
 
 use std::collections::HashMap;
@@ -80,6 +81,7 @@ pub(in crate::commands::cloud) async fn run(profile: &Profile, profile_dir: &Pat
     checks.push(check_required_secrets(&secrets));
     checks.push(check_signing_key(profile, profile_dir, &secrets));
     checks.push(check_provider_secrets(profile, &secrets));
+    checks.push(check_extension_configs(profile));
     checks.push(checks::check_governance_hook_url(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
 

@@ -29,6 +29,7 @@ use extension_validator::validate_extensions;
 use mcp_validator::validate_mcp_manifests;
 
 pub use display::{display_validation_report, display_validation_warnings};
+pub use extension_validator::{ExtensionConfigOutcome, validate_extension_configs};
 pub use files_validator::FilesConfigValidator;
 
 #[derive(Debug)]

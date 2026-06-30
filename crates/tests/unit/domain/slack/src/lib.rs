@@ -20,4 +20,6 @@ mod config;
 #[cfg(test)]
 mod events;
 #[cfg(test)]
+mod extension_config_preflight;
+#[cfg(test)]
 mod signature;

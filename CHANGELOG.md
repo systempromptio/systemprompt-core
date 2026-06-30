@@ -2,6 +2,10 @@
 
 ## [0.17.1] - 2026-06-30
 
+### Added
+
+- The `cloud deploy` preflight (and `cloud doctor`) now validates each extension's service config against its schema, using the same `validate_config` pass the server runs at startup. A config file that no longer matches an upgraded extension's schema fails the preflight — and blocks the deploy — instead of first surfacing as a crash loop on the deployed binary.
+
 ### Changed
 
 - `admin session switch` is now metadata-only: it rewrites the active-profile pointer without booting the profile being switched away from, so switching succeeds even when the active profile is a cloud target with an expired session. It no longer creates a session as a side effect — run `admin session login` to authenticate the target (re-auth is lazy on next use).
@@ -10,6 +14,7 @@
 ### Fixed
 
 - `admin session switch` returns a non-zero exit code on failure instead of exiting 0, and commands that cannot run against an external/cloud database now name the active profile and the remedy.
+- `plugins validate` and `admin config validate` return a non-zero exit code when validation fails, instead of rendering a failure report and exiting 0.
 - Update `anyhow` to 1.0.103 (RUSTSEC-2026-0190: unsoundness in `Error::downcast_mut()`).
 
 ## [0.17.0] - 2026-06-24

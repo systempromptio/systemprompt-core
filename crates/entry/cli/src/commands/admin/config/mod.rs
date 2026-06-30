@@ -24,7 +24,7 @@ pub mod show;
 pub mod types;
 pub mod validate;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -88,8 +88,11 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
             Ok(())
         },
         ConfigCommands::Validate(args) => {
-            let result = validate::execute(&args, &ctx.cli)?;
+            let (result, valid) = validate::execute(&args, &ctx.cli)?;
             render_result(&result, &ctx.cli);
+            if !valid {
+                bail!("Config validation failed");
+            }
             Ok(())
         },
         ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, &ctx.cli),

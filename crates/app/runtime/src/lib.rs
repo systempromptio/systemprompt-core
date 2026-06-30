@@ -37,7 +37,8 @@ pub use error::{RuntimeError, RuntimeResult};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleType, WellKnownRoute};
 pub use span::create_request_span;
 pub use startup_validation::{
-    FilesConfigValidator, StartupValidator, display_validation_report, display_validation_warnings,
+    ExtensionConfigOutcome, FilesConfigValidator, StartupValidator, display_validation_report,
+    display_validation_warnings, validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
 pub use validation::{validate_database_path, validate_system};

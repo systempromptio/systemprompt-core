@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-slack = { workspace = true, features = ["test"] }
 systemprompt-models = { workspace = true }
+systemprompt-runtime = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
@@ -20,3 +21,4 @@ serde_yaml = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }
+tempfile = { workspace = true }
