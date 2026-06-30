@@ -3,7 +3,7 @@ use std::path::Path;
 
 use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
 use systemprompt_marketplace::bundle::{BundleContent, build_plugin_bundle, bundle_has_content};
-use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
+use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles, plugin_bundles_cached};
 use systemprompt_models::bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
 use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer, SkillEntry};
 use systemprompt_models::bridge::plugin_bundle::{
@@ -378,6 +378,81 @@ fn manifest_entries_hash_the_served_bytes() {
             assert_eq!(file.size, served.bytes.len() as u64);
         }
     }
+}
+
+#[test]
+fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
+    let skills = vec![skill_entry("cache_skill", "cache", "stay cached")];
+    let agents = vec![agent_entry("cache_agent", "cacher", Some("You cache"))];
+    let content = BundleContent {
+        skills: &skills,
+        agents: &agents,
+        mcp_servers: &[],
+        disabled_mcp_servers: &NO_DISABLED,
+        plugins_root: Path::new("/nonexistent/plugins"),
+    };
+    let mut services = ServicesConfig::default();
+    services.plugins.insert(
+        "cache".to_owned(),
+        plugin_config(
+            "cache-plugin",
+            explicit(&["cache_skill"]),
+            explicit(&["cache_agent"]),
+        ),
+    );
+
+    let uncached = comparable(&plugin_bundles(&services, &content).expect("uncached bundles"));
+    let first = comparable(
+        plugin_bundles_cached(&services, &content)
+            .expect("first cached")
+            .as_ref(),
+    );
+    let second = comparable(
+        plugin_bundles_cached(&services, &content)
+            .expect("second cached")
+            .as_ref(),
+    );
+    assert_eq!(
+        first, uncached,
+        "the cached map must be exactly what plugin_bundles produces"
+    );
+    assert_eq!(
+        first, second,
+        "an unchanged fingerprint must yield an identical map"
+    );
+
+    services.plugins.insert(
+        "extra".to_owned(),
+        plugin_config("extra-plugin", explicit(&[]), explicit(&["cache_agent"])),
+    );
+    let rebuilt = comparable(
+        plugin_bundles_cached(&services, &content)
+            .expect("rebuilt cached")
+            .as_ref(),
+    );
+    assert_eq!(
+        rebuilt,
+        comparable(&plugin_bundles(&services, &content).expect("uncached rebuilt")),
+        "a changed services config must invalidate the cache and rebuild"
+    );
+}
+
+fn comparable(
+    bundles: &std::collections::BTreeMap<
+        systemprompt_models::bridge::ids::PluginId,
+        std::collections::BTreeMap<String, systemprompt_marketplace::bundle::BundleFile>,
+    >,
+) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<u8>>> {
+    bundles
+        .iter()
+        .map(|(id, files)| {
+            let files = files
+                .iter()
+                .map(|(path, file)| (path.clone(), file.bytes.clone()))
+                .collect();
+            (id.as_str().to_owned(), files)
+        })
+        .collect()
 }
 
 #[test]

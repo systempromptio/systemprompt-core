@@ -8,11 +8,14 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock, RwLock};
 
+use sha2::{Digest, Sha256};
 use systemprompt_models::bridge::manifest::{AgentEntry, ManagedMcpServer, SkillEntry};
 use systemprompt_models::services::ServicesConfig;
 
 use crate::bundle::BundleContent;
+use crate::catalog::fingerprint::hash_dir_metadata;
 use crate::catalog::{
     disabled_mcp_server_names, load_agents, load_managed_mcp_servers, load_skills,
 };
@@ -42,6 +45,40 @@ impl CatalogContent {
         })
     }
 
+    /// Memoized [`load`](Self::load): reuses the cached catalogue while the
+    /// fingerprint of the services config and the on-disk skills tree is
+    /// unchanged, so the bridge's per-file sync requests stop re-reading and
+    /// re-parsing every skill on each call.
+    pub fn load_cached(
+        services: &ServicesConfig,
+        services_root: &Path,
+        api_external_url: &str,
+    ) -> Result<Arc<Self>, MarketplaceError> {
+        let fingerprint = catalog_fingerprint(services, services_root, api_external_url)?;
+        let cache = CATALOG_CACHE.get_or_init(|| RwLock::new(None));
+
+        let hit = {
+            let guard = cache
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard
+                .as_ref()
+                .filter(|(cached_fp, _)| *cached_fp == fingerprint)
+                .map(|(_, catalog)| Arc::clone(catalog))
+        };
+        if let Some(catalog) = hit {
+            return Ok(catalog);
+        }
+
+        let catalog = Arc::new(Self::load(services, services_root, api_external_url)?);
+        let mut guard = cache
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *guard = Some((fingerprint, Arc::clone(&catalog)));
+        drop(guard);
+        Ok(catalog)
+    }
+
     #[must_use]
     pub fn as_content(&self) -> BundleContent<'_> {
         BundleContent {
@@ -57,4 +94,26 @@ impl CatalogContent {
     pub fn into_parts(self) -> (Vec<SkillEntry>, Vec<AgentEntry>, Vec<ManagedMcpServer>) {
         (self.skills, self.agents, self.managed_mcp_servers)
     }
+}
+
+type CatalogCache = OnceLock<RwLock<Option<([u8; 32], Arc<CatalogContent>)>>>;
+
+static CATALOG_CACHE: CatalogCache = OnceLock::new();
+
+fn catalog_fingerprint(
+    services: &ServicesConfig,
+    services_root: &Path,
+    api_external_url: &str,
+) -> Result<[u8; 32], MarketplaceError> {
+    let mut hasher = Sha256::new();
+    let config =
+        serde_json::to_vec(services).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    hasher.update((config.len() as u64).to_le_bytes());
+    hasher.update(&config);
+    hasher.update(services_root.as_os_str().as_encoded_bytes());
+    hasher.update(b"\0");
+    hasher.update(api_external_url.as_bytes());
+    hasher.update(b"\0");
+    hash_dir_metadata(&mut hasher, &services_root.join("skills"));
+    Ok(hasher.finalize().into())
 }

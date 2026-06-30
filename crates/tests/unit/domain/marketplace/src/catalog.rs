@@ -436,6 +436,43 @@ fn catalog_content_loads_once_and_exposes_borrowed_view() {
 }
 
 #[test]
+fn load_cached_reuses_until_the_skills_tree_changes() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let skill_dir = dir.path().join("skills").join("my_skill");
+    fs::create_dir_all(&skill_dir).expect("skill dir");
+    fs::write(
+        skill_dir.join("config.yaml"),
+        "id: my_skill\nname: My Skill\ndescription: a test skill\n",
+    )
+    .expect("write config");
+    fs::write(skill_dir.join("index.md"), "first body").expect("write content");
+
+    let services = ServicesConfig::default();
+    let url = "https://api.example.com";
+
+    let first = CatalogContent::load_cached(&services, dir.path(), url).expect("first load");
+    let second = CatalogContent::load_cached(&services, dir.path(), url).expect("second load");
+    assert!(
+        std::sync::Arc::ptr_eq(&first, &second),
+        "an unchanged skills tree must return the cached catalogue"
+    );
+    assert_eq!(first.as_content().skills.len(), 1);
+    assert_eq!(first.as_content().skills[0].instructions, "first body");
+
+    fs::write(skill_dir.join("index.md"), "a longer second body").expect("rewrite content");
+    let third = CatalogContent::load_cached(&services, dir.path(), url).expect("third load");
+    assert!(
+        !std::sync::Arc::ptr_eq(&first, &third),
+        "a changed skill file must invalidate the cache"
+    );
+    assert_eq!(
+        third.as_content().skills[0].instructions,
+        "a longer second body",
+        "the rebuilt catalogue reflects the new on-disk content"
+    );
+}
+
+#[test]
 fn disabled_mcp_server_names_returns_only_disabled() {
     let mut config = ServicesConfig::default();
     config

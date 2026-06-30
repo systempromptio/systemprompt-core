@@ -9,6 +9,7 @@
 
 mod agents;
 mod content;
+mod fingerprint;
 mod hooks;
 mod mcp;
 mod plugins;
@@ -18,5 +19,5 @@ pub use agents::load_agents;
 pub use content::CatalogContent;
 pub use hooks::load_hooks;
 pub use mcp::{disabled_mcp_server_names, load_managed_mcp_servers};
-pub use plugins::{load_plugins, plugin_bundles};
+pub use plugins::{load_plugins, plugin_bundles, plugin_bundles_cached};
 pub use skills::load_skills;
