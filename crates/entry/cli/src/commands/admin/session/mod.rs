@@ -52,7 +52,7 @@ pub async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         SessionCommands::Switch { profile_name } => {
-            let result = switch::execute(&profile_name, &ctx.cli).await?;
+            let result = switch::execute(&profile_name)?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

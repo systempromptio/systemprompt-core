@@ -1,16 +1,13 @@
 use anyhow::{Context, Result};
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;
-use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
-use super::login::{self, LoginArgs};
 use super::types::SwitchOutput;
-use crate::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::{CommandOutput, render_result};
+use crate::shared::CommandOutput;
 
-pub(super) async fn execute(profile_name: &str, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(profile_name: &str) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
 
@@ -34,37 +31,25 @@ pub(super) async fn execute(profile_name: &str, config: &CliConfig) -> Result<Co
 
     let previous_profile = store.active_profile_name.clone();
 
-    store.set_active_with_profile_path(&session_key, profile_name, profile_config_path.clone());
+    store.set_active_with_profile_path(&session_key, profile_name, profile_config_path);
     store.save(&sessions_dir)?;
 
-    let has_session = store.get_valid_session(&session_key).is_some();
-    if !has_session {
-        CliService::info("No active session for this profile, logging in...");
-
-        let secrets_path = ProfilePath::Secrets.resolve(&target_dir);
-        let secrets = systemprompt_config::load_secrets_from_path(&secrets_path)?;
-        let profile_path_str = profile_config_path
-            .to_str()
-            .context("Invalid profile path")?;
-
-        let args = LoginArgs {
-            email: None,
-            duration_hours: 24,
-            token_only: false,
-            force_new: false,
-        };
-
-        let result =
-            login::login_for_profile(&new_profile, profile_path_str, &secrets, &args).await?;
-        render_result(&result, config);
-    }
+    let message = if store.get_valid_session(&session_key).is_some() {
+        format!("Switched to profile '{}'", profile_name)
+    } else {
+        format!(
+            "Switched to profile '{}'. No active session — run 'systemprompt admin session login' \
+             to authenticate.",
+            profile_name
+        )
+    };
 
     let output = SwitchOutput {
         previous_profile,
         new_profile: profile_name.to_owned(),
         session_key: session_key.as_storage_key(),
         tenant: new_tenant_id.as_ref().map(|t| t.as_str().to_owned()),
-        message: format!("Switched to profile '{}'", profile_name),
+        message,
     };
 
     Ok(CommandOutput::card_value("Switch Profile", &output))
