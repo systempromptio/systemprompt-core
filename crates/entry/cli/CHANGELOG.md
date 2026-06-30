@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.17.1] - 2026-06-30
+
+### Changed
+
+- `admin session switch` is metadata-only: it rewrites the active-profile pointer without booting the profile being switched away from, so it works even when the active profile is a cloud target with an expired session. It no longer logs in as a side effect — run `admin session login` to authenticate the target.
+- `infra jobs run` confirms before running against a remote/cloud profile; pass `--yes` to bypass the prompt.
+
+### Fixed
+
+- `admin session switch` exits non-zero on failure, and the error shown when a command cannot run against an external/cloud database names the active profile and the remedy.
+
 ## [0.17.0] - 2026-06-24
 
 ### Changed

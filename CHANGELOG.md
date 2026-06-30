@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.1] - 2026-06-30
+
+### Changed
+
+- `admin session switch` is now metadata-only: it rewrites the active-profile pointer without booting the profile being switched away from, so switching succeeds even when the active profile is a cloud target with an expired session. It no longer creates a session as a side effect — run `admin session login` to authenticate the target (re-auth is lazy on next use).
+- `infra jobs run` prompts for confirmation before executing against a remote/cloud profile; pass `--yes` to skip the prompt in automation.
+
+### Fixed
+
+- `admin session switch` returns a non-zero exit code on failure instead of exiting 0, and commands that cannot run against an external/cloud database now name the active profile and the remedy.
+- Update `anyhow` to 1.0.103 (RUSTSEC-2026-0190: unsoundness in `Error::downcast_mut()`).
+
 ## [0.17.0] - 2026-06-24
 
 ### Breaking
