@@ -88,7 +88,7 @@ Deployment-pipeline utilities consumed by `systemprompt cloud config`: `ConfigSe
 
 ```toml
 [dependencies]
-systemprompt-config = "0.14.0"
+systemprompt-config = "0.17.1"
 ```
 
 ```rust

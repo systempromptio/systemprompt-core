@@ -50,6 +50,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `cloud profile edit` | Edit profile configuration | `Text` | No |
 | `cloud profile delete` | Delete a profile | `Text` | No |
 | `cloud deploy` | Deploy to systemprompt.io Cloud | `Text` | No |
+| `cloud doctor` | Run the pre-deploy preflight without deploying | `Text` | No |
 | `cloud status` | Check cloud deployment status | `Card` | No |
 | `cloud restart` | Restart tenant machine | `Text` | Yes |
 | `cloud sync` | Sync between local and cloud | `Text` | Yes |
@@ -488,13 +489,18 @@ Deploy to systemprompt.io Cloud.
 sp cloud deploy
 sp cloud deploy --profile staging
 sp cloud deploy --skip-push
+sp cloud deploy --check
 ```
+
+Every deploy first runs the `cloud doctor` preflight (see below). If any check
+fails, the deploy hard-blocks before building an image and exits non-zero.
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--profile`, `-p` | Current profile | Profile to deploy |
 | `--skip-push` | `false` | Skip Docker push (use existing image) |
+| `--check` | `false` | Run the preflight only and exit; nothing is deployed |
 
 **Output Structure:**
 ```json
@@ -506,6 +512,32 @@ sp cloud deploy --skip-push
   "message": "Deployment successful"
 }
 ```
+
+**Artifact Type:** `Text`
+
+---
+
+### cloud doctor
+
+Run the pre-deploy preflight without deploying. Validates the prerequisites that
+otherwise only surface as a post-deploy failure: a valid profile (including the
+`governance.authz` block), a provisionable signing key, `secrets.json` with the
+required keys and provider credentials, extension configuration, and
+database/hook reachability.
+
+```bash
+sp cloud doctor
+sp cloud doctor --profile staging
+```
+
+The same preflight runs automatically at the start of `cloud deploy`; a failing
+check blocks the deploy and exits non-zero. Use `cloud deploy --check` to run the
+preflight against a deploy profile and stop before building an image.
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--profile`, `-p` | Current profile | Profile to check |
 
 **Artifact Type:** `Text`
 

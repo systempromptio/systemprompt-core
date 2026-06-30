@@ -44,7 +44,7 @@ systemprompt-core compiles to a single Rust binary that you run on your own infr
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.16.0", features = ["full"] }
+systemprompt = { version = "0.17.1", features = ["full"] }
 ```
 
 ```rust
@@ -58,6 +58,8 @@ use systemprompt::prelude::*;
 | `api` | HTTP server and `AppContext` (requires `core` + `database`) |
 | `cli` | CLI entry point |
 | `full` | Everything: all domain modules + CLI |
+| `slack` | Slack integration (opt-in; not included in `full`) |
+| `teams` | Microsoft Teams integration (opt-in; not included in `full`) |
 
 ## Quickstart (building from source)
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.1] - 2026-06-30
+
+### Changed
+
+- The facade re-exports the 0.17.1 surface of every member crate. Notable through `systemprompt-cli` and `systemprompt-runtime`: the `cloud deploy` preflight (and standalone `cloud doctor`) now validates each extension's service config against its schema before deploying, and `plugins validate`, `admin config validate`, and `admin session switch` return a non-zero exit code on failure. See the root changelog for the full list, including the `anyhow` 1.0.103 advisory bump.
+
 ## [0.17.0] - 2026-06-24
 
 ### Added
