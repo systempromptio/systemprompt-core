@@ -158,7 +158,8 @@ systemprompt admin agents status my-agent
 | `cloud init` | `--force` | Initialize project structure. |
 | `cloud tenant` | `create`, `show`, `delete`, `edit`, `rotate-credentials`, `cancel` | Manage tenants (local or cloud). |
 | `cloud profile` | — | Manage profiles. |
-| `cloud deploy` | `--skip-push`, `-p`/`--profile`, `--no-sync`, `-y`/`--yes`, `--dry-run` | Deploy to systemprompt.io Cloud. |
+| `cloud deploy` | `--skip-push`, `-p`/`--profile`, `--no-sync`, `-y`/`--yes`, `--dry-run`, `--check` | Deploy to systemprompt.io Cloud. Runs the deploy preflight first and blocks on failure; `--check` runs the preflight only. |
+| `cloud doctor` | `-p`/`--profile` | Run the deploy preflight standalone (profile, secrets, signing key, provider credentials, extension config). Exits non-zero on failure. |
 | `cloud status` | — | Check cloud deployment status. |
 | `cloud restart` | `--tenant`, `-y`/`--yes` | Restart a tenant machine. |
 | `cloud sync` | — | Sync between local and cloud environments. |
@@ -216,7 +217,7 @@ systemprompt web validate
 | `plugins list` | List all discovered extensions. |
 | `plugins show <NAME>` | Show detailed extension information. |
 | `plugins run <NAME> [ARGS]` | Run a CLI extension command. |
-| `plugins validate` | Validate extension dependencies and configurations. |
+| `plugins validate` | Validate extension dependencies and configurations. Exits non-zero on errors. |
 | `plugins config <NAME>` | Show extension configuration. |
 | `plugins capabilities` | List capabilities across all extensions. |
 | `plugins mcp` | MCP server management. |
