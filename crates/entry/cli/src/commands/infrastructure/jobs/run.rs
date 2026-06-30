@@ -32,6 +32,13 @@ pub struct RunArgs {
     pub sequential: bool,
 
     #[arg(
+        long,
+        short = 'y',
+        help = "Skip confirmation when the resolved profile targets a remote/cloud environment"
+    )]
+    pub yes: bool,
+
+    #[arg(
         long = "param",
         short = 'p',
         value_name = "KEY=VALUE",

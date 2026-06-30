@@ -45,7 +45,7 @@ pub enum CoreCommands {
 pub async fn execute(cmd: CoreCommands, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() && !matches!(cmd, CoreCommands::Content(_) | CoreCommands::Files(_))
     {
-        anyhow::bail!("This command requires full profile context");
+        return Err(crate::shared::database_scoped_command_error());
     }
 
     match cmd {

@@ -36,10 +36,10 @@ pub enum SessionCommands {
 impl DescribeCommand for SessionCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Login(_) | Self::Switch { .. } => {
-                CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_skip_validation()
+            Self::Login(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_skip_validation(),
+            Self::Switch { .. } | Self::Show | Self::List | Self::Logout(_) => {
+                CommandDescriptor::NONE
             },
-            Self::Show | Self::List | Self::Logout(_) => CommandDescriptor::NONE,
         }
     }
 }

@@ -15,7 +15,7 @@ pub mod session;
 pub mod setup;
 pub mod users;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -66,7 +66,7 @@ pub enum AdminCommands {
 
 pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() && !matches!(cmd, AdminCommands::Users(_)) {
-        bail!("This command requires full profile context");
+        return Err(crate::shared::database_scoped_command_error());
     }
 
     match cmd {

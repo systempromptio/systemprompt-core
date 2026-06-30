@@ -1,19 +1,37 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::session::SessionCommands;
+use systemprompt_cli::admin::session::login::LoginArgs;
 use systemprompt_cli::descriptor::{CommandDescriptor, DescribeCommand};
 
 #[test]
-fn session_switch_initializes_paths_so_token_generation_can_sign() {
+fn session_switch_needs_no_profile_context() {
     let desc = SessionCommands::Switch {
         profile_name: "production".to_owned(),
     }
     .descriptor();
     assert!(
-        desc.paths(),
-        "switch must init paths/Config to sign a token"
+        !desc.profile(),
+        "switch must not bootstrap the outgoing profile; it is filesystem metadata only"
     );
+    assert!(!desc.secrets());
+    assert!(!desc.paths());
+    assert!(!desc.database());
+    assert!(!desc.remote_eligible());
+}
+
+#[test]
+fn session_login_initializes_profile_secrets_and_paths() {
+    let desc = SessionCommands::Login(LoginArgs {
+        email: None,
+        duration_hours: 24,
+        token_only: false,
+        force_new: false,
+    })
+    .descriptor();
+    assert!(desc.profile());
     assert!(desc.secrets());
+    assert!(desc.paths());
     assert!(desc.skip_validation());
 }
 

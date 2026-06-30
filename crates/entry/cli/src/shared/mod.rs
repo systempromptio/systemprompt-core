@@ -24,6 +24,27 @@ pub use profile::{
 };
 pub use text::truncate_with_ellipsis;
 
+#[must_use]
+pub fn database_scoped_command_error() -> anyhow::Error {
+    systemprompt_config::ProfileBootstrap::get().map_or_else(
+        |_| {
+            anyhow::anyhow!(
+                "This command requires full profile context.\nPass --profile <local-profile> to \
+                 target a local environment, or re-authenticate with 'systemprompt admin session \
+                 login'."
+            )
+        },
+        |profile| {
+            anyhow::anyhow!(
+                "Active profile '{}' routes to an external/cloud database, which this command does \
+                 not support.\nPass --profile <local-profile> to target a local environment, or \
+                 re-authenticate with 'systemprompt admin session login'.",
+                profile.name
+            )
+        },
+    )
+}
+
 #[macro_export]
 macro_rules! define_pool_command {
     ($args_ty:ty => $ret_ty:ty, with_config) => {

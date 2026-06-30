@@ -11,9 +11,10 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 
 use super::{args, bootstrap};
 use crate::cli_settings::CliConfig;
-use crate::commands::admin;
+use crate::commands::{admin, infrastructure};
 use crate::descriptor::CommandDescriptor;
 use crate::env_overrides::EnvOverrides;
+use crate::interactive;
 
 enum RoutingAction {
     ContinueLocal,
@@ -29,7 +30,7 @@ pub(super) async fn bootstrap_profile(
     let has_export = args::has_local_export_flag(cli.command.as_ref());
     let ctx = bootstrap::resolve_and_display_profile(cli_config, env, has_export)?;
 
-    enforce_routing_policy(&ctx, cli, desc).await?;
+    enforce_routing_policy(&ctx, cli, desc, cli_config).await?;
 
     let needs_cloud = is_cloud_bypass_command(cli.command.as_ref());
     match initialize_post_routing(&ctx, desc, needs_cloud).await? {
@@ -42,10 +43,11 @@ async fn enforce_routing_policy(
     ctx: &bootstrap::ProfileContext,
     cli: &args::Cli,
     desc: &CommandDescriptor,
+    cli_config: &CliConfig,
 ) -> Result<()> {
     if !ctx.env.is_fly && desc.remote_eligible() && !ctx.has_export {
         let profile = ProfileBootstrap::get()?;
-        try_remote_routing(cli, profile).await?;
+        try_remote_routing(cli, profile, cli_config).await?;
         return Ok(());
     }
 
@@ -116,7 +118,11 @@ async fn initialize_post_routing(
     Ok(RoutingAction::ContinueLocal)
 }
 
-async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Profile) -> Result<()> {
+async fn try_remote_routing(
+    cli: &args::Cli,
+    profile: &systemprompt_models::Profile,
+    cli_config: &CliConfig,
+) -> Result<()> {
     use super::routing;
 
     let is_cloud = profile.target.is_cloud();
@@ -127,6 +133,7 @@ async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Prof
             token,
             context,
         }) => {
+            confirm_remote_job_run(cli, cli_config, &profile.name, &hostname)?;
             let args = args::reconstruct_args(cli);
             let exit_code =
                 routing::execute_remote(&hostname, token.as_str(), context.as_str(), &args, 300)
@@ -146,6 +153,35 @@ async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Prof
     }
 
     Ok(())
+}
+
+fn confirm_remote_job_run(
+    cli: &args::Cli,
+    cli_config: &CliConfig,
+    profile_name: &str,
+    hostname: &str,
+) -> Result<()> {
+    let Some(args::Commands::Infra(infrastructure::InfraCommands::Jobs(
+        infrastructure::jobs::JobsCommands::Run(run_args),
+    ))) = cli.command.as_ref()
+    else {
+        return Ok(());
+    };
+
+    let selection = if run_args.all {
+        "all jobs".to_owned()
+    } else if let Some(tag) = &run_args.tag {
+        format!("jobs tagged '{tag}'")
+    } else {
+        run_args.job_names.join(", ")
+    };
+
+    let message = format!(
+        "Run {selection} against REMOTE profile '{profile_name}' ({hostname})?\nPass --profile \
+         <local-profile> to target a local environment instead. Continue?"
+    );
+
+    interactive::require_confirmation(&message, run_args.yes, cli_config)
 }
 
 fn require_external_db_access(profile: &systemprompt_models::Profile, reason: &str) -> Result<()> {

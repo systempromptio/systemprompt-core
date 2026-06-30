@@ -34,7 +34,7 @@ pub enum InfraCommands {
 
 pub async fn execute(cmd: InfraCommands, ctx: &CommandContext) -> Result<()> {
     if ctx.is_database_scoped() && !matches!(cmd, InfraCommands::Db(_) | InfraCommands::Logs(_)) {
-        anyhow::bail!("This command requires full profile context");
+        return Err(crate::shared::database_scoped_command_error());
     }
 
     match cmd {
