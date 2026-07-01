@@ -142,3 +142,4 @@ ci/
 .sentrux/
 Screenshot*.png
 !crates/entry/api/src/services/gateway/audit/
+!crates/entry/api/src/services/proxy/audit/
