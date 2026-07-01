@@ -7,8 +7,8 @@ use systemprompt_marketplace::catalog::{
 };
 use systemprompt_marketplace::{BundleContent, CatalogContent};
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::mcp::Deployment;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
+use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType};
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
 };
@@ -401,6 +401,43 @@ fn load_managed_mcp_servers_absolute_endpoint_used() {
     let servers =
         load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
     assert_eq!(servers[0].url.as_str(), "https://remote.example.com/mcp",);
+}
+
+#[test]
+fn load_managed_mcp_servers_external_with_accessor_routes_through_gateway() {
+    let mut config = ServicesConfig::default();
+    let mut dep = make_deployment("sf", true, Some("https://api.salesforce.com/mcp"));
+    dep.server_type = McpServerType::External;
+    dep.external_auth = Some(ExternalAuth {
+        token_endpoint: "/api/public/sf/token".to_owned(),
+        header: "Authorization".to_owned(),
+        scheme: "Bearer".to_owned(),
+    });
+    config.mcp_servers.insert("sf".to_owned(), dep);
+
+    let servers =
+        load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
+    assert_eq!(
+        servers[0].url.as_str(),
+        "https://api.example.com/api/v1/mcp/sf/mcp",
+        "an accessor-backed external server is proxied through the gateway, not its raw endpoint",
+    );
+}
+
+#[test]
+fn load_managed_mcp_servers_external_without_accessor_keeps_raw_url() {
+    let mut config = ServicesConfig::default();
+    let mut dep = make_deployment("direct", true, Some("https://direct.example.com/mcp"));
+    dep.server_type = McpServerType::External;
+    config.mcp_servers.insert("direct".to_owned(), dep);
+
+    let servers =
+        load_managed_mcp_servers(&config, "https://api.example.com").expect("load mcp servers");
+    assert_eq!(
+        servers[0].url.as_str(),
+        "https://direct.example.com/mcp",
+        "an external server with no accessor keeps its raw endpoint (client reaches it directly)",
+    );
 }
 
 #[test]

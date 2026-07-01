@@ -6,6 +6,7 @@
 
 mod gateway;
 mod health;
+mod proxy_audit;
 mod proxy_oauth_challenge;
 mod request_base_url;
 mod validation;

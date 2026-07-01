@@ -168,6 +168,24 @@ fn server_version_extracted_from_server_info() {
 }
 
 #[test]
+fn external_accessor_backed_is_healthy_without_probe() {
+    let mut cfg = config("svc-ext", true);
+    cfg.server_type = systemprompt_models::mcp::McpServerType::External;
+    cfg.remote_endpoint = "https://provider.example.com/mcp".to_string();
+    cfg.external_auth = Some(systemprompt_models::mcp::ExternalAuth {
+        token_endpoint: "/api/public/svc/token".to_string(),
+        header: "Authorization".to_string(),
+        scheme: "Bearer".to_string(),
+    });
+
+    let hc = HealthCheckResult::external_accessor_backed(&cfg);
+    assert_eq!(hc.status, HealthStatus::Healthy);
+    assert!(hc.connection_result.is_none());
+    assert_eq!(hc.details.validation_type, "external_accessor_backed");
+    assert!(hc.details.error_message.is_none());
+}
+
+#[test]
 fn unhealthy_constructor_sets_fields() {
     let cfg = config("svc-x", true);
     let hc = HealthCheckResult::unhealthy(&cfg, "explosion".to_string());
