@@ -119,7 +119,7 @@ Local disk-database sync uses `LocalSyncDirection` (`ToDisk`, `ToDatabase`) on `
 
 ```toml
 [dependencies]
-systemprompt-sync = "0.17.1"
+systemprompt-sync = "0.18.0"
 ```
 
 ```rust

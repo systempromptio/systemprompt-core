@@ -130,7 +130,7 @@ src/
 
 ```toml
 [dependencies]
-systemprompt-generator = "0.17.1"
+systemprompt-generator = "0.18.0"
 ```
 
 ### Public Exports

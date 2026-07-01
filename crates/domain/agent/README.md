@@ -99,7 +99,7 @@ HTTP routing lives outside this crate. API consumers compose `AgentHandlerState`
 
 ```toml
 [dependencies]
-systemprompt-agent = "0.17.1"
+systemprompt-agent = "0.18.0"
 ```
 
 ## Directory Structure

@@ -105,7 +105,7 @@ AgUI and A2A events are routed to both their primary broadcaster AND the context
 
 ```toml
 [dependencies]
-systemprompt-events = "0.17.1"
+systemprompt-events = "0.18.0"
 ```
 
 ```rust
