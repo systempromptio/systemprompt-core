@@ -18,10 +18,12 @@ use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_T
 use tokio::time::timeout;
 
 mod external_auth;
+mod external_proxy;
 mod http_client_with_context;
 mod types;
 mod validation;
 
+pub use external_proxy::ExternalProxyTarget;
 pub use http_client_with_context::HttpClientWithContext;
 pub use types::{McpConnectionResult, McpProtocolInfo, ToolExecutionWithId, ValidationResult};
 pub use validation::{

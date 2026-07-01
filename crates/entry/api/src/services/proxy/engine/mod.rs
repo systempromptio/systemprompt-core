@@ -6,6 +6,7 @@
 //! session-identity cache so a session-only follow-up request can be enriched
 //! with the identity established on the authenticated initialize call.
 
+mod external;
 mod handlers;
 mod mcp_session;
 
@@ -73,6 +74,15 @@ impl ProxyEngine {
         } = target;
         if request.extensions().get::<RequestContext>().is_none() {
             tracing::warn!("RequestContext missing from request extensions");
+        }
+
+        if matches!(proxy_kind, ProxyKind::Mcp)
+            && let Ok(Some(server_config)) = ctx.mcp_registry().find_server(service_name)
+            && server_config.is_external()
+        {
+            return self
+                .proxy_external_mcp(service_name, request, ctx, server_config)
+                .await;
         }
 
         let service = match ServiceResolver::resolve(service_name, &ctx).await {

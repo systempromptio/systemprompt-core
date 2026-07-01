@@ -25,10 +25,18 @@ pub fn load_managed_mcp_servers(
 
     let mut out = Vec::with_capacity(entries.len());
     for (name, deployment) in entries {
-        let url_str = match deployment.endpoint.as_deref() {
-            Some(ep) if ep.starts_with("http://") || ep.starts_with("https://") => ep.to_owned(),
-            Some(rel) if !rel.is_empty() => format!("{base}{rel}"),
-            _ => format!("{base}/api/v1/mcp/{name}/mcp"),
+        // An accessor-backed external server is proxied through the gateway so
+        // its provider URL and per-user token never reach the client.
+        let url_str = if deployment.external_auth.is_some() {
+            format!("{base}/api/v1/mcp/{name}/mcp")
+        } else {
+            match deployment.endpoint.as_deref() {
+                Some(ep) if ep.starts_with("http://") || ep.starts_with("https://") => {
+                    ep.to_owned()
+                },
+                Some(rel) if !rel.is_empty() => format!("{base}{rel}"),
+                _ => format!("{base}/api/v1/mcp/{name}/mcp"),
+            }
         };
         let url =
             ValidatedUrl::try_new(url_str).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;

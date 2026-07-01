@@ -4,6 +4,7 @@
 //! authorization boundary for proxied `/api/v1/mcp/*` and `/api/v1/agents/*`
 //! traffic, emitting RFC 9728 OAuth challenges on unauthenticated requests.
 
+mod audit;
 pub mod auth;
 mod backend;
 mod client;
@@ -12,3 +13,6 @@ mod errors;
 mod resolver;
 
 pub use engine::{ProxyEngine, ProxyKind, ProxyTarget};
+
+#[cfg(feature = "test-api")]
+pub use audit::test_api;

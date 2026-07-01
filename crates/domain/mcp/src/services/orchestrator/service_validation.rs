@@ -24,6 +24,13 @@ pub(super) async fn validate_service(
     );
 
     if server.is_external() {
+        if server.external_auth.is_some() {
+            tracing::debug!(
+                service = %service_name,
+                "Skipping probe for accessor-backed external MCP service; its bearer is minted per-user on demand"
+            );
+            return Ok(());
+        }
         let validation_result =
             validate_connection_by_url(&server.name, &server.remote_endpoint).await?;
         log_validation_result(service_name, &validation_result);

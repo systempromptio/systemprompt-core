@@ -132,17 +132,17 @@ impl RequestBuilder {
     }
 }
 
-const SSE_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
+pub(super) const SSE_KEEPALIVE_INTERVAL: Duration = Duration::from_secs(15);
 const SSE_KEEPALIVE_PAYLOAD: &[u8] = b": keepalive\n\n";
 
-struct SseKeepaliveStream<S> {
+pub(super) struct SseKeepaliveStream<S> {
     inner: S,
     keepalive_interval: Duration,
     deadline: Pin<Box<Sleep>>,
 }
 
 impl<S> SseKeepaliveStream<S> {
-    fn new(inner: S, keepalive_interval: Duration) -> Self {
+    pub(super) fn new(inner: S, keepalive_interval: Duration) -> Self {
         Self {
             inner,
             keepalive_interval,
@@ -186,22 +186,34 @@ impl ResponseHandler {
             .map_err(|e| format!("Invalid status code {}: {}", status_code, e))?;
 
         let response_headers = response.headers().clone();
-        let is_sse = response_headers
-            .get("content-type")
-            .and_then(|v| v.to_str().ok())
-            .is_some_and(|ct| ct.contains("text/event-stream"));
+        let is_sse = Self::is_event_stream(&response_headers);
 
         let stream = response.bytes_stream().map_err(std::io::Error::other);
         let body = if is_sse {
-            let keepalive_stream = SseKeepaliveStream::new(stream, SSE_KEEPALIVE_INTERVAL);
-            Body::from_stream(keepalive_stream)
+            Body::from_stream(SseKeepaliveStream::new(stream, SSE_KEEPALIVE_INTERVAL))
         } else {
             Body::from_stream(stream)
         };
 
+        Self::assemble(axum_status, &response_headers, is_sse, body)
+    }
+
+    pub(super) fn is_event_stream(headers: &HeaderMap) -> bool {
+        headers
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|ct| ct.contains("text/event-stream"))
+    }
+
+    pub(super) fn assemble(
+        axum_status: StatusCode,
+        response_headers: &HeaderMap,
+        is_sse: bool,
+        body: Body,
+    ) -> Result<Response<Body>, String> {
         let mut axum_response = Response::builder().status(axum_status);
 
-        for (key, value) in &response_headers {
+        for (key, value) in response_headers {
             let key_str = key.as_str();
             if let Ok(value_str) = value.to_str()
                 && Self::should_preserve_header(key_str)

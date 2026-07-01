@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.0] - 2026-07-01
+
+### Added
+
+- External MCP servers are reachable over the MCP HTTP protocol: `POST /api/v1/mcp/{name}/mcp` mints a per-user provider bearer server-side and forwards the request to the provider, without exposing the provider URL or token to the client. Client-mediated `tools/call` requests are recorded per-user in the tool-execution audit.
+
 ## [0.17.0] - 2026-06-24
 
 ### Added

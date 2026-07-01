@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.0] - 2026-07-01
+
+### Added
+
+- The facade re-exports the 0.18.0 surface of every member crate. Notable through `systemprompt::api` and `systemprompt::mcp`: external MCP servers with an `external_auth` accessor are served over the MCP HTTP protocol (`POST /api/v1/mcp/{name}/mcp`), minting the per-user provider bearer server-side and auditing client-mediated `tools/call` requests, without exposing the provider URL or token to the client. See the root changelog for the full list.
+
 ## [0.17.1] - 2026-06-30
 
 ### Changed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.0] - 2026-07-01
+
+### Changed
+
+- The bridge manifest emits the gateway MCP URL (`{base}/api/v1/mcp/{name}/mcp`) for an external server that declares an `external_auth` accessor, instead of the provider's raw endpoint, so the provider URL and per-user token stay server-side. An external server without an accessor keeps its raw endpoint.
+
 ## [0.17.0] - 2026-06-24
 
 ### Fixed

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.18.0] - 2026-07-01
+
+### Added
+
+- `McpClient::resolve_external_proxy_target` returns the provider URL and per-user outbound headers for an external MCP server, letting an HTTP gateway forward to the provider with a server-side-minted bearer while withholding the systemprompt credential.
+
+### Changed
+
+- Accessor-backed external MCP servers (those declaring `external_auth`) are reported healthy without an unauthenticated provider probe. The monitor holds no per-user token to authenticate with, so the previous probe reported such servers as spuriously unhealthy.
+
 ## [0.17.0] - 2026-06-24
 
 ### Changed

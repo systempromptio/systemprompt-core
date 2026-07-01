@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.18.0] - 2026-07-01
+
+### Added
+
+- External MCP servers (`type: external` with an `external_auth` accessor) are reachable over the MCP HTTP protocol. `POST /api/v1/mcp/{name}/mcp` mints a per-user provider bearer server-side and forwards the request to the provider, so a plain MCP client (such as the bridge proxying Claude Desktop) can list and call an external server's tools without the provider URL or token being exposed to the client. Client-mediated `tools/call` requests are recorded per-user in the tool-execution audit.
+- The bridge manifest emits the gateway MCP URL (`{base}/api/v1/mcp/{name}/mcp`) for an accessor-backed external server instead of the provider's raw endpoint; an external server without an accessor keeps its raw endpoint.
+- `systemprompt-mcp` gains `McpClient::resolve_external_proxy_target`, resolving the provider URL and per-user outbound headers for an external server.
+
+### Changed
+
+- Accessor-backed external MCP servers are reported healthy without an unauthenticated provider probe, which previously reported them as spuriously unhealthy in `plugins mcp status`.
+
 ## [0.17.1] - 2026-06-30
 
 ### Added

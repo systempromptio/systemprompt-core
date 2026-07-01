@@ -13,6 +13,6 @@
 mod access;
 mod challenge;
 
-pub(crate) use access::AccessValidator;
+pub(crate) use access::{AccessValidator, mcp_oauth_requirement};
 pub use challenge::OAuthChallengeBuilder;
 pub(crate) use challenge::build_mcp_unknown_service_challenge;

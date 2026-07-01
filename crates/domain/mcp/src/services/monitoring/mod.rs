@@ -4,6 +4,7 @@
 //! status snapshots.
 
 pub mod health;
+pub mod health_monitor;
 pub mod proxy_health;
 pub mod status;
 
