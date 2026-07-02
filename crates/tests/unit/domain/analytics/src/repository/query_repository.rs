@@ -60,6 +60,7 @@ async fn get_ai_provider_usage_aggregates_by_provider_and_model() {
     let model_x = mine.iter().find(|u| u.model == "model-x").expect("model-x");
     assert_eq!(model_x.request_count, 2);
     assert_eq!(model_x.total_tokens, Some(200));
+    assert_eq!(model_x.total_cost_microdollars, Some(5000));
     assert_eq!(model_x.unique_users, 1);
     assert!(model_x.avg_latency_ms.is_some());
 

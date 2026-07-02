@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                provider AS \"provider!\",\n                model AS \"model!\",\n                COUNT(*)::int AS \"request_count!\",\n                SUM(tokens_used)::int AS \"total_tokens\",\n                SUM(cost_microdollars)::int AS \"total_cost_microdollars\",\n                AVG(latency_ms)::float8 AS \"avg_latency_ms\",\n                COUNT(DISTINCT user_id)::int AS \"unique_users!\",\n                COUNT(DISTINCT session_id)::int AS \"unique_sessions!\"\n            FROM ai_requests\n            WHERE created_at >= NOW() - INTERVAL '1 day' * $1::int\n              AND ($2::text IS NULL OR user_id = $2)\n            GROUP BY provider, model\n            ORDER BY COUNT(*) DESC\n            ",
+  "query": "\n            SELECT\n                provider AS \"provider!\",\n                model AS \"model!\",\n                COUNT(*)::int AS \"request_count!\",\n                SUM(tokens_used)::int AS \"total_tokens\",\n                SUM(cost_microdollars)::bigint AS \"total_cost_microdollars\",\n                AVG(latency_ms)::float8 AS \"avg_latency_ms\",\n                COUNT(DISTINCT user_id)::int AS \"unique_users!\",\n                COUNT(DISTINCT session_id)::int AS \"unique_sessions!\"\n            FROM ai_requests\n            WHERE created_at >= NOW() - INTERVAL '1 day' * $1::int\n              AND ($2::text IS NULL OR user_id = $2)\n            GROUP BY provider, model\n            ORDER BY COUNT(*) DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -26,7 +26,7 @@
       {
         "ordinal": 4,
         "name": "total_cost_microdollars",
-        "type_info": "Int4"
+        "type_info": "Int8"
       },
       {
         "ordinal": 5,
@@ -61,5 +61,5 @@
       null
     ]
   },
-  "hash": "084ccb28e31b080712bc660fbc178480ff85e4713ee381be9f17225765624020"
+  "hash": "98b90a75ad14b2a1a949da9ea5cf0795d9f4eeb818afe850b89b560f9457745c"
 }

@@ -31,7 +31,7 @@ impl AnalyticsQueryRepository {
                 model AS "model!",
                 COUNT(*)::int AS "request_count!",
                 SUM(tokens_used)::int AS "total_tokens",
-                SUM(cost_microdollars)::int AS "total_cost_microdollars",
+                SUM(cost_microdollars)::bigint AS "total_cost_microdollars",
                 AVG(latency_ms)::float8 AS "avg_latency_ms",
                 COUNT(DISTINCT user_id)::int AS "unique_users!",
                 COUNT(DISTINCT session_id)::int AS "unique_sessions!"
@@ -56,7 +56,7 @@ pub struct ProviderUsage {
     pub model: String,
     pub request_count: i32,
     pub total_tokens: Option<i32>,
-    pub total_cost_microdollars: Option<i32>,
+    pub total_cost_microdollars: Option<i64>,
     pub avg_latency_ms: Option<f64>,
     pub unique_users: i32,
     pub unique_sessions: i32,
