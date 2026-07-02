@@ -416,7 +416,7 @@ async fn tenant_delete_interactive_confirm_local() {
 async fn tenant_delete_shared_container_without_config_warns() {
     let env = enter().await;
     let shared = systemprompt_cloud::StoredTenant::new_local_shared(
-        "t-shared".to_owned(),
+        TenantId::new("t-shared"),
         "Shared Local".to_owned(),
         "postgres://u:p@localhost:5432/shared_db".to_owned(),
         "shared_db".to_owned(),
