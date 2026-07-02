@@ -12,9 +12,11 @@ workspace = true
 
 [dependencies]
 systemprompt-cli = { workspace = true }
+systemprompt-cloud = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-sync = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

@@ -8,7 +8,7 @@ mod cancel;
 mod create;
 mod create_flow;
 pub(super) mod delete;
-mod docker;
+pub mod docker;
 mod edit;
 mod list;
 mod rotate;
@@ -27,7 +27,7 @@ pub use list::list_tenants;
 pub use rotate::rotate_credentials;
 pub use select::{get_credentials, resolve_tenant_id};
 pub use show::show_tenant;
-pub use validation::check_build_ready;
+pub use validation::{check_build_ready, validate_ai_config};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};

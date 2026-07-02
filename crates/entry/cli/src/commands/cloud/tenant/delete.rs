@@ -8,7 +8,7 @@ use anyhow::{Result, anyhow, bail};
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
-    CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
+    CloudApiClient, CloudPath, DockerCli, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
@@ -134,8 +134,15 @@ fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) ->
         return Ok(());
     };
 
+    let docker = DockerCli::new();
+
     let spinner = CliService::spinner(&format!("Dropping database '{}'...", db_name));
-    match drop_database_for_tenant(&shared_config.admin_password, shared_config.port, db_name) {
+    match drop_database_for_tenant(
+        &docker,
+        &shared_config.admin_password,
+        shared_config.port,
+        db_name,
+    ) {
         Ok(()) => {
             spinner.finish_and_clear();
             CliService::success(&format!("Database '{}' dropped", db_name));
@@ -160,7 +167,7 @@ fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) ->
         };
 
         if should_remove {
-            stop_shared_container()?;
+            stop_shared_container(&docker)?;
         } else {
             CliService::info(
                 "Shared container kept. Remove manually with 'docker compose -f \

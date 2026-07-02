@@ -21,6 +21,8 @@ pub(crate) mod env_lock {
 pub mod full_bootstrap;
 
 #[cfg(test)]
+mod cloud_harness;
+#[cfg(test)]
 mod cloud_profile_templates;
 #[cfg(test)]
 mod cloud_tenant_helpers;

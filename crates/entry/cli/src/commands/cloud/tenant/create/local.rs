@@ -48,23 +48,25 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     let docker_dir = ctx.docker_dir();
     fs::create_dir_all(&docker_dir).context("Failed to create docker directory")?;
 
-    let shared_config = load_shared_config()?;
-    let container_running = is_shared_container_running();
+    let docker = DockerCli::new();
 
-    let (config, needs_start) = resolve_container_state(shared_config, container_running)?;
+    let shared_config = load_shared_config()?;
+    let container_running = is_shared_container_running(&docker);
+
+    let (config, needs_start) = resolve_container_state(&docker, shared_config, container_running)?;
 
     let compose_path = docker_dir.join("shared.yaml");
 
     if needs_start {
-        start_container(&config, &compose_path).await?;
+        start_container(&docker, &config, &compose_path).await?;
     }
 
     let spinner = CliService::spinner("Verifying admin role...");
-    ensure_admin_role(&config.admin_password)?;
+    ensure_admin_role(&docker, &config.admin_password)?;
     spinner.finish_and_clear();
 
     let spinner = CliService::spinner(&format!("Creating database '{}'...", db_name));
-    create_database_for_tenant(&config.admin_password, config.port, &db_name)?;
+    create_database_for_tenant(&docker, &config.admin_password, config.port, &db_name)?;
     spinner.finish_and_clear();
     CliService::success(&format!("Database '{}' created", db_name));
 
@@ -124,6 +126,7 @@ pub async fn create_external_tenant() -> Result<StoredTenant> {
 }
 
 fn resolve_container_state(
+    docker: &DockerCli,
     shared_config: Option<SharedContainerConfig>,
     container_running: bool,
 ) -> Result<(SharedContainerConfig, bool)> {
@@ -152,7 +155,7 @@ fn resolve_container_state(
             }
 
             let spinner = CliService::spinner("Connecting to container...");
-            let password = get_container_password()
+            let password = get_container_password(docker)
                 .ok_or_else(|| anyhow!("Could not retrieve password from container"))?;
             spinner.finish_and_clear();
 
@@ -161,7 +164,7 @@ fn resolve_container_state(
             Ok((config, false))
         },
         (None, false) => {
-            handle_orphaned_volume()?;
+            handle_orphaned_volume(docker)?;
 
             CliService::info("Creating new shared PostgreSQL container...");
             let password = generate_admin_password();
@@ -171,8 +174,8 @@ fn resolve_container_state(
     }
 }
 
-fn handle_orphaned_volume() -> Result<()> {
-    if !check_volume_exists() {
+fn handle_orphaned_volume(docker: &DockerCli) -> Result<()> {
+    if !check_volume_exists(docker) {
         return Ok(());
     }
 
@@ -189,7 +192,7 @@ fn handle_orphaned_volume() -> Result<()> {
 
     if reset {
         let spinner = CliService::spinner("Removing orphaned volume...");
-        remove_shared_volume()?;
+        remove_shared_volume(docker)?;
         spinner.finish_and_clear();
         CliService::success("Volume removed");
     } else {
@@ -204,6 +207,7 @@ fn handle_orphaned_volume() -> Result<()> {
 }
 
 async fn start_container(
+    docker: &DockerCli,
     config: &SharedContainerConfig,
     compose_path: &std::path::Path,
 ) -> Result<()> {
@@ -217,7 +221,7 @@ async fn start_container(
         .to_str()
         .ok_or_else(|| anyhow!("Invalid compose path"))?;
 
-    let status = DockerCli::new()
+    let status = docker
         .status(&["compose", "-f", compose_path_str, "up", "-d"])
         .context("Failed to execute docker compose. Is Docker running?")?;
 
@@ -226,7 +230,7 @@ async fn start_container(
     }
 
     let spinner = CliService::spinner("Waiting for PostgreSQL to be ready...");
-    wait_for_postgres_healthy(compose_path, 60).await?;
+    wait_for_postgres_healthy(docker, compose_path, 60).await?;
     spinner.finish_and_clear();
     CliService::success("Shared PostgreSQL container is ready");
 

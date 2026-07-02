@@ -7,6 +7,8 @@ mod login;
 mod logout;
 mod whoami;
 
+pub use login::complete_login;
+
 use crate::context::CommandContext;
 use crate::shared::render_result;
 use anyhow::Result;

@@ -6,8 +6,8 @@
 //! container/database lifecycle helpers consumed by the create/delete flows.
 
 mod config;
-mod container;
-mod database;
+pub mod container;
+pub mod database;
 
 pub(super) use config::{
     SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, load_shared_config,

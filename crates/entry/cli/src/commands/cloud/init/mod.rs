@@ -11,7 +11,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
 mod scaffolding;
-pub(super) mod templates;
+pub mod templates;
 
 use crate::cli_settings::CliConfig;
 use scaffolding::generate_services_boilerplate;

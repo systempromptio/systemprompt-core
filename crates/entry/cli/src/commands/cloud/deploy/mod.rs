@@ -6,7 +6,7 @@
 //! pre-deploy sync, image build/push, secret provisioning, and the deploy
 //! call. Rendering flows back through [`CliDeployProgress`].
 
-mod progress;
+pub mod progress;
 mod select;
 
 pub(in crate::commands::cloud) use progress::CliDeployProgress;
