@@ -3,4 +3,5 @@
 //! ([`time_parse`]).
 
 mod output_format;
+mod overview;
 mod time_parse;

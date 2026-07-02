@@ -1,72 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use systemprompt_logging::{CliService, TraceEvent};
-use tabled::settings::Style;
-use tabled::{Table, Tabled};
 
-#[derive(Debug, Tabled)]
-struct TraceRow {
-    #[tabled(rename = "Time")]
-    pub time: String,
-    #[tabled(rename = "Delta")]
-    pub delta: String,
-    #[tabled(rename = "Type")]
-    pub event_type: String,
-    #[tabled(rename = "Details")]
-    pub details: String,
-    #[tabled(rename = "Latency")]
-    pub latency: String,
-}
-
-fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() > max_len {
-        format!("{}...", &s[..max_len - 3])
-    } else {
-        s.to_owned()
-    }
-}
-
-fn format_metadata_value(key: &str, value: &Value) -> String {
-    match key {
-        "cost_microdollars" => value.as_i64().map_or_else(
-            || format!("{}", value).trim_matches('"').to_owned(),
-            |microdollars| {
-                let dollars = microdollars as f64 / 1_000_000.0;
-                format!("${:.6}", dollars)
-            },
-        ),
-        "latency_ms" | "execution_time_ms" => value.as_i64().map_or_else(
-            || format!("{}", value).trim_matches('"').to_owned(),
-            |ms| format!("{}ms", ms),
-        ),
-        "tokens_used" => value.as_i64().map_or_else(
-            || format!("{}", value).trim_matches('"').to_owned(),
-            |tokens| format!("{}", tokens),
-        ),
-        _ => format!("{}", value).trim_matches('"').to_owned(),
-    }
-}
-
-fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -> String {
-    if let Some(meta) = metadata
-        && let Ok(parsed) = serde_json::from_str::<Value>(meta)
-    {
-        match event_type {
-            "AI" => {
-                if let Some(latency) = parsed.get("latency_ms").and_then(Value::as_i64) {
-                    return format!("{}ms", latency);
-                }
-            },
-            "MCP" => {
-                if let Some(exec_time) = parsed.get("execution_time_ms").and_then(Value::as_i64) {
-                    return format!("{}ms", exec_time);
-                }
-            },
-            _ => {},
-        }
-    }
-    "-".to_owned()
-}
+use crate::presentation::tables::{format_metadata_value, trace_events_table};
 
 pub(super) fn print_event(
     event: &TraceEvent,
@@ -154,34 +90,8 @@ fn print_event_metadata(event: &TraceEvent) {
 }
 
 pub(super) fn print_table(events: &[TraceEvent]) {
-    let mut prev_timestamp: Option<DateTime<Utc>> = None;
-    let rows: Vec<TraceRow> = events
-        .iter()
-        .map(|e| {
-            let time = e.timestamp.format("%H:%M:%S%.3f").to_string();
-            let delta = prev_timestamp.map_or_else(
-                || "+0ms".to_owned(),
-                |prev| {
-                    let delta_ms = e.timestamp.signed_duration_since(prev).num_milliseconds();
-                    format!("+{}ms", delta_ms)
-                },
-            );
-            prev_timestamp = Some(e.timestamp);
-
-            let latency = extract_latency_from_metadata(e.metadata.as_deref(), &e.event_type);
-
-            TraceRow {
-                time,
-                delta,
-                event_type: e.event_type.clone(),
-                details: truncate_string(&e.details, 100),
-                latency,
-            }
-        })
-        .collect();
-
-    if !rows.is_empty() {
-        let table = Table::new(rows).with(Style::modern()).to_string();
+    let table = trace_events_table(events);
+    if !table.is_empty() {
         CliService::info(&table);
     }
 }

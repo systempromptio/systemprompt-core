@@ -3,32 +3,16 @@ use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use tabled::{Table, Tabled};
 
 use super::types::{ContextListOutput, ContextSummary};
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
+use crate::presentation::tables::context_list_table;
 use crate::session::get_or_create_session;
-use crate::shared::{CommandOutput, truncate_with_ellipsis};
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
-
-#[derive(Tabled)]
-struct ContextRow {
-    #[tabled(rename = "ID")]
-    id: String,
-    #[tabled(rename = "Name")]
-    name: String,
-    #[tabled(rename = "Tasks")]
-    task_count: i64,
-    #[tabled(rename = "Messages")]
-    message_count: i64,
-    #[tabled(rename = "Updated")]
-    updated_at: String,
-    #[tabled(rename = "Active")]
-    active: String,
-}
 
 pub(super) async fn execute(_args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let session_ctx = get_or_create_session(ctx).await?;
@@ -78,24 +62,7 @@ pub(super) async fn execute_with_pool(
         if summaries.is_empty() {
             CliService::info("No contexts found");
         } else {
-            let rows: Vec<ContextRow> = summaries
-                .iter()
-                .map(|c| ContextRow {
-                    id: c.id.as_str()[..8].to_string(),
-                    name: truncate_with_ellipsis(&c.name, 40),
-                    task_count: c.task_count,
-                    message_count: c.message_count,
-                    updated_at: c.updated_at.format("%Y-%m-%d %H:%M").to_string(),
-                    active: if c.is_active {
-                        "*".to_owned()
-                    } else {
-                        String::new()
-                    },
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
+            CliService::output(&context_list_table(&summaries));
 
             CliService::info(&format!("Showing {} context(s)", total));
         }

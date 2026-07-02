@@ -29,4 +29,6 @@ mod interactive;
 #[cfg(test)]
 mod paths;
 #[cfg(test)]
+mod presentation_tables;
+#[cfg(test)]
 mod shared;

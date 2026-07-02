@@ -1,11 +1,12 @@
-//! Live terminal rendering of the service-startup sequence.
+//! Terminal presentation widgets.
 //!
-//! Consumes the startup event stream and drives spinners, a service table, and
-//! completion messaging. [`StartupRenderer`] is the entry point; rendering
-//! state and individual widgets are internal.
+//! Live rendering of the service-startup sequence ([`StartupRenderer`] is the
+//! entry point; its state and widgets are internal) plus the shared [`tables`]
+//! widgets that shape command records into rendered `tabled` output.
 
 mod renderer;
 mod state;
+pub mod tables;
 mod widgets;
 
 pub use renderer::StartupRenderer;

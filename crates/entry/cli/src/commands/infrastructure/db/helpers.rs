@@ -16,7 +16,7 @@ const KNOWN_TABLES: &[&str] = &[
     "sources",
 ];
 
-pub(super) fn format_bytes(bytes: i64) -> String {
+pub(crate) fn format_bytes(bytes: i64) -> String {
     const KB: i64 = 1024;
     const MB: i64 = KB * 1024;
     const GB: i64 = MB * 1024;

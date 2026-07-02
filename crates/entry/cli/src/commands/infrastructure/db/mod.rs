@@ -37,6 +37,8 @@ use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
 pub use commands::{DbCommands, MigrationsCommands};
 pub use types::*;
 
+pub(crate) use helpers::format_bytes;
+
 pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     let Some(cmd) = (match ctx.database_context() {

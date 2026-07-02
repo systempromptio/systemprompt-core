@@ -1,38 +1,15 @@
-use std::collections::HashSet;
 use systemprompt_logging::{CliService, TaskArtifact};
-use tabled::Table;
-use tabled::settings::Style;
 
-use super::ai_display::{ArtifactRow, print_content_block, print_section, truncate};
+use super::ai_display::{print_content_block, print_section, truncate};
+use crate::presentation::tables::task_artifacts_table;
 
 pub(super) fn print_artifacts(artifacts: &[TaskArtifact]) {
     if artifacts.is_empty() {
         return;
     }
 
-    let mut seen_artifacts: HashSet<String> = HashSet::new();
-    let mut artifact_rows: Vec<ArtifactRow> = Vec::new();
-
-    for artifact in artifacts {
-        if seen_artifacts.insert(artifact.artifact_id.to_string()) {
-            artifact_rows.push(ArtifactRow {
-                artifact: truncate(artifact.artifact_id.as_str(), 12),
-                artifact_type: artifact.artifact_type.clone(),
-                name: artifact
-                    .name
-                    .as_ref()
-                    .map_or_else(|| "-".to_owned(), |s| truncate(s, 30)),
-                source: artifact.source.clone().unwrap_or_else(|| "-".to_owned()),
-                tool_name: artifact.tool_name.clone().unwrap_or_else(|| "-".to_owned()),
-            });
-        }
-    }
-
     print_section("ARTIFACTS");
-    let table = Table::new(&artifact_rows)
-        .with(Style::rounded())
-        .to_string();
-    CliService::info(&table);
+    CliService::info(&task_artifacts_table(artifacts));
 
     let mut current_artifact: Option<String> = None;
     for artifact in artifacts {

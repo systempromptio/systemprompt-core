@@ -10,6 +10,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 mod command_result;
+mod disk_logs;
 mod parsers;
 mod profile;
 mod profile_resolution;
