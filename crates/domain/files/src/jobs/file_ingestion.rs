@@ -216,10 +216,7 @@ async fn insert_file_record(
 fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
     let now = Utc::now();
     let metadata = serde_json::to_value(FileMetadata::default())
-        .map_err(|e| {
-            tracing::warn!(error = %e, "Failed to serialize default FileMetadata");
-            e
-        })
+        .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize default FileMetadata"))
         .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
 
     File {
@@ -229,10 +226,7 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
         mime_type: mime_from_extension(extension),
         size_bytes: std::fs::metadata(path)
             .map(|m| m.len() as i64)
-            .map_err(|e| {
-                tracing::debug!(error = %e, path = %path.display(), "Failed to get file size");
-                e
-            })
+            .inspect_err(|e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"))
             .ok(),
         ai_content: path.to_string_lossy().contains(storage::GENERATED),
         metadata,
