@@ -23,12 +23,8 @@ pub struct LinkAnalyticsRepository {
 
 impl LinkAnalyticsRepository {
     pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| ContentError::InvalidRequest(format!("Database pool error: {e}")))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| ContentError::InvalidRequest(format!("Database write pool error: {e}")))?;
+        let pool = db.pool_arc().map_err(ContentError::Repository)?;
+        let write_pool = db.write_pool_arc().map_err(ContentError::Repository)?;
         Ok(Self { pool, write_pool })
     }
 

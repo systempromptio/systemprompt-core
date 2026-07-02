@@ -18,9 +18,7 @@ pub struct SearchRepository {
 
 impl SearchRepository {
     pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| ContentError::InvalidRequest(format!("Database pool error: {e}")))?;
+        let pool = db.pool_arc().map_err(ContentError::Repository)?;
         Ok(Self { pool })
     }
 

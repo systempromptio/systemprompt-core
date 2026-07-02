@@ -46,7 +46,6 @@ fn log_job_started() {
 
 fn create_ingestion_service(db_pool: &DbPool) -> ContentResult<IngestionService> {
     IngestionService::new(db_pool)
-        .map_err(|e| ContentError::Service(format!("Failed to create ingestion service: {e}")))
 }
 
 fn get_enabled_sources(
