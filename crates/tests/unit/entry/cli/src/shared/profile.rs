@@ -180,46 +180,32 @@ fn test_capitalize_first_with_underscore() {
 
 #[test]
 fn test_jwt_secret_generation_expected_length() {
-    use rand::distr::Alphanumeric;
-    use rand::{Rng, rng};
+    use rand::distr::{Alphanumeric, SampleString};
+    use rand::rng;
 
-    let secret: String = rng()
-        .sample_iter(&Alphanumeric)
-        .take(64)
-        .map(char::from)
-        .collect();
+    let secret = Alphanumeric.sample_string(&mut rng(), 64);
 
     assert_eq!(secret.len(), 64);
 }
 
 #[test]
 fn test_jwt_secret_generation_alphanumeric() {
-    use rand::distr::Alphanumeric;
-    use rand::{Rng, rng};
+    use rand::distr::{Alphanumeric, SampleString};
+    use rand::rng;
 
-    let secret: String = rng()
-        .sample_iter(&Alphanumeric)
-        .take(64)
-        .map(char::from)
-        .collect();
+    let secret = Alphanumeric.sample_string(&mut rng(), 64);
 
     assert!(secret.chars().all(|c: char| c.is_ascii_alphanumeric()));
 }
 
 #[test]
 fn test_jwt_secret_generation_uniqueness() {
-    use rand::distr::Alphanumeric;
-    use rand::{Rng, rng};
+    use rand::distr::{Alphanumeric, SampleString};
+    use rand::rng;
     use std::collections::HashSet;
 
     let secrets: HashSet<String> = (0..100)
-        .map(|_| {
-            rng()
-                .sample_iter(&Alphanumeric)
-                .take(64)
-                .map(char::from)
-                .collect()
-        })
+        .map(|_| Alphanumeric.sample_string(&mut rng(), 64))
         .collect();
 
     assert_eq!(secrets.len(), 100, "All 100 secrets should be unique");
