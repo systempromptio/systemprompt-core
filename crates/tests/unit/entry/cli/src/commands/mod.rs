@@ -11,6 +11,7 @@ mod config_secret;
 mod core_artifacts_db;
 mod core_content_db;
 mod core_content_edit_apply;
+mod core_dispatchers_db;
 mod core_plugins_fs;
 mod infrastructure;
 mod mcp_prompts;
