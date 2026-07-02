@@ -1,93 +1,80 @@
-use anyhow::Result;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input, Select};
+use anyhow::{Context, Result};
 use systemprompt_logging::CliService;
 use systemprompt_models::{Environment, LogLevel, Profile};
 
-pub(super) fn edit_server_settings(profile: &mut Profile) -> Result<()> {
+use crate::interactive::Prompter;
+
+pub fn edit_server_settings(prompter: &dyn Prompter, profile: &mut Profile) -> Result<()> {
     CliService::section("Server Settings");
 
-    profile.server.host = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Host")
-        .default(profile.server.host.clone())
-        .interact_text()?;
+    profile.server.host = prompter.input_with_default("Host", &profile.server.host)?;
 
-    profile.server.port = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Port")
-        .default(profile.server.port)
-        .interact_text()?;
+    profile.server.port = prompter
+        .input_with_default("Port", &profile.server.port.to_string())?
+        .trim()
+        .parse()
+        .context("Invalid port")?;
 
-    profile.server.api_server_url = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("API Server URL")
-        .default(profile.server.api_server_url.clone())
-        .interact_text()?;
+    profile.server.api_server_url =
+        prompter.input_with_default("API Server URL", &profile.server.api_server_url)?;
 
-    profile.server.api_external_url = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("API External URL")
-        .default(profile.server.api_external_url.clone())
-        .interact_text()?;
+    profile.server.api_external_url =
+        prompter.input_with_default("API External URL", &profile.server.api_external_url)?;
 
-    profile.server.use_https = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Use HTTPS?")
-        .default(profile.server.use_https)
-        .interact()?;
+    profile.server.use_https = prompter.confirm("Use HTTPS?", profile.server.use_https)?;
 
     CliService::success("Server settings updated");
     Ok(())
 }
 
-pub(super) fn edit_security_settings(profile: &mut Profile) -> Result<()> {
+pub fn edit_security_settings(prompter: &dyn Prompter, profile: &mut Profile) -> Result<()> {
     CliService::section("Security Settings");
 
-    profile.security.issuer = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("JWT Issuer")
-        .default(profile.security.issuer.clone())
-        .interact_text()?;
+    profile.security.issuer =
+        prompter.input_with_default("JWT Issuer", &profile.security.issuer)?;
 
-    profile.security.access_token_expiration = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Access Token Expiration (seconds)")
-        .default(profile.security.access_token_expiration)
-        .interact_text()?;
+    profile.security.access_token_expiration = prompter
+        .input_with_default(
+            "Access Token Expiration (seconds)",
+            &profile.security.access_token_expiration.to_string(),
+        )?
+        .trim()
+        .parse()
+        .context("Invalid access token expiration")?;
 
-    profile.security.refresh_token_expiration = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Refresh Token Expiration (seconds)")
-        .default(profile.security.refresh_token_expiration)
-        .interact_text()?;
+    profile.security.refresh_token_expiration = prompter
+        .input_with_default(
+            "Refresh Token Expiration (seconds)",
+            &profile.security.refresh_token_expiration.to_string(),
+        )?
+        .trim()
+        .parse()
+        .context("Invalid refresh token expiration")?;
 
     CliService::success("Security settings updated");
     Ok(())
 }
 
-pub(super) fn edit_runtime_settings(profile: &mut Profile) -> Result<()> {
+pub fn edit_runtime_settings(prompter: &dyn Prompter, profile: &mut Profile) -> Result<()> {
     CliService::section("Runtime Settings");
 
-    let env_options = vec!["development", "test", "staging", "production"];
-    let current_env_idx = env_options
-        .iter()
-        .position(|&e| e == profile.runtime.environment.to_string())
-        .unwrap_or(0);
+    let env_options: Vec<String> = ["development", "test", "staging", "production"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
 
-    let env_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Environment")
-        .items(&env_options)
-        .default(current_env_idx)
-        .interact()?;
+    let env_selection = prompter.select("Environment", &env_options)?;
 
     profile.runtime.environment = env_options[env_selection]
         .parse::<Environment>()
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
-    let log_options = vec!["quiet", "normal", "verbose", "debug"];
-    let current_log_idx = log_options
-        .iter()
-        .position(|&l| l == profile.runtime.log_level.to_string())
-        .unwrap_or(1);
+    let log_options: Vec<String> = ["quiet", "normal", "verbose", "debug"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
 
-    let log_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Log Level")
-        .items(&log_options)
-        .default(current_log_idx)
-        .interact()?;
+    let log_selection = prompter.select("Log Level", &log_options)?;
 
     profile.runtime.log_level = log_options[log_selection]
         .parse::<LogLevel>()

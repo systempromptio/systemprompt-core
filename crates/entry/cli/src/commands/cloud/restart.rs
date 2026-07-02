@@ -1,17 +1,17 @@
 use anyhow::{Result, bail};
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudApiClient, CloudPath, TenantStore, TenantType, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::tenant::{get_credentials, resolve_tenant_id};
 use super::types::RestartOutput;
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 pub(super) async fn execute(
     tenant: Option<String>,
     yes: bool,
+    prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     if !config.is_json_output() {
@@ -42,13 +42,13 @@ pub(super) async fn execute(
             ));
         }
 
-        let confirm = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!(
+        let confirm = prompter.confirm(
+            &format!(
                 "Restart tenant '{}'? This will cause a brief downtime.",
                 tenant_name
-            ))
-            .default(false)
-            .interact()?;
+            ),
+            false,
+        )?;
 
         if !confirm {
             if !config.is_json_output() {

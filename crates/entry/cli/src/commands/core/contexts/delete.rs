@@ -45,11 +45,7 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
             context_id.as_str()
         ));
 
-        if !dialoguer::Confirm::new()
-            .with_prompt("Are you sure?")
-            .default(false)
-            .interact()?
-        {
+        if !ctx.prompter().confirm("Are you sure?", false)? {
             CliService::info("Deletion cancelled");
             let cancelled = ContextDeletedOutput {
                 id: context_id,

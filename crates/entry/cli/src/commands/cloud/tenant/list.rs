@@ -6,8 +6,6 @@
 
 use anyhow::Result;
 use chrono::Utc;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
@@ -16,9 +14,10 @@ use systemprompt_logging::CliService;
 use super::select::get_credentials;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{TenantListOutput, TenantSummary};
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
-pub async fn list_tenants(config: &CliConfig) -> Result<CommandOutput> {
+pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
@@ -57,7 +56,7 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandOutput> {
 
     if !config.is_json_output() {
         if config.is_interactive() {
-            run_tenant_picker(&store)?;
+            run_tenant_picker(prompter, &store)?;
         } else {
             render_tenant_lines(&store);
         }
@@ -83,7 +82,7 @@ fn tenant_label(tenant: &StoredTenant) -> String {
     format!("{} ({}) [{}]", tenant.name, type_str, db_status)
 }
 
-fn run_tenant_picker(store: &TenantStore) -> Result<()> {
+fn run_tenant_picker(prompter: &dyn Prompter, store: &TenantStore) -> Result<()> {
     let options: Vec<String> = store
         .tenants
         .iter()
@@ -98,11 +97,7 @@ fn run_tenant_picker(store: &TenantStore) -> Result<()> {
         );
         CliService::info("");
 
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("Select tenant")
-            .items(&options)
-            .default(0)
-            .interact()?;
+        let selection = prompter.select("Select tenant", &options)?;
 
         if selection == store.tenants.len() {
             break;

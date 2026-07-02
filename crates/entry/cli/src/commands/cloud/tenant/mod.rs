@@ -12,7 +12,7 @@ pub mod docker;
 mod edit;
 mod list;
 mod rotate;
-mod select;
+pub mod select;
 mod show;
 mod validation;
 
@@ -25,18 +25,17 @@ pub(in crate::commands::cloud) use docker::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
 pub use list::list_tenants;
 pub use rotate::rotate_credentials;
-pub use select::{get_credentials, resolve_tenant_id};
+pub use select::{get_credentials, resolve_tenant_id, select_tenant};
 pub use show::show_tenant;
 pub use validation::{check_build_ready, validate_ai_config};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use crate::context::CommandContext;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 use create_flow::tenant_create;
 
@@ -101,7 +100,7 @@ pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Resul
                 "Tenant subcommand required in non-interactive mode"
             ));
         }
-        while let Some(cmd) = select_operation()? {
+        while let Some(cmd) = select_operation(ctx.prompter())? {
             if execute_command(cmd, ctx).await? {
                 break;
             }
@@ -112,43 +111,49 @@ pub async fn execute(cmd: Option<TenantCommands>, ctx: &CommandContext) -> Resul
 
 async fn execute_command(cmd: TenantCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        TenantCommands::Create { region } => tenant_create(&region, &ctx.cli).await.map(|()| true),
+        TenantCommands::Create { region } => tenant_create(&region, ctx.prompter(), &ctx.cli)
+            .await
+            .map(|()| true),
         TenantCommands::List => {
-            let result = list_tenants(&ctx.cli).await?;
+            let result = list_tenants(ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Show { id } => {
-            let result = show_tenant(id.as_ref(), &ctx.cli)?;
+            let result = show_tenant(ctx.prompter(), id.as_ref(), &ctx.cli)?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Delete(args) => {
-            let result = delete_tenant(args, &ctx.cli).await?;
+            let result = delete_tenant(args, ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Edit { id } => {
-            let result = edit_tenant(id, &ctx.cli)?;
+            let result = edit_tenant(id, ctx.prompter(), &ctx.cli)?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::RotateCredentials(args) => {
-            let result =
-                rotate_credentials(args.id, args.yes || !ctx.cli.is_interactive(), &ctx.cli)
-                    .await?;
+            let result = rotate_credentials(
+                args.id,
+                args.yes || !ctx.cli.is_interactive(),
+                ctx.prompter(),
+                &ctx.cli,
+            )
+            .await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
         TenantCommands::Cancel(args) => {
-            let result = cancel_subscription(args, &ctx.cli).await?;
+            let result = cancel_subscription(args, ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
     }
 }
 
-fn select_operation() -> Result<Option<TenantCommands>> {
+fn select_operation(prompter: &dyn Prompter) -> Result<Option<TenantCommands>> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -157,6 +162,13 @@ fn select_operation() -> Result<Option<TenantCommands>> {
     });
     let has_tenants = !store.tenants.is_empty();
 
+    choose_tenant_operation(prompter, has_tenants)
+}
+
+pub fn choose_tenant_operation(
+    prompter: &dyn Prompter,
+    has_tenants: bool,
+) -> Result<Option<TenantCommands>> {
     let edit_label = if has_tenants {
         "Edit".to_owned()
     } else {
@@ -176,11 +188,7 @@ fn select_operation() -> Result<Option<TenantCommands>> {
         "Done".to_owned(),
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tenant operation")
-        .items(&operations)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Tenant operation", &operations)?;
 
     let cmd = match selection {
         0 => Some(TenantCommands::Create {

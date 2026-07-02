@@ -1,13 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use dialoguer::Input;
-use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::services::config_authoring::{
     AgentConfigAuthoringService, AgentCreateRequest,
@@ -36,17 +34,22 @@ struct ResolvedAgentInput {
     system_prompt: String,
 }
 
-pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: CreateArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let mut agent_args = args.agent;
 
-    let name = resolve_required(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, || prompt_name(prompter))?;
     AgentConfigAuthoringService::validate_agent_name(&name)?;
 
-    let port = resolve_required(agent_args.port, "port", config, prompt_port)?;
+    let port = resolve_required(agent_args.port, "port", config, || prompt_port(prompter))?;
     AgentConfigAuthoringService::validate_port(port)?;
 
-    let display_name = resolve_display_name(agent_args.display_name.take(), &name, config);
-    let description = resolve_description(agent_args.description.take(), config);
+    let display_name =
+        resolve_display_name(agent_args.display_name.take(), &name, prompter, config);
+    let description = resolve_description(agent_args.description.take(), prompter, config);
     let system_prompt = AgentConfigAuthoringService::resolve_system_prompt(
         agent_args.system_prompt_file.as_deref(),
         agent_args.system_prompt.take(),
@@ -88,20 +91,25 @@ pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOut
     Ok(CommandOutput::card_value("Agent Created", &output))
 }
 
-fn resolve_display_name(arg: Option<String>, name: &str, config: &CliConfig) -> String {
+fn resolve_display_name(
+    arg: Option<String>,
+    name: &str,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> String {
     arg.unwrap_or_else(|| {
         if config.is_interactive() {
-            prompt_display_name(name).unwrap_or_else(|_| name.to_owned())
+            prompt_display_name(prompter, name).unwrap_or_else(|_| name.to_owned())
         } else {
             name.to_owned()
         }
     })
 }
 
-fn resolve_description(arg: Option<String>, config: &CliConfig) -> String {
+fn resolve_description(arg: Option<String>, prompter: &dyn Prompter, config: &CliConfig) -> String {
     arg.unwrap_or_else(|| {
         if config.is_interactive() {
-            prompt_description().unwrap_or_else(|e| {
+            prompt_description(prompter).unwrap_or_else(|e| {
                 tracing::warn!(error = %e, "Failed to prompt for description");
                 String::new()
             })
@@ -160,54 +168,68 @@ fn write_agent_config(request: AgentCreateRequest) -> Result<std::path::PathBuf>
     Ok(agent_file)
 }
 
-fn prompt_name() -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Agent name")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.len() < 3 {
-                return Err("Name must be at least 3 characters");
-            }
-            if !input
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-            {
-                return Err("Name must be lowercase alphanumeric with underscores only");
-            }
-            Ok(())
-        })
-        .interact_text()
-        .context("Failed to get agent name")
+pub fn validate_name_input(input: &str) -> Result<(), &'static str> {
+    if input.len() < 3 {
+        return Err("Name must be at least 3 characters");
+    }
+    if !input
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    {
+        return Err("Name must be lowercase alphanumeric with underscores only");
+    }
+    Ok(())
 }
 
-fn prompt_port() -> Result<u16> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Port")
-        .default(8001u16)
-        .validate_with(|input: &u16| -> Result<(), &str> {
-            if *input == 0 {
-                return Err("Port cannot be 0");
-            }
-            if *input < 1024 {
-                return Err("Port should be >= 1024 (non-privileged)");
-            }
-            Ok(())
-        })
-        .interact()
-        .context("Failed to get port")
+pub const fn validate_port_input(port: u16) -> Result<(), &'static str> {
+    if port == 0 {
+        return Err("Port cannot be 0");
+    }
+    if port < 1024 {
+        return Err("Port should be >= 1024 (non-privileged)");
+    }
+    Ok(())
 }
 
-fn prompt_display_name(default: &str) -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Display name")
-        .default(default.to_owned())
-        .interact_text()
+pub fn prompt_name(prompter: &dyn Prompter) -> Result<String> {
+    loop {
+        let input = prompter
+            .input("Agent name")
+            .context("Failed to get agent name")?;
+        match validate_name_input(&input) {
+            Ok(()) => return Ok(input),
+            Err(msg) => CliService::warning(msg),
+        }
+    }
+}
+
+pub fn prompt_port(prompter: &dyn Prompter) -> Result<u16> {
+    loop {
+        let raw = prompter
+            .input_with_default("Port", "8001")
+            .context("Failed to get port")?;
+        let port: u16 = match raw.trim().parse() {
+            Ok(port) => port,
+            Err(e) => {
+                CliService::warning(&format!("'{}' is not a valid port: {}", raw.trim(), e));
+                continue;
+            },
+        };
+        match validate_port_input(port) {
+            Ok(()) => return Ok(port),
+            Err(msg) => CliService::warning(msg),
+        }
+    }
+}
+
+fn prompt_display_name(prompter: &dyn Prompter, default: &str) -> Result<String> {
+    prompter
+        .input_with_default("Display name", default)
         .context("Failed to get display name")
 }
 
-fn prompt_description() -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Description")
-        .allow_empty(true)
-        .interact_text()
+fn prompt_description(prompter: &dyn Prompter) -> Result<String> {
+    prompter
+        .input_with_default("Description", "")
         .context("Failed to get description")
 }

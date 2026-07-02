@@ -7,7 +7,7 @@ use systemprompt_models::profile::RateLimitsConfig;
 use super::helpers::{load_profile_for_edit, save_profile};
 use super::{ExportArgs, ImportArgs};
 use crate::CliConfig;
-use crate::interactive::require_confirmation;
+use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::CommandOutput;
 
 use super::super::types::{ExportOutput, ImportOutput};
@@ -37,7 +37,11 @@ pub(super) fn execute_export(args: &ExportArgs, _config: &CliConfig) -> Result<C
     Ok(CommandOutput::card_value("Rate Limits Exported", &output))
 }
 
-pub(super) fn execute_import(args: &ImportArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute_import(
+    args: &ImportArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let path = Path::new(&args.file);
     if !path.exists() {
         bail!("File not found: {}", args.file);
@@ -58,7 +62,7 @@ pub(super) fn execute_import(args: &ImportArgs, config: &CliConfig) -> Result<Co
             .with_context(|| format!("Failed to parse YAML from: {}", args.file))?
     };
 
-    require_confirmation("Proceed with import?", args.yes, config)?;
+    require_confirmation(prompter, "Proceed with import?", args.yes, config)?;
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;

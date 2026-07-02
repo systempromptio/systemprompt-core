@@ -1,20 +1,19 @@
 //! Interactive menu for `cloud sync` when no subcommand is given.
 //!
 //! Prompts for push/pull direction and a source profile, then drives the
-//! [`SyncService`] to synchronise files for the profile's configured tenant.
+//! `SyncService` to synchronise files for the profile's configured tenant.
 
 use anyhow::{Context, Result, bail};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 
-#[derive(Debug, Clone, Copy)]
-enum SyncType {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyncType {
     Push,
     Pull,
 }
@@ -24,28 +23,23 @@ struct ProfileSelection {
     pub profile: Profile,
 }
 
-pub(super) async fn execute(_config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(prompter: &dyn Prompter, _config: &CliConfig) -> Result<()> {
     CliService::section("Sync Menu");
 
-    let sync_type = select_sync_type()?;
+    let sync_type = select_sync_type(prompter)?;
 
-    let source = select_profile("Select source profile")?;
+    let source = select_profile(prompter, "Select source profile")?;
 
     execute_cloud_sync(sync_type, &source).await
 }
 
-fn select_sync_type() -> Result<SyncType> {
+pub fn select_sync_type(prompter: &dyn Prompter) -> Result<SyncType> {
     let options = vec![
-        "Push to cloud (Local → Cloud)",
-        "Pull from cloud (Cloud → Local)",
+        "Push to cloud (Local → Cloud)".to_owned(),
+        "Pull from cloud (Cloud → Local)".to_owned(),
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select sync operation")
-        .items(&options)
-        .default(0)
-        .interact()
-        .context("Failed to select sync type")?;
+    let selection = prompter.select("Select sync operation", &options)?;
 
     match selection {
         0 => Ok(SyncType::Push),
@@ -54,7 +48,7 @@ fn select_sync_type() -> Result<SyncType> {
     }
 }
 
-fn select_profile(prompt: &str) -> Result<ProfileSelection> {
+fn select_profile(prompter: &dyn Prompter, prompt: &str) -> Result<ProfileSelection> {
     let profiles = discover_profiles()?;
 
     if profiles.is_empty() {
@@ -75,11 +69,8 @@ fn select_profile(prompt: &str) -> Result<ProfileSelection> {
         })
         .collect();
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .items(&options)
-        .default(0)
-        .interact()
+    let selection = prompter
+        .select(prompt, &options)
         .context("Failed to select profile")?;
 
     profiles

@@ -5,8 +5,6 @@
 //! result.
 
 use anyhow::Result;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudCredentials, CloudPath, StoredTenant, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
@@ -15,8 +13,13 @@ use super::{
     get_credentials,
 };
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 
-pub(super) async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
+pub(super) async fn tenant_create(
+    default_region: &str,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant creation requires interactive mode.\nUse specific tenant type commands in \
@@ -28,7 +31,7 @@ pub(super) async fn tenant_create(default_region: &str, config: &CliConfig) -> R
 
     let creds = get_credentials()?;
 
-    let Some(tenant) = prompt_and_create_tenant(&creds, default_region).await? else {
+    let Some(tenant) = prompt_and_create_tenant(&creds, default_region, prompter).await? else {
         return Ok(());
     };
 
@@ -41,6 +44,7 @@ pub(super) async fn tenant_create(default_region: &str, config: &CliConfig) -> R
 async fn prompt_and_create_tenant(
     creds: &CloudCredentials,
     default_region: &str,
+    prompter: &dyn Prompter,
 ) -> Result<Option<StoredTenant>> {
     let build_result = check_build_ready();
     let cloud_option = match &build_result {
@@ -53,37 +57,31 @@ async fn prompt_and_create_tenant(
         cloud_option,
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tenant type")
-        .items(&options)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Tenant type", &options)?;
 
     match selection {
-        0 => Ok(Some(create_local_or_external_tenant().await?)),
+        0 => Ok(Some(create_local_or_external_tenant(prompter).await?)),
         _ if build_result.is_err() => {
             render_build_required(&build_result);
             Ok(None)
         },
-        _ => Ok(Some(create_cloud_tenant(creds, default_region).await?)),
+        _ => Ok(Some(
+            create_cloud_tenant(creds, default_region, prompter).await?,
+        )),
     }
 }
 
-async fn create_local_or_external_tenant() -> Result<StoredTenant> {
+async fn create_local_or_external_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
     let db_options = vec![
-        "Docker (creates PostgreSQL container automatically)",
-        "External PostgreSQL (use your own database)",
+        "Docker (creates PostgreSQL container automatically)".to_owned(),
+        "External PostgreSQL (use your own database)".to_owned(),
     ];
 
-    let db_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database source")
-        .items(&db_options)
-        .default(0)
-        .interact()?;
+    let db_selection = prompter.select("Database source", &db_options)?;
 
     match db_selection {
-        0 => create_local_tenant().await,
-        _ => create_external_tenant().await,
+        0 => create_local_tenant(prompter).await,
+        _ => create_external_tenant(prompter).await,
     }
 }
 

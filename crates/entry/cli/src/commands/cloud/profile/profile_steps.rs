@@ -7,8 +7,6 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use dialoguer::Input;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudApiClient, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
 };
@@ -27,6 +25,7 @@ use super::templates::{
     save_profile, save_secrets, update_ai_config_default_provider,
 };
 use super::{CreateArgs, TenantTypeArg};
+use crate::interactive::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 
 #[derive(Debug)]
@@ -35,13 +34,14 @@ pub struct CreatedProfile {
 }
 
 pub fn create_profile_for_tenant(
+    prompter: &dyn Prompter,
     tenant: &StoredTenant,
     api_keys: &ApiKeys,
     profile_name: &str,
     control_plane_api_url: Option<&str>,
 ) -> Result<CreatedProfile> {
     let ctx = ProjectContext::discover();
-    let name = resolve_unique_profile_name(&ctx, profile_name)?;
+    let name = resolve_unique_profile_name(prompter, &ctx, profile_name)?;
     let profile_dir = ctx.profile_dir(&name);
 
     std::fs::create_dir_all(ctx.profiles_dir())
@@ -63,7 +63,11 @@ pub fn create_profile_for_tenant(
     Ok(CreatedProfile { name })
 }
 
-fn resolve_unique_profile_name(ctx: &ProjectContext, profile_name: &str) -> Result<String> {
+fn resolve_unique_profile_name(
+    prompter: &dyn Prompter,
+    ctx: &ProjectContext,
+    profile_name: &str,
+) -> Result<String> {
     let mut name = profile_name.to_owned();
 
     loop {
@@ -78,9 +82,7 @@ fn resolve_unique_profile_name(ctx: &ProjectContext, profile_name: &str) -> Resu
             profile_dir.display()
         ));
 
-        name = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter a different profile name")
-            .interact_text()?;
+        name = prompter.input("Enter a different profile name")?;
     }
 }
 

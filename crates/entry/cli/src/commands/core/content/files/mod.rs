@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -30,7 +31,11 @@ pub enum ContentFilesCommands {
     Featured(featured::FeaturedArgs),
 }
 
-pub async fn execute(cmd: ContentFilesCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    cmd: ContentFilesCommands,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     match cmd {
         ContentFilesCommands::Link(args) => {
             let result = link::execute(args, config)
@@ -40,7 +45,7 @@ pub async fn execute(cmd: ContentFilesCommands, config: &CliConfig) -> Result<()
             Ok(())
         },
         ContentFilesCommands::Unlink(args) => {
-            let result = unlink::execute(args, config)
+            let result = unlink::execute(args, prompter, config)
                 .await
                 .context("Failed to unlink file from content")?;
             render_result(&result, config);

@@ -6,6 +6,7 @@ use clap::{Args, ValueEnum};
 use super::logs_db::execute_db_mode;
 use super::logs_disk::{execute_disk_mode, execute_follow_mode};
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::AppPaths;
@@ -68,25 +69,29 @@ fn get_default_logs_dir() -> PathBuf {
         .map_or_else(|| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
-pub(super) async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: LogsArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let logs_path = args
         .logs_dir
         .as_ref()
         .map_or_else(get_default_logs_dir, PathBuf::from);
 
     if args.follow {
-        return execute_follow_mode(&args, config, &logs_path);
+        return execute_follow_mode(&args, prompter, config, &logs_path);
     }
 
     if args.disk {
-        return execute_disk_mode(&args, config, &logs_path);
+        return execute_disk_mode(&args, prompter, config, &logs_path);
     }
 
     match execute_db_mode(&args, config).await {
         Ok(result) => Ok(result),
         Err(e) => {
             tracing::debug!(error = %e, "DB log query failed, falling back to disk");
-            execute_disk_mode(&args, config, &logs_path)
+            execute_disk_mode(&args, prompter, config, &logs_path)
         },
     }
 }

@@ -3,7 +3,7 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
@@ -46,7 +46,11 @@ pub struct EditArgs {
     pub description: Option<String>,
 }
 
-pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: &EditArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -57,7 +61,7 @@ pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutp
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
-        prompt_content_type_selection(&content_config, "Select content type to edit")
+        prompt_content_type_selection(prompter, &content_config, "Select content type to edit")
     })?;
 
     let source = content_config

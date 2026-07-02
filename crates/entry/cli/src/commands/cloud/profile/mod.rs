@@ -8,11 +8,11 @@ mod api_keys;
 mod args;
 mod create;
 mod create_setup;
-mod create_tenant;
+pub mod create_tenant;
 pub(super) mod delete;
 mod edit;
 mod edit_secrets;
-mod edit_settings;
+pub mod edit_settings;
 mod list;
 mod profile_steps;
 mod show;
@@ -27,10 +27,9 @@ pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
 pub use show_types::redact_database_url;
 
 use crate::context::CommandContext;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 use anyhow::Result;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
@@ -43,7 +42,7 @@ pub async fn execute(cmd: Option<ProfileCommands>, ctx: &CommandContext) -> Resu
                 "Profile subcommand required in non-interactive mode"
             ));
         }
-        while let Some(cmd) = select_operation()? {
+        while let Some(cmd) = select_operation(ctx.prompter())? {
             if execute_command(cmd, ctx).await? {
                 break;
             }
@@ -54,7 +53,9 @@ pub async fn execute(cmd: Option<ProfileCommands>, ctx: &CommandContext) -> Resu
 
 async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<bool> {
     match cmd {
-        ProfileCommands::Create(args) => create::execute(&args, &ctx.cli).await.map(|()| true),
+        ProfileCommands::Create(args) => create::execute(&args, ctx.prompter(), &ctx.cli)
+            .await
+            .map(|()| true),
         ProfileCommands::List => {
             let result = list::execute(ctx)?;
             render_result(&result, &ctx.cli);
@@ -67,7 +68,7 @@ async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<b
             yaml,
         } => show::execute(name.as_deref(), filter, json, yaml, ctx).map(|()| false),
         ProfileCommands::Delete(args) => {
-            let result = delete::execute(&args, &ctx.cli)?;
+            let result = delete::execute(&args, ctx.prompter(), &ctx.cli)?;
             render_result(&result, &ctx.cli);
             Ok(false)
         },
@@ -75,7 +76,7 @@ async fn execute_command(cmd: ProfileCommands, ctx: &CommandContext) -> Result<b
     }
 }
 
-fn select_operation() -> Result<Option<ProfileCommands>> {
+fn select_operation(prompter: &dyn Prompter) -> Result<Option<ProfileCommands>> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
     let has_profiles = profiles_dir.exists()
@@ -103,11 +104,7 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
         "Done".to_owned(),
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Profile operation")
-        .items(&operations)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Profile operation", &operations)?;
 
     let cmd = match selection {
         0 => Some(ProfileCommands::List),
@@ -130,7 +127,7 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             set_host: None,
             set_port: None,
         })),
-        2 => select_profile("Select profile to delete")?
+        2 => select_profile(prompter, "Select profile to delete")?
             .map(|name| ProfileCommands::Delete(DeleteArgs { name, yes: false })),
         3 => None,
         other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
@@ -139,7 +136,7 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
     Ok(cmd)
 }
 
-fn select_profile(prompt: &str) -> Result<Option<String>> {
+fn select_profile(prompter: &dyn Prompter, prompt: &str) -> Result<Option<String>> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 
@@ -159,11 +156,7 @@ fn select_profile(prompt: &str) -> Result<Option<String>> {
         return Ok(None);
     }
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .items(&profiles)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select(prompt, &profiles)?;
 
     Ok(Some(profiles[selection].clone()))
 }

@@ -1,11 +1,11 @@
 use anyhow::{Result, anyhow, bail};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType, get_cloud_paths,
 };
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
+
+use crate::interactive::Prompter;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
     if CredentialsBootstrap::is_initialized() {
@@ -30,7 +30,10 @@ pub fn get_credentials() -> Result<CloudCredentials> {
     }
 }
 
-pub(super) fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
+pub fn select_tenant<'a>(
+    prompter: &dyn Prompter,
+    tenants: &'a [StoredTenant],
+) -> Result<&'a StoredTenant> {
     let options: Vec<String> = tenants
         .iter()
         .map(|t| {
@@ -42,11 +45,7 @@ pub(super) fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
         })
         .collect();
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select tenant")
-        .items(&options)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Select tenant", &options)?;
 
     Ok(&tenants[selection])
 }

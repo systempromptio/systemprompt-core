@@ -124,28 +124,24 @@ impl Prompter for ScriptedPrompter {
 }
 
 pub fn require_confirmation(
+    prompter: &dyn Prompter,
     message: &str,
     skip_confirmation: bool,
     config: &CliConfig,
 ) -> Result<()> {
-    require_confirmation_with(
-        &DialoguerPrompter,
-        message,
-        skip_confirmation,
-        false,
-        config,
-    )
+    require_confirmation_with(prompter, message, skip_confirmation, false, config)
 }
 
 pub fn require_confirmation_default_yes(
+    prompter: &dyn Prompter,
     message: &str,
     skip_confirmation: bool,
     config: &CliConfig,
 ) -> Result<()> {
-    require_confirmation_with(&DialoguerPrompter, message, skip_confirmation, true, config)
+    require_confirmation_with(prompter, message, skip_confirmation, true, config)
 }
 
-pub fn require_confirmation_with(
+fn require_confirmation_with(
     prompter: &dyn Prompter,
     message: &str,
     skip_confirmation: bool,
@@ -187,6 +183,7 @@ where
 }
 
 pub fn select_from_list<T: ToString + Clone>(
+    prompter: &dyn Prompter,
     prompt: &str,
     items: &[T],
     flag_name: &str,
@@ -204,20 +201,30 @@ pub fn select_from_list<T: ToString + Clone>(
     }
 
     let display: Vec<String> = items.iter().map(ToString::to_string).collect();
-    let idx = DialoguerPrompter.select(prompt, &display)?;
+    let idx = prompter.select(prompt, &display)?;
     Ok(items[idx].clone())
 }
 
-pub fn select_index(prompt: &str, items: &[&str], config: &CliConfig) -> Result<Option<usize>> {
+pub fn select_index(
+    prompter: &dyn Prompter,
+    prompt: &str,
+    items: &[&str],
+    config: &CliConfig,
+) -> Result<Option<usize>> {
     if !config.is_interactive() {
         return Ok(None);
     }
 
     let display: Vec<String> = items.iter().map(|s| (*s).to_owned()).collect();
-    Ok(Some(DialoguerPrompter.select(prompt, &display)?))
+    Ok(Some(prompter.select(prompt, &display)?))
 }
 
-pub fn prompt_input(prompt: &str, flag_name: &str, config: &CliConfig) -> Result<String> {
+pub fn prompt_input(
+    prompter: &dyn Prompter,
+    prompt: &str,
+    flag_name: &str,
+    config: &CliConfig,
+) -> Result<String> {
     if !config.is_interactive() {
         return Err(anyhow!(
             "--{} is required in non-interactive mode",
@@ -225,10 +232,11 @@ pub fn prompt_input(prompt: &str, flag_name: &str, config: &CliConfig) -> Result
         ));
     }
 
-    DialoguerPrompter.input(prompt)
+    prompter.input(prompt)
 }
 
 pub fn prompt_input_with_default(
+    prompter: &dyn Prompter,
     prompt: &str,
     default: &str,
     config: &CliConfig,
@@ -237,13 +245,18 @@ pub fn prompt_input_with_default(
         return Ok(default.to_owned());
     }
 
-    DialoguerPrompter.input_with_default(prompt, default)
+    prompter.input_with_default(prompt, default)
 }
 
-pub fn confirm_optional(message: &str, default: bool, config: &CliConfig) -> Result<bool> {
+pub fn confirm_optional(
+    prompter: &dyn Prompter,
+    message: &str,
+    default: bool,
+    config: &CliConfig,
+) -> Result<bool> {
     if !config.is_interactive() {
         return Ok(default);
     }
 
-    DialoguerPrompter.confirm(message, default)
+    prompter.confirm(message, default)
 }

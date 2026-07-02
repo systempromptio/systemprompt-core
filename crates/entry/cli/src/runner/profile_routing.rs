@@ -181,7 +181,12 @@ fn confirm_remote_job_run(
          <local-profile> to target a local environment instead. Continue?"
     );
 
-    interactive::require_confirmation(&message, run_args.yes, cli_config)
+    interactive::require_confirmation(
+        &interactive::DialoguerPrompter,
+        &message,
+        run_args.yes,
+        cli_config,
+    )
 }
 
 fn require_external_db_access(profile: &systemprompt_models::Profile, reason: &str) -> Result<()> {

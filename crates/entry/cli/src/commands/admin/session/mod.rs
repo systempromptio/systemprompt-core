@@ -67,7 +67,7 @@ pub async fn execute(cmd: SessionCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         SessionCommands::Logout(ref args) => {
-            let result = logout::execute(args, &ctx.cli)?;
+            let result = logout::execute(args, ctx.prompter(), &ctx.cli)?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

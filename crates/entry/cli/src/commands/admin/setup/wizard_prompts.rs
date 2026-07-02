@@ -1,7 +1,6 @@
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use anyhow::{Context, Result};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::ProviderId;
@@ -10,7 +9,11 @@ use systemprompt_logging::CliService;
 use super::common::PostgresConfig;
 use super::{SetupArgs, postgres, secrets};
 
-pub(super) fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
+pub(super) fn get_environment_name(
+    args: &SetupArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<String> {
     if let Some(ref env) = args.environment {
         return Ok(env.clone());
     }
@@ -22,23 +25,21 @@ pub(super) fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Resu
     CliService::info("Enter environment name (e.g., 'dev', 'staging', 'prod')");
     CliService::info("Press Enter for default: dev");
 
-    let input: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Environment name")
-        .default("dev".to_owned())
-        .interact_text()?;
+    let input = prompter.input_with_default("Environment name", "dev")?;
 
     Ok(input.trim().to_lowercase())
 }
 
 pub(super) async fn setup_postgres(
     args: &SetupArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
 ) -> Result<PostgresConfig> {
     if !config.is_interactive() {
         return postgres::setup_non_interactive(args, env_name, config).await;
     }
-    postgres::setup_interactive(args, env_name, config).await
+    postgres::setup_interactive(args, prompter, env_name, config).await
 }
 
 /// Provider-key collection is gated on whether a key was already supplied and
@@ -48,6 +49,7 @@ pub(super) async fn setup_postgres(
 /// prompting the operator to pick a provider when no key was passed.
 pub(super) fn collect_secrets(
     args: &SetupArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
 ) -> Result<(secrets::SecretsData, Option<ProviderId>)> {
@@ -55,12 +57,16 @@ pub(super) fn collect_secrets(
         return secrets::collect_non_interactive(args, config);
     }
     if std::io::stdin().is_terminal() {
-        return secrets::collect_interactive(args, env_name, config);
+        return secrets::collect_interactive(args, prompter, env_name, config);
     }
     secrets::collect_non_interactive(args, config)
 }
 
-pub(super) fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
+pub(super) fn should_run_migrations(
+    args: &SetupArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<bool> {
     if args.migrate {
         return Ok(true);
     }
@@ -71,12 +77,7 @@ pub(super) fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Res
         return Ok(false);
     }
 
-    let run = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Run database migrations now?")
-        .default(true)
-        .interact()?;
-
-    Ok(run)
+    prompter.confirm("Run database migrations now?", true)
 }
 
 pub(super) fn detect_project_root() -> Result<PathBuf> {

@@ -7,54 +7,52 @@
 //! [`resolve_interactive_primary`]).
 
 use anyhow::{Result, anyhow};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Password, Select};
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
 use super::SecretsData;
+use crate::interactive::Prompter;
 
 /// Returns `None` for the "enter multiple keys" path; that default is resolved
 /// later from the keys actually present, not at selection time.
-pub(super) fn select_provider_keys(secrets: &mut SecretsData) -> Result<Option<ProviderId>> {
+pub(super) fn select_provider_keys(
+    prompter: &dyn Prompter,
+    secrets: &mut SecretsData,
+) -> Result<Option<ProviderId>> {
     let providers = vec![
-        "Google AI (Gemini) - https://aistudio.google.com/app/apikey",
-        "Anthropic (Claude) - https://console.anthropic.com/api-keys",
-        "OpenAI (GPT) - https://platform.openai.com/api-keys",
-        "Enter multiple keys",
+        "Google AI (Gemini) - https://aistudio.google.com/app/apikey".to_owned(),
+        "Anthropic (Claude) - https://console.anthropic.com/api-keys".to_owned(),
+        "OpenAI (GPT) - https://platform.openai.com/api-keys".to_owned(),
+        "Enter multiple keys".to_owned(),
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select your AI provider")
-        .items(&providers)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Select your AI provider", &providers)?;
 
     match selection {
         0 => {
-            secrets.gemini = Some(prompt_api_key("Gemini API Key")?);
+            secrets.gemini = Some(prompt_api_key(prompter, "Gemini API Key")?);
             Ok(Some(ProviderId::new("gemini")))
         },
         1 => {
-            secrets.anthropic = Some(prompt_api_key("Anthropic API Key")?);
+            secrets.anthropic = Some(prompt_api_key(prompter, "Anthropic API Key")?);
             Ok(Some(ProviderId::new("anthropic")))
         },
         2 => {
-            secrets.openai = Some(prompt_api_key("OpenAI API Key")?);
+            secrets.openai = Some(prompt_api_key(prompter, "OpenAI API Key")?);
             Ok(Some(ProviderId::new("openai")))
         },
         3 => {
             CliService::info("Enter API keys (press Enter to skip any):");
-            if let Some(key) = prompt_optional_api_key("Gemini API Key")? {
+            if let Some(key) = prompt_optional_api_key(prompter, "Gemini API Key")? {
                 secrets.gemini = Some(key);
             }
-            if let Some(key) = prompt_optional_api_key("Anthropic API Key")? {
+            if let Some(key) = prompt_optional_api_key(prompter, "Anthropic API Key")? {
                 secrets.anthropic = Some(key);
             }
-            if let Some(key) = prompt_optional_api_key("OpenAI API Key")? {
+            if let Some(key) = prompt_optional_api_key(prompter, "OpenAI API Key")? {
                 secrets.openai = Some(key);
             }
-            if let Some(key) = prompt_optional_api_key("GitHub Token (optional)")? {
+            if let Some(key) = prompt_optional_api_key(prompter, "GitHub Token (optional)")? {
                 secrets.github = Some(key);
             }
             Ok(None)
@@ -64,6 +62,7 @@ pub(super) fn select_provider_keys(secrets: &mut SecretsData) -> Result<Option<P
 }
 
 pub(super) fn resolve_interactive_primary(
+    prompter: &dyn Prompter,
     explicit: Option<ProviderId>,
     secrets: &SecretsData,
 ) -> Result<Option<ProviderId>> {
@@ -74,20 +73,15 @@ pub(super) fn resolve_interactive_primary(
         [] => Ok(None),
         [only] => Ok(Some(ProviderId::new(*only))),
         present => {
-            let idx = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("Which provider should be the default?")
-                .items(present)
-                .default(0)
-                .interact()?;
+            let items: Vec<String> = present.iter().map(|p| (*p).to_owned()).collect();
+            let idx = prompter.select("Which provider should be the default?", &items)?;
             Ok(Some(ProviderId::new(present[idx])))
         },
     }
 }
 
-fn prompt_api_key(prompt: &str) -> Result<String> {
-    let key = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .interact()?;
+fn prompt_api_key(prompter: &dyn Prompter, prompt: &str) -> Result<String> {
+    let key = prompter.password(prompt)?;
 
     if key.is_empty() {
         anyhow::bail!("API key is required");
@@ -96,11 +90,8 @@ fn prompt_api_key(prompt: &str) -> Result<String> {
     Ok(key)
 }
 
-fn prompt_optional_api_key(prompt: &str) -> Result<Option<String>> {
-    let key = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .allow_empty_password(true)
-        .interact()?;
+fn prompt_optional_api_key(prompter: &dyn Prompter, prompt: &str) -> Result<Option<String>> {
+    let key = prompter.password(prompt)?;
 
     if key.is_empty() {
         Ok(None)

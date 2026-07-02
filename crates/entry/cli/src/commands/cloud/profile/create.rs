@@ -25,11 +25,16 @@ use super::profile_steps::{
 };
 use super::templates::{get_services_path, save_profile, update_ai_config_default_provider};
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 
 pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
 
-pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(
+    args: &CreateArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     let name = &args.name;
     CliService::section(&format!("Create Profile: {}", name));
 
@@ -56,7 +61,7 @@ pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()>
         TenantStore::default()
     });
 
-    let (tenant, api_keys) = select_tenant_and_keys(args, config, &store)?;
+    let (tenant, api_keys) = select_tenant_and_keys(args, prompter, config, &store)?;
     let tenant = ensure_unmasked_credentials(tenant, &tenants_path).await?;
 
     ensure_profile_dirs(&ctx, &profile_dir)?;
@@ -76,7 +81,8 @@ pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()>
         let db_url = tenant
             .get_local_database_url()
             .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-        handle_local_tenant_setup(&cloud_user, db_url, &tenant.name, &profile_path).await?;
+        handle_local_tenant_setup(prompter, &cloud_user, db_url, &tenant.name, &profile_path)
+            .await?;
     }
 
     render_next_steps(&tenant, &profile_path);
@@ -86,17 +92,18 @@ pub(super) async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()>
 
 fn select_tenant_and_keys(
     args: &CreateArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     store: &TenantStore,
 ) -> Result<(StoredTenant, ApiKeys)> {
     if config.is_interactive() && args.tenant.is_none() {
-        let tenant_type = select_tenant_type(store)?;
+        let tenant_type = select_tenant_type(prompter, store)?;
         let eligible_tenants = get_tenants_by_type(store, tenant_type);
-        let tenant = select_tenant(&eligible_tenants)?;
+        let tenant = select_tenant(prompter, &eligible_tenants)?;
         ensure_tenant_database(&tenant)?;
 
         CliService::section("API Keys");
-        let api_keys = collect_api_keys()?;
+        let api_keys = collect_api_keys(prompter)?;
         Ok((tenant, api_keys))
     } else {
         let tenant = resolve_tenant_from_args(args, store)?;

@@ -1,12 +1,12 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use dialoguer::Confirm;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
 use super::types::FileDeleteOutput;
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -25,7 +25,11 @@ pub struct DeleteArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
 
     let ctx = AppContext::new().await?;
@@ -49,13 +53,13 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
 
     if !args.yes {
         if config.is_interactive() {
-            let confirmed = Confirm::new()
-                .with_prompt(format!(
+            let confirmed = prompter.confirm(
+                &format!(
                     "Delete file '{}' ({})? This action cannot be undone.",
                     file.path, args.file
-                ))
-                .default(false)
-                .interact()?;
+                ),
+                false,
+            )?;
 
             if !confirmed {
                 return Err(anyhow!("Deletion cancelled by user"));

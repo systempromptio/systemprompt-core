@@ -3,12 +3,10 @@ use super::edit_apply::{
 };
 use super::types::UpdateOutput;
 use crate::cli_settings::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_content::{CategoryIdUpdate, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
@@ -39,20 +37,25 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub(super) async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: EditArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), config).await
+    execute_with_pool(args, prompter, ctx.db_pool(), config).await
 }
 
 pub(super) async fn execute_with_pool(
     args: EditArgs,
+    prompter: &dyn Prompter,
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let repo = ContentRepository::new(pool)?;
 
     let identifier = resolve_required(args.identifier.clone(), "identifier", config, || {
-        prompt_content_selection(&repo, args.source.as_deref(), config)
+        prompt_content_selection(prompter, &repo, args.source.as_deref())
     })?;
 
     let content = if identifier.starts_with("content_")
@@ -124,9 +127,9 @@ pub(super) async fn execute_with_pool(
 }
 
 fn prompt_content_selection(
+    prompter: &dyn Prompter,
     repo: &ContentRepository,
     source: Option<&str>,
-    _config: &CliConfig,
 ) -> Result<String> {
     let rt = tokio::runtime::Handle::current();
     let contents = rt.block_on(async {
@@ -148,12 +151,7 @@ fn prompt_content_selection(
         .map(|c| format!("{} - {} ({})", c.id.as_str(), c.title, c.source_id.as_str()))
         .collect();
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select content to edit")
-        .items(&items)
-        .default(0)
-        .interact()
-        .context("Failed to get content selection")?;
+    let selection = prompter.select("Select content to edit", &items)?;
 
     Ok(contents[selection].id.as_str().to_owned())
 }

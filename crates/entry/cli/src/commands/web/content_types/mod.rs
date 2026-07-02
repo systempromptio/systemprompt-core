@@ -5,17 +5,18 @@
 //! indexing and sitemap generation.
 
 pub mod builder;
-mod create;
+pub mod create;
 mod delete;
 pub mod edit;
 mod list;
-mod selection;
+pub mod selection;
 mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -36,7 +37,11 @@ pub enum ContentTypesCommands {
     Delete(delete::DeleteArgs),
 }
 
-pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(
+    command: ContentTypesCommands,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     match command {
         ContentTypesCommands::List(args) => {
             let result = list::execute(&args, config).context("Failed to list content types")?;
@@ -44,22 +49,26 @@ pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> 
             Ok(())
         },
         ContentTypesCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show content type")?;
+            let result =
+                show::execute(args, prompter, config).context("Failed to show content type")?;
             render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Create(args) => {
-            let result = create::execute(args, config).context("Failed to create content type")?;
+            let result =
+                create::execute(args, prompter, config).context("Failed to create content type")?;
             render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Edit(args) => {
-            let result = edit::execute(&args, config).context("Failed to edit content type")?;
+            let result =
+                edit::execute(&args, prompter, config).context("Failed to edit content type")?;
             render_result(&result, config);
             Ok(())
         },
         ContentTypesCommands::Delete(args) => {
-            let result = delete::execute(args, config).context("Failed to delete content type")?;
+            let result =
+                delete::execute(args, prompter, config).context("Failed to delete content type")?;
             render_result(&result, config);
             Ok(())
         },

@@ -1,6 +1,4 @@
 use anyhow::Result;
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_models::modules::ApiPaths;
@@ -8,9 +6,14 @@ use systemprompt_models::modules::ApiPaths;
 use super::LogoutArgs;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::LogoutOutput;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
-pub(super) async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: LogoutArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
@@ -34,10 +37,7 @@ pub(super) async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<Comm
             ));
         }
 
-        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Are you sure you want to log out?")
-            .default(false)
-            .interact()?;
+        let confirmed = prompter.confirm("Are you sure you want to log out?", false)?;
 
         if !confirmed {
             let output = LogoutOutput {

@@ -95,7 +95,7 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
             }
             Ok(())
         },
-        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, &ctx.cli),
+        ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, ctx.prompter(), &ctx.cli),
         ConfigCommands::Server(ref cmd) => server::execute(cmd, &ctx.cli),
         ConfigCommands::Runtime(cmd) => runtime::execute(cmd, &ctx.cli),
         ConfigCommands::Security(ref cmd) => security::execute(cmd, &ctx.cli),

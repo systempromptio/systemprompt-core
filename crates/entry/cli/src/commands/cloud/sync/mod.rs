@@ -3,10 +3,10 @@
 //!
 //! Exposes [`SyncCommands`] for push, pull, and admin-user sync, plus an
 //! interactive menu when no subcommand is supplied. Resolves the active tenant
-//! and credentials, then drives the [`SyncService`] for file synchronisation.
+//! and credentials, then drives the `SyncService` for file synchronisation.
 
 pub mod admin_user;
-mod interactive;
+pub mod interactive;
 
 use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand};
@@ -66,7 +66,7 @@ pub async fn execute(cmd: Option<SyncCommands>, ctx: &CommandContext) -> Result<
                      admin-user."
                 ));
             }
-            interactive::execute(&ctx.cli).await
+            interactive::execute(ctx.prompter(), &ctx.cli).await
         },
     }
 }

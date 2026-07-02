@@ -3,7 +3,7 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_models::content_config::ContentConfigRaw;
@@ -19,7 +19,11 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: ShowArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -30,7 +34,7 @@ pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutpu
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
     let name = resolve_required(args.name, "name", config, || {
-        prompt_content_type_selection(&content_config, "Select content type")
+        prompt_content_type_selection(prompter, &content_config, "Select content type")
     })?;
 
     let source = content_config

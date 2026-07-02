@@ -5,8 +5,6 @@
 //! profile-picker that drills into [`show`].
 
 use anyhow::Result;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use std::path::{Path, PathBuf};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
@@ -15,6 +13,7 @@ use super::{ShowFilter, show};
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{ProfileListOutput, ProfileSummary};
 use crate::context::CommandContext;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
@@ -53,7 +52,12 @@ pub(super) fn execute(ctx: &CommandContext) -> Result<CommandOutput> {
 
     if !config.is_json_output() {
         if config.is_interactive() {
-            run_profile_picker(&profiles, current_profile_name.as_ref(), ctx)?;
+            run_profile_picker(
+                ctx.prompter(),
+                &profiles,
+                current_profile_name.as_ref(),
+                ctx,
+            )?;
         } else {
             render_profile_lines(&profiles, current_profile_name.as_ref());
         }
@@ -120,6 +124,7 @@ fn profile_label(name: &str, has_secrets: bool, current: Option<&String>) -> Str
 }
 
 fn run_profile_picker(
+    prompter: &dyn Prompter,
     profiles: &[(String, bool, PathBuf)],
     current: Option<&String>,
     ctx: &CommandContext,
@@ -133,11 +138,7 @@ fn run_profile_picker(
     loop {
         CliService::section("Profiles");
 
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("Select profile")
-            .items(&options)
-            .default(0)
-            .interact()?;
+        let selection = prompter.select("Select profile", &options)?;
 
         if selection == profiles.len() {
             break;

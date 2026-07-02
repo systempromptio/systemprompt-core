@@ -1,13 +1,11 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use std::sync::Arc;
 
 use super::types::AgentDeleteOutput;
 use crate::CliConfig;
-use crate::interactive::{require_confirmation, resolve_required};
+use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
@@ -34,12 +32,17 @@ pub struct DeleteArgs {
     pub force: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let agents_to_delete = resolve_targets(&args, &services_config, config)?;
+    let agents_to_delete = resolve_targets(&args, prompter, &services_config, config)?;
 
     require_confirmation(
+        prompter,
         &delete_confirm_message(args.all, &agents_to_delete),
         args.yes,
         config,
@@ -98,6 +101,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
 
 fn resolve_targets(
     args: &DeleteArgs,
+    prompter: &dyn Prompter,
     services_config: &systemprompt_models::ServicesConfig,
     config: &CliConfig,
 ) -> Result<Vec<String>> {
@@ -106,7 +110,11 @@ fn resolve_targets(
         None
     } else {
         Some(resolve_required(args.name.clone(), "name", config, || {
-            prompt_agent_selection(services_config)
+            super::shared::prompt_agent_selection(
+                prompter,
+                "Select agent to delete",
+                services_config,
+            )
         })?)
     };
     validate_delete_targets(requested, &available)
@@ -220,24 +228,6 @@ async fn delete_single_agent(
             Err(format!("{}: {}", agent_name, e))
         },
     }
-}
-
-fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
-    let mut agents: Vec<&String> = config.agents.keys().collect();
-    agents.sort();
-
-    if agents.is_empty() {
-        return Err(anyhow!("No agents configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select agent to delete")
-        .items(&agents)
-        .default(0)
-        .interact()
-        .context("Failed to get agent selection")?;
-
-    Ok(agents[selection].clone())
 }
 
 async fn stop_agent_process(

@@ -1,6 +1,4 @@
 use anyhow::{Result, anyhow, bail};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Input, Select};
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
@@ -10,10 +8,12 @@ use super::select::get_credentials;
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::TenantCancelArgs;
 use crate::cloud::types::CancelSubscriptionOutput;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 pub async fn cancel_subscription(
     args: TenantCancelArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     if !config.is_interactive() {
@@ -28,13 +28,12 @@ pub async fn cancel_subscription(
     let store =
         TenantStore::load_from_path(&tenants_path).unwrap_or_else(|_| TenantStore::default());
 
-    let tenant = select_cancellation_target(&store, args.id.as_ref())?;
+    let tenant = select_cancellation_target(&store, prompter, args.id.as_ref())?;
 
     render_cancellation_warning(tenant);
 
-    let confirmation: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!("Type '{}' to confirm cancellation", tenant.name))
-        .interact_text()?;
+    let confirmation =
+        prompter.input(&format!("Type '{}' to confirm cancellation", tenant.name))?;
 
     if confirmation != tenant.name {
         CliService::info("Cancellation aborted. Tenant name did not match.");
@@ -70,6 +69,7 @@ pub async fn cancel_subscription(
 
 fn select_cancellation_target<'a>(
     store: &'a TenantStore,
+    prompter: &dyn Prompter,
     id: Option<&String>,
 ) -> Result<&'a StoredTenant> {
     let cloud_tenants: Vec<&StoredTenant> = store
@@ -94,11 +94,7 @@ fn select_cancellation_target<'a>(
             .map(|t| format!("{} ({})", t.name, t.id))
             .collect();
 
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("Select cloud tenant to cancel")
-            .items(&options)
-            .default(0)
-            .interact()?;
+        let selection = prompter.select("Select cloud tenant to cancel", &options)?;
 
         Ok(cloud_tenants[selection])
     }

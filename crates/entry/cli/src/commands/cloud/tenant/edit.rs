@@ -1,15 +1,18 @@
 use anyhow::{Result, anyhow, bail};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
 use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::select::select_tenant;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::TenantDetailOutput;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
-pub fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<CommandOutput> {
+pub fn edit_tenant(
+    id: Option<String>,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant edit requires interactive mode.\nUse specific commands to modify tenant \
@@ -30,7 +33,7 @@ pub fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<CommandOutp
         if store.tenants.is_empty() {
             bail!("No tenants configured.");
         }
-        select_tenant(&store.tenants)?.id.clone()
+        select_tenant(prompter, &store.tenants)?.id.clone()
     };
 
     let tenant = store
@@ -41,10 +44,7 @@ pub fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<CommandOutp
 
     CliService::section(&format!("Edit Tenant: {}", tenant.name));
 
-    let new_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tenant name")
-        .default(tenant.name.clone())
-        .interact_text()?;
+    let new_name = prompter.input_with_default("Tenant name", &tenant.name)?;
 
     if new_name.is_empty() {
         bail!("Tenant name cannot be empty");
@@ -52,7 +52,7 @@ pub fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<CommandOutp
     tenant.name.clone_from(&new_name);
 
     if tenant.tenant_type == TenantType::Local {
-        edit_local_tenant_database(tenant)?;
+        edit_local_tenant_database(tenant, prompter)?;
     }
 
     if tenant.tenant_type == TenantType::Cloud {
@@ -75,18 +75,12 @@ pub fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<CommandOutp
     Ok(CommandOutput::card_value(format!("Tenant: {}", new_name), &output).with_skip_render())
 }
 
-fn edit_local_tenant_database(tenant: &mut StoredTenant) -> Result<()> {
+fn edit_local_tenant_database(tenant: &mut StoredTenant, prompter: &dyn Prompter) -> Result<()> {
     if let Some(current_url) = tenant.database_url.clone() {
-        let edit_db = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Edit database URL?")
-            .default(false)
-            .interact()?;
+        let edit_db = prompter.confirm("Edit database URL?", false)?;
 
         if edit_db {
-            let new_url: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Database URL")
-                .default(current_url)
-                .interact_text()?;
+            let new_url = prompter.input_with_default("Database URL", &current_url)?;
             tenant.database_url = if new_url.is_empty() {
                 None
             } else {

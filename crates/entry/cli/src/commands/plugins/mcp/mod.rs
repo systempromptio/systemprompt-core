@@ -1,6 +1,6 @@
 //! MCP server management commands
 
-mod call;
+pub mod call;
 mod call_client;
 mod list;
 mod list_packages;
@@ -12,7 +12,7 @@ mod tools;
 mod tools_client;
 mod tools_schema;
 pub mod types;
-mod validate;
+pub mod validate;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
@@ -60,14 +60,14 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Validate(args) => {
-            let result = validate::execute(args, config)
+            let result = validate::execute(args, ctx.prompter(), config)
                 .await
                 .context("Failed to validate MCP server")?;
             render_result(&result, config);
             Ok(())
         },
         McpCommands::Logs(args) => {
-            let result = logs::execute(args, config)
+            let result = logs::execute(args, ctx.prompter(), config)
                 .await
                 .context("Failed to get MCP server logs")?;
             render_result(&result, config);

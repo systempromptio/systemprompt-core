@@ -5,7 +5,7 @@ use std::io::{self, Read};
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 
@@ -31,7 +31,11 @@ pub struct EditArgs {
     pub content_types: Option<String>,
 }
 
-pub(super) fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: EditArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -47,7 +51,7 @@ pub(super) fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandOutpu
     } = args;
 
     let name = resolve_required(name, "name", config, || {
-        prompt_template_selection(&templates_config, "Select template to edit")
+        prompt_template_selection(prompter, &templates_config, "Select template to edit")
     })?;
 
     let entry = templates_config

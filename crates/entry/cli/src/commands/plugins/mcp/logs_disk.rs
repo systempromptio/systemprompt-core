@@ -2,19 +2,18 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result, anyhow};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 
 use super::logs::LogsArgs;
 use super::types::McpLogsOutput;
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use crate::shared::disk_logs::{display_names, find_log_file, list_log_files, read_log_lines};
 use systemprompt_models::artifacts::ListItem;
 
 pub(super) fn execute_disk_mode(
     args: &LogsArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
 ) -> Result<CommandOutput> {
@@ -35,7 +34,7 @@ pub(super) fn execute_disk_mode(
     }
 
     let service = resolve_required(args.server.clone(), "server", config, || {
-        prompt_log_selection(logs_path)
+        prompt_log_selection(prompter, logs_path)
     })?;
 
     let log_file = find_log_file(logs_path, "mcp-", &service)?;
@@ -62,6 +61,7 @@ pub(super) fn execute_disk_mode(
 
 pub(super) fn execute_follow_mode(
     args: &LogsArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     logs_path: &Path,
 ) -> Result<CommandOutput> {
@@ -73,7 +73,7 @@ pub(super) fn execute_follow_mode(
     }
 
     let service = resolve_required(args.server.clone(), "server", config, || {
-        prompt_log_selection(logs_path)
+        prompt_log_selection(prompter, logs_path)
     })?;
 
     let log_file = find_log_file(logs_path, "mcp-", &service)?;
@@ -98,7 +98,7 @@ pub(super) fn execute_follow_mode(
     Ok(CommandOutput::card_value("MCP Logs", &output))
 }
 
-fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
+fn prompt_log_selection(prompter: &dyn Prompter, logs_dir: &Path) -> Result<String> {
     let log_files = list_log_files(logs_dir, "mcp-")?;
 
     if log_files.is_empty() {
@@ -107,12 +107,6 @@ fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
 
     let services = display_names(&log_files, "mcp-");
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select MCP server logs to view")
-        .items(&services)
-        .default(0)
-        .interact()
-        .context("Failed to get log selection")?;
-
+    let selection = prompter.select("Select MCP server logs to view", &services)?;
     Ok(services[selection].clone())
 }

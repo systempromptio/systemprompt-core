@@ -5,10 +5,8 @@ use std::io::{self, Read};
 use std::path::Path;
 
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
-use dialoguer::Input;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;
@@ -26,20 +24,24 @@ pub struct CreateArgs {
     pub content: Option<String>,
 }
 
-pub(super) fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: CreateArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     let mut templates_config = load_templates_config(&templates_yaml_path)?;
 
-    let name = resolve_required(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, || prompt_name(prompter))?;
 
     if templates_config.templates.contains_key(&name) {
         return Err(anyhow!("Template '{}' already exists", name));
     }
 
-    let content_types = resolve_content_types(args.content_types, config)?;
+    let content_types = resolve_content_types(args.content_types, prompter, config)?;
 
     let html_file_path = templates_dir.join(format!("{}.html", name));
 
@@ -109,11 +111,15 @@ fn save_templates_config(templates_yaml_path: &Path, config: &TemplatesConfig) -
     })
 }
 
-fn resolve_content_types(arg: Option<String>, config: &CliConfig) -> Result<Vec<String>> {
+fn resolve_content_types(
+    arg: Option<String>,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<Vec<String>> {
     let content_types: Vec<String> = if let Some(ct) = arg {
         ct.split(',').map(|s| s.trim().to_owned()).collect()
     } else if config.is_interactive() {
-        prompt_content_types()?
+        prompt_content_types(prompter)?
     } else {
         return Err(anyhow!(
             "--content-types is required in non-interactive mode"
@@ -142,30 +148,31 @@ fn read_html_content(content_source: &str) -> Result<String> {
     }
 }
 
-fn prompt_name() -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Template name")
-        .validate_with(|input: &String| -> Result<(), &str> {
-            if input.len() < 2 {
-                return Err("Name must be at least 2 characters");
-            }
-            if !input
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-            {
-                return Err("Name must be lowercase alphanumeric with hyphens only");
-            }
-            Ok(())
-        })
-        .interact_text()
-        .context("Failed to get name")
+pub fn prompt_name(prompter: &dyn Prompter) -> Result<String> {
+    loop {
+        let input = prompter.input("Template name")?;
+        let trimmed = input.trim();
+        match validate_template_name(trimmed) {
+            Ok(()) => return Ok(trimmed.to_owned()),
+            Err(message) => CliService::warning(message),
+        }
+    }
 }
 
-fn prompt_content_types() -> Result<Vec<String>> {
-    let input: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Content types (comma-separated)")
-        .interact_text()
-        .context("Failed to get content types")?;
+fn validate_template_name(input: &str) -> Result<(), &'static str> {
+    if input.len() < 2 {
+        return Err("Name must be at least 2 characters");
+    }
+    if !input
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
+        return Err("Name must be lowercase alphanumeric with hyphens only");
+    }
+    Ok(())
+}
 
+pub fn prompt_content_types(prompter: &dyn Prompter) -> Result<Vec<String>> {
+    let input = prompter.input("Content types (comma-separated)")?;
     Ok(input.split(',').map(|s| s.trim().to_owned()).collect())
 }

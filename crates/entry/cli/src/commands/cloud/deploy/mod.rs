@@ -22,6 +22,7 @@ use systemprompt_sync::deploy::{
 
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::project::ProjectRoot;
 
 pub(super) struct DeployArgs {
@@ -33,10 +34,14 @@ pub(super) struct DeployArgs {
     pub check: bool,
 }
 
-pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
+pub(super) async fn execute(
+    args: DeployArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let (profile, profile_path) = resolve_profile(args.profile_name.as_deref(), config)?;
+    let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_deref(), config)?;
 
     if profile.target != systemprompt_models::ProfileType::Cloud {
         bail!(
@@ -80,7 +85,7 @@ pub(super) async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> 
         },
     };
 
-    let progress = CliDeployProgress::new(config);
+    let progress = CliDeployProgress::new(prompter, config);
     let report = DeployOrchestrator::new()
         .deploy(&request, &progress)
         .await?;

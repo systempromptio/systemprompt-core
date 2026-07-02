@@ -104,7 +104,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             render_result(&result, &ctx.cli);
         },
         ContentCommands::Edit(args) => {
-            let result = edit::execute(args, &ctx.cli)
+            let result = edit::execute(args, ctx.prompter(), &ctx.cli)
                 .await
                 .context("Failed to edit content")?;
             render_result(&result, &ctx.cli);
@@ -116,7 +116,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             render_result(&result, &ctx.cli);
         },
         ContentCommands::DeleteSource(args) => {
-            let result = delete_source::execute(args, &ctx.cli)
+            let result = delete_source::execute(args, ctx.prompter(), &ctx.cli)
                 .await
                 .context("Failed to delete source content")?;
             render_result(&result, &ctx.cli);
@@ -146,7 +146,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             analytics::execute(cmd, ctx).await?;
         },
         ContentCommands::Files(cmd) => {
-            files::execute(cmd, &ctx.cli).await?;
+            files::execute(cmd, ctx.prompter(), &ctx.cli).await?;
         },
     }
     Ok(())

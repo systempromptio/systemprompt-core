@@ -73,7 +73,12 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
         ));
     }
 
-    require_confirmation("Are you sure you want to continue?", args.yes, &ctx.cli)?;
+    require_confirmation(
+        ctx.prompter(),
+        "Are you sure you want to continue?",
+        args.yes,
+        &ctx.cli,
+    )?;
 
     repo.delete(&content.id).await?;
 

@@ -6,8 +6,6 @@
 //! then scaffold a local profile.
 
 use anyhow::{Context, Result, anyhow, bail};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
 use std::fs;
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
 use systemprompt_identifiers::TenantId;
@@ -18,6 +16,7 @@ use crate::cloud::profile::templates::validate_connection;
 use crate::cloud::profile::{
     collect_api_keys, create_profile_for_tenant, get_cloud_user, handle_local_tenant_setup,
 };
+use crate::interactive::Prompter;
 
 use super::super::docker::{
     SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, check_volume_exists,
@@ -29,13 +28,10 @@ use super::super::docker::{
 
 use super::sanitize_database_name;
 
-pub async fn create_local_tenant() -> Result<StoredTenant> {
+pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
     CliService::section("Create Local PostgreSQL Tenant");
 
-    let name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tenant name")
-        .default("local".to_owned())
-        .interact_text()?;
+    let name = prompter.input_with_default("Tenant name", "local")?;
 
     if name.is_empty() {
         bail!("Tenant name cannot be empty");
@@ -53,7 +49,8 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     let shared_config = load_shared_config()?;
     let container_running = is_shared_container_running(&docker);
 
-    let (config, needs_start) = resolve_container_state(&docker, shared_config, container_running)?;
+    let (config, needs_start) =
+        resolve_container_state(&docker, shared_config, container_running, prompter)?;
 
     let compose_path = docker_dir.join("shared.yaml");
 
@@ -83,26 +80,21 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     updated_config.add_tenant(TenantId::new(tenant.id.clone()), db_name);
     save_shared_config(&updated_config)?;
 
-    setup_local_profile(&tenant, &name, &database_url).await?;
+    setup_local_profile(&tenant, &name, &database_url, prompter).await?;
 
     Ok(tenant)
 }
 
-pub async fn create_external_tenant() -> Result<StoredTenant> {
+pub async fn create_external_tenant(prompter: &dyn Prompter) -> Result<StoredTenant> {
     CliService::section("Create Local Tenant (External PostgreSQL)");
 
-    let name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Tenant name")
-        .default("local".to_owned())
-        .interact_text()?;
+    let name = prompter.input_with_default("Tenant name", "local")?;
 
     if name.is_empty() {
         bail!("Tenant name cannot be empty");
     }
 
-    let database_url: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("PostgreSQL connection URL")
-        .interact_text()?;
+    let database_url = prompter.input("PostgreSQL connection URL")?;
 
     if database_url.is_empty() {
         bail!("Database URL cannot be empty");
@@ -120,7 +112,7 @@ pub async fn create_external_tenant() -> Result<StoredTenant> {
     let id = new_local_tenant_id();
     let tenant = StoredTenant::new_local(id, name.clone(), database_url.clone());
 
-    setup_local_profile(&tenant, &name, &database_url).await?;
+    setup_local_profile(&tenant, &name, &database_url, prompter).await?;
 
     Ok(tenant)
 }
@@ -129,6 +121,7 @@ fn resolve_container_state(
     docker: &DockerCli,
     shared_config: Option<SharedContainerConfig>,
     container_running: bool,
+    prompter: &dyn Prompter,
 ) -> Result<(SharedContainerConfig, bool)> {
     match (shared_config, container_running) {
         (Some(config), true) => {
@@ -142,10 +135,7 @@ fn resolve_container_state(
         (None, true) => {
             CliService::info("Found existing shared PostgreSQL container.");
 
-            let use_existing = Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("Use existing container?")
-                .default(true)
-                .interact()?;
+            let use_existing = prompter.confirm("Use existing container?", true)?;
 
             if !use_existing {
                 bail!(
@@ -164,7 +154,7 @@ fn resolve_container_state(
             Ok((config, false))
         },
         (None, false) => {
-            handle_orphaned_volume(docker)?;
+            handle_orphaned_volume(docker, prompter)?;
 
             CliService::info("Creating new shared PostgreSQL container...");
             let password = generate_admin_password();
@@ -174,7 +164,7 @@ fn resolve_container_state(
     }
 }
 
-fn handle_orphaned_volume(docker: &DockerCli) -> Result<()> {
+fn handle_orphaned_volume(docker: &DockerCli, prompter: &dyn Prompter) -> Result<()> {
     if !check_volume_exists(docker) {
         return Ok(());
     }
@@ -185,10 +175,10 @@ fn handle_orphaned_volume(docker: &DockerCli) -> Result<()> {
         SHARED_VOLUME_NAME
     ));
 
-    let reset = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Reset volume? (This will delete existing database data)")
-        .default(false)
-        .interact()?;
+    let reset = prompter.confirm(
+        "Reset volume? (This will delete existing database data)",
+        false,
+    )?;
 
     if reset {
         let spinner = CliService::spinner("Removing orphaned volume...");
@@ -237,17 +227,19 @@ async fn start_container(
     Ok(())
 }
 
-async fn setup_local_profile(tenant: &StoredTenant, name: &str, database_url: &str) -> Result<()> {
+async fn setup_local_profile(
+    tenant: &StoredTenant,
+    name: &str,
+    database_url: &str,
+    prompter: &dyn Prompter,
+) -> Result<()> {
     CliService::section("Profile Setup");
-    let profile_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Profile name")
-        .default(name.to_owned())
-        .interact_text()?;
+    let profile_name = prompter.input_with_default("Profile name", name)?;
 
     CliService::section("API Keys");
-    let api_keys = collect_api_keys()?;
+    let api_keys = collect_api_keys(prompter)?;
 
-    let profile = create_profile_for_tenant(tenant, &api_keys, &profile_name, None)?;
+    let profile = create_profile_for_tenant(prompter, tenant, &api_keys, &profile_name, None)?;
     CliService::success(&format!("Profile '{}' created", profile.name));
 
     let ctx = ProjectContext::discover();
@@ -255,7 +247,7 @@ async fn setup_local_profile(tenant: &StoredTenant, name: &str, database_url: &s
 
     let cloud_user = get_cloud_user()?;
     let profile_path = ctx.profile_dir(&profile.name).join("profile.yaml");
-    handle_local_tenant_setup(&cloud_user, database_url, name, &profile_path).await?;
+    handle_local_tenant_setup(prompter, &cloud_user, database_url, name, &profile_path).await?;
 
     Ok(())
 }

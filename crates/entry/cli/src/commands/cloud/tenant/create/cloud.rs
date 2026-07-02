@@ -8,8 +8,6 @@
 //! through the sync crate's [`DeployOrchestrator`].
 
 use anyhow::{Context, Result, anyhow, bail};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input, Select};
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::tenants::{TenantCreatePlan, TenantProvisioningService};
@@ -23,6 +21,7 @@ use systemprompt_sync::deploy::{DeployOptions, DeployOrchestrator, DeployRequest
 use crate::cloud::deploy::CliDeployProgress;
 use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
+use crate::interactive::Prompter;
 use crate::shared::project::ProjectRoot;
 
 use super::super::validation::{validate_build_ready, warn_required_secrets};
@@ -31,6 +30,7 @@ use super::progress::CliProvisioningProgress;
 pub async fn create_cloud_tenant(
     creds: &CloudCredentials,
     _default_region: &str,
+    prompter: &dyn Prompter,
 ) -> Result<StoredTenant> {
     let validation = validate_build_ready().context(
         "Cloud tenant creation requires a built project.\nRun 'just build --release' before \
@@ -42,7 +42,7 @@ pub async fn create_cloud_tenant(
 
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
-    let plan = assemble_plan(&client).await?;
+    let plan = assemble_plan(&client, prompter).await?;
 
     let progress = CliProvisioningProgress::new();
     let provisioned = TenantProvisioningService::new(&client)
@@ -51,15 +51,13 @@ pub async fn create_cloud_tenant(
     let stored_tenant = provisioned.tenant;
 
     CliService::section("Profile Setup");
-    let profile_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Profile name")
-        .default(stored_tenant.name.clone())
-        .interact_text()?;
+    let profile_name = prompter.input_with_default("Profile name", &stored_tenant.name)?;
 
     CliService::section("API Keys");
-    let api_keys = collect_api_keys()?;
+    let api_keys = collect_api_keys(prompter)?;
 
     let profile = create_profile_for_tenant(
+        prompter,
         &stored_tenant,
         &api_keys,
         &profile_name,
@@ -78,10 +76,13 @@ pub async fn create_cloud_tenant(
     Ok(stored_tenant)
 }
 
-async fn assemble_plan(client: &CloudApiClient) -> Result<TenantCreatePlan> {
-    let price_id = select_plan(client).await?;
-    let region = select_region()?;
-    let external_db_access = prompt_external_access()?;
+async fn assemble_plan(
+    client: &CloudApiClient,
+    prompter: &dyn Prompter,
+) -> Result<TenantCreatePlan> {
+    let price_id = select_plan(client, prompter).await?;
+    let region = select_region(prompter)?;
+    let external_db_access = prompt_external_access(prompter)?;
 
     Ok(TenantCreatePlan {
         price_id,
@@ -96,7 +97,7 @@ async fn assemble_plan(client: &CloudApiClient) -> Result<TenantCreatePlan> {
     })
 }
 
-async fn select_plan(client: &CloudApiClient) -> Result<PriceId> {
+async fn select_plan(client: &CloudApiClient, prompter: &dyn Prompter) -> Result<PriceId> {
     let spinner = CliService::spinner("Fetching available plans...");
     let plans = client.get_plans().await?;
     spinner.finish_and_clear();
@@ -107,41 +108,30 @@ async fn select_plan(client: &CloudApiClient) -> Result<PriceId> {
 
     let plan_options: Vec<String> = plans.iter().map(|p| p.name.clone()).collect();
 
-    let plan_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select a plan")
-        .items(&plan_options)
-        .default(0)
-        .interact()?;
+    let plan_selection = prompter.select("Select a plan", &plan_options)?;
 
     Ok(plans[plan_selection].paddle_price_id.clone())
 }
 
-fn select_region() -> Result<&'static str> {
+fn select_region(prompter: &dyn Prompter) -> Result<&'static str> {
     let region_options: Vec<String> = AVAILABLE
         .iter()
         .map(|(code, name)| format!("{} ({})", name, code))
         .collect();
 
-    let region_selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select a region")
-        .items(&region_options)
-        .default(0)
-        .interact()?;
+    let region_selection = prompter.select("Select a region", &region_options)?;
 
     Ok(AVAILABLE[region_selection].0)
 }
 
-fn prompt_external_access() -> Result<bool> {
+fn prompt_external_access(prompter: &dyn Prompter) -> Result<bool> {
     CliService::section("Database Access");
     CliService::info(
         "External database access allows direct PostgreSQL connections from your local machine.",
     );
     CliService::info("This is required for local development workflows.");
 
-    let enable_external = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enable external database access?")
-        .default(true)
-        .interact()?;
+    let enable_external = prompter.confirm("Enable external database access?", true)?;
 
     if !enable_external {
         CliService::info("External access disabled. Some local features will be limited.");

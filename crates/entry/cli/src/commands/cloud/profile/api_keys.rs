@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Password, Select};
 use systemprompt_logging::CliService;
+
+use crate::interactive::Prompter;
 
 #[derive(Debug)]
 pub struct ApiKeys {
@@ -42,26 +42,20 @@ impl ApiKeys {
     }
 }
 
-pub fn collect_api_keys() -> Result<ApiKeys> {
+pub fn collect_api_keys(prompter: &dyn Prompter) -> Result<ApiKeys> {
     CliService::info("At least one AI provider API key is required.");
 
     let providers = vec![
-        "Google AI (Gemini) - https://aistudio.google.com/app/apikey",
-        "Anthropic (Claude) - https://console.anthropic.com/api-keys",
-        "OpenAI (GPT) - https://platform.openai.com/api-keys",
+        "Google AI (Gemini) - https://aistudio.google.com/app/apikey".to_owned(),
+        "Anthropic (Claude) - https://console.anthropic.com/api-keys".to_owned(),
+        "OpenAI (GPT) - https://platform.openai.com/api-keys".to_owned(),
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select your AI provider")
-        .items(&providers)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Select your AI provider", &providers)?;
 
     match selection {
         0 => {
-            let key = Password::with_theme(&ColorfulTheme::default())
-                .with_prompt("Gemini API Key")
-                .interact()?;
+            let key = prompter.password("Gemini API Key")?;
             if key.is_empty() {
                 bail!("API key is required");
             }
@@ -72,9 +66,7 @@ pub fn collect_api_keys() -> Result<ApiKeys> {
             })
         },
         1 => {
-            let key = Password::with_theme(&ColorfulTheme::default())
-                .with_prompt("Anthropic API Key")
-                .interact()?;
+            let key = prompter.password("Anthropic API Key")?;
             if key.is_empty() {
                 bail!("API key is required");
             }
@@ -85,9 +77,7 @@ pub fn collect_api_keys() -> Result<ApiKeys> {
             })
         },
         2 => {
-            let key = Password::with_theme(&ColorfulTheme::default())
-                .with_prompt("OpenAI API Key")
-                .interact()?;
+            let key = prompter.password("OpenAI API Key")?;
             if key.is_empty() {
                 bail!("API key is required");
             }

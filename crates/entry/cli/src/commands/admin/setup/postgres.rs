@@ -7,8 +7,6 @@
 //! before the target database exists and cannot bind parameters.
 
 use anyhow::{Context, Result, anyhow};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input, Password, Select};
 use sqlx::postgres::PgPoolOptions;
 use std::time::Duration;
 use systemprompt_logging::CliService;
@@ -18,6 +16,7 @@ use super::common::{
     PostgresConfig, detect_postgresql, enable_extensions, generate_password, test_connection,
 };
 use crate::CliConfig;
+use crate::interactive::Prompter;
 
 pub(super) async fn setup_non_interactive(
     args: &SetupArgs,
@@ -80,6 +79,7 @@ pub(super) async fn setup_non_interactive(
 
 pub(super) async fn setup_interactive(
     args: &SetupArgs,
+    prompter: &dyn Prompter,
     env_name: &str,
     _cli_config: &CliConfig,
 ) -> Result<PostgresConfig> {
@@ -87,39 +87,34 @@ pub(super) async fn setup_interactive(
     CliService::info("Configure PostgreSQL database for your local environment.");
 
     let options = vec![
-        "Use existing PostgreSQL installation",
-        "Start PostgreSQL with Docker",
+        "Use existing PostgreSQL installation".to_owned(),
+        "Start PostgreSQL with Docker".to_owned(),
     ];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("How would you like to set up PostgreSQL?")
-        .items(&options)
-        .default(usize::from(args.docker))
-        .interact()?;
+    let selection = prompter.select("How would you like to set up PostgreSQL?", &options)?;
 
     match selection {
-        0 => setup_existing_postgres(args, env_name).await,
-        1 => super::docker::setup_docker_postgres_interactive(args, env_name).await,
+        0 => setup_existing_postgres(args, prompter, env_name).await,
+        1 => super::docker::setup_docker_postgres_interactive(args, prompter, env_name).await,
         _ => Err(anyhow!("Invalid PostgreSQL setup option selected")),
     }
 }
 
-async fn setup_existing_postgres(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
+async fn setup_existing_postgres(
+    args: &SetupArgs,
+    prompter: &dyn Prompter,
+    env_name: &str,
+) -> Result<PostgresConfig> {
     CliService::info("Configuring existing PostgreSQL connection...");
 
-    let (host, port) = prompt_host_port(args)?;
+    let (host, port) = prompt_host_port(args, prompter)?;
 
-    let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database user")
-        .default(args.effective_db_user(env_name))
-        .interact_text()?;
+    let user = prompter.input_with_default("Database user", &args.effective_db_user(env_name))?;
 
-    let password = prompt_password(args)?;
+    let password = prompt_password(args, prompter)?;
 
-    let database: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database name")
-        .default(args.effective_db_name(env_name))
-        .interact_text()?;
+    let database =
+        prompter.input_with_default("Database name", &args.effective_db_name(env_name))?;
 
     let config = PostgresConfig {
         host,
@@ -129,30 +124,25 @@ async fn setup_existing_postgres(args: &SetupArgs, env_name: &str) -> Result<Pos
         database,
     };
 
-    verify_or_create_database(&config).await?;
+    verify_or_create_database(&config, prompter).await?;
 
     Ok(config)
 }
 
-fn prompt_host_port(args: &SetupArgs) -> Result<(String, u16)> {
-    let host: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("PostgreSQL host")
-        .default(args.db_host.clone())
-        .interact_text()?;
+fn prompt_host_port(args: &SetupArgs, prompter: &dyn Prompter) -> Result<(String, u16)> {
+    let host = prompter.input_with_default("PostgreSQL host", &args.db_host)?;
 
-    let port: u16 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("PostgreSQL port")
-        .default(args.db_port)
-        .interact_text()?;
+    let port_input = prompter.input_with_default("PostgreSQL port", &args.db_port.to_string())?;
+    let port: u16 = port_input
+        .trim()
+        .parse()
+        .with_context(|| format!("Invalid PostgreSQL port: {}", port_input))?;
 
     if detect_postgresql(&host, port) {
         CliService::success(&format!("PostgreSQL reachable at {}:{}", host, port));
     } else {
         CliService::warning(&format!("Cannot reach PostgreSQL at {}:{}", host, port));
-        let continue_anyway = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Continue anyway?")
-            .default(false)
-            .interact()?;
+        let continue_anyway = prompter.confirm("Continue anyway?", false)?;
 
         if !continue_anyway {
             anyhow::bail!("PostgreSQL not reachable. Please start PostgreSQL and try again.");
@@ -162,23 +152,18 @@ fn prompt_host_port(args: &SetupArgs) -> Result<(String, u16)> {
     Ok((host, port))
 }
 
-fn prompt_password(args: &SetupArgs) -> Result<String> {
+fn prompt_password(args: &SetupArgs, prompter: &dyn Prompter) -> Result<String> {
     let password = if let Some(ref pw) = args.db_password {
         pw.clone()
     } else {
-        let use_generated = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Generate a secure password automatically?")
-            .default(true)
-            .interact()?;
+        let use_generated = prompter.confirm("Generate a secure password automatically?", true)?;
 
         if use_generated {
             let generated = generate_password();
             CliService::success(&format!("Generated password: {}", generated));
             generated
         } else {
-            Password::with_theme(&ColorfulTheme::default())
-                .with_prompt("Database password")
-                .interact()?
+            prompter.password("Database password")?
         }
     };
 
@@ -189,7 +174,7 @@ fn prompt_password(args: &SetupArgs) -> Result<String> {
     Ok(password)
 }
 
-async fn verify_or_create_database(config: &PostgresConfig) -> Result<()> {
+async fn verify_or_create_database(config: &PostgresConfig, prompter: &dyn Prompter) -> Result<()> {
     if test_connection(config).await {
         CliService::success("Successfully connected to database!");
         enable_extensions(config).await?;
@@ -199,13 +184,10 @@ async fn verify_or_create_database(config: &PostgresConfig) -> Result<()> {
     CliService::warning("Cannot connect with provided credentials.");
     CliService::info("The database or user may not exist yet.");
 
-    let create_db = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Create database and user now? (requires superuser)")
-        .default(true)
-        .interact()?;
+    let create_db = prompter.confirm("Create database and user now? (requires superuser)", true)?;
 
     if create_db {
-        create_database_interactive(config).await?;
+        create_database_interactive(config, prompter).await?;
         enable_extensions(config).await?;
     } else {
         CliService::warning("Skipping database creation. You may need to create it manually.");
@@ -214,17 +196,15 @@ async fn verify_or_create_database(config: &PostgresConfig) -> Result<()> {
     Ok(())
 }
 
-async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
+async fn create_database_interactive(
+    config: &PostgresConfig,
+    prompter: &dyn Prompter,
+) -> Result<()> {
     CliService::info("Enter PostgreSQL superuser credentials (typically 'postgres'):");
 
-    let superuser: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Superuser name")
-        .default("postgres".to_owned())
-        .interact_text()?;
+    let superuser = prompter.input_with_default("Superuser name", "postgres")?;
 
-    let superpass: String = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Superuser password")
-        .interact()?;
+    let superpass = prompter.password("Superuser password")?;
 
     if superpass.is_empty() {
         anyhow::bail!("Superuser password is required");

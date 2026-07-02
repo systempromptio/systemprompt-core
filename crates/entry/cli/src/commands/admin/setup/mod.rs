@@ -149,5 +149,5 @@ pub async fn execute(
     args: SetupArgs,
     ctx: &crate::context::CommandContext,
 ) -> Result<CommandOutput> {
-    wizard::execute(args, &ctx.cli).await
+    wizard::execute(args, ctx.prompter(), &ctx.cli).await
 }

@@ -72,6 +72,7 @@ pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<(
     }
 
     require_confirmation(
+        ctx.prompter(),
         &format!(
             "Delete logs older than {}? This cannot be undone.",
             cutoff_str

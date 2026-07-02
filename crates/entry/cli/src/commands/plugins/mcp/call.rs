@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpOrchestrator;
 use systemprompt_models::ai::tools::CallToolResult;
@@ -14,7 +12,7 @@ use super::call_client::{
 };
 use super::types::{McpCallOutput, McpToolContent};
 use crate::context::CommandContext;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::session::{CliSessionContext, get_or_create_session};
 use crate::shared::{CommandOutput, render_result};
 
@@ -40,6 +38,7 @@ pub struct CallArgs {
 
 pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let config = &ctx.cli;
+    let prompter = ctx.prompter();
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let session_ctx = get_or_create_session(ctx).await?;
 
@@ -48,7 +47,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
     let timeout_secs = args.timeout;
 
     let server_name = resolve_required(server_arg, "server", config, || {
-        prompt_server_selection(&services_config)
+        prompt_server_selection(prompter, &services_config)
     })?;
 
     let _server_config = services_config
@@ -59,7 +58,7 @@ pub(super) async fn execute(args: CallArgs, ctx: &CommandContext) -> Result<Comm
     let port = resolve_running_port(&server_name).await?;
 
     let tool_name = resolve_required(tool_arg, "tool", config, || {
-        prompt_tool_selection(&server_name, port, &session_ctx, timeout_secs)
+        prompt_tool_selection(prompter, &server_name, port, &session_ctx, timeout_secs)
     })?;
 
     let tool_args: Option<serde_json::Value> = args
@@ -182,25 +181,23 @@ fn failure_outcome(
     )
 }
 
-fn prompt_server_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
-    let mut servers: Vec<&String> = config.mcp_servers.keys().collect();
+pub fn prompt_server_selection(
+    prompter: &dyn Prompter,
+    config: &systemprompt_models::ServicesConfig,
+) -> Result<String> {
+    let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();
 
     if servers.is_empty() {
         return Err(anyhow!("No MCP servers configured"));
     }
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select MCP server")
-        .items(&servers)
-        .default(0)
-        .interact()
-        .context("Failed to get server selection")?;
-
+    let selection = prompter.select("Select MCP server", &servers)?;
     Ok(servers[selection].clone())
 }
 
 fn prompt_tool_selection(
+    prompter: &dyn Prompter,
     server_name: &str,
     port: u16,
     session_ctx: &CliSessionContext,
@@ -215,14 +212,6 @@ fn prompt_tool_selection(
         return Err(anyhow!("No tools available on server '{}'", server_name));
     }
 
-    let tool_names: Vec<&str> = tools.iter().map(String::as_str).collect();
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select tool to execute")
-        .items(&tool_names)
-        .default(0)
-        .interact()
-        .context("Failed to get tool selection")?;
-
+    let selection = prompter.select("Select tool to execute", &tools)?;
     Ok(tools[selection].clone())
 }

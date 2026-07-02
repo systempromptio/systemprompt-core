@@ -15,6 +15,7 @@ pub struct DeleteArgs {
 
 pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<()> {
     require_confirmation(
+        ctx.prompter(),
         "Delete ALL log entries? This cannot be undone.",
         args.yes,
         &ctx.cli,

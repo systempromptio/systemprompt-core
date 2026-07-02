@@ -1,4 +1,31 @@
+use anyhow::{Result, anyhow};
 use clap::Args;
+
+use crate::interactive::Prompter;
+
+pub fn prompt_agent_selection(
+    prompter: &dyn Prompter,
+    prompt: &str,
+    config: &systemprompt_models::ServicesConfig,
+) -> Result<String> {
+    let agents: Vec<String> = config.agents.keys().cloned().collect();
+    select_agent_from_names(prompter, prompt, agents)
+}
+
+pub fn select_agent_from_names(
+    prompter: &dyn Prompter,
+    prompt: &str,
+    mut agents: Vec<String>,
+) -> Result<String> {
+    agents.sort();
+
+    if agents.is_empty() {
+        return Err(anyhow!("No agents configured"));
+    }
+
+    let selection = prompter.select(prompt, &agents)?;
+    Ok(agents[selection].clone())
+}
 
 #[derive(Debug, Args, Default, Clone)]
 pub struct AgentArgs {

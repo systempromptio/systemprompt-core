@@ -41,6 +41,7 @@ pub(super) async fn execute(
 
     let service_count = running_services.len() + usize::from(api_pid.is_some());
     require_confirmation(
+        ctx.prompter(),
         &format!("This will stop {} service(s). Continue?", service_count),
         yes,
         config,
