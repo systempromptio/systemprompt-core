@@ -14,6 +14,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -34,7 +35,11 @@ pub enum TemplatesCommands {
     Delete(delete::DeleteArgs),
 }
 
-pub fn execute(command: TemplatesCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(
+    command: TemplatesCommands,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     match command {
         TemplatesCommands::List(args) => {
             let result = list::execute(args, config).context("Failed to list templates")?;
@@ -57,7 +62,8 @@ pub fn execute(command: TemplatesCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         TemplatesCommands::Delete(args) => {
-            let result = delete::execute(args, config).context("Failed to delete template")?;
+            let result =
+                delete::execute(args, prompter, config).context("Failed to delete template")?;
             render_result(&result, config);
             Ok(())
         },

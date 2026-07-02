@@ -19,6 +19,7 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -166,7 +167,11 @@ pub struct DiffArgs {
     pub file: Option<String>,
 }
 
-pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(
+    command: RateLimitsCommands,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     match command {
         RateLimitsCommands::Show => show::execute_show(config),
         RateLimitsCommands::Tier(args) => show::execute_tier(args, config),
@@ -176,15 +181,15 @@ pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
         RateLimitsCommands::Disable => set::execute_disable(config),
         RateLimitsCommands::Validate => validate::execute_validate(config),
         RateLimitsCommands::Compare => validate::execute_compare(config),
-        RateLimitsCommands::Reset(args) => reset::execute_reset(&args, config),
-        RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, config),
+        RateLimitsCommands::Reset(args) => reset::execute_reset(&args, prompter, config),
+        RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, prompter, config),
         RateLimitsCommands::Export(args) => {
             let result = import_export::execute_export(&args, config)?;
             render_result(&result, config);
             Ok(())
         },
         RateLimitsCommands::Import(args) => {
-            let result = import_export::execute_import(&args, config)?;
+            let result = import_export::execute_import(&args, prompter, config)?;
             render_result(&result, config);
             Ok(())
         },

@@ -9,7 +9,7 @@ use super::helpers::{
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::interactive::require_confirmation;
+use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{
@@ -17,14 +17,18 @@ use super::super::types::{
     ResetChange, TierMultipliersOutput,
 };
 
-pub(super) fn execute_preset(command: PresetCommands, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_preset(
+    command: PresetCommands,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     match command {
         PresetCommands::List => {
             execute_preset_list(config);
             Ok(())
         },
         PresetCommands::Show(args) => execute_preset_show(args, config),
-        PresetCommands::Apply(args) => execute_preset_apply(&args, config),
+        PresetCommands::Apply(args) => execute_preset_apply(&args, prompter, config),
     }
 }
 
@@ -107,7 +111,11 @@ fn get_preset_description(name: &str) -> Result<String> {
     }
 }
 
-fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()> {
+fn execute_preset_apply(
+    args: &PresetApplyArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     let preset_config = get_preset_config(&args.name)?;
 
     if config.is_interactive() && !args.yes {
@@ -116,7 +124,12 @@ fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()
             args.name
         ));
     }
-    require_confirmation("Proceed with preset application?", args.yes, config)?;
+    require_confirmation(
+        prompter,
+        "Proceed with preset application?",
+        args.yes,
+        config,
+    )?;
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;

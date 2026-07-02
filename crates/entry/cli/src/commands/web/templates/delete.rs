@@ -3,7 +3,7 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::interactive::{require_confirmation, resolve_required};
+use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_logging::CliService;
 
@@ -23,7 +23,11 @@ pub struct DeleteArgs {
     pub delete_file: bool,
 }
 
-pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let web_paths = WebPaths::resolve()?;
     let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
@@ -57,7 +61,7 @@ pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOut
         format!("Delete template '{}'?", name)
     };
 
-    require_confirmation(&confirm_msg, args.yes, config)?;
+    require_confirmation(prompter, &confirm_msg, args.yes, config)?;
 
     templates_config.templates.remove(&name);
 

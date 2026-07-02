@@ -20,29 +20,41 @@ fn non_interactive() -> CliConfig {
         .with_verbosity(VerbosityLevel::Quiet)
 }
 
+fn interactive() -> CliConfig {
+    CliConfig::default()
+        .with_interactive(true)
+        .with_verbosity(VerbosityLevel::Quiet)
+}
+
+fn no_answers() -> ScriptedPrompter {
+    ScriptedPrompter::default()
+}
+
 #[test]
 fn require_confirmation_skip_is_ok() {
     let cfg = non_interactive();
-    require_confirmation("delete everything?", true, &cfg).expect("skip should bypass prompt");
+    require_confirmation(&no_answers(), "delete everything?", true, &cfg)
+        .expect("skip should bypass prompt");
 }
 
 #[test]
 fn require_confirmation_non_interactive_without_yes_errors() {
     let cfg = non_interactive();
-    let err = require_confirmation("delete?", false, &cfg).unwrap_err();
+    let err = require_confirmation(&no_answers(), "delete?", false, &cfg).unwrap_err();
     assert!(err.to_string().contains("non-interactive"));
 }
 
 #[test]
 fn require_confirmation_default_yes_skip_is_ok() {
     let cfg = non_interactive();
-    require_confirmation_default_yes("proceed?", true, &cfg).expect("skip should bypass prompt");
+    require_confirmation_default_yes(&no_answers(), "proceed?", true, &cfg)
+        .expect("skip should bypass prompt");
 }
 
 #[test]
 fn require_confirmation_default_yes_non_interactive_errors() {
     let cfg = non_interactive();
-    let err = require_confirmation_default_yes("proceed?", false, &cfg).unwrap_err();
+    let err = require_confirmation_default_yes(&no_answers(), "proceed?", false, &cfg).unwrap_err();
     assert!(err.to_string().contains("non-interactive"));
 }
 
@@ -66,7 +78,7 @@ fn resolve_required_non_interactive_without_value_errors() {
 fn select_from_list_empty_items_errors() {
     let cfg = non_interactive();
     let items: Vec<String> = Vec::new();
-    let err = select_from_list("pick", &items, "thing", &cfg).unwrap_err();
+    let err = select_from_list(&no_answers(), "pick", &items, "thing", &cfg).unwrap_err();
     assert!(err.to_string().contains("No items"));
 }
 
@@ -74,7 +86,7 @@ fn select_from_list_empty_items_errors() {
 fn select_from_list_non_interactive_with_items_errors() {
     let cfg = non_interactive();
     let items = vec!["one".to_string(), "two".to_string()];
-    let err = select_from_list("pick", &items, "thing", &cfg).unwrap_err();
+    let err = select_from_list(&no_answers(), "pick", &items, "thing", &cfg).unwrap_err();
     assert!(err.to_string().contains("--thing"));
     assert!(err.to_string().contains("non-interactive"));
 }
@@ -83,14 +95,14 @@ fn select_from_list_non_interactive_with_items_errors() {
 fn select_index_non_interactive_returns_none() {
     let cfg = non_interactive();
     let items = ["a", "b", "c"];
-    let got = select_index("pick", &items, &cfg).expect("call should succeed");
+    let got = select_index(&no_answers(), "pick", &items, &cfg).expect("call should succeed");
     assert!(got.is_none());
 }
 
 #[test]
 fn prompt_input_non_interactive_errors() {
     let cfg = non_interactive();
-    let err = prompt_input("name?", "name", &cfg).unwrap_err();
+    let err = prompt_input(&no_answers(), "name?", "name", &cfg).unwrap_err();
     assert!(err.to_string().contains("--name"));
     assert!(err.to_string().contains("non-interactive"));
 }
@@ -98,21 +110,22 @@ fn prompt_input_non_interactive_errors() {
 #[test]
 fn prompt_input_with_default_non_interactive_returns_default() {
     let cfg = non_interactive();
-    let got = prompt_input_with_default("name?", "anon", &cfg).expect("call should succeed");
+    let got = prompt_input_with_default(&no_answers(), "name?", "anon", &cfg)
+        .expect("call should succeed");
     assert_eq!(got, "anon");
 }
 
 #[test]
 fn confirm_optional_non_interactive_returns_default_true() {
     let cfg = non_interactive();
-    let got = confirm_optional("ok?", true, &cfg).expect("call should succeed");
+    let got = confirm_optional(&no_answers(), "ok?", true, &cfg).expect("call should succeed");
     assert!(got);
 }
 
 #[test]
 fn confirm_optional_non_interactive_returns_default_false() {
     let cfg = non_interactive();
-    let got = confirm_optional("ok?", false, &cfg).expect("call should succeed");
+    let got = confirm_optional(&no_answers(), "ok?", false, &cfg).expect("call should succeed");
     assert!(!got);
 }
 
@@ -200,4 +213,67 @@ fn scripted_prompter_answers_shared_across_methods() {
     assert_eq!(prompter.input("name?").expect("input"), "ed");
     assert_eq!(prompter.select("pick", &items).expect("select"), 0);
     assert!(prompter.input("extra?").is_err());
+}
+
+#[test]
+fn require_confirmation_interactive_yes_succeeds() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["y"]);
+    require_confirmation(&prompter, "delete?", false, &cfg).expect("confirmed");
+}
+
+#[test]
+fn require_confirmation_interactive_no_is_cancelled() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["n"]);
+    let err = require_confirmation(&prompter, "delete?", false, &cfg).unwrap_err();
+    assert!(err.to_string().contains("cancelled"));
+}
+
+#[test]
+fn require_confirmation_default_yes_interactive_accepts() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["yes"]);
+    require_confirmation_default_yes(&prompter, "proceed?", false, &cfg).expect("confirmed");
+}
+
+#[test]
+fn select_from_list_interactive_returns_selected_item() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["1"]);
+    let items = vec!["one".to_string(), "two".to_string()];
+    let got = select_from_list(&prompter, "pick", &items, "thing", &cfg).expect("selected");
+    assert_eq!(got, "two");
+}
+
+#[test]
+fn select_index_interactive_returns_index() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["2"]);
+    let items = ["a", "b", "c"];
+    let got = select_index(&prompter, "pick", &items, &cfg).expect("selected");
+    assert_eq!(got, Some(2));
+}
+
+#[test]
+fn prompt_input_interactive_returns_answer() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["ed"]);
+    let got = prompt_input(&prompter, "name?", "name", &cfg).expect("answered");
+    assert_eq!(got, "ed");
+}
+
+#[test]
+fn prompt_input_with_default_interactive_prefers_answer() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["given"]);
+    let got = prompt_input_with_default(&prompter, "name?", "anon", &cfg).expect("answered");
+    assert_eq!(got, "given");
+}
+
+#[test]
+fn confirm_optional_interactive_uses_prompter() {
+    let cfg = interactive();
+    let prompter = ScriptedPrompter::new(["yes"]);
+    assert!(confirm_optional(&prompter, "ok?", false, &cfg).expect("answered"));
 }

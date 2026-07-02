@@ -3,7 +3,7 @@ use clap::Args;
 use std::fs;
 
 use crate::CliConfig;
-use crate::interactive::{require_confirmation, resolve_required};
+use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
@@ -21,7 +21,11 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -40,6 +44,7 @@ pub(super) fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOut
     }
 
     require_confirmation(
+        prompter,
         &format!("Delete content type '{}'?", name),
         args.yes,
         config,

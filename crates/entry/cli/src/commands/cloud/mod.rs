@@ -169,6 +169,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
                     dry_run,
                     check,
                 },
+                ctx.prompter(),
                 &ctx.cli,
             )
             .await

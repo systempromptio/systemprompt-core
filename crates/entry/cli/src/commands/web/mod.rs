@@ -38,8 +38,8 @@ pub enum WebCommands {
 pub fn execute(command: WebCommands, ctx: &CommandContext) -> Result<()> {
     let config = &ctx.cli;
     match command {
-        WebCommands::ContentTypes(cmd) => content_types::execute(cmd, config),
-        WebCommands::Templates(cmd) => templates::execute(cmd, config),
+        WebCommands::ContentTypes(cmd) => content_types::execute(cmd, ctx.prompter(), config),
+        WebCommands::Templates(cmd) => templates::execute(cmd, ctx.prompter(), config),
         WebCommands::Assets(cmd) => assets::execute(cmd, config),
         WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config),
         WebCommands::Validate(args) => {

@@ -1,5 +1,5 @@
 use crate::cli_settings::CliConfig;
-use crate::interactive::confirm_optional;
+use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
@@ -10,6 +10,7 @@ use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, Star
 use super::get_api_port;
 
 pub async fn execute_with_events(
+    prompter: &dyn Prompter,
     foreground: bool,
     kill_port_process: bool,
     config: &CliConfig,
@@ -27,7 +28,7 @@ pub async fn execute_with_events(
         {
             tracing::debug!(error = %e, "startup event channel closed: PortConflict");
         }
-        handle_port_conflict(port, pid, kill_port_process, config, events).await?;
+        handle_port_conflict(prompter, port, pid, kill_port_process, config, events).await?;
         if let Some(tx) = events
             && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
         {
@@ -93,8 +94,13 @@ pub async fn execute_with_events(
     Ok(format!("http://127.0.0.1:{}", port))
 }
 
-pub async fn execute(foreground: bool, kill_port_process: bool, config: &CliConfig) -> Result<()> {
-    execute_with_events(foreground, kill_port_process, config, None)
+pub async fn execute(
+    prompter: &dyn Prompter,
+    foreground: bool,
+    kill_port_process: bool,
+    config: &CliConfig,
+) -> Result<()> {
+    execute_with_events(prompter, foreground, kill_port_process, config, None)
         .await
         .map(|_| ())
 }
@@ -108,6 +114,7 @@ fn kill_process(pid: u32) {
 }
 
 async fn handle_port_conflict(
+    prompter: &dyn Prompter,
     port: u16,
     pid: u32,
     kill_port_process: bool,
@@ -119,7 +126,12 @@ async fn handle_port_conflict(
     }
 
     let should_kill = kill_port_process
-        || confirm_optional(&format!("Kill process {} and restart?", pid), false, config)?;
+        || confirm_optional(
+            prompter,
+            &format!("Kill process {} and restart?", pid),
+            false,
+            config,
+        )?;
 
     if should_kill {
         if events.is_none() {

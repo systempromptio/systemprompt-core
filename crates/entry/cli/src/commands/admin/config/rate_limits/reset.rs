@@ -10,12 +10,16 @@ use super::helpers::{
 };
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
-use crate::interactive::require_confirmation;
+use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::{CommandOutput, render_result};
 
 use super::super::types::{ResetChange, ResetOutput};
 
-pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
+pub(super) fn execute_reset(
+    args: &ResetArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
     let defaults = RateLimitsConfig::default();
@@ -53,7 +57,7 @@ pub(super) fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> 
                 changes.len()
             ));
         }
-        require_confirmation("Proceed with reset?", args.yes, config)?;
+        require_confirmation(prompter, "Proceed with reset?", args.yes, config)?;
         save_profile(&profile, profile_path)?;
         format!("Reset {} value(s) to defaults", changes.len())
     };

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use super::types::AgentDeleteOutput;
 use crate::CliConfig;
-use crate::interactive::{require_confirmation, resolve_required};
+use crate::interactive::{Prompter, require_confirmation, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
@@ -34,7 +34,11 @@ pub struct DeleteArgs {
     pub force: bool,
 }
 
-pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let agents_to_delete = resolve_targets(&args, &services_config, config)?;
@@ -45,7 +49,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
         format!("Delete agent '{}'?", agents_to_delete[0])
     };
 
-    require_confirmation(&confirm_message, args.yes, config)?;
+    require_confirmation(prompter, &confirm_message, args.yes, config)?;
 
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));

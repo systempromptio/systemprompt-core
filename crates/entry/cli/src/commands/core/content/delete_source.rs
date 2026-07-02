@@ -1,6 +1,6 @@
 use super::types::DeleteSourceOutput;
 use crate::cli_settings::CliConfig;
-use crate::interactive::require_confirmation;
+use crate::interactive::{Prompter, require_confirmation};
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
@@ -18,7 +18,11 @@ pub struct DeleteSourceArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: DeleteSourceArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub async fn execute(
+    args: DeleteSourceArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete ALL content from source: {}",
@@ -26,7 +30,12 @@ pub async fn execute(args: DeleteSourceArgs, config: &CliConfig) -> Result<Comma
         ));
     }
 
-    require_confirmation("Are you sure you want to continue?", args.yes, config)?;
+    require_confirmation(
+        prompter,
+        "Are you sure you want to continue?",
+        args.yes,
+        config,
+    )?;
 
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;

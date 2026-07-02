@@ -69,7 +69,7 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
         ServicesCommands::Serve {
             foreground,
             kill_port_process,
-        } => super::serve::execute(foreground, kill_port_process, config).await,
+        } => super::serve::execute(ctx.prompter(), foreground, kill_port_process, config).await,
     }
 }
 
@@ -142,7 +142,7 @@ async fn execute_restart(
         restart::execute_all_mcp(app, config).await?
     } else {
         match target {
-            Some(RestartTarget::Api) => restart::execute_api(config).await?,
+            Some(RestartTarget::Api) => restart::execute_api(ctx.prompter(), config).await?,
             Some(RestartTarget::Agent { agent }) => {
                 restart::execute_agent(app, &agent, config).await?
             },

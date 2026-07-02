@@ -16,17 +16,20 @@ use systemprompt_sync::{
 };
 
 use crate::cli_settings::CliConfig;
-use crate::interactive::confirm_optional;
+use crate::interactive::{Prompter, confirm_optional};
 
 pub(in crate::commands::cloud) struct CliDeployProgress<'a> {
-    config: Option<&'a CliConfig>,
+    config: Option<(&'a dyn Prompter, &'a CliConfig)>,
     spinner: Mutex<Option<ProgressBar>>,
 }
 
 impl<'a> CliDeployProgress<'a> {
-    pub(in crate::commands::cloud) const fn new(config: &'a CliConfig) -> Self {
+    pub(in crate::commands::cloud) const fn new(
+        prompter: &'a dyn Prompter,
+        config: &'a CliConfig,
+    ) -> Self {
         Self {
-            config: Some(config),
+            config: Some((prompter, config)),
             spinner: Mutex::new(None),
         }
     }
@@ -76,8 +79,8 @@ impl DeployProgress for CliDeployProgress<'_> {
                 true,
             ),
         };
-        self.config.map_or(Ok(default), |config| {
-            confirm_optional(&message, default, config).map_err(SyncError::internal)
+        self.config.map_or(Ok(default), |(prompter, config)| {
+            confirm_optional(prompter, &message, default, config).map_err(SyncError::internal)
         })
     }
 }

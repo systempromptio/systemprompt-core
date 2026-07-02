@@ -15,6 +15,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -35,7 +36,11 @@ pub enum ContentTypesCommands {
     Delete(delete::DeleteArgs),
 }
 
-pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(
+    command: ContentTypesCommands,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     match command {
         ContentTypesCommands::List(args) => {
             let result = list::execute(&args, config).context("Failed to list content types")?;
@@ -58,7 +63,8 @@ pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> 
             Ok(())
         },
         ContentTypesCommands::Delete(args) => {
-            let result = delete::execute(args, config).context("Failed to delete content type")?;
+            let result =
+                delete::execute(args, prompter, config).context("Failed to delete content type")?;
             render_result(&result, config);
             Ok(())
         },
