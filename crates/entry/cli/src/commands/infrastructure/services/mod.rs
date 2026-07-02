@@ -5,12 +5,12 @@
 //! target enums ([`StartTarget`], [`StopTarget`], [`RestartTarget`]); dispatch
 //! is delegated to the sibling implementation modules via [`execute`].
 
-mod cleanup;
+pub mod cleanup;
 mod dispatch;
 mod lifecycle;
 pub mod restart;
 pub mod serve;
-mod start;
+pub mod start;
 mod status;
 mod stop;
 mod types;

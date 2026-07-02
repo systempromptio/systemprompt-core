@@ -3,3 +3,4 @@
 mod db_commands_db;
 mod logs;
 mod logs_commands_db;
+mod services_commands;

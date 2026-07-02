@@ -17,7 +17,7 @@ use super::get_api_port;
 pub use batch::{execute_all_agents, execute_all_mcp, execute_failed};
 pub use single::{execute_agent, execute_api, execute_mcp};
 
-pub(super) fn format_batch_message(
+pub fn format_batch_message(
     service_label: &str,
     restarted: usize,
     failed: usize,
