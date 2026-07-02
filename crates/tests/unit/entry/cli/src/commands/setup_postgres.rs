@@ -358,3 +358,13 @@ fn compose_files_are_rendered() {
             .unwrap();
     assert!(init.contains("uuid-ossp"));
 }
+
+#[test]
+fn docker_probes_do_not_panic() {
+    use systemprompt_cli::admin::setup::docker_compose::{
+        is_compose_available, is_container_running, is_docker_available,
+    };
+    let _ = is_docker_available();
+    let _ = is_compose_available();
+    assert!(!is_container_running("cov_no_such_container_zzz"));
+}
