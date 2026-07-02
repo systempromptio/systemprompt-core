@@ -1,7 +1,4 @@
-//! Bridge filesystem helpers: atomic 0600 writes, recursive copies, optional
-//! reads.
-
-#![allow(dead_code, reason = "helpers not yet wired into all call sites")]
+//! Bridge filesystem helpers: atomic 0600 writes and optional reads.
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -47,49 +44,6 @@ pub fn atomic_write_0600(path: &Path, bytes: &[u8]) -> io::Result<()> {
             Err(e)
         },
     }
-}
-
-pub fn copy_dir_recursive(src: &Path, dst: &Path) -> io::Result<()> {
-    if !src.exists() {
-        return Ok(());
-    }
-    if !src.is_dir() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{} is not a directory", src.display()),
-        ));
-    }
-    if !dst.exists() {
-        fs::create_dir_all(dst)?;
-    }
-
-    let mut stack = vec![src.to_path_buf()];
-    while let Some(current) = stack.pop() {
-        for entry in fs::read_dir(&current)? {
-            let entry = entry?;
-            let entry_path = entry.path();
-            let metadata = fs::symlink_metadata(&entry_path)?;
-            let rel = entry_path
-                .strip_prefix(src)
-                .map_err(|e| io::Error::other(e.to_string()))?;
-            let target = dst.join(rel);
-
-            if metadata.is_dir() {
-                if !target.exists() {
-                    fs::create_dir_all(&target)?;
-                }
-                stack.push(entry_path);
-            } else if metadata.is_file() {
-                if let Some(parent) = target.parent()
-                    && !parent.exists()
-                {
-                    fs::create_dir_all(parent)?;
-                }
-                fs::copy(&entry_path, &target)?;
-            }
-        }
-    }
-    Ok(())
 }
 
 pub fn read_optional(path: &Path) -> io::Result<Option<String>> {

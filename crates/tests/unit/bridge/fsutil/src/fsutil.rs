@@ -1,7 +1,7 @@
 use std::fs;
 
 use systemprompt_bridge::fsutil::{
-    atomic_write_0600, copy_dir_recursive, create_dir_all_mode_0700, read_optional, temp_path_for,
+    atomic_write_0600, create_dir_all_mode_0700, read_optional, temp_path_for,
 };
 use tempfile::tempdir;
 
@@ -102,54 +102,6 @@ fn read_optional_round_trips_with_atomic_write() {
     atomic_write_0600(&path, payload.as_bytes()).unwrap();
 
     assert_eq!(read_optional(&path).unwrap(), Some(payload.to_owned()));
-}
-
-#[test]
-fn copy_dir_recursive_copies_nested_tree() {
-    let dir = tempdir().unwrap();
-    let src = dir.path().join("src");
-    let dst = dir.path().join("dst");
-
-    fs::create_dir_all(src.join("nested").join("deeper")).unwrap();
-    fs::write(src.join("top.txt"), b"top").unwrap();
-    fs::write(src.join("nested").join("mid.txt"), b"mid").unwrap();
-    fs::write(src.join("nested").join("deeper").join("low.txt"), b"low").unwrap();
-
-    copy_dir_recursive(&src, &dst).unwrap();
-
-    assert_eq!(fs::read(dst.join("top.txt")).unwrap(), b"top");
-    assert_eq!(
-        fs::read(dst.join("nested").join("mid.txt")).unwrap(),
-        b"mid"
-    );
-    assert_eq!(
-        fs::read(dst.join("nested").join("deeper").join("low.txt")).unwrap(),
-        b"low"
-    );
-    assert!(dst.join("nested").join("deeper").is_dir());
-}
-
-#[test]
-fn copy_dir_recursive_is_noop_when_src_missing() {
-    let dir = tempdir().unwrap();
-    let src = dir.path().join("missing-src");
-    let dst = dir.path().join("dst");
-
-    copy_dir_recursive(&src, &dst).unwrap();
-
-    assert!(!dst.exists());
-}
-
-#[test]
-fn copy_dir_recursive_errors_when_src_is_file() {
-    let dir = tempdir().unwrap();
-    let src = dir.path().join("a-file.txt");
-    let dst = dir.path().join("dst");
-    fs::write(&src, b"i am a file").unwrap();
-
-    let err = copy_dir_recursive(&src, &dst).unwrap_err();
-
-    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
 }
 
 #[test]
