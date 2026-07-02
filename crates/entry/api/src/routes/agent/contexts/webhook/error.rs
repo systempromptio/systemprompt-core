@@ -4,7 +4,7 @@ use systemprompt_traits::RepositoryError;
 use crate::error::ApiHttpError;
 
 #[derive(Debug, thiserror::Error)]
-pub(super) enum LoadEventError {
+pub enum LoadEventError {
     #[error("Unknown event type: {0}")]
     UnknownEventType(String),
     #[error(transparent)]

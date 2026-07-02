@@ -1,4 +1,11 @@
-pub(super) fn validate_json_serializable(value: &serde_json::Value) -> Result<(), String> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn validate_json_serializable(value: &serde_json::Value) -> Result<(), String> {
     const MAX_PAYLOAD_SIZE: usize = 1_000_000;
     const MAX_TEXT_FIELD_SIZE: usize = 100_000;
 
@@ -21,10 +28,14 @@ pub(super) fn validate_json_serializable(value: &serde_json::Value) -> Result<()
     Ok(())
 }
 
-pub(super) fn sanitize_payload(
-    value: &serde_json::Value,
-    max_text_size: usize,
-) -> serde_json::Value {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn sanitize_payload(value: &serde_json::Value, max_text_size: usize) -> serde_json::Value {
     match value {
         serde_json::Value::String(s) => {
             if s.len() > max_text_size {
