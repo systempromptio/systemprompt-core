@@ -27,7 +27,13 @@ rand = { workspace = true }
 chrono = { workspace = true }
 
 [dev-dependencies]
+systemprompt-agent = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["thiserror"]

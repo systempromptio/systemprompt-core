@@ -8,8 +8,8 @@
 pub mod analytics;
 pub mod delete;
 pub mod delete_source;
-mod edit;
-mod edit_apply;
+pub mod edit;
+pub mod edit_apply;
 pub mod files;
 pub mod link;
 pub mod list;

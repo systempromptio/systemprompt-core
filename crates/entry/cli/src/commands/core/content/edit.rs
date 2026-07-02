@@ -46,7 +46,7 @@ pub(super) async fn execute(
     execute_with_pool(args, prompter, ctx.db_pool(), config).await
 }
 
-pub(super) async fn execute_with_pool(
+pub async fn execute_with_pool(
     args: EditArgs,
     prompter: &dyn Prompter,
     pool: &DbPool,

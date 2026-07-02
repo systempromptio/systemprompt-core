@@ -7302,15 +7302,21 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "systemprompt-agent",
  "systemprompt-cli",
  "systemprompt-cloud",
+ "systemprompt-content",
+ "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-logging",
  "systemprompt-models",
+ "systemprompt-runtime",
  "systemprompt-sync",
+ "systemprompt-test-fixtures",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

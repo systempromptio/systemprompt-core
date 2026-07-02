@@ -8,6 +8,8 @@ mod cloud_edit_prompts;
 mod cloud_profile_templates;
 mod cloud_prompts;
 mod config_secret;
+mod core_content_db;
+mod core_content_edit_apply;
 mod infrastructure;
 mod mcp_prompts;
 mod setup_ai_config;
