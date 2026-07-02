@@ -52,7 +52,7 @@ pub(super) fn load_geoip_database(config: &Config, show_warnings: bool) -> Optio
 }
 
 #[cfg(not(feature = "geolocation"))]
-pub(super) fn load_geoip_database(
+pub(super) const fn load_geoip_database(
     _config: &Config,
     _show_warnings: bool,
 ) -> Option<systemprompt_analytics::GeoIpReader> {
