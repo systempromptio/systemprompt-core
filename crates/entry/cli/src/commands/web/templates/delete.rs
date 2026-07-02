@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
+use std::path::Path;
 
 use crate::CliConfig;
 use crate::interactive::{Prompter, require_confirmation, resolve_required};
@@ -28,8 +29,15 @@ pub(super) fn execute(
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let web_paths = WebPaths::resolve()?;
-    let templates_dir = &web_paths.templates;
+    execute_in_dir(args, prompter, config, &WebPaths::resolve()?.templates)
+}
+
+pub fn execute_in_dir(
+    args: DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+    templates_dir: &Path,
+) -> Result<CommandOutput> {
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     let yaml_content = fs::read_to_string(&templates_yaml_path).with_context(|| {

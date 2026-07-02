@@ -18,3 +18,4 @@ mod setup_catalog;
 mod setup_ddl;
 mod web_content_types;
 mod web_prompts;
+mod web_templates_fs;
