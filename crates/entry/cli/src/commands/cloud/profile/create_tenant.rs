@@ -1,9 +1,9 @@
 use anyhow::{Result, bail};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
 
-pub(super) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
+use crate::interactive::Prompter;
+
+pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Result<TenantType> {
     let local_count = store
         .tenants
         .iter()
@@ -29,11 +29,7 @@ pub(super) fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
 
     let options = vec![local_label, cloud_label];
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Profile type")
-        .items(&options)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Profile type", &options)?;
 
     if selection == 0 {
         if local_count == 0 {
@@ -66,7 +62,7 @@ pub(super) fn get_tenants_by_type(
         .collect()
 }
 
-pub(super) fn select_tenant(tenants: &[StoredTenant]) -> Result<StoredTenant> {
+pub fn select_tenant(prompter: &dyn Prompter, tenants: &[StoredTenant]) -> Result<StoredTenant> {
     if tenants.is_empty() {
         bail!("No eligible tenants found.");
     }
@@ -83,11 +79,7 @@ pub(super) fn select_tenant(tenants: &[StoredTenant]) -> Result<StoredTenant> {
         })
         .collect();
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select tenant")
-        .items(&options)
-        .default(0)
-        .interact()?;
+    let selection = prompter.select("Select tenant", &options)?;
 
     Ok(tenants[selection].clone())
 }

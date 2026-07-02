@@ -41,12 +41,12 @@ pub struct LogoutArgs {
 pub async fn execute(cmd: AuthCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         AuthCommands::Login { environment } => {
-            let result = login::execute(environment, &ctx.cli).await?;
+            let result = login::execute(environment, ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },
         AuthCommands::Logout(args) => {
-            let result = logout::execute(args, &ctx.cli).await?;
+            let result = logout::execute(args, ctx.prompter(), &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

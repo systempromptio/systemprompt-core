@@ -5,12 +5,18 @@ use systemprompt_logging::CliService;
 
 use super::{adjust_ssl_mode, ensure_pg_tool, find_pg_restore};
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "restore threads discrete CLI flags plus the prompt seam"
+)]
 pub(super) fn execute(
     profile_name: &str,
     database_url: &str,
     file: &str,
     skip_confirm: bool,
+    prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
     let file_path = PathBuf::from(file);
@@ -39,13 +45,13 @@ pub(super) fn execute(
             bail!("Restore requires -y flag in non-interactive mode");
         }
 
-        let confirm = dialoguer::Confirm::with_theme(&dialoguer::theme::ColorfulTheme::default())
-            .with_prompt(format!(
+        let confirm = prompter.confirm(
+            &format!(
                 "Restore backup to cloud database for profile '{}'?",
                 profile_name
-            ))
-            .default(false)
-            .interact()?;
+            ),
+            false,
+        )?;
 
         if !confirm {
             CliService::info("Cancelled");

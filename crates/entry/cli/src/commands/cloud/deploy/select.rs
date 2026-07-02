@@ -1,14 +1,13 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::profile::{DiscoveredProfile, discover_profiles};
 
 #[derive(Debug)]
@@ -52,7 +51,10 @@ fn to_deployable_profile(
     })
 }
 
-fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usize> {
+fn select_profile_interactive(
+    prompter: &dyn Prompter,
+    profiles: &[DeployableProfile],
+) -> Result<usize> {
     let options: Vec<String> = profiles
         .iter()
         .map(|p| {
@@ -62,15 +64,13 @@ fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usize> {
         })
         .collect();
 
-    Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select profile to deploy")
-        .items(&options)
-        .default(0)
-        .interact()
+    prompter
+        .select("Select profile to deploy", &options)
         .context("Failed to select profile")
 }
 
 pub(in crate::commands::cloud) fn resolve_profile(
+    prompter: &dyn Prompter,
     profile_name: Option<&str>,
     config: &CliConfig,
 ) -> Result<(Profile, PathBuf)> {
@@ -82,7 +82,7 @@ pub(in crate::commands::cloud) fn resolve_profile(
         bail!("--profile is required in non-interactive mode for deploy");
     }
 
-    resolve_profile_interactive()
+    resolve_profile_interactive(prompter)
 }
 
 fn resolve_profile_by_name(name: &str) -> Result<(Profile, PathBuf)> {
@@ -99,7 +99,7 @@ fn resolve_profile_by_name(name: &str) -> Result<(Profile, PathBuf)> {
     Ok((profile, profile_path))
 }
 
-fn resolve_profile_interactive() -> Result<(Profile, PathBuf)> {
+fn resolve_profile_interactive(prompter: &dyn Prompter) -> Result<(Profile, PathBuf)> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -117,7 +117,7 @@ fn resolve_profile_interactive() -> Result<(Profile, PathBuf)> {
     }
 
     CliService::section("Select Profile");
-    let selection = select_profile_interactive(&profiles)?;
+    let selection = select_profile_interactive(prompter, &profiles)?;
     let selected = &profiles[selection];
 
     Ok((selected.profile.clone(), selected.path.clone()))

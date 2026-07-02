@@ -5,8 +5,6 @@
 //! down the shared `PostgreSQL` container once the last local tenant is gone.
 
 use anyhow::{Result, anyhow, bail};
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
@@ -19,9 +17,14 @@ use super::docker::{
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::TenantDeleteArgs;
+use crate::interactive::Prompter;
 use crate::shared::{CommandOutput, SuccessOutput};
 
-pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub async fn delete_tenant(
+    args: TenantDeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -31,7 +34,7 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
         TenantStore::default()
     });
 
-    let tenant_id = resolve_delete_target(args.id, &store, config)?;
+    let tenant_id = resolve_delete_target(args.id, prompter, &store, config)?;
 
     let tenant = store
         .tenants
@@ -42,7 +45,7 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
 
     let is_cloud = tenant.tenant_type == TenantType::Cloud;
 
-    if !args.yes && !confirm_delete(&tenant, is_cloud, config)? {
+    if !args.yes && !confirm_delete(&tenant, is_cloud, prompter, config)? {
         let output = SuccessOutput::new("Cancelled");
         if !config.is_json_output() {
             CliService::info("Cancelled");
@@ -53,7 +56,7 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
     if is_cloud {
         delete_cloud_tenant(&tenant_id, config).await?;
     } else if tenant.uses_shared_container() {
-        cleanup_shared_container_tenant(&tenant, config)?;
+        cleanup_shared_container_tenant(&tenant, prompter, config)?;
     }
 
     store.tenants.retain(|t| t.id != tenant_id.as_str());
@@ -70,6 +73,7 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
 
 fn resolve_delete_target(
     id: Option<String>,
+    prompter: &dyn Prompter,
     store: &TenantStore,
     config: &CliConfig,
 ) -> Result<TenantId> {
@@ -84,10 +88,17 @@ fn resolve_delete_target(
     if store.tenants.is_empty() {
         bail!("No tenants configured.");
     }
-    Ok(TenantId::new(select_tenant(&store.tenants)?.id.clone()))
+    Ok(TenantId::new(
+        select_tenant(prompter, &store.tenants)?.id.clone(),
+    ))
 }
 
-fn confirm_delete(tenant: &StoredTenant, is_cloud: bool, config: &CliConfig) -> Result<bool> {
+fn confirm_delete(
+    tenant: &StoredTenant,
+    is_cloud: bool,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<bool> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "--yes is required in non-interactive mode for tenant delete"
@@ -103,10 +114,7 @@ fn confirm_delete(tenant: &StoredTenant, is_cloud: bool, config: &CliConfig) -> 
         format!("Delete tenant '{}'?", tenant.name)
     };
 
-    Ok(Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(prompt)
-        .default(false)
-        .interact()?)
+    prompter.confirm(&prompt, false)
 }
 
 async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result<()> {
@@ -124,7 +132,11 @@ async fn delete_cloud_tenant(tenant_id: &TenantId, config: &CliConfig) -> Result
     Ok(())
 }
 
-fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {
+fn cleanup_shared_container_tenant(
+    tenant: &StoredTenant,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<()> {
     let Some(ref db_name) = tenant.shared_container_db else {
         return Ok(());
     };
@@ -151,10 +163,10 @@ fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) ->
 
     if shared_config.tenant_databases.is_empty() {
         let should_remove = if config.is_interactive() {
-            Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("No local tenants remain. Remove shared PostgreSQL container?")
-                .default(true)
-                .interact()?
+            prompter.confirm(
+                "No local tenants remain. Remove shared PostgreSQL container?",
+                true,
+            )?
         } else {
             false
         };

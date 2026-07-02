@@ -5,9 +5,14 @@ use systemprompt_logging::CliService;
 use super::select::select_tenant;
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::TenantDetailOutput;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
-pub fn show_tenant(id: Option<&String>, config: &CliConfig) -> Result<CommandOutput> {
+pub fn show_tenant(
+    prompter: &dyn Prompter,
+    id: Option<&String>,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -25,7 +30,7 @@ pub fn show_tenant(id: Option<&String>, config: &CliConfig) -> Result<CommandOut
             if store.tenants.is_empty() {
                 bail!("No tenants configured.");
             }
-            select_tenant(&store.tenants)?
+            select_tenant(prompter, &store.tenants)?
         },
         None => bail!("--id is required in non-interactive mode for tenant show"),
     };

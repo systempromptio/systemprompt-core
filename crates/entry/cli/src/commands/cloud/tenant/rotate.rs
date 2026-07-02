@@ -1,6 +1,4 @@
 use anyhow::{Result, anyhow, bail};
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{CloudApiClient, CloudPath, TenantStore, TenantType, get_cloud_paths};
 use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
@@ -8,11 +6,13 @@ use systemprompt_logging::CliService;
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::RotateCredentialsOutput;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 pub async fn rotate_credentials(
     id: Option<String>,
     skip_confirm: bool,
+    prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let cloud_paths = get_cloud_paths();
@@ -24,7 +24,7 @@ pub async fn rotate_credentials(
         TenantStore::default()
     });
 
-    let tenant_id = resolve_rotation_target(id, &store, skip_confirm)?;
+    let tenant_id = resolve_rotation_target(id, prompter, &store, skip_confirm)?;
 
     let tenant = store
         .tenants
@@ -36,7 +36,7 @@ pub async fn rotate_credentials(
         bail!("Credential rotation is only available for cloud tenants");
     }
 
-    if !skip_confirm && !confirm_rotation(&tenant.name)? {
+    if !skip_confirm && !confirm_rotation(prompter, &tenant.name)? {
         return Ok(cancelled_output(&tenant_id, config));
     }
 
@@ -81,6 +81,7 @@ pub async fn rotate_credentials(
 
 fn resolve_rotation_target(
     id: Option<String>,
+    prompter: &dyn Prompter,
     store: &TenantStore,
     skip_confirm: bool,
 ) -> Result<TenantId> {
@@ -93,17 +94,19 @@ fn resolve_rotation_target(
     if skip_confirm {
         bail!("Tenant ID required in non-interactive mode");
     }
-    Ok(TenantId::new(select_tenant(&store.tenants)?.id.clone()))
+    Ok(TenantId::new(
+        select_tenant(prompter, &store.tenants)?.id.clone(),
+    ))
 }
 
-fn confirm_rotation(tenant_name: &str) -> Result<bool> {
-    Ok(Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!(
+fn confirm_rotation(prompter: &dyn Prompter, tenant_name: &str) -> Result<bool> {
+    prompter.confirm(
+        &format!(
             "Rotate database credentials for '{}'? This will generate a new password.",
             tenant_name
-        ))
-        .default(false)
-        .interact()?)
+        ),
+        false,
+    )
 }
 
 fn cancelled_output(tenant_id: &TenantId, config: &CliConfig) -> CommandOutput {

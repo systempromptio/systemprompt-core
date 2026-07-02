@@ -174,14 +174,16 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             )
             .await
         },
-        CloudCommands::Doctor { profile } => doctor::execute(profile, &ctx.cli).await,
+        CloudCommands::Doctor { profile } => {
+            doctor::execute(profile, ctx.prompter(), &ctx.cli).await
+        },
         CloudCommands::Status => {
             let result = status::execute(&ctx.cli).await?;
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },
         CloudCommands::Restart { tenant, yes } => {
-            let result = restart::execute(tenant, yes, &ctx.cli).await?;
+            let result = restart::execute(tenant, yes, ctx.prompter(), &ctx.cli).await?;
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },

@@ -5,8 +5,6 @@
 //! syncs the authenticated admin user into all profiles.
 
 use anyhow::{Result, anyhow};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates, TenantInfo, TenantStore,
     UserMeResponse, get_cloud_paths, run_oauth_flow,
@@ -20,9 +18,14 @@ use crate::cloud::types::{
     LoginCustomerInfo, LoginOutput, LoginTenantInfo, LoginUserInfo, TenantPlanInfo,
 };
 use crate::cloud::{Environment, OAuthProvider};
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
-pub(super) async fn execute(environment: Environment, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    environment: Environment,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     if !config.is_interactive() {
         return Err(anyhow!(
             "OAuth login requires interactive mode.\n\nAlternatives:\n- Set \
@@ -47,11 +50,8 @@ pub(super) async fn execute(environment: Environment, config: &CliConfig) -> Res
     let providers = [OAuthProvider::Github, OAuthProvider::Google];
     let provider_names: Vec<&str> = providers.iter().map(OAuthProvider::display_name).collect();
 
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select authentication provider")
-        .items(&provider_names)
-        .default(0)
-        .interact()?;
+    let provider_options: Vec<String> = provider_names.iter().map(|s| (*s).to_owned()).collect();
+    let selection = prompter.select("Select authentication provider", &provider_options)?;
 
     let provider = providers[selection];
 

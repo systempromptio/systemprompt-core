@@ -25,6 +25,7 @@ use systemprompt_models::Profile;
 
 use super::deploy::resolve_profile;
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 use systemprompt_cloud::secrets_env::load_secrets_json;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,9 +91,10 @@ pub(in crate::commands::cloud) async fn run(profile: &Profile, profile_dir: &Pat
 
 pub(in crate::commands::cloud) async fn execute(
     profile_name: Option<String>,
+    prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<()> {
-    let (profile, profile_path) = resolve_profile(profile_name.as_deref(), config)?;
+    let (profile, profile_path) = resolve_profile(prompter, profile_name.as_deref(), config)?;
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;

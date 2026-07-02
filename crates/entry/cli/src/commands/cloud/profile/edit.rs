@@ -1,6 +1,4 @@
 use anyhow::{Context, Result};
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
 use systemprompt_loader::ProfileLoader;
@@ -37,27 +35,27 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
     CliService::section(&format!("Edit Profile: {}", profile_path.display()));
 
     let mut profile = ProfileLoader::load_from_path(&profile_path)?;
+    let prompter = ctx.prompter();
 
-    let edit_options = vec![
+    let edit_options: Vec<String> = [
         "Server settings (host, port, URLs)",
         "Security settings (JWT)",
         "Runtime settings (environment, log level)",
         "API keys (secrets.json)",
         "Done - save and exit",
-    ];
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
 
     loop {
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("What would you like to edit?")
-            .items(&edit_options)
-            .default(0)
-            .interact()?;
+        let selection = prompter.select("What would you like to edit?", &edit_options)?;
 
         match selection {
-            0 => edit_server_settings(&mut profile)?,
-            1 => edit_security_settings(&mut profile)?,
-            2 => edit_runtime_settings(&mut profile)?,
-            3 => edit_api_keys(&profile_dir)?,
+            0 => edit_server_settings(prompter, &mut profile)?,
+            1 => edit_security_settings(prompter, &mut profile)?,
+            2 => edit_runtime_settings(prompter, &mut profile)?,
+            3 => edit_api_keys(prompter, &profile_dir)?,
             4 => break,
             _ => unreachable!(),
         }

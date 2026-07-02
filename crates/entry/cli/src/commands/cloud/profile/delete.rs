@@ -1,14 +1,17 @@
 use anyhow::{Context, Result, bail};
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::DeleteArgs;
 use crate::cli_settings::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::{CommandOutput, SuccessOutput};
 
-pub(super) fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: &DeleteArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section(&format!("Delete Profile: {}", args.name));
     }
@@ -45,10 +48,7 @@ pub(super) fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<CommandOu
             ));
         }
 
-        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Are you sure you want to delete this profile?")
-            .default(false)
-            .interact()?;
+        let confirmed = prompter.confirm("Are you sure you want to delete this profile?", false)?;
 
         if !confirmed {
             if !config.is_json_output() {

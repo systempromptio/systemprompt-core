@@ -219,7 +219,7 @@ async fn execute_inner(
             return backup::execute(profile_name, db_url, *format, output.as_deref());
         },
         CloudDbCommands::Restore { file, yes, .. } => {
-            return restore::execute(profile_name, db_url, file, *yes, &ctx.cli);
+            return restore::execute(profile_name, db_url, file, *yes, ctx.prompter(), &ctx.cli);
         },
         _ => {},
     }

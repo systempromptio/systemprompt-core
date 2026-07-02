@@ -41,7 +41,7 @@ pub(super) async fn execute(
 ) -> Result<()> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let (profile, profile_path) = resolve_profile(args.profile_name.as_deref(), config)?;
+    let (profile, profile_path) = resolve_profile(prompter, args.profile_name.as_deref(), config)?;
 
     if profile.target != systemprompt_models::ProfileType::Cloud {
         bail!(

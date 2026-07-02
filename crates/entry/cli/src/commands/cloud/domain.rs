@@ -5,8 +5,6 @@
 
 use anyhow::{Result, bail};
 use clap::Subcommand;
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::CloudApiClient;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
@@ -15,6 +13,7 @@ use systemprompt_logging::CliService;
 use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
+use crate::interactive::Prompter;
 
 #[derive(Debug, Subcommand)]
 pub enum DomainCommands {
@@ -38,7 +37,7 @@ pub(super) async fn execute(cmd: DomainCommands, ctx: &CommandContext) -> Result
     match cmd {
         DomainCommands::Set { domain } => set_domain(domain).await,
         DomainCommands::Status => get_status().await,
-        DomainCommands::Remove { yes } => remove_domain(yes, &ctx.cli).await,
+        DomainCommands::Remove { yes } => remove_domain(yes, ctx.prompter(), &ctx.cli).await,
     }
 }
 
@@ -156,7 +155,7 @@ async fn get_status() -> Result<()> {
     Ok(())
 }
 
-async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
+async fn remove_domain(yes: bool, prompter: &dyn Prompter, config: &CliConfig) -> Result<()> {
     CliService::section("Remove Custom Domain");
 
     let tenant_id = get_tenant_id()?;
@@ -182,13 +181,13 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
             ));
         }
 
-        let confirm = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!(
+        let confirm = prompter.confirm(
+            &format!(
                 "Remove custom domain '{}'? This will delete the TLS certificate.",
                 domain_name
-            ))
-            .default(false)
-            .interact()?;
+            ),
+            false,
+        )?;
 
         if !confirm {
             CliService::info("Cancelled");

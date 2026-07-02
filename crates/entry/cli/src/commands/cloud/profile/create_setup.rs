@@ -1,14 +1,14 @@
 use anyhow::Result;
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use systemprompt_cloud::{DockerCli, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
 use crate::cloud::tenant::wait_for_postgres_healthy;
+use crate::interactive::Prompter;
 
 pub async fn handle_local_tenant_setup(
+    prompter: &dyn Prompter,
     cloud_user: &crate::cloud::sync::admin_user::CloudUser,
     db_url: &str,
     tenant_name: &str,
@@ -23,10 +23,8 @@ pub async fn handle_local_tenant_setup(
         let compose_path = ctx.docker_dir().join(format!("{}.yaml", tenant_name));
 
         if compose_path.exists() {
-            let start_docker = Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("PostgreSQL not running. Start Docker container?")
-                .default(true)
-                .interact()?;
+            let start_docker =
+                prompter.confirm("PostgreSQL not running. Start Docker container?", true)?;
 
             if start_docker {
                 connection_valid = start_postgres_container(&compose_path).await?;
@@ -40,10 +38,7 @@ pub async fn handle_local_tenant_setup(
     if connection_valid {
         CliService::success("PostgreSQL connection verified");
 
-        let run_migrations = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Run database migrations?")
-            .default(true)
-            .interact()?;
+        let run_migrations = prompter.confirm("Run database migrations?", true)?;
 
         let migrations_succeeded = if run_migrations {
             match run_migrations_cmd(profile_path) {
