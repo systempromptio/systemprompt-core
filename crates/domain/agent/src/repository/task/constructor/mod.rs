@@ -6,7 +6,7 @@
 //! per-table round trips across many task ids.
 
 mod batch;
-mod batch_builders;
+pub mod batch_builders;
 pub(in crate::repository) mod batch_queries;
 mod converters;
 mod single;

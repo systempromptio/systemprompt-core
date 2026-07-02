@@ -36,8 +36,9 @@ pub use systemprompt_models::{
     ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep,
 };
 
-pub(crate) use database_rows::{
-    ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage, TaskRow,
+pub(crate) use database_rows::TaskRow;
+pub use database_rows::{
+    ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
 
 pub use web::*;

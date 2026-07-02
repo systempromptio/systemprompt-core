@@ -11,7 +11,7 @@ use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 
 use super::converters;
 
-pub(super) fn build_execution_steps(
+pub fn build_execution_steps(
     steps: Option<&Vec<&ExecutionStepBatchRow>>,
 ) -> Option<Vec<ExecutionStep>> {
     let steps = steps?;
@@ -57,7 +57,11 @@ pub(super) fn build_execution_steps(
     }
 }
 
-pub(super) fn build_messages(
+#[expect(
+    clippy::implicit_hasher,
+    reason = "internal batch-assembly helper; callers always pass the default hasher"
+)]
+pub fn build_messages(
     messages: Option<&Vec<&TaskMessage>>,
     parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
 ) -> Option<Vec<Message>> {
@@ -123,7 +127,11 @@ fn build_message_parts(parts: Option<&Vec<&MessagePart>>) -> Vec<Part> {
         .collect()
 }
 
-pub(super) fn build_artifacts(
+#[expect(
+    clippy::implicit_hasher,
+    reason = "internal batch-assembly helper; callers always pass the default hasher"
+)]
+pub fn build_artifacts(
     artifacts: Option<&Vec<&ArtifactRow>>,
     artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
 ) -> Option<Vec<Artifact>> {

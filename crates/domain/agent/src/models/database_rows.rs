@@ -82,7 +82,7 @@ pub(crate) struct TaskRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub(crate) struct TaskMessage {
+pub struct TaskMessage {
     pub id: i32,
     pub task_id: TaskId,
     pub message_id: MessageId,
@@ -100,7 +100,7 @@ pub(crate) struct TaskMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub(crate) struct MessagePart {
+pub struct MessagePart {
     pub id: i32,
     pub message_id: MessageId,
     pub task_id: TaskId,
@@ -116,7 +116,7 @@ pub(crate) struct MessagePart {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub(crate) struct ArtifactRow {
+pub struct ArtifactRow {
     pub artifact_id: ArtifactId,
     pub task_id: TaskId,
     pub context_id: ContextId,
@@ -134,7 +134,7 @@ pub(crate) struct ArtifactRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub(crate) struct ArtifactPartRow {
+pub struct ArtifactPartRow {
     pub id: i32,
     pub artifact_id: ArtifactId,
     pub context_id: ContextId,
@@ -150,7 +150,7 @@ pub(crate) struct ArtifactPartRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub(crate) struct ExecutionStepBatchRow {
+pub struct ExecutionStepBatchRow {
     pub step_id: ExecutionStepId,
     pub task_id: TaskId,
     pub status: String,
