@@ -1,19 +1,19 @@
-use crate::{AnalyticsError, Result};
+use crate::Result;
 use serde::Serialize;
+use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsQueryRepository {
-    db_pool: DbPool,
+    pool: Arc<PgPool>,
 }
 
 impl AnalyticsQueryRepository {
-    pub fn new(db_pool: &DbPool) -> Self {
-        Self {
-            db_pool: Arc::clone(db_pool),
-        }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc()?;
+        Ok(Self { pool })
     }
 
     pub async fn get_ai_provider_usage(
@@ -21,44 +21,32 @@ impl AnalyticsQueryRepository {
         days: i32,
         user_id: Option<&UserId>,
     ) -> Result<Vec<ProviderUsage>> {
-        let base_query = r"
+        let user_filter = user_id.map(UserId::as_str);
+
+        sqlx::query_as!(
+            ProviderUsage,
+            r#"
             SELECT
-                provider,
-                model,
-                COUNT(*) as request_count,
-                SUM(tokens_used) as total_tokens,
-                SUM(cost_microdollars) as total_cost_microdollars,
-                AVG(latency_ms) as avg_latency_ms,
-                COUNT(DISTINCT user_id) as unique_users,
-                COUNT(DISTINCT session_id) as unique_sessions
+                provider AS "provider!",
+                model AS "model!",
+                COUNT(*)::int AS "request_count!",
+                SUM(tokens_used)::int AS "total_tokens",
+                SUM(cost_microdollars)::int AS "total_cost_microdollars",
+                AVG(latency_ms)::float8 AS "avg_latency_ms",
+                COUNT(DISTINCT user_id)::int AS "unique_users!",
+                COUNT(DISTINCT session_id)::int AS "unique_sessions!"
             FROM ai_requests
-            WHERE created_at >= NOW() - INTERVAL '1 day' * $1
-            ";
-
-        let mut query = base_query.to_owned();
-        let mut params: Vec<Box<dyn ToDbValue>> = vec![Box::new(days)];
-        let mut param_index = 2;
-
-        let placeholder = |idx: &mut i32| {
-            let placeholder = format!("${idx}");
-            *idx += 1;
-            placeholder
-        };
-
-        if let Some(uid) = user_id {
-            query.push_str(&format!(" AND user_id = {}", placeholder(&mut param_index)));
-            params.push(Box::new(uid.as_str().to_owned()));
-        }
-
-        query.push_str(" GROUP BY provider, model ORDER BY request_count DESC");
-
-        let param_refs: Vec<&dyn ToDbValue> = params.iter().map(|p| &**p).collect();
-
-        let rows = self.db_pool.as_ref().fetch_all(&query, &param_refs).await?;
-
-        rows.iter()
-            .map(ProviderUsage::from_json_row)
-            .collect::<Result<Vec<_>>>()
+            WHERE created_at >= NOW() - INTERVAL '1 day' * $1::int
+              AND ($2::text IS NULL OR user_id = $2)
+            GROUP BY provider, model
+            ORDER BY COUNT(*) DESC
+            "#,
+            days,
+            user_filter,
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
     }
 }
 
@@ -72,61 +60,4 @@ pub struct ProviderUsage {
     pub avg_latency_ms: Option<f64>,
     pub unique_users: i32,
     pub unique_sessions: i32,
-}
-
-impl ProviderUsage {
-    pub fn from_json_row(row: &JsonRow) -> Result<Self> {
-        let provider = row
-            .get("provider")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| AnalyticsError::missing_field("provider"))?
-            .to_owned();
-
-        let model = row
-            .get("model")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| AnalyticsError::missing_field("model"))?
-            .to_owned();
-
-        let request_count =
-            row.get("request_count")
-                .and_then(serde_json::Value::as_i64)
-                .ok_or_else(|| AnalyticsError::missing_field("request_count"))? as i32;
-
-        let total_tokens = row
-            .get("total_tokens")
-            .and_then(serde_json::Value::as_i64)
-            .map(|i| i as i32);
-
-        let total_cost_microdollars = row
-            .get("total_cost_microdollars")
-            .and_then(serde_json::Value::as_i64)
-            .map(|i| i as i32);
-
-        let avg_latency_ms = row
-            .get("avg_latency_ms")
-            .and_then(serde_json::Value::as_f64);
-
-        let unique_users =
-            row.get("unique_users")
-                .and_then(serde_json::Value::as_i64)
-                .ok_or_else(|| AnalyticsError::missing_field("unique_users"))? as i32;
-
-        let unique_sessions = row
-            .get("unique_sessions")
-            .and_then(serde_json::Value::as_i64)
-            .ok_or_else(|| AnalyticsError::missing_field("unique_sessions"))?
-            as i32;
-
-        Ok(Self {
-            provider,
-            model,
-            request_count,
-            total_tokens,
-            total_cost_microdollars,
-            avg_latency_ms,
-            unique_users,
-            unique_sessions,
-        })
-    }
 }
