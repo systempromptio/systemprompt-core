@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{Actor, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ContextId, McpServerId, SessionId, TraceId, UserId};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -36,7 +36,7 @@ fn tool_context() -> ToolContext {
     context
 }
 
-async fn setup(agent: &str) -> Option<(McpToolProvider, String, MockServer)> {
+async fn setup(agent: &str) -> Option<(McpToolProvider, McpServerId, MockServer)> {
     let bootstrap = ensure_test_bootstrap();
     let url = fixture_database_url().ok()?;
     let db = fixture_db_pool(&url).await.ok()?;
@@ -58,7 +58,7 @@ async fn setup(agent: &str) -> Option<(McpToolProvider, String, MockServer)> {
     write_services_config(bootstrap, &yaml);
 
     let provider = McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience());
-    Some((provider, server_name, mock))
+    Some((provider, McpServerId::new(&server_name), mock))
 }
 
 #[tokio::test]
@@ -127,7 +127,7 @@ async fn call_tool_unknown_server_is_configuration_error() {
     };
 
     let err = provider
-        .call_tool(&request, "no-such-server", &tool_context())
+        .call_tool(&request, &McpServerId::new("no-such-server"), &tool_context())
         .await
         .expect_err("unknown server rejected");
     assert!(err.to_string().contains("Failed to resolve MCP server"));

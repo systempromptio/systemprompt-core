@@ -18,7 +18,7 @@ impl McpOrchestrator {
         service_name: Option<String>,
         events: Option<&StartupEventSender>,
     ) -> McpDomainResult<()> {
-        let servers = self.get_target_servers(service_name, true).await?;
+        let servers = self.list_target_servers(service_name, true).await?;
         let mut failed = Vec::new();
 
         for server in servers {
@@ -77,7 +77,7 @@ impl McpOrchestrator {
     }
 
     pub async fn stop_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers = self.get_target_servers(service_name, false).await?;
+        let servers = self.list_target_servers(service_name, false).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Stopping MCP service");
@@ -101,7 +101,7 @@ impl McpOrchestrator {
     }
 
     pub async fn restart_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers = self.get_target_servers(service_name, false).await?;
+        let servers = self.list_target_servers(service_name, false).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
@@ -118,7 +118,7 @@ impl McpOrchestrator {
     }
 
     pub async fn restart_services_sync(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers = self.get_target_servers(service_name, false).await?;
+        let servers = self.list_target_servers(service_name, false).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
@@ -132,7 +132,7 @@ impl McpOrchestrator {
         &self,
         service_name: Option<String>,
     ) -> McpDomainResult<()> {
-        let servers = self.get_target_servers(service_name, true).await?;
+        let servers = self.list_target_servers(service_name, true).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
@@ -146,7 +146,7 @@ impl McpOrchestrator {
     }
 
     pub async fn build_services(&self, service_name: Option<String>) -> McpDomainResult<()> {
-        let servers = self.get_target_servers(service_name, true).await?;
+        let servers = self.list_target_servers(service_name, true).await?;
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");

@@ -3,6 +3,8 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 
+use systemprompt_identifiers::McpServerId;
+
 use super::call::{ToolCallRequest, ToolCallResult};
 use super::context::ToolContext;
 use super::definition::ToolDefinition;
@@ -22,7 +24,7 @@ pub trait ToolProvider: Send + Sync {
     async fn call_tool(
         &self,
         request: &ToolCallRequest,
-        service_id: &str,
+        service_id: &McpServerId,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult>;
 

@@ -4,7 +4,7 @@ use super::McpOrchestrator;
 use crate::McpServerConfig;
 
 impl McpOrchestrator {
-    pub(super) async fn get_target_servers(
+    pub(super) async fn list_target_servers(
         &self,
         service_name: Option<String>,
         enabled_only: bool,

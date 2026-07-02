@@ -26,10 +26,10 @@ async fn can_route_traffic_missing_service_returns_false() {
 }
 
 #[tokio::test]
-async fn get_routable_services_returns_vec() {
+async fn list_routable_services_returns_vec() {
     let Some(db) = db().await else { return };
     let p = ProxyHealthCheck::new(&db).unwrap();
-    let r = p.get_routable_services().await.unwrap();
+    let r = p.list_routable_services().await.unwrap();
     let _ = r.len();
 }
 

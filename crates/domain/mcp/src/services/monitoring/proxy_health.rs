@@ -63,7 +63,7 @@ impl ProxyHealthCheck {
         }
     }
 
-    pub async fn get_routable_services(&self) -> McpDomainResult<Vec<RoutableService>> {
+    pub async fn list_routable_services(&self) -> McpDomainResult<Vec<RoutableService>> {
         let running_services = self.service_repo.list_all_running_services().await?;
 
         let mut routable = Vec::new();

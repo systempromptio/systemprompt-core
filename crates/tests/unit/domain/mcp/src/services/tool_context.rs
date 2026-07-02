@@ -7,7 +7,7 @@
 //! `ToolProviderError::ConfigurationError` back to the caller — giving us
 //! coverage of the header-validation branches without a live MCP server.
 
-use systemprompt_identifiers::{Actor, AiToolCallId, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AiToolCallId, ContextId, McpServerId, SessionId, TraceId};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
 use systemprompt_models::services::ResilienceSettings;
@@ -97,7 +97,7 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
         name: "my_tool".to_owned(),
         arguments: serde_json::json!({}),
     };
-    let result = p.call_tool(&request, "nonexistent-server", &ctx).await;
+    let result = p.call_tool(&request, &McpServerId::new("nonexistent-server"), &ctx).await;
     assert!(result.is_err());
 }
 

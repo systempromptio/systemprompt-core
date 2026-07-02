@@ -14,6 +14,7 @@ use tracing::{info, warn};
 
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::services::ResilienceSettings;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
@@ -146,10 +147,10 @@ impl ToolProvider for McpToolProvider {
     async fn call_tool(
         &self,
         request: &ToolCallRequest,
-        service_id: &str,
+        service_id: &McpServerId,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
-        let server_config = self.registry.get_server(service_id).map_err(|e| {
+        let server_config = self.registry.get_server(service_id.as_str()).map_err(|e| {
             ToolProviderError::ConfigurationError {
                 message: format!("Failed to resolve MCP server {service_id}: {e}"),
             }
@@ -158,11 +159,11 @@ impl ToolProvider for McpToolProvider {
 
         info!(
             tool = &request.name,
-            service = service_id,
+            service = service_id.as_str(),
             "Executing tool via MCP"
         );
 
-        let guard = self.guard_for(service_id);
+        let guard = self.guard_for(service_id.as_str());
         let result = guard
             .execute(McpDomainError::classify, || {
                 McpClient::call_tool(
@@ -173,7 +174,7 @@ impl ToolProvider for McpToolProvider {
                 )
             })
             .await
-            .map_err(|err| map_resilience_err(err, service_id))?;
+            .map_err(|err| map_resilience_err(err, service_id.as_str()))?;
 
         Ok(to_tool_result(&result))
     }
@@ -195,7 +196,10 @@ impl ToolProvider for McpToolProvider {
         })?;
 
         let api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::Internal(format!("Failed to get configuration: {e}")))?
+            .map_err(|e| ToolProviderError::Config {
+                message: "Failed to get configuration".to_owned(),
+                source: Box::new(e),
+            })?
             .api_server_url
             .clone();
 
@@ -210,7 +214,10 @@ impl ToolProvider for McpToolProvider {
         let mut health_status = HashMap::new();
 
         let config_api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::Internal(format!("Failed to get configuration: {e}")))?
+            .map_err(|e| ToolProviderError::Config {
+                message: "Failed to get configuration".to_owned(),
+                source: Box::new(e),
+            })?
             .api_server_url
             .clone();
 

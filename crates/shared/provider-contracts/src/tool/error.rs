@@ -22,6 +22,13 @@ pub enum ToolProviderError {
     #[error("Configuration error: {message}")]
     ConfigurationError { message: String },
 
+    #[error("Configuration unavailable: {message}")]
+    Config {
+        message: String,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     #[error("Internal error: {0}")]
     Internal(String),
 }
