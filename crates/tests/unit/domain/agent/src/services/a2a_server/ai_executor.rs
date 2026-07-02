@@ -114,3 +114,63 @@ async fn synthesize_tool_results_returns_text_and_emits_event() {
     }
     assert!(saw_text, "expected a Text stream event from synthesis");
 }
+
+#[test]
+fn resolve_provider_config_prefers_tool_model_config() {
+    use systemprompt_agent::services::a2a_server::processing::ai_executor::resolve_provider_config;
+    use systemprompt_models::ai::ToolModelConfig;
+
+    let provider = StubAiProvider::new();
+    let runtime = runtime_info("exec-agent");
+    let rc = ctx().with_tool_model_config(ToolModelConfig {
+        provider: Some("override-provider".to_owned()),
+        model: Some("override-model".to_owned()),
+        max_output_tokens: Some(99),
+    });
+
+    let (p, m, t) = resolve_provider_config(&rc, &runtime, &provider);
+    assert_eq!(p, "override-provider");
+    assert_eq!(m, "override-model");
+    assert_eq!(t, 99);
+}
+
+#[test]
+fn resolve_provider_config_falls_back_to_runtime_then_defaults() {
+    use systemprompt_agent::services::a2a_server::processing::ai_executor::resolve_provider_config;
+
+    let provider = StubAiProvider::new();
+
+    let runtime = runtime_info("exec-agent");
+    let (p, m, t) = resolve_provider_config(&ctx(), &runtime, &provider);
+    assert_eq!(p, "mock-provider");
+    assert_eq!(m, "mock-model");
+    assert_eq!(t, 1024);
+
+    let mut bare = runtime_info("exec-agent");
+    bare.provider = None;
+    bare.model = None;
+    bare.max_output_tokens = None;
+    let (p, m, t) = resolve_provider_config(&ctx(), &bare, &provider);
+    assert_eq!(p, "mock-provider");
+    assert_eq!(m, "mock-model");
+    assert_eq!(t, 4096);
+}
+
+#[test]
+fn resolve_provider_config_partial_tool_config_mixes_sources() {
+    use systemprompt_agent::services::a2a_server::processing::ai_executor::resolve_provider_config;
+    use systemprompt_models::ai::ToolModelConfig;
+
+    let provider = StubAiProvider::new();
+    let runtime = runtime_info("exec-agent");
+    let rc = ctx().with_tool_model_config(ToolModelConfig {
+        provider: None,
+        model: Some("only-model".to_owned()),
+        max_output_tokens: None,
+    });
+
+    let (p, m, t) = resolve_provider_config(&rc, &runtime, &provider);
+    assert_eq!(p, "mock-provider");
+    assert_eq!(m, "only-model");
+    assert_eq!(t, 1024);
+}
