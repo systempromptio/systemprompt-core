@@ -21,17 +21,20 @@ fn unique_table() -> String {
 
 async fn create_table(pool: &sqlx::PgPool, table: &str) {
     let ddl = format!("CREATE TABLE \"{table}\" (id INT PRIMARY KEY)");
-    sqlx::query(&ddl).execute(pool).await.expect("create table");
+    sqlx::query(sqlx::AssertSqlSafe(ddl))
+        .execute(pool)
+        .await
+        .expect("create table");
 }
 
 async fn drop_table(pool: &sqlx::PgPool, table: &str) {
     let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
-    let _ = sqlx::query(&ddl).execute(pool).await;
+    let _ = sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(pool).await;
 }
 
 async fn row_count(pool: &sqlx::PgPool, table: &str) -> i64 {
     let q = format!("SELECT COUNT(*) FROM \"{table}\"");
-    sqlx::query_scalar::<_, i64>(&q)
+    sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(q))
         .fetch_one(pool)
         .await
         .expect("count")
@@ -49,7 +52,9 @@ async fn with_transaction_commits_inserted_rows() {
         let table = table_for_closure.clone();
         Box::pin(async move {
             let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (1), (2)");
-            sqlx::query(&stmt).execute(&mut **tx).await?;
+            sqlx::query(sqlx::AssertSqlSafe(stmt))
+                .execute(&mut **tx)
+                .await?;
             Ok(7)
         })
     })
@@ -73,9 +78,13 @@ async fn with_transaction_rolls_back_on_closure_error() {
         let table = table_for_closure.clone();
         Box::pin(async move {
             let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (1)");
-            sqlx::query(&stmt).execute(&mut **tx).await?;
+            sqlx::query(sqlx::AssertSqlSafe(stmt.clone()))
+                .execute(&mut **tx)
+                .await?;
             // Force a unique-violation: same primary key twice.
-            sqlx::query(&stmt).execute(&mut **tx).await?;
+            sqlx::query(sqlx::AssertSqlSafe(stmt))
+                .execute(&mut **tx)
+                .await?;
             Ok(())
         })
     })
@@ -103,7 +112,9 @@ async fn with_transaction_raw_commits_against_pgpool() {
         let table = table_for_closure.clone();
         Box::pin(async move {
             let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (10)");
-            sqlx::query(&stmt).execute(&mut **tx).await?;
+            sqlx::query(sqlx::AssertSqlSafe(stmt))
+                .execute(&mut **tx)
+                .await?;
             Ok(())
         })
     })
@@ -129,7 +140,7 @@ async fn with_transaction_retry_commits_on_first_success() {
         let table = table_for_closure.clone();
         Box::pin(async move {
             let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (5)");
-            sqlx::query(&stmt)
+            sqlx::query(sqlx::AssertSqlSafe(stmt))
                 .execute(&mut **tx)
                 .await
                 .map_err(systemprompt_database::RepositoryError::from)?;
@@ -160,7 +171,7 @@ async fn with_transaction_retry_does_not_retry_permanent_error() {
             let table = table_for_closure.clone();
             Box::pin(async move {
                 let stmt = format!("INSERT INTO \"{table}\" (id) VALUES (1), (1)");
-                sqlx::query(&stmt)
+                sqlx::query(sqlx::AssertSqlSafe(stmt))
                     .execute(&mut **tx)
                     .await
                     .map_err(systemprompt_database::RepositoryError::from)?;

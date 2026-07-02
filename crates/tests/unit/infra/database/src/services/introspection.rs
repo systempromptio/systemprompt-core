@@ -33,7 +33,7 @@ async fn get_info_reports_version_and_introspected_table() {
     let admin_pool = admin.write_pool_arc().expect("admin pool");
 
     let iso_db = format!("introspect_{}", unique_suffix());
-    sqlx::query(&format!("CREATE DATABASE \"{iso_db}\""))
+    sqlx::query(sqlx::AssertSqlSafe(format!("CREATE DATABASE \"{iso_db}\"")))
         .execute(&*admin_pool)
         .await
         .expect("create isolated database");
@@ -41,9 +41,9 @@ async fn get_info_reports_version_and_introspected_table() {
     let iso_url = swap_db_name(&admin_url, &iso_db);
     let result = run_introspection(&iso_url).await;
 
-    let _ = sqlx::query(&format!(
+    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
         "DROP DATABASE IF EXISTS \"{iso_db}\" WITH (FORCE)"
-    ))
+    )))
     .execute(&*admin_pool)
     .await;
 
