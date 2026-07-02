@@ -5,10 +5,10 @@
 //! into the plugins storage directory. The per-component generators live in the
 //! `agents`, `mcp`, `skills`, and `marketplace` submodules.
 
-mod agents;
-mod marketplace;
-mod mcp;
-mod skills;
+pub mod agents;
+pub mod marketplace;
+pub mod mcp;
+pub mod skills;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
@@ -31,11 +31,11 @@ pub struct GenerateArgs {
     pub output_dir: Option<String>,
 }
 
-struct PluginGenerateContext<'a> {
-    plugins_path: &'a Path,
-    skills_path: &'a Path,
-    services_path: &'a Path,
-    output_dir_override: Option<&'a str>,
+pub struct PluginGenerateContext<'a> {
+    pub plugins_path: &'a Path,
+    pub skills_path: &'a Path,
+    pub services_path: &'a Path,
+    pub output_dir_override: Option<&'a str>,
 }
 
 pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
@@ -89,7 +89,7 @@ pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<Comman
     ))
 }
 
-fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
+pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
     if !plugins_path.exists() {
         return Ok(Vec::new());
     }
@@ -108,7 +108,7 @@ fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
     Ok(ids)
 }
 
-fn generate_plugin(
+pub fn generate_plugin(
     plugin_id: &str,
     ctx: &PluginGenerateContext<'_>,
 ) -> Result<PluginGenerateOutput> {
@@ -152,7 +152,7 @@ fn generate_plugin(
     })
 }
 
-fn extract_install_command(profile: &systemprompt_models::Profile) -> Option<String> {
+pub fn extract_install_command(profile: &systemprompt_models::Profile) -> Option<String> {
     let github_link = profile.site.github_link.as_deref()?;
     let repo_path = github_link
         .trim_end_matches('/')

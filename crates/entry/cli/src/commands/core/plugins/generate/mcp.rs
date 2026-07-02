@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 use systemprompt_models::PluginConfig;
 
-pub(super) fn generate_mcp_json(
+pub fn generate_mcp_json(
     plugin: &PluginConfig,
     services_path: &Path,
     output_dir: &Path,
