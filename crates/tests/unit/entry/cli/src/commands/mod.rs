@@ -1,5 +1,6 @@
 //! Tests touching public surfaces under the `commands` re-exports.
 
+mod agents_delete;
 mod analytics;
 mod cloud_doctor;
 mod cloud_profile_templates;

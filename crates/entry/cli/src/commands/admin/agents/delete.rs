@@ -39,13 +39,11 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
 
     let agents_to_delete = resolve_targets(&args, &services_config, config)?;
 
-    let confirm_message = if args.all {
-        format!("Delete ALL {} agents?", agents_to_delete.len())
-    } else {
-        format!("Delete agent '{}'?", agents_to_delete[0])
-    };
-
-    require_confirmation(&confirm_message, args.yes, config)?;
+    require_confirmation(
+        &delete_confirm_message(args.all, &agents_to_delete),
+        args.yes,
+        config,
+    )?;
 
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let authoring = AgentConfigAuthoringService::new(Path::new(&profile.paths.services));
@@ -92,12 +90,7 @@ pub(super) async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<Comm
         })?;
     }
 
-    let message = if deleted.len() == 1 {
-        format!("Agent '{}' deleted successfully", deleted[0])
-    } else {
-        format!("{} agent(s) deleted successfully", deleted.len())
-    };
-
+    let message = delete_success_message(&deleted);
     let output = AgentDeleteOutput { deleted, message };
 
     Ok(CommandOutput::card_value("Delete Agent", &output))
@@ -108,18 +101,31 @@ fn resolve_targets(
     services_config: &systemprompt_models::ServicesConfig,
     config: &CliConfig,
 ) -> Result<Vec<String>> {
-    let agents: Vec<String> = if args.all {
-        services_config.agents.keys().cloned().collect()
+    let available: Vec<String> = services_config.agents.keys().cloned().collect();
+    let requested = if args.all {
+        None
     } else {
-        let name = resolve_required(args.name.clone(), "name", config, || {
+        Some(resolve_required(args.name.clone(), "name", config, || {
             prompt_agent_selection(services_config)
-        })?;
+        })?)
+    };
+    validate_delete_targets(requested, &available)
+}
 
-        if !services_config.agents.contains_key(&name) {
-            return Err(anyhow!("Agent '{}' not found", name));
-        }
-
-        vec![name]
+/// Resolves the delete target set: a specific agent when `requested` is
+/// given (which must exist), otherwise every available agent.
+pub fn validate_delete_targets(
+    requested: Option<String>,
+    available: &[String],
+) -> Result<Vec<String>> {
+    let agents = match requested {
+        Some(name) => {
+            if !available.contains(&name) {
+                return Err(anyhow!("Agent '{}' not found", name));
+            }
+            vec![name]
+        },
+        None => available.to_vec(),
     };
 
     if agents.is_empty() {
@@ -127,6 +133,24 @@ fn resolve_targets(
     }
 
     Ok(agents)
+}
+
+#[must_use]
+pub fn delete_confirm_message(all: bool, targets: &[String]) -> String {
+    if all {
+        format!("Delete ALL {} agents?", targets.len())
+    } else {
+        format!("Delete agent '{}'?", targets[0])
+    }
+}
+
+#[must_use]
+pub fn delete_success_message(deleted: &[String]) -> String {
+    if deleted.len() == 1 {
+        format!("Agent '{}' deleted successfully", deleted[0])
+    } else {
+        format!("{} agent(s) deleted successfully", deleted.len())
+    }
 }
 
 async fn build_orchestrator() -> Result<Option<AgentOrchestrator>, String> {
