@@ -90,12 +90,12 @@ fn loader_error_invalid_base_path_display() {
 
 #[test]
 fn loader_error_circular_dependency_display() {
-    let err = LoaderError::CircularDependency {
+    let err = LoaderError::DependencyCycle {
         chain: "a -> b -> a".to_string(),
     };
     let msg = err.to_string();
     assert!(msg.contains("a -> b -> a"));
-    assert!(msg.contains("Circular dependency"));
+    assert!(msg.contains("Dependency cycle"));
 }
 
 #[test]

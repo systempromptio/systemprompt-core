@@ -104,12 +104,12 @@ fn test_loader_error_invalid_base_path_display() {
 
 #[test]
 fn test_loader_error_circular_dependency_display() {
-    let err = LoaderError::CircularDependency {
+    let err = LoaderError::DependencyCycle {
         chain: "a -> b -> c -> a".to_string(),
     };
     let msg = err.to_string();
     assert!(msg.contains("a -> b -> c -> a"));
-    assert!(msg.contains("Circular dependency"));
+    assert!(msg.contains("Dependency cycle"));
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn test_loader_error_variant_matching() {
             extension: "h".to_string(),
             path: "/bad".to_string(),
         },
-        LoaderError::CircularDependency {
+        LoaderError::DependencyCycle {
             chain: "x -> y -> x".to_string(),
         },
         LoaderError::MigrationFailed {
@@ -240,9 +240,6 @@ fn test_loader_error_variant_matching() {
             LoaderError::InvalidBasePath { extension, path } => {
                 assert!(!extension.is_empty());
                 assert!(!path.is_empty());
-            },
-            LoaderError::CircularDependency { chain } => {
-                assert!(!chain.is_empty());
             },
             LoaderError::DependencyCycle { chain } => {
                 assert!(!chain.is_empty());

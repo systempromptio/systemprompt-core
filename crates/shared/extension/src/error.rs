@@ -36,9 +36,6 @@ pub enum LoaderError {
     #[error("Extension '{extension}' has invalid base path '{path}': must start with /api/")]
     InvalidBasePath { extension: String, path: String },
 
-    #[error("Circular dependency detected: {chain}")]
-    CircularDependency { chain: String },
-
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
     DependencyCycle { chain: String },
 

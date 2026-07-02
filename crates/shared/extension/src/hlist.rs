@@ -57,11 +57,3 @@ impl<H: 'static, T: TypeList + Subset<B>, B: TypeList> Subset<B> for (H, T) {
         B::contains_type::<H>() && T::is_subset_of()
     }
 }
-
-pub trait Contains<T: 'static>: TypeList {}
-
-impl<T: 'static, Tail: TypeList> Contains<T> for (T, Tail) {}
-
-pub trait NotSame {}
-
-impl<A, B> NotSame for (A, B) {}

@@ -92,7 +92,7 @@ pub use capabilities::{
     CapabilityContext, FullContext, HasAnalytics, HasConfig, HasDatabase, HasEventBus,
     HasExtension, HasFingerprint, HasHttpClient, HasRouteClassifier, HasUserService,
 };
-pub use hlist::{Contains, NotSame, Subset, TypeList};
+pub use hlist::{Subset, TypeList};
 pub use typed::{
     ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
     ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
@@ -118,7 +118,7 @@ pub mod prelude {
         HasHttpClient,
     };
 
-    pub use crate::hlist::{Contains, NotSame, Subset, TypeList};
+    pub use crate::hlist::{Subset, TypeList};
     pub use crate::typed::{
         ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
         ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped,
