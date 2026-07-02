@@ -56,10 +56,10 @@ async fn execute_with_pool_inner(
         return Ok(());
     };
 
-    let request_id = AiRequestId::new(row.id);
+    let request_id = row.id;
     let (messages, tool_calls) = tokio::try_join!(
-        service.list_audit_messages(request_id.as_str()),
-        service.list_audit_tool_calls(request_id.as_str()),
+        service.list_audit_messages(&request_id),
+        service.list_audit_tool_calls(&request_id),
     )?;
 
     let output = AuditOutput {

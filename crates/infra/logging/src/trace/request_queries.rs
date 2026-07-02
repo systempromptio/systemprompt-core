@@ -11,7 +11,7 @@ use super::models::{
 };
 
 struct ListRow {
-    id: String,
+    id: AiRequestId,
     created_at: DateTime<Utc>,
     trace_id: Option<String>,
     provider: String,
@@ -49,7 +49,7 @@ struct ModelRow {
 }
 
 struct DetailRow {
-    id: String,
+    id: AiRequestId,
     provider: String,
     model: String,
     input_tokens: Option<i32>,
@@ -71,7 +71,7 @@ pub(super) async fn list_ai_requests(
         ListRow,
         r#"
         SELECT
-            id as "id!",
+            id as "id!: AiRequestId",
             created_at as "created_at!",
             trace_id,
             provider as "provider!",
@@ -99,7 +99,7 @@ pub(super) async fn list_ai_requests(
     Ok(rows
         .into_iter()
         .map(|r| AiRequestListItem {
-            id: AiRequestId::new(r.id),
+            id: r.id,
             created_at: r.created_at,
             trace_id: r.trace_id.map(TraceId::new),
             provider: r.provider,
@@ -235,7 +235,7 @@ pub(super) async fn find_ai_request_detail(
         DetailRow,
         r#"
         SELECT
-            id as "id!",
+            id as "id!: AiRequestId",
             provider as "provider!",
             model as "model!",
             input_tokens,
@@ -255,7 +255,7 @@ pub(super) async fn find_ai_request_detail(
     .await?;
 
     Ok(row.map(|r| AiRequestDetail {
-        id: AiRequestId::new(r.id),
+        id: r.id,
         provider: r.provider,
         model: r.model,
         input_tokens: r.input_tokens,

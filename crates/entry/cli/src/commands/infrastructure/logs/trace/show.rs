@@ -8,7 +8,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{TaskId, TraceId};
 use systemprompt_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
 
 use super::ai_trace_display::{execute_ai_trace, filter_log_events};
@@ -103,7 +103,9 @@ async fn execute_trace_view(
         mcp_summary,
         step_summary,
         task_id,
-    ) = service.get_all_trace_data(&args.id).await?;
+    ) = service
+        .get_all_trace_data(&TraceId::new(args.id.as_str()))
+        .await?;
     let task_id: Option<TaskId> = task_id.map(TaskId::new);
 
     let filtered_log_events = filter_log_events(log_events, args.verbose);
@@ -253,7 +255,7 @@ fn build_trace_output(
     };
 
     TraceViewOutput {
-        trace_id: systemprompt_identifiers::TraceId::new(trace_id),
+        trace_id: TraceId::new(trace_id),
         events: event_rows,
         ai_summary: AiSummaryRow {
             request_count: summaries.ai.request_count,

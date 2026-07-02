@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            started_at as \"timestamp!\",\n            trace_id as \"trace_id!\",\n            tool_name as \"tool_name!\",\n            server_name,\n            status as \"status!\",\n            execution_time_ms\n        FROM mcp_tool_executions\n        WHERE ($1::timestamptz IS NULL OR started_at >= $1)\n          AND ($2::text IS NULL OR tool_name ILIKE $2)\n          AND ($3::text IS NULL OR server_name ILIKE $3)\n          AND ($4::text IS NULL OR status = $4)\n        ORDER BY started_at DESC\n        LIMIT $5\n        ",
+  "query": "\n        SELECT\n            started_at as \"timestamp!\",\n            trace_id as \"trace_id!: TraceId\",\n            tool_name as \"tool_name!\",\n            server_name,\n            status as \"status!\",\n            execution_time_ms\n        FROM mcp_tool_executions\n        WHERE (tool_name ILIKE $1 OR server_name ILIKE $1)\n          AND ($2::timestamptz IS NULL OR started_at >= $2)\n        ORDER BY started_at DESC\n        LIMIT $3\n        ",
   "describe": {
     "columns": [
       {
@@ -10,7 +10,7 @@
       },
       {
         "ordinal": 1,
-        "name": "trace_id!",
+        "name": "trace_id!: TraceId",
         "type_info": "Varchar"
       },
       {
@@ -36,10 +36,8 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Timestamptz",
-        "Text",
-        "Text",
-        "Text",
         "Int8"
       ]
     },
@@ -52,5 +50,5 @@
       true
     ]
   },
-  "hash": "585ac5c812ff6e294b8230a52ae5c9d12cf90dc020dec3f44f45d03d2af9fd07"
+  "hash": "0bd29e82b43264d03b30b4b85b5f1b2a324d07573e169a0e43ca902c2d441ac8"
 }

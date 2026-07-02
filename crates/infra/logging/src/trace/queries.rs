@@ -4,7 +4,7 @@ use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 
 use super::models::{AiRequestSummary, TraceEvent};
 
@@ -15,7 +15,7 @@ pub(super) use super::step_queries::{
 
 pub(super) async fn fetch_log_events(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<Vec<TraceEvent>> {
     let rows = sqlx::query!(
         r#"
@@ -32,7 +32,7 @@ pub(super) async fn fetch_log_events(
         WHERE trace_id = $1
         ORDER BY timestamp ASC
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -61,7 +61,7 @@ pub(super) async fn fetch_log_events(
 
 pub(super) async fn fetch_ai_request_summary(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<AiRequestSummary> {
     let row = sqlx::query!(
         r#"
@@ -75,7 +75,7 @@ pub(super) async fn fetch_ai_request_summary(
         FROM ai_requests
         WHERE trace_id = $1
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_one(&**pool)
     .await?;
@@ -92,7 +92,7 @@ pub(super) async fn fetch_ai_request_summary(
 
 pub(super) async fn fetch_ai_request_events(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<Vec<TraceEvent>> {
     let rows = sqlx::query!(
         r#"
@@ -113,7 +113,7 @@ pub(super) async fn fetch_ai_request_events(
         WHERE trace_id = $1
         ORDER BY created_at ASC
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;

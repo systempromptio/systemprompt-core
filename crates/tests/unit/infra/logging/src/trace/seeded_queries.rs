@@ -7,7 +7,7 @@
 //! mapped [`TraceEvent`]/[`McpToolExecution`]/[`TaskArtifact`] shapes, driving
 //! the detail/metadata formatting and the failed-status truncation branches.
 
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, TaskId, TraceId};
 use systemprompt_logging::{AiTraceService, TraceQueryService};
 use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
 
@@ -232,12 +232,13 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
         .await;
 
     let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let trace_id = TraceId::new(seed.trace_id.as_str());
 
-    let mcp_summary = svc.get_mcp_execution_summary(&seed.trace_id).await.unwrap();
+    let mcp_summary = svc.get_mcp_execution_summary(&trace_id).await.unwrap();
     assert_eq!(mcp_summary.execution_count, 2);
     assert_eq!(mcp_summary.total_execution_time_ms, 49);
 
-    let mcp_events = svc.get_mcp_execution_events(&seed.trace_id).await.unwrap();
+    let mcp_events = svc.get_mcp_execution_events(&trace_id).await.unwrap();
     assert_eq!(mcp_events.len(), 2);
     assert!(mcp_events.iter().all(|e| e.event_type == "MCP"));
     let failed = mcp_events
@@ -252,7 +253,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
     assert!(failed.context_id.is_some());
 
     let step_summary = svc
-        .get_execution_step_summary(&seed.trace_id)
+        .get_execution_step_summary(&trace_id)
         .await
         .unwrap();
     assert_eq!(step_summary.total, 6);
@@ -260,7 +261,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
     assert_eq!(step_summary.failed, 1);
     assert_eq!(step_summary.pending, 1);
 
-    let step_events = svc.get_execution_step_events(&seed.trace_id).await.unwrap();
+    let step_events = svc.get_execution_step_events(&trace_id).await.unwrap();
     assert_eq!(step_events.len(), 6);
     assert!(step_events.iter().all(|e| e.event_type == "STEP"));
     assert!(step_events.iter().any(|e| e.details.contains("grep")));
@@ -268,7 +269,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
     assert!(step_events.iter().any(|e| e.details.contains("Planning")));
     assert!(step_events.iter().any(|e| e.details.contains("Complete")));
 
-    let task_id = svc.get_task_id(&seed.trace_id).await.unwrap();
+    let task_id = svc.get_task_id(&trace_id).await.unwrap();
     assert_eq!(
         task_id.as_ref().map(TaskId::as_str),
         Some(seed.task_id.as_str())

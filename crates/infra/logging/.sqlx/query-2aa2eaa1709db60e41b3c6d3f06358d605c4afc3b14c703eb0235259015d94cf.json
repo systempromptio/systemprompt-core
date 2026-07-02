@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id as \"id!\",\n            created_at as \"created_at!\",\n            trace_id,\n            provider as \"provider!\",\n            model as \"model!\",\n            input_tokens,\n            output_tokens,\n            cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            status as \"status!\"\n        FROM ai_requests\n        WHERE ($1::timestamptz IS NULL OR created_at >= $1)\n          AND ($2::text IS NULL OR model ILIKE $2)\n          AND ($3::text IS NULL OR provider ILIKE $3)\n        ORDER BY created_at DESC\n        LIMIT $4\n        ",
+  "query": "\n        SELECT\n            id as \"id!: AiRequestId\",\n            created_at as \"created_at!\",\n            trace_id,\n            provider as \"provider!\",\n            model as \"model!\",\n            input_tokens,\n            output_tokens,\n            cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            status as \"status!\"\n        FROM ai_requests\n        WHERE ($1::timestamptz IS NULL OR created_at >= $1)\n          AND ($2::text IS NULL OR model ILIKE $2)\n          AND ($3::text IS NULL OR provider ILIKE $3)\n        ORDER BY created_at DESC\n        LIMIT $4\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id!",
+        "name": "id!: AiRequestId",
         "type_info": "Text"
       },
       {
@@ -75,5 +75,5 @@
       false
     ]
   },
-  "hash": "4f38a356f46a6fa9cbe28d2d3186e3852533724eeed050e3e136959720a69389"
+  "hash": "2aa2eaa1709db60e41b3c6d3f06358d605c4afc3b14c703eb0235259015d94cf"
 }

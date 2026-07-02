@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Args;
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_logging::{AiTraceService, TraceQueryService};
 
 use super::{
@@ -35,7 +36,7 @@ async fn execute_with_pool_inner(
         return Ok(request_show_not_found(&args.request_id));
     };
 
-    let request_id = row.id.to_string();
+    let request_id = row.id;
     let cost_dollars = row.cost_microdollars as f64 / 1_000_000.0;
 
     let messages = if args.messages {
@@ -61,7 +62,7 @@ async fn execute_with_pool_inner(
     };
 
     let output = RequestShowOutput {
-        request_id,
+        request_id: request_id.as_str().to_owned(),
         provider: row.provider,
         model: row.model,
         input_tokens: row.input_tokens.unwrap_or(0),
@@ -77,7 +78,10 @@ async fn execute_with_pool_inner(
     Ok(build_request_show(&output))
 }
 
-pub(super) async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<MessageRow> {
+pub(super) async fn fetch_messages(
+    pool: &Arc<sqlx::PgPool>,
+    request_id: &AiRequestId,
+) -> Vec<MessageRow> {
     let service = AiTraceService::new(Arc::clone(pool));
     service
         .get_conversation_messages(request_id)

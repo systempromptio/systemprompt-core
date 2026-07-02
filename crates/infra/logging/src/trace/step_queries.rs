@@ -4,13 +4,13 @@ use serde_json::json;
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 
 use super::models::{ExecutionStepSummary, McpExecutionSummary, TraceEvent};
 
 pub(super) async fn fetch_mcp_execution_summary(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<McpExecutionSummary> {
     let row = sqlx::query!(
         r#"
@@ -20,7 +20,7 @@ pub(super) async fn fetch_mcp_execution_summary(
         FROM mcp_tool_executions
         WHERE trace_id = $1
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_one(&**pool)
     .await?;
@@ -33,7 +33,7 @@ pub(super) async fn fetch_mcp_execution_summary(
 
 pub(super) async fn fetch_mcp_execution_events(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<Vec<TraceEvent>> {
     let rows = sqlx::query!(
         r#"
@@ -52,7 +52,7 @@ pub(super) async fn fetch_mcp_execution_events(
         WHERE trace_id = $1
         ORDER BY started_at ASC
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -113,11 +113,11 @@ pub(super) async fn fetch_mcp_execution_events(
 
 pub(super) async fn fetch_task_id_for_trace(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<Option<String>> {
     let row = sqlx::query!(
         "SELECT task_id FROM agent_tasks WHERE trace_id = $1 LIMIT 1",
-        trace_id
+        trace_id.as_str()
     )
     .fetch_optional(&**pool)
     .await?;
@@ -127,7 +127,7 @@ pub(super) async fn fetch_task_id_for_trace(
 
 pub(super) async fn fetch_execution_step_summary(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<ExecutionStepSummary> {
     let row = sqlx::query!(
         r#"
@@ -140,7 +140,7 @@ pub(super) async fn fetch_execution_step_summary(
         JOIN agent_tasks t ON s.task_id = t.task_id
         WHERE t.trace_id = $1
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_one(&**pool)
     .await?;
@@ -155,7 +155,7 @@ pub(super) async fn fetch_execution_step_summary(
 
 pub(super) async fn fetch_execution_step_events(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<Vec<TraceEvent>> {
     let rows = sqlx::query!(
         r#"
@@ -173,7 +173,7 @@ pub(super) async fn fetch_execution_step_events(
         WHERE t.trace_id = $1
         ORDER BY s.started_at ASC
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;

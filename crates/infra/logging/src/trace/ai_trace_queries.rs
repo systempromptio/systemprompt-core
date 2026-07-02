@@ -161,14 +161,14 @@ pub(super) async fn fetch_ai_requests(
 
 pub(super) async fn fetch_system_prompt(
     pool: &Arc<PgPool>,
-    request_id: &str,
+    request_id: &AiRequestId,
 ) -> Result<Option<String>> {
     let row = sqlx::query!(
         r#"SELECT content
            FROM ai_request_messages
            WHERE request_id = $1 AND role = 'system' AND sequence_number = 0
            LIMIT 1"#,
-        request_id
+        request_id.as_str()
     )
     .fetch_optional(&**pool)
     .await?;
@@ -178,14 +178,14 @@ pub(super) async fn fetch_system_prompt(
 
 pub(super) async fn fetch_conversation_messages(
     pool: &Arc<PgPool>,
-    request_id: &str,
+    request_id: &AiRequestId,
 ) -> Result<Vec<ConversationMessage>> {
     let rows = sqlx::query!(
         r#"SELECT role, content, sequence_number
            FROM ai_request_messages
            WHERE request_id = $1
            ORDER BY sequence_number"#,
-        request_id
+        request_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -202,14 +202,14 @@ pub(super) async fn fetch_conversation_messages(
 
 pub(super) async fn fetch_ai_request_message_previews(
     pool: &Arc<PgPool>,
-    request_id: &str,
+    request_id: &AiRequestId,
 ) -> Result<Vec<ConversationMessage>> {
     let rows = sqlx::query!(
         r#"SELECT role, LEFT(content, 500) as content_preview, sequence_number
            FROM ai_request_messages
            WHERE request_id = $1
            ORDER BY sequence_number"#,
-        request_id
+        request_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;

@@ -9,7 +9,7 @@ use systemprompt_identifiers::TraceId;
 use super::models::{TraceListFilter, TraceListItem};
 
 struct TraceRow {
-    trace_id: String,
+    trace_id: TraceId,
     first_timestamp: DateTime<Utc>,
     last_timestamp: DateTime<Utc>,
     agent: Option<String>,
@@ -27,7 +27,7 @@ pub(super) async fn list_traces(
     Ok(rows
         .into_iter()
         .map(|r| TraceListItem {
-            trace_id: TraceId::new(r.trace_id),
+            trace_id: r.trace_id,
             first_timestamp: r.first_timestamp,
             last_timestamp: r.last_timestamp,
             agent: r.agent,
@@ -89,7 +89,7 @@ async fn fetch_trace_rows(pool: &Arc<PgPool>, filter: &TraceListFilter) -> Resul
             FROM all_traces t
             GROUP BY t.trace_id
         )
-        SELECT trace_id as "trace_id!", first_ts as "first_timestamp!", last_ts as "last_timestamp!",
+        SELECT trace_id as "trace_id!: TraceId", first_ts as "first_timestamp!", last_ts as "last_timestamp!",
                agent as "agent", status as "status!", ai_requests as "ai_requests", mcp_calls as "mcp_calls"
         FROM grouped
         WHERE ($3::text IS NULL OR trace_id != 'system') AND ($4::text IS NULL OR agent ILIKE $4)

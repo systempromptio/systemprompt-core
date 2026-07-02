@@ -50,6 +50,7 @@ pub fn enqueue_background(entry: LogEntry) {
         return;
     }
     if is_error {
+        // Why: best-effort flush nudge; entry send above already accounts for drops
         sender.try_send(LogCommand::FlushNow).ok();
     }
 }

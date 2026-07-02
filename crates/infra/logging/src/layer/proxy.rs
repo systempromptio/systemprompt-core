@@ -194,10 +194,14 @@ where
         session_id,
         task_id: span_context.task.as_ref().map(|s| TaskId::new(s.clone())),
         trace_id,
-        context_id: span_context
-            .context
-            .as_ref()
-            .and_then(|s| ContextId::try_new(s.clone()).ok()),
+        context_id: span_context.context.as_ref().and_then(|s| {
+            ContextId::try_new(s.clone())
+                .map_err(|e| {
+                    tracing::warn!(error = %e, raw = %s, "Skipping non-UUID context_id from span context");
+                    e
+                })
+                .ok()
+        }),
         client_id: span_context
             .client
             .as_ref()

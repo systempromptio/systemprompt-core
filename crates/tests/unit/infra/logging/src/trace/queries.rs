@@ -6,6 +6,7 @@
 //! combinations.
 
 use chrono::{Duration as ChronoDuration, Utc};
+use systemprompt_identifiers::{AiRequestId, TraceId};
 use systemprompt_logging::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
@@ -22,7 +23,7 @@ async fn pool_arc() -> Option<std::sync::Arc<sqlx::PgPool>> {
 async fn trace_service_get_methods_on_empty_trace_id() {
     let Some(pool) = pool_arc().await else { return };
     let svc = TraceQueryService::new(pool);
-    let trace_id = format!("no-such-{}", uuid::Uuid::new_v4().simple());
+    let trace_id = TraceId::new(format!("no-such-{}", uuid::Uuid::new_v4().simple()));
 
     let _ = svc.get_log_events(&trace_id).await.unwrap();
     let _ = svc.get_ai_request_summary(&trace_id).await.unwrap();
@@ -118,9 +119,18 @@ async fn trace_service_ai_request_branches() {
         .unwrap();
     let _ = svc.find_ai_request_detail("no-such").await.unwrap();
     let _ = svc.find_ai_request_for_audit("no-such").await.unwrap();
-    let _ = svc.list_audit_messages("no-such").await.unwrap();
-    let _ = svc.list_audit_tool_calls("no-such").await.unwrap();
-    let _ = svc.list_linked_mcp_calls("no-such").await.unwrap();
+    let _ = svc
+        .list_audit_messages(&AiRequestId::new("no-such"))
+        .await
+        .unwrap();
+    let _ = svc
+        .list_audit_tool_calls(&AiRequestId::new("no-such"))
+        .await
+        .unwrap();
+    let _ = svc
+        .list_linked_mcp_calls(&AiRequestId::new("no-such"))
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
@@ -172,8 +182,14 @@ async fn ai_trace_service_methods_with_random_ids() {
     let _ = svc.get_agent_response(&task_id).await.unwrap();
     let _ = svc.get_execution_steps(&task_id).await.unwrap();
     let _ = svc.get_ai_requests(&task_id).await.unwrap();
-    let _ = svc.get_system_prompt("no-such").await.unwrap();
-    let _ = svc.get_conversation_messages("no-such").await.unwrap();
+    let _ = svc
+        .get_system_prompt(&AiRequestId::new("no-such"))
+        .await
+        .unwrap();
+    let _ = svc
+        .get_conversation_messages(&AiRequestId::new("no-such"))
+        .await
+        .unwrap();
     let _ = svc.get_mcp_executions(&task_id, &ctx_id).await.unwrap();
     let _ = svc.resolve_task_id("no-such-prefix").await;
 }

@@ -148,7 +148,7 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
 
 pub(super) async fn list_audit_messages(
     pool: &Arc<PgPool>,
-    request_id: &str,
+    request_id: &AiRequestId,
 ) -> Result<Vec<ConversationMessage>> {
     let rows = sqlx::query_as!(
         MsgRow,
@@ -156,7 +156,7 @@ pub(super) async fn list_audit_messages(
         SELECT role as "role!", content as "content!", sequence_number as "sequence_number!"
         FROM ai_request_messages WHERE request_id = $1 ORDER BY sequence_number
         "#,
-        request_id
+        request_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -173,7 +173,7 @@ pub(super) async fn list_audit_messages(
 
 pub(super) async fn list_audit_tool_calls(
     pool: &Arc<PgPool>,
-    request_id: &str,
+    request_id: &AiRequestId,
 ) -> Result<Vec<AuditToolCallRow>> {
     let rows = sqlx::query_as!(
         ToolCallDbRow,
@@ -182,7 +182,7 @@ pub(super) async fn list_audit_tool_calls(
             sequence_number as "sequence_number!"
         FROM ai_request_tool_calls WHERE request_id = $1 ORDER BY sequence_number
         "#,
-        request_id
+        request_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -199,7 +199,7 @@ pub(super) async fn list_audit_tool_calls(
 
 pub(super) async fn list_linked_mcp_calls(
     pool: &Arc<PgPool>,
-    request_id: &str,
+    request_id: &AiRequestId,
 ) -> Result<Vec<LinkedMcpCall>> {
     let rows = sqlx::query_as!(
         LinkedMcpDbRow,
@@ -213,7 +213,7 @@ pub(super) async fn list_linked_mcp_calls(
         JOIN ai_request_tool_calls artc ON artc.mcp_execution_id = mte.mcp_execution_id
         WHERE artc.request_id = $1
         "#,
-        request_id
+        request_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;

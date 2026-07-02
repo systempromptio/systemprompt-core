@@ -9,8 +9,8 @@ use systemprompt_identifiers::{LogId, TraceId};
 use super::models::{LogSearchItem, ToolExecutionItem};
 
 struct LogRow {
-    id: String,
-    trace_id: String,
+    id: LogId,
+    trace_id: TraceId,
     timestamp: DateTime<Utc>,
     level: String,
     module: String,
@@ -20,7 +20,7 @@ struct LogRow {
 
 struct ToolRow {
     timestamp: DateTime<Utc>,
-    trace_id: String,
+    trace_id: TraceId,
     tool_name: String,
     server_name: Option<String>,
     status: String,
@@ -38,8 +38,8 @@ pub(super) async fn search_logs(
         LogRow,
         r#"
         SELECT
-            id as "id!",
-            trace_id as "trace_id!",
+            id as "id!: LogId",
+            trace_id as "trace_id!: TraceId",
             timestamp as "timestamp!",
             level as "level!",
             module as "module!",
@@ -63,8 +63,8 @@ pub(super) async fn search_logs(
     Ok(rows
         .into_iter()
         .map(|r| LogSearchItem {
-            id: LogId::new(r.id),
-            trace_id: TraceId::new(r.trace_id),
+            id: r.id,
+            trace_id: r.trace_id,
             timestamp: r.timestamp,
             level: r.level,
             module: r.module,
@@ -85,7 +85,7 @@ pub(super) async fn search_tool_executions(
         r#"
         SELECT
             started_at as "timestamp!",
-            trace_id as "trace_id!",
+            trace_id as "trace_id!: TraceId",
             tool_name as "tool_name!",
             server_name,
             status as "status!",
@@ -107,7 +107,7 @@ pub(super) async fn search_tool_executions(
         .into_iter()
         .map(|r| ToolExecutionItem {
             timestamp: r.timestamp,
-            trace_id: TraceId::new(r.trace_id),
+            trace_id: r.trace_id,
             tool_name: r.tool_name,
             server_name: r.server_name,
             status: r.status,

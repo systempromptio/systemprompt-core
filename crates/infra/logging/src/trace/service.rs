@@ -11,7 +11,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
 
 use crate::models::{LogEntry, LoggingError};
 
@@ -38,43 +38,49 @@ impl TraceQueryService {
         Self { pool }
     }
 
-    pub async fn get_log_events(&self, trace_id: &str) -> Result<Vec<TraceEvent>> {
+    pub async fn get_log_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
         queries::fetch_log_events(&self.pool, trace_id).await
     }
 
-    pub async fn get_ai_request_summary(&self, trace_id: &str) -> Result<AiRequestSummary> {
+    pub async fn get_ai_request_summary(&self, trace_id: &TraceId) -> Result<AiRequestSummary> {
         queries::fetch_ai_request_summary(&self.pool, trace_id).await
     }
 
-    pub async fn get_ai_request_events(&self, trace_id: &str) -> Result<Vec<TraceEvent>> {
+    pub async fn get_ai_request_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
         queries::fetch_ai_request_events(&self.pool, trace_id).await
     }
 
-    pub async fn get_mcp_execution_summary(&self, trace_id: &str) -> Result<McpExecutionSummary> {
+    pub async fn get_mcp_execution_summary(
+        &self,
+        trace_id: &TraceId,
+    ) -> Result<McpExecutionSummary> {
         queries::fetch_mcp_execution_summary(&self.pool, trace_id).await
     }
 
-    pub async fn get_mcp_execution_events(&self, trace_id: &str) -> Result<Vec<TraceEvent>> {
+    pub async fn get_mcp_execution_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
         queries::fetch_mcp_execution_events(&self.pool, trace_id).await
     }
 
-    pub async fn get_task_id(&self, trace_id: &str) -> Result<Option<TaskId>> {
+    pub async fn get_task_id(&self, trace_id: &TraceId) -> Result<Option<TaskId>> {
         Ok(queries::fetch_task_id_for_trace(&self.pool, trace_id)
             .await?
             .map(TaskId::new))
     }
 
-    pub async fn get_execution_step_summary(&self, trace_id: &str) -> Result<ExecutionStepSummary> {
+    pub async fn get_execution_step_summary(
+        &self,
+        trace_id: &TraceId,
+    ) -> Result<ExecutionStepSummary> {
         queries::fetch_execution_step_summary(&self.pool, trace_id).await
     }
 
-    pub async fn get_execution_step_events(&self, trace_id: &str) -> Result<Vec<TraceEvent>> {
+    pub async fn get_execution_step_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
         queries::fetch_execution_step_events(&self.pool, trace_id).await
     }
 
     pub async fn get_all_trace_data(
         &self,
-        trace_id: &str,
+        trace_id: &TraceId,
     ) -> Result<(
         Vec<TraceEvent>,
         Vec<TraceEvent>,
@@ -152,15 +158,24 @@ impl TraceQueryService {
         audit_queries::find_ai_request_for_audit(&self.pool, id).await
     }
 
-    pub async fn list_audit_messages(&self, request_id: &str) -> Result<Vec<ConversationMessage>> {
+    pub async fn list_audit_messages(
+        &self,
+        request_id: &AiRequestId,
+    ) -> Result<Vec<ConversationMessage>> {
         audit_queries::list_audit_messages(&self.pool, request_id).await
     }
 
-    pub async fn list_audit_tool_calls(&self, request_id: &str) -> Result<Vec<AuditToolCallRow>> {
+    pub async fn list_audit_tool_calls(
+        &self,
+        request_id: &AiRequestId,
+    ) -> Result<Vec<AuditToolCallRow>> {
         audit_queries::list_audit_tool_calls(&self.pool, request_id).await
     }
 
-    pub async fn list_linked_mcp_calls(&self, request_id: &str) -> Result<Vec<LinkedMcpCall>> {
+    pub async fn list_linked_mcp_calls(
+        &self,
+        request_id: &AiRequestId,
+    ) -> Result<Vec<LinkedMcpCall>> {
         audit_queries::list_linked_mcp_calls(&self.pool, request_id).await
     }
 
@@ -172,7 +187,7 @@ impl TraceQueryService {
         log_lookup_queries::find_log_by_partial_id(&self.pool, id_prefix).await
     }
 
-    pub async fn find_logs_by_trace_id(&self, trace_id: &str) -> Result<Vec<LogEntry>> {
+    pub async fn find_logs_by_trace_id(&self, trace_id: &TraceId) -> Result<Vec<LogEntry>> {
         log_lookup_queries::find_logs_by_trace_id(&self.pool, trace_id).await
     }
 

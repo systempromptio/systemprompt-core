@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id as \"id!\",\n            provider as \"provider!\",\n            model as \"model!\",\n            input_tokens,\n            output_tokens,\n            cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            status as \"status!\",\n            error_message\n        FROM ai_requests\n        WHERE id = $1 OR id LIKE $2\n        LIMIT 1\n        ",
+  "query": "\n        SELECT\n            id as \"id!: AiRequestId\",\n            provider as \"provider!\",\n            model as \"model!\",\n            input_tokens,\n            output_tokens,\n            cost_microdollars as \"cost_microdollars!\",\n            latency_ms,\n            status as \"status!\",\n            error_message\n        FROM ai_requests\n        WHERE id = $1 OR id LIKE $2\n        LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id!",
+        "name": "id!: AiRequestId",
         "type_info": "Text"
       },
       {
@@ -67,5 +67,5 @@
       true
     ]
   },
-  "hash": "08d91197c723d2544764e79b512c6de02d4d3c37ed56b07a4aa0ece6e3be9dd4"
+  "hash": "d954105b9b4b5272c5f09daaf23492c96a62d4e52c8203e291416eb55ea78ea8"
 }

@@ -111,7 +111,7 @@ pub(super) async fn find_log_by_partial_id(
 
 pub(super) async fn find_logs_by_trace_id(
     pool: &Arc<PgPool>,
-    trace_id: &str,
+    trace_id: &TraceId,
 ) -> Result<Vec<LogEntry>> {
     let rows = sqlx::query_as!(
         LogRow,
@@ -129,7 +129,7 @@ pub(super) async fn find_logs_by_trace_id(
         WHERE trace_id = $1
         ORDER BY timestamp ASC
         "#,
-        trace_id
+        trace_id.as_str()
     )
     .fetch_all(&**pool)
     .await?;
@@ -138,7 +138,7 @@ pub(super) async fn find_logs_by_trace_id(
         return Ok(rows.into_iter().map(row_to_entry).collect());
     }
 
-    let pattern = format!("{trace_id}%");
+    let pattern = format!("{}%", trace_id.as_str());
     let rows = sqlx::query_as!(
         LogRow,
         r#"

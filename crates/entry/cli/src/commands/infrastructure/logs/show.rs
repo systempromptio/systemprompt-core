@@ -63,7 +63,9 @@ async fn execute_with_pool_inner(
         return Ok(());
     }
 
-    let logs = service.find_logs_by_trace_id(&args.id).await?;
+    let logs = service
+        .find_logs_by_trace_id(&TraceId::new(args.id.as_str()))
+        .await?;
     if !logs.is_empty() {
         display_trace_logs(&logs, config, args.json);
         return Ok(());

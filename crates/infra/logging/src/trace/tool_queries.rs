@@ -10,7 +10,7 @@ use super::models::{ToolExecutionFilter, ToolExecutionItem};
 
 struct DbRow {
     timestamp: DateTime<Utc>,
-    trace_id: String,
+    trace_id: TraceId,
     tool_name: String,
     server_name: Option<String>,
     status: String,
@@ -26,7 +26,7 @@ pub(super) async fn list_tool_executions(
         r#"
         SELECT
             started_at as "timestamp!",
-            trace_id as "trace_id!",
+            trace_id as "trace_id!: TraceId",
             tool_name as "tool_name!",
             server_name,
             status as "status!",
@@ -52,7 +52,7 @@ pub(super) async fn list_tool_executions(
         .into_iter()
         .map(|r| ToolExecutionItem {
             timestamp: r.timestamp,
-            trace_id: TraceId::new(r.trace_id),
+            trace_id: r.trace_id,
             tool_name: r.tool_name,
             server_name: r.server_name,
             status: r.status,

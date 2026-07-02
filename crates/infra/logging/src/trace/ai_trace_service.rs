@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, McpExecutionId, TaskId};
+use systemprompt_identifiers::{AiRequestId, ContextId, McpExecutionId, TaskId};
 
 use super::ai_trace_queries;
 use super::models::{
@@ -50,13 +50,13 @@ impl AiTraceService {
         ai_trace_queries::fetch_ai_requests(&self.pool, task_id).await
     }
 
-    pub async fn get_system_prompt(&self, request_id: &str) -> Result<Option<String>> {
+    pub async fn get_system_prompt(&self, request_id: &AiRequestId) -> Result<Option<String>> {
         ai_trace_queries::fetch_system_prompt(&self.pool, request_id).await
     }
 
     pub async fn get_conversation_messages(
         &self,
-        request_id: &str,
+        request_id: &AiRequestId,
     ) -> Result<Vec<ConversationMessage>> {
         ai_trace_queries::fetch_conversation_messages(&self.pool, request_id).await
     }
@@ -78,7 +78,7 @@ impl AiTraceService {
 
     pub async fn get_ai_request_message_previews(
         &self,
-        request_id: &str,
+        request_id: &AiRequestId,
     ) -> Result<Vec<ConversationMessage>> {
         ai_trace_queries::fetch_ai_request_message_previews(&self.pool, request_id).await
     }
