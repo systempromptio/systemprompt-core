@@ -3,9 +3,8 @@ use systemprompt_logging::{
     AiRequestInfo, AiTraceService, CliService, McpToolExecution, ToolLogEntry,
 };
 
-use super::ai_display::{ToolCallRow, print_content_block, print_section, truncate};
-use tabled::Table;
-use tabled::settings::Style;
+use super::ai_display::{print_content_block, print_section, truncate};
+use crate::presentation::tables::mcp_tool_calls_table;
 
 pub(super) async fn print_mcp_executions(
     service: &AiTraceService,
@@ -19,21 +18,8 @@ pub(super) async fn print_mcp_executions(
         return;
     }
 
-    let tool_rows: Vec<ToolCallRow> = executions
-        .iter()
-        .map(|e| ToolCallRow {
-            tool_name: e.tool_name.clone(),
-            server: e.server_name.clone(),
-            status: e.status.clone(),
-            duration: e
-                .execution_time_ms
-                .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
-        })
-        .collect();
-
     print_section("MCP TOOL EXECUTIONS");
-    let table = Table::new(tool_rows).with(Style::rounded()).to_string();
-    CliService::info(&table);
+    CliService::info(&mcp_tool_calls_table(executions));
 
     for exec in executions {
         if exec.status == "failed"

@@ -1,83 +1,8 @@
 use systemprompt_logging::{AiRequestInfo, CliService, ExecutionStep, TaskInfo};
-use tabled::settings::Style;
-use tabled::{Table, Tabled};
 
-#[derive(Debug, Tabled)]
-struct TaskInfoRow {
-    #[tabled(rename = "Task ID")]
-    pub task: String,
-    #[tabled(rename = "Agent")]
-    pub agent_name: String,
-    #[tabled(rename = "Status")]
-    pub status: String,
-    #[tabled(rename = "Started")]
-    pub started_at: String,
-    #[tabled(rename = "Duration")]
-    pub duration: String,
-}
+use crate::presentation::tables::{ai_requests_table, execution_steps_table, task_info_table};
 
-#[derive(Debug, Tabled)]
-struct StepRow {
-    #[tabled(rename = "#")]
-    pub step_number: i32,
-    #[tabled(rename = "Type")]
-    pub step_type: String,
-    #[tabled(rename = "Title")]
-    pub title: String,
-    #[tabled(rename = "Status")]
-    pub status: String,
-    #[tabled(rename = "Duration")]
-    pub duration: String,
-}
-
-#[derive(Debug, Tabled)]
-struct AiRequestRow {
-    #[tabled(rename = "Model")]
-    pub model: String,
-    #[tabled(rename = "Max")]
-    pub max_tokens: String,
-    #[tabled(rename = "Tokens")]
-    pub tokens: String,
-    #[tabled(rename = "Cost")]
-    pub cost: String,
-    #[tabled(rename = "Latency")]
-    pub latency: String,
-}
-
-#[derive(Debug, Tabled)]
-pub(super) struct ToolCallRow {
-    #[tabled(rename = "Tool")]
-    pub tool_name: String,
-    #[tabled(rename = "Server")]
-    pub server: String,
-    #[tabled(rename = "Status")]
-    pub status: String,
-    #[tabled(rename = "Duration")]
-    pub duration: String,
-}
-
-#[derive(Debug, Tabled)]
-pub(super) struct ArtifactRow {
-    #[tabled(rename = "ID")]
-    pub artifact: String,
-    #[tabled(rename = "Type")]
-    pub artifact_type: String,
-    #[tabled(rename = "Name")]
-    pub name: String,
-    #[tabled(rename = "Source")]
-    pub source: String,
-    #[tabled(rename = "Tool")]
-    pub tool_name: String,
-}
-
-pub(super) fn truncate(s: &str, max_len: usize) -> String {
-    let s = s.replace('\n', " ").replace('\r', "");
-    if s.len() > max_len {
-        format!("{}...", &s[..max_len.saturating_sub(3)])
-    } else {
-        s
-    }
-}
+pub(super) use crate::presentation::tables::truncate_cell as truncate;
 
 pub(super) fn print_section(title: &str) {
     CliService::section(title);
@@ -90,24 +15,8 @@ pub(super) fn print_content_block(content: &str) {
 }
 
 pub(super) fn print_task_info(task_info: &TaskInfo) {
-    let rows = vec![TaskInfoRow {
-        task: task_info.task_id.as_str()[..8].to_string(),
-        agent_name: task_info
-            .agent_name
-            .clone()
-            .unwrap_or_else(|| "-".to_owned()),
-        status: task_info.status.clone(),
-        started_at: task_info
-            .started_at
-            .map_or_else(|| "-".to_owned(), |t| t.format("%H:%M:%S").to_string()),
-        duration: task_info
-            .execution_time_ms
-            .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
-    }];
-
     print_section("TASK");
-    let table = Table::new(rows).with(Style::rounded()).to_string();
-    CliService::info(&table);
+    CliService::info(&task_info_table(task_info));
 
     if task_info.status == "failed"
         && let Some(ref error) = task_info.error_message
@@ -137,23 +46,8 @@ pub(super) fn print_execution_steps(steps: &[ExecutionStep]) {
         return;
     }
 
-    let step_rows: Vec<StepRow> = steps
-        .iter()
-        .enumerate()
-        .map(|(i, s)| StepRow {
-            step_number: (i + 1) as i32,
-            step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_owned()),
-            title: truncate(&s.title.clone().unwrap_or_else(String::new), 40),
-            status: s.status.clone(),
-            duration: s
-                .duration_ms
-                .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
-        })
-        .collect();
-
     print_section("EXECUTION STEPS");
-    let table = Table::new(step_rows).with(Style::rounded()).to_string();
-    CliService::info(&table);
+    CliService::info(&execution_steps_table(steps));
 
     for step in steps {
         if step.status == "failed"
@@ -174,29 +68,8 @@ pub(super) fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
 
     let request_ids: Vec<String> = requests.iter().map(|r| r.id.to_string()).collect();
 
-    let ai_rows: Vec<AiRequestRow> = requests
-        .iter()
-        .map(|r| AiRequestRow {
-            model: format!("{}/{}", r.provider, r.model),
-            max_tokens: r
-                .max_tokens
-                .map_or_else(|| "-".to_owned(), |t| t.to_string()),
-            tokens: format!(
-                "{} (in:{}, out:{})",
-                r.input_tokens.unwrap_or(0) + r.output_tokens.unwrap_or(0),
-                r.input_tokens.unwrap_or(0),
-                r.output_tokens.unwrap_or(0)
-            ),
-            cost: format!("${:.4}", r.cost_microdollars as f64 / 1_000_000.0),
-            latency: r
-                .latency_ms
-                .map_or_else(|| "-".to_owned(), |ms| format!("{}ms", ms)),
-        })
-        .collect();
-
     print_section("AI REQUESTS");
-    let table = Table::new(ai_rows).with(Style::rounded()).to_string();
-    CliService::info(&table);
+    CliService::info(&ai_requests_table(requests));
 
     request_ids
 }

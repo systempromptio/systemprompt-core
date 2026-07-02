@@ -4,13 +4,13 @@ use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
 use systemprompt_logging::CliService;
-use tabled::{Table, Tabled};
 
 use super::types::{ArtifactListOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
 use crate::session::get_or_create_session;
-use crate::shared::{CommandOutput, truncate_with_ellipsis};
+use crate::presentation::tables::artifact_list_table;
+use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -24,20 +24,6 @@ pub struct ListArgs {
         help = "Maximum artifacts to show"
     )]
     pub limit: i32,
-}
-
-#[derive(Tabled)]
-pub(super) struct ArtifactRow {
-    #[tabled(rename = "ID")]
-    id: String,
-    #[tabled(rename = "Name")]
-    name: String,
-    #[tabled(rename = "Type")]
-    artifact_type: String,
-    #[tabled(rename = "Tool")]
-    tool_name: String,
-    #[tabled(rename = "Created")]
-    created_at: String,
 }
 
 pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -93,19 +79,7 @@ pub(super) async fn execute_with_pool(
         if summaries.is_empty() {
             CliService::info("No artifacts found");
         } else {
-            let rows: Vec<ArtifactRow> = summaries
-                .iter()
-                .map(|a| ArtifactRow {
-                    id: truncate_with_ellipsis(a.artifact_id.as_str(), 12),
-                    name: a.name.clone().unwrap_or_else(|| "-".to_owned()),
-                    artifact_type: a.artifact_type.clone(),
-                    tool_name: a.tool_name.clone().unwrap_or_else(|| "-".to_owned()),
-                    created_at: a.created_at.format("%Y-%m-%d %H:%M").to_string(),
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
+            CliService::output(&artifact_list_table(&summaries));
 
             CliService::info(&format!("Showing {} artifact(s)", total));
         }

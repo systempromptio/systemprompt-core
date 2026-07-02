@@ -11,25 +11,15 @@ pub(super) use validate::execute_validate;
 use anyhow::{Context, Result, anyhow};
 use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay, SafeIdentifier};
 use systemprompt_logging::CliService;
-use tabled::{Table, Tabled};
 
 use crate::cli_settings::CliConfig;
+use crate::presentation::tables::db_tables_table;
 use crate::shared::{CommandOutput, render_result};
 
 use super::helpers::format_bytes;
 use super::types::{
     ColumnInfo, DbCountOutput, DbDescribeOutput, DbInfoOutput, DbTablesOutput, IndexInfo, TableInfo,
 };
-
-#[derive(Tabled)]
-struct TableRow {
-    #[tabled(rename = "Table")]
-    name: String,
-    #[tabled(rename = "Rows")]
-    row_count: i64,
-    #[tabled(rename = "Size")]
-    size: String,
-}
 
 pub(super) async fn execute_tables(
     admin: &DatabaseAdminService,
@@ -72,17 +62,7 @@ pub(super) async fn execute_tables(
         if filtered_tables.is_empty() {
             CliService::info("No tables found");
         } else {
-            let rows: Vec<TableRow> = filtered_tables
-                .iter()
-                .map(|t| TableRow {
-                    name: t.name.clone(),
-                    row_count: t.row_count,
-                    size: format_bytes(t.size_bytes),
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
+            CliService::output(&db_tables_table(&output.tables));
             CliService::info(&format!("Total: {} table(s)", output.total));
         }
     }
