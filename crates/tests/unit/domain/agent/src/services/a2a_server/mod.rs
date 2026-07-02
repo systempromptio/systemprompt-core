@@ -14,5 +14,6 @@ mod push_notification_config;
 mod request_dispatch;
 mod request_validation;
 mod server;
+mod streaming_setup;
 mod task_builder;
 mod task_builder_helpers;

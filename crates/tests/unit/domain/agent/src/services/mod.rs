@@ -11,6 +11,7 @@ mod agent_token_validation;
 mod artifact_publishing;
 mod auth_validation;
 mod config_authoring;
+mod context_history;
 mod mcp;
 mod message_service;
 mod monitor;

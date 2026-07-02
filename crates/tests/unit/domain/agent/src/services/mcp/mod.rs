@@ -9,4 +9,5 @@
 //! - build_parts (object data, content arrays, error cases)
 
 mod artifact_transformer;
+mod task_completion;
 mod transformer_full;

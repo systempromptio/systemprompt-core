@@ -3,7 +3,6 @@
 // shape of the spawn command (env_clear plus the sanctioned pass-through set).
 
 use std::fs;
-use std::path::PathBuf;
 
 use systemprompt_agent::services::agent_orchestration::process::command::{
     BuildAgentCommandParams, build_agent_command, prepare_agent_log_file, rotate_log_if_needed,
@@ -66,7 +65,7 @@ fn build_agent_command_sets_args_and_scoped_env() {
     let dir = tempfile::tempdir().expect("tempdir");
     let log_file = prepare_agent_log_file("cmd_env", dir.path()).expect("log file");
 
-    let binary_path = PathBuf::from(bootstrap.bin_path.join("systemprompt"));
+    let binary_path = bootstrap.bin_path.join("systemprompt");
     let secrets = secrets();
     let command = build_agent_command(BuildAgentCommandParams {
         binary_path: &binary_path,
