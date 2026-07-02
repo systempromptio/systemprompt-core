@@ -8,6 +8,7 @@
 pub mod ai_config;
 pub mod catalog;
 mod common;
+pub mod ddl;
 mod docker;
 mod docker_compose;
 mod docker_database;

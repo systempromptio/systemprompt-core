@@ -252,11 +252,7 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
 
     if !user_exists {
         CliService::info(&format!("Creating user '{}'...", config.user));
-        let create_user_sql = format!(
-            "CREATE USER \"{}\" WITH PASSWORD '{}'",
-            config.user.replace('"', "\"\""),
-            config.password.replace('\'', "''")
-        );
+        let create_user_sql = super::ddl::build_create_user_sql(&config.user, &config.password);
         sqlx::query(&create_user_sql).execute(&pool).await?;
         CliService::success(&format!("Created user '{}'", config.user));
     }
@@ -271,20 +267,12 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
 
     if !db_exists {
         CliService::info(&format!("Creating database '{}'...", config.database));
-        let create_db_sql = format!(
-            "CREATE DATABASE \"{}\" OWNER \"{}\"",
-            config.database.replace('"', "\"\""),
-            config.user.replace('"', "\"\"")
-        );
+        let create_db_sql = super::ddl::build_create_db_sql(&config.database, &config.user);
         sqlx::query(&create_db_sql).execute(&pool).await?;
         CliService::success(&format!("Created database '{}'", config.database));
     }
 
-    let grant_sql = format!(
-        "GRANT ALL PRIVILEGES ON DATABASE \"{}\" TO \"{}\"",
-        config.database.replace('"', "\"\""),
-        config.user.replace('"', "\"\"")
-    );
+    let grant_sql = super::ddl::build_grant_sql(&config.database, &config.user);
     sqlx::query(&grant_sql).execute(&pool).await?;
 
     pool.close().await;
