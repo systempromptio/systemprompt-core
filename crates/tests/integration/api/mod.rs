@@ -235,3 +235,15 @@ mod routes_content_blog;
 #[cfg(test)]
 #[path = "routes_agent_cards.rs"]
 mod routes_agent_cards;
+
+#[cfg(test)]
+#[path = "proxy_auth_access.rs"]
+mod proxy_auth_access;
+
+#[cfg(test)]
+#[path = "proxy_mcp_session_cache.rs"]
+mod proxy_mcp_session_cache;
+
+#[cfg(test)]
+#[path = "proxy_audit_tap.rs"]
+mod proxy_audit_tap;
