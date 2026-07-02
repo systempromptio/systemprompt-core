@@ -17,7 +17,7 @@ use systemprompt_api::services::middleware::{
 use systemprompt_identifiers::JwtToken;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use systemprompt_traits::{AnalyticsProvider, UserProvider};
-use systemprompt_users::{UserProviderImpl, UserService};
+use systemprompt_users::UserService;
 
 use super::common::setup_ctx;
 
@@ -27,7 +27,7 @@ async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtract
     let concrete = Arc::clone(ctx.analytics_service());
     let analytics: Arc<dyn AnalyticsProvider> = concrete;
     let user_provider: Arc<dyn UserProvider> =
-        Arc::new(UserProviderImpl::new(UserService::new(ctx.db_pool())?));
+        Arc::new(UserService::new(ctx.db_pool())?);
     let jti = JtiRevocationChecker::from_pool(ctx.db_pool())?;
     Ok((db, JwtContextExtractor::new(analytics, user_provider, jti)))
 }
