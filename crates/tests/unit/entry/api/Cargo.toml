@@ -27,6 +27,8 @@ systemprompt-traits = { workspace = true }
 anyhow = { workspace = true }
 sqlx = { workspace = true }
 url = { workspace = true }
+opentelemetry-proto = { workspace = true }
+systemprompt-logging = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

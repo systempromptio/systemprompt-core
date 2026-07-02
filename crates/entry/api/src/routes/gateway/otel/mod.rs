@@ -12,6 +12,11 @@
 //! Do not add JWT/API-key auth here without coordinating with the bridge.
 
 mod convert;
+
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_level};
+}
 mod ingest;
 
 use axum::body::Body;

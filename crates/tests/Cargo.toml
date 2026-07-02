@@ -214,6 +214,7 @@ systemprompt-client = { path = "../shared/client" }
 systemprompt-template-provider = { path = "../shared/template-provider", features = ["tokio"] }
 systemprompt-database = { path = "../infra/database" }
 systemprompt-logging = { path = "../infra/logging" }
+opentelemetry-proto = { version = "0.27", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
 systemprompt-config = { path = "../infra/config" }
 systemprompt-events = { path = "../infra/events" }
 systemprompt-security = { path = "../infra/security" }
