@@ -27,6 +27,7 @@ systemprompt-analytics = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
+systemprompt-files = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-slack = { workspace = true }
 
@@ -38,6 +39,7 @@ tower = { workspace = true }
 http = { workspace = true }
 http-body-util = "0.1"
 serde_json = { workspace = true }
+chrono = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }

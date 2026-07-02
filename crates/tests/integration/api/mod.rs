@@ -187,3 +187,51 @@ mod routes_slack;
 #[cfg(test)]
 #[path = "routes_teams.rs"]
 mod routes_teams;
+
+#[cfg(test)]
+#[path = "routes_oauth_consent.rs"]
+mod routes_oauth_consent;
+
+#[cfg(test)]
+#[path = "routes_oauth_authorize.rs"]
+mod routes_oauth_authorize;
+
+#[cfg(test)]
+#[path = "routes_oauth_logout.rs"]
+mod routes_oauth_logout;
+
+#[cfg(test)]
+#[path = "middleware_session_lifecycle.rs"]
+mod middleware_session_lifecycle;
+
+#[cfg(test)]
+#[path = "middleware_analytics_detection.rs"]
+mod middleware_analytics_detection;
+
+#[cfg(test)]
+#[path = "middleware_jwt_context.rs"]
+mod middleware_jwt_context;
+
+#[cfg(test)]
+#[path = "health_monitor.rs"]
+mod health_monitor;
+
+#[cfg(test)]
+#[path = "static_files_serving.rs"]
+mod static_files_serving;
+
+#[cfg(test)]
+#[path = "gateway_pipeline.rs"]
+mod gateway_pipeline;
+
+#[cfg(test)]
+#[path = "gateway_upstream_error_map.rs"]
+mod gateway_upstream_error_map;
+
+#[cfg(test)]
+#[path = "routes_content_blog.rs"]
+mod routes_content_blog;
+
+#[cfg(test)]
+#[path = "routes_agent_cards.rs"]
+mod routes_agent_cards;
