@@ -44,11 +44,11 @@ impl LogService for DatabaseLogService {
         self.repository.get_logs_paginated(filter).await
     }
 
-    async fn get_recent(&self, limit: i64) -> Result<Vec<Self::Entry>, Self::Error> {
+    async fn list_recent(&self, limit: i64) -> Result<Vec<Self::Entry>, Self::Error> {
         self.repository.get_recent_logs(limit).await
     }
 
-    async fn get_by_id(&self, id: &str) -> Result<Option<Self::Entry>, Self::Error> {
+    async fn find_by_id(&self, id: &str) -> Result<Option<Self::Entry>, Self::Error> {
         let log_id = systemprompt_identifiers::LogId::new(id);
         self.repository.get_by_id(&log_id).await
     }

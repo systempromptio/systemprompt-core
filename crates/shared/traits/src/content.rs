@@ -49,11 +49,11 @@ pub struct ContentFilter {
 pub trait ContentProvider: Send + Sync {
     type Error: std::error::Error + Send + Sync + 'static;
 
-    async fn get_content(&self, id: &ContentId) -> Result<Option<ContentItem>, Self::Error>;
+    async fn find_content(&self, id: &ContentId) -> Result<Option<ContentItem>, Self::Error>;
 
-    async fn get_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error>;
+    async fn find_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error>;
 
-    async fn get_content_by_source_and_slug(
+    async fn find_content_by_source_and_slug(
         &self,
         source_id: &SourceId,
         slug: &str,

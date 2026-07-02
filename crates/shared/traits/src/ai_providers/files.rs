@@ -20,6 +20,7 @@ pub struct AiGeneratedFile {
     pub mime_type: String,
     pub size_bytes: Option<i64>,
     pub ai_content: bool,
+    // JSON: free-form per-file metadata bag
     pub metadata: serde_json::Value,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
@@ -43,6 +44,7 @@ pub struct InsertAiFileParams {
     pub public_url: String,
     pub mime_type: String,
     pub size_bytes: Option<i64>,
+    // JSON: free-form per-file metadata bag
     pub metadata: serde_json::Value,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,

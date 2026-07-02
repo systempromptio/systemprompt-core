@@ -25,7 +25,7 @@ impl DefaultContentProvider {
 impl ContentProvider for DefaultContentProvider {
     type Error = ContentError;
 
-    async fn get_content(
+    async fn find_content(
         &self,
         id: &systemprompt_identifiers::ContentId,
     ) -> Result<Option<ContentItem>, Self::Error> {
@@ -47,7 +47,7 @@ impl ContentProvider for DefaultContentProvider {
         }))
     }
 
-    async fn get_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error> {
+    async fn find_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error> {
         let content = self.repo.get_by_slug(slug, &LocaleCode::new("en")).await?;
 
         Ok(content.map(|c| ContentItem {
@@ -66,7 +66,7 @@ impl ContentProvider for DefaultContentProvider {
         }))
     }
 
-    async fn get_content_by_source_and_slug(
+    async fn find_content_by_source_and_slug(
         &self,
         source_id: &systemprompt_identifiers::SourceId,
         slug: &str,

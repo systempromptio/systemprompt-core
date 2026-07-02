@@ -51,7 +51,7 @@ async fn get_content_returns_full_item() {
 
     let provider = DefaultContentProvider::new(&pool).expect("provider");
     let item = provider
-        .get_content(&id)
+        .find_content(&id)
         .await
         .expect("get_content")
         .expect("present");
@@ -79,7 +79,7 @@ async fn get_content_missing_returns_none() {
     let provider = DefaultContentProvider::new(&pool).expect("provider");
 
     let missing = ContentId::new(format!("nope-{}", Uuid::new_v4()));
-    let result = provider.get_content(&missing).await.expect("get_content");
+    let result = provider.find_content(&missing).await.expect("get_content");
     assert!(result.is_none());
 }
 
@@ -98,7 +98,7 @@ async fn get_content_by_slug_round_trips() {
 
     let provider = DefaultContentProvider::new(&pool).expect("provider");
     let item = provider
-        .get_content_by_slug(&slug)
+        .find_content_by_slug(&slug)
         .await
         .expect("by slug")
         .expect("present");
@@ -123,7 +123,7 @@ async fn get_content_by_source_and_slug_round_trips() {
 
     let provider = DefaultContentProvider::new(&pool).expect("provider");
     let item = provider
-        .get_content_by_source_and_slug(&source, &slug)
+        .find_content_by_source_and_slug(&source, &slug)
         .await
         .expect("by source+slug")
         .expect("present");
