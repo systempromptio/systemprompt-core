@@ -22,6 +22,8 @@ pub const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 const UNRESTRICTED_ACKNOWLEDGEMENT: &str = "I understand this disables all authorization";
 
 pub const FIXTURE_AGENT: &str = "covagent";
+pub const FIXTURE_EDIT_AGENT: &str = "covedit";
+pub const FIXTURE_DELETE_AGENT: &str = "covdelete";
 pub const FIXTURE_MCP_SERVER: &str = "fixture_mcp";
 
 pub struct FullBootstrap {
@@ -145,6 +147,7 @@ fn build() -> FullBootstrap {
         "services/content",
         "services/web",
         "services/skills",
+        "services/skills/echo_skill",
         "services/agents",
         "services/plugins",
         "services/hooks",
@@ -161,6 +164,23 @@ fn build() -> FullBootstrap {
     )
     .expect("write services config");
     std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
+    std::fs::write(
+        services_dir.join("skills/echo_skill/config.yaml"),
+        "id: echo_skill\nname: Echo Skill\ndescription: Fixture skill for edit coverage\n",
+    )
+    .expect("write skill config");
+    std::fs::write(
+        services_dir.join("skills/echo_skill/index.md"),
+        "# Echo Skill\n\nEcho the input back.\n",
+    )
+    .expect("write skill content");
+    for (name, port) in [(FIXTURE_EDIT_AGENT, 4788), (FIXTURE_DELETE_AGENT, 4789)] {
+        std::fs::write(
+            services_dir.join(format!("agents/{name}.yaml")),
+            render_extra_agent(name, port),
+        )
+        .expect("write extra agent");
+    }
     std::fs::write(services_dir.join("content/config.yaml"), "{}\n").expect("write content stub");
     std::fs::write(services_dir.join("web/config.yaml"), WEB_CONFIG).expect("write web config");
     std::fs::write(services_dir.join("web/metadata.yaml"), "{}\n").expect("write metadata stub");
@@ -239,7 +259,57 @@ fn render_services_config(mcp_port: u16) -> String {
     SERVICES_CONFIG_TEMPLATE.replace("@MCP_PORT@", &mcp_port.to_string())
 }
 
-const SERVICES_CONFIG_TEMPLATE: &str = r#"agents:
+fn render_extra_agent(name: &str, port: u16) -> String {
+    EXTRA_AGENT_TEMPLATE
+        .replace("@NAME@", name)
+        .replace("@PORT@", &port.to_string())
+}
+
+const EXTRA_AGENT_TEMPLATE: &str = r#"agents:
+  @NAME@:
+    name: @NAME@
+    port: @PORT@
+    endpoint: /api/v1/agents/@NAME@/
+    enabled: false
+    dev_only: false
+    is_primary: false
+    default: false
+    tags: []
+    card:
+      protocolVersion: 0.3.0
+      name: @NAME@
+      displayName: Extra Agent
+      description: Pre-seeded agent for authoring coverage tests
+      version: 1.0.0
+      preferredTransport: JSONRPC
+      capabilities:
+        streaming: true
+        pushNotifications: false
+        stateTransitionHistory: true
+      defaultInputModes:
+      - text/plain
+      defaultOutputModes:
+      - text/plain
+      supportsAuthenticatedExtendedCard: false
+    metadata:
+      systemPrompt: You are a fixture agent.
+      mcpServers:
+        source: instance
+      skills:
+        source: instance
+      provider: anthropic
+      model: claude-sonnet-4-5
+      toolModelOverrides: {}
+    oauth:
+      required: false
+      scopes: []
+      audience: a2a
+"#;
+
+const SERVICES_CONFIG_TEMPLATE: &str = r#"includes:
+  - ../agents/covedit.yaml
+  - ../agents/covdelete.yaml
+agents:
   covagent:
     name: covagent
     port: 4777
@@ -269,6 +339,8 @@ const SERVICES_CONFIG_TEMPLATE: &str = r#"agents:
       systemPrompt: You are a fixture agent.
       mcpServers:
         source: instance
+        include:
+        - fixture_mcp
       skills:
         source: instance
       provider: anthropic
