@@ -67,7 +67,7 @@ pub async fn parse_a2a_request(
 /// the global stream-concurrency cap rejects a streaming request.
 const STREAM_RETRY_AFTER_SECONDS: u32 = 5;
 
-pub(super) async fn handle_streaming_path(
+pub async fn handle_streaming_path(
     a2a_request: A2aRequestParams,
     state: Arc<AgentHandlerState>,
     request_id: crate::models::a2a::jsonrpc::NumberOrString,
@@ -106,7 +106,7 @@ pub(super) async fn handle_streaming_path(
         .into_response()
 }
 
-pub(super) async fn handle_push_notification_requests(
+pub async fn handle_push_notification_requests(
     a2a_request: &A2aRequestParams,
     state: &AgentHandlerState,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,

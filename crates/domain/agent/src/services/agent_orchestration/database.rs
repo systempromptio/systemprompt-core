@@ -32,6 +32,19 @@ impl AgentDatabaseService {
         })
     }
 
+    /// Build the service over an explicit registry snapshot instead of the
+    /// process-wide config loader.
+    #[must_use]
+    pub const fn with_registry(
+        repository: AgentServiceRepository,
+        registry: AgentRegistry,
+    ) -> Self {
+        Self {
+            repository,
+            registry,
+        }
+    }
+
     pub async fn register_agent(
         &self,
         name: &str,
