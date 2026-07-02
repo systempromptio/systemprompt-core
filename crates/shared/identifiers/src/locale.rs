@@ -61,10 +61,6 @@ impl LocaleCode {
                   must go through try_new"
     )]
     pub fn new(value: impl Into<String>) -> Self {
-        // SAFETY: `new` is the infallible constructor reserved for inputs the caller
-        // has already validated (compile-time literals, values that
-        // round-tripped through `try_new` at a boundary). Untrusted input must
-        // go through `try_new`.
         Self::try_new(value).expect("LocaleCode validation failed")
     }
 

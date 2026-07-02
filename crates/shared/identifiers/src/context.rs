@@ -25,7 +25,6 @@ const MESSAGING_NAMESPACE: uuid::Uuid =
 
 impl ContextId {
     pub fn generate() -> Self {
-        // Safe: UUID v4 from `uuid` crate is always a valid UUID string.
         Self::new(uuid::Uuid::new_v4().to_string())
     }
 
@@ -38,7 +37,6 @@ impl ContextId {
     /// non-UUID identifiers).
     #[must_use]
     pub fn derived_from_gateway_conversation(gw: &GatewayConversationId) -> Self {
-        // Safe: UUID v5 always produces a valid UUID string.
         Self::new(
             uuid::Uuid::new_v5(&GATEWAY_CONVERSATION_NAMESPACE, gw.as_str().as_bytes()).to_string(),
         )
@@ -55,7 +53,6 @@ impl ContextId {
     #[must_use]
     pub fn derived_from_messaging(platform: &str, org: &str, channel: &str) -> Self {
         let key = format!("{platform}:{org}:{channel}");
-        // Safe: UUID v5 always produces a valid UUID string.
         Self::new(uuid::Uuid::new_v5(&MESSAGING_NAMESPACE, key.as_bytes()).to_string())
     }
 }
