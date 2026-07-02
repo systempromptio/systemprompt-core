@@ -49,7 +49,7 @@ impl std::fmt::Debug for ProcessEventsParams {
     }
 }
 
-pub(super) async fn process_events(params: ProcessEventsParams) {
+pub async fn process_events(params: ProcessEventsParams) {
     let ProcessEventsParams {
         tx,
         mut chunk_rx,

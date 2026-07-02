@@ -14,7 +14,7 @@ mod types;
 pub mod webhook_client;
 
 pub use broadcast::{broadcast_artifact_created, broadcast_task_completed};
-pub use event_loop::ProcessEventsParams;
+pub use event_loop::{ProcessEventsParams, process_events};
 pub use event_loop_lifecycle::{
     EmitRunStartedParams, emit_run_started, handle_stream_creation_error,
 };
