@@ -3,6 +3,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
+use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_cli::web::content_types::builder::{
     SourceSpec, build_flag_sitemap, build_source_config, ensure_category_exists,
 };
@@ -81,8 +82,8 @@ fn build_flag_sitemap_populates_database_entry() {
 fn build_source_config_applies_article_defaults() {
     let source = build_source_config(SourceSpec {
         path: "content/news".to_owned(),
-        source_id: "news".to_owned(),
-        category_id: "blog".to_owned(),
+        source_id: SourceId::new("news"),
+        category_id: CategoryId::new("blog"),
         enabled: true,
         description: "the news".to_owned(),
         sitemap: None,
