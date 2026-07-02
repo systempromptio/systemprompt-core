@@ -94,42 +94,59 @@ pub struct ModelAddArgs {
 }
 
 pub async fn execute(command: &CatalogCommands, config: &CliConfig) -> Result<()> {
-    if matches!(command, CatalogCommands::Provider(ProviderCommands::List)) {
-        return list_providers(config);
-    }
-
-    let profile_path = ProfileBootstrap::get_path()?;
-    let mut profile = load_profile(profile_path)?;
-
-    let message = match command {
-        CatalogCommands::Provider(ProviderCommands::List) => unreachable!("handled above"),
+    match command {
+        CatalogCommands::Provider(ProviderCommands::List) => list_providers(config),
         CatalogCommands::Provider(ProviderCommands::Add(args)) => {
-            ProviderCatalogService::upsert_provider(&mut profile.providers, provider_spec(args)?);
-            format!(
-                "Provider {} (wire {}, surface {}) added",
-                args.name, args.wire, args.surface
-            )
+            apply(config, |profile| {
+                ProviderCatalogService::upsert_provider(
+                    &mut profile.providers,
+                    provider_spec(args)?,
+                );
+                Ok(format!(
+                    "Provider {} (wire {}, surface {}) added",
+                    args.name, args.wire, args.surface
+                ))
+            })
+            .await
         },
         CatalogCommands::Provider(ProviderCommands::Remove { name }) => {
-            ProviderCatalogService::remove_provider(
-                &mut profile.providers,
-                &ProviderId::new(name),
-            )?;
-            format!("Provider {} removed", name)
+            apply(config, |profile| {
+                ProviderCatalogService::remove_provider(
+                    &mut profile.providers,
+                    &ProviderId::new(name),
+                )?;
+                Ok(format!("Provider {} removed", name))
+            })
+            .await
         },
         CatalogCommands::Model(ModelCommands::Add(args)) => {
-            ProviderCatalogService::upsert_model(&mut profile.providers, model_spec(args))?;
-            format!("Model {} added to {}", args.id, args.provider)
+            apply(config, |profile| {
+                ProviderCatalogService::upsert_model(&mut profile.providers, model_spec(args))?;
+                Ok(format!("Model {} added to {}", args.id, args.provider))
+            })
+            .await
         },
         CatalogCommands::Model(ModelCommands::Remove { provider, id }) => {
-            ProviderCatalogService::remove_model(
-                &mut profile.providers,
-                &ProviderId::new(provider),
-                &ModelId::new(id),
-            )?;
-            format!("Model {} removed from {}", id, provider)
+            apply(config, |profile| {
+                ProviderCatalogService::remove_model(
+                    &mut profile.providers,
+                    &ProviderId::new(provider),
+                    &ModelId::new(id),
+                )?;
+                Ok(format!("Model {} removed from {}", id, provider))
+            })
+            .await
         },
-    };
+    }
+}
+
+async fn apply(
+    config: &CliConfig,
+    mutate: impl FnOnce(&mut systemprompt_models::Profile) -> Result<String>,
+) -> Result<()> {
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile(profile_path)?;
+    let message = mutate(&mut profile)?;
 
     save_profile(&profile, profile_path)?;
     let outcome = super::reconcile::reconcile_authz(&profile, profile_path).await;

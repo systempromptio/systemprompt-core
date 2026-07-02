@@ -80,28 +80,32 @@ pub struct RouteAddArgs {
 }
 
 pub async fn execute(command: &GatewayCommands, config: &CliConfig) -> Result<()> {
-    if matches!(command, GatewayCommands::Route(RouteCommands::List)) {
-        return list_routes(config);
-    }
-
-    let profile_path = ProfileBootstrap::get_path()?;
-    let mut profile = load_profile(profile_path)?;
-
-    let message = match command {
-        GatewayCommands::Enable => set_enabled(&mut profile, true)?,
-        GatewayCommands::Disable => set_enabled(&mut profile, false)?,
-        GatewayCommands::Route(RouteCommands::Add(args)) => add_route(&mut profile, args)?,
-        GatewayCommands::Route(RouteCommands::Remove { model_pattern }) => {
-            remove_route(&mut profile, model_pattern)?
+    match command {
+        GatewayCommands::Route(RouteCommands::List) => list_routes(config),
+        GatewayCommands::Enable => apply(config, |profile| set_enabled(profile, true)).await,
+        GatewayCommands::Disable => apply(config, |profile| set_enabled(profile, false)).await,
+        GatewayCommands::Route(RouteCommands::Add(args)) => {
+            apply(config, |profile| add_route(profile, args)).await
         },
-        GatewayCommands::Route(RouteCommands::List) => unreachable!("handled above"),
+        GatewayCommands::Route(RouteCommands::Remove { model_pattern }) => {
+            apply(config, |profile| remove_route(profile, model_pattern)).await
+        },
         GatewayCommands::DefaultProvider(DefaultProviderCommands::Set { provider }) => {
-            set_default_provider(&mut profile, provider)?
+            apply(config, |profile| set_default_provider(profile, provider)).await
         },
         GatewayCommands::DefaultProvider(DefaultProviderCommands::Clear) => {
-            clear_default_provider(&mut profile)?
+            apply(config, clear_default_provider).await
         },
-    };
+    }
+}
+
+async fn apply(
+    config: &CliConfig,
+    mutate: impl FnOnce(&mut Profile) -> Result<String>,
+) -> Result<()> {
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile(profile_path)?;
+    let message = mutate(&mut profile)?;
 
     validate_gateway(&profile)?;
     save_profile(&profile, profile_path)?;

@@ -132,7 +132,7 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
         2 => select_profile("Select profile to delete")?
             .map(|name| ProfileCommands::Delete(DeleteArgs { name, yes: false })),
         3 => None,
-        _ => unreachable!(),
+        other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
     };
 
     Ok(cmd)

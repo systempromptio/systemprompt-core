@@ -17,6 +17,8 @@ pub(super) fn edit_api_keys(profile_dir: &Path) -> Result<()> {
     }
 
     let content = std::fs::read_to_string(&secrets_path)?;
+    // JSON: round-trips the operator-authored secrets document so a single key
+    // can be edited in place without dropping unknown fields.
     let mut secrets: serde_json::Value = serde_json::from_str(&content)?;
 
     let key_options = vec![
@@ -40,7 +42,7 @@ pub(super) fn edit_api_keys(profile_dir: &Path) -> Result<()> {
             2 => edit_openai_key(&mut secrets)?,
             3 => edit_database_url(&mut secrets)?,
             4 => break,
-            _ => unreachable!(),
+            other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
         }
     }
 

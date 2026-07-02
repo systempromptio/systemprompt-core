@@ -59,7 +59,7 @@ pub(super) fn execute(args: &EditArgs, ctx: &CommandContext) -> Result<()> {
             2 => edit_runtime_settings(&mut profile)?,
             3 => edit_api_keys(&profile_dir)?,
             4 => break,
-            _ => unreachable!(),
+            other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
         }
     }
 

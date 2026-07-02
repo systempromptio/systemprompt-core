@@ -176,6 +176,8 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
         );
     }
 
+    // JSON: mutates one key in the untyped AI config document, leaving unknown
+    // operator-authored keys in place.
     if let Some(serde_yaml::Value::Mapping(ai_map)) = content.get_mut("ai") {
         ai_map.insert(
             serde_yaml::Value::String("default_provider".to_owned()),
@@ -208,6 +210,8 @@ fn set_provider_enabled(provider: &str, enabled: bool) -> Result<ProviderSetOutp
         .get_mut(provider)
         .ok_or_else(|| anyhow::anyhow!("Unknown provider: '{}'", provider))?;
 
+    // JSON: mutates one key in the untyped AI config document, leaving unknown
+    // operator-authored keys in place.
     if let serde_yaml::Value::Mapping(config_map) = provider_config {
         config_map.insert(
             serde_yaml::Value::String("enabled".to_owned()),

@@ -67,7 +67,9 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
         | DbCommands::MigrateDown { .. }
         | DbCommands::MigrateSquash { .. }
         | DbCommands::MigrateRepair { .. }
-        | DbCommands::MigrateMarkApplied { .. } => unreachable!(),
+        | DbCommands::MigrateMarkApplied { .. } => {
+            bail!("migration command was not consumed by the migration dispatcher")
+        },
         DbCommands::Migrations { cmd } => {
             admin::execute_migrations(ctx.app_context().await?, cmd, config).await
         },

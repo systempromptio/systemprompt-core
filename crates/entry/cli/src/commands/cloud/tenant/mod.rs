@@ -200,7 +200,7 @@ fn select_operation() -> Result<Option<TenantCommands>> {
             yes: false,
         })),
         4 => None,
-        _ => unreachable!(),
+        other => return Err(anyhow::anyhow!("unexpected menu selection: {other}")),
     };
 
     Ok(cmd)

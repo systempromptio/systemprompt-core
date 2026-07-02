@@ -18,13 +18,6 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-#[derive(Debug, serde::Serialize)]
-#[serde(untagged)]
-pub(super) enum ListOrDetail {
-    List(AgentListOutput),
-    Detail(AgentDetailOutput),
-}
-
 pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
@@ -57,7 +50,7 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
 
         return Ok(CommandOutput::card_value(
             format!("Agent: {}", name),
-            &ListOrDetail::Detail(output),
+            &output,
         ));
     }
 
@@ -78,10 +71,7 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
 
     agents.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let output = ListOrDetail::List(AgentListOutput { agents });
-    let ListOrDetail::List(list) = &output else {
-        unreachable!("output is constructed as List above")
-    };
+    let output = AgentListOutput { agents };
 
     Ok(CommandOutput::table_of(
         vec![
@@ -92,7 +82,7 @@ pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutp
             "is_primary",
             "is_default",
         ],
-        &list.agents,
+        &output.agents,
     )
     .with_title("Agents"))
 }

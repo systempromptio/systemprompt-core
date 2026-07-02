@@ -200,6 +200,8 @@ impl std::str::FromStr for ConfigSection {
 }
 
 pub fn read_yaml_file(path: &std::path::Path) -> Result<serde_yaml::Value> {
+    // JSON: an untyped document preserves unknown keys in operator-authored
+    // config so a single field can be mutated and written back losslessly.
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read file: {}", path.display()))?;
     serde_yaml::from_str(&content)
@@ -207,6 +209,8 @@ pub fn read_yaml_file(path: &std::path::Path) -> Result<serde_yaml::Value> {
 }
 
 pub fn write_yaml_file(path: &std::path::Path, content: &serde_yaml::Value) -> Result<()> {
+    // JSON: writes back the untyped document read by `read_yaml_file`, keeping
+    // operator-authored keys this tooling does not model.
     let yaml_str = serde_yaml::to_string(content).with_context(|| "Failed to serialize YAML")?;
     std::fs::write(path, yaml_str)
         .with_context(|| format!("Failed to write file: {}", path.display()))
