@@ -1,7 +1,5 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -41,7 +39,7 @@ pub(super) async fn execute(
 ) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let agents_to_delete = resolve_targets(&args, &services_config, config)?;
+    let agents_to_delete = resolve_targets(&args, prompter, &services_config, config)?;
 
     let confirm_message = if args.all {
         format!("Delete ALL {} agents?", agents_to_delete.len())
@@ -109,6 +107,7 @@ pub(super) async fn execute(
 
 fn resolve_targets(
     args: &DeleteArgs,
+    prompter: &dyn Prompter,
     services_config: &systemprompt_models::ServicesConfig,
     config: &CliConfig,
 ) -> Result<Vec<String>> {
@@ -116,7 +115,11 @@ fn resolve_targets(
         services_config.agents.keys().cloned().collect()
     } else {
         let name = resolve_required(args.name.clone(), "name", config, || {
-            prompt_agent_selection(services_config)
+            super::shared::prompt_agent_selection(
+                prompter,
+                "Select agent to delete",
+                services_config,
+            )
         })?;
 
         if !services_config.agents.contains_key(&name) {
@@ -200,24 +203,6 @@ async fn delete_single_agent(
             Err(format!("{}: {}", agent_name, e))
         },
     }
-}
-
-fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
-    let mut agents: Vec<&String> = config.agents.keys().collect();
-    agents.sort();
-
-    if agents.is_empty() {
-        return Err(anyhow!("No agents configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select agent to delete")
-        .items(&agents)
-        .default(0)
-        .interact()
-        .context("Failed to get agent selection")?;
-
-    Ok(agents[selection].clone())
 }
 
 async fn stop_agent_process(

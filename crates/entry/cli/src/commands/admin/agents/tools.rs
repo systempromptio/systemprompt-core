@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 
 use super::tools_mcp::{list_tools_authenticated, list_tools_unauthenticated};
 use super::types::{AgentToolsOutput, AgentToolsSummary, UnavailableServer};
 use crate::CliConfig;
 use crate::commands::plugins::mcp::types::McpToolEntry;
 use crate::context::CommandContext;
+use crate::interactive::Prompter;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
 use systemprompt_identifiers::SessionToken;
@@ -48,7 +47,7 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
     let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let name = resolve_agent_name(args.name, config, &services_config)?;
+    let name = resolve_agent_name(args.name, ctx.prompter(), config, &services_config)?;
 
     let agent = services_config
         .agents
@@ -116,12 +115,15 @@ pub(super) async fn execute(args: ToolsArgs, ctx: &CommandContext) -> Result<Com
 
 fn resolve_agent_name(
     name: Option<String>,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     services_config: &systemprompt_models::ServicesConfig,
 ) -> Result<String> {
     match name {
         Some(n) => Ok(n),
-        None if config.interactive => prompt_agent_selection(services_config),
+        None if config.interactive => {
+            super::shared::prompt_agent_selection(prompter, "Select agent", services_config)
+        },
         None => Err(anyhow!("Agent name is required in non-interactive mode")),
     }
 }
@@ -214,22 +216,4 @@ async fn collect_tools(configured_servers: &[String], query: &ToolQuery<'_>) -> 
         unavailable,
         servers_queried,
     }
-}
-
-fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
-    let mut agents: Vec<&String> = config.agents.keys().collect();
-    agents.sort();
-
-    if agents.is_empty() {
-        return Err(anyhow!("No agents configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select agent")
-        .items(&agents)
-        .default(0)
-        .interact()
-        .context("Failed to get agent selection")?;
-
-    Ok(agents[selection].clone())
 }

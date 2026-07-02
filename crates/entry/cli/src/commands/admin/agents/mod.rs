@@ -9,21 +9,21 @@
 pub mod types;
 
 mod client;
-mod create;
+pub mod create;
 pub(crate) mod delete;
 mod edit;
 mod edit_apply;
 mod list;
 mod logs;
 mod logs_db;
-mod logs_disk;
+pub mod logs_disk;
 mod message;
 mod message_request;
 mod message_streaming;
 mod registry;
 mod run;
-mod shared;
-mod show;
+pub mod shared;
+pub mod show;
 mod status;
 mod task;
 mod tools;
@@ -84,16 +84,16 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
             list::execute(args, &ctx.cli).context("Failed to list agents")?
         },
         AgentsCommands::Show(args) => {
-            show::execute(args, &ctx.cli).context("Failed to show agent")?
+            show::execute(args, ctx.prompter(), &ctx.cli).context("Failed to show agent")?
         },
         AgentsCommands::Validate(args) => {
             validate::execute(&args, &ctx.cli).context("Failed to validate agents")?
         },
         AgentsCommands::Create(args) => {
-            create::execute(args, &ctx.cli).context("Failed to create agent")?
+            create::execute(args, ctx.prompter(), &ctx.cli).context("Failed to create agent")?
         },
         AgentsCommands::Edit(args) => {
-            edit::execute(&args, &ctx.cli).context("Failed to edit agent")?
+            edit::execute(&args, ctx.prompter(), &ctx.cli).context("Failed to edit agent")?
         },
         AgentsCommands::Delete(args) => delete::execute(args, ctx.prompter(), &ctx.cli)
             .await
@@ -101,7 +101,7 @@ pub async fn execute(command: AgentsCommands, ctx: &CommandContext) -> Result<()
         AgentsCommands::Status(args) => status::execute(args, &ctx.cli)
             .await
             .context("Failed to get agent status")?,
-        AgentsCommands::Logs(args) => logs::execute(args, &ctx.cli)
+        AgentsCommands::Logs(args) => logs::execute(args, ctx.prompter(), &ctx.cli)
             .await
             .context("Failed to get agent logs")?,
         AgentsCommands::Registry(args) => registry::execute(args, &ctx.cli)

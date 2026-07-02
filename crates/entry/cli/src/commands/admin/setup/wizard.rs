@@ -7,10 +7,9 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_logging::CliService;
 
 use super::common::PostgresConfig;
@@ -36,7 +35,11 @@ fn should_write(path: &Path, force: bool, config: &CliConfig) -> bool {
     false
 }
 
-pub(super) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: SetupArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");
     }
@@ -44,13 +47,13 @@ pub(super) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<Comma
     let project_root = detect_project_root()?;
     announce_project(&project_root, config);
 
-    let env_name = get_environment_name(&args, config)?;
+    let env_name = get_environment_name(&args, prompter, config)?;
 
     if !config.is_json_output() {
         CliService::info(&format!("Configuring environment: {}", env_name));
     }
 
-    if !confirm_setup(&args, &env_name, config)? {
+    if !confirm_setup(&args, prompter, &env_name, config)? {
         return Ok(build_cancelled(&args, &env_name, config));
     }
 
@@ -63,7 +66,7 @@ pub(super) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<Comma
         CliService::section(&format!("Setting up '{}' environment", env_name));
     }
 
-    let pg_config = setup_postgres(&args, config, &env_name).await?;
+    let pg_config = setup_postgres(&args, prompter, config, &env_name).await?;
 
     let connection_status = if common::test_connection(&pg_config).await {
         "connected"
@@ -71,10 +74,16 @@ pub(super) async fn execute(args: SetupArgs, config: &CliConfig) -> Result<Comma
         "unreachable"
     };
 
-    let (secrets_data, profile_path) =
-        write_configuration(&args, config, &env_name, &project_root, &pg_config)?;
+    let (secrets_data, profile_path) = write_configuration(
+        &args,
+        prompter,
+        config,
+        &env_name,
+        &project_root,
+        &pg_config,
+    )?;
 
-    let run_migrations = should_run_migrations(&args, config)?;
+    let run_migrations = should_run_migrations(&args, prompter, config)?;
     if run_migrations {
         profile::run_migrations(&profile_path)?;
     }
@@ -115,22 +124,31 @@ fn announce_project(project_root: &Path, config: &CliConfig) {
     ));
 }
 
-fn confirm_setup(args: &SetupArgs, env_name: &str, config: &CliConfig) -> Result<bool> {
+fn confirm_setup(
+    args: &SetupArgs,
+    prompter: &dyn Prompter,
+    env_name: &str,
+    config: &CliConfig,
+) -> Result<bool> {
     if args.dry_run || args.yes || !config.is_interactive() {
         return Ok(true);
     }
-    let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!(
+    prompter.confirm(
+        &format!(
             "This will create/update configuration for '{}' environment. Continue?",
             env_name
-        ))
-        .default(true)
-        .interact()?;
-    Ok(confirmed)
+        ),
+        true,
+    )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "wizard step threads discrete, already-validated setup inputs"
+)]
 fn write_configuration(
     args: &SetupArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
     project_root: &Path,
@@ -138,7 +156,7 @@ fn write_configuration(
 ) -> Result<(secrets::SecretsData, PathBuf)> {
     let systemprompt_dir = project_root.join(".systemprompt");
 
-    let (mut secrets_data, primary_provider) = collect_secrets(args, config, env_name)?;
+    let (mut secrets_data, primary_provider) = collect_secrets(args, prompter, config, env_name)?;
     secrets_data.database_url = Some(pg_config.database_url());
 
     let secrets_path = profile::profile_dir(&systemprompt_dir, env_name).join("secrets.json");

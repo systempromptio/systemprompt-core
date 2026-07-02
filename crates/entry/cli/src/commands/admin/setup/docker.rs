@@ -1,6 +1,4 @@
-use anyhow::Result;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input};
+use anyhow::{Context, Result};
 use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
 use systemprompt_logging::CliService;
@@ -12,6 +10,7 @@ use super::docker_compose::{
     is_docker_available, start_compose, wait_for_postgres_ready,
 };
 use super::docker_database::create_database_in_docker;
+use crate::interactive::Prompter;
 
 pub(super) async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
@@ -45,6 +44,7 @@ pub(super) async fn setup_docker_postgres_non_interactive(
 
 pub(super) async fn setup_docker_postgres_interactive(
     args: &SetupArgs,
+    prompter: &dyn Prompter,
     env_name: &str,
 ) -> Result<PostgresConfig> {
     CliService::info("Setting up PostgreSQL with Docker...");
@@ -64,25 +64,19 @@ pub(super) async fn setup_docker_postgres_interactive(
 
     CliService::success("Docker and Docker Compose are available");
 
-    let default_user = args.effective_db_user(env_name);
-    let user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database user")
-        .default(default_user)
-        .interact_text()?;
+    let user = prompter.input_with_default("Database user", &args.effective_db_user(env_name))?;
 
     let password = args.db_password.clone().unwrap_or_else(generate_password);
     CliService::success(&format!("Generated password: {}", password));
 
-    let default_db = args.effective_db_name(env_name);
-    let database: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database name")
-        .default(default_db)
-        .interact_text()?;
+    let database =
+        prompter.input_with_default("Database name", &args.effective_db_name(env_name))?;
 
-    let port: u16 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("PostgreSQL port")
-        .default(args.db_port)
-        .interact_text()?;
+    let port_input = prompter.input_with_default("PostgreSQL port", &args.db_port.to_string())?;
+    let port: u16 = port_input
+        .trim()
+        .parse()
+        .with_context(|| format!("Invalid PostgreSQL port: {}", port_input))?;
 
     let config = PostgresConfig {
         host: "localhost".to_owned(),
@@ -101,10 +95,7 @@ pub(super) async fn setup_docker_postgres_interactive(
             container
         ));
 
-        let reuse = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Use existing container?")
-            .default(true)
-            .interact()?;
+        let reuse = prompter.confirm("Use existing container?", true)?;
 
         if reuse {
             if !test_connection(&config).await {

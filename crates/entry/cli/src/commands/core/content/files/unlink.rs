@@ -1,12 +1,12 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
-use dialoguer::Confirm;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::ContentUnlinkOutput;
+use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
@@ -28,19 +28,23 @@ pub struct UnlinkArgs {
     pub dry_run: bool,
 }
 
-pub(super) async fn execute(args: UnlinkArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: UnlinkArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
     let content_id = ContentId::new(args.content.clone());
 
     if !args.yes {
         if config.is_interactive() {
-            let confirmed = Confirm::new()
-                .with_prompt(format!(
+            let confirmed = prompter.confirm(
+                &format!(
                     "Unlink file '{}' from content '{}'?",
                     args.file, args.content
-                ))
-                .default(false)
-                .interact()?;
+                ),
+                false,
+            )?;
 
             if !confirmed {
                 return Err(anyhow!("Unlink cancelled by user"));

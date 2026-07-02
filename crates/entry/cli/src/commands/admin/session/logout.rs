@@ -1,12 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use dialoguer::Confirm;
-use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_loader::ProfileLoader;
 
 use super::types::LogoutOutput;
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandOutput;
 
@@ -22,7 +21,11 @@ pub struct LogoutArgs {
     pub all: bool,
 }
 
-pub(super) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: &LogoutArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
@@ -39,17 +42,15 @@ pub(super) fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandOu
     }
 
     if args.all {
-        return remove_all_sessions(&store, &sessions_dir, args, config);
+        return remove_all_sessions(&store, &sessions_dir, args, prompter, config);
     }
 
     let session_key = resolve_target_key(args, &paths, &store)?;
     let display_name = session_key.to_string();
 
     if !args.yes && config.is_interactive() {
-        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!("Remove session for '{}'?", display_name))
-            .default(false)
-            .interact()?;
+        let confirmed =
+            prompter.confirm(&format!("Remove session for '{}'?", display_name), false)?;
 
         if !confirmed {
             return Ok(CommandOutput::card_value(
@@ -90,6 +91,7 @@ fn remove_all_sessions(
     store: &SessionStore,
     sessions_dir: &std::path::Path,
     args: &LogoutArgs,
+    prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let count = store.len();
@@ -99,10 +101,7 @@ fn remove_all_sessions(
             anyhow::bail!("--yes is required in non-interactive mode for --all");
         }
 
-        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!("Remove all {} session(s)?", count))
-            .default(false)
-            .interact()?;
+        let confirmed = prompter.confirm(&format!("Remove all {} session(s)?", count), false)?;
 
         if !confirmed {
             return Ok(CommandOutput::card_value(

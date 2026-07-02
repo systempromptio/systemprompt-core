@@ -113,6 +113,10 @@ fn kill_process(pid: u32) {
     ProcessCleanup::kill_process(pid);
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "port-conflict handling threads discrete CLI flags plus the prompt seam"
+)]
 async fn handle_port_conflict(
     prompter: &dyn Prompter,
     port: u16,

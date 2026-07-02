@@ -1,7 +1,5 @@
 use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::Select;
-use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 
 use super::edit_apply::{
@@ -11,7 +9,7 @@ use super::edit_apply::{
 use super::shared::AgentArgs;
 use super::types::AgentEditOutput;
 use crate::CliConfig;
-use crate::interactive::resolve_required;
+use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
@@ -45,11 +43,15 @@ pub struct EditArgs {
     pub agent: AgentArgs,
 }
 
-pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(
+    args: &EditArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+) -> Result<CommandOutput> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_required(args.name.clone(), "name", config, || {
-        prompt_agent_selection(&services_config)
+        super::shared::prompt_agent_selection(prompter, "Select agent to edit", &services_config)
     })?;
 
     let mut agent = services_config
@@ -106,22 +108,4 @@ pub(super) fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandOutp
         format!("Edit Agent: {}", name),
         &output,
     ))
-}
-
-fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
-    let mut agents: Vec<&String> = config.agents.keys().collect();
-    agents.sort();
-
-    if agents.is_empty() {
-        return Err(anyhow!("No agents configured"));
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select agent to edit")
-        .items(&agents)
-        .default(0)
-        .interact()
-        .context("Failed to get agent selection")?;
-
-    Ok(agents[selection].clone())
 }

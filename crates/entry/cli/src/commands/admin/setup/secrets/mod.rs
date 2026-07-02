@@ -15,6 +15,7 @@ use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use crate::CliConfig;
+use crate::interactive::Prompter;
 use crate::shared::profile::generate_oauth_at_rest_pepper;
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
@@ -55,6 +56,7 @@ pub(super) fn collect_non_interactive(
 
 pub(super) fn collect_interactive(
     args: &SetupArgs,
+    prompter: &dyn Prompter,
     env_name: &str,
     _config: &CliConfig,
 ) -> Result<(SecretsData, Option<ProviderId>)> {
@@ -79,9 +81,9 @@ pub(super) fn collect_interactive(
         return Ok((secrets, primary));
     }
 
-    let explicit = select_provider_keys(&mut secrets)?;
+    let explicit = select_provider_keys(prompter, &mut secrets)?;
     validate_secrets(&secrets)?;
-    let primary = resolve_interactive_primary(explicit, &secrets)?;
+    let primary = resolve_interactive_primary(prompter, explicit, &secrets)?;
 
     CliService::success(&format!("Configured keys: {}", secrets.summary()));
 

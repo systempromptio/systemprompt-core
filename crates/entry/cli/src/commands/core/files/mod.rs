@@ -91,7 +91,7 @@ pub async fn execute(cmd: FilesCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         FilesCommands::Delete(args) => {
-            let result = delete::execute(args, &ctx.cli)
+            let result = delete::execute(args, ctx.prompter(), &ctx.cli)
                 .await
                 .context("Failed to delete file")?;
             render_result(&result, &ctx.cli);
