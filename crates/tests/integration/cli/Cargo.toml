@@ -18,6 +18,7 @@ systemprompt-cli = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-users = { workspace = true }
+systemprompt-security = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tempfile = { workspace = true }
 serde_json = { workspace = true }

@@ -18,7 +18,8 @@ pub(crate) mod env_lock {
     pub(crate) static ENV: Mutex<()> = Mutex::new(());
 }
 
-#[cfg(test)]
+pub mod full_bootstrap;
+
 #[cfg(test)]
 mod cloud_profile_templates;
 #[cfg(test)]
