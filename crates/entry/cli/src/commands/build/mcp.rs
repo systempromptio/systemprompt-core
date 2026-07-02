@@ -20,8 +20,10 @@ pub struct McpArgs {
 
 pub(super) fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandOutput> {
     let project_root = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
-    let root = project_root.as_path();
+    execute_in_root(args, config, project_root.as_path())
+}
 
+pub fn execute_in_root(args: McpArgs, config: &CliConfig, root: &Path) -> Result<CommandOutput> {
     let extensions = ExtensionLoader::get_enabled_mcp_extensions(root);
 
     if extensions.is_empty() {

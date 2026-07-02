@@ -3,6 +3,7 @@
 mod admin_prompts;
 mod agents_delete;
 mod analytics;
+mod build_mcp;
 mod cloud_doctor;
 mod cloud_edit_prompts;
 mod cloud_profile_templates;

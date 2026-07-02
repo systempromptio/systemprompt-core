@@ -4,7 +4,7 @@
 //! extension build; [`types`] holds the shared result rows surfaced by both.
 
 mod core;
-mod mcp;
+pub mod mcp;
 pub mod types;
 
 use anyhow::{Context, Result};
