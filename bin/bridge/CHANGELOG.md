@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Cowork artifacts emitter: the manifest's `artifacts` section is materialised into the Cowork global Artifacts-library store, with content-hashed idempotency and remove-on-empty cleanup. The write mechanism is pluggable pending confirmation of the live Cowork store schema.
+
 ## [0.15.0] - 2026-06-25
 
 ### Added

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Added
+
+- `GET /v1/bridge/manifest` includes the signed `artifacts` section of Cowork Artifacts-library documents.
+
 ## [0.18.0] - 2026-07-01
 
 ### Added

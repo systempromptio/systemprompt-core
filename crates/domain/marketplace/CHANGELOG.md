@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- `MarketplaceCandidate::new` takes an additional `artifacts: Vec<ArtifactEntry>` argument, and `CatalogContent::into_parts` returns a 4-tuple including the artifact set. Migrate by passing `Vec::new()` / destructuring the extra element where artifacts are not used.
+
+### Added
+
+- `load_artifacts` loads `services/artifacts/<id>/config.yaml` entries into signed `ArtifactEntry` records; an artifact with empty HTML content or no `mcp_tools` is dropped with a warning.
+- Manifest assembly scopes artifacts by the marketplace `artifacts` include list and drops artifacts whose owning plugin did not survive plugin selection.
+
 ## [0.18.0] - 2026-07-01
 
 ### Changed

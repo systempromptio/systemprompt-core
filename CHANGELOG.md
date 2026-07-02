@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- `MarketplaceCandidate::new` takes an additional `artifacts: Vec<ArtifactEntry>` argument, and `CatalogContent::into_parts` returns a 4-tuple including the artifact set. Migrate by passing `Vec::new()` / destructuring the extra element where artifacts are not used.
+
+### Added
+
+- The signed bridge manifest carries an `artifacts` section (`SignedManifest.artifacts`, `ArtifactEntry`, `LibraryArtifactId`) of Cowork Artifacts-library HTML documents. Each entry is loaded from `services/artifacts/<id>/config.yaml` plus its HTML body (`DiskArtifactConfig`), scoped by the marketplace `artifacts` include list, and gated by its owning plugin's enablement.
+- `GET /v1/bridge/manifest` includes the signed `artifacts` section.
+- `MarketplaceConfig.artifacts` include list for scoping artifacts per marketplace.
+
 ## [0.18.0] - 2026-07-01
 
 ### Added

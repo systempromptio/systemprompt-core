@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Added
+
+- `SignedManifest.artifacts`: a signed manifest section of Cowork Artifacts-library HTML documents (`ArtifactEntry`, keyed by the new `LibraryArtifactId`). These are Cowork-native library documents, distinct from the in-chat MCP artifacts.
+- `DiskArtifactConfig` (`services/artifacts/<id>/config.yaml`) describing an on-disk artifact: id, owning `plugin_id`, `mcp_tools`, HTML content file, and enablement.
+- `MarketplaceConfig.artifacts`: an include list scoping which artifacts a marketplace ships.
+
 ## [0.17.0] - 2026-06-24
 
 ### Breaking
