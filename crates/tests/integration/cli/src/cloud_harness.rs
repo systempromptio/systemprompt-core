@@ -12,19 +12,18 @@
 //! give each test a clean slate.
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use chrono::Utc;
 use serde_json::json;
 use systemprompt_cli::cloud::auth::AuthCommands;
+use systemprompt_cli::cloud::secrets::SecretsCommands;
 use systemprompt_cli::cloud::tenant::{
     TenantCancelArgs, TenantCommands, TenantDeleteArgs, TenantRotateArgs,
 };
-use systemprompt_cli::cloud::secrets::SecretsCommands;
 use systemprompt_cli::cloud::{self, CloudCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
-use systemprompt_cloud::{CredentialsBootstrap, get_cloud_paths, CloudPath};
+use systemprompt_cloud::{CloudPath, CredentialsBootstrap, get_cloud_paths};
 use systemprompt_config::ProfileBootstrap;
 use tempfile::TempDir;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
@@ -39,7 +38,6 @@ const USER_EMAIL: &str = "harness@example.com";
 struct Harness {
     _tmp: TempDir,
     root: PathBuf,
-    profile_path: PathBuf,
     server: MockServer,
     profile_ready: bool,
 }
@@ -80,7 +78,6 @@ async fn build_harness() -> Harness {
     Harness {
         _tmp: tmp,
         root,
-        profile_path,
         server,
         profile_ready,
     }
@@ -500,7 +497,9 @@ async fn tenant_delete_without_yes_errors_non_interactive() {
 async fn tenant_rotate_credentials_updates_store() {
     let env = enter().await;
     Mock::given(method("POST"))
-        .and(path(format!("/api/v1/tenants/{TENANT_ID}/rotate-credentials")))
+        .and(path(format!(
+            "/api/v1/tenants/{TENANT_ID}/rotate-credentials"
+        )))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "status": "rotated",
             "message": "ok",
@@ -680,7 +679,7 @@ async fn secrets_set_rejects_only_system_managed() {
     }
     let err = cloud::execute(
         CloudCommands::Secrets(SecretsCommands::Set {
-            key_values: vec!["SYSTEMPROMPT_API_URL=http://x".to_owned()],
+            key_values: vec!["FLY_APP_NAME=x".to_owned()],
         }),
         &json_ctx(),
     )
@@ -713,7 +712,9 @@ async fn secrets_unset_removes_key() {
         return;
     }
     Mock::given(method("DELETE"))
-        .and(path(format!("/api/v1/tenants/{TENANT_ID}/secrets/CUSTOM_SECRET")))
+        .and(path(format!(
+            "/api/v1/tenants/{TENANT_ID}/secrets/CUSTOM_SECRET"
+        )))
         .respond_with(ResponseTemplate::new(204))
         .mount(env.server())
         .await;
@@ -735,12 +736,198 @@ async fn secrets_cleanup_removes_system_managed() {
         return;
     }
     Mock::given(method("DELETE"))
-        .and(path(format!("/api/v1/tenants/{TENANT_ID}/secrets/SYSTEMPROMPT_API_URL")))
+        .and(path(format!(
+            "/api/v1/tenants/{TENANT_ID}/secrets/SYSTEMPROMPT_API_URL"
+        )))
         .respond_with(ResponseTemplate::new(204))
         .mount(env.server())
         .await;
 
-    cloud::execute(CloudCommands::Secrets(SecretsCommands::Cleanup), &json_ctx())
-        .await
-        .expect("secrets cleanup");
+    cloud::execute(
+        CloudCommands::Secrets(SecretsCommands::Cleanup),
+        &json_ctx(),
+    )
+    .await
+    .expect("secrets cleanup");
+}
+
+#[tokio::test]
+async fn login_post_token_persists_credentials_and_tenants() {
+    let env = enter().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/activity"))
+        .respond_with(ResponseTemplate::new(204))
+        .mount(env.server())
+        .await;
+
+    let creds_path = get_cloud_paths().resolve(CloudPath::Credentials);
+    let tenants_path = get_cloud_paths().resolve(CloudPath::Tenants);
+    std::fs::remove_file(&creds_path).expect("remove seeded credentials");
+    std::fs::remove_file(&tenants_path).expect("remove seeded tenants");
+
+    let output = systemprompt_cli::cloud::auth::complete_login(
+        &env.server().uri(),
+        FAR_FUTURE_JWT.to_owned(),
+        &json_ctx().cli,
+    )
+    .await
+    .expect("post-token login");
+    let _ = output;
+
+    let saved = std::fs::read_to_string(&creds_path).expect("credentials written");
+    assert!(saved.contains(USER_EMAIL));
+    let store = TenantStore::load_from_path(&tenants_path).expect("tenants written");
+    assert!(store.tenants.iter().any(|t| t.id == TENANT_ID));
+}
+
+#[tokio::test]
+async fn login_post_token_fails_on_rejected_token() {
+    let env = enter().await;
+    env.server().reset().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/auth/me"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(env.server())
+        .await;
+
+    let err = systemprompt_cli::cloud::auth::complete_login(
+        &env.server().uri(),
+        FAR_FUTURE_JWT.to_owned(),
+        &json_ctx().cli,
+    )
+    .await
+    .expect_err("rejected token fails");
+    assert!(!err.to_string().is_empty());
+}
+
+#[tokio::test]
+async fn sync_pull_rejects_local_profile_tenant() {
+    let env = enter().await;
+    let _ = env;
+    let local_only = TenantStore::new(vec![StoredTenant::new_local(
+        TENANT_ID.to_owned(),
+        "Harness Prod".to_owned(),
+        "postgres://local/db".to_owned(),
+    )]);
+    local_only
+        .save_to_path(&get_cloud_paths().resolve(CloudPath::Tenants))
+        .expect("seed local-only tenants");
+
+    let err = cloud::execute(
+        CloudCommands::Sync {
+            command: Some(systemprompt_cli::cloud::sync::SyncCommands::Pull(
+                systemprompt_cli::cloud::sync::SyncArgs {
+                    dry_run: true,
+                    force: false,
+                    verbose: false,
+                },
+            )),
+        },
+        &json_ctx(),
+    )
+    .await
+    .expect_err("local tenant cannot sync");
+    assert!(err.to_string().contains("local tenant"));
+}
+
+#[tokio::test]
+async fn sync_push_requires_hostname() {
+    let env = enter().await;
+    let _ = env;
+    let no_hostname = TenantStore::new(vec![StoredTenant::new_cloud(NewCloudTenantParams {
+        id: TENANT_ID.to_owned(),
+        name: "Harness Prod".to_owned(),
+        app_id: None,
+        hostname: None,
+        region: None,
+        database_url: None,
+        internal_database_url: "postgres://int/db".to_owned(),
+        external_db_access: false,
+    })]);
+    no_hostname
+        .save_to_path(&get_cloud_paths().resolve(CloudPath::Tenants))
+        .expect("seed hostname-less tenants");
+
+    let err = cloud::execute(
+        CloudCommands::Sync {
+            command: Some(systemprompt_cli::cloud::sync::SyncCommands::Push(
+                systemprompt_cli::cloud::sync::SyncArgs {
+                    dry_run: true,
+                    force: false,
+                    verbose: false,
+                },
+            )),
+        },
+        &json_ctx(),
+    )
+    .await
+    .expect_err("push without hostname fails");
+    assert!(err.to_string().contains("Hostname"));
+}
+
+#[tokio::test]
+async fn admin_user_sync_creates_then_reports_existing_admin() {
+    let Some(database_url) = crate::full_bootstrap::database_url() else {
+        return;
+    };
+    let _env = enter().await;
+
+    let email = format!(
+        "harness-admin-{}-{}@example.com",
+        std::process::id(),
+        Utc::now().timestamp_micros()
+    );
+    let user = systemprompt_cli::cloud::sync::admin_user::CloudUser {
+        email: email.clone(),
+        name: Some("Harness Admin".to_owned()),
+    };
+
+    let first = systemprompt_cli::cloud::sync::admin_user::sync_admin_to_database(
+        &user,
+        &database_url,
+        "harness-profile",
+    )
+    .await;
+    assert!(
+        matches!(
+            first,
+            systemprompt_cli::cloud::sync::admin_user::SyncResult::Created { .. }
+        ),
+        "first sync should create the admin: {first:?}"
+    );
+
+    let second = systemprompt_cli::cloud::sync::admin_user::sync_admin_to_database(
+        &user,
+        &database_url,
+        "harness-profile",
+    )
+    .await;
+    assert!(
+        matches!(
+            second,
+            systemprompt_cli::cloud::sync::admin_user::SyncResult::AlreadyAdmin { .. }
+                | systemprompt_cli::cloud::sync::admin_user::SyncResult::Promoted { .. }
+        ),
+        "second sync should find the existing admin: {second:?}"
+    );
+    systemprompt_cli::cloud::sync::admin_user::print_sync_results(&[first, second]);
+}
+
+#[tokio::test]
+async fn admin_user_sync_reports_connection_failure() {
+    let _env = enter().await;
+    let user = systemprompt_cli::cloud::sync::admin_user::CloudUser {
+        email: "unreachable@example.com".to_owned(),
+        name: None,
+    };
+    let result = systemprompt_cli::cloud::sync::admin_user::sync_admin_to_database(
+        &user,
+        "postgres://nobody:nothing@127.0.0.1:1/void",
+        "dead-profile",
+    )
+    .await;
+    assert!(matches!(
+        result,
+        systemprompt_cli::cloud::sync::admin_user::SyncResult::ConnectionFailed { .. }
+    ));
 }

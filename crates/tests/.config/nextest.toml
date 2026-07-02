@@ -48,6 +48,7 @@ oauth-clients-db = { max-threads = 1 }
 users-db = { max-threads = 1 }
 generator-config-db = { max-threads = 1 }
 api-health-monitor-db = { max-threads = 1 }
+cli-cloud-harness = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'package(systemprompt-api-integration-tests) and test(/(messaging_dispatch|routes_slack|routes_teams)::/)'
@@ -141,3 +142,17 @@ test-group = 'scheduler-services-db'
 [[profile.ci.overrides]]
 filter = 'package(systemprompt-mcp-tests) and test(/(loader_live|orchestrator_extended|orchestrator_smoke|database_state|database_state_extended|database_sync|database_service|lifecycle_deep|lifecycle_smoke|proxy_health)::/)'
 test-group = 'scheduler-services-db'
+
+# The cloud CLI harness (cloud_harness) drives command paths in-process against
+# one shared wiremock server and one set of process-global bootstraps
+# (`CredentialsBootstrap`, `ProfileBootstrap`), and chdir's into a shared tempdir
+# project root for each test. An in-process async mutex already serialises the
+# module, but the group keeps its cwd mutation from racing sibling cwd-sensitive
+# tests in the same binary. Serialise it into one slot.
+[[profile.default.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
+test-group = 'cli-cloud-harness'
+
+[[profile.ci.overrides]]
+filter = 'package(systemprompt-cli-integration-tests) and test(/cloud_harness::/)'
+test-group = 'cli-cloud-harness'

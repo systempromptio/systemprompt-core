@@ -89,7 +89,10 @@ impl CommandRunner for StubRunner {
 
 #[test]
 fn sanitize_database_name_replaces_unsafe_chars() {
-    assert_eq!(database::sanitize_database_name("my-tenant.01"), "my_tenant_01");
+    assert_eq!(
+        database::sanitize_database_name("my-tenant.01"),
+        "my_tenant_01"
+    );
     assert_eq!(database::sanitize_database_name("keep_09"), "keep_09");
 }
 

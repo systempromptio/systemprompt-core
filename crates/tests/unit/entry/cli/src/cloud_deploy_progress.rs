@@ -12,7 +12,7 @@ use std::path::Path;
 use systemprompt_cli::cloud::deploy::progress::{CliDeployProgress, spinner_message};
 use systemprompt_sync::deploy::{DeployEvent, DeployProgress, DeployPrompt};
 use systemprompt_sync::{
-    FileDiffStatus, SyncDiffEntry, SyncDiffResult, SyncOperationResult, SyncOpState,
+    FileDiffStatus, SyncDiffEntry, SyncDiffResult, SyncOpState, SyncOperationResult,
 };
 
 fn op_result() -> SyncOperationResult {
