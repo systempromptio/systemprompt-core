@@ -45,7 +45,7 @@ impl OAuthRepository {
         Ok(())
     }
 
-    pub async fn get_client_id_from_auth_code(
+    pub async fn find_client_id_from_auth_code(
         &self,
         code: &AuthorizationCode,
     ) -> OauthResult<Option<ClientId>> {

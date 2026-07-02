@@ -67,7 +67,7 @@ async fn test_authorization_code_lifecycle() {
         .expect("Failed to store authorization code");
 
     let stored_client_id = repo
-        .get_client_id_from_auth_code(&code)
+        .find_client_id_from_auth_code(&code)
         .await
         .expect("Failed to get client_id from code")
         .expect("Code not found");

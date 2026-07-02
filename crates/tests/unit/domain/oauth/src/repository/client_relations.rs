@@ -86,7 +86,7 @@ async fn single_load_returns_all_relation_cardinalities() {
 
     let found = ctx
         .repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("get")
         .expect("present");
@@ -112,7 +112,7 @@ async fn single_load_absent_contacts_is_none() {
 
     let found = ctx
         .repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("get")
         .expect("present");
@@ -172,7 +172,7 @@ async fn batch_load_via_pagination_matches_single_load() {
 
     let single = ctx
         .repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("single")
         .expect("present");

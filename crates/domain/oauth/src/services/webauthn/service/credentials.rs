@@ -35,23 +35,18 @@ impl WebAuthnService {
                 )
         };
 
-        let params = WebAuthnCredentialParams::builder(
-            &id,
-            user_id.as_str(),
-            &credential_id,
-            &public_key,
-            counter,
-        )
-        .with_display_name(display_name)
-        .with_device_type("platform")
-        .with_transports(&transports)
-        .build();
+        let params =
+            WebAuthnCredentialParams::builder(&id, user_id, &credential_id, &public_key, counter)
+                .with_display_name(display_name)
+                .with_device_type("platform")
+                .with_transports(&transports)
+                .build();
 
         self.oauth_repo.store_webauthn_credential(params).await
     }
 
     pub(super) async fn get_user_credentials(&self, user_id: &UserId) -> Result<Vec<Passkey>> {
-        let credentials = self.oauth_repo.get_webauthn_credentials(user_id).await?;
+        let credentials = self.oauth_repo.list_webauthn_credentials(user_id).await?;
 
         let mut passkeys = Vec::new();
         for cred in credentials {

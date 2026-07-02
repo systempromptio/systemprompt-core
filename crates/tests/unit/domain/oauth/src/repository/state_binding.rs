@@ -2,6 +2,7 @@
 // cleanup) plus the builder defaults.
 
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
 use uuid::Uuid;
@@ -17,7 +18,7 @@ async fn repo() -> Option<OAuthRepository> {
 fn builder_applies_defaults() {
     let params = StateBindingParams::builder("tok").build();
     assert_eq!(params.return_to, "/");
-    assert_eq!(params.client_id, "");
+    assert_eq!(params.client_id.as_str(), "");
     assert_eq!(params.redirect_uri, "");
     assert!(params.expires_at > Utc::now());
 }
@@ -25,14 +26,15 @@ fn builder_applies_defaults() {
 #[test]
 fn builder_overrides_fields() {
     let exp = Utc::now() + Duration::minutes(5);
+    let client_id = ClientId::new("client-x");
     let params = StateBindingParams::builder("tok")
         .with_return_to("/dashboard")
-        .with_client_id("client-x")
+        .with_client_id(&client_id)
         .with_redirect_uri("https://app.invalid/cb")
         .with_expires_at(exp)
         .build();
     assert_eq!(params.return_to, "/dashboard");
-    assert_eq!(params.client_id, "client-x");
+    assert_eq!(params.client_id.as_str(), "client-x");
     assert_eq!(params.redirect_uri, "https://app.invalid/cb");
     assert_eq!(params.expires_at, exp);
 }
@@ -41,10 +43,11 @@ fn builder_overrides_fields() {
 async fn store_then_consume_once() {
     let Some(repo) = repo().await else { return };
     let token = format!("state-{}", Uuid::new_v4());
+    let client_id = ClientId::new("cid-x");
     repo.store_state_binding(
         StateBindingParams::builder(&token)
             .with_return_to("/back")
-            .with_client_id("cid-x")
+            .with_client_id(&client_id)
             .with_redirect_uri("https://app.invalid/cb")
             .build(),
     )

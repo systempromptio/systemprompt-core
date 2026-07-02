@@ -1,5 +1,10 @@
 //! RFC 7591 dynamic client registration types.
+//!
+//! Accessor defaults (grant/response types, auth method, application type)
+//! follow the RFC 7591 §2 and OIDC Dynamic Client Registration §2 server
+//! defaults for omitted fields.
 
+use crate::error::{OauthError, OauthResult};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
@@ -51,20 +56,26 @@ pub struct DynamicRegistrationResponse {
 }
 
 impl DynamicRegistrationRequest {
-    pub fn get_client_name(&self) -> Result<String, String> {
+    pub fn get_client_name(&self) -> OauthResult<String> {
         self.client_name
             .as_ref()
             .filter(|n| !n.is_empty())
-            .ok_or_else(|| "client_name is required for client registration".to_owned())
             .cloned()
+            .ok_or_else(|| {
+                OauthError::Validation("client_name is required for client registration".to_owned())
+            })
     }
 
-    pub fn get_redirect_uris(&self) -> Result<Vec<String>, String> {
+    pub fn get_redirect_uris(&self) -> OauthResult<Vec<String>> {
         self.redirect_uris
             .as_ref()
             .filter(|uris| !uris.is_empty())
-            .ok_or_else(|| "redirect_uris are required for client registration".to_owned())
             .cloned()
+            .ok_or_else(|| {
+                OauthError::Validation(
+                    "redirect_uris are required for client registration".to_owned(),
+                )
+            })
     }
 
     pub fn get_grant_types(&self) -> Vec<String> {
@@ -72,8 +83,6 @@ impl DynamicRegistrationRequest {
             .as_ref()
             .filter(|types| !types.is_empty())
             .cloned()
-            // RFC 7591 §2: when the client omits grant_types, the authorization server MUST
-            // default to ["authorization_code"]. A client wanting refresh_token must list it.
             .unwrap_or_else(|| vec!["authorization_code".to_owned()])
     }
 
@@ -82,8 +91,6 @@ impl DynamicRegistrationRequest {
             .as_ref()
             .filter(|types| !types.is_empty())
             .cloned()
-            // RFC 7591 §2: when the client omits response_types, the authorization server MUST
-            // default to ["code"].
             .unwrap_or_else(|| vec!["code".to_owned()])
     }
 
@@ -98,20 +105,16 @@ impl DynamicRegistrationRequest {
             .as_ref()
             .filter(|m| !m.is_empty())
             .cloned()
-            // RFC 7591 §2: server defaults this when client omits it; client_secret_basic is the
-            // spec default.
             .unwrap_or_else(|| "client_secret_basic".to_owned())
     }
 
-    pub fn get_application_type(&self) -> Result<String, String> {
+    pub fn get_application_type(&self) -> OauthResult<String> {
         match self.application_type.as_deref().filter(|t| !t.is_empty()) {
-            // OIDC Dynamic Client Registration §2: the only registered values are "web" and
-            // "native"; "web" is the default when the client omits the field.
             None => Ok("web".to_owned()),
             Some(t @ ("web" | "native")) => Ok(t.to_owned()),
-            Some(other) => Err(format!(
+            Some(other) => Err(OauthError::Validation(format!(
                 "application_type must be \"web\" or \"native\", got {other:?}"
-            )),
+            ))),
         }
     }
 }

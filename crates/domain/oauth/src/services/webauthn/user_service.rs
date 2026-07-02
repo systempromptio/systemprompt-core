@@ -2,6 +2,7 @@
 
 use crate::error::OauthResult as Result;
 use std::sync::Arc;
+use systemprompt_identifiers::UserId;
 use systemprompt_traits::UserProvider;
 
 pub struct UserCreationService {
@@ -25,14 +26,14 @@ impl UserCreationService {
         email: &str,
         full_name: Option<&str>,
         roles: Option<Vec<String>>,
-    ) -> Result<String> {
+    ) -> Result<UserId> {
         if let Some(existing_user) = self
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
+            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?
         {
-            return Ok(existing_user.id.as_str().to_owned());
+            return Ok(existing_user.id);
         }
 
         let roles = roles.unwrap_or_else(|| vec!["user".to_owned()]);
@@ -41,14 +42,14 @@ impl UserCreationService {
             .user_provider
             .create_user(username, email, full_name)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?;
+            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?;
 
         self.user_provider
             .assign_roles(&user.id, &roles)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?;
+            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?;
 
-        Ok(user.id.as_str().to_owned())
+        Ok(user.id)
     }
 
     pub async fn create_user_with_webauthn_registration(
@@ -56,12 +57,12 @@ impl UserCreationService {
         username: &str,
         email: &str,
         full_name: Option<&str>,
-    ) -> Result<String> {
+    ) -> Result<UserId> {
         if self
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
+            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?
             .is_some()
         {
             return Err(crate::error::OauthError::EmailRegistered(email.to_owned()));
@@ -71,7 +72,7 @@ impl UserCreationService {
             .user_provider
             .find_by_name(username)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{}", e)))?
+            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?
             .is_some()
         {
             return Err(crate::error::OauthError::UsernameTaken(username.to_owned()));

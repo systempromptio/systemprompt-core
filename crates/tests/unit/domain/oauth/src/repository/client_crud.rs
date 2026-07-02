@@ -62,7 +62,7 @@ async fn create_then_get_by_client_id_loads_relations() {
 
     let found = ctx
         .repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("get")
         .expect("present");
@@ -79,7 +79,7 @@ async fn get_missing_client_returns_none() {
     let missing = ClientId::new(format!("missing-{}", Uuid::new_v4().simple()));
     assert!(
         ctx.repo
-            .get_by_client_id(&missing)
+            .find_by_client_id(&missing)
             .await
             .expect("get")
             .is_none()
@@ -99,14 +99,14 @@ async fn deactivate_hides_from_active_get_but_visible_to_any() {
     assert_eq!(n, 1);
     assert!(
         ctx.repo
-            .get_by_client_id(&client_id)
+            .find_by_client_id(&client_id)
             .await
             .expect("active get")
             .is_none()
     );
     assert!(
         ctx.repo
-            .get_by_client_id_any(&client_id)
+            .find_by_client_id_any(&client_id)
             .await
             .expect("any get")
             .is_some()
@@ -116,7 +116,7 @@ async fn deactivate_hides_from_active_get_but_visible_to_any() {
     assert_eq!(n, 1);
     assert!(
         ctx.repo
-            .get_by_client_id(&client_id)
+            .find_by_client_id(&client_id)
             .await
             .expect("active get")
             .is_some()
@@ -221,7 +221,7 @@ async fn delete_removes_row() {
     assert_eq!(n, 1);
     assert!(
         ctx.repo
-            .get_by_client_id_any(&client_id)
+            .find_by_client_id_any(&client_id)
             .await
             .expect("get")
             .is_none()

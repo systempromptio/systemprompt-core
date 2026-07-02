@@ -29,7 +29,7 @@ pub(super) async fn handle_authorization_code_grant(
     let client_id = if let Some(id) = request.client_id.as_deref() {
         ClientId::new(id)
     } else {
-        repo.get_client_id_from_auth_code(&code)
+        repo.find_client_id_from_auth_code(&code)
             .await
             .map_err(|e| TokenError::ServerError {
                 message: format!("Failed to lookup authorization code: {e}"),
@@ -108,7 +108,7 @@ pub(super) async fn handle_refresh_token_grant(
     let client_id = if let Some(id) = request.client_id.as_deref() {
         ClientId::new(id)
     } else {
-        repo.get_client_id_from_refresh_token(&refresh_token)
+        repo.find_client_id_from_refresh_token(&refresh_token)
             .await
             .map_err(|e| TokenError::ServerError {
                 message: format!("Failed to lookup refresh token: {e}"),

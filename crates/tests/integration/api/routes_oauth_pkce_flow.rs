@@ -46,9 +46,9 @@ async fn seed_oauth_client_inserts_and_finds_by_id() -> anyhow::Result<()> {
 
     let repo = ClientRepository::new(&pool).expect("client repo");
     let found = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
-        .expect("get_by_client_id")
+        .expect("find_by_client_id")
         .expect("client present");
     assert_eq!(found.client_id, client_id);
     assert!(found.redirect_uris.iter().any(|u| u == &redirect_uri));

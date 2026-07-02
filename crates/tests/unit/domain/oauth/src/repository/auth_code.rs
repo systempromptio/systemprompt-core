@@ -60,7 +60,7 @@ async fn store_then_validate_without_pkce() {
 
     let found_client = ctx
         .repo
-        .get_client_id_from_auth_code(&code)
+        .find_client_id_from_auth_code(&code)
         .await
         .expect("client from code")
         .expect("present");
@@ -120,7 +120,7 @@ async fn validate_unknown_code_errors() {
     );
     assert!(
         ctx.repo
-            .get_client_id_from_auth_code(&code)
+            .find_client_id_from_auth_code(&code)
             .await
             .expect("lookup")
             .is_none()

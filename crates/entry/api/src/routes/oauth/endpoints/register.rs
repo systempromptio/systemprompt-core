@@ -46,10 +46,10 @@ pub async fn register_client(
 
     let client_name = request
         .get_client_name()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
+        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
     let redirect_uris = request
         .get_redirect_uris()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
+        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
     let grant_types = request.get_grant_types();
     let response_types = request.get_response_types();
     let scopes = determine_scopes(&request)
@@ -57,7 +57,7 @@ pub async fn register_client(
     let token_endpoint_auth_method = request.get_token_endpoint_auth_method();
     let application_type = request
         .get_application_type()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
+        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
 
     let params = CreateClientParams {
         client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),

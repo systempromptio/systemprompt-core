@@ -284,11 +284,12 @@ fn id_jag_claims(token: &str) -> IdJagClaims {
 #[test]
 fn mints_id_jag_with_correct_typ_and_claims() {
     install_test_signing_key();
+    let client_id = ClientId::new("client-a");
     let token = mint_id_jag(&IdJagGrant {
         sub: "user-42",
         email: Some("user@example.com"),
         aud: "https://core.example",
-        client_id: "client-a",
+        client_id: &client_id,
         scope: Some("user mcp"),
         ttl_secs: 300,
         issuer: "https://core.example",
@@ -314,11 +315,12 @@ fn mints_id_jag_with_correct_typ_and_claims() {
 #[test]
 fn defaults_optional_claims_to_none() {
     install_test_signing_key();
+    let client_id = ClientId::new("client-b");
     let token = mint_id_jag(&IdJagGrant {
         sub: "user-1",
         email: None,
         aud: "https://rs.example",
-        client_id: "client-b",
+        client_id: &client_id,
         scope: None,
         ttl_secs: 120,
         issuer: "https://core.example",

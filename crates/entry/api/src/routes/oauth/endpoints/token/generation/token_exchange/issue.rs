@@ -46,7 +46,7 @@ pub(super) async fn issue_id_jag(
         sub: &subject.sub,
         email: subject.email.as_deref(),
         aud,
-        client_id: client_id.as_str(),
+        client_id,
         scope: request.scope,
         ttl_secs: global.id_jag_ttl_secs,
         issuer: &global.jwt_issuer,

@@ -1,3 +1,5 @@
+//! Anonymous session creation: mints a new user, session row, and signed JWT.
+
 use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService};
 use crate::error::{OauthError, OauthResult};
 use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};

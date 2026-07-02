@@ -69,7 +69,7 @@ async fn store_then_validate() {
 
     let cid = ctx
         .repo
-        .get_client_id_from_refresh_token(&token)
+        .find_client_id_from_refresh_token(&token)
         .await
         .expect("client from token")
         .expect("present");
@@ -77,7 +77,7 @@ async fn store_then_validate() {
 
     let family = ctx
         .repo
-        .get_refresh_token_family(&token)
+        .find_refresh_token_family(&token)
         .await
         .expect("family")
         .expect("present");
@@ -96,7 +96,7 @@ async fn validate_unknown_token_errors() {
     );
     assert!(
         ctx.repo
-            .get_refresh_token_family(&token)
+            .find_refresh_token_family(&token)
             .await
             .expect("family")
             .is_none()
@@ -126,7 +126,7 @@ async fn consume_then_replay_revokes_family() {
 
     let family = ctx
         .repo
-        .get_refresh_token_family(&parent)
+        .find_refresh_token_family(&parent)
         .await
         .expect("family")
         .expect("present");
@@ -164,7 +164,7 @@ async fn consume_then_replay_revokes_family() {
     // Child is now gone too.
     assert!(
         ctx.repo
-            .get_refresh_token_family(&child)
+            .find_refresh_token_family(&child)
             .await
             .expect("child family")
             .is_none()
@@ -212,7 +212,7 @@ async fn revoke_refresh_token_family_removes_all() {
     store(&ctx, &a, exp).await;
     let family = ctx
         .repo
-        .get_refresh_token_family(&a)
+        .find_refresh_token_family(&a)
         .await
         .expect("family")
         .expect("present");

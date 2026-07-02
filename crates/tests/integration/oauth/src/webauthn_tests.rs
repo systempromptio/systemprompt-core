@@ -19,7 +19,7 @@ async fn test_webauthn_credential_lifecycle() {
 
     let params = WebAuthnCredentialParams::builder(
         &id,
-        user_id.as_str(),
+        &user_id,
         &credential_id,
         &public_key,
         counter,
@@ -34,7 +34,7 @@ async fn test_webauthn_credential_lifecycle() {
         .expect("Failed to store credential");
 
     let credentials = repo
-        .get_webauthn_credentials(&user_id)
+        .list_webauthn_credentials(&user_id)
         .await
         .expect("Failed to get credentials");
 
@@ -61,7 +61,7 @@ async fn test_webauthn_credential_counter_update() {
     let transports = vec!["usb".to_string()];
 
     let params =
-        WebAuthnCredentialParams::builder(&id, user_id.as_str(), &credential_id, &public_key, 0)
+        WebAuthnCredentialParams::builder(&id, &user_id, &credential_id, &public_key, 0)
             .with_display_name("Test Credential")
             .with_device_type("cross-platform")
             .with_transports(&transports)
@@ -77,7 +77,7 @@ async fn test_webauthn_credential_counter_update() {
         .expect("Failed to update counter");
 
     let credentials = repo
-        .get_webauthn_credentials(&user_id)
+        .list_webauthn_credentials(&user_id)
         .await
         .expect("Failed to get credentials");
 
@@ -103,7 +103,7 @@ async fn test_webauthn_multiple_credentials_per_user() {
 
         let params = WebAuthnCredentialParams::builder(
             &id,
-            user_id.as_str(),
+            &user_id,
             &credential_id,
             &public_key,
             0,
@@ -119,7 +119,7 @@ async fn test_webauthn_multiple_credentials_per_user() {
     }
 
     let credentials = repo
-        .get_webauthn_credentials(&user_id)
+        .list_webauthn_credentials(&user_id)
         .await
         .expect("Failed to get credentials");
 
@@ -136,7 +136,7 @@ async fn test_webauthn_empty_for_new_user() {
     let nonexistent_user_id = unique_user_id("user");
 
     let credentials = repo
-        .get_webauthn_credentials(&nonexistent_user_id)
+        .list_webauthn_credentials(&nonexistent_user_id)
         .await
         .expect("Failed to get credentials");
 

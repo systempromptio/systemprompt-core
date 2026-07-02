@@ -26,10 +26,10 @@ pub async fn update_client_configuration(
 
     let client_name = request
         .get_client_name()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
+        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
     let mut redirect_uris = request
         .get_redirect_uris()
-        .map_err(OAuthHttpError::invalid_client_metadata)?;
+        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
     redirect_uris.sort();
     redirect_uris.dedup();
 

@@ -135,7 +135,7 @@ impl WebAuthnService {
             .finish_passkey_registration(params.reg_response, &reg_state)
         {
             Ok(sk) => {
-                let user_id_str = self
+                let user_id = self
                     .user_creation_service
                     .create_user_with_webauthn_registration(
                         params.username,
@@ -143,7 +143,6 @@ impl WebAuthnService {
                         params.full_name,
                     )
                     .await?;
-                let user_id = systemprompt_identifiers::UserId::new(user_id_str);
 
                 let credential_id = sk.cred_id().clone();
                 let display_name = params

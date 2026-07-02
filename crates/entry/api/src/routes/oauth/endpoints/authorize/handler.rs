@@ -45,7 +45,7 @@ async fn issue_server_state(
     let server_state = generate_secure_token("state");
     let binding = StateBindingParams::builder(&server_state)
         .with_return_to(return_to)
-        .with_client_id(params.client_id.as_str())
+        .with_client_id(&params.client_id)
         .with_redirect_uri(params.redirect_uri.as_deref().unwrap_or(""))
         .build();
     repo.store_state_binding(binding).await.map_err(|e| {

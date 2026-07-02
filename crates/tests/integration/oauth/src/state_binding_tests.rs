@@ -2,6 +2,7 @@
 
 use crate::setup_test_db;
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
 use uuid::Uuid;
 
@@ -14,11 +15,12 @@ async fn roundtrip_consumes_once() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db).expect("repo");
     let token = unique_token();
+    let client_id = ClientId::new("client_state_test");
 
     repo.store_state_binding(
         StateBindingParams::builder(&token)
             .with_return_to("/dashboard")
-            .with_client_id("client_state_test")
+            .with_client_id(&client_id)
             .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
@@ -47,11 +49,12 @@ async fn expired_row_rejected() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db).expect("repo");
     let token = unique_token();
+    let client_id = ClientId::new("client_state_test_expired");
 
     repo.store_state_binding(
         StateBindingParams::builder(&token)
             .with_return_to("/x")
-            .with_client_id("client_state_test_expired")
+            .with_client_id(&client_id)
             .with_redirect_uri("https://example.invalid/cb")
             .with_expires_at(Utc::now() - Duration::seconds(1))
             .build(),
@@ -71,11 +74,12 @@ async fn tampered_state_rejected() {
     let db = setup_test_db().await;
     let repo = OAuthRepository::new(&db).expect("repo");
     let token = unique_token();
+    let client_id = ClientId::new("client_state_test_tamper");
 
     repo.store_state_binding(
         StateBindingParams::builder(&token)
             .with_return_to("/orig")
-            .with_client_id("client_state_test_tamper")
+            .with_client_id(&client_id)
             .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
@@ -95,11 +99,13 @@ async fn cleanup_expired_removes_only_expired() {
     let repo = OAuthRepository::new(&db).expect("repo");
     let live = unique_token();
     let dead = unique_token();
+    let live_client_id = ClientId::new("cleanup_live");
+    let dead_client_id = ClientId::new("cleanup_dead");
 
     repo.store_state_binding(
         StateBindingParams::builder(&live)
             .with_return_to("/")
-            .with_client_id("cleanup_live")
+            .with_client_id(&live_client_id)
             .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
@@ -108,7 +114,7 @@ async fn cleanup_expired_removes_only_expired() {
     repo.store_state_binding(
         StateBindingParams::builder(&dead)
             .with_return_to("/")
-            .with_client_id("cleanup_dead")
+            .with_client_id(&dead_client_id)
             .with_redirect_uri("https://example.invalid/cb")
             .with_expires_at(Utc::now() - Duration::seconds(60))
             .build(),

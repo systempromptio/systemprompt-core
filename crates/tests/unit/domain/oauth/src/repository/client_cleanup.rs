@@ -61,7 +61,7 @@ async fn cleanup_inactive_deletes_deactivated() {
     assert!(removed >= 1);
     assert!(
         ctx.repo
-            .get_by_client_id_any(&client_id)
+            .find_by_client_id_any(&client_id)
             .await
             .expect("get")
             .is_none()
@@ -89,7 +89,7 @@ async fn delete_unused_removes_never_used() {
     assert!(removed >= 1);
     assert!(
         ctx.repo
-            .get_by_client_id_any(&client_id)
+            .find_by_client_id_any(&client_id)
             .await
             .expect("get")
             .is_none()

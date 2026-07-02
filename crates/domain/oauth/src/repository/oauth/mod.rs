@@ -127,7 +127,7 @@ impl OAuthRepository {
         client_id: &ClientId,
     ) -> OauthResult<Option<OAuthClient>> {
         let client_repo = &self.client_repo;
-        client_repo.get_by_client_id(client_id).await
+        client_repo.find_by_client_id(client_id).await
     }
 
     pub async fn find_client_by_redirect_uri(

@@ -38,7 +38,7 @@ impl OAuthRepository {
     /// Returns the family regardless of whether the token has been consumed —
     /// callers use this to revoke the family on replay. `None` means the
     /// token does not exist.
-    pub async fn get_refresh_token_family(
+    pub async fn find_refresh_token_family(
         &self,
         token_id: &RefreshTokenId,
     ) -> OauthResult<Option<String>> {
@@ -199,7 +199,7 @@ impl OAuthRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn get_client_id_from_refresh_token(
+    pub async fn find_client_id_from_refresh_token(
         &self,
         token_id: &RefreshTokenId,
     ) -> OauthResult<Option<ClientId>> {

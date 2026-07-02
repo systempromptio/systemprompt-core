@@ -12,7 +12,7 @@ use systemprompt_identifiers::{
     ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
 use systemprompt_models::Config;
-use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_traits::{AnalyticsProvider, CreateSessionInput};
 
 use crate::repository::{CreateClientParams, CreateExchangeCodeParams, OAuthRepository};
@@ -93,22 +93,7 @@ pub async fn issue_bridge_access_with(
     let policy_version = PolicyVersion::unversioned();
 
     let ttl_hours = i64::try_from((ttl_seconds / 3600).max(1)).unwrap_or(1);
-    let config = JwtConfig {
-        permissions: auth_user.permissions().to_vec(),
-        // The bridge runs a first-party loopback proxy that fronts managed
-        // services on behalf of this authenticated user: it injects this token
-        // when forwarding Cowork/Codex MCP traffic to `/api/v1/mcp/<svc>`. The
-        // service-proxy guard (`validate_service_access`) only accepts the
-        // global service audiences, and each MCP server's RBAC requires the
-        // `mcp` audience — so the bridge token must carry `mcp` in addition to
-        // `bridge` (kept for the auth/`/v1/messages` paths). Per-user, short
-        // TTL, loopback-only, so granting service audience to this token is
-        // the same trust as the OAuth flow it replaces.
-        audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
-        expires_in_hours: Some(ttl_hours),
-        resource: None,
-        plugin_id: None,
-    };
+    let config = build_bridge_jwt_config(&auth_user, ttl_hours);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
     };
@@ -140,25 +125,68 @@ pub async fn issue_bridge_access_with(
         .await
         .map_err(|e| OauthError::Session(e.to_string()))?;
 
-    let mut hdrs = HashMap::new();
-    hdrs.insert(headers::USER_ID.to_owned(), user_id.to_string());
-    hdrs.insert(headers::SESSION_ID.to_owned(), session_id.to_string());
-    hdrs.insert(headers::TRACE_ID.to_owned(), trace_id.to_string());
-    hdrs.insert(headers::CLIENT_ID.to_owned(), client_id.to_string());
-    hdrs.insert(
-        headers::POLICY_VERSION.to_owned(),
-        policy_version.to_string(),
-    );
-    hdrs.insert(
-        headers::CALL_SOURCE.to_owned(),
-        session_source.as_str().to_owned(),
-    );
+    let hdrs = build_bridge_headers(&BridgeHeaderParams {
+        user_id,
+        session_id: &session_id,
+        trace_id: &trace_id,
+        client_id: &client_id,
+        policy_version: &policy_version,
+        session_source,
+    });
 
     Ok(BridgeAuthResult {
         token,
         ttl: ttl_seconds,
         headers: hdrs,
     })
+}
+
+fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl_hours: i64) -> JwtConfig {
+    JwtConfig {
+        permissions: auth_user.permissions().to_vec(),
+        // The bridge runs a first-party loopback proxy that fronts managed
+        // services on behalf of this authenticated user: it injects this token
+        // when forwarding Cowork/Codex MCP traffic to `/api/v1/mcp/<svc>`. The
+        // service-proxy guard (`validate_service_access`) only accepts the
+        // global service audiences, and each MCP server's RBAC requires the
+        // `mcp` audience — so the bridge token must carry `mcp` in addition to
+        // `bridge` (kept for the auth/`/v1/messages` paths). Per-user, short
+        // TTL, loopback-only, so granting service audience to this token is
+        // the same trust as the OAuth flow it replaces.
+        audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
+        expires_in_hours: Some(ttl_hours),
+        resource: None,
+        plugin_id: None,
+    }
+}
+
+struct BridgeHeaderParams<'a> {
+    user_id: &'a UserId,
+    session_id: &'a SessionId,
+    trace_id: &'a TraceId,
+    client_id: &'a ClientId,
+    policy_version: &'a PolicyVersion,
+    session_source: SessionSource,
+}
+
+fn build_bridge_headers(params: &BridgeHeaderParams<'_>) -> HashMap<String, String> {
+    let mut hdrs = HashMap::new();
+    hdrs.insert(headers::USER_ID.to_owned(), params.user_id.to_string());
+    hdrs.insert(
+        headers::SESSION_ID.to_owned(),
+        params.session_id.to_string(),
+    );
+    hdrs.insert(headers::TRACE_ID.to_owned(), params.trace_id.to_string());
+    hdrs.insert(headers::CLIENT_ID.to_owned(), params.client_id.to_string());
+    hdrs.insert(
+        headers::POLICY_VERSION.to_owned(),
+        params.policy_version.to_string(),
+    );
+    hdrs.insert(
+        headers::CALL_SOURCE.to_owned(),
+        params.session_source.as_str().to_owned(),
+    );
+    hdrs
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -47,7 +47,7 @@ async fn test_client_lifecycle() {
     assert_eq!(created.redirect_uris.len(), 1);
 
     let found = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("Failed to get client")
         .expect("Client not found");
@@ -60,14 +60,14 @@ async fn test_client_lifecycle() {
         .expect("Failed to deactivate client");
 
     let inactive = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("Failed to get client");
 
     assert!(inactive.is_none(), "Deactivated client should not be found");
 
     let found_any = repo
-        .get_by_client_id_any(&client_id)
+        .find_by_client_id_any(&client_id)
         .await
         .expect("Failed to get client (any)")
         .expect("Client not found (any)");
@@ -79,7 +79,7 @@ async fn test_client_lifecycle() {
         .expect("Failed to activate client");
 
     let reactivated = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("Failed to get client")
         .expect("Client not found after reactivation");
@@ -91,7 +91,7 @@ async fn test_client_lifecycle() {
         .expect("Failed to delete client");
 
     let deleted = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("Failed to query deleted client");
 
@@ -233,7 +233,7 @@ async fn test_client_counting() {
     );
 
     let client_exists = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("Failed to query client")
         .is_some();
@@ -277,7 +277,7 @@ async fn test_application_type_round_trip() {
     assert_eq!(created.application_type, "native");
 
     let fetched = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("query client")
         .expect("client present");

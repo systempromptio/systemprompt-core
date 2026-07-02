@@ -36,7 +36,7 @@ async fn store_then_get_credentials() {
         .store_webauthn_credential(
             WebAuthnCredentialParams::builder(
                 &id,
-                ctx.user_id.as_str(),
+                &ctx.user_id,
                 &credential_id,
                 &public_key,
                 0,
@@ -51,7 +51,7 @@ async fn store_then_get_credentials() {
 
     let creds = ctx
         .repo
-        .get_webauthn_credentials(&ctx.user_id)
+        .list_webauthn_credentials(&ctx.user_id)
         .await
         .expect("get");
     let found = creds.iter().find(|c| c.id == id).expect("present");
@@ -70,7 +70,7 @@ async fn get_credentials_empty_for_unknown_user() {
     let other = unique_user_id("wa-empty");
     let creds = ctx
         .repo
-        .get_webauthn_credentials(&other)
+        .list_webauthn_credentials(&other)
         .await
         .expect("get");
     assert!(creds.is_empty());
@@ -86,7 +86,7 @@ async fn update_counter_advances() {
         .store_webauthn_credential(
             WebAuthnCredentialParams::builder(
                 &id,
-                ctx.user_id.as_str(),
+                &ctx.user_id,
                 &credential_id,
                 &[9u8, 9, 9],
                 5,
@@ -104,7 +104,7 @@ async fn update_counter_advances() {
 
     let creds = ctx
         .repo
-        .get_webauthn_credentials(&ctx.user_id)
+        .list_webauthn_credentials(&ctx.user_id)
         .await
         .expect("get");
     let found = creds.iter().find(|c| c.id == id).expect("present");

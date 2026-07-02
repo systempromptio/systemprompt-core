@@ -21,7 +21,7 @@ pub struct WebAuthnCredential {
 #[derive(Debug)]
 pub struct WebAuthnCredentialParams<'a> {
     pub id: &'a str,
-    pub user_id: &'a str,
+    pub user_id: &'a UserId,
     pub credential_id: &'a [u8],
     pub public_key: &'a [u8],
     pub counter: u32,
@@ -33,7 +33,7 @@ pub struct WebAuthnCredentialParams<'a> {
 #[derive(Debug)]
 pub struct WebAuthnCredentialParamsBuilder<'a> {
     id: &'a str,
-    user_id: &'a str,
+    user_id: &'a UserId,
     credential_id: &'a [u8],
     public_key: &'a [u8],
     counter: u32,
@@ -45,7 +45,7 @@ pub struct WebAuthnCredentialParamsBuilder<'a> {
 impl<'a> WebAuthnCredentialParamsBuilder<'a> {
     pub const fn new(
         id: &'a str,
-        user_id: &'a str,
+        user_id: &'a UserId,
         credential_id: &'a [u8],
         public_key: &'a [u8],
         counter: u32,
@@ -94,7 +94,7 @@ impl<'a> WebAuthnCredentialParamsBuilder<'a> {
 impl<'a> WebAuthnCredentialParams<'a> {
     pub const fn builder(
         id: &'a str,
-        user_id: &'a str,
+        user_id: &'a UserId,
         credential_id: &'a [u8],
         public_key: &'a [u8],
         counter: u32,
@@ -120,7 +120,7 @@ impl crate::repository::OAuthRepository {
              transports, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
             params.id,
-            params.user_id,
+            params.user_id.as_str(),
             params.credential_id,
             params.public_key,
             counter_i32,
@@ -135,7 +135,7 @@ impl crate::repository::OAuthRepository {
         Ok(())
     }
 
-    pub async fn get_webauthn_credentials(
+    pub async fn list_webauthn_credentials(
         &self,
         user_id: &UserId,
     ) -> Result<Vec<WebAuthnCredential>> {

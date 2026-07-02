@@ -6,7 +6,7 @@ use crate::models::{OAuthClient, OAuthClientRow};
 use systemprompt_identifiers::ClientId;
 
 impl ClientRepository {
-    pub async fn get_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
+    pub async fn find_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,
@@ -28,7 +28,7 @@ impl ClientRepository {
         }
     }
 
-    pub async fn get_by_client_id_any(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
+    pub async fn find_by_client_id_any(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
             OAuthClientRow,

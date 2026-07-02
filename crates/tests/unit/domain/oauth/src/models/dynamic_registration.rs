@@ -62,7 +62,7 @@ fn test_get_client_name_missing() {
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_client_name();
     let err = result.unwrap_err();
-    assert!(err.contains("client_name is required"));
+    assert!(err.to_string().contains("client_name is required"));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn test_get_redirect_uris_missing() {
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let result = request.get_redirect_uris();
     let err = result.unwrap_err();
-    assert!(err.contains("redirect_uris are required"));
+    assert!(err.to_string().contains("redirect_uris are required"));
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn test_get_application_type_unknown_rejected() {
     let json = r#"{"application_type": "foo"}"#;
     let request: DynamicRegistrationRequest = serde_json::from_str(json).unwrap();
     let err = request.get_application_type().unwrap_err();
-    assert!(err.contains("application_type"));
+    assert!(err.to_string().contains("application_type"));
 }
 
 #[test]

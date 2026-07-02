@@ -9,15 +9,18 @@ use super::OAuthRepository;
 use super::at_rest::hash_at_rest;
 use crate::error::OauthResult;
 use chrono::{DateTime, Duration, Utc};
+use std::sync::LazyLock;
 use systemprompt_identifiers::ClientId;
 
 const DEFAULT_TTL: Duration = Duration::minutes(10);
+
+static EMPTY_CLIENT_ID: LazyLock<ClientId> = LazyLock::new(|| ClientId::new(""));
 
 #[derive(Debug)]
 pub struct StateBindingParams<'a> {
     pub state_token: &'a str,
     pub return_to: &'a str,
-    pub client_id: &'a str,
+    pub client_id: &'a ClientId,
     pub redirect_uri: &'a str,
     pub expires_at: DateTime<Utc>,
 }
@@ -26,7 +29,7 @@ pub struct StateBindingParams<'a> {
 pub struct StateBindingParamsBuilder<'a> {
     state_token: &'a str,
     return_to: Option<&'a str>,
-    client_id: Option<&'a str>,
+    client_id: Option<&'a ClientId>,
     redirect_uri: Option<&'a str>,
     expires_at: Option<DateTime<Utc>>,
 }
@@ -47,7 +50,7 @@ impl<'a> StateBindingParamsBuilder<'a> {
         self
     }
 
-    pub const fn with_client_id(mut self, client_id: &'a str) -> Self {
+    pub const fn with_client_id(mut self, client_id: &'a ClientId) -> Self {
         self.client_id = Some(client_id);
         self
     }
@@ -66,7 +69,7 @@ impl<'a> StateBindingParamsBuilder<'a> {
         StateBindingParams {
             state_token: self.state_token,
             return_to: self.return_to.unwrap_or("/"),
-            client_id: self.client_id.unwrap_or(""),
+            client_id: self.client_id.unwrap_or(&EMPTY_CLIENT_ID),
             redirect_uri: self.redirect_uri.unwrap_or(""),
             expires_at: self.expires_at.unwrap_or_else(|| Utc::now() + DEFAULT_TTL),
         }
@@ -95,7 +98,7 @@ impl OAuthRepository {
              VALUES ($1, $2, $3, $4, now(), $5)",
             state_token_hash,
             params.return_to,
-            params.client_id,
+            params.client_id.as_str(),
             params.redirect_uri,
             params.expires_at,
         )

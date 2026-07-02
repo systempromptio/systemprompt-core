@@ -398,7 +398,7 @@ async fn test_dynamic_client_registration_owner_not_hijackable() {
     );
 
     let row = repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("read client")
         .expect("client present");
@@ -459,7 +459,7 @@ async fn test_concurrent_client_registration_race() {
 
     let read_repo = ClientRepository::new(&db).expect("client repo");
     let row = read_repo
-        .get_by_client_id(&client_id)
+        .find_by_client_id(&client_id)
         .await
         .expect("read")
         .expect("present");

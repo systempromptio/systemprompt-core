@@ -410,11 +410,12 @@ async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
 fn mint_id_jag_for(client_id: &str, aud: &str) -> String {
     install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();
+    let client_id = ClientId::new(client_id);
     mint_id_jag(&IdJagGrant {
         sub: "id-jag-subject",
         email: Some("subj@tx.invalid"),
         aud,
-        client_id,
+        client_id: &client_id,
         scope: Some("user"),
         ttl_secs: 300,
         issuer: &issuer,

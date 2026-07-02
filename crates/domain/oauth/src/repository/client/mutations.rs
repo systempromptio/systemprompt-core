@@ -165,7 +165,7 @@ impl ClientRepository {
 
         tx.commit().await?;
 
-        self.get_by_client_id(&params.client_id).await
+        self.find_by_client_id(&params.client_id).await
     }
 
     pub async fn update_secret(
@@ -189,7 +189,7 @@ impl ClientRepository {
             return Ok(None);
         }
 
-        self.get_by_client_id(client_id).await
+        self.find_by_client_id(client_id).await
     }
 
     pub async fn delete(&self, client_id: &ClientId) -> Result<u64> {
