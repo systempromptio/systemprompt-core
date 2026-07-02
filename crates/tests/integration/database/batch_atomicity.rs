@@ -41,16 +41,20 @@ fn unique_table(prefix: &str) -> String {
 }
 
 async fn drop_table(pool: &PgPool, table: &str) {
-    let _ = sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(pool)
+    .await;
 }
 
 async fn count(pool: &PgPool, table: &str) -> i64 {
-    let row = sqlx::query(&format!("SELECT COUNT(*)::bigint AS n FROM {table}"))
-        .fetch_one(pool)
-        .await
-        .expect("count");
+    let row = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "SELECT COUNT(*)::bigint AS n FROM {table}"
+    )))
+    .fetch_one(pool)
+    .await
+    .expect("count");
     row.try_get("n").expect("n")
 }
 
@@ -58,17 +62,17 @@ async fn count(pool: &PgPool, table: &str) -> i64 {
 async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
     let pool = connect_pool().await;
     let table = unique_table("multi_unique");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
 
-    let outcome = sqlx::query(&format!(
+    let outcome = sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {table}(id, payload) VALUES ('row-1','a'), ('row-2','b'), ('row-1','dup'), \
          ('row-3','c')"
-    ))
+    )))
     .execute(&pool)
     .await;
 
@@ -91,31 +95,37 @@ async fn multi_row_insert_unique_violation_rolls_back_entire_statement() {
 async fn transactional_batch_rolls_back_on_mid_batch_failure() {
     let pool = connect_pool().await;
     let table = unique_table("tx_batch");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
 
     let mut tx = pool.begin().await.unwrap();
-    sqlx::query(&format!("INSERT INTO {table}(id, payload) VALUES ($1,$2)"))
-        .bind("row-1")
-        .bind("a")
-        .execute(&mut *tx)
-        .await
-        .unwrap();
-    sqlx::query(&format!("INSERT INTO {table}(id, payload) VALUES ($1,$2)"))
-        .bind("row-2")
-        .bind("b")
-        .execute(&mut *tx)
-        .await
-        .unwrap();
-    let conflict = sqlx::query(&format!("INSERT INTO {table}(id, payload) VALUES ($1,$2)"))
-        .bind("row-1")
-        .bind("dup")
-        .execute(&mut *tx)
-        .await;
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {table}(id, payload) VALUES ($1,$2)"
+    )))
+    .bind("row-1")
+    .bind("a")
+    .execute(&mut *tx)
+    .await
+    .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {table}(id, payload) VALUES ($1,$2)"
+    )))
+    .bind("row-2")
+    .bind("b")
+    .execute(&mut *tx)
+    .await
+    .unwrap();
+    let conflict = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {table}(id, payload) VALUES ($1,$2)"
+    )))
+    .bind("row-1")
+    .bind("dup")
+    .execute(&mut *tx)
+    .await;
     assert!(
         conflict.is_err(),
         "duplicate id should fail mid-transaction"
@@ -137,35 +147,39 @@ async fn transactional_batch_rolls_back_on_mid_batch_failure() {
 async fn upsert_do_nothing_preserves_existing_rows() {
     let pool = connect_pool().await;
     let table = unique_table("conflict_nothing");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
 
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {table}(id, payload) VALUES ('row-1','original')"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {table}(id, payload) VALUES ('row-1','clobber'), ('row-2','new') ON \
          CONFLICT(id) DO NOTHING"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
 
-    let row1: String = sqlx::query_scalar(&format!("SELECT payload FROM {table} WHERE id='row-1'"))
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    let row2: String = sqlx::query_scalar(&format!("SELECT payload FROM {table} WHERE id='row-2'"))
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let row1: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT payload FROM {table} WHERE id='row-1'"
+    )))
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let row2: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT payload FROM {table} WHERE id='row-2'"
+    )))
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(
         row1, "original",
         "DO NOTHING must preserve the pre-existing payload; 'clobber' would indicate the call \
@@ -180,9 +194,9 @@ async fn upsert_do_nothing_preserves_existing_rows() {
 async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
     let pool = Arc::new(connect_pool().await);
     let table = unique_table("upsert_race");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, payload TEXT NOT NULL, version INT NOT NULL)"
-    ))
+    )))
     .execute(pool.as_ref())
     .await
     .unwrap();
@@ -194,10 +208,10 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
         let table = table.clone();
         handles.push(tokio::spawn(async move {
             let payload = format!("writer-{i}");
-            sqlx::query(&format!(
+            sqlx::query(sqlx::AssertSqlSafe(format!(
                 "INSERT INTO {table}(id, payload, version) VALUES ('contested', $1, $2) ON \
                  CONFLICT(id) DO UPDATE SET payload = EXCLUDED.payload, version = EXCLUDED.version"
-            ))
+            )))
             .bind(&payload)
             .bind(i as i32)
             .execute(pool.as_ref())
@@ -209,9 +223,9 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
         handle.await.expect("writer joined");
     }
 
-    let rows = sqlx::query(&format!(
+    let rows = sqlx::query(sqlx::AssertSqlSafe(format!(
         "SELECT payload, version FROM {table} WHERE id = 'contested'"
-    ))
+    )))
     .fetch_all(pool.as_ref())
     .await
     .unwrap();
@@ -246,41 +260,43 @@ async fn concurrent_upsert_produces_single_row_with_a_complete_write() {
 async fn upsert_do_update_does_not_clobber_unrelated_columns() {
     let pool = connect_pool().await;
     let table = unique_table("upsert_partial");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (
             id TEXT PRIMARY KEY,
             payload TEXT NOT NULL,
             audit_note TEXT NOT NULL
         )"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {table}(id, payload, audit_note) VALUES ('row', 'v1', 'kept')"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
 
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {table}(id, payload, audit_note) VALUES ('row', 'v2', 'ignored') ON \
          CONFLICT(id) DO UPDATE SET payload = EXCLUDED.payload"
-    ))
+    )))
     .execute(&pool)
     .await
     .unwrap();
 
-    let payload: String =
-        sqlx::query_scalar(&format!("SELECT payload FROM {table} WHERE id='row'"))
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-    let note: String =
-        sqlx::query_scalar(&format!("SELECT audit_note FROM {table} WHERE id='row'"))
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let payload: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT payload FROM {table} WHERE id='row'"
+    )))
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let note: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT audit_note FROM {table} WHERE id='row'"
+    )))
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(payload, "v2", "the SET column updates as instructed");
     assert_eq!(
         note, "kept",

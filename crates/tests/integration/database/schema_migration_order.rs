@@ -49,14 +49,18 @@ impl Drop for FixtureCleanup {
             let rt = tokio::runtime::Handle::current();
             rt.block_on(async move {
                 for v in &views {
-                    let _ = sqlx::query(&format!("DROP VIEW IF EXISTS {v} CASCADE"))
-                        .execute(&pool)
-                        .await;
+                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+                        "DROP VIEW IF EXISTS {v} CASCADE"
+                    )))
+                    .execute(&pool)
+                    .await;
                 }
                 for t in &tables {
-                    let _ = sqlx::query(&format!("DROP TABLE IF EXISTS {t} CASCADE"))
-                        .execute(&pool)
-                        .await;
+                    let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+                        "DROP TABLE IF EXISTS {t} CASCADE"
+                    )))
+                    .execute(&pool)
+                    .await;
                 }
                 for ext_id in &extension_ids {
                     let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
@@ -178,13 +182,15 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
     let index_name: &'static str = leak_str(format!("idx_{table}_gateway_conversation_id"));
     let ext_id: &'static str = leak_str(format!("logs-ext-{suffix}"));
 
-    sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("pre-clean");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("pre-clean");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, level TEXT, message TEXT)"
-    ))
+    )))
     .execute(&pool)
     .await
     .expect("create legacy logs table");
@@ -245,17 +251,21 @@ async fn view_in_schema_can_reference_column_added_by_migration() {
     let view: &'static str = leak_str(format!("v_{table}"));
     let ext_id: &'static str = leak_str(format!("events-ext-{suffix}"));
 
-    sqlx::query(&format!("DROP VIEW IF EXISTS {view} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("pre-clean view");
-    sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("pre-clean table");
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP VIEW IF EXISTS {view} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("pre-clean view");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("pre-clean table");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "CREATE TABLE {table} (id TEXT PRIMARY KEY, kind TEXT)"
-    ))
+    )))
     .execute(&pool)
     .await
     .expect("create legacy events table");

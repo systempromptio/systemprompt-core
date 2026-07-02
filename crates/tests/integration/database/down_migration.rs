@@ -121,10 +121,12 @@ async fn apply_revert_reapply_round_trip() {
     ));
     let down_sql: &'static str = leak_str(format!("DROP TABLE {table};"));
 
-    sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("pre-clean");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("pre-clean");
     sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
         .bind(ext_id)
         .execute(&pool)
@@ -165,10 +167,12 @@ async fn apply_revert_reapply_round_trip() {
     assert!(table_exists(&pool, table).await);
     assert_eq!(applied_versions(&pool, ext_id).await, vec![1]);
 
-    sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("cleanup table");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("cleanup table");
     sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
         .bind(ext_id)
         .execute(&pool)
@@ -189,10 +193,12 @@ async fn revert_rejects_irreversible_migration() {
     let ext_id: &'static str = leak_str(format!("noundo-ext-{suffix}"));
     let up_sql: &'static str = leak_str(format!("CREATE TABLE {table} (id TEXT PRIMARY KEY);"));
 
-    sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("pre-clean");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("pre-clean");
     sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
         .bind(ext_id)
         .execute(&pool)
@@ -225,10 +231,12 @@ async fn revert_rejects_irreversible_migration() {
         "rejection must leave bookkeeping untouched"
     );
 
-    sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-        .execute(&pool)
-        .await
-        .expect("cleanup table");
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DROP TABLE IF EXISTS {table} CASCADE"
+    )))
+    .execute(&pool)
+    .await
+    .expect("cleanup table");
     sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
         .bind(ext_id)
         .execute(&pool)

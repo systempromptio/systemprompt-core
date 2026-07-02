@@ -17,17 +17,12 @@ async fn test_webauthn_credential_lifecycle() {
     let counter = 0u32;
     let transports = vec!["internal".to_string()];
 
-    let params = WebAuthnCredentialParams::builder(
-        &id,
-        &user_id,
-        &credential_id,
-        &public_key,
-        counter,
-    )
-    .with_display_name("My Authenticator")
-    .with_device_type("platform")
-    .with_transports(&transports)
-    .build();
+    let params =
+        WebAuthnCredentialParams::builder(&id, &user_id, &credential_id, &public_key, counter)
+            .with_display_name("My Authenticator")
+            .with_device_type("platform")
+            .with_transports(&transports)
+            .build();
 
     repo.store_webauthn_credential(params)
         .await
@@ -60,12 +55,11 @@ async fn test_webauthn_credential_counter_update() {
     let public_key = vec![1, 2, 3];
     let transports = vec!["usb".to_string()];
 
-    let params =
-        WebAuthnCredentialParams::builder(&id, &user_id, &credential_id, &public_key, 0)
-            .with_display_name("Test Credential")
-            .with_device_type("cross-platform")
-            .with_transports(&transports)
-            .build();
+    let params = WebAuthnCredentialParams::builder(&id, &user_id, &credential_id, &public_key, 0)
+        .with_display_name("Test Credential")
+        .with_device_type("cross-platform")
+        .with_transports(&transports)
+        .build();
 
     repo.store_webauthn_credential(params)
         .await
@@ -101,17 +95,12 @@ async fn test_webauthn_multiple_credentials_per_user() {
         let public_key = vec![i as u8];
         let display_name = format!("Authenticator {}", i);
 
-        let params = WebAuthnCredentialParams::builder(
-            &id,
-            &user_id,
-            &credential_id,
-            &public_key,
-            0,
-        )
-        .with_display_name(&display_name)
-        .with_device_type("platform")
-        .with_transports(&transports)
-        .build();
+        let params =
+            WebAuthnCredentialParams::builder(&id, &user_id, &credential_id, &public_key, 0)
+                .with_display_name(&display_name)
+                .with_device_type("platform")
+                .with_transports(&transports)
+                .build();
 
         repo.store_webauthn_credential(params)
             .await

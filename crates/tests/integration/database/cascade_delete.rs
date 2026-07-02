@@ -44,7 +44,7 @@ impl Fixture {
     }
 
     async fn exec(&self, sql: &str) {
-        sqlx::query(sql)
+        sqlx::query(sqlx::AssertSqlSafe(sql))
             .execute(&self.pool)
             .await
             .unwrap_or_else(|e| panic!("exec failed for {sql}: {e}"));
@@ -53,7 +53,9 @@ impl Fixture {
     async fn drop_all(&self) {
         for base in ["audit", "session", "api_key", "fed_id", "user"] {
             let stmt = format!("DROP TABLE IF EXISTS {} CASCADE", self.t(base));
-            let _ = sqlx::query(&stmt).execute(&self.pool).await;
+            let _ = sqlx::query(sqlx::AssertSqlSafe(stmt))
+                .execute(&self.pool)
+                .await;
         }
     }
 
@@ -110,7 +112,10 @@ impl Fixture {
 
     async fn count(&self, table: &str, where_clause: &str) -> i64 {
         let q = format!("SELECT COUNT(*)::bigint AS n FROM {table} WHERE {where_clause}");
-        let row = sqlx::query(&q).fetch_one(&self.pool).await.expect("count");
+        let row = sqlx::query(sqlx::AssertSqlSafe(q))
+            .fetch_one(&self.pool)
+            .await
+            .expect("count");
         row.try_get::<i64, _>("n").expect("n column")
     }
 }
@@ -126,42 +131,46 @@ async fn cascade_delete_user_transitively_removes_dependents() {
     let fed = fx.t("fed_id");
     let user_id = format!("u_{}", fx.suffix);
 
-    sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
-        .bind(&user_id)
-        .execute(&fx.pool)
-        .await
-        .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {users}(id) VALUES ($1)"
+    )))
+    .bind(&user_id)
+    .execute(&fx.pool)
+    .await
+    .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {api_keys}(id, user_id) VALUES ($1, $2), ($3, $2)"
-    ))
+    )))
     .bind(format!("k1_{}", fx.suffix))
     .bind(&user_id)
     .bind(format!("k2_{}", fx.suffix))
     .execute(&fx.pool)
     .await
     .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {sessions}(id, user_id) VALUES ($1, $2)"
-    ))
+    )))
     .bind(format!("s1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
     .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {fed}(id, user_id, provider) VALUES ($1, $2, 'github')"
-    ))
+    )))
     .bind(format!("f1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
     .unwrap();
 
-    sqlx::query(&format!("DELETE FROM {users} WHERE id = $1"))
-        .bind(&user_id)
-        .execute(&fx.pool)
-        .await
-        .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DELETE FROM {users} WHERE id = $1"
+    )))
+    .bind(&user_id)
+    .execute(&fx.pool)
+    .await
+    .unwrap();
 
     assert_eq!(
         fx.count(&api_keys, &format!("user_id = '{user_id}'")).await,
@@ -198,31 +207,33 @@ async fn soft_delete_inactive_does_not_cascade() {
     let sessions = fx.t("session");
     let user_id = format!("u_{}", fx.suffix);
 
-    sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
-        .bind(&user_id)
-        .execute(&fx.pool)
-        .await
-        .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {users}(id) VALUES ($1)"
+    )))
+    .bind(&user_id)
+    .execute(&fx.pool)
+    .await
+    .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {api_keys}(id, user_id) VALUES ($1, $2)"
-    ))
+    )))
     .bind(format!("k1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
     .unwrap();
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "INSERT INTO {sessions}(id, user_id) VALUES ($1, $2)"
-    ))
+    )))
     .bind(format!("s1_{}", fx.suffix))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
     .unwrap();
 
-    sqlx::query(&format!(
+    sqlx::query(sqlx::AssertSqlSafe(format!(
         "UPDATE {users} SET status = 'inactive' WHERE id = $1"
-    ))
+    )))
     .bind(&user_id)
     .execute(&fx.pool)
     .await
@@ -257,15 +268,17 @@ async fn audit_trail_survives_user_cascade_delete() {
     let audit = fx.t("audit");
     let user_id = format!("u_{}", fx.suffix);
 
-    sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
-        .bind(&user_id)
-        .execute(&fx.pool)
-        .await
-        .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO {users}(id) VALUES ($1)"
+    )))
+    .bind(&user_id)
+    .execute(&fx.pool)
+    .await
+    .unwrap();
     for n in 0..3 {
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "INSERT INTO {audit}(id, user_id, action) VALUES ($1, $2, $3)"
-        ))
+        )))
         .bind(format!("a{n}_{}", fx.suffix))
         .bind(&user_id)
         .bind("authz.deny")
@@ -274,11 +287,13 @@ async fn audit_trail_survives_user_cascade_delete() {
         .unwrap();
     }
 
-    sqlx::query(&format!("DELETE FROM {users} WHERE id = $1"))
-        .bind(&user_id)
-        .execute(&fx.pool)
-        .await
-        .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DELETE FROM {users} WHERE id = $1"
+    )))
+    .bind(&user_id)
+    .execute(&fx.pool)
+    .await
+    .unwrap();
 
     assert_eq!(
         fx.count(&users, &format!("id = '{user_id}'")).await,
@@ -308,30 +323,32 @@ async fn no_orphaned_fk_references_after_cascade() {
     // Two users, each with children.
     for u in ["alpha", "beta"] {
         let user_id = format!("u_{u}_{}", fx.suffix);
-        sqlx::query(&format!("INSERT INTO {users}(id) VALUES ($1)"))
-            .bind(&user_id)
-            .execute(&fx.pool)
-            .await
-            .unwrap();
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "INSERT INTO {users}(id) VALUES ($1)"
+        )))
+        .bind(&user_id)
+        .execute(&fx.pool)
+        .await
+        .unwrap();
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "INSERT INTO {api_keys}(id, user_id) VALUES ($1, $2)"
-        ))
+        )))
         .bind(format!("k_{u}_{}", fx.suffix))
         .bind(&user_id)
         .execute(&fx.pool)
         .await
         .unwrap();
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "INSERT INTO {sessions}(id, user_id) VALUES ($1, $2)"
-        ))
+        )))
         .bind(format!("s_{u}_{}", fx.suffix))
         .bind(&user_id)
         .execute(&fx.pool)
         .await
         .unwrap();
-        sqlx::query(&format!(
+        sqlx::query(sqlx::AssertSqlSafe(format!(
             "INSERT INTO {fed}(id, user_id, provider) VALUES ($1, $2, $3)"
-        ))
+        )))
         .bind(format!("f_{u}_{}", fx.suffix))
         .bind(&user_id)
         .bind(u)
@@ -340,11 +357,13 @@ async fn no_orphaned_fk_references_after_cascade() {
         .unwrap();
     }
 
-    sqlx::query(&format!("DELETE FROM {users} WHERE id = $1"))
-        .bind(format!("u_alpha_{}", fx.suffix))
-        .execute(&fx.pool)
-        .await
-        .unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "DELETE FROM {users} WHERE id = $1"
+    )))
+    .bind(format!("u_alpha_{}", fx.suffix))
+    .execute(&fx.pool)
+    .await
+    .unwrap();
 
     let orphan_keys = fx
         .count(

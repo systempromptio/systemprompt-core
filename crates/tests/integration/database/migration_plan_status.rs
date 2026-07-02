@@ -43,9 +43,11 @@ impl Drop for Cleanup {
             let rt = tokio::runtime::Handle::current();
             rt.block_on(async move {
                 for t in &tables {
-                    let _ = query(&format!("DROP TABLE IF EXISTS {t} CASCADE"))
-                        .execute(&pool)
-                        .await;
+                    let _ = query(sqlx::AssertSqlSafe(format!(
+                        "DROP TABLE IF EXISTS {t} CASCADE"
+                    )))
+                    .execute(&pool)
+                    .await;
                 }
                 for ext_id in &extension_ids {
                     let _ = query("DELETE FROM extension_migrations WHERE extension_id = $1")

@@ -26,8 +26,7 @@ async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtract
     install_test_signing_key();
     let concrete = Arc::clone(ctx.analytics_service());
     let analytics: Arc<dyn AnalyticsProvider> = concrete;
-    let user_provider: Arc<dyn UserProvider> =
-        Arc::new(UserService::new(ctx.db_pool())?);
+    let user_provider: Arc<dyn UserProvider> = Arc::new(UserService::new(ctx.db_pool())?);
     let jti = JtiRevocationChecker::from_pool(ctx.db_pool())?;
     Ok((db, JwtContextExtractor::new(analytics, user_provider, jti)))
 }

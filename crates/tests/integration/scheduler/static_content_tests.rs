@@ -176,7 +176,7 @@ mod markdown_tests {
         options.extension.autolink = true;
         options.extension.tasklist = true;
         options.extension.superscript = true;
-        options.render.unsafe_ = false;
+        options.render.r#unsafe = false;
 
         let content_without_h1 = strip_first_h1(content);
         let html = markdown_to_html(&content_without_h1, &options);

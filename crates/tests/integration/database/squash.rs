@@ -46,9 +46,11 @@ impl Drop for SquashFixture {
         tokio::task::block_in_place(|| {
             let rt = tokio::runtime::Handle::current();
             rt.block_on(async move {
-                let _ = sqlx::query(&format!("DROP TABLE IF EXISTS {table} CASCADE"))
-                    .execute(&pool)
-                    .await;
+                let _ = sqlx::query(sqlx::AssertSqlSafe(format!(
+                    "DROP TABLE IF EXISTS {table} CASCADE"
+                )))
+                .execute(&pool)
+                .await;
                 let _ = sqlx::query("DELETE FROM extension_migrations WHERE extension_id = $1")
                     .bind(ext_id)
                     .execute(&pool)

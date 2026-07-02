@@ -4,7 +4,7 @@
 //! simpler `build_completed_task` / `build_canceled_task` / `build_mock_task`
 //! / `build_submitted_task` builders.
 
-use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
+use rmcp::model::ContentBlock;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
     BuildMultiturnTaskParams, build_multiturn_task,
@@ -34,14 +34,8 @@ fn tool_call(name: &str) -> ToolCall {
     }
 }
 
-fn text_content(text: &str) -> Content {
-    Annotated {
-        raw: RawContent::Text(RawTextContent {
-            text: text.to_owned(),
-            meta: None,
-        }),
-        annotations: None,
-    }
+fn text_content(text: &str) -> ContentBlock {
+    ContentBlock::text(text.to_owned())
 }
 
 fn success_result(text: &str) -> CallToolResult {
