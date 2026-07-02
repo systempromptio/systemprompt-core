@@ -95,7 +95,7 @@ impl SessionAnalytics {
 
         let (country, region, city) = ip_address
             .as_ref()
-            .and_then(|ip_str| Self::lookup_geoip(ip_str, geoip_reader))
+            .and_then(|ip_str| geoip::lookup_geoip(ip_str, geoip_reader))
             .unwrap_or((None, None, None));
 
         let referrer_url = headers
@@ -181,13 +181,6 @@ impl SessionAnalytics {
                 })
                 .collect()
         })
-    }
-
-    fn lookup_geoip(
-        ip_str: &str,
-        geoip_reader: Option<&GeoIpReader>,
-    ) -> Option<(Option<String>, Option<String>, Option<String>)> {
-        geoip::lookup_geoip(ip_str, geoip_reader)
     }
 
     fn parse_referrer_source(url: &str) -> Option<String> {
