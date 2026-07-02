@@ -8,7 +8,8 @@ use super::edit::EditArgs;
 
 const VALID_KINDS: &[&str] = &["article", "paper", "guide", "tutorial"];
 
-pub(super) struct ContentEditState {
+#[derive(Debug)]
+pub struct ContentEditState {
     pub title: String,
     pub description: String,
     pub body: String,
@@ -19,7 +20,7 @@ pub(super) struct ContentEditState {
     pub kind_value: Option<String>,
 }
 
-pub(super) fn apply_visibility_flags(
+pub fn apply_visibility_flags(
     args: &EditArgs,
     state: &mut ContentEditState,
     changes: &mut Vec<String>,
@@ -34,7 +35,7 @@ pub(super) fn apply_visibility_flags(
     }
 }
 
-pub(super) fn apply_body_flags(
+pub fn apply_body_flags(
     args: &EditArgs,
     state: &mut ContentEditState,
     changes: &mut Vec<String>,
@@ -52,7 +53,7 @@ pub(super) fn apply_body_flags(
     Ok(())
 }
 
-pub(super) async fn apply_set_value_flags(
+pub async fn apply_set_value_flags(
     args: &EditArgs,
     state: &mut ContentEditState,
     changes: &mut Vec<String>,

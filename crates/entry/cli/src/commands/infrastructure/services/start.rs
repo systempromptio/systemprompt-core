@@ -13,27 +13,28 @@ use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel}
 
 use super::lifecycle;
 
-pub(super) struct ServiceTarget {
+#[derive(Debug, Clone, Copy)]
+pub struct ServiceTarget {
     pub api: bool,
     pub agents: bool,
     pub mcp: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct ServiceFlags {
+pub struct ServiceFlags {
     pub all: bool,
     pub targets: ServiceTargetFlags,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct ServiceTargetFlags {
+pub struct ServiceTargetFlags {
     pub api: bool,
     pub agents: bool,
     pub mcp: bool,
 }
 
 impl ServiceTarget {
-    pub(super) const fn all() -> Self {
+    pub const fn all() -> Self {
         Self {
             api: true,
             agents: true,
@@ -41,7 +42,7 @@ impl ServiceTarget {
         }
     }
 
-    pub(super) const fn from_flags(flags: ServiceFlags) -> Self {
+    pub const fn from_flags(flags: ServiceFlags) -> Self {
         if flags.all || (!flags.targets.api && !flags.targets.agents && !flags.targets.mcp) {
             Self::all()
         } else {
@@ -54,7 +55,8 @@ impl ServiceTarget {
     }
 }
 
-pub(super) struct StartupOptions {
+#[derive(Debug, Clone, Copy)]
+pub struct StartupOptions {
     pub skip_migrate: bool,
     pub kill_port_process: bool,
 }

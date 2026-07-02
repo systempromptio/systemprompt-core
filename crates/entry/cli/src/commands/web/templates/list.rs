@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use std::fs;
+use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
@@ -14,9 +15,15 @@ pub struct ListArgs {
     pub missing: bool,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let web_paths = WebPaths::resolve()?;
-    let templates_dir = &web_paths.templates;
+pub(super) fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
+    execute_in_dir(args, config, &WebPaths::resolve()?.templates)
+}
+
+pub fn execute_in_dir(
+    args: ListArgs,
+    _config: &CliConfig,
+    templates_dir: &Path,
+) -> Result<CommandOutput> {
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     if !templates_yaml_path.exists() {

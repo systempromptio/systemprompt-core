@@ -62,7 +62,7 @@ pub(super) async fn execute(
     Ok(CommandOutput::card_value("Service Cleanup", &output))
 }
 
-fn render_cleanup_report(report: &OrphanCleanupReport, quiet: bool) {
+pub fn render_cleanup_report(report: &OrphanCleanupReport, quiet: bool) {
     if quiet {
         return;
     }
@@ -91,7 +91,7 @@ fn render_cleanup_report(report: &OrphanCleanupReport, quiet: bool) {
     }
 }
 
-fn no_services_result(quiet: bool, dry_run: bool) -> CommandOutput {
+pub fn no_services_result(quiet: bool, dry_run: bool) -> CommandOutput {
     let message = "No running services found".to_owned();
     if !quiet {
         CliService::info(&message);
@@ -107,7 +107,7 @@ fn no_services_result(quiet: bool, dry_run: bool) -> CommandOutput {
     )
 }
 
-fn dry_run_result(
+pub fn dry_run_result(
     running_services: &[systemprompt_database::ServiceConfig],
     api_pid: Option<u32>,
     api_port: u16,
@@ -138,7 +138,7 @@ fn dry_run_result(
     )
 }
 
-fn log_service_state(service: &systemprompt_database::ServiceConfig) {
+pub fn log_service_state(service: &systemprompt_database::ServiceConfig) {
     let Some(pid) = service.pid else { return };
     let pid_u32 = pid as u32;
     if ProcessCleanup::process_exists(pid_u32) {
@@ -154,7 +154,7 @@ fn log_service_state(service: &systemprompt_database::ServiceConfig) {
     }
 }
 
-fn format_cleanup_message(cleaned: usize, quiet: bool) -> String {
+pub fn format_cleanup_message(cleaned: usize, quiet: bool) -> String {
     if cleaned > 0 {
         let msg = format!("Cleaned up {} services", cleaned);
         if !quiet {

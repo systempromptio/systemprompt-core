@@ -4,11 +4,11 @@
 //! show, create, edit, and delete templates in the web templates config.
 
 pub mod create;
-mod delete;
-mod edit;
-mod list;
+pub mod delete;
+pub mod edit;
+pub mod list;
 pub mod selection;
-mod show;
+pub mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

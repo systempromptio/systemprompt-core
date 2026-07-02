@@ -4,10 +4,10 @@
 //! Runs the per-category validators (selectable via [`ValidationCategory`]) and
 //! aggregates their errors and warnings into a single report.
 
-mod asset_validation;
+pub mod asset_validation;
 mod config_validation;
-mod sitemap_validation;
-mod template_validation;
+pub mod sitemap_validation;
+pub mod template_validation;
 
 use anyhow::{Context, Result};
 use clap::{Args, ValueEnum};

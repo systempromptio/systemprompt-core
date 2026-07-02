@@ -50,7 +50,7 @@ pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path
     Ok(())
 }
 
-fn render_marketplace(
+pub fn render_marketplace(
     id: &str,
     marketplace: &MarketplaceConfig,
     services: &ServicesConfig,
@@ -81,7 +81,7 @@ fn render_marketplace(
     })
 }
 
-pub(super) fn generate_plugin_json(
+pub fn generate_plugin_json(
     plugin: &PluginConfig,
     output_dir: &Path,
     files_generated: &mut Vec<String>,
@@ -110,7 +110,7 @@ pub(super) fn generate_plugin_json(
     Ok(())
 }
 
-pub(super) fn copy_scripts(
+pub fn copy_scripts(
     plugin: &PluginConfig,
     plugins_path: &Path,
     plugin_id: &str,

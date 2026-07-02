@@ -4,9 +4,9 @@
 //! invocation's [`CommandContext`], rendering each command's `CommandOutput`
 //! to the configured output sink.
 
-mod list;
-mod show;
-mod types;
+pub mod list;
+pub mod show;
+pub mod types;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;

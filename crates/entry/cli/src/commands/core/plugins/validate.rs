@@ -51,7 +51,7 @@ pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<Command
     .with_title("Plugin Validation Results"))
 }
 
-fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
+pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
     if !plugins_path.exists() {
         return Ok(Vec::new());
     }
@@ -70,7 +70,7 @@ fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
     Ok(ids)
 }
 
-fn validate_plugin(
+pub fn validate_plugin(
     plugin_id: &str,
     plugins_path: &Path,
     skills_path: &Path,

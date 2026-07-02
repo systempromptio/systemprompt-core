@@ -3,8 +3,8 @@
 //! Dispatches the `web assets` subcommands ([`AssetsCommands`]) to list the
 //! asset inventory or show details for a single asset.
 
-mod asset_type;
-mod list;
+pub mod asset_type;
+pub mod list;
 mod show;
 
 use anyhow::{Context, Result};

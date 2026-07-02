@@ -4,12 +4,12 @@
 //! schemas, tools, roles, and LLM providers — either as a per-kind listing or
 //! as a single rolled-up summary across the whole extension registry.
 
-mod jobs;
-mod llm_providers;
-mod roles;
-mod schemas;
-mod templates;
-mod tools;
+pub mod jobs;
+pub mod llm_providers;
+pub mod roles;
+pub mod schemas;
+pub mod templates;
+pub mod tools;
 
 use clap::{Args, Subcommand};
 

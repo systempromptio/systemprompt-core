@@ -29,8 +29,15 @@ pub(super) fn execute(
     prompter: &dyn Prompter,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let web_paths = WebPaths::resolve()?;
-    let templates_dir = &web_paths.templates;
+    execute_in_dir(args, prompter, config, &WebPaths::resolve()?.templates)
+}
+
+pub fn execute_in_dir(
+    args: CreateArgs,
+    prompter: &dyn Prompter,
+    config: &CliConfig,
+    templates_dir: &Path,
+) -> Result<CommandOutput> {
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     let mut templates_config = load_templates_config(&templates_yaml_path)?;

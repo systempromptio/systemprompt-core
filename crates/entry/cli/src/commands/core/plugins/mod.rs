@@ -6,10 +6,10 @@
 
 pub mod types;
 
-mod generate;
-mod list;
-mod show;
-mod validate;
+pub mod generate;
+pub mod list;
+pub mod show;
+pub mod validate;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

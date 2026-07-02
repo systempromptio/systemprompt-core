@@ -32,7 +32,7 @@ pub(super) async fn execute(args: ListArgs, ctx: &CommandContext) -> Result<Comm
     execute_with_pool(args, &session_ctx.session.user_id, &pool, &ctx.cli).await
 }
 
-pub(super) async fn execute_with_pool(
+pub async fn execute_with_pool(
     args: ListArgs,
     user_id: &systemprompt_identifiers::UserId,
     pool: &DbPool,

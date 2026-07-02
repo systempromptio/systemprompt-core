@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-cli = { workspace = true }
 systemprompt-cloud = { workspace = true }
+systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -23,13 +24,21 @@ serde_yaml = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+clap = { workspace = true }
 rand = { workspace = true }
 sqlx = { workspace = true }
 url = { workspace = true }
 chrono = { workspace = true }
 
 [dev-dependencies]
+systemprompt-agent = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-scheduler = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["thiserror"]

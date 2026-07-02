@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub(super) fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let registry = ExtensionRegistry::discover()?;
     let needle = args.id.to_lowercase();
 

@@ -7,12 +7,12 @@
 
 pub mod types;
 
-mod capabilities;
-mod config;
-mod list;
+pub mod capabilities;
+pub mod config;
+pub mod list;
 mod run;
-mod show;
-mod validate;
+pub mod show;
+pub mod validate;
 
 pub mod mcp;
 

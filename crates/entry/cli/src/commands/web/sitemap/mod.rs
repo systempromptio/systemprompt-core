@@ -4,7 +4,7 @@
 //! configured routes or generate a `sitemap.xml`.
 
 mod generate;
-mod show;
+pub mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;

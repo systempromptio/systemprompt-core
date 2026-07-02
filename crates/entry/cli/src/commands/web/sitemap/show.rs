@@ -16,11 +16,17 @@ pub struct ShowArgs {
     pub preview: bool,
 }
 
-pub(super) fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandOutput> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let content_config_path = profile.paths.content_config();
+    execute_with_config_path(args, config, profile.paths.content_config().as_str())
+}
 
-    let content = fs::read_to_string(&content_config_path)
+pub fn execute_with_config_path(
+    args: ShowArgs,
+    _config: &CliConfig,
+    content_config_path: &str,
+) -> Result<CommandOutput> {
+    let content = fs::read_to_string(content_config_path)
         .with_context(|| format!("Failed to read content config at {}", content_config_path))?;
 
     let config: ContentConfigRaw = serde_yaml::from_str(&content)
