@@ -9,7 +9,7 @@ pub mod paths;
 pub mod sitemap;
 pub mod templates;
 pub mod types;
-mod validate;
+pub mod validate;
 
 use anyhow::Result;
 use clap::Subcommand;

@@ -20,6 +20,7 @@ mod plugins_registry;
 mod setup_ai_config;
 mod setup_catalog;
 mod setup_ddl;
+mod web_assets_sitemap;
 mod web_content_types;
 mod web_prompts;
 mod web_templates_fs;

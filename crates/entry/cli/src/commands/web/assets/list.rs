@@ -27,10 +27,15 @@ pub struct ListArgs {
     pub asset_type: AssetTypeFilter,
 }
 
-pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let web_paths = WebPaths::resolve()?;
-    let assets_dir = &web_paths.assets;
+pub(super) fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandOutput> {
+    execute_in_dir(args, config, &WebPaths::resolve()?.assets)
+}
 
+pub fn execute_in_dir(
+    args: ListArgs,
+    _config: &CliConfig,
+    assets_dir: &std::path::Path,
+) -> Result<CommandOutput> {
     if !assets_dir.exists() {
         let empty: Vec<AssetSummary> = vec![];
         return Ok(CommandOutput::table_of(
