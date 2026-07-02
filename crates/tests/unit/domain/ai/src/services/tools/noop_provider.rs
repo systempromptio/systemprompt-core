@@ -2,8 +2,8 @@
 
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
-use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 
 mod noop_provider_tests {
@@ -33,7 +33,9 @@ mod noop_provider_tests {
             arguments: json!({}),
         };
 
-        let result = provider.call_tool(&request, &McpServerId::new("service"), &context).await;
+        let result = provider
+            .call_tool(&request, &McpServerId::new("service"), &context)
+            .await;
 
         let error = result.unwrap_err();
         assert!(error.to_string().contains("NoopToolProvider"));

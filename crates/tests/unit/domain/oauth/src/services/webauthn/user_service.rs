@@ -156,7 +156,10 @@ async fn test_find_or_create_new_user() {
         .await
         .expect("should succeed for new user");
 
-    assert!(!result.as_str().is_empty(), "should return a non-empty user ID");
+    assert!(
+        !result.as_str().is_empty(),
+        "should return a non-empty user ID"
+    );
     assert_eq!(
         provider.created_users.lock().expect("lock").len(),
         1,
@@ -181,7 +184,11 @@ async fn test_find_or_create_assigns_default_roles() {
 
     let roles = provider.assigned_roles.lock().expect("lock");
     assert_eq!(roles.len(), 1, "should have assigned roles once");
-    assert_eq!(roles[0].0, user_id.as_str(), "roles assigned to correct user");
+    assert_eq!(
+        roles[0].0,
+        user_id.as_str(),
+        "roles assigned to correct user"
+    );
     assert_eq!(
         roles[0].1,
         vec!["user".to_string()],
@@ -303,7 +310,10 @@ async fn test_create_user_success() {
         .await
         .expect("should succeed for new user");
 
-    assert!(!result.as_str().is_empty(), "should return a non-empty user ID");
+    assert!(
+        !result.as_str().is_empty(),
+        "should return a non-empty user ID"
+    );
     let created = provider.created_users.lock().expect("lock");
     assert_eq!(created.len(), 1, "should have created exactly one user");
     assert_eq!(created[0].name, "brandnew");

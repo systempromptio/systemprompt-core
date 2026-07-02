@@ -137,7 +137,9 @@ fn tool_calls() -> Vec<ToolCall> {
 }
 
 fn tool_results() -> Vec<CallToolResult> {
-    vec![CallToolResult::success(vec![ContentBlock::text("sunny, 24C")])]
+    vec![CallToolResult::success(vec![ContentBlock::text(
+        "sunny, 24C",
+    )])]
 }
 
 async fn run(provider: &StubProvider) -> String {

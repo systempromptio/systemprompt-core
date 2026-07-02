@@ -34,17 +34,11 @@ async fn store_then_get_credentials() {
 
     ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(
-                &id,
-                &ctx.user_id,
-                &credential_id,
-                &public_key,
-                0,
-            )
-            .with_display_name("YubiKey")
-            .with_device_type("cross-platform")
-            .with_transports(&transports)
-            .build(),
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &public_key, 0)
+                .with_display_name("YubiKey")
+                .with_device_type("cross-platform")
+                .with_transports(&transports)
+                .build(),
         )
         .await
         .expect("store");
@@ -84,15 +78,9 @@ async fn update_counter_advances() {
 
     ctx.repo
         .store_webauthn_credential(
-            WebAuthnCredentialParams::builder(
-                &id,
-                &ctx.user_id,
-                &credential_id,
-                &[9u8, 9, 9],
-                5,
-            )
-            .with_device_type("platform")
-            .build(),
+            WebAuthnCredentialParams::builder(&id, &ctx.user_id, &credential_id, &[9u8, 9, 9], 5)
+                .with_device_type("platform")
+                .build(),
         )
         .await
         .expect("store");

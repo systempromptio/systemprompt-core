@@ -562,7 +562,10 @@ fn load_artifacts_reads_valid_artifact_with_default_content_file() {
     assert_eq!(a.plugin_id.as_str(), "sfdc");
     assert_eq!(a.version, "3");
     assert!(a.starred);
-    assert_eq!(a.mcp_tools, vec!["mcp__salesforce__query_opportunities".to_owned()]);
+    assert_eq!(
+        a.mcp_tools,
+        vec!["mcp__salesforce__query_opportunities".to_owned()]
+    );
     assert!(a.content.contains("<table>"));
     assert_eq!(a.sha256.as_str().len(), 64, "digest is 64 hex chars");
 }
@@ -577,7 +580,10 @@ fn load_artifacts_drops_artifact_with_missing_content() {
         None,
     );
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");
-    assert!(artifacts.is_empty(), "artifact with no HTML content is dropped");
+    assert!(
+        artifacts.is_empty(),
+        "artifact with no HTML content is dropped"
+    );
 }
 
 #[test]
@@ -590,7 +596,10 @@ fn load_artifacts_drops_artifact_with_no_mcp_tools() {
         Some("<table></table>"),
     );
     let artifacts = load_artifacts(dir.path()).expect("load artifacts");
-    assert!(artifacts.is_empty(), "artifact with no mcp_tools is dropped");
+    assert!(
+        artifacts.is_empty(),
+        "artifact with no mcp_tools is dropped"
+    );
 }
 
 #[test]

@@ -252,10 +252,7 @@ async fn step_queries_map_seeded_mcp_and_step_rows() {
     );
     assert!(failed.context_id.is_some());
 
-    let step_summary = svc
-        .get_execution_step_summary(&trace_id)
-        .await
-        .unwrap();
+    let step_summary = svc.get_execution_step_summary(&trace_id).await.unwrap();
     assert_eq!(step_summary.total, 6);
     assert_eq!(step_summary.completed, 4);
     assert_eq!(step_summary.failed, 1);

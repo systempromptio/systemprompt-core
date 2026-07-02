@@ -25,7 +25,8 @@ fn parse_tool_call_rejects_malformed_body() {
 
 #[test]
 fn parse_response_frame_matches_id_and_extracts_structured_output() {
-    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"structuredContent":{"rows":3},"isError":false}}"#;
+    let data =
+        r#"{"jsonrpc":"2.0","id":7,"result":{"structuredContent":{"rows":3},"isError":false}}"#;
     let (output, error) = parse_response_frame(data, &json!(7)).expect("result parses");
     assert_eq!(output, Some(json!({"rows": 3})));
     assert!(error.is_none());
@@ -54,7 +55,10 @@ fn parse_response_frame_ignores_mismatched_id() {
 #[test]
 fn extract_sse_data_joins_multiline_data_fields() {
     let frame = "event: message\ndata: {\"a\":1}\ndata: {\"b\":2}\n\n";
-    assert_eq!(extract_sse_data(frame).as_deref(), Some("{\"a\":1}\n{\"b\":2}"));
+    assert_eq!(
+        extract_sse_data(frame).as_deref(),
+        Some("{\"a\":1}\n{\"b\":2}")
+    );
 }
 
 #[test]

@@ -97,7 +97,9 @@ async fn call_tool_with_full_ctx_and_nonexistent_server_errors_gracefully() {
         name: "my_tool".to_owned(),
         arguments: serde_json::json!({}),
     };
-    let result = p.call_tool(&request, &McpServerId::new("nonexistent-server"), &ctx).await;
+    let result = p
+        .call_tool(&request, &McpServerId::new("nonexistent-server"), &ctx)
+        .await;
     assert!(result.is_err());
 }
 

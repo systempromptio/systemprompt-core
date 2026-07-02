@@ -118,7 +118,10 @@ fn file_sink_preserves_foreign_entries() {
 
     let library: serde_json::Value =
         serde_json::from_slice(&fs::read(store.join(LIBRARY_STORE_FILE)).unwrap()).unwrap();
-    assert!(library.get("foreign").is_some(), "unmanaged entry preserved");
+    assert!(
+        library.get("foreign").is_some(),
+        "unmanaged entry preserved"
+    );
     assert!(library.get("pipeline").is_some(), "managed entry upserted");
 }
 

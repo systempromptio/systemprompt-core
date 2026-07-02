@@ -62,10 +62,7 @@ fn test_build_artifact_viewer_with_icons() {
     let result = build_artifact_viewer_resource(&config);
     let resource = &result.resources[0];
     assert!(resource.icons.is_some());
-    assert_eq!(
-        resource.icons.as_ref().expect("icons").len(),
-        icons.len()
-    );
+    assert_eq!(resource.icons.as_ref().expect("icons").len(), icons.len());
 }
 
 #[test]

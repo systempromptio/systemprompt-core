@@ -1,7 +1,7 @@
 use serde_json::json;
 use systemprompt_ai::services::tools::NoopToolProvider;
-use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider, ToolProviderError};
 
 mod noop_default_tests {

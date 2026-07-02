@@ -105,36 +105,66 @@ fn default_candidate_is_empty() {
 
 #[test]
 fn candidate_with_only_skills_is_not_empty() {
-    let c =
-        MarketplaceCandidate::new(vec![], vec![skill("my-skill")], vec![], vec![], vec![], vec![]);
+    let c = MarketplaceCandidate::new(
+        vec![],
+        vec![skill("my-skill")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    );
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_agents_is_not_empty() {
-    let c =
-        MarketplaceCandidate::new(vec![], vec![], vec![agent("my-agent")], vec![], vec![], vec![]);
+    let c = MarketplaceCandidate::new(
+        vec![],
+        vec![],
+        vec![agent("my-agent")],
+        vec![],
+        vec![],
+        vec![],
+    );
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_hooks_is_not_empty() {
-    let c =
-        MarketplaceCandidate::new(vec![], vec![], vec![], vec![hook("my-hook")], vec![], vec![]);
+    let c = MarketplaceCandidate::new(
+        vec![],
+        vec![],
+        vec![],
+        vec![hook("my-hook")],
+        vec![],
+        vec![],
+    );
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_mcp_is_not_empty() {
-    let c =
-        MarketplaceCandidate::new(vec![], vec![], vec![], vec![], vec![mcp_server("my-mcp")], vec![]);
+    let c = MarketplaceCandidate::new(
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![mcp_server("my-mcp")],
+        vec![],
+    );
     assert!(!c.is_empty());
 }
 
 #[test]
 fn candidate_with_only_plugins_is_not_empty() {
-    let c =
-        MarketplaceCandidate::new(vec![plugin("my-plugin")], vec![], vec![], vec![], vec![], vec![]);
+    let c = MarketplaceCandidate::new(
+        vec![plugin("my-plugin")],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+    );
     assert!(!c.is_empty());
 }
 

@@ -127,7 +127,11 @@ async fn call_tool_unknown_server_is_configuration_error() {
     };
 
     let err = provider
-        .call_tool(&request, &McpServerId::new("no-such-server"), &tool_context())
+        .call_tool(
+            &request,
+            &McpServerId::new("no-such-server"),
+            &tool_context(),
+        )
         .await
         .expect_err("unknown server rejected");
     assert!(err.to_string().contains("Failed to resolve MCP server"));
