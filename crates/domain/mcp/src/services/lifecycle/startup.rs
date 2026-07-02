@@ -101,7 +101,7 @@ async fn wait_for_startup(
     Err(crate::error::McpDomainError::Internal(error_msg))
 }
 
-fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {
+pub fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {
     if attempt == 1 {
         Duration::from_millis(500)
     } else {

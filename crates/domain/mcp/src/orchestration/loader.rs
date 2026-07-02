@@ -210,7 +210,7 @@ fn extract_user_permissions(
     Ok(claims.get_permissions())
 }
 
-fn has_server_permission(
+pub fn has_server_permission(
     config: &systemprompt_models::services::ServicesConfig,
     server_name: &str,
     user_permissions: &[systemprompt_models::auth::Permission],

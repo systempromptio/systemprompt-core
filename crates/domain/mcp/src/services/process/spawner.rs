@@ -16,77 +16,95 @@ use systemprompt_models::{AppPaths, Config, Secrets};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
-struct SpawnEnvironment<'a> {
-    config: &'a McpServerConfig,
-    paths: &'a AppPaths,
-    config_global: &'a Config,
-    secrets: &'a Secrets,
-    profile_path: &'a str,
-    tools_config_json: &'a str,
-    server_model_config_json: &'a str,
+#[derive(Debug)]
+pub struct SpawnEnvSpec<'a> {
+    pub config: &'a McpServerConfig,
+    pub system_root: &'a Path,
+    pub database_type: &'a str,
+    pub profile_path: &'a str,
+    pub tools_config_json: &'a str,
+    pub server_model_config_json: &'a str,
 }
 
-fn configure_environment(command: &mut Command, env: &SpawnEnvironment<'_>) {
-    let SpawnEnvironment {
-        config,
-        paths,
-        config_global,
-        secrets,
-        profile_path,
-        tools_config_json,
-        server_model_config_json,
-    } = env;
+pub fn build_environment(
+    spec: &SpawnEnvSpec<'_>,
+    secrets_env: &[(String, String)],
+    lookup: impl Fn(&str) -> Option<String>,
+) -> Vec<(String, String)> {
+    let mut env = Vec::new();
 
-    command.env_clear();
-    if let Ok(path) = std::env::var("PATH") {
-        command.env("PATH", path);
-    }
-    if let Ok(home) = std::env::var("HOME") {
-        command.env("HOME", home);
+    for inherited in ["PATH", "HOME"] {
+        if let Some(value) = lookup(inherited) {
+            env.push((inherited.to_owned(), value));
+        }
     }
     // SSRF guard allowlist (see systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV).
     // The MCP child re-validates outbound URLs when it loads the profile catalog,
     // so the operator's process-wide trust assertion must travel with it —
     // env_clear would otherwise leave the child running with an empty allowlist
     // and reject sealed-network hostnames the parent already accepted.
-    if let Ok(trusted) = std::env::var(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV) {
-        command.env(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV, trusted);
+    if let Some(trusted) = lookup(systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV) {
+        env.push((
+            systemprompt_models::net::TRUSTED_HTTP_HOSTS_ENV.to_owned(),
+            trusted,
+        ));
     }
 
-    command
-        .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env(systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV, "1")
-        .env("DATABASE_TYPE", &config_global.database_type)
-        .env(
-            systemprompt_models::subprocess::MCP_SERVICE_ID_ENV,
-            &config.name,
-        )
-        .env("MCP_PORT", config.port.to_string())
-        .env("MCP_TOOLS_CONFIG", tools_config_json)
-        .env("MCP_SERVER_MODEL_CONFIG", server_model_config_json)
-        .env("SYSTEM_PATH", paths.system().root());
+    env.push((
+        "SYSTEMPROMPT_PROFILE".to_owned(),
+        spec.profile_path.to_owned(),
+    ));
+    env.push((
+        systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV.to_owned(),
+        "1".to_owned(),
+    ));
+    env.push(("DATABASE_TYPE".to_owned(), spec.database_type.to_owned()));
+    env.push((
+        systemprompt_models::subprocess::MCP_SERVICE_ID_ENV.to_owned(),
+        spec.config.name.clone(),
+    ));
+    env.push(("MCP_PORT".to_owned(), spec.config.port.to_string()));
+    env.push((
+        "MCP_TOOLS_CONFIG".to_owned(),
+        spec.tools_config_json.to_owned(),
+    ));
+    env.push((
+        "MCP_SERVER_MODEL_CONFIG".to_owned(),
+        spec.server_model_config_json.to_owned(),
+    ));
+    env.push((
+        "SYSTEM_PATH".to_owned(),
+        spec.system_root.display().to_string(),
+    ));
 
-    for (k, v) in secrets.to_subprocess_env() {
-        command.env(k, v);
-    }
+    env.extend(secrets_env.iter().cloned());
 
-    for var_name in &config.env_vars {
-        match std::env::var(var_name) {
-            Ok(value) => {
-                command.env(var_name, value);
-            },
-            Err(_) => {
+    for var_name in &spec.config.env_vars {
+        match lookup(var_name) {
+            Some(value) => env.push((var_name.clone(), value)),
+            None => {
                 tracing::warn!(
                     var = %var_name,
-                    service = %config.name,
+                    service = %spec.config.name,
                     "Optional env var not set for MCP server"
                 );
             },
         }
     }
+
+    env
 }
 
-fn rotate_log_if_needed(log_path: &Path) {
+fn configure_environment(command: &mut Command, spec: &SpawnEnvSpec<'_>, secrets: &Secrets) {
+    command.env_clear();
+    for (key, value) in build_environment(spec, &secrets.to_subprocess_env(), |name| {
+        std::env::var(name).ok()
+    }) {
+        command.env(key, value);
+    }
+}
+
+pub fn rotate_log_if_needed(log_path: &Path) {
     if let Ok(metadata) = fs::metadata(log_path)
         && metadata.len() > MAX_LOG_SIZE
     {
@@ -102,7 +120,7 @@ fn rotate_log_if_needed(log_path: &Path) {
     }
 }
 
-fn open_server_log(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<fs::File> {
+pub fn open_server_log(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResult<fs::File> {
     let log_dir = paths.system().logs();
     fs::create_dir_all(&log_dir).map_err(|e| {
         crate::error::McpDomainError::Internal(format!(
@@ -126,7 +144,7 @@ fn open_server_log(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResul
         })
 }
 
-fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(String, String)> {
+pub fn serialize_server_configs(config: &McpServerConfig) -> McpDomainResult<(String, String)> {
     let tools_config_json = serde_json::to_string(&config.tools).map_err(|e| {
         crate::error::McpDomainError::Internal(format!("Failed to serialize tools config: {e}"))
     })?;
@@ -167,15 +185,15 @@ pub fn spawn_server(paths: &AppPaths, config: &McpServerConfig) -> McpDomainResu
     let mut child_command = Command::new(&binary_path);
     configure_environment(
         &mut child_command,
-        &SpawnEnvironment {
+        &SpawnEnvSpec {
             config,
-            paths,
-            config_global,
-            secrets,
+            system_root: paths.system().root(),
+            database_type: &config_global.database_type,
             profile_path,
             tools_config_json: &tools_config_json,
             server_model_config_json: &server_model_config_json,
         },
+        secrets,
     );
 
     child_command

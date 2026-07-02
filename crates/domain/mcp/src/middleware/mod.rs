@@ -22,6 +22,10 @@ pub fn extract_bearer_token(
             McpError::invalid_request("No HTTP parts in MCP context".to_owned(), None)
         })?;
 
+    Ok(bearer_token_from_parts(parts))
+}
+
+pub fn bearer_token_from_parts(parts: &http::request::Parts) -> Option<String> {
     let auth_header = parts
         .headers
         .get("authorization")
@@ -30,28 +34,36 @@ pub fn extract_bearer_token(
     if let Some(auth) = auth_header
         && let Some(token) = auth.strip_prefix("Bearer ")
     {
-        return Ok(Some(token.to_owned()));
+        return Some(token.to_owned());
     }
 
-    Ok(None)
+    None
 }
 
 pub fn extract_request_context(
     mcp_context: &RequestContext<RoleServer>,
 ) -> Result<SysRequestContext, McpError> {
-    let parts = mcp_context.extensions.get::<http::request::Parts>();
+    mcp_context
+        .extensions
+        .get::<http::request::Parts>()
+        .map_or_else(
+            || {
+                Err(McpError::invalid_request(
+                    "RequestContext missing - no axum parts in MCP context",
+                    None,
+                ))
+            },
+            request_context_from_parts,
+        )
+}
 
-    if let Some(parts) = parts {
-        if let Some(request_context) = parts.extensions.get::<SysRequestContext>() {
-            return Ok(request_context.clone());
-        }
-
-        return SysRequestContext::from_headers(&parts.headers)
-            .map_err(|e| McpError::invalid_request(e.to_string(), None));
+pub fn request_context_from_parts(
+    parts: &http::request::Parts,
+) -> Result<SysRequestContext, McpError> {
+    if let Some(request_context) = parts.extensions.get::<SysRequestContext>() {
+        return Ok(request_context.clone());
     }
 
-    Err(McpError::invalid_request(
-        "RequestContext missing - no axum parts in MCP context",
-        None,
-    ))
+    SysRequestContext::from_headers(&parts.headers)
+        .map_err(|e| McpError::invalid_request(e.to_string(), None))
 }

@@ -183,7 +183,7 @@ async fn build_transport(
     ))
 }
 
-pub(crate) async fn execute_tool_call(
+pub async fn execute_tool_call(
     transport: StreamableHttpClientTransport<HttpClientWithContext>,
     server: &str,
     name: &str,

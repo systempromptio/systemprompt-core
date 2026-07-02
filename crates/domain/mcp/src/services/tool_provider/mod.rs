@@ -4,7 +4,7 @@
 //! calls through per-server resilience guards (circuit breaker and bulkhead).
 
 mod context;
-mod conversions;
+pub mod conversions;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};

@@ -5,7 +5,7 @@ mod loader;
 mod models;
 mod state;
 
-pub use loader::McpToolLoader;
+pub use loader::{McpToolLoader, has_server_permission};
 pub use models::{McpServerConnectionInfo, McpServiceState, ServerStatus, SkillLoadingResult};
 pub use state::ServiceStateService;
 pub use systemprompt_models::a2a::McpServerMetadata;
