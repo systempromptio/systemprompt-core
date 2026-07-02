@@ -29,6 +29,8 @@ mod error_from;
 #[cfg(test)]
 mod extension;
 #[cfg(test)]
+mod harness;
+#[cfg(test)]
 mod lib_smoke;
 #[cfg(test)]
 mod middleware;

@@ -13,19 +13,36 @@ use super::health::{HealthCheckResult, HealthStatus, perform_health_check};
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 
-struct HealthMonitorState {
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HealthMonitorState {
     previous_status: Option<HealthStatus>,
     failure_count: u32,
     last_failure_time: Option<DateTime<Utc>>,
 }
 
 impl HealthMonitorState {
-    const fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self {
             previous_status: None,
             failure_count: 0,
             last_failure_time: None,
         }
+    }
+
+    pub fn observe(&mut self, config: &McpServerConfig, result: &HealthCheckResult) {
+        handle_health_result(config, result, self);
+        self.previous_status = Some(result.status);
+    }
+
+    #[must_use]
+    pub const fn failure_count(&self) -> u32 {
+        self.failure_count
+    }
+
+    #[must_use]
+    pub const fn previous_status(&self) -> Option<HealthStatus> {
+        self.previous_status
     }
 }
 
@@ -42,10 +59,7 @@ pub async fn monitor_health_continuously(
             ticker.tick().await;
 
             match perform_health_check(config).await {
-                Ok(result) => {
-                    handle_health_result(config, &result, &mut state);
-                    state.previous_status = Some(result.status);
-                },
+                Ok(result) => state.observe(config, &result),
                 Err(e) => log_health_check_error(config, &e),
             }
         }
