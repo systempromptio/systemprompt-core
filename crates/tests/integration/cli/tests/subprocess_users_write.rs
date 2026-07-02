@@ -22,6 +22,11 @@ fn run_err(args: &[&str]) {
     cmd.assert().failure();
 }
 
+
+fn unique(name: &str) -> String {
+    format!("{name}_{}", std::process::id())
+}
+
 fn user_id_by_name(name: &str) -> Option<String> {
     let mut cmd = command()?;
     cmd.args(["--json", "admin", "users", "search", name]);
@@ -42,14 +47,16 @@ fn user_create_update_show_delete_cycle() {
     if fixture().is_none() {
         return;
     }
+    let name = unique("covuser_cycle");
+    let email = format!("{name}@example.com");
     run_ok(&[
         "admin",
         "users",
         "create",
         "--name",
-        "covuser_cycle",
+        &name,
         "--email",
-        "covuser_cycle@example.com",
+        &email,
         "--full-name",
         "Coverage User",
         "--display-name",
@@ -60,22 +67,14 @@ fn user_create_update_show_delete_cycle() {
         "users",
         "create",
         "--name",
-        "covuser_cycle",
+        &name,
         "--email",
-        "covuser_cycle@example.com",
+        &email,
         "--if-not-exists",
     ]);
-    run_err(&[
-        "admin",
-        "users",
-        "create",
-        "--name",
-        "covuser_cycle",
-        "--email",
-        "covuser_cycle@example.com",
-    ]);
+    run_err(&["admin", "users", "create", "--name", &name, "--email", &email]);
 
-    let Some(id) = user_id_by_name("covuser_cycle") else {
+    let Some(id) = user_id_by_name(&name) else {
         return;
     };
     run_ok(&["admin", "users", "show", &id]);
@@ -109,28 +108,17 @@ fn user_merge_flow() {
     if fixture().is_none() {
         return;
     }
+    let src_name = unique("covmerge_src");
+    let dst_name = unique("covmerge_dst");
+    let src_email = format!("{src_name}@example.com");
+    let dst_email = format!("{dst_name}@example.com");
     run_ok(&[
-        "admin",
-        "users",
-        "create",
-        "--name",
-        "covmerge_src",
-        "--email",
-        "covmerge_src@example.com",
+        "admin", "users", "create", "--name", &src_name, "--email", &src_email,
     ]);
     run_ok(&[
-        "admin",
-        "users",
-        "create",
-        "--name",
-        "covmerge_dst",
-        "--email",
-        "covmerge_dst@example.com",
+        "admin", "users", "create", "--name", &dst_name, "--email", &dst_email,
     ]);
-    let (Some(src), Some(dst)) = (
-        user_id_by_name("covmerge_src"),
-        user_id_by_name("covmerge_dst"),
-    ) else {
+    let (Some(src), Some(dst)) = (user_id_by_name(&src_name), user_id_by_name(&dst_name)) else {
         return;
     };
     run_any(&[
