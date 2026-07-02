@@ -392,7 +392,9 @@ async fn execution_step_repository_lifecycle() -> Result<()> {
     assert!(
         !repos
             .execution_steps
-            .mcp_execution_id_exists("non-existent")
+            .mcp_execution_id_exists(&systemprompt_identifiers::McpExecutionId::new(
+                "non-existent",
+            ))
             .await?
     );
 

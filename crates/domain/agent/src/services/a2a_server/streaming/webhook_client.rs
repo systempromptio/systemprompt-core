@@ -24,6 +24,9 @@ pub enum WebhookError {
     StatusError { status: u16, message: String },
 }
 
+/// `#[async_trait]` is required: the active broadcaster is stored and swapped
+/// as an `Arc<dyn WebhookBroadcaster>` (see `GLOBAL_BROADCASTER` below), so the
+/// trait must be `dyn`-compatible.
 #[async_trait]
 pub trait WebhookBroadcaster: Send + Sync + std::fmt::Debug {
     async fn broadcast_agui(

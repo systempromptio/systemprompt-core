@@ -13,7 +13,7 @@ use crate::repository::content::ArtifactRepository;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::{MessageService, SkillService};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
 
@@ -60,7 +60,7 @@ impl ArtifactPublishingService {
         })
     }
 
-    async fn execution_id_exists(&self, mcp_execution_id: &str) -> bool {
+    async fn execution_id_exists(&self, mcp_execution_id: &McpExecutionId) -> bool {
         let Some(repo) = &self.execution_repo else {
             tracing::warn!("ExecutionStepRepository not available for FK validation");
             return false;
@@ -82,15 +82,16 @@ impl ArtifactPublishingService {
     async fn validate_execution_id(&self, artifact: &Artifact) -> Artifact {
         let mut validated = artifact.clone();
 
-        if let Some(exec_id) = &validated.metadata.mcp_execution_id
-            && !self.execution_id_exists(exec_id).await
-        {
-            tracing::warn!(
-                mcp_execution_id = %exec_id,
-                artifact_id = %artifact.id,
-                "mcp_execution_id not found in mcp_tool_executions, setting to NULL"
-            );
-            validated.metadata.mcp_execution_id = None;
+        if let Some(exec_id) = &validated.metadata.mcp_execution_id {
+            let exec_id = McpExecutionId::new(exec_id);
+            if !self.execution_id_exists(&exec_id).await {
+                tracing::warn!(
+                    mcp_execution_id = %exec_id,
+                    artifact_id = %artifact.id,
+                    "mcp_execution_id not found in mcp_tool_executions, setting to NULL"
+                );
+                validated.metadata.mcp_execution_id = None;
+            }
         }
 
         validated

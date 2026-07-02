@@ -81,6 +81,12 @@ impl From<crate::error::AgentError> for AgentServiceError {
     }
 }
 
+impl From<systemprompt_models::errors::ProviderError> for AgentServiceError {
+    fn from(err: systemprompt_models::errors::ProviderError) -> Self {
+        Self::Internal(err.to_string())
+    }
+}
+
 impl From<reqwest::Error> for AgentServiceError {
     fn from(err: reqwest::Error) -> Self {
         Self::Network(

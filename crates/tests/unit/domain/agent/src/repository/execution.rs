@@ -1,5 +1,5 @@
 use super::{repos, seed_context_and_task, seed_user_and_session, try_pool};
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{McpExecutionId, TaskId};
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus, StepType};
 
 #[tokio::test]
@@ -258,7 +258,7 @@ async fn mcp_execution_id_exists_false_for_unknown() {
     let r = repos(&pool);
     let exists = r
         .execution_steps
-        .mcp_execution_id_exists("does-not-exist-xyz")
+        .mcp_execution_id_exists(&McpExecutionId::new("does-not-exist-xyz"))
         .await
         .expect("check");
     assert!(!exists);

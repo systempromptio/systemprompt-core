@@ -213,8 +213,7 @@ async fn handle_validation_failure(
             model: context.agent_runtime.model.as_deref(),
             max_output_tokens: context.agent_runtime.max_output_tokens,
         })
-        .await
-        .map_err(|e| AgentServiceError::Internal(format!("{}", e)))?;
+        .await?;
 
     emit(context, StreamEvent::Text(response.clone()));
 

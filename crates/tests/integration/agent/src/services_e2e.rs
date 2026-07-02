@@ -158,10 +158,10 @@ async fn execution_tracking_service_full_lifecycle() -> Result<()> {
 
     let _completion = svc.track_completion(task_id.clone()).await?;
 
-    let steps = svc.get_steps_by_task(&task_id).await?;
+    let steps = svc.list_steps_by_task(&task_id).await?;
     assert!(steps.len() >= 4);
 
-    let got = svc.get_step(&tool_step.step_id).await?;
+    let got = svc.find_step(&tool_step.step_id).await?;
     assert!(got.is_some());
 
     let count = svc.fail_in_progress_steps(&task_id, "agent halted").await?;
@@ -362,7 +362,7 @@ async fn execution_tracking_service_list_steps_for_unknown_task() -> Result<()> 
     let svc = ExecutionTrackingService::new(exec_repo);
 
     let steps = svc
-        .get_steps_by_task(&TaskId::new("nonexistent-task-id"))
+        .list_steps_by_task(&TaskId::new("nonexistent-task-id"))
         .await?;
     assert!(steps.is_empty());
 

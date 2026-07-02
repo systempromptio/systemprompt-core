@@ -88,14 +88,14 @@ impl ExecutionTrackingService {
             .map_err(Into::into)
     }
 
-    pub async fn get_steps_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
+    pub async fn list_steps_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
         self.repository
             .list_by_task(task_id)
             .await
             .map_err(Into::into)
     }
 
-    pub async fn get_step(&self, step_id: &StepId) -> Result<Option<ExecutionStep>> {
+    pub async fn find_step(&self, step_id: &StepId) -> Result<Option<ExecutionStep>> {
         self.repository.get(step_id).await.map_err(Into::into)
     }
 
