@@ -5,6 +5,7 @@ mod credentials;
 mod link;
 mod registration;
 
+pub use credentials::normalize_transport_casing;
 pub use link::{LinkStates, LinkUserInfo, create_link_states};
 pub use registration::FinishRegistrationParams;
 
