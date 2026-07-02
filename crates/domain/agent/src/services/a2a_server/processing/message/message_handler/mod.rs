@@ -37,9 +37,19 @@ impl MessageProcessor {
         agent_name: &str,
         context: &RequestContext,
     ) -> Result<Task> {
-        tracing::info!(agent_name = %agent_name, "Handling non-streaming message");
-
         let agent_runtime = self.load_agent_runtime(agent_name).await?;
+        self.handle_message_with_runtime(message, &agent_runtime, agent_name, context)
+            .await
+    }
+
+    pub async fn handle_message_with_runtime(
+        &self,
+        message: Message,
+        agent_runtime: &crate::models::AgentRuntimeInfo,
+        agent_name: &str,
+        context: &RequestContext,
+    ) -> Result<Task> {
+        tracing::info!(agent_name = %agent_name, "Handling non-streaming message");
 
         let context_id = &message.context_id;
 
@@ -77,7 +87,7 @@ impl MessageProcessor {
         let chunk_rx = stream_processor
             .process_message_stream(ProcessMessageStreamParams {
                 a2a_message: &message,
-                agent_runtime: &agent_runtime,
+                agent_runtime,
                 agent_name,
                 context,
                 task_id: task_id.clone(),
