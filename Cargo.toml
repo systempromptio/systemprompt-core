@@ -53,7 +53,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.94"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
 version = "0.19.0"
@@ -173,7 +173,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
 async-trait = "0.1"
 
 # Database
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "macros", "postgres", "migrate", "chrono", "rust_decimal", "json"] }
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "macros", "postgres", "migrate", "chrono", "rust_decimal", "json"] }
 rust_decimal = "1.40"
 
 # Serialization

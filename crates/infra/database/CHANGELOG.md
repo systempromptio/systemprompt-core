@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- SQLx is upgraded to 0.9; the pool and row types this crate re-exports now come from sqlx 0.9, and dynamic SQL passed through the raw-execution seams is wrapped with `sqlx::AssertSqlSafe`. Consumers must build against sqlx 0.9.
+- The minimum supported Rust version is 1.94.
+
 ## [0.16.1] - 2026-06-22
 
 ### Added

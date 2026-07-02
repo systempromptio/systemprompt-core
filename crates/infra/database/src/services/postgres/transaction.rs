@@ -41,7 +41,7 @@ impl DatabaseTransaction for PostgresTransaction {
             .as_mut()
             .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
 
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let result = query_obj.execute(&mut **tx).await?;
@@ -60,7 +60,7 @@ impl DatabaseTransaction for PostgresTransaction {
             .as_mut()
             .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
 
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let rows = query_obj.fetch_all(&mut **tx).await?;
@@ -79,7 +79,7 @@ impl DatabaseTransaction for PostgresTransaction {
             .as_mut()
             .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
 
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let row = query_obj.fetch_one(&mut **tx).await?;
@@ -98,7 +98,7 @@ impl DatabaseTransaction for PostgresTransaction {
             .as_mut()
             .ok_or_else(|| RepositoryError::invalid_state("Transaction already consumed"))?;
 
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let row = query_obj.fetch_optional(&mut **tx).await?;

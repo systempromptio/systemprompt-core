@@ -257,7 +257,9 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
             config.user.replace('"', "\"\""),
             config.password.replace('\'', "''")
         );
-        sqlx::query(&create_user_sql).execute(&pool).await?;
+        sqlx::query(sqlx::AssertSqlSafe(create_user_sql))
+            .execute(&pool)
+            .await?;
         CliService::success(&format!("Created user '{}'", config.user));
     }
 
@@ -276,7 +278,9 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
             config.database.replace('"', "\"\""),
             config.user.replace('"', "\"\"")
         );
-        sqlx::query(&create_db_sql).execute(&pool).await?;
+        sqlx::query(sqlx::AssertSqlSafe(create_db_sql))
+            .execute(&pool)
+            .await?;
         CliService::success(&format!("Created database '{}'", config.database));
     }
 
@@ -285,7 +289,9 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
         config.database.replace('"', "\"\""),
         config.user.replace('"', "\"\"")
     );
-    sqlx::query(&grant_sql).execute(&pool).await?;
+    sqlx::query(sqlx::AssertSqlSafe(grant_sql))
+        .execute(&pool)
+        .await?;
 
     pool.close().await;
 

@@ -160,7 +160,7 @@ impl DatabaseAdminService {
     pub async fn count_rows(&self, table_name: &SafeIdentifier) -> DatabaseResult<i64> {
         let quoted_table = quote_identifier(table_name.as_str());
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");
-        let row_count: i64 = sqlx::query_scalar(&count_query)
+        let row_count: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(count_query))
             .fetch_one(&*self.pool)
             .await?;
 

@@ -6,102 +6,222 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Uuid"
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "path",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "path"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "public_url",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "public_url"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "mime_type",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "mime_type"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "size_bytes",
-        "type_info": "Int8"
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "size_bytes"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "ai_content",
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "ai_content"
+          }
+        }
       },
       {
         "ordinal": 6,
         "name": "metadata",
-        "type_info": "Jsonb"
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "metadata"
+          }
+        }
       },
       {
         "ordinal": 7,
         "name": "user_id",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "user_id"
+          }
+        }
       },
       {
         "ordinal": 8,
         "name": "session_id",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "session_id"
+          }
+        }
       },
       {
         "ordinal": 9,
         "name": "trace_id",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "trace_id"
+          }
+        }
       },
       {
         "ordinal": 10,
         "name": "context_id",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "context_id"
+          }
+        }
       },
       {
         "ordinal": 11,
         "name": "created_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "created_at"
+          }
+        }
       },
       {
         "ordinal": 12,
         "name": "updated_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "updated_at"
+          }
+        }
       },
       {
         "ordinal": 13,
         "name": "deleted_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "files",
+            "name": "deleted_at"
+          }
+        }
       },
       {
         "ordinal": 14,
         "name": "cf_id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 15,
         "name": "content_id",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "content_id"
+          }
+        }
       },
       {
         "ordinal": 16,
         "name": "cf_file_id",
-        "type_info": "Uuid"
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "file_id"
+          }
+        }
       },
       {
         "ordinal": 17,
         "name": "role",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "role"
+          }
+        }
       },
       {
         "ordinal": 18,
         "name": "display_order",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "display_order"
+          }
+        }
       },
       {
         "ordinal": 19,
         "name": "cf_created_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

@@ -17,7 +17,7 @@ impl DatabaseProviderExt for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<T>> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let row = query_obj.fetch_optional(self.pool()).await?;
@@ -34,7 +34,7 @@ impl DatabaseProviderExt for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<T> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let row = query_obj.fetch_one(self.pool()).await?;
@@ -48,7 +48,7 @@ impl DatabaseProviderExt for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Vec<T>> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let rows = query_obj.fetch_all(self.pool()).await?;

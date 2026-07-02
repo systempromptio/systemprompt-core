@@ -60,7 +60,9 @@ impl QueryExecutor {
     ) -> Result<QueryResult, QueryExecutorError> {
         let start = std::time::Instant::now();
 
-        let rows = sqlx::query(sql.as_str()).fetch_all(&*self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.as_str()))
+            .fetch_all(&*self.pool)
+            .await?;
         let execution_time = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
 
         let columns = rows.first().map_or_else(Vec::new, |first_row| {

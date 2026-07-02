@@ -100,7 +100,7 @@ impl DatabaseProvider for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<u64> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let result = query_obj.execute(&*self.pool).await?;
@@ -111,7 +111,7 @@ impl DatabaseProvider for PostgresProvider {
     async fn execute_raw(&self, sql: &str) -> DatabaseResult<()> {
         let mut conn = self.pool.acquire().await?;
 
-        conn.execute(sql).await?;
+        conn.execute(sqlx::AssertSqlSafe(sql.to_owned())).await?;
 
         Ok(())
     }
@@ -122,7 +122,7 @@ impl DatabaseProvider for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Vec<JsonRow>> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let rows = query_obj.fetch_all(&*self.pool).await?;
@@ -136,7 +136,7 @@ impl DatabaseProvider for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<JsonRow> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let row = query_obj.fetch_one(&*self.pool).await?;
@@ -150,7 +150,7 @@ impl DatabaseProvider for PostgresProvider {
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<Option<JsonRow>> {
         let sql = query.select_query();
-        let query_obj = sqlx::query(sql);
+        let query_obj = sqlx::query(sqlx::AssertSqlSafe(sql));
         let query_obj = bind_params(query_obj, params);
 
         let row = query_obj.fetch_optional(&*self.pool).await?;
@@ -205,7 +205,9 @@ impl DatabaseProvider for PostgresProvider {
     async fn execute_batch(&self, sql: &str) -> DatabaseResult<()> {
         let statements = crate::services::SqlExecutor::parse_sql_statements(sql)?;
         for statement in statements {
-            sqlx::query(&statement).execute(&*self.pool).await?;
+            sqlx::query(sqlx::AssertSqlSafe(statement))
+                .execute(&*self.pool)
+                .await?;
         }
         Ok(())
     }
@@ -214,7 +216,9 @@ impl DatabaseProvider for PostgresProvider {
         let sql = query.select_query();
         let start = std::time::Instant::now();
 
-        let rows = sqlx::query(sql).fetch_all(&*self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql))
+            .fetch_all(&*self.pool)
+            .await?;
 
         Ok(rows_to_result(rows, start))
     }
@@ -227,7 +231,7 @@ impl DatabaseProvider for PostgresProvider {
         let sql = query.select_query();
         let start = std::time::Instant::now();
 
-        let query_obj = bind_params(sqlx::query(sql), params);
+        let query_obj = bind_params(sqlx::query(sqlx::AssertSqlSafe(sql)), params);
         let rows = query_obj.fetch_all(&*self.pool).await?;
 
         Ok(rows_to_result(rows, start))

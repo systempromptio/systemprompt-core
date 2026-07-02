@@ -6,32 +6,68 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "content_id: ContentId",
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "content_id"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "file_id",
-        "type_info": "Uuid"
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "file_id"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "role",
-        "type_info": "Varchar"
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "role"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "display_order",
-        "type_info": "Int4"
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "display_order"
+          }
+        }
       },
       {
         "ordinal": 5,
         "name": "created_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "content_files",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

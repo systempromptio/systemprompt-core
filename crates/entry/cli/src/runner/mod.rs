@@ -84,7 +84,7 @@ async fn run_inner() -> Result<()> {
     }
 
     let ctx = CommandContext::new(cli_config, env);
-    dispatch_command(cli.command, &ctx).await
+    Box::pin(dispatch_command(cli.command, &ctx)).await
 }
 
 fn resolve_log_level(cli_config: &CliConfig, env: &EnvOverrides) -> Option<String> {
@@ -126,7 +126,7 @@ async fn dispatch_command(command: Option<args::Commands>, ctx: &CommandContext)
     match command {
         Some(args::Commands::Core(cmd)) => core::execute(cmd, ctx).await?,
         Some(args::Commands::Infra(cmd)) => infrastructure::execute(cmd, ctx).await?,
-        Some(args::Commands::Admin(cmd)) => admin::execute(cmd, ctx).await?,
+        Some(args::Commands::Admin(cmd)) => Box::pin(admin::execute(cmd, ctx)).await?,
         Some(args::Commands::Cloud(cmd)) => cloud::execute(cmd, ctx).await?,
         Some(args::Commands::Analytics(cmd)) => analytics::execute(cmd, ctx).await?,
         Some(args::Commands::Web(cmd)) => web::execute(cmd, ctx)?,
@@ -155,5 +155,5 @@ async fn run_with_database_url(
     systemprompt_logging::init_logging(db_ctx.db_pool_arc());
 
     let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned());
-    dispatch_command(command, &ctx).await
+    Box::pin(dispatch_command(command, &ctx)).await
 }

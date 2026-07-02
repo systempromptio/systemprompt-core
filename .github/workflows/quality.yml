@@ -57,11 +57,11 @@ jobs:
       - run: just machete
 
   msrv:
-    name: MSRV check (Rust 1.88)
+    name: MSRV check (Rust 1.94)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: dtolnay/rust-toolchain@1.94.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace
 

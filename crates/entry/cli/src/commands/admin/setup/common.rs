@@ -87,7 +87,7 @@ pub(super) async fn enable_extensions(config: &PostgresConfig) -> Result<()> {
 
     for ext in extensions {
         let sql = format!("CREATE EXTENSION IF NOT EXISTS \"{}\"", ext);
-        if let Err(e) = sqlx::query(&sql).execute(&pool).await {
+        if let Err(e) = sqlx::query(sqlx::AssertSqlSafe(sql)).execute(&pool).await {
             CliService::warning(&format!("Could not create extension '{}': {}", ext, e));
         }
     }

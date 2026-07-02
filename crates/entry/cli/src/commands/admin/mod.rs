@@ -71,10 +71,10 @@ pub async fn execute(cmd: AdminCommands, ctx: &CommandContext) -> Result<()> {
 
     match cmd {
         AdminCommands::Users(cmd) => users::execute(cmd, ctx).await,
-        AdminCommands::Agents(cmd) => agents::execute(cmd, ctx).await,
+        AdminCommands::Agents(cmd) => Box::pin(agents::execute(cmd, ctx)).await,
         AdminCommands::Config(cmd) => config::execute(cmd, ctx).await,
         AdminCommands::Setup(args) => {
-            let result = setup::execute(args, ctx).await?;
+            let result = Box::pin(setup::execute(args, ctx)).await?;
             render_result(&result, &ctx.cli);
             Ok(())
         },

@@ -4,6 +4,8 @@
 
 ### Breaking
 
+- The minimum supported Rust version is 1.94.
+- SQLx is upgraded to 0.9. Crates that expose SQLx types (`systemprompt-database`) now build against sqlx 0.9; downstream consumers must upgrade in lockstep.
 - `MarketplaceCandidate::new` takes an additional `artifacts: Vec<ArtifactEntry>` argument, and `CatalogContent::into_parts` returns a 4-tuple including the artifact set. Migrate by passing `Vec::new()` / destructuring the extra element where artifacts are not used.
 
 ### Added

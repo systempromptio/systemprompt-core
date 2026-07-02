@@ -30,7 +30,9 @@ pub(super) async fn get_database_info(pool: &PgPool) -> DatabaseResult<DatabaseI
 
         let quoted_table = quote_identifier(&table_name);
         let count_query = format!("SELECT COUNT(*) as count FROM {quoted_table}");
-        let count_row = sqlx::query(&count_query).fetch_one(pool).await?;
+        let count_row = sqlx::query(sqlx::AssertSqlSafe(count_query))
+            .fetch_one(pool)
+            .await?;
         let row_count: i64 = count_row.try_get("count")?;
 
         let column_rows = sqlx::query(

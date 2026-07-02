@@ -144,7 +144,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
 async-trait = "0.1"
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "migrate", "chrono", "rust_decimal"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "migrate", "chrono", "rust_decimal"] }
 rust_decimal = "1.40"
 
 # Serialization
