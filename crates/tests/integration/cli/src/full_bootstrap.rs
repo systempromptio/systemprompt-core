@@ -141,6 +141,7 @@ fn build() -> FullBootstrap {
         "system",
         "system/web",
         "services/config",
+        "services/ai",
         "services/content",
         "services/web",
         "services/skills",
@@ -159,6 +160,7 @@ fn build() -> FullBootstrap {
         render_services_config(59999),
     )
     .expect("write services config");
+    std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
     std::fs::write(services_dir.join("content/config.yaml"), "{}\n").expect("write content stub");
     std::fs::write(services_dir.join("web/config.yaml"), WEB_CONFIG).expect("write web config");
     std::fs::write(services_dir.join("web/metadata.yaml"), "{}\n").expect("write metadata stub");
@@ -278,6 +280,17 @@ ai:
       default_model: claude-sonnet-4-5
 "#;
 
+const AI_CONFIG: &str = r#"ai:
+  default_provider: anthropic
+  providers:
+    anthropic:
+      enabled: true
+      default_model: claude-sonnet-4-5
+    openai:
+      enabled: false
+      default_model: gpt-5
+"#;
+
 const WEB_CONFIG: &str = r#"branding:
   name: fixture-brand
   title: "Fixture Brand"
@@ -378,6 +391,21 @@ runtime:
   non_interactive: true
 extensions:
   disabled: []
+providers:
+  - name: anthropic
+    wire: anthropic
+    surface: anthropic
+    endpoint: https://api.anthropic.com/v1/messages
+    api_key_secret: anthropic
+    models:
+      - id: claude-sonnet-4-5
+  - name: openai
+    wire: openai-chat
+    surface: openai
+    endpoint: https://api.openai.com/v1/chat/completions
+    api_key_secret: openai
+    models:
+      - id: gpt-5
 governance:
   authz:
     hook:
