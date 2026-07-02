@@ -393,7 +393,8 @@ coverage:
         RUSTFLAGS="-C instrument-coverage" \
         SYSTEMPROMPT_BIN="$SYSTEMPROMPT_BIN" \
         DATABASE_URL="$DATABASE_URL" \
-        cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast
+        cargo nextest run --workspace --lib --bins --tests --build-jobs 4 --no-fail-fast \
+        || echo "warning: test failures/timeouts above — continuing to coverage report"
 
     PROFRAW_COUNT=$(find "$PROFDIR" -name "*.profraw" | wc -l)
     echo "==> Generated $PROFRAW_COUNT profraw files"
