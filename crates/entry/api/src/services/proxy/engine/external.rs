@@ -91,7 +91,10 @@ impl ProxyEngine {
     }
 }
 
-fn outbound_headers(incoming: &HeaderMap, provider: HashMap<HeaderName, HeaderValue>) -> HeaderMap {
+pub(super) fn outbound_headers(
+    incoming: &HeaderMap,
+    provider: HashMap<HeaderName, HeaderValue>,
+) -> HeaderMap {
     let mut headers = HeaderMap::new();
     for name in MCP_PASSTHROUGH_HEADERS {
         if let Some(value) = incoming.get(name) {
@@ -125,7 +128,7 @@ fn build_audit(
     }
 }
 
-fn map_resolve_error(service_name: &str, error: McpDomainError) -> ProxyError {
+pub(super) fn map_resolve_error(service_name: &str, error: McpDomainError) -> ProxyError {
     match error {
         McpDomainError::AuthRequired(_) => ProxyError::AuthenticationRequired {
             service: service_name.to_owned(),

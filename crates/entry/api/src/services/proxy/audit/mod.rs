@@ -43,6 +43,26 @@ pub mod test_api {
     pub fn extract_sse_data(frame: &str) -> Option<String> {
         super::jsonrpc::extract_sse_data(frame)
     }
+
+    pub async fn record_tool_call(
+        response: reqwest::Response,
+        pool: &systemprompt_database::DbPool,
+        context: systemprompt_models::RequestContext,
+        server_name: &str,
+        request_body: &[u8],
+    ) -> Result<axum::response::Response<axum::body::Body>, String> {
+        let invocation = super::jsonrpc::parse_tool_call(request_body)
+            .ok_or_else(|| "request body is not a tools/call".to_owned())?;
+        let repo = systemprompt_mcp::repository::ToolUsageRepository::new(pool)
+            .map_err(|e| e.to_string())?;
+        let audit = super::McpAudit::new(
+            std::sync::Arc::new(repo),
+            context,
+            server_name.to_owned(),
+            invocation,
+        );
+        super::tap::record(response, audit).await
+    }
 }
 
 pub(crate) struct McpAudit {
