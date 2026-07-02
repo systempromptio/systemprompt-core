@@ -247,3 +247,7 @@ mod proxy_mcp_session_cache;
 #[cfg(test)]
 #[path = "proxy_audit_tap.rs"]
 mod proxy_audit_tap;
+
+#[cfg(test)]
+#[path = "routes_oauth_token_grants_happy.rs"]
+mod routes_oauth_token_grants_happy;
