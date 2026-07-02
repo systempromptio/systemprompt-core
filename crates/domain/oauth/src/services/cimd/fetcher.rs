@@ -19,7 +19,7 @@ impl CimdFetcher {
             .redirect(reqwest::redirect::Policy::limited(3))
             .build()
             .map_err(|e| {
-                crate::error::OauthError::Internal(format!("Failed to build HTTP client: {}", e))
+                crate::error::OauthError::CimdFetch(format!("Failed to build HTTP client: {}", e))
             })?;
 
         Ok(Self { client })
@@ -28,7 +28,7 @@ impl CimdFetcher {
     pub async fn fetch_metadata(&self, client_id: &ClientId) -> Result<CimdMetadata> {
         let client_id_str = client_id.as_str();
         if !client_id_str.starts_with("https://") {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "CIMD client_id must be HTTPS URL".to_owned(),
             ));
         }
@@ -40,13 +40,13 @@ impl CimdFetcher {
             .send()
             .await
             .map_err(|e| {
-                crate::error::OauthError::Internal(format!(
+                crate::error::OauthError::CimdFetch(format!(
                     "Failed to fetch CIMD metadata from {client_id_str}: {e}"
                 ))
             })?;
 
         if !response.status().is_success() {
-            return Err(crate::error::OauthError::Internal(format!(
+            return Err(crate::error::OauthError::CimdFetch(format!(
                 "Failed to fetch CIMD metadata: HTTP {} from {}",
                 response.status(),
                 client_id_str
@@ -54,13 +54,13 @@ impl CimdFetcher {
         }
 
         let metadata: CimdMetadata = response.json().await.map_err(|e| {
-            crate::error::OauthError::Internal(format!(
+            crate::error::OauthError::CimdFetch(format!(
                 "Invalid CIMD metadata JSON from {client_id_str}: {e}"
             ))
         })?;
 
         if metadata.client_id.as_str() != client_id_str {
-            return Err(crate::error::OauthError::Internal(format!(
+            return Err(crate::error::OauthError::InvalidClientMetadata(format!(
                 "CIMD metadata client_id mismatch: expected '{}', got '{}'",
                 client_id_str, metadata.client_id
             )));

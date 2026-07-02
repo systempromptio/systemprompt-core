@@ -17,9 +17,9 @@ impl From<ConfigError> for OAuthHttpError {
 impl From<OauthError> for OAuthHttpError {
     fn from(err: OauthError) -> Self {
         match &err {
-            OauthError::InvalidClient(_) | OauthError::ClientNotFound(_) => {
-                Self::invalid_client(err.to_string())
-            },
+            OauthError::InvalidClient(_)
+            | OauthError::ClientNotFound(_)
+            | OauthError::InvalidClientMetadata(_) => Self::invalid_client(err.to_string()),
             OauthError::InvalidGrant(_)
             | OauthError::CodeNotFound(_)
             | OauthError::TokenNotFound(_)
@@ -53,6 +53,8 @@ impl From<OauthError> for OAuthHttpError {
             | OauthError::DatabaseRepository(_)
             | OauthError::Config(_)
             | OauthError::Crypto(_)
+            | OauthError::CimdFetch(_)
+            | OauthError::WebAuthnConfig(_)
             | OauthError::Internal(_) => Self::server_error(err.to_string()),
         }
     }

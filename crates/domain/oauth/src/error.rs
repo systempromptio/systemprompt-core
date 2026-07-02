@@ -88,6 +88,15 @@ pub enum OauthError {
     #[error("crypto error: {0}")]
     Crypto(String),
 
+    #[error("CIMD metadata fetch failed: {0}")]
+    CimdFetch(String),
+
+    #[error("invalid client metadata: {0}")]
+    InvalidClientMetadata(String),
+
+    #[error("webauthn configuration error: {0}")]
+    WebAuthnConfig(String),
+
     #[error("internal: {0}")]
     Internal(String),
 }

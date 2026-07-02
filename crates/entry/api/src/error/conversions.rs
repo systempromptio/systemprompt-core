@@ -82,7 +82,9 @@ impl From<OauthError> for ApiHttpError {
             | OauthError::TokenNotFound(_)
             | OauthError::ClientNotFound(_)
             | OauthError::UserNotFound(_) => ApiError::not_found(message),
-            OauthError::Validation(_) => ApiError::bad_request(message),
+            OauthError::Validation(_) | OauthError::InvalidClientMetadata(_) => {
+                ApiError::bad_request(message)
+            },
             OauthError::UsernameTaken(_) | OauthError::EmailRegistered(_) => {
                 ApiError::conflict(message)
             },
@@ -105,6 +107,8 @@ impl From<OauthError> for ApiHttpError {
             | OauthError::DatabaseRepository(_)
             | OauthError::Config(_)
             | OauthError::Crypto(_)
+            | OauthError::CimdFetch(_)
+            | OauthError::WebAuthnConfig(_)
             | OauthError::Internal(_) => ApiError::internal_error(message),
         };
         Self(api)

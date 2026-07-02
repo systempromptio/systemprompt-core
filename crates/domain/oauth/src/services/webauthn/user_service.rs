@@ -31,7 +31,7 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?
+            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?
         {
             return Ok(existing_user.id);
         }
@@ -42,12 +42,12 @@ impl UserCreationService {
             .user_provider
             .create_user(username, email, full_name)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?;
+            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?;
 
         self.user_provider
             .assign_roles(&user.id, &roles)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?;
+            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?;
 
         Ok(user.id)
     }
@@ -62,7 +62,7 @@ impl UserCreationService {
             .user_provider
             .find_by_email(email)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?
+            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?
             .is_some()
         {
             return Err(crate::error::OauthError::EmailRegistered(email.to_owned()));
@@ -72,7 +72,7 @@ impl UserCreationService {
             .user_provider
             .find_by_name(username)
             .await
-            .map_err(|e| crate::error::OauthError::Internal(format!("{e}")))?
+            .map_err(|e| crate::error::OauthError::User(format!("{e}")))?
             .is_some()
         {
             return Err(crate::error::OauthError::UsernameTaken(username.to_owned()));
