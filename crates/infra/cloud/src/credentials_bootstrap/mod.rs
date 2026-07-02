@@ -207,11 +207,7 @@ impl CredentialsBootstrap {
             );
         }
 
-        tracing::debug!(
-            "Loaded cloud credentials from {} (user: {:?})",
-            path.display(),
-            creds.user_email
-        );
+        tracing::debug!(path = %path.display(), user = ?creds.user_email, "Loaded cloud credentials");
 
         Ok(creds)
     }
