@@ -20,52 +20,36 @@ use systemprompt_models::{
 use super::message::StreamEvent;
 use crate::models::AgentRuntimeInfo;
 
-fn resolve_provider_config(
+pub fn resolve_provider_config(
     request_context: &RequestContext,
     agent_runtime: &AgentRuntimeInfo,
     ai_service: &dyn AiProvider,
 ) -> (String, String, u32) {
-    if let Some(config) = request_context.tool_model_config() {
-        let provider = config
-            .provider
-            .as_deref()
-            .or(agent_runtime.provider.as_deref())
-            .unwrap_or_else(|| ai_service.default_provider())
-            .to_owned();
-        let model = config
-            .model
-            .as_deref()
-            .or(agent_runtime.model.as_deref())
-            .unwrap_or_else(|| ai_service.default_model())
-            .to_owned();
-        let max_tokens = config
-            .max_output_tokens
-            .or(agent_runtime.max_output_tokens)
-            .unwrap_or_else(|| ai_service.default_max_output_tokens());
+    let tool_config = request_context.tool_model_config();
 
+    let provider = tool_config
+        .and_then(|c| c.provider.as_deref())
+        .or(agent_runtime.provider.as_deref())
+        .unwrap_or_else(|| ai_service.default_provider())
+        .to_owned();
+    let model = tool_config
+        .and_then(|c| c.model.as_deref())
+        .or(agent_runtime.model.as_deref())
+        .unwrap_or_else(|| ai_service.default_model())
+        .to_owned();
+    let max_tokens = tool_config
+        .and_then(|c| c.max_output_tokens)
+        .or(agent_runtime.max_output_tokens)
+        .unwrap_or_else(|| ai_service.default_max_output_tokens());
+
+    if tool_config.is_some() {
         tracing::debug!(
             provider,
             model,
             max_output_tokens = max_tokens,
             "Using tool_model_config"
         );
-
-        return (provider, model, max_tokens);
     }
-
-    let provider = agent_runtime
-        .provider
-        .as_deref()
-        .unwrap_or_else(|| ai_service.default_provider())
-        .to_owned();
-    let model = agent_runtime
-        .model
-        .as_deref()
-        .unwrap_or_else(|| ai_service.default_model())
-        .to_owned();
-    let max_tokens = agent_runtime
-        .max_output_tokens
-        .unwrap_or_else(|| ai_service.default_max_output_tokens());
 
     (provider, model, max_tokens)
 }
