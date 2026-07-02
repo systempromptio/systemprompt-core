@@ -22,6 +22,8 @@ pub const TEST_MANIFEST_SIGNING_SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 const UNRESTRICTED_ACKNOWLEDGEMENT: &str = "I understand this disables all authorization";
 
 pub const FIXTURE_AGENT: &str = "covagent";
+pub const FIXTURE_EDIT_AGENT: &str = "covedit";
+pub const FIXTURE_DELETE_AGENT: &str = "covdelete";
 pub const FIXTURE_MCP_SERVER: &str = "fixture_mcp";
 
 pub struct FullBootstrap {
@@ -141,9 +143,11 @@ fn build() -> FullBootstrap {
         "system",
         "system/web",
         "services/config",
+        "services/ai",
         "services/content",
         "services/web",
         "services/skills",
+        "services/skills/echo_skill",
         "services/agents",
         "services/plugins",
         "services/hooks",
@@ -159,6 +163,24 @@ fn build() -> FullBootstrap {
         render_services_config(59999),
     )
     .expect("write services config");
+    std::fs::write(services_dir.join("ai/config.yaml"), AI_CONFIG).expect("write ai config");
+    std::fs::write(
+        services_dir.join("skills/echo_skill/config.yaml"),
+        "id: echo_skill\nname: Echo Skill\ndescription: Fixture skill for edit coverage\n",
+    )
+    .expect("write skill config");
+    std::fs::write(
+        services_dir.join("skills/echo_skill/index.md"),
+        "# Echo Skill\n\nEcho the input back.\n",
+    )
+    .expect("write skill content");
+    for (name, port) in [(FIXTURE_EDIT_AGENT, 4788), (FIXTURE_DELETE_AGENT, 4789)] {
+        std::fs::write(
+            services_dir.join(format!("agents/{name}.yaml")),
+            render_extra_agent(name, port),
+        )
+        .expect("write extra agent");
+    }
     std::fs::write(services_dir.join("content/config.yaml"), "{}\n").expect("write content stub");
     std::fs::write(services_dir.join("web/config.yaml"), WEB_CONFIG).expect("write web config");
     std::fs::write(services_dir.join("web/metadata.yaml"), "{}\n").expect("write metadata stub");
@@ -195,11 +217,34 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);
-    c.args(["admin", "bootstrap"]);
+    c.args(["admin", "bootstrap", "--email", "testadmin@example.com"]);
     c.timeout(std::time::Duration::from_secs(120));
     // A concurrent test process may have created the admin already; either
     // exit status leaves the row in place, which is all the boot path needs.
     let _ = c.assert();
+    normalize_admin_email();
+}
+
+/// A pre-existing `testadmin` row keeps its original email through bootstrap;
+/// session-token generation rejects dot-less domains, so repair it in place.
+fn normalize_admin_email() {
+    let Some(url) = database_url() else { return };
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build email-normalize runtime");
+    runtime.block_on(async {
+        let pool = sqlx::PgPool::connect(&url)
+            .await
+            .expect("connect to test database");
+        sqlx::query(
+            "UPDATE users SET email = 'testadmin@example.com'
+             WHERE name = 'testadmin' AND email NOT LIKE '%.%'",
+        )
+        .execute(&pool)
+        .await
+        .expect("normalize admin email");
+    });
 }
 
 pub fn rewrite_services_config(fixture: &FullBootstrap, mcp_port: u16) {
@@ -214,7 +259,57 @@ fn render_services_config(mcp_port: u16) -> String {
     SERVICES_CONFIG_TEMPLATE.replace("@MCP_PORT@", &mcp_port.to_string())
 }
 
-const SERVICES_CONFIG_TEMPLATE: &str = r#"agents:
+fn render_extra_agent(name: &str, port: u16) -> String {
+    EXTRA_AGENT_TEMPLATE
+        .replace("@NAME@", name)
+        .replace("@PORT@", &port.to_string())
+}
+
+const EXTRA_AGENT_TEMPLATE: &str = r#"agents:
+  @NAME@:
+    name: @NAME@
+    port: @PORT@
+    endpoint: /api/v1/agents/@NAME@/
+    enabled: false
+    dev_only: false
+    is_primary: false
+    default: false
+    tags: []
+    card:
+      protocolVersion: 0.3.0
+      name: @NAME@
+      displayName: Extra Agent
+      description: Pre-seeded agent for authoring coverage tests
+      version: 1.0.0
+      preferredTransport: JSONRPC
+      capabilities:
+        streaming: true
+        pushNotifications: false
+        stateTransitionHistory: true
+      defaultInputModes:
+      - text/plain
+      defaultOutputModes:
+      - text/plain
+      supportsAuthenticatedExtendedCard: false
+    metadata:
+      systemPrompt: You are a fixture agent.
+      mcpServers:
+        source: instance
+      skills:
+        source: instance
+      provider: anthropic
+      model: claude-sonnet-4-5
+      toolModelOverrides: {}
+    oauth:
+      required: false
+      scopes: []
+      audience: a2a
+"#;
+
+const SERVICES_CONFIG_TEMPLATE: &str = r#"includes:
+  - ../agents/covedit.yaml
+  - ../agents/covdelete.yaml
+agents:
   covagent:
     name: covagent
     port: 4777
@@ -244,6 +339,8 @@ const SERVICES_CONFIG_TEMPLATE: &str = r#"agents:
       systemPrompt: You are a fixture agent.
       mcpServers:
         source: instance
+        include:
+        - fixture_mcp
       skills:
         source: instance
       provider: anthropic
@@ -276,6 +373,17 @@ ai:
     anthropic:
       enabled: true
       default_model: claude-sonnet-4-5
+"#;
+
+const AI_CONFIG: &str = r#"ai:
+  default_provider: anthropic
+  providers:
+    anthropic:
+      enabled: true
+      default_model: claude-sonnet-4-5
+    openai:
+      enabled: false
+      default_model: gpt-5
 "#;
 
 const WEB_CONFIG: &str = r#"branding:
@@ -378,6 +486,21 @@ runtime:
   non_interactive: true
 extensions:
   disabled: []
+providers:
+  - name: anthropic
+    wire: anthropic
+    surface: anthropic
+    endpoint: https://api.anthropic.com/v1/messages
+    api_key_secret: anthropic
+    models:
+      - id: claude-sonnet-4-5
+  - name: openai
+    wire: openai-chat
+    surface: openai
+    endpoint: https://api.openai.com/v1/chat/completions
+    api_key_secret: openai
+    models:
+      - id: gpt-5
 governance:
   authz:
     hook:

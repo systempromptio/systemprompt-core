@@ -7,12 +7,12 @@
 
 pub mod ai_config;
 pub mod catalog;
-mod common;
+pub mod common;
 pub mod ddl;
 mod docker;
-mod docker_compose;
+pub mod docker_compose;
 mod docker_database;
-mod postgres;
+pub mod postgres;
 mod profile;
 mod profile_sections;
 mod secrets;

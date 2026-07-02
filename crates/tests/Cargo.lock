@@ -7286,6 +7286,7 @@ dependencies = [
  "systemprompt-users",
  "tempfile",
  "tokio",
+ "url",
  "uuid",
  "wiremock",
 ]
@@ -7300,6 +7301,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sqlx",
  "systemprompt-cli",
  "systemprompt-cloud",
  "systemprompt-identifiers",
@@ -7309,6 +7311,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "url",
 ]
 
 [[package]]

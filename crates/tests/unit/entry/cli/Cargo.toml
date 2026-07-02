@@ -24,6 +24,8 @@ tempfile = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 rand = { workspace = true }
+sqlx = { workspace = true }
+url = { workspace = true }
 chrono = { workspace = true }
 
 [dev-dependencies]
