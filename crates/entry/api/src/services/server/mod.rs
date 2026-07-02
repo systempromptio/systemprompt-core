@@ -9,6 +9,13 @@
 pub mod builder;
 mod discovery;
 mod health;
+
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    #[cfg(target_os = "linux")]
+    pub use super::health::parse_proc_status_kb;
+    pub use super::health::{audit_log_stats, database_stats, human_bytes, table_stats};
+}
 mod health_detail;
 mod lifecycle;
 pub mod metrics;

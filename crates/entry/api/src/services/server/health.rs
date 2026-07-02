@@ -30,7 +30,14 @@ const AUDIT_LOG_QUERY: DatabaseQuery = DatabaseQuery::new(
 );
 
 #[cfg(target_os = "linux")]
-fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
     content
         .lines()
         .find(|line| line.starts_with(key))
@@ -61,7 +68,14 @@ pub(super) fn get_process_memory() -> Option<serde_json::Value> {
     None
 }
 
-fn human_bytes(bytes: i64) -> String {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn human_bytes(bytes: i64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
     let mut size: f64 = bytes as f64;
     let mut idx = 0;
@@ -135,7 +149,14 @@ pub(super) async fn get_system_stats(
     }))
 }
 
-fn database_stats(
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn database_stats(
     size_row: &JsonRow,
     tables: &[JsonRow],
     count_row: &JsonRow,
@@ -164,7 +185,14 @@ fn database_stats(
     })
 }
 
-fn table_stats(row: &JsonRow) -> serde_json::Value {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn table_stats(row: &JsonRow) -> serde_json::Value {
     let name = row
         .get("table_name")
         .and_then(serde_json::Value::as_str)
@@ -185,7 +213,14 @@ fn table_stats(row: &JsonRow) -> serde_json::Value {
     })
 }
 
-fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+pub fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
     let row_count = row
         .get("row_count")
         .and_then(serde_json::Value::as_i64)
