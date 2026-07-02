@@ -11,6 +11,11 @@ mod dispatch;
 mod extract;
 mod rejection;
 
+#[cfg(feature = "test-api")]
+pub mod test_api {
+    pub use super::auth::{ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal};
+}
+
 pub use dispatch::map_upstream_error;
 pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential};
 

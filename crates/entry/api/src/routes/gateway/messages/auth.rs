@@ -6,48 +6,79 @@ use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
 
 use crate::services::middleware::JwtContextExtractor;
 
-pub(super) enum AuthedPrincipal {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub enum AuthedPrincipal {
     Jwt(JwtPrincipal),
     ApiKey(ApiKeyPrincipal),
 }
 
-pub(super) struct JwtPrincipal {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct JwtPrincipal {
     pub user_id: UserId,
     pub trace_id: TraceId,
     pub roles: Vec<String>,
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
-    attested_session: SessionId,
+    pub attested_session: SessionId,
 }
 
-pub(super) struct ApiKeyPrincipal {
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
+#[derive(Debug)]
+pub struct ApiKeyPrincipal {
     pub user_id: UserId,
     pub trace_id: TraceId,
 }
 
+#[cfg_attr(
+    not(feature = "test-api"),
+    expect(
+        unreachable_pub,
+        reason = "items are re-exported via `test_api` only when the feature is on"
+    )
+)]
 impl AuthedPrincipal {
-    pub(super) const fn user_id(&self) -> &UserId {
+    pub const fn user_id(&self) -> &UserId {
         match self {
             Self::Jwt(p) => &p.user_id,
             Self::ApiKey(p) => &p.user_id,
         }
     }
 
-    pub(super) const fn trace_id(&self) -> &TraceId {
+    pub const fn trace_id(&self) -> &TraceId {
         match self {
             Self::Jwt(p) => &p.trace_id,
             Self::ApiKey(p) => &p.trace_id,
         }
     }
 
-    pub(super) const fn attested_session(&self) -> Option<&SessionId> {
+    pub const fn attested_session(&self) -> Option<&SessionId> {
         match self {
             Self::Jwt(p) => Some(&p.attested_session),
             Self::ApiKey(_) => None,
         }
     }
 
-    pub(super) fn authz_attributes(
+    pub fn authz_attributes(
         &self,
     ) -> (Vec<String>, BTreeMap<String, serde_json::Value>, Vec<Actor>) {
         match self {
@@ -56,10 +87,7 @@ impl AuthedPrincipal {
         }
     }
 
-    pub(super) fn enforce_session_binding(
-        &self,
-        header: &SessionId,
-    ) -> Result<(), (StatusCode, String)> {
+    pub fn enforce_session_binding(&self, header: &SessionId) -> Result<(), (StatusCode, String)> {
         match self {
             Self::Jwt(p) => p.enforce_session_binding(header),
             Self::ApiKey(_) => Ok(()),
