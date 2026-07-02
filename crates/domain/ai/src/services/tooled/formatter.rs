@@ -4,7 +4,7 @@
 //! prompt turn, truncating oversized payloads so a single tool result cannot
 //! blow the context budget.
 
-use rmcp::model::{CallToolResult, RawContent};
+use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt_models::ToolCall;
 use systemprompt_models::text::truncate_with_ellipsis;
 
@@ -132,8 +132,8 @@ impl ToolResultFormatter {
         result
             .content
             .iter()
-            .filter_map(|c| match &c.raw {
-                RawContent::Text(text_content) => Some(text_content.text.as_str()),
+            .filter_map(|c| match c {
+                ContentBlock::Text(text_content) => Some(text_content.text.as_str()),
                 _ => None,
             })
             .collect::<Vec<_>>()

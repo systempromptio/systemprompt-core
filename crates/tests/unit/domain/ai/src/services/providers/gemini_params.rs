@@ -1,4 +1,4 @@
-use rmcp::model::{Annotated, RawContent, RawTextContent};
+use rmcp::model::ContentBlock;
 use systemprompt_ai::models::ai::{AiMessage, MessageRole, SamplingParams};
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::providers::gemini::{ToolRequestParams, ToolResultParams};
@@ -25,13 +25,7 @@ fn make_tool_call(name: &str) -> ToolCall {
 }
 
 fn make_tool_result(content: &str) -> CallToolResult {
-    CallToolResult::success(vec![Annotated {
-        raw: RawContent::Text(RawTextContent {
-            text: content.to_owned(),
-            meta: None,
-        }),
-        annotations: None,
-    }])
+    CallToolResult::success(vec![ContentBlock::text(content.to_owned())])
 }
 
 mod tool_request_params_tests {

@@ -153,7 +153,7 @@ async fn generate_with_tool_results_synthesizes_reply() {
         name: "get_weather".to_owned(),
         arguments: json!({ "city": "Paris" }),
     }];
-    let tool_results = vec![CallToolResult::success(vec![rmcp::model::Content::text(
+    let tool_results = vec![CallToolResult::success(vec![rmcp::model::ContentBlock::text(
         "sunny, 24C",
     )])];
 
@@ -178,7 +178,7 @@ async fn generate_with_tool_results_handles_error_results() {
         name: "get_weather".to_owned(),
         arguments: json!({ "city": "Nowhere" }),
     }];
-    let tool_results = vec![CallToolResult::error(vec![rmcp::model::Content::text(
+    let tool_results = vec![CallToolResult::error(vec![rmcp::model::ContentBlock::text(
         "city not found",
     )])];
 

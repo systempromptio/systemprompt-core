@@ -7,7 +7,7 @@
 
 use std::time::Instant;
 
-use rmcp::model::RawContent;
+use rmcp::model::ContentBlock;
 use serde_json::Value;
 use systemprompt_models::wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalToolChoice, Role, SearchConfig,
@@ -135,8 +135,8 @@ fn tool_result_content(result: &CallToolResult) -> Vec<CanonicalContent> {
     result
         .content
         .iter()
-        .filter_map(|c| match &c.raw {
-            RawContent::Text(text) => Some(CanonicalContent::Text(text.text.clone())),
+        .filter_map(|c| match c {
+            ContentBlock::Text(text) => Some(CanonicalContent::Text(text.text.clone())),
             _ => None,
         })
         .collect()

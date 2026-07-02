@@ -48,7 +48,7 @@ impl ToolExecutorTrait for ContextToolExecutor {
                 .into_iter()
                 .next()
                 .and_then(|c| {
-                    if let rmcp::model::RawContent::Text(text_content) = c.raw {
+                    if let rmcp::model::ContentBlock::Text(text_content) = c {
                         Some(text_content.text)
                     } else {
                         None

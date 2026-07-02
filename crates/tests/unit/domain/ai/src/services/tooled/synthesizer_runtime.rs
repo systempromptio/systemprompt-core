@@ -5,7 +5,7 @@
 // the provider-error fallback.
 
 use async_trait::async_trait;
-use rmcp::model::Content;
+use rmcp::model::ContentBlock;
 use serde_json::json;
 use std::any::Any;
 use std::sync::Mutex;
@@ -137,7 +137,7 @@ fn tool_calls() -> Vec<ToolCall> {
 }
 
 fn tool_results() -> Vec<CallToolResult> {
-    vec![CallToolResult::success(vec![Content::text("sunny, 24C")])]
+    vec![CallToolResult::success(vec![ContentBlock::text("sunny, 24C")])]
 }
 
 async fn run(provider: &StubProvider) -> String {

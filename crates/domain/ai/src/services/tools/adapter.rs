@@ -81,15 +81,15 @@ pub fn rmcp_result_to_trait_result(result: &CallToolResult) -> TraitToolCallResu
     let content = result
         .content
         .iter()
-        .filter_map(|c| match &c.raw {
-            rmcp::model::RawContent::Text(text) => Some(ToolContent::Text {
+        .filter_map(|c| match c {
+            rmcp::model::ContentBlock::Text(text) => Some(ToolContent::Text {
                 text: text.text.clone(),
             }),
-            rmcp::model::RawContent::Image(img) => Some(ToolContent::Image {
+            rmcp::model::ContentBlock::Image(img) => Some(ToolContent::Image {
                 data: img.data.clone(),
                 mime_type: img.mime_type.clone(),
             }),
-            rmcp::model::RawContent::ResourceLink(res) => Some(ToolContent::Resource {
+            rmcp::model::ContentBlock::ResourceLink(res) => Some(ToolContent::Resource {
                 uri: res.uri.clone(),
                 mime_type: res.mime_type.clone(),
             }),
@@ -113,41 +113,22 @@ pub fn rmcp_result_to_trait_result(result: &CallToolResult) -> TraitToolCallResu
 }
 
 pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResult {
-    use rmcp::model::{
-        Annotated, Content, RawContent, RawImageContent, RawResource, RawTextContent,
-    };
+    use rmcp::model::{ContentBlock, Resource};
 
-    let content: Vec<Content> = result
+    let content: Vec<ContentBlock> = result
         .content
         .iter()
         .map(|c| match c {
-            ToolContent::Text { text } => Annotated {
-                raw: RawContent::Text(RawTextContent {
-                    text: text.clone(),
-                    meta: None,
-                }),
-                annotations: None,
+            ToolContent::Text { text } => ContentBlock::text(text.clone()),
+            ToolContent::Image { data, mime_type } => {
+                ContentBlock::image(data.clone(), mime_type.clone())
             },
-            ToolContent::Image { data, mime_type } => Annotated {
-                raw: RawContent::Image(RawImageContent {
-                    data: data.clone(),
-                    mime_type: mime_type.clone(),
-                    meta: None,
-                }),
-                annotations: None,
-            },
-            ToolContent::Resource { uri, mime_type } => Annotated {
-                raw: RawContent::ResourceLink(RawResource {
-                    uri: uri.clone(),
-                    name: uri.clone(),
-                    title: None,
-                    description: None,
-                    mime_type: mime_type.clone(),
-                    size: None,
-                    icons: None,
-                    meta: None,
-                }),
-                annotations: None,
+            ToolContent::Resource { uri, mime_type } => {
+                let mut resource = Resource::new(uri.clone(), uri.clone());
+                if let Some(mime_type) = mime_type {
+                    resource = resource.with_mime_type(mime_type.clone());
+                }
+                ContentBlock::resource_link(resource)
             },
         })
         .collect();

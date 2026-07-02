@@ -1,6 +1,6 @@
 //! Tests for tool adapter functions.
 
-use rmcp::model::{Annotated, RawContent, RawImageContent, RawResource, RawTextContent};
+use rmcp::model::{ContentBlock, Resource};
 use serde_json::json;
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::tools::{
@@ -203,41 +203,19 @@ mod tool_call_to_request_tests {
 mod rmcp_result_to_trait_result_tests {
     use super::*;
 
-    fn create_text_content(text: &str) -> Annotated<RawContent> {
-        Annotated {
-            raw: RawContent::Text(RawTextContent {
-                text: text.to_string(),
-                meta: None,
-            }),
-            annotations: None,
-        }
+    fn create_text_content(text: &str) -> ContentBlock {
+        ContentBlock::text(text.to_string())
     }
 
-    fn create_image_content() -> Annotated<RawContent> {
-        Annotated {
-            raw: RawContent::Image(RawImageContent {
-                data: "base64data".to_string(),
-                mime_type: "image/png".to_string(),
-                meta: None,
-            }),
-            annotations: None,
-        }
+    fn create_image_content() -> ContentBlock {
+        ContentBlock::image("base64data".to_string(), "image/png".to_string())
     }
 
-    fn create_resource_content() -> Annotated<RawContent> {
-        Annotated {
-            raw: RawContent::ResourceLink(RawResource {
-                uri: "file:///test.txt".to_string(),
-                name: "test.txt".to_string(),
-                title: None,
-                description: None,
-                mime_type: Some("text/plain".to_string()),
-                size: None,
-                icons: None,
-                meta: None,
-            }),
-            annotations: None,
-        }
+    fn create_resource_content() -> ContentBlock {
+        ContentBlock::resource_link(
+            Resource::new("file:///test.txt".to_string(), "test.txt".to_string())
+                .with_mime_type("text/plain".to_string()),
+        )
     }
 
     #[test]
@@ -335,8 +313,8 @@ mod trait_result_to_rmcp_result_tests {
         let result = trait_result_to_rmcp_result(&trait_result);
 
         assert_eq!(result.content.len(), 1);
-        match &result.content[0].raw {
-            RawContent::Text(text) => assert_eq!(text.text, "Hello"),
+        match &result.content[0] {
+            ContentBlock::Text(text) => assert_eq!(text.text, "Hello"),
             _ => panic!("Expected Text content"),
         }
     }
@@ -356,8 +334,8 @@ mod trait_result_to_rmcp_result_tests {
         let result = trait_result_to_rmcp_result(&trait_result);
 
         assert_eq!(result.content.len(), 1);
-        match &result.content[0].raw {
-            RawContent::Image(img) => {
+        match &result.content[0] {
+            ContentBlock::Image(img) => {
                 assert_eq!(img.data, "base64data");
                 assert_eq!(img.mime_type, "image/jpeg");
             },
@@ -380,8 +358,8 @@ mod trait_result_to_rmcp_result_tests {
         let result = trait_result_to_rmcp_result(&trait_result);
 
         assert_eq!(result.content.len(), 1);
-        match &result.content[0].raw {
-            RawContent::ResourceLink(res) => {
+        match &result.content[0] {
+            ContentBlock::ResourceLink(res) => {
                 assert_eq!(res.uri, "file:///resource.txt");
                 assert_eq!(res.mime_type, Some("text/plain".to_string()));
             },
@@ -419,13 +397,7 @@ mod trait_result_to_rmcp_result_tests {
 
     #[test]
     fn roundtrip_preserves_content() {
-        let mut original = CallToolResult::success(vec![Annotated {
-            raw: RawContent::Text(RawTextContent {
-                text: "roundtrip".to_string(),
-                meta: None,
-            }),
-            annotations: None,
-        }]);
+        let mut original = CallToolResult::success(vec![ContentBlock::text("roundtrip")]);
         original.structured_content = Some(json!({"test": true}));
 
         let trait_result = rmcp_result_to_trait_result(&original);

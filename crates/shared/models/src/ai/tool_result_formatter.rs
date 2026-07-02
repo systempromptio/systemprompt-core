@@ -1,4 +1,4 @@
-use rmcp::model::{CallToolResult, RawContent};
+use rmcp::model::{CallToolResult, ContentBlock};
 
 use super::tools::ToolCall;
 use crate::text::truncate_with_ellipsis;
@@ -127,12 +127,9 @@ impl ToolResultFormatter {
         result
             .content
             .iter()
-            .filter_map(|c| match &c.raw {
-                RawContent::Text(text_content) => Some(text_content.text.as_str()),
-                RawContent::Image(_)
-                | RawContent::Resource(_)
-                | RawContent::Audio(_)
-                | RawContent::ResourceLink(_) => None,
+            .filter_map(|c| match c {
+                ContentBlock::Text(text_content) => Some(text_content.text.as_str()),
+                _ => None,
             })
             .collect::<Vec<_>>()
             .join("\n")

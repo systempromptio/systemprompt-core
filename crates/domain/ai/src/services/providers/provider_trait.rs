@@ -17,7 +17,7 @@ use crate::models::tools::{CallToolResult, McpTool, ToolCall};
 use crate::services::schema::ProviderCapabilities;
 use async_trait::async_trait;
 use futures::stream::Stream;
-use rmcp::model::RawContent;
+use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
 use systemprompt_models::profile::ProviderModel;
@@ -199,8 +199,8 @@ pub trait AiProvider: Send + Sync {
             let content_text: String = result
                 .content
                 .iter()
-                .filter_map(|c| match &c.raw {
-                    RawContent::Text(text_content) => Some(text_content.text.as_str()),
+                .filter_map(|c| match c {
+                    ContentBlock::Text(text_content) => Some(text_content.text.as_str()),
                     _ => None,
                 })
                 .collect::<Vec<_>>()

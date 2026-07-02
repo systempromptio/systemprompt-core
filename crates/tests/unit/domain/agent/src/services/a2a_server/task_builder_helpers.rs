@@ -1,43 +1,20 @@
-use rmcp::model::{Content, RawContent, RawImageContent, RawResource, RawTextContent};
+use rmcp::model::{ContentBlock, Resource};
 use systemprompt_agent::services::a2a_server::processing::task_builder::helpers::{
     content_to_json, extract_text_from_content,
 };
 
-fn text_content(text: &str) -> Content {
-    Content {
-        raw: RawContent::Text(RawTextContent {
-            text: text.to_string(),
-            meta: None,
-        }),
-        annotations: None,
-    }
+fn text_content(text: &str) -> ContentBlock {
+    ContentBlock::text(text)
 }
 
-fn image_content(data: &str, mime: &str) -> Content {
-    Content {
-        raw: RawContent::Image(RawImageContent {
-            data: data.to_string(),
-            mime_type: mime.to_string(),
-            meta: None,
-        }),
-        annotations: None,
-    }
+fn image_content(data: &str, mime: &str) -> ContentBlock {
+    ContentBlock::image(data, mime)
 }
 
-fn resource_content(uri: &str) -> Content {
-    Content {
-        raw: RawContent::ResourceLink(RawResource {
-            uri: uri.to_string(),
-            name: "test-resource".to_string(),
-            title: None,
-            description: None,
-            mime_type: Some("application/json".to_string()),
-            size: None,
-            icons: None,
-            meta: None,
-        }),
-        annotations: None,
-    }
+fn resource_content(uri: &str) -> ContentBlock {
+    ContentBlock::resource_link(
+        Resource::new(uri, "test-resource").with_mime_type("application/json"),
+    )
 }
 
 #[test]
@@ -56,7 +33,7 @@ fn extract_text_multiple_text_parts() {
 
 #[test]
 fn extract_text_empty_content() {
-    let content: Vec<Content> = vec![];
+    let content: Vec<ContentBlock> = vec![];
     let result = extract_text_from_content(&content);
     assert_eq!(result, "");
 }
@@ -109,7 +86,7 @@ fn content_to_json_single_text() {
 
 #[test]
 fn content_to_json_empty() {
-    let content: Vec<Content> = vec![];
+    let content: Vec<ContentBlock> = vec![];
     let result = content_to_json(&content);
     let arr = result.as_array().unwrap();
     assert!(arr.is_empty());

@@ -4,7 +4,7 @@
 //! (including the missing/out-of-range error paths), plus the AI/synthesis/
 //! display/fallback formatting helpers on [`ToolResultFormatter`].
 
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::{Value as JsonValue, json};
 use std::collections::HashMap;
 use systemprompt_identifiers::AiToolCallId;
@@ -21,11 +21,11 @@ fn sample_call(name: &str) -> ToolCall {
 }
 
 fn ok_result(text: &str) -> CallToolResult {
-    CallToolResult::success(vec![Content::text(text.to_owned())])
+    CallToolResult::success(vec![ContentBlock::text(text.to_owned())])
 }
 
 fn err_result(text: &str) -> CallToolResult {
-    CallToolResult::error(vec![Content::text(text.to_owned())])
+    CallToolResult::error(vec![ContentBlock::text(text.to_owned())])
 }
 
 // ---------- ToolCall serde ----------

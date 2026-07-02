@@ -29,14 +29,14 @@ fn test_build_artifact_viewer_returns_single_resource() {
 fn test_build_artifact_viewer_uri_format() {
     let result = build_artifact_viewer_resource(&sample_config());
     let resource = &result.resources[0];
-    assert_eq!(resource.raw.uri, "ui://demo/artifact-viewer");
-    assert_eq!(resource.raw.name, "Artifact Viewer");
-    assert_eq!(resource.raw.title.as_deref(), Some("Demo Viewer"));
+    assert_eq!(resource.uri, "ui://demo/artifact-viewer");
+    assert_eq!(resource.name, "Artifact Viewer");
+    assert_eq!(resource.title.as_deref(), Some("Demo Viewer"));
     assert_eq!(
-        resource.raw.description.as_deref(),
+        resource.description.as_deref(),
         Some("A demo artifact viewer")
     );
-    assert!(resource.raw.mime_type.is_some());
+    assert!(resource.mime_type.is_some());
 }
 
 #[test]
@@ -44,8 +44,8 @@ fn test_build_artifact_viewer_size_matches_template() {
     let result = build_artifact_viewer_resource(&sample_config());
     let resource = &result.resources[0];
     assert_eq!(
-        resource.raw.size,
-        Some(u32::try_from(SAMPLE_TEMPLATE.len()).expect("fits"))
+        resource.size,
+        Some(u64::try_from(SAMPLE_TEMPLATE.len()).expect("fits"))
     );
 }
 
@@ -61,9 +61,9 @@ fn test_build_artifact_viewer_with_icons() {
     };
     let result = build_artifact_viewer_resource(&config);
     let resource = &result.resources[0];
-    assert!(resource.raw.icons.is_some());
+    assert!(resource.icons.is_some());
     assert_eq!(
-        resource.raw.icons.as_ref().expect("icons").len(),
+        resource.icons.as_ref().expect("icons").len(),
         icons.len()
     );
 }

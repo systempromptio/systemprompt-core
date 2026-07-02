@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- rmcp is upgraded to 2.x; the task-builder content helpers (`extract_text_from_content`, `content_to_json`) take `&[rmcp::model::ContentBlock]` in place of the removed `Content` type.
+- The minimum supported Rust version is 1.94.
+
 ## [0.16.0] - 2026-06-22
 
 ### Breaking

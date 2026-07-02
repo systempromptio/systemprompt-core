@@ -20,15 +20,15 @@ pub fn to_tool_result(rmcp_result: &rmcp::model::CallToolResult) -> ToolCallResu
     let content = rmcp_result
         .content
         .iter()
-        .filter_map(|c| match &c.raw {
-            rmcp::model::RawContent::Text(text) => Some(ToolContent::Text {
+        .filter_map(|c| match c {
+            rmcp::model::ContentBlock::Text(text) => Some(ToolContent::Text {
                 text: text.text.clone(),
             }),
-            rmcp::model::RawContent::Image(img) => Some(ToolContent::Image {
+            rmcp::model::ContentBlock::Image(img) => Some(ToolContent::Image {
                 data: img.data.clone(),
                 mime_type: img.mime_type.clone(),
             }),
-            rmcp::model::RawContent::ResourceLink(res) => Some(ToolContent::Resource {
+            rmcp::model::ContentBlock::ResourceLink(res) => Some(ToolContent::Resource {
                 uri: res.uri.clone(),
                 mime_type: res.mime_type.clone(),
             }),

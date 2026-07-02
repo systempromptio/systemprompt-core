@@ -1,6 +1,6 @@
 //! Tests for MCP tool/result conversion into `systemprompt_traits` shapes.
 
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, ContentBlock};
 use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::services::tool_provider::conversions::{to_tool_definition, to_tool_result};
 use systemprompt_models::ai::tools::McpTool;
@@ -30,7 +30,7 @@ fn to_tool_definition_maps_all_fields() {
 
 #[test]
 fn to_tool_result_maps_text_content() {
-    let result = CallToolResult::success(vec![Content::text("hello")]);
+    let result = CallToolResult::success(vec![ContentBlock::text("hello")]);
     let converted = to_tool_result(&result);
 
     assert_eq!(converted.content.len(), 1);
@@ -44,7 +44,7 @@ fn to_tool_result_maps_text_content() {
 
 #[test]
 fn to_tool_result_maps_image_and_error_flag() {
-    let result = CallToolResult::error(vec![Content::image("aGVsbG8=", "image/png")]);
+    let result = CallToolResult::error(vec![ContentBlock::image("aGVsbG8=", "image/png")]);
     let converted = to_tool_result(&result);
 
     assert_eq!(converted.content.len(), 1);

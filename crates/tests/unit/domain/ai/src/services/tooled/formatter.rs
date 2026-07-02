@@ -1,6 +1,6 @@
 //! Tests for ToolResultFormatter.
 
-use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
+use rmcp::model::ContentBlock;
 use serde_json::json;
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::tooled::ToolResultFormatter;
@@ -14,14 +14,8 @@ fn create_tool_call(name: &str) -> ToolCall {
     }
 }
 
-fn create_text_content(text: &str) -> Content {
-    Annotated {
-        raw: RawContent::Text(RawTextContent {
-            text: text.to_string(),
-            meta: None,
-        }),
-        annotations: None,
-    }
+fn create_text_content(text: &str) -> ContentBlock {
+    ContentBlock::text(text.to_string())
 }
 
 fn create_success_result(text: &str) -> CallToolResult {

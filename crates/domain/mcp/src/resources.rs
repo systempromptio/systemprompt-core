@@ -1,7 +1,7 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::{
-    Icon, ListResourcesResult, Meta, RawResource, ReadResourceRequestParams, ReadResourceResult,
-    Resource, ResourceContents,
+    Icon, ListResourcesResult, Meta, ReadResourceRequestParams, ReadResourceResult, Resource,
+    ResourceContents,
 };
 
 use crate::capabilities::WEBSITE_URL;
@@ -18,19 +18,15 @@ pub struct ArtifactViewerConfig<'a> {
 
 #[must_use]
 pub fn build_artifact_viewer_resource(config: &ArtifactViewerConfig<'_>) -> ListResourcesResult {
-    let resource = Resource {
-        raw: RawResource {
-            uri: format!("ui://{}/artifact-viewer", config.server_name),
-            name: "Artifact Viewer".to_owned(),
-            title: Some(config.title.to_owned()),
-            description: Some(config.description.to_owned()),
-            mime_type: Some(MCP_APP_MIME_TYPE.to_owned()),
-            size: Some(u32::try_from(config.template.len()).unwrap_or(u32::MAX)),
-            icons: config.icons.clone(),
-            meta: None,
-        },
-        annotations: None,
-    };
+    let mut resource = Resource::new(
+        format!("ui://{}/artifact-viewer", config.server_name),
+        "Artifact Viewer",
+    )
+    .with_title(config.title.to_owned())
+    .with_description(config.description.to_owned())
+    .with_mime_type(MCP_APP_MIME_TYPE.to_owned())
+    .with_size(u64::try_from(config.template.len()).unwrap_or(u64::MAX));
+    resource.icons.clone_from(&config.icons);
 
     ListResourcesResult {
         resources: vec![resource],

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use rmcp::ServiceExt;
 use rmcp::model::{
-    CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, RawContent,
+    CallToolRequestParams, ClientCapabilities, ClientInfo, ContentBlock, Implementation,
 };
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -111,36 +111,42 @@ pub(super) async fn list_available_tools(
     Ok(tool_names)
 }
 
-pub(super) fn convert_content(raw: &RawContent) -> McpToolContent {
-    match raw {
-        RawContent::Text(text) => McpToolContent {
+pub(super) fn convert_content(content: &ContentBlock) -> McpToolContent {
+    match content {
+        ContentBlock::Text(text) => McpToolContent {
             kind: "text".to_owned(),
             text: Some(text.text.clone()),
             mime_type: None,
             data: None,
         },
-        RawContent::Image(image) => McpToolContent {
+        ContentBlock::Image(image) => McpToolContent {
             kind: "image".to_owned(),
             text: None,
             mime_type: Some(image.mime_type.clone()),
             data: Some(image.data.clone()),
         },
-        RawContent::Resource(resource) => McpToolContent {
+        ContentBlock::Resource(resource) => McpToolContent {
             kind: "resource".to_owned(),
             text: Some(format!("{:?}", resource.resource)),
             mime_type: None,
             data: None,
         },
-        RawContent::Audio(audio) => McpToolContent {
+        ContentBlock::Audio(audio) => McpToolContent {
             kind: "audio".to_owned(),
             text: None,
             mime_type: Some(audio.mime_type.clone()),
             data: Some(audio.data.clone()),
         },
-        RawContent::ResourceLink(link) => McpToolContent {
+        ContentBlock::ResourceLink(link) => McpToolContent {
             kind: "resource_link".to_owned(),
             text: Some(link.uri.clone()),
             mime_type: link.mime_type.clone(),
+            data: None,
+        },
+        _ => McpToolContent {
+            kind: "unknown".to_owned(),
+            text: None,
+            mime_type: None,
             data: None,
         },
     }

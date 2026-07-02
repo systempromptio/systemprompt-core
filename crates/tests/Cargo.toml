@@ -184,7 +184,7 @@ schemars = { version = "1.2", features = ["derive"] }
 url = "2.5"
 
 # MCP
-rmcp = { version = "1.8", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
+rmcp = { version = "2.0", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client"] }
 
 # Security
 rand = "0.10"

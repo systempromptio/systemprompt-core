@@ -8,7 +8,7 @@
 
 use crate::services::shared::Result;
 use async_trait::async_trait;
-use rmcp::model::Content;
+use rmcp::model::ContentBlock;
 use serde_json::Value;
 use std::time::Instant;
 
@@ -244,9 +244,9 @@ pub fn convert_to_call_tool_results(state: &ExecutionState) -> Vec<CallToolResul
             };
 
             let mut result = if r.success {
-                CallToolResult::success(vec![Content::text(text_content)])
+                CallToolResult::success(vec![ContentBlock::text(text_content)])
             } else {
-                CallToolResult::error(vec![Content::text(text_content)])
+                CallToolResult::error(vec![ContentBlock::text(text_content)])
             };
             result.structured_content = Some(r.output.clone());
             result

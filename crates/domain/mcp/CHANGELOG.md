@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0] - 2026-07-02
+
+### Breaking
+
+- rmcp is upgraded to 2.x (MCP 2025-11-25 specification alignment). Public surfaces that carried `Content`/`RawContent` now use `rmcp::model::ContentBlock`; resource metadata is built through the `Resource` builder and resource sizes are `u64`. The JSON wire format is unchanged.
+- The minimum supported Rust version is 1.94.
+
 ## [0.18.0] - 2026-07-01
 
 ### Added

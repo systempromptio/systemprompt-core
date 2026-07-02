@@ -1,7 +1,7 @@
 use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
 use crate::schema::McpOutputSchema;
 use rmcp::ErrorData as McpError;
-use rmcp::model::{CallToolResult, Content};
+use rmcp::model::{CallToolResult, ContentBlock};
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -96,7 +96,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
 
         tracing::info!(artifact_id = %artifact_id, server = %create_artifact.server_name, "Artifact persisted");
 
-        let mut result = CallToolResult::success(vec![Content::text(summary_str)]);
+        let mut result = CallToolResult::success(vec![ContentBlock::text(summary_str)]);
         result.structured_content = Some(structured_content);
         if let Some(meta) = meta_for_result {
             result = result.with_meta(Some(meta));
@@ -155,6 +155,6 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
     pub fn build_error(error_message: impl Into<String>) -> CallToolResult {
         let error_text = error_message.into();
 
-        CallToolResult::error(vec![Content::text(error_text)])
+        CallToolResult::error(vec![ContentBlock::text(error_text)])
     }
 }

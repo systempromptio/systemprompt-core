@@ -129,11 +129,7 @@ fn success_outcome(
     tool_name: &str,
     execution_time_ms: u64,
 ) -> (McpCallOutput, Option<String>) {
-    let content: Vec<McpToolContent> = tool_result
-        .content
-        .iter()
-        .map(|c| convert_content(&c.raw))
-        .collect();
+    let content: Vec<McpToolContent> = tool_result.content.iter().map(convert_content).collect();
     let is_error = tool_result.is_error.unwrap_or(false);
     let failure = is_error.then(|| {
         let detail = content

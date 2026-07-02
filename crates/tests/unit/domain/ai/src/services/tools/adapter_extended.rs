@@ -1,4 +1,4 @@
-use rmcp::model::{Annotated, RawContent, RawTextContent};
+use rmcp::model::ContentBlock;
 use serde_json::json;
 use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_ai::services::tools::{
@@ -157,14 +157,8 @@ mod mcp_tool_with_model_config_tests {
 mod trait_result_roundtrip_tests {
     use super::*;
 
-    fn create_text_content(text: &str) -> Annotated<RawContent> {
-        Annotated {
-            raw: RawContent::Text(RawTextContent {
-                text: text.to_string(),
-                meta: None,
-            }),
-            annotations: None,
-        }
+    fn create_text_content(text: &str) -> ContentBlock {
+        ContentBlock::text(text.to_string())
     }
 
     #[test]
@@ -226,8 +220,8 @@ mod trait_result_roundtrip_tests {
 
         let rmcp = trait_result_to_rmcp_result(&trait_result);
 
-        match &rmcp.content[0].raw {
-            RawContent::ResourceLink(res) => {
+        match &rmcp.content[0] {
+            ContentBlock::ResourceLink(res) => {
                 assert_eq!(res.uri, "https://example.com/data.json");
                 assert_eq!(res.name, "https://example.com/data.json");
             },
@@ -249,8 +243,8 @@ mod trait_result_roundtrip_tests {
 
         let rmcp = trait_result_to_rmcp_result(&trait_result);
 
-        match &rmcp.content[0].raw {
-            RawContent::ResourceLink(res) => {
+        match &rmcp.content[0] {
+            ContentBlock::ResourceLink(res) => {
                 assert!(res.mime_type.is_none());
             },
             _ => panic!("Expected ResourceLink"),

@@ -15,7 +15,7 @@ fn build_artifact_viewer_empty_icons() {
     };
     let result = build_artifact_viewer_resource(&config);
     assert_eq!(result.resources.len(), 1);
-    let icons = result.resources[0].raw.icons.as_ref().expect("icons");
+    let icons = result.resources[0].icons.as_ref().expect("icons");
     assert!(icons.is_empty());
 }
 
@@ -29,7 +29,7 @@ fn build_artifact_viewer_none_icons() {
         icons: None,
     };
     let result = build_artifact_viewer_resource(&config);
-    assert!(result.resources[0].raw.icons.is_none());
+    assert!(result.resources[0].icons.is_none());
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn build_artifact_viewer_size_zero_for_empty_template() {
         icons: None,
     };
     let result = build_artifact_viewer_resource(&config);
-    assert_eq!(result.resources[0].raw.size, Some(0));
+    assert_eq!(result.resources[0].size, Some(0));
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn build_artifact_viewer_large_template_size() {
         icons: None,
     };
     let result = build_artifact_viewer_resource(&config);
-    assert_eq!(result.resources[0].raw.size, Some(100_000));
+    assert_eq!(result.resources[0].size, Some(100_000));
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn build_artifact_viewer_uri_scheme_is_ui() {
         icons: None,
     };
     let result = build_artifact_viewer_resource(&config);
-    let uri = &result.resources[0].raw.uri;
+    let uri = &result.resources[0].uri;
     assert!(uri.starts_with("ui://"));
 }
 

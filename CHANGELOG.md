@@ -5,6 +5,7 @@
 ### Breaking
 
 - The minimum supported Rust version is 1.94.
+- rmcp is upgraded to 2.x (MCP 2025-11-25 specification alignment, including the upstream OAuth resource-spoofing, OAuth metadata SSRF, and streamable-HTTP session-leak fixes). Crates that re-export rmcp types in public signatures (`systemprompt-models`, `systemprompt-mcp`) now use `ContentBlock` in place of the removed `Content`/`RawContent` pair; migrate matches on `content.raw` to match the `ContentBlock` enum directly and construct wire types through their builders (`ContentBlock::text(..)`, `Resource::new(..)`). The JSON wire format is unchanged.
 - SQLx is upgraded to 0.9. Crates that expose SQLx types (`systemprompt-database`) now build against sqlx 0.9; downstream consumers must upgrade in lockstep.
 - `MarketplaceCandidate::new` takes an additional `artifacts: Vec<ArtifactEntry>` argument, and `CatalogContent::into_parts` returns a 4-tuple including the artifact set. Migrate by passing `Vec::new()` / destructuring the extra element where artifacts are not used.
 

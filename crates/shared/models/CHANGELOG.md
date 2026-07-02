@@ -2,6 +2,11 @@
 
 ## [0.19.0] - 2026-07-02
 
+### Breaking
+
+- rmcp is upgraded to 2.x; helpers that traffic in tool-result content (`ToolResultFormatter`, `CallToolResultExt`) now operate on `rmcp::model::ContentBlock` in place of the removed `Content`/`RawContent` pair. Migrate matches on `content.raw` to match `ContentBlock` directly (the enum is `#[non_exhaustive]`, so include a `_` arm).
+- The minimum supported Rust version is 1.94.
+
 ### Added
 
 - `SignedManifest.artifacts`: a signed manifest section of Cowork Artifacts-library HTML documents (`ArtifactEntry`, keyed by the new `LibraryArtifactId`). These are Cowork-native library documents, distinct from the in-chat MCP artifacts.
