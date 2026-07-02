@@ -141,7 +141,7 @@ fn test_file_role_serialize_inline() {
 #[test]
 fn test_file_role_serialize_og_image() {
     let json = serde_json::to_string(&FileRole::OgImage).unwrap();
-    assert_eq!(json, "\"ogimage\"");
+    assert_eq!(json, "\"og_image\"");
 }
 
 #[test]
@@ -167,57 +167,31 @@ fn test_file_role_as_str_parse_roundtrip() {
     }
 }
 
-fn create_test_content_file(role: &str) -> ContentFile {
+fn create_test_content_file(role: FileRole) -> ContentFile {
     ContentFile {
         id: 1,
         content_id: ContentId::new("content_123"),
         file_id: uuid::Uuid::new_v4(),
-        role: role.to_string(),
+        role,
         display_order: 0,
         created_at: Utc::now(),
     }
 }
 
 #[test]
-fn test_content_file_parsed_role_featured() {
-    let file = create_test_content_file("featured");
-    let role = file.parsed_role().unwrap();
-    assert!(matches!(role, FileRole::Featured));
-}
-
-#[test]
-fn test_content_file_parsed_role_attachment() {
-    let file = create_test_content_file("attachment");
-    let role = file.parsed_role().unwrap();
-    assert!(matches!(role, FileRole::Attachment));
-}
-
-#[test]
-fn test_content_file_parsed_role_inline() {
-    let file = create_test_content_file("inline");
-    let role = file.parsed_role().unwrap();
-    assert!(matches!(role, FileRole::Inline));
-}
-
-#[test]
-fn test_content_file_parsed_role_og_image() {
-    let file = create_test_content_file("og_image");
-    let role = file.parsed_role().unwrap();
-    assert!(matches!(role, FileRole::OgImage));
-}
-
-#[test]
-fn test_content_file_parsed_role_thumbnail() {
-    let file = create_test_content_file("thumbnail");
-    let role = file.parsed_role().unwrap();
-    assert!(matches!(role, FileRole::Thumbnail));
-}
-
-#[test]
-fn test_content_file_parsed_role_invalid() {
-    let file = create_test_content_file("invalid_role");
-    let result = file.parsed_role();
-    result.unwrap_err();
+fn test_content_file_role_roundtrip() {
+    let roles = [
+        FileRole::Featured,
+        FileRole::Attachment,
+        FileRole::Inline,
+        FileRole::OgImage,
+        FileRole::Thumbnail,
+    ];
+    for role in roles {
+        let file = create_test_content_file(role);
+        assert_eq!(file.role, role);
+        assert_eq!(FileRole::parse(file.role.as_str()).unwrap(), role);
+    }
 }
 
 #[test]
@@ -230,7 +204,7 @@ fn test_content_file_struct_fields() {
         id: 42,
         content_id: content_id.clone(),
         file_id,
-        role: "attachment".to_string(),
+        role: FileRole::Attachment,
         display_order: 5,
         created_at: now,
     };
@@ -238,13 +212,13 @@ fn test_content_file_struct_fields() {
     assert_eq!(file.id, 42);
     assert_eq!(file.content_id.as_str(), "content_test");
     assert_eq!(file.file_id, file_id);
-    assert_eq!(file.role, "attachment");
+    assert_eq!(file.role, FileRole::Attachment);
     assert_eq!(file.display_order, 5);
 }
 
 #[test]
 fn test_content_file_clone() {
-    let file = create_test_content_file("featured");
+    let file = create_test_content_file(FileRole::Featured);
     let cloned = file.clone();
 
     assert_eq!(file.id, cloned.id);
@@ -254,16 +228,16 @@ fn test_content_file_clone() {
 
 #[test]
 fn test_content_file_debug() {
-    let file = create_test_content_file("attachment");
+    let file = create_test_content_file(FileRole::Attachment);
     let debug_str = format!("{:?}", file);
 
     assert!(debug_str.contains("ContentFile"));
-    assert!(debug_str.contains("attachment"));
+    assert!(debug_str.contains("Attachment"));
 }
 
 #[test]
 fn test_content_file_serialization() {
-    let file = create_test_content_file("inline");
+    let file = create_test_content_file(FileRole::Inline);
     let json = serde_json::to_string(&file).unwrap();
 
     assert!(json.contains("\"role\":\"inline\""));

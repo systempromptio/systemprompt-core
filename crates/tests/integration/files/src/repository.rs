@@ -465,8 +465,8 @@ async fn test_file_repository_update_metadata() {
         "file id should be unchanged"
     );
     assert!(
-        file.metadata.is_object(),
-        "metadata should be a JSON object"
+        file.metadata.0.checksums.is_none(),
+        "metadata should round-trip as empty"
     );
 
     let _ = repo.delete(&request.id).await;
@@ -490,7 +490,7 @@ async fn test_file_repository_insert_file() {
         mime_type: "image/png".to_string(),
         size_bytes: Some(2048),
         ai_content: true,
-        metadata: serde_json::json!({}),
+        metadata: systemprompt_database::Json(FileMetadata::default()),
         user_id: Some(UserId::new("user_insert_file")),
         session_id: None,
         trace_id: None,

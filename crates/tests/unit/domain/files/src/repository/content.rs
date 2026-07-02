@@ -81,7 +81,7 @@ async fn link_to_content_persists_association() {
         .expect("link");
 
     assert_eq!(link.content_id.as_str(), content_id.as_str());
-    assert_eq!(link.role, FileRole::Attachment.as_str());
+    assert_eq!(link.role, FileRole::Attachment);
     assert_eq!(link.display_order, 3);
 
     cleanup_file(&repo, &file_id).await;
@@ -302,7 +302,7 @@ async fn set_featured_demotes_existing_and_promotes_target() {
         .expect("list old");
     assert_eq!(
         old_links[0].role,
-        FileRole::Attachment.as_str(),
+        FileRole::Attachment,
         "previous featured demoted to attachment"
     );
 

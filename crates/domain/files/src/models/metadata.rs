@@ -4,7 +4,9 @@
 //! [`FileChecksums`] and a [`TypeSpecificMetadata`] variant
 //! ([`DocumentMetadata`], [`AudioMetadata`], or [`VideoMetadata`]; image detail
 //! lives in the sibling `image_metadata` module). Each type offers a builder
-//! API for incremental construction.
+//! API for incremental construction. Unrecognised keys on stored rows are
+//! preserved verbatim in [`FileMetadata::extra`], so arbitrary historical
+//! shapes decode losslessly.
 
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +19,9 @@ pub struct FileMetadata {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub type_specific: Option<TypeSpecificMetadata>,
+
+    #[serde(flatten)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,11 +82,8 @@ pub struct FileChecksums {
 }
 
 impl FileMetadata {
-    pub const fn new() -> Self {
-        Self {
-            checksums: None,
-            type_specific: None,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn with_image(mut self, image: ImageMetadata) -> Self {

@@ -215,9 +215,6 @@ async fn insert_file_record(
 
 fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
     let now = Utc::now();
-    let metadata = serde_json::to_value(FileMetadata::default())
-        .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize default FileMetadata"))
-        .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
 
     File {
         id: uuid::Uuid::new_v4(),
@@ -231,7 +228,7 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
             )
             .ok(),
         ai_content: path.to_string_lossy().contains(storage::GENERATED),
-        metadata,
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,
         session_id: None,
         trace_id: None,

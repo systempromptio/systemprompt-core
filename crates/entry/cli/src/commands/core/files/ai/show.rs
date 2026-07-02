@@ -70,9 +70,7 @@ fn parse_file_id(id: &str) -> Result<FileId> {
 }
 
 fn convert_metadata(file: &systemprompt_files::File) -> FileMetadataOutput {
-    let Ok(metadata) = file.metadata() else {
-        return FileMetadataOutput::default();
-    };
+    let metadata = file.metadata.0.clone();
 
     let checksums = metadata.checksums.map(|c| ChecksumsOutput {
         md5: c.md5,

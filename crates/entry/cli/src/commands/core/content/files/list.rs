@@ -34,7 +34,7 @@ pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<Comma
                     file_id: FileId::new(file.id.to_string()),
                     path: file.path,
                     mime_type: file.mime_type,
-                    role: content_file.role,
+                    role: content_file.role.to_string(),
                     display_order: content_file.display_order,
                 })
                 .collect();
@@ -55,7 +55,7 @@ pub(super) async fn execute(args: ListArgs, _config: &CliConfig) -> Result<Comma
                 .into_iter()
                 .map(|cf| FileContentLinkRow {
                     content_id: cf.content_id,
-                    role: cf.role,
+                    role: cf.role.to_string(),
                     display_order: cf.display_order,
                     created_at: cf.created_at,
                 })

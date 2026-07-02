@@ -14,7 +14,7 @@ fn create_test_file() -> File {
         mime_type: "image/png".to_string(),
         size_bytes: Some(1024),
         ai_content: false,
-        metadata: serde_json::json!({}),
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,
         session_id: None,
         trace_id: None,
@@ -34,7 +34,7 @@ fn create_test_file_with_metadata(metadata: FileMetadata) -> File {
         mime_type: "image/png".to_string(),
         size_bytes: Some(2048),
         ai_content: true,
-        metadata: serde_json::to_value(metadata).unwrap(),
+        metadata: sqlx::types::Json(metadata),
         user_id: Some(fixture_user_id()),
         session_id: Some(SessionId::new("sess_456")),
         trace_id: Some(TraceId::new("trace_789")),
@@ -64,7 +64,7 @@ fn test_file_id_format() {
         mime_type: "image/png".to_string(),
         size_bytes: None,
         ai_content: false,
-        metadata: serde_json::json!({}),
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,
         session_id: None,
         trace_id: None,
@@ -86,7 +86,7 @@ fn test_file_id_format() {
 #[test]
 fn test_file_metadata_empty() {
     let file = create_test_file();
-    let metadata = file.metadata().unwrap();
+    let metadata = &file.metadata.0;
 
     assert!(metadata.checksums.is_none());
     assert!(metadata.type_specific.is_none());
@@ -101,7 +101,7 @@ fn test_file_metadata_with_image() {
     let file_meta = FileMetadata::new().with_image(image_meta);
     let file = create_test_file_with_metadata(file_meta);
 
-    let metadata = file.metadata().unwrap();
+    let metadata = &file.metadata.0;
     metadata
         .type_specific
         .as_ref()
@@ -119,7 +119,7 @@ fn test_file_metadata_with_checksums() {
     let file_meta = FileMetadata::new().with_checksums(checksums);
     let file = create_test_file_with_metadata(file_meta);
 
-    let metadata = file.metadata().unwrap();
+    let metadata = file.metadata.0.clone();
     metadata
         .checksums
         .as_ref()
@@ -133,30 +133,6 @@ fn test_file_metadata_with_checksums() {
 }
 
 #[test]
-fn test_file_metadata_invalid_json() {
-    let now = Utc::now();
-    let file = File {
-        id: uuid::Uuid::new_v4(),
-        path: "/test.png".to_string(),
-        public_url: "/files/test.png".to_string(),
-        mime_type: "image/png".to_string(),
-        size_bytes: None,
-        ai_content: false,
-        metadata: serde_json::json!("not an object"),
-        user_id: None,
-        session_id: None,
-        trace_id: None,
-        context_id: None,
-        created_at: now,
-        updated_at: now,
-        deleted_at: None,
-    };
-
-    let result = file.metadata();
-    result.unwrap_err();
-}
-
-#[test]
 fn test_file_with_all_optional_ids() {
     let now = Utc::now();
     let file = File {
@@ -166,7 +142,7 @@ fn test_file_with_all_optional_ids() {
         mime_type: "image/png".to_string(),
         size_bytes: Some(4096),
         ai_content: true,
-        metadata: serde_json::json!({}),
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: Some(fixture_user_id()),
         session_id: Some(SessionId::new("session_def")),
         trace_id: Some(TraceId::new("trace_ghi")),
@@ -205,7 +181,7 @@ fn test_file_deleted_at() {
         mime_type: "image/png".to_string(),
         size_bytes: None,
         ai_content: false,
-        metadata: serde_json::json!({}),
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,
         session_id: None,
         trace_id: None,
@@ -224,7 +200,7 @@ fn test_file_deleted_at() {
         mime_type: "image/png".to_string(),
         size_bytes: None,
         ai_content: false,
-        metadata: serde_json::json!({}),
+        metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,
         session_id: None,
         trace_id: None,

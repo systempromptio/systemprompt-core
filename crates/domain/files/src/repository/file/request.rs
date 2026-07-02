@@ -1,5 +1,7 @@
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
+use crate::models::FileMetadata;
+
 #[derive(Debug, Clone)]
 pub struct InsertFileRequest {
     pub id: FileId,
@@ -8,7 +10,7 @@ pub struct InsertFileRequest {
     pub mime_type: String,
     pub size_bytes: Option<i64>,
     pub ai_content: bool,
-    pub metadata: serde_json::Value,
+    pub metadata: FileMetadata,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
@@ -29,7 +31,7 @@ impl InsertFileRequest {
             mime_type: mime_type.into(),
             size_bytes: None,
             ai_content: false,
-            metadata: serde_json::Value::Object(serde_json::Map::new()),
+            metadata: FileMetadata::default(),
             user_id: None,
             session_id: None,
             trace_id: None,
@@ -47,7 +49,7 @@ impl InsertFileRequest {
         self
     }
 
-    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+    pub fn with_metadata(mut self, metadata: FileMetadata) -> Self {
         self.metadata = metadata;
         self
     }

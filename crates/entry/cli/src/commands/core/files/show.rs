@@ -71,9 +71,7 @@ async fn find_file(service: &FileRepository, identifier: &str) -> Result<File> {
 }
 
 fn convert_metadata(file: &File) -> FileMetadataOutput {
-    let Ok(metadata) = file.metadata() else {
-        return FileMetadataOutput::default();
-    };
+    let metadata = file.metadata.0.clone();
 
     let checksums = metadata.checksums.map(|c| ChecksumsOutput {
         md5: c.md5,

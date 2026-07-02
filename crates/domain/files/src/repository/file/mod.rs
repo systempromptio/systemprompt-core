@@ -60,7 +60,7 @@ impl FileRepository {
                 ai_content = EXCLUDED.ai_content,
                 metadata = EXCLUDED.metadata,
                 updated_at = EXCLUDED.updated_at
-            RETURNING id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
+            RETURNING id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             "#,
             id_uuid,
             request.path,
@@ -68,7 +68,7 @@ impl FileRepository {
             request.mime_type,
             request.size_bytes,
             request.ai_content,
-            request.metadata,
+            sqlx::types::Json(&request.metadata) as _,
             user_id_str,
             session_id_str,
             trace_id_str,
@@ -91,7 +91,7 @@ impl FileRepository {
             file.mime_type.clone(),
         )
         .with_ai_content(file.ai_content)
-        .with_metadata(file.metadata.clone());
+        .with_metadata(file.metadata.0.clone());
 
         if let Some(size) = file.size_bytes {
             request = request.with_size(size);
@@ -123,7 +123,7 @@ impl FileRepository {
         let result = sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE id = $1 AND deleted_at IS NULL
             "#,
@@ -139,7 +139,7 @@ impl FileRepository {
         let result = sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE path = $1 AND deleted_at IS NULL
             "#,
@@ -161,7 +161,7 @@ impl FileRepository {
         let result = sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE user_id = $1 AND deleted_at IS NULL
             ORDER BY created_at DESC
@@ -181,7 +181,7 @@ impl FileRepository {
         let result = sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>", user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE deleted_at IS NULL
             ORDER BY created_at DESC
@@ -216,8 +216,6 @@ impl FileRepository {
     pub async fn update_metadata(&self, id: &FileId, metadata: &FileMetadata) -> FilesResult<()> {
         let id_uuid = uuid::Uuid::parse_str(id.as_str())
             .map_err(|e| FilesError::Validation(format!("Invalid UUID for file id: {e}")))?;
-        let metadata_json = serde_json::to_value(metadata)
-            .map_err(|e| FilesError::Validation(format!("Failed to serialize metadata: {e}")))?;
         let now = Utc::now();
 
         sqlx::query!(
@@ -226,7 +224,7 @@ impl FileRepository {
             SET metadata = $1, updated_at = $2
             WHERE id = $3
             "#,
-            metadata_json,
+            sqlx::types::Json(metadata) as _,
             now,
             id_uuid
         )
@@ -241,7 +239,7 @@ impl FileRepository {
         let result = sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata,
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata as "metadata: sqlx::types::Json<FileMetadata>",
                    user_id as "user_id: UserId", session_id as "session_id: SessionId",
                    trace_id as "trace_id: TraceId", context_id as "context_id: ContextId",
                    created_at, updated_at, deleted_at

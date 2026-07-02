@@ -5,8 +5,9 @@ use systemprompt_identifiers::ContentId;
 
 use crate::error::{FilesError, FilesResult};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(rename_all = "snake_case")]
 pub enum FileRole {
     Featured,
     #[default]
@@ -52,13 +53,7 @@ pub struct ContentFile {
     pub id: i32,
     pub content_id: ContentId,
     pub file_id: uuid::Uuid,
-    pub role: String,
+    pub role: FileRole,
     pub display_order: i32,
     pub created_at: DateTime<Utc>,
-}
-
-impl ContentFile {
-    pub fn parsed_role(&self) -> FilesResult<FileRole> {
-        FileRole::parse(&self.role)
-    }
 }

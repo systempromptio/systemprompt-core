@@ -1,10 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use sqlx::types::Json;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 use super::metadata::FileMetadata;
-use crate::error::FilesResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct File {
@@ -14,7 +14,7 @@ pub struct File {
     pub mime_type: String,
     pub size_bytes: Option<i64>,
     pub ai_content: bool,
-    pub metadata: serde_json::Value,
+    pub metadata: Json<FileMetadata>,
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
@@ -27,9 +27,5 @@ pub struct File {
 impl File {
     pub fn id(&self) -> FileId {
         FileId::new(self.id.to_string())
-    }
-
-    pub fn metadata(&self) -> FilesResult<FileMetadata> {
-        serde_json::from_value(self.metadata.clone()).map_err(Into::into)
     }
 }

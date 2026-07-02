@@ -141,9 +141,6 @@ impl FileUploadService {
 
         let metadata = FileMetadata::new().with_checksums(FileChecksums::new().with_sha256(sha256));
 
-        let metadata_json = serde_json::to_value(&metadata)
-            .map_err(|e| FileUploadError::Database(format!("Failed to serialize metadata: {e}")))?;
-
         let mut insert_request = InsertFileRequest::new(
             file_id.clone(),
             storage_path.to_string_lossy().to_string(),
@@ -151,7 +148,7 @@ impl FileUploadService {
             request.mime_type.clone(),
         )
         .with_size(size_bytes as i64)
-        .with_metadata(metadata_json)
+        .with_metadata(metadata)
         .with_context_id(request.context_id.clone());
 
         if let Some(user_id) = request.user_id.clone() {

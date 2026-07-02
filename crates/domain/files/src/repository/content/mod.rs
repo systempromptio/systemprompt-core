@@ -8,7 +8,7 @@ use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId,
 
 use super::file::FileRepository;
 use crate::error::{FilesError, FilesResult};
-use crate::models::{ContentFile, File, FileRole};
+use crate::models::{ContentFile, File, FileMetadata, FileRole};
 
 impl FileRepository {
     pub async fn link_to_content(
@@ -30,7 +30,7 @@ impl FileRepository {
             VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (content_id, file_id, role) DO UPDATE
             SET display_order = $4
-            RETURNING id, content_id as "content_id: ContentId", file_id, role, display_order, created_at
+            RETURNING id, content_id as "content_id: ContentId", file_id, role as "role: FileRole", display_order, created_at
             "#,
             content_id_str,
             file_id_uuid,
@@ -76,8 +76,8 @@ impl FileRepository {
             r#"
             SELECT
                 f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
-                f.metadata, f.user_id, f.session_id, f.trace_id, f.context_id, f.created_at, f.updated_at, f.deleted_at,
-                cf.id as cf_id, cf.content_id, cf.file_id as cf_file_id, cf.role, cf.display_order, cf.created_at as cf_created_at
+                f.metadata as "metadata: sqlx::types::Json<FileMetadata>", f.user_id, f.session_id, f.trace_id, f.context_id, f.created_at, f.updated_at, f.deleted_at,
+                cf.id as cf_id, cf.content_id, cf.file_id as cf_file_id, cf.role as "role: FileRole", cf.display_order, cf.created_at as cf_created_at
             FROM files f
             INNER JOIN content_files cf ON cf.file_id = f.id
             WHERE cf.content_id = $1 AND f.deleted_at IS NULL
@@ -129,7 +129,7 @@ impl FileRepository {
             File,
             r#"
             SELECT f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
-                   f.metadata, f.user_id as "user_id: UserId", f.session_id as "session_id: SessionId", f.trace_id as "trace_id: TraceId", f.context_id as "context_id: ContextId", f.created_at, f.updated_at, f.deleted_at
+                   f.metadata as "metadata: sqlx::types::Json<FileMetadata>", f.user_id as "user_id: UserId", f.session_id as "session_id: SessionId", f.trace_id as "trace_id: TraceId", f.context_id as "context_id: ContextId", f.created_at, f.updated_at, f.deleted_at
             FROM files f
             INNER JOIN content_files cf ON cf.file_id = f.id
             WHERE cf.content_id = $1
@@ -198,7 +198,7 @@ impl FileRepository {
         let result = sqlx::query_as!(
             ContentFile,
             r#"
-            SELECT id, content_id as "content_id: ContentId", file_id, role, display_order, created_at
+            SELECT id, content_id as "content_id: ContentId", file_id, role as "role: FileRole", display_order, created_at
             FROM content_files
             WHERE file_id = $1
             ORDER BY created_at ASC

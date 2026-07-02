@@ -3,7 +3,7 @@
 //! Note: FileRepository methods require a database connection and are covered
 //! in integration tests. These unit tests focus on InsertFileRequest builder.
 
-use systemprompt_files::InsertFileRequest;
+use systemprompt_files::{FileMetadata, InsertFileRequest};
 use systemprompt_identifiers::{FileId, SessionId, TraceId};
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -30,7 +30,9 @@ fn test_insert_file_request_default_values() {
 
     assert!(request.size_bytes.is_none());
     assert!(!request.ai_content);
-    assert!(request.metadata.is_object());
+    assert!(request.metadata.checksums.is_none());
+    assert!(request.metadata.type_specific.is_none());
+    assert!(request.metadata.extra.is_empty());
     assert!(request.user_id.is_none());
     assert!(request.session_id.is_none());
     assert!(request.trace_id.is_none());
@@ -83,17 +85,17 @@ fn test_insert_file_request_with_ai_content_false() {
 #[test]
 fn test_insert_file_request_with_metadata() {
     let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
-    let metadata = serde_json::json!({
+    let metadata: FileMetadata = serde_json::from_value(serde_json::json!({
         "width": 1920,
         "height": 1080
-    });
+    }))
+    .unwrap();
 
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_metadata(metadata);
 
-    assert!(request.metadata.is_object());
-    assert_eq!(request.metadata["width"], 1920);
-    assert_eq!(request.metadata["height"], 1080);
+    assert_eq!(request.metadata.extra["width"], 1920);
+    assert_eq!(request.metadata.extra["height"], 1080);
 }
 
 #[test]
@@ -141,7 +143,8 @@ fn test_insert_file_request_builder_chain() {
     let user_id = fixture_user_id();
     let session_id = SessionId::new("sess_456");
     let trace_id = TraceId::new("trace_789");
-    let metadata = serde_json::json!({"custom": "value"});
+    let metadata: FileMetadata =
+        serde_json::from_value(serde_json::json!({"custom": "value"})).unwrap();
 
     let request = InsertFileRequest::new(
         file_id.clone(),
@@ -162,7 +165,7 @@ fn test_insert_file_request_builder_chain() {
     assert_eq!(request.mime_type, "image/png");
     assert_eq!(request.size_bytes, Some(2048));
     assert!(request.ai_content);
-    assert_eq!(request.metadata["custom"], "value");
+    assert_eq!(request.metadata.extra["custom"], "value");
     request.user_id.as_ref().expect("user_id should be present");
     request
         .session_id

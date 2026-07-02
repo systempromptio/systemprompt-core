@@ -8,7 +8,27 @@ use systemprompt_traits::{
 
 use crate::config::FilesConfig;
 use crate::error::FilesResult;
+use crate::models::{File, FileMetadata};
 use crate::repository::{FileRepository, InsertFileRequest};
+
+fn to_ai_generated(f: File) -> AiGeneratedFile {
+    AiGeneratedFile {
+        id: f.id,
+        path: f.path,
+        public_url: f.public_url,
+        mime_type: f.mime_type,
+        size_bytes: f.size_bytes,
+        ai_content: f.ai_content,
+        metadata: serde_json::to_value(&f.metadata.0).unwrap_or_default(),
+        user_id: f.user_id,
+        session_id: f.session_id,
+        trace_id: f.trace_id,
+        context_id: f.context_id,
+        created_at: f.created_at,
+        updated_at: f.updated_at,
+        deleted_at: f.deleted_at,
+    }
+}
 
 #[derive(Debug)]
 pub struct FilesAiPersistenceProvider {
@@ -31,10 +51,12 @@ impl FilesAiPersistenceProvider {
 impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     async fn insert_file(&self, params: InsertAiFileParams) -> AiProviderResult<()> {
         let file_id = FileId::new(params.id.to_string());
+        let metadata: FileMetadata = serde_json::from_value(params.metadata)
+            .map_err(|e| AiProviderError::Internal(format!("Invalid file metadata: {e}")))?;
         let mut request =
             InsertFileRequest::new(file_id, params.path, params.public_url, params.mime_type)
                 .with_ai_content(true)
-                .with_metadata(params.metadata);
+                .with_metadata(metadata);
 
         if let Some(size) = params.size_bytes {
             request = request.with_size(size);
@@ -70,22 +92,7 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
             .await
             .map_err(|e| AiProviderError::Internal(e.to_string()))?;
 
-        Ok(file.map(|f| AiGeneratedFile {
-            id: f.id,
-            path: f.path,
-            public_url: f.public_url,
-            mime_type: f.mime_type,
-            size_bytes: f.size_bytes,
-            ai_content: f.ai_content,
-            metadata: f.metadata,
-            user_id: f.user_id,
-            session_id: f.session_id,
-            trace_id: f.trace_id,
-            context_id: f.context_id,
-            created_at: f.created_at,
-            updated_at: f.updated_at,
-            deleted_at: f.deleted_at,
-        }))
+        Ok(file.map(to_ai_generated))
     }
 
     async fn list_by_user(
@@ -100,25 +107,7 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
             .await
             .map_err(|e| AiProviderError::Internal(e.to_string()))?;
 
-        Ok(files
-            .into_iter()
-            .map(|f| AiGeneratedFile {
-                id: f.id,
-                path: f.path,
-                public_url: f.public_url,
-                mime_type: f.mime_type,
-                size_bytes: f.size_bytes,
-                ai_content: f.ai_content,
-                metadata: f.metadata,
-                user_id: f.user_id,
-                session_id: f.session_id,
-                trace_id: f.trace_id,
-                context_id: f.context_id,
-                created_at: f.created_at,
-                updated_at: f.updated_at,
-                deleted_at: f.deleted_at,
-            })
-            .collect())
+        Ok(files.into_iter().map(to_ai_generated).collect())
     }
 
     async fn delete(&self, id: &FileId) -> AiProviderResult<()> {
