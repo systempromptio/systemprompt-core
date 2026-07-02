@@ -198,10 +198,10 @@ governor = "0.10"
 # Metrics / observability
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
-# OTLP export wire types (entry/api). Pinned to the opentelemetry 0.27 / tonic
-# 0.12 stack in use; bump these together when the wider otel stack moves.
-prost = "0.13"
-opentelemetry-proto = { version = "0.27", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
+# OTLP export wire types (entry/api). Pinned to the opentelemetry 0.32 / tonic
+# 0.14 stack in use; bump these together when the wider otel stack moves.
+prost = "0.14"
+opentelemetry-proto = { version = "0.32", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
 
 # CLI (for system crate)
 clap = { version = "4.6", features = ["derive", "env"] }

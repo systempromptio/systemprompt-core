@@ -55,6 +55,7 @@ pub fn any_value_to_string(
         AV::IntValue(i) => i.to_string(),
         AV::DoubleValue(f) => f.to_string(),
         AV::BytesValue(b) => format!("<bytes:{}>", b.len()),
+        AV::StringValueStrindex(idx) => format!("<strindex:{idx}>"),
         AV::ArrayValue(_) | AV::KvlistValue(_) => serde_json::to_string(&any_value_to_json(value))
             .unwrap_or_else(|e| format!("<json-serialise-failed: {e}>")),
     }
@@ -86,6 +87,7 @@ fn any_value_to_json(value: Option<&opentelemetry_proto::tonic::common::v1::AnyV
         AV::IntValue(i) => Value::from(*i),
         AV::DoubleValue(f) => json!(f),
         AV::BytesValue(b) => Value::String(format!("<bytes:{}>", b.len())),
+        AV::StringValueStrindex(idx) => Value::String(format!("<strindex:{idx}>")),
         AV::ArrayValue(arr) => Value::Array(
             arr.values
                 .iter()

@@ -16,6 +16,7 @@ fn any(v: AV) -> AnyValue {
 fn kv(key: &str, v: AV) -> KeyValue {
     KeyValue {
         key: key.to_owned(),
+        key_strindex: 0,
         value: Some(any(v)),
     }
 }
@@ -84,6 +85,7 @@ fn attrs_to_json_builds_nested_object() {
         kv("payload", AV::BytesValue(vec![0; 4])),
         KeyValue {
             key: "missing".to_owned(),
+            key_strindex: 0,
             value: None,
         },
     ];
